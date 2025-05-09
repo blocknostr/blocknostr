@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { nostrService, NostrEvent } from "@/lib/nostr";
-import { Loader2, ArrowLeft, Users, Plus, Check } from "lucide-react";
+import { Loader2, ArrowLeft, Users, Plus, Check, Clock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { formatDistanceToNow } from 'date-fns';
 
 interface Community {
   id: string;
@@ -49,6 +50,9 @@ const CommunityPage = () => {
   const [newProposalTitle, setNewProposalTitle] = useState("");
   const [newProposalDesc, setNewProposalDesc] = useState("");
   const [newProposalOptions, setNewProposalOptions] = useState<string[]>(["Yes", "No"]);
+  const [proposalDuration, setProposalDuration] = useState(7); // Default 7 days
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<Record<string, string>>({});
   
   const currentUserPubkey = nostrService.publicKey;
   const isMember = community?.members.includes(currentUserPubkey || '') || false;
@@ -83,6 +87,30 @@ const CommunityPage = () => {
     
     loadCommunity();
   }, [id]);
+  
+  // Timer for proposal countdowns
+  useEffect(() => {
+    const updateCountdowns = () => {
+      const now = Math.floor(Date.now() / 1000);
+      const newTimeLeft: Record<string, string> = {};
+      
+      proposals.forEach(proposal => {
+        if (proposal.endsAt > now) {
+          const secondsLeft = proposal.endsAt - now;
+          newTimeLeft[proposal.id] = formatDistanceToNow(new Date(proposal.endsAt * 1000), { addSuffix: true });
+        } else {
+          newTimeLeft[proposal.id] = "Ended";
+        }
+      });
+      
+      setTimeLeft(newTimeLeft);
+    };
+    
+    updateCountdowns();
+    const interval = setInterval(updateCountdowns, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, [proposals]);
   
   const handleCommunityEvent = (event: NostrEvent) => {
     try {
@@ -236,11 +264,15 @@ const CommunityPage = () => {
     setIsCreatingProposal(true);
     
     try {
+      // Calculate endsAt based on the proposalDuration in days
+      const endsAt = Math.floor(Date.now() / 1000) + (proposalDuration * 24 * 60 * 60);
+      
       const proposalId = await nostrService.createProposal(
         community.id,
         newProposalTitle.trim(),
         newProposalDesc.trim(),
-        newProposalOptions.filter(opt => opt.trim() !== "")
+        newProposalOptions.filter(opt => opt.trim() !== ""),
+        endsAt
       );
       
       if (proposalId) {
@@ -248,6 +280,8 @@ const CommunityPage = () => {
         setNewProposalTitle("");
         setNewProposalDesc("");
         setNewProposalOptions(["Yes", "No"]);
+        setProposalDuration(7);
+        setIsDialogOpen(false); // Close the dialog after successful creation
       }
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -263,9 +297,27 @@ const CommunityPage = () => {
       return;
     }
     
+    // Check if user already voted for this option
+    if (proposal.votes[currentUserPubkey] === optionIndex) {
+      toast.info("You already voted for this option");
+      return;
+    }
+    
     try {
       await nostrService.voteOnProposal(proposal.id, optionIndex);
       toast.success("Vote recorded!");
+      
+      // Optimistically update the UI to show the new vote
+      setProposals(prev => {
+        return prev.map(p => {
+          if (p.id === proposal.id) {
+            const updatedVotes = {...p.votes};
+            updatedVotes[currentUserPubkey] = optionIndex;
+            return {...p, votes: updatedVotes};
+          }
+          return p;
+        });
+      });
     } catch (error) {
       console.error("Error voting:", error);
       toast.error("Failed to record vote");
@@ -437,7 +489,7 @@ const CommunityPage = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold">Community Proposals</h3>
                 {(isMember || isCreator) && (
-                  <Dialog>
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="h-4 w-4 mr-2" />
@@ -463,6 +515,23 @@ const CommunityPage = () => {
                             onChange={(e) => setNewProposalDesc(e.target.value)}
                             rows={4}
                           />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Voting Period</p>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="range" 
+                              min="1" 
+                              max="30" 
+                              value={proposalDuration} 
+                              onChange={(e) => setProposalDuration(parseInt(e.target.value))}
+                              className="flex-1"
+                            />
+                            <span className="min-w-[100px] text-sm flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {proposalDuration} {proposalDuration === 1 ? 'day' : 'days'}
+                            </span>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <p className="text-sm font-medium">Options</p>
@@ -534,12 +603,24 @@ const CommunityPage = () => {
                       <Card key={proposal.id} className="overflow-hidden">
                         <CardHeader className="pb-2">
                           <CardTitle>{proposal.title}</CardTitle>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <span>{totalVotes} votes</span>
-                            <span className="mx-2">•</span>
-                            <span className={isActive ? "text-green-500" : "text-red-500"}>
-                              {isActive ? "Active" : "Closed"}
-                            </span>
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <span>{totalVotes} votes</span>
+                              <span className="mx-2">•</span>
+                              <span className={isActive ? "text-green-500 flex items-center gap-1" : "text-red-500"}>
+                                {isActive ? (
+                                  <>
+                                    <Clock className="h-4 w-4" />
+                                    {timeLeft[proposal.id] || "Active"}
+                                  </>
+                                ) : "Closed"}
+                              </span>
+                            </div>
+                            {userVote !== -1 && (
+                              <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs flex items-center">
+                                <Check className="h-3 w-3 mr-1" /> Voted
+                              </span>
+                            )}
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -573,19 +654,24 @@ const CommunityPage = () => {
                         </CardContent>
                         <CardFooter>
                           <div className="w-full flex flex-wrap gap-2">
-                            {isActive && currentUserPubkey && (isMember || isCreator) && (
+                            {isActive && currentUserPubkey && (isMember || isCreator) && userVote === -1 && (
                               proposal.options.map((option, index) => (
                                 <Button
                                   key={index}
-                                  variant={userVote === index ? "default" : "outline"}
+                                  variant="outline"
                                   size="sm"
                                   className="flex-1"
                                   onClick={() => handleVote(proposal, index)}
                                 >
-                                  {userVote === index && <Check className="h-3 w-3 mr-1" />}
                                   {option}
                                 </Button>
                               ))
+                            )}
+                            {isActive && userVote !== -1 && (
+                              <div className="w-full text-center text-sm">
+                                <span className="text-primary font-medium">You voted for: </span>
+                                {proposal.options[userVote]}
+                              </div>
                             )}
                             {!isActive && (
                               <div className="w-full text-center text-sm text-muted-foreground">

@@ -1,4 +1,3 @@
-
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 
@@ -529,19 +528,20 @@ class NostrService {
     }
   }
   
-  public async createProposal(communityId: string, title: string, description: string, options: string[]): Promise<string | null> {
+  public async createProposal(communityId: string, title: string, description: string, options: string[], endsAt?: number): Promise<string | null> {
     if (!this._publicKey) {
       toast.error("You must be logged in to create a proposal");
       return null;
     }
     
     try {
+      const currentTime = Math.floor(Date.now() / 1000);
       const proposalData = {
         title,
         description,
         options,
-        createdAt: Math.floor(Date.now() / 1000),
-        endsAt: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 // 1 week voting period
+        createdAt: currentTime,
+        endsAt: endsAt || (currentTime + 7 * 24 * 60 * 60) // Use provided endsAt or default to 1 week
       };
       
       // Create proposal event
