@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Send } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Message {
   id: string;
@@ -36,6 +37,7 @@ const MessagingSystem = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
   
   useEffect(() => {
     if (!currentUserPubkey) return;
@@ -70,6 +72,23 @@ const MessagingSystem = () => {
         contactPubkeys.add(pubkey);
       });
       
+      // Check if we should load a specific contact from profile page
+      const lastMessagedUser = localStorage.getItem('lastMessagedUser');
+      if (lastMessagedUser) {
+        try {
+          const pubkey = lastMessagedUser.startsWith('npub1') 
+            ? nostrService.getHexFromNpub(lastMessagedUser)
+            : lastMessagedUser;
+            
+          contactPubkeys.add(pubkey);
+          
+          // Clear the localStorage item
+          localStorage.removeItem('lastMessagedUser');
+        } catch (e) {
+          console.error("Error processing lastMessagedUser:", e);
+        }
+      }
+      
       // Load profiles for all contacts
       const profilePromises = Array.from(contactPubkeys).map(pubkey => 
         fetchProfileForContact(pubkey)
@@ -77,7 +96,20 @@ const MessagingSystem = () => {
       
       try {
         const contactProfiles = await Promise.all(profilePromises);
-        setContacts(contactProfiles.filter(Boolean) as Contact[]);
+        const validContacts = contactProfiles.filter(Boolean) as Contact[];
+        setContacts(validContacts);
+        
+        // If we have a lastMessagedUser, activate it
+        if (lastMessagedUser) {
+          const pubkey = lastMessagedUser.startsWith('npub1') 
+            ? nostrService.getHexFromNpub(lastMessagedUser)
+            : lastMessagedUser;
+            
+          const contact = validContacts.find(c => c.pubkey === pubkey);
+          if (contact) {
+            loadMessagesForContact(contact);
+          }
+        }
       } catch (error) {
         console.error("Error loading contact profiles:", error);
       }
@@ -276,8 +308,17 @@ const MessagingSystem = () => {
       // Use NIP-17 for direct messages (kind 14)
       await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
       setNewMessage("");
+      toast({
+        title: "Message sent",
+        description: "Your encrypted message has been sent"
+      });
     } catch (error) {
       console.error("Error sending message:", error);
+      toast({
+        title: "Failed to send message",
+        description: "Please try again later",
+        variant: "destructive"
+      });
     } finally {
       setSendingMessage(false);
     }

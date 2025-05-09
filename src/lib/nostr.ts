@@ -1,4 +1,3 @@
-
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 
@@ -462,7 +461,7 @@ class NostrService {
     }
   }
   
-  // Messaging
+  // Messaging with NIP-17
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     if (!this._publicKey) {
       toast.error("You must be logged in to send messages");
@@ -482,7 +481,7 @@ class NostrService {
       
       // Create the direct message event (NIP-17)
       const event = {
-        kind: EVENT_KINDS.ENCRYPTED_DM,
+        kind: EVENT_KINDS.ENCRYPTED_DM, // Using kind 14 (NIP-17)
         content: encryptedContent,
         tags: [
           ['p', recipientPubkey]

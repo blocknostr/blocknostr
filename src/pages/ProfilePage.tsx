@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { NostrEvent, nostrService, Relay } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import FollowButton from "@/components/FollowButton";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, MessageSquare, Plus } from "lucide-react";
 
 interface ProfileData {
   name?: string;
@@ -24,6 +24,7 @@ interface ProfileData {
 
 const ProfilePage = () => {
   const { npub } = useParams();
+  const navigate = useNavigate();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,6 +148,16 @@ const ProfilePage = () => {
     toast.success(`Removed relay: ${relayUrl}`);
   };
   
+  const handleMessageUser = () => {
+    if (!npub) return;
+    
+    // Navigate to messages page
+    navigate('/messages');
+    
+    // We'll let the messages page handle loading the contact
+    localStorage.setItem('lastMessagedUser', npub);
+  };
+  
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
   
@@ -158,7 +169,7 @@ const ProfilePage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-0 md:ml-64">
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center h-14 px-4">
             <h1 className="font-semibold">Profile</h1>
@@ -192,11 +203,25 @@ const ProfilePage = () => {
                       <p className="text-muted-foreground">@{username}</p>
                     </div>
                     
-                    {isCurrentUser ? (
-                      <Button variant="outline">Edit profile</Button>
-                    ) : (
-                      <FollowButton pubkey={nostrService.getHexFromNpub(npub || '')} />
-                    )}
+                    <div className="space-x-2">
+                      {!isCurrentUser && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleMessageUser}
+                          className="flex items-center"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Message
+                        </Button>
+                      )}
+                      
+                      {isCurrentUser ? (
+                        <Button variant="outline">Edit profile</Button>
+                      ) : (
+                        <FollowButton pubkey={nostrService.getHexFromNpub(npub || '')} />
+                      )}
+                    </div>
                   </div>
                   
                   {profileData?.about && (

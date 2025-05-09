@@ -25,7 +25,9 @@ const MessagesPage = () => {
       </div>
       
       {/* Desktop sidebar */}
-      <Sidebar />
+      <div className="hidden md:block w-64 border-r fixed h-full">
+        <Sidebar />
+      </div>
       
       <div className="flex-1 ml-0 md:ml-64">
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
