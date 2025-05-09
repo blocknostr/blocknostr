@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Menu, Save, Share, Copy, FileText } from "lucide-react";
+import { Menu, Save, Share, Copy, FileText, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -313,7 +313,7 @@ const NotebinPage = () => {
         </header>
         
         <div className="p-4 h-[calc(100vh-3.5rem)] overflow-auto">
-          <div className="max-w-3xl mx-auto"> {/* Added container with max width */}
+          <div className="max-w-3xl mx-auto">
             <Card className="mb-6">
               <CardContent className="p-6">
                 <div className="space-y-4">
@@ -434,13 +434,13 @@ const NotebinPage = () => {
                           <Button
                             variant="ghost" 
                             size="sm"
-                            className="ml-2"
+                            className="ml-2 text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation();
                               setNoteToDelete(note.id);
                             }}
                           >
-                            <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                         <div className="flex items-center mt-2 text-xs text-muted-foreground">
