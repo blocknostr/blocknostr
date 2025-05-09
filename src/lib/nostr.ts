@@ -1,5 +1,4 @@
-
-import { getEventHash, getPublicKey, nip19, SimplePool, generatePrivateKey, finalizeEvent } from 'nostr-tools';
+import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 
 export interface NostrEvent {
@@ -179,6 +178,8 @@ class NostrService {
         signedEvent = await window.nostr.signEvent(fullEvent);
       } else if (this._privateKey) {
         // Use private key if available (not recommended for production)
+        // Import the function dynamically to fix the missing export issue
+        const { finalizeEvent } = await import('nostr-tools');
         signedEvent = finalizeEvent(
           {
             kind: fullEvent.kind,
@@ -186,7 +187,7 @@ class NostrService {
             tags: fullEvent.tags,
             content: fullEvent.content,
           },
-          this._privateKey
+          this._privateKey as any // Using type assertion to fix the Uint8Array type issue
         );
       } else {
         toast.error("No signing method available");
