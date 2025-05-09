@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Users, Search, ArrowRight } from "lucide-react";
+import { Loader2, Plus, Users, Search, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 interface Community {
@@ -161,10 +161,6 @@ const Communities = () => {
     community.members.includes(currentUserPubkey || '')
   );
   
-  const otherCommunities = filteredCommunities.filter(community => 
-    !community.members.includes(currentUserPubkey || '')
-  );
-  
   const navigateToCommunity = (id: string) => {
     navigate(`/communities/${id}`);
   };
@@ -195,7 +191,7 @@ const Communities = () => {
             </div>
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="shrink-0">
+                <Button>
                   <Plus className="h-4 w-4 mr-2" />
                   Create
                 </Button>
@@ -293,46 +289,32 @@ const Communities = () => {
                 </Dialog>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {filteredCommunities.map(community => (
-                  <Card key={community.id} className="overflow-hidden hover:shadow-md transition-shadow duration-200">
+                  <Card 
+                    key={community.id} 
+                    className="cursor-pointer hover:border-primary/20 transition-all"
+                    onClick={() => navigateToCommunity(community.id)}
+                  >
                     <CardHeader className="pb-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border">
-                          <AvatarImage src={community.image} />
-                          <AvatarFallback className="bg-primary/10">
-                            <Users className="h-5 w-5 text-primary" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-lg">{community.name}</CardTitle>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <span>{community.members.length} members</span>
-                            {community.members.includes(currentUserPubkey || '') && (
-                              <>
-                                <span className="mx-1">•</span>
-                                <Badge variant="outline" className="text-[10px] h-4 px-1">Member</Badge>
-                              </>
-                            )}
-                          </div>
-                        </div>
+                      <CardTitle className="text-lg">{community.name}</CardTitle>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span>{community.members.length} members</span>
+                        {community.members.includes(currentUserPubkey || '') && (
+                          <>
+                            <span className="mx-1">•</span>
+                            <Badge variant="outline" className="text-xs h-5 px-1">Member</Badge>
+                          </>
+                        )}
+                        <span className="mx-1">•</span>
+                        <span>Created {new Date(community.createdAt * 1000).toLocaleDateString()}</span>
                       </div>
                     </CardHeader>
-                    <CardContent className="pb-2">
-                      <p className="text-sm text-muted-foreground line-clamp-3">
+                    <CardContent className="pt-2">
+                      <p className="text-sm text-muted-foreground">
                         {community.description || "No description provided."}
                       </p>
                     </CardContent>
-                    <CardFooter>
-                      <Button 
-                        variant="outline"
-                        className="w-full group"
-                        onClick={() => navigateToCommunity(community.id)}
-                      >
-                        <span className="mr-auto">View Community</span>
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </Button>
-                    </CardFooter>
                   </Card>
                 ))}
               </div>
@@ -402,41 +384,26 @@ const Communities = () => {
                 </Dialog>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {userCommunities.map(community => (
-                  <Card key={community.id} className="overflow-hidden hover:shadow-md transition-shadow duration-200 border-primary/20">
-                    <CardHeader className="pb-2 bg-primary/5">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border border-primary/20">
-                          <AvatarImage src={community.image} />
-                          <AvatarFallback className="bg-primary/10">
-                            <Users className="h-5 w-5 text-primary" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-lg">{community.name}</CardTitle>
-                          <div className="flex items-center text-xs text-muted-foreground">
-                            <span>{community.members.length} members</span>
-                            <span className="mx-1">•</span>
-                            <Badge variant="secondary" className="text-[10px] h-4">Member</Badge>
-                          </div>
-                        </div>
+                  <Card 
+                    key={community.id} 
+                    className="cursor-pointer border-primary/20 hover:border-primary/40 transition-all"
+                    onClick={() => navigateToCommunity(community.id)}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{community.name}</CardTitle>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span>{community.members.length} members</span>
+                        <span className="mx-1">•</span>
+                        <Badge variant="secondary" className="text-xs h-5">Member</Badge>
                       </div>
                     </CardHeader>
-                    <CardContent className="pb-2">
-                      <p className="text-sm text-muted-foreground line-clamp-3">
+                    <CardContent className="pt-2">
+                      <p className="text-sm text-muted-foreground">
                         {community.description || "No description provided."}
                       </p>
                     </CardContent>
-                    <CardFooter>
-                      <Button 
-                        className="w-full group"
-                        onClick={() => navigateToCommunity(community.id)}
-                      >
-                        <span className="mr-auto">View Community</span>
-                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                      </Button>
-                    </CardFooter>
                   </Card>
                 ))}
               </div>
