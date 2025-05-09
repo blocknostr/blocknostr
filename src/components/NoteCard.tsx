@@ -54,18 +54,18 @@ const NoteCard = ({ event, profileData }: NoteCardProps) => {
     <Card className="mb-4 hover:bg-accent/20 transition-colors">
       <CardContent className="pt-4">
         <div className="flex">
-          <Avatar className="h-10 w-10 mr-3">
+          <Avatar className="h-10 w-10 mr-3 shrink-0">
             <AvatarImage src={picture} alt={name} />
             <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-bold">{displayName}</span>
-              <span className="text-muted-foreground text-sm">@{shortNpub}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold truncate">{displayName}</span>
+              <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
               <span className="text-muted-foreground text-sm">·</span>
               <span className="text-muted-foreground text-sm">{timeAgo}</span>
             </div>
-            <p className="mt-1 whitespace-pre-wrap">{event.content}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words">{event.content}</p>
           </div>
         </div>
       </CardContent>
