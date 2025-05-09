@@ -57,6 +57,13 @@ body {
   flex-shrink: 0;
 }
 
+/* Third sidebar (far right) */
+.sidebar-far-right {
+  width: var(--side-panel-width);
+  padding: var(--spacing-md) var(--spacing-lg);
+  flex-shrink: 0;
+}
+
 /* Content inside the main area */
 .content-area {
   padding: var(--spacing-md);
@@ -99,6 +106,10 @@ body {
     width: 240px;
   }
   
+  .sidebar-far-right {
+    display: none;
+  }
+  
   .main-content {
     border-right: 1px solid hsl(var(--border));
   }
@@ -114,6 +125,10 @@ body {
   }
   
   .sidebar-right {
+    display: none;
+  }
+  
+  .sidebar-far-right {
     display: none;
   }
   
@@ -155,4 +170,9 @@ body {
   padding: 0;
   text-align: left;
   width: 100%;
+}
+
+/* Search container */
+.search-container {
+  margin-bottom: var(--spacing-lg);
 }

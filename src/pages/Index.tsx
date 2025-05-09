@@ -3,6 +3,7 @@ import MainFeed from "@/components/MainFeed";
 import Sidebar from "@/components/Sidebar";
 import TrendingSection from "@/components/TrendingSection";
 import WhoToFollow from "@/components/WhoToFollow";
+import SearchPanel from "@/components/SearchPanel";
 import { useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
@@ -41,6 +42,10 @@ const Index = () => {
           <TrendingSection />
           <WhoToFollow />
         </div>
+      </div>
+      
+      <div className="sidebar-far-right">
+        <SearchPanel />
       </div>
     </div>
   );
