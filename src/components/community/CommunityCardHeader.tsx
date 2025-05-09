@@ -1,5 +1,6 @@
 
 import { Avatar } from "@/components/ui/avatar";
+import { getInitials, getRandomColor } from "@/lib/community-utils";
 
 export interface CommunityCardHeaderProps {
   id: string;
@@ -9,24 +10,6 @@ export interface CommunityCardHeaderProps {
 }
 
 const CommunityCardHeader = ({ id, name, image, serialNumber }: CommunityCardHeaderProps) => {
-  const getRandomColor = (str: string) => {
-    const colors = [
-      "bg-blue-500", "bg-green-500", "bg-yellow-500", 
-      "bg-purple-500", "bg-pink-500", "bg-indigo-500"
-    ];
-    const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
   return (
     <div className={`h-24 ${getRandomColor(id)} flex items-center justify-center relative`}>
       {image ? (

@@ -1,11 +1,12 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Users } from "lucide-react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
+import CommunityHeaderImage from "./CommunityHeaderImage";
+import CommunityDescription from "./CommunityDescription";
+import LeaveCommunityButton from "./LeaveCommunityButton";
 
 interface Community {
   id: string;
@@ -32,24 +33,6 @@ const CommunityHeader = ({
   isMember 
 }: CommunityHeaderProps) => {
   const navigate = useNavigate();
-  
-  const getRandomColor = (str: string) => {
-    const colors = [
-      "bg-blue-500", "bg-green-500", "bg-yellow-500", 
-      "bg-purple-500", "bg-pink-500", "bg-indigo-500"
-    ];
-    const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-  
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
 
   const handleLeaveCommunity = async () => {
     if (!currentUserPubkey) return;
@@ -89,38 +72,21 @@ const CommunityHeader = ({
   
   return (
     <Card>
-      <div className={`h-32 ${getRandomColor(community.id)} flex items-center justify-center`}>
-        {community.image ? (
-          <img src={community.image} alt={community.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="text-white text-4xl font-bold">
-            {getInitials(community.name)}
-          </div>
-        )}
-      </div>
+      <CommunityHeaderImage 
+        id={community.id}
+        name={community.name}
+        image={community.image}
+      />
       
       <CardContent className="pt-6">
-        <p className="text-muted-foreground mb-4">
-          {community.description || "No description provided."}
-        </p>
-        
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Users className="h-4 w-4 mr-1" />
-          <span>{community.members.length} members</span>
-          <span className="mx-1">•</span>
-          <span>Created {new Date(community.createdAt * 1000).toLocaleDateString()}</span>
-        </div>
+        <CommunityDescription 
+          description={community.description}
+          membersCount={community.members.length}
+          createdAt={community.createdAt}
+        />
         
         {isMember && !isCreator && (
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              className="text-red-500 hover:text-red-600 hover:bg-red-50"
-              onClick={handleLeaveCommunity}
-            >
-              Leave Community
-            </Button>
-          </div>
+          <LeaveCommunityButton onLeave={handleLeaveCommunity} />
         )}
       </CardContent>
     </Card>
