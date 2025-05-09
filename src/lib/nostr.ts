@@ -1,3 +1,4 @@
+
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 
@@ -31,6 +32,9 @@ export const EVENT_KINDS = {
   COMMUNITY: 34550,   // Communities/DAOs
   PROPOSAL: 34551,    // Proposals within communities
   VOTE: 34552,        // Votes on proposals
+  COMMENT: 34553,     // Comments on proposals
+  KICK_PROPOSAL: 34554, // Proposal to kick a member
+  KICK_VOTE: 34555,   // Vote on kick proposal
 };
 
 class NostrService {

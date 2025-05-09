@@ -3,17 +3,21 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { nostrService, NostrEvent } from "@/lib/nostr";
-import { Loader2, ArrowLeft, Users, Plus, Check, Clock, UserPlus } from "lucide-react";
+import { Loader2, ArrowLeft, Users, Plus, Check, Clock, UserPlus, MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+
+// Import our new components
+import MembersList, { KickProposal } from "@/components/MembersList";
+import ProposalComments from "@/components/ProposalComments";
+import VotersList from "@/components/VotersList";
 
 interface Community {
   id: string;
@@ -43,8 +47,9 @@ const CommunityPage = () => {
   const navigate = useNavigate();
   const [community, setCommunity] = useState<Community | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [kickProposals, setKickProposals] = useState<KickProposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("proposals");
+  const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
   
   // Form states for creating a new proposal
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
@@ -80,6 +85,9 @@ const CommunityPage = () => {
       
       // Load proposals for this community
       loadProposals(id);
+      
+      // Load kick proposals for this community
+      loadKickProposals(id);
       
       return () => {
         nostrService.unsubscribe(communitySubId);
@@ -176,6 +184,34 @@ const CommunityPage = () => {
     };
   };
   
+  const loadKickProposals = (communityId: string) => {
+    const kickProposalSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [34554], // Kick proposal kind
+          '#e': [communityId],
+          limit: 50
+        }
+      ],
+      handleKickProposalEvent
+    );
+    
+    const kickVotesSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [34555], // Kick vote kind
+          limit: 100
+        }
+      ],
+      handleKickVoteEvent
+    );
+    
+    return () => {
+      nostrService.unsubscribe(kickProposalSubId);
+      nostrService.unsubscribe(kickVotesSubId);
+    };
+  };
+  
   const handleProposalEvent = (event: NostrEvent) => {
     try {
       if (!event.id) return;
@@ -243,6 +279,82 @@ const CommunityPage = () => {
       });
     } catch (e) {
       console.error("Error processing vote event:", e);
+    }
+  };
+  
+  // Handle kick proposal events
+  const handleKickProposalEvent = (event: NostrEvent) => {
+    try {
+      if (!event.id) return;
+      
+      // Find the community reference tag
+      const communityTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e');
+      if (!communityTag) return;
+      const communityId = communityTag[1];
+      
+      // Find the target member tag
+      const targetTag = event.tags.find(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'kick');
+      if (!targetTag) return;
+      const targetMember = targetTag[1];
+      
+      const kickProposal: KickProposal = {
+        id: event.id,
+        communityId,
+        targetMember,
+        votes: [event.pubkey || ''], // Creator's vote is automatically included
+        createdAt: event.created_at
+      };
+      
+      setKickProposals(prev => {
+        // Check if we already have this proposal
+        if (prev.some(p => p.id === kickProposal.id)) {
+          return prev;
+        }
+        
+        // Add new kick proposal
+        return [...prev, kickProposal];
+      });
+    } catch (e) {
+      console.error("Error processing kick proposal event:", e);
+    }
+  };
+  
+  // Handle kick vote events
+  const handleKickVoteEvent = (event: NostrEvent) => {
+    try {
+      if (!event.id) return;
+      
+      // Find the kick proposal reference tag
+      const proposalTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e');
+      if (!proposalTag) return;
+      const kickProposalId = proposalTag[1];
+      
+      // Find the kick proposal
+      const proposalIndex = kickProposals.findIndex(p => p.id === kickProposalId);
+      if (proposalIndex < 0) return; // We don't have this proposal
+      
+      // Update the votes
+      setKickProposals(prev => {
+        const updated = [...prev];
+        const proposal = {...updated[proposalIndex]};
+        
+        // Add this vote if not already included
+        if (!proposal.votes.includes(event.pubkey || '')) {
+          proposal.votes = [...proposal.votes, event.pubkey || ''];
+        }
+        
+        updated[proposalIndex] = proposal;
+        
+        // Check if we have enough votes to kick (51% or more)
+        if (community && (proposal.votes.length / community.members.length) >= 0.51) {
+          // Execute the kick
+          handleKickMember(proposal.targetMember);
+        }
+        
+        return updated;
+      });
+    } catch (e) {
+      console.error("Error processing kick vote event:", e);
     }
   };
   
@@ -406,6 +518,112 @@ const CommunityPage = () => {
     }
   };
   
+  // New function to initiate a kick proposal
+  const handleCreateKickProposal = async (targetMember: string) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be logged in and be a member of this community");
+      return;
+    }
+    
+    try {
+      // Create kick proposal event
+      const event = {
+        kind: 34554, // Kick proposal kind
+        content: JSON.stringify({
+          reason: "Community member vote to remove"
+        }),
+        tags: [
+          ['e', community.id], // Reference to community
+          ['p', targetMember, 'kick'] // Target member to kick with 'kick' marker
+        ]
+      };
+      
+      const kickProposalId = await nostrService.publishEvent(event);
+      
+      if (kickProposalId) {
+        // Vote on our own proposal automatically
+        const voteEvent = {
+          kind: 34555, // Kick vote kind
+          content: "1", // Vote in favor
+          tags: [
+            ['e', kickProposalId] // Reference to kick proposal
+          ]
+        };
+        
+        await nostrService.publishEvent(voteEvent);
+        toast.success("Kick proposal created");
+      }
+    } catch (error) {
+      console.error("Error creating kick proposal:", error);
+      toast.error("Failed to create kick proposal");
+    }
+  };
+  
+  // Function to vote on a kick proposal
+  const handleVoteOnKick = async (kickProposalId: string) => {
+    if (!currentUserPubkey) {
+      toast.error("You must be logged in to vote");
+      return;
+    }
+    
+    try {
+      // Create kick vote event
+      const event = {
+        kind: 34555, // Kick vote kind
+        content: "1", // Vote in favor
+        tags: [
+          ['e', kickProposalId] // Reference to kick proposal
+        ]
+      };
+      
+      await nostrService.publishEvent(event);
+      toast.success("Vote on kick recorded");
+    } catch (error) {
+      console.error("Error voting on kick:", error);
+      toast.error("Failed to vote on kick");
+    }
+  };
+  
+  // Function to actually kick a member when threshold reached
+  const handleKickMember = async (memberToKick: string) => {
+    if (!community) return;
+    
+    try {
+      // Remove member from list
+      const updatedMembers = community.members.filter(member => member !== memberToKick);
+      
+      // Create an updated community event without the kicked member
+      const communityData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(communityData),
+        tags: [
+          ['d', community.uniqueId],
+          ...updatedMembers.map(member => ['p', member])
+        ]
+      };
+      
+      await nostrService.publishEvent(event);
+      toast.success("Member has been removed from the community");
+      
+      // Update local state
+      setCommunity({
+        ...community,
+        members: updatedMembers
+      });
+    } catch (error) {
+      console.error("Error kicking member:", error);
+      toast.error("Failed to remove member");
+    }
+  };
+  
   const getVoteCounts = (proposal: Proposal) => {
     const counts = proposal.options.map(() => 0);
     
@@ -425,6 +643,16 @@ const CommunityPage = () => {
   const getUserVote = (proposal: Proposal) => {
     if (!currentUserPubkey) return -1;
     return proposal.votes[currentUserPubkey] ?? -1;
+  };
+  
+  const getVoters = (proposal: Proposal, optionIndex: number) => {
+    return Object.entries(proposal.votes)
+      .filter(([_, vote]) => vote === optionIndex)
+      .map(([pubkey]) => pubkey);
+  };
+  
+  const getAllVoters = (proposal: Proposal) => {
+    return Object.keys(proposal.votes);
   };
   
   const isProposalActive = (proposal: Proposal) => {
@@ -510,10 +738,11 @@ const CommunityPage = () => {
           </div>
         </header>
         
-        <div className="px-4 py-6">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Community Info - Sidebar */}
-            <div className="lg:col-span-4 space-y-4">
+            {/* Main Content - Left side */}
+            <div className="lg:col-span-8 space-y-5">
+              {/* Community Info */}
               <Card>
                 <div className={`h-32 ${getRandomColor(community.id)} flex items-center justify-center`}>
                   {community.image ? (
@@ -525,12 +754,8 @@ const CommunityPage = () => {
                   )}
                 </div>
                 
-                <CardHeader>
-                  <CardTitle>{community.name}</CardTitle>
-                </CardHeader>
-                
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
+                <CardContent className="pt-6">
+                  <p className="text-muted-foreground mb-4">
                     {community.description || "No description provided."}
                   </p>
                   
@@ -540,50 +765,21 @@ const CommunityPage = () => {
                     <span className="mx-1">•</span>
                     <span>Created {new Date(community.createdAt * 1000).toLocaleDateString()}</span>
                   </div>
-                </CardContent>
-                
-                <CardFooter>
+                  
                   {isMember && !isCreator && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full text-red-500 hover:text-red-600"
-                      onClick={handleLeaveCommunity}
-                    >
-                      Leave Community
-                    </Button>
+                    <div className="mt-4">
+                      <Button 
+                        variant="outline" 
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={handleLeaveCommunity}
+                      >
+                        Leave Community
+                      </Button>
+                    </div>
                   )}
-                </CardFooter>
+                </CardContent>
               </Card>
               
-              {/* Members List */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Members ({community.members.length})</CardTitle>
-                </CardHeader>
-                <CardContent className="max-h-[400px] overflow-y-auto">
-                  <div className="space-y-2">
-                    {community.members.map((member, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
-                        <div className="flex-shrink-0">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback>{member.substring(0, 2)}</AvatarFallback>
-                          </Avatar>
-                        </div>
-                        <div className="flex-1 truncate">
-                          <p className="text-sm font-medium">{nostrService.getNpubFromHex(member).substring(0, 12)}...</p>
-                        </div>
-                        {member === community.creator && (
-                          <span className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full">Creator</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Main Content */}
-            <div className="lg:col-span-8 space-y-5">
               {/* Proposals Section */}
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Proposals</h2>
@@ -595,7 +791,7 @@ const CommunityPage = () => {
                         New Proposal
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Create a new proposal</DialogTitle>
                       </DialogHeader>
@@ -702,6 +898,8 @@ const CommunityPage = () => {
                     const totalVotes = getTotalVotes(proposal);
                     const userVote = getUserVote(proposal);
                     const isActive = isProposalActive(proposal);
+                    const isExpanded = expandedProposal === proposal.id;
+                    const allVoters = getAllVoters(proposal);
                     
                     return (
                       <Card key={proposal.id} className="overflow-hidden">
@@ -722,16 +920,21 @@ const CommunityPage = () => {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <span>{totalVotes} votes</span>
-                            {userVote !== -1 && (
-                              <>
-                                <span className="mx-1">•</span>
-                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs flex items-center">
-                                  <Check className="h-3 w-3 mr-1" /> Voted
-                                </span>
-                              </>
-                            )}
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <span>{totalVotes} votes</span>
+                              {userVote !== -1 && (
+                                <>
+                                  <span className="mx-1">•</span>
+                                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs flex items-center">
+                                    <Check className="h-3 w-3 mr-1" /> Voted
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            
+                            {/* Show voters avatars */}
+                            <VotersList voters={allVoters} maxDisplay={5} />
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -764,42 +967,78 @@ const CommunityPage = () => {
                           </div>
                         </CardContent>
                         
-                        <CardFooter className="border-t pt-4 gap-2 flex-wrap">
-                          {isActive && currentUserPubkey && (isMember || isCreator) && userVote === -1 && (
-                            proposal.options.map((option, index) => (
+                        <CardFooter className="border-t pt-4 flex-wrap items-start">
+                          <div className="w-full">
+                            {isActive && currentUserPubkey && (isMember || isCreator) && userVote === -1 && (
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {proposal.options.map((option, index) => (
+                                  <Button
+                                    key={index}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleVote(proposal, index)}
+                                  >
+                                    {option}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                            {isActive && userVote !== -1 && (
+                              <div className="mb-4 text-sm">
+                                <span className="text-primary font-medium">You voted for: </span>
+                                {proposal.options[userVote]}
+                              </div>
+                            )}
+                            {!isActive && (
+                              <div className="mb-4 text-sm text-muted-foreground">
+                                This proposal is closed
+                              </div>
+                            )}
+                            {isActive && currentUserPubkey && !isMember && !isCreator && (
+                              <div className="mb-4 text-sm text-muted-foreground">
+                                Join the community to vote
+                              </div>
+                            )}
+                            
+                            {/* Comments section toggle */}
+                            <div className="flex items-center">
                               <Button
-                                key={index}
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                className="flex-1"
-                                onClick={() => handleVote(proposal, index)}
+                                onClick={() => setExpandedProposal(isExpanded ? null : proposal.id)}
+                                className="text-muted-foreground hover:text-foreground"
                               >
-                                {option}
+                                <MessageSquare className="h-4 w-4 mr-1" />
+                                Comments
                               </Button>
-                            ))
-                          )}
-                          {isActive && userVote !== -1 && (
-                            <div className="w-full text-center text-sm">
-                              <span className="text-primary font-medium">You voted for: </span>
-                              {proposal.options[userVote]}
                             </div>
-                          )}
-                          {!isActive && (
-                            <div className="w-full text-center text-sm text-muted-foreground">
-                              This proposal is closed
-                            </div>
-                          )}
-                          {isActive && currentUserPubkey && !isMember && !isCreator && (
-                            <div className="w-full text-center text-sm text-muted-foreground">
-                              Join the community to vote
-                            </div>
-                          )}
+                            
+                            {/* Comments section */}
+                            {isExpanded && (
+                              <div className="mt-4 pt-4 border-t w-full">
+                                <ProposalComments 
+                                  proposalId={proposal.id} 
+                                  communityId={community.id}
+                                />
+                              </div>
+                            )}
+                          </div>
                         </CardFooter>
                       </Card>
                     );
                   })}
                 </div>
               )}
+            </div>
+            
+            {/* Right Panel - Members list */}
+            <div className="lg:col-span-4">
+              <MembersList 
+                community={community}
+                currentUserPubkey={currentUserPubkey}
+                onKickProposal={handleCreateKickProposal}
+                kickProposals={kickProposals}
+              />
             </div>
           </div>
         </div>
