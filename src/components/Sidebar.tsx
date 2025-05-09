@@ -1,14 +1,33 @@
 
 import { Link } from "react-router-dom";
-import { Home, Hash, Bell, Mail, User, Users, Settings, FileText, BookOpen } from "lucide-react";
+import { Home, Hash, Bell, Mail, User, Users, Settings, FileText, BookOpen, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 const Sidebar = () => {
   const isLoggedIn = !!nostrService.publicKey;
   const location = useLocation();
+  const [darkMode, setDarkMode] = useState(true);
+  
+  // Toggle dark mode function
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  // Set initial dark mode state based on html class
+  useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
   
   const navItems = [
     {
@@ -54,7 +73,7 @@ const Sidebar = () => {
       requiresAuth: false
     },
     {
-      name: "X Articles",
+      name: "Articles",
       icon: BookOpen,
       href: "/articles",
       requiresAuth: false
@@ -105,16 +124,35 @@ const Sidebar = () => {
           </ul>
         </nav>
         
-        {isLoggedIn && (
-          <div className="mt-auto pt-4">
+        <div className="mt-auto pt-4 space-y-2">
+          <Button 
+            variant="outline"
+            size="icon"
+            className="w-full flex justify-between"
+            onClick={toggleDarkMode}
+          >
+            {darkMode ? (
+              <>
+                Light Mode
+                <Sun className="h-5 w-5" />
+              </>
+            ) : (
+              <>
+                Dark Mode
+                <Moon className="h-5 w-5" />
+              </>
+            )}
+          </Button>
+          
+          {isLoggedIn && (
             <Button 
               className="w-full"
               onClick={() => { window.location.href = "/compose"; }}
             >
               Post
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </aside>
   );

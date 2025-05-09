@@ -163,7 +163,7 @@ const ArticlesPage = () => {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="font-semibold">X Articles</h1>
+            <h1 className="font-semibold">Articles</h1>
           </div>
         </header>
         
