@@ -59,7 +59,7 @@ const ProposalList = ({
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-2">
           {proposals.map(proposal => (
             <ProposalCard
               key={proposal.id}

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -91,9 +92,16 @@ const Communities = () => {
     }
   };
   
-  const filteredCommunities = communities.filter(community => 
-    community.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    community.description.toLowerCase().includes(searchTerm.toLowerCase())
+  // Assign serial numbers to communities
+  const communitiesWithNumbers = communities.map((community, index) => ({
+    ...community,
+    serialNumber: index + 1
+  }));
+  
+  // Filter communities based on search term (name or serial number)
+  const filteredCommunities = communitiesWithNumbers.filter(community => 
+    community.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (community.serialNumber && community.serialNumber.toString().includes(searchTerm))
   );
   
   const userCommunities = filteredCommunities.filter(community => 
@@ -108,12 +116,12 @@ const Communities = () => {
           <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
         </div>
         
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholderText="Search by name or community #" />
       </div>
       
       <div className="flex-1 p-4">
         <CommunitiesGrid 
-          communities={communities}
+          communities={communitiesWithNumbers}
           userCommunities={userCommunities}
           filteredCommunities={filteredCommunities}
           loading={loading}

@@ -1,7 +1,7 @@
 
 import Sidebar from "@/components/Sidebar";
 import Communities from "@/components/Communities";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 
 const CommunitiesPage = () => {
   return (

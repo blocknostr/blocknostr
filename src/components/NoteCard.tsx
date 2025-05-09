@@ -1,11 +1,13 @@
 
 import { formatDistanceToNow } from 'date-fns';
-import { Heart, MessageCircle, Repeat, Share } from 'lucide-react';
+import { Heart, MessageCircle, Repeat, Share, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -15,6 +17,11 @@ interface NoteCardProps {
 const NoteCard = ({ event, profileData }: NoteCardProps) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [retweeted, setRetweeted] = useState(false);
+  const [retweetCount, setRetweetCount] = useState(0);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
   const [replyCount, setReplyCount] = useState(0);
   
   const hexPubkey = event.pubkey || '';
@@ -40,6 +47,67 @@ const NoteCard = ({ event, profileData }: NoteCardProps) => {
       setLiked(true);
       setLikeCount(prev => prev + 1);
     }
+  };
+
+  const handleRetweet = async () => {
+    if (!retweeted) {
+      try {
+        // Create a repost event
+        await nostrService.publishEvent({
+          kind: 6, // Repost kind
+          content: JSON.stringify({
+            event: event
+          }),
+          tags: [
+            ['e', event.id || ''], // Reference to original note
+            ['p', event.pubkey || ''] // Original author
+          ]
+        });
+        
+        setRetweeted(true);
+        setRetweetCount(prev => prev + 1);
+        toast.success("Note reposted successfully");
+      } catch (error) {
+        console.error("Error reposting:", error);
+        toast.error("Failed to repost note");
+      }
+    }
+  };
+  
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      // Create a reply event
+      await nostrService.publishEvent({
+        kind: 1, // Note kind
+        content: newComment,
+        tags: [
+          ['e', event.id || '', '', 'reply'], // Reference to parent with reply marker
+          ['p', event.pubkey || ''] // Original author
+        ]
+      });
+      
+      // Add to local state
+      setComments(prev => [
+        ...prev, 
+        { 
+          content: newComment, 
+          author: nostrService.publicKey,
+          created_at: Math.floor(Date.now() / 1000)
+        }
+      ]);
+      setNewComment("");
+      setReplyCount(prev => prev + 1);
+      toast.success("Comment posted");
+    } catch (error) {
+      console.error("Error posting comment:", error);
+      toast.error("Failed to post comment");
+    }
+  };
+  
+  const handleSendTip = () => {
+    toast.info("Tipping functionality coming soon!");
   };
   
   const timeAgo = formatDistanceToNow(
@@ -69,14 +137,25 @@ const NoteCard = ({ event, profileData }: NoteCardProps) => {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between pt-0">
-        <Button variant="ghost" size="sm" className="text-muted-foreground">
+      <CardFooter className="flex justify-between pt-0 flex-wrap">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-muted-foreground"
+          onClick={() => setShowComments(!showComments)}
+        >
           <MessageCircle className="h-4 w-4 mr-1" />
           {replyCount > 0 ? replyCount : ''}
         </Button>
         
-        <Button variant="ghost" size="sm" className="text-muted-foreground">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={retweeted ? "text-green-500" : "text-muted-foreground"}
+          onClick={handleRetweet}
+        >
           <Repeat className="h-4 w-4 mr-1" />
+          {retweetCount > 0 ? retweetCount : ''}
         </Button>
         
         <Button 
@@ -88,11 +167,55 @@ const NoteCard = ({ event, profileData }: NoteCardProps) => {
           <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
           {likeCount > 0 ? likeCount : ''}
         </Button>
-        
-        <Button variant="ghost" size="sm" className="text-muted-foreground">
-          <Share className="h-4 w-4" />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground"
+          onClick={handleSendTip}
+        >
+          <DollarSign className="h-4 w-4 mr-1" />
+          Tip
         </Button>
       </CardFooter>
+      
+      {showComments && (
+        <div className="px-4 pb-4 pt-2 border-t">
+          <div className="mb-4 space-y-4">
+            {comments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment!</p>
+            ) : (
+              comments.map((comment, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <Avatar className="h-6 w-6 shrink-0">
+                    <AvatarFallback>U</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-muted p-2 rounded-md text-sm flex-1">
+                    <p className="whitespace-pre-wrap break-words">{comment.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          {nostrService.publicKey && (
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="min-h-[80px]"
+              />
+              <Button 
+                onClick={handleSubmitComment}
+                disabled={!newComment.trim()}
+                className="self-end"
+              >
+                Post
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 };

@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Save, Share, Copy } from "lucide-react";
+import { Save, Share, Copy, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
   const [content, setContent] = useState("");
   const [language, setLanguage] = useState("text");
   const [isSaving, setIsSaving] = useState(false);
+  const [noteId, setNoteId] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
@@ -50,6 +51,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
       const eventId = await nostrService.publishEvent(event);
 
       if (eventId) {
+        setNoteId(eventId);
         toast.success("Note saved successfully!");
         
         // Add the new note to the saved notes
@@ -85,10 +87,28 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
       });
   };
 
+  const shareNote = () => {
+    if (!noteId) {
+      toast.error("You need to save the note first before sharing");
+      return;
+    }
+    
+    const shareUrl = `${window.location.origin}/notebin?note=${noteId}`;
+    
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        toast.success("Share link copied to clipboard!");
+      })
+      .catch(() => {
+        toast.error("Failed to copy share link");
+      });
+  };
+
   const clearEditor = () => {
     setTitle("");
     setContent("");
     setLanguage("text");
+    setNoteId(null);
   };
 
   return (
@@ -154,9 +174,10 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             <div className="flex gap-2">
               <Button 
                 variant="outline"
-                disabled={!title || !content}
+                onClick={shareNote}
+                disabled={!noteId}
               >
-                <Share className="h-4 w-4 mr-2" />
+                <Link className="h-4 w-4 mr-2" />
                 Share
               </Button>
               
