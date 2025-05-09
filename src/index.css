@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -52,41 +53,44 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Updated dark mode theme with black, gray, and white tones */
+    --background: 0 0% 7%; /* Near black */
+    --foreground: 0 0% 95%; /* Off-white */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 10%; /* Dark gray */
+    --card-foreground: 0 0% 95%; /* Off-white */
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 10%; /* Dark gray */
+    --popover-foreground: 0 0% 95%; /* Off-white */
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 0 0% 95%; /* Off-white */
+    --primary-foreground: 0 0% 10%; /* Dark gray */
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 15%; /* Gray */
+    --secondary-foreground: 0 0% 95%; /* Off-white */
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 20%; /* Medium gray */
+    --muted-foreground: 0 0% 70%; /* Light gray */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 25%; /* Gray */
+    --accent-foreground: 0 0% 95%; /* Off-white */
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 95%; /* Off-white */
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 0 0% 20%; /* Medium gray */
+    --input: 0 0% 20%; /* Medium gray */
+    --ring: 0 0% 70%; /* Light gray */
+    
+    /* Sidebar related colors */
+    --sidebar-background: 0 0% 10%; /* Dark gray */
+    --sidebar-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-primary: 0 0% 95%; /* Off-white */
+    --sidebar-primary-foreground: 0 0% 7%; /* Near black */
+    --sidebar-accent: 0 0% 15%; /* Gray */
+    --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-border: 0 0% 20%; /* Medium gray */
+    --sidebar-ring: 0 0% 40%; /* Gray */
   }
 }
 
