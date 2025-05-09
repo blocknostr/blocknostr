@@ -1,153 +1,194 @@
 
-import { useState } from "react";
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { MoreHorizontal, Users } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
-import { Check, UserMinus, Shield, Users } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-interface MembersListProps {
-  community: {
-    id: string;
-    uniqueId: string;
-    name: string;
-    description: string;
-    image: string;
-    creator: string;
-    createdAt: number;
-    members: string[];
-  };
-  currentUserPubkey: string | null;
-  onKickProposal: (targetMember: string) => Promise<void>;
-  kickProposals: KickProposal[];
+interface Community {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  creator: string;
+  createdAt: number;
+  members: string[];
+  uniqueId: string;
 }
 
 export interface KickProposal {
   id: string;
   communityId: string;
   targetMember: string;
-  votes: string[]; // Array of pubkeys who voted to kick
+  votes: string[];
   createdAt: number;
 }
 
-const MembersList = ({ community, currentUserPubkey, onKickProposal, kickProposals }: MembersListProps) => {
-  const [kickDialogOpen, setKickDialogOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+interface MembersListProps {
+  community: Community;
+  currentUserPubkey: string | null;
+  onKickProposal: (targetMember: string) => void;
+  kickProposals: KickProposal[];
+  onVoteKick?: (kickProposalId: string) => void; // Added this prop
+}
+
+const MembersList: React.FC<MembersListProps> = ({ 
+  community,
+  currentUserPubkey,
+  onKickProposal,
+  kickProposals,
+  onVoteKick
+}) => {
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
-  const handleKickClick = (member: string) => {
-    setSelectedMember(member);
-    setKickDialogOpen(true);
+  const isCreator = community.creator === currentUserPubkey;
+  const isMember = community.members.includes(currentUserPubkey || '');
+  
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
   };
   
-  const isCreator = (member: string) => member === community.creator;
-  const isMemberBeingKicked = (member: string) => kickProposals.some(kp => kp.targetMember === member);
+  const sortedMembers = [...community.members].sort((a, b) => {
+    // Creator always first
+    if (a === community.creator) return -1;
+    if (b === community.creator) return 1;
+    return 0;
+  });
   
-  // Check if current user has already voted on a kick proposal
-  const hasVotedToKick = (member: string) => {
-    const proposal = kickProposals.find(kp => kp.targetMember === member);
-    return proposal ? proposal.votes.includes(currentUserPubkey || '') : false;
+  const formatTime = (timestamp: number) => {
+    return formatDistanceToNow(new Date(timestamp * 1000), { addSuffix: true });
   };
   
-  // Calculate if we have enough votes to kick (51% of members)
-  const getKickPercentage = (member: string) => {
-    const proposal = kickProposals.find(kp => kp.targetMember === member);
-    if (!proposal) return 0;
+  const canInitiateKick = (memberPubkey: string) => {
+    return (
+      isMember && 
+      memberPubkey !== community.creator && // Can't kick creator
+      memberPubkey !== currentUserPubkey && // Can't kick self
+      !kickProposals.some(p => p.targetMember === memberPubkey) // No existing proposal
+    );
+  };
+  
+  const canVoteOnKick = (proposal: KickProposal) => {
+    return (
+      isMember && 
+      currentUserPubkey && 
+      !proposal.votes.includes(currentUserPubkey)
+    );
+  };
+  
+  const getKickProposalForMember = (memberPubkey: string) => {
+    return kickProposals.find(p => p.targetMember === memberPubkey);
+  };
+  
+  const getKickProgress = (proposal: KickProposal) => {
+    const totalMembers = community.members.length;
+    const votesNeeded = Math.ceil(totalMembers * 0.51);
+    const currentVotes = proposal.votes.length;
+    const percentage = Math.min(Math.round((currentVotes / votesNeeded) * 100), 100);
     
-    return Math.round((proposal.votes.length / community.members.length) * 100);
+    return {
+      percentage,
+      votesNeeded,
+      currentVotes,
+      reachedThreshold: currentVotes >= votesNeeded
+    };
   };
   
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Members ({community.members.length})
-        </CardTitle>
+    <Card className="sticky top-20">
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-lg flex items-center">
+            <Users className="h-5 w-5 mr-2" />
+            Members
+          </CardTitle>
+          <span className="text-muted-foreground text-sm">{community.members.length}</span>
+        </div>
       </CardHeader>
-      <CardContent className="max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div className="space-y-1">
-          {community.members.map((member) => (
-            <div 
-              key={member} 
-              className={`flex items-center justify-between p-2 rounded-md ${isCreator(member) ? 'bg-primary/10' : 'hover:bg-muted'}`}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+      <CardContent className="max-h-[70vh] overflow-y-auto space-y-4">
+        {sortedMembers.map((member) => {
+          const isCurrentUser = member === currentUserPubkey;
+          const isCommCreator = member === community.creator;
+          const kickProposal = getKickProposalForMember(member);
+          
+          return (
+            <div key={member} className="flex items-center justify-between group">
+              <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${member.substring(0, 8)}`} />
                   <AvatarFallback>{member.substring(0, 2)}</AvatarFallback>
                 </Avatar>
-                <div className="flex-1 truncate">
-                  <p className="text-sm font-medium truncate">
+                <div>
+                  <div className="font-medium text-sm flex items-center">
                     {nostrService.getNpubFromHex(member).substring(0, 8)}...
-                  </p>
+                    {isCurrentUser && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
+                    {isCommCreator && <span className="ml-1 text-xs text-primary">(creator)</span>}
+                  </div>
                 </div>
-                {isCreator(member) && (
-                  <Shield className="h-3.5 w-3.5 text-primary ml-1" />
-                )}
               </div>
               
-              {/* Kick controls */}
-              {!isCreator(member) && 
-               member !== currentUserPubkey && 
-               currentUserPubkey && 
-               community.members.includes(currentUserPubkey) && (
+              {/* Kick options */}
+              {kickProposal && (
                 <div className="flex items-center">
-                  {isMemberBeingKicked(member) && (
-                    <div className="mr-2 text-xs">
-                      <span className="font-medium">{getKickPercentage(member)}%</span>
-                    </div>
+                  {onVoteKick && canVoteOnKick(kickProposal) && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => onVoteKick(kickProposal.id)}
+                      className="text-xs h-6 px-2"
+                    >
+                      Vote to Remove
+                    </Button>
                   )}
                   
-                  {hasVotedToKick(member) ? (
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-green-500" disabled>
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-muted-foreground hover:text-red-500"
-                      onClick={() => handleKickClick(member)}
-                    >
-                      <UserMinus className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="ml-2 text-xs text-muted-foreground">
+                          {(() => {
+                            const progress = getKickProgress(kickProposal);
+                            return `${progress.currentVotes}/${progress.votesNeeded} votes`;
+                          })()}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Started {formatTime(kickProposal.createdAt)}</p>
+                        <p>{kickProposal.votes.length} member(s) voted to remove</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              )}
+              
+              {(!isCommCreator && !isCurrentUser && isMember && !kickProposal) && (
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {canInitiateKick(member) && (
+                        <DropdownMenuItem 
+                          className="text-red-500 cursor-pointer"
+                          onClick={() => onKickProposal(member)}
+                        >
+                          Propose to remove
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          );
+        })}
       </CardContent>
-      
-      <Dialog open={kickDialogOpen} onOpenChange={setKickDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Kick member from community?</DialogTitle>
-          </DialogHeader>
-          <p className="py-4">
-            This will create a proposal to kick this member. If 51% of community members vote to kick, 
-            the member will be removed from the community.
-          </p>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setKickDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={async () => {
-                if (selectedMember) {
-                  await onKickProposal(selectedMember);
-                  setKickDialogOpen(false);
-                }
-              }}
-            >
-              Propose Kick
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };
