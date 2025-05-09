@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { NostrEvent, nostrService, Relay } from "@/lib/nostr";
@@ -8,29 +9,30 @@ import NoteCard from "@/components/NoteCard";
 import Sidebar from "@/components/Sidebar";
 import FollowButton from "@/components/FollowButton";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { toast } from "sonner";
-import { Loader2, MessageSquare, Plus } from "lucide-react";
-
-interface ProfileData {
-  name?: string;
-  display_name?: string;
-  picture?: string;
-  banner?: string;
-  about?: string;
-  website?: string;
-  nip05?: string;
-}
+import { Loader2, MessageSquare, Plus, Users, Bookmark, Calendar, Globe, ExternalLink, Link2 } from "lucide-react";
+import ProfileStats from "@/components/profile/ProfileStats";
+import ProfileHeader from "@/components/profile/ProfileHeader";
+import ProfileRelays from "@/components/profile/ProfileRelays";
+import { useToast } from "@/components/ui/use-toast";
 
 const ProfilePage = () => {
   const { npub } = useParams();
   const navigate = useNavigate();
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [profileData, setProfileData] = useState<any | null>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
+  const [replies, setReplies] = useState<NostrEvent[]>([]);
+  const [media, setMedia] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isAddingRelay, setIsAddingRelay] = useState(false);
+  const [followers, setFollowers] = useState<string[]>([]);
+  const [following, setFollowing] = useState<string[]>([]);
+  const { toast } = useToast();
   
   const currentUserPubkey = nostrService.publicKey;
   const isCurrentUser = currentUserPubkey && 
@@ -75,7 +77,7 @@ const ProfilePage = () => {
             {
               kinds: [1],
               authors: [hexPubkey],
-              limit: 20
+              limit: 50
             }
           ],
           (event) => {
@@ -88,6 +90,63 @@ const ProfilePage = () => {
               // Add new event and sort by creation time (newest first)
               return [...prev, event].sort((a, b) => b.created_at - a.created_at);
             });
+
+            // Check if note contains media
+            try {
+              if (event.content.includes("https://") && 
+                 (event.content.includes(".jpg") || 
+                  event.content.includes(".jpeg") || 
+                  event.content.includes(".png") || 
+                  event.content.includes(".gif"))) {
+                setMedia(prev => {
+                  if (prev.some(e => e.id === event.id)) return prev;
+                  return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+                });
+              }
+            } catch (err) {
+              console.error("Error processing media:", err);
+            }
+          }
+        );
+
+        // Fetch follower/following data
+        const contactsSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [3],
+              authors: [hexPubkey],
+              limit: 1
+            }
+          ],
+          (event) => {
+            try {
+              // Extract tags with 'p' which indicate following
+              const followingList = event.tags
+                .filter(tag => tag[0] === 'p')
+                .map(tag => tag[1]);
+              
+              setFollowing(followingList);
+            } catch (e) {
+              console.error('Failed to parse contacts:', e);
+            }
+          }
+        );
+
+        // Fetch followers (other users who have this user in their contacts)
+        const followersSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [3],
+              "#p": [hexPubkey],
+              limit: 50
+            }
+          ],
+          (event) => {
+            const followerPubkey = event.pubkey;
+            setFollowers(prev => {
+              if (prev.includes(followerPubkey)) return prev;
+              return [...prev, followerPubkey];
+            });
           }
         );
         
@@ -96,9 +155,16 @@ const ProfilePage = () => {
         return () => {
           nostrService.unsubscribe(metadataSubId);
           nostrService.unsubscribe(notesSubId);
+          nostrService.unsubscribe(contactsSubId);
+          nostrService.unsubscribe(followersSubId);
         };
       } catch (error) {
         console.error("Error fetching profile:", error);
+        toast({
+          title: "Error loading profile",
+          description: "Could not load profile data. Please try again.",
+          variant: "destructive",
+        });
         setLoading(false);
       }
     };
@@ -110,7 +176,7 @@ const ProfilePage = () => {
       const relayStatus = nostrService.getRelayStatus();
       setRelays(relayStatus);
     }
-  }, [npub, isCurrentUser]);
+  }, [npub, isCurrentUser, toast]);
   
   // Show current user's profile if no npub is provided
   useEffect(() => {
@@ -118,35 +184,6 @@ const ProfilePage = () => {
       window.location.href = `/profile/${nostrService.formatPubkey(currentUserPubkey)}`;
     }
   }, [npub, currentUserPubkey]);
-  
-  const handleAddRelay = async () => {
-    if (!newRelayUrl.trim()) return;
-    
-    setIsAddingRelay(true);
-    
-    try {
-      const success = await nostrService.addRelay(newRelayUrl);
-      if (success) {
-        toast.success(`Added relay: ${newRelayUrl}`);
-        setNewRelayUrl("");
-        // Update relay status
-        const relayStatus = nostrService.getRelayStatus();
-        setRelays(relayStatus);
-      }
-    } catch (error) {
-      console.error("Error adding relay:", error);
-    } finally {
-      setIsAddingRelay(false);
-    }
-  };
-  
-  const handleRemoveRelay = (relayUrl: string) => {
-    nostrService.removeRelay(relayUrl);
-    // Update relay status
-    const relayStatus = nostrService.getRelayStatus();
-    setRelays(relayStatus);
-    toast.success(`Removed relay: ${relayUrl}`);
-  };
   
   const handleMessageUser = () => {
     if (!npub) return;
@@ -158,12 +195,19 @@ const ProfilePage = () => {
     localStorage.setItem('lastMessagedUser', npub);
   };
   
-  const formattedNpub = npub || '';
-  const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
-  
-  const displayName = profileData?.display_name || profileData?.name || shortNpub;
-  const username = profileData?.name || shortNpub;
-  const avatarFallback = displayName.charAt(0).toUpperCase();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex min-h-screen bg-background">
@@ -177,173 +221,104 @@ const ProfilePage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="mb-6">
-            {/* Banner */}
-            <div 
-              className="h-48 bg-muted w-full rounded-t-lg"
-              style={profileData?.banner ? { 
-                backgroundImage: `url(${profileData.banner})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              } : {}}
-            ></div>
-            
-            {/* Profile info */}
-            <Card>
-              <CardContent className="pt-6 relative">
-                <Avatar className="h-24 w-24 absolute -top-12 left-4 border-4 border-background">
-                  <AvatarImage src={profileData?.picture} />
-                  <AvatarFallback className="text-2xl">{avatarFallback}</AvatarFallback>
-                </Avatar>
-                
-                <div className="mt-12">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-2xl font-bold">{displayName}</h2>
-                      <p className="text-muted-foreground">@{username}</p>
-                    </div>
-                    
-                    <div className="space-x-2">
-                      {!isCurrentUser && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleMessageUser}
-                          className="flex items-center"
-                        >
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Message
-                        </Button>
-                      )}
-                      
-                      {isCurrentUser ? (
-                        <Button variant="outline">Edit profile</Button>
-                      ) : (
-                        <FollowButton pubkey={nostrService.getHexFromNpub(npub || '')} />
-                      )}
-                    </div>
-                  </div>
-                  
-                  {profileData?.about && (
-                    <p className="my-4">{profileData.about}</p>
-                  )}
-                  
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mt-4">
-                    {profileData?.website && (
-                      <a 
-                        href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {profileData.website.replace(/(^\w+:|^)\/\//, '')}
-                      </a>
-                    )}
-                    
-                    {profileData?.nip05 && (
-                      <span>✓ {profileData.nip05}</span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <ProfileHeader 
+            profileData={profileData}
+            npub={npub || ''}
+            isCurrentUser={isCurrentUser}
+            onMessage={handleMessageUser}
+          />
+          
+          <ProfileStats 
+            followers={followers}
+            following={following}
+            postsCount={events.length}
+          />
           
           {/* Relays section (only for current user) */}
           {isCurrentUser && (
-            <div className="mb-6">
-              <Card>
-                <CardContent className="pt-4">
-                  <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
-                    <span>My Relays</span>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm">
-                          <Plus className="h-4 w-4 mr-2" /> Add Relay
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Add a new relay</DialogTitle>
-                        </DialogHeader>
-                        <div className="flex gap-2 mt-4">
-                          <Input
-                            placeholder="wss://relay.example.com"
-                            value={newRelayUrl}
-                            onChange={(e) => setNewRelayUrl(e.target.value)}
-                          />
-                          <Button 
-                            onClick={handleAddRelay}
-                            disabled={isAddingRelay || !newRelayUrl.trim()}
-                          >
-                            {isAddingRelay ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              'Add'
-                            )}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </h3>
-                  
-                  <div className="space-y-2">
-                    {relays.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No relays connected</p>
-                    ) : (
-                      relays.map((relay) => (
-                        <div key={relay.url} className="flex items-center justify-between bg-muted/50 p-2 rounded">
-                          <div className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full ${
-                              relay.status === 'connected' ? 'bg-green-500' : 
-                              relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-                            }`}></span>
-                            <span className="text-sm">{relay.url}</span>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleRemoveRelay(relay.url)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <ProfileRelays 
+              relays={relays}
+              onRelaysChange={setRelays}
+            />
           )}
           
-          {/* Notes */}
-          <div>
-            <h3 className="font-semibold text-lg mb-4">Posts</h3>
-            
-            {loading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                Loading posts...
-              </div>
-            ) : events.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                No posts found.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {events.map(event => (
-                  <NoteCard 
-                    key={event.id} 
-                    event={event} 
-                    profileData={profileData || undefined} 
-                  />
-                ))}
-              </div>
-            )}
+          {/* Tabbed Content */}
+          <div className="mt-6">
+            <Tabs defaultValue="posts" className="w-full">
+              <TabsList className="w-full grid grid-cols-4">
+                <TabsTrigger value="posts">Posts</TabsTrigger>
+                <TabsTrigger value="replies">Replies</TabsTrigger>
+                <TabsTrigger value="media">Media</TabsTrigger>
+                <TabsTrigger value="likes">Likes</TabsTrigger>
+              </TabsList>
+              
+              {/* Posts Tab */}
+              <TabsContent value="posts" className="mt-4">
+                {events.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No posts found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {events.map(event => (
+                      <NoteCard 
+                        key={event.id} 
+                        event={event} 
+                        profileData={profileData || undefined} 
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              
+              {/* Replies Tab */}
+              <TabsContent value="replies" className="mt-4">
+                <div className="py-8 text-center text-muted-foreground">
+                  Replies coming soon.
+                </div>
+              </TabsContent>
+              
+              {/* Media Tab */}
+              <TabsContent value="media" className="mt-4">
+                {media.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No media found.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {media.map(event => (
+                      <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
+                        <img 
+                          src={extractImageUrl(event.content)} 
+                          alt="Media" 
+                          className="h-full w-full object-cover transition-all hover:scale-105"
+                          onClick={() => navigate(`/note/${event.id}`)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+              
+              {/* Likes Tab */}
+              <TabsContent value="likes" className="mt-4">
+                <div className="py-8 text-center text-muted-foreground">
+                  Likes coming soon.
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
     </div>
   );
+};
+
+// Helper function to extract the first image URL from content
+const extractImageUrl = (content: string): string => {
+  const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif))/i;
+  const matches = content.match(urlRegex);
+  return matches ? matches[0] : '';
 };
 
 export default ProfilePage;
