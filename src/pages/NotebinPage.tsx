@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Menu, Save, Share, Clock, Trash2, MessageSquare } from "lucide-react";
+import { Menu, Save, Share, Clock, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { nostrService } from "@/lib/nostr";
 import {
@@ -24,12 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
-import DiscordStyleChat from "@/components/DiscordStyleChat";
 
 const NotebinPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -40,7 +34,6 @@ const NotebinPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<any>(null);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const { toast } = useToast();
   
@@ -262,11 +255,6 @@ const NotebinPage = () => {
         // Remove the note from the local state
         setSavedNotes(prev => prev.filter(note => note.id !== noteId));
         
-        // If the deleted note was selected, clear the selection
-        if (selectedNote && selectedNote.id === noteId) {
-          setSelectedNote(null);
-        }
-        
         toast({
           title: "Success",
           description: "Note deleted successfully!"
@@ -285,11 +273,6 @@ const NotebinPage = () => {
       setIsDeleting(false);
       setNoteToDelete(null);
     }
-  };
-
-  // Handle clicking on a note to open it in the Discord-style chat view
-  const handleNoteClick = (note: any) => {
-    setSelectedNote(note);
   };
 
   return (
@@ -320,164 +303,125 @@ const NotebinPage = () => {
           </div>
         </header>
         
-        <div className="h-[calc(100vh-3.5rem)]">
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <div className="p-4 h-full overflow-auto">
-                <Card className="mb-6">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div>
-                        <Input 
-                          placeholder="Note Title" 
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          className="text-lg font-medium"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Textarea 
-                          placeholder="Write your content here..." 
-                          value={content}
-                          onChange={(e) => setContent(e.target.value)}
-                          className="min-h-[200px] resize-y"
-                        />
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <Button variant="outline" onClick={() => {
-                          setTitle("");
-                          setContent("");
-                        }}>
-                          Clear
-                        </Button>
-                        
-                        <div className="flex gap-2">
-                          <Button variant="outline">
-                            <Share className="h-4 w-4 mr-2" />
-                            Share
-                          </Button>
-                          
-                          <Button 
-                            onClick={handleSave}
-                            disabled={isSaving || !nostrService.publicKey}
-                          >
-                            <Save className="h-4 w-4 mr-2" />
-                            Save
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {!nostrService.publicKey && (
-                        <p className="text-sm text-muted-foreground text-center mt-4">
-                          You need to be logged in to save notes.
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+        <div className="p-4 h-[calc(100vh-3.5rem)] overflow-auto">
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <Input 
+                    placeholder="Note Title" 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="text-lg font-medium"
+                  />
+                </div>
                 
-                {/* Display Saved Notebins */}
-                <h2 className="text-xl font-semibold mb-4">Your Saved Notes</h2>
+                <div>
+                  <Textarea 
+                    placeholder="Write your content here..." 
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="min-h-[200px] resize-y"
+                  />
+                </div>
                 
-                {!nostrService.publicKey ? (
-                  <div className="text-center py-8 border rounded-lg">
-                    <p className="text-muted-foreground">Login to view your saved notes.</p>
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => {
+                    setTitle("");
+                    setContent("");
+                  }}>
+                    Clear
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline">
+                      <Share className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                    
+                    <Button 
+                      onClick={handleSave}
+                      disabled={isSaving || !nostrService.publicKey}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
                   </div>
-                ) : isLoading ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading saved notes...</p>
-                  </div>
-                ) : savedNotes.length > 0 ? (
-                  <div className="space-y-4">
-                    {savedNotes.map((note) => (
-                      <ContextMenu key={note.id}>
-                        <ContextMenuTrigger>
-                          <Card 
-                            className={`hover:border-primary/50 transition-colors cursor-pointer ${
-                              selectedNote?.id === note.id ? 'border-primary' : ''
-                            }`}
-                            onClick={() => handleNoteClick(note)}
-                          >
-                            <CardContent className="p-4">
-                              <h3 className="text-lg font-medium">{note.title}</h3>
-                              <p className="text-sm text-muted-foreground mt-1 flex items-center">
-                                <Clock className="h-3 w-3 mr-1" />
-                                {note.publishedAt}
-                              </p>
-                              <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                                {note.content}
-                              </p>
-                              
-                              <div className="mt-3 flex justify-between items-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleNoteClick(note);
-                                  }}
-                                >
-                                  <MessageSquare className="h-4 w-4 mr-1" />
-                                  View Comments
-                                </Button>
-                                
-                                {/* Only show delete button for user's own notes */}
-                                {nostrService.publicKey && note.author === nostrService.publicKey && (
-                                  <Button
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setNoteToDelete(note.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                                  </Button>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem onClick={() => handleNoteClick(note)}>
-                            <MessageSquare className="h-4 w-4 mr-2" />
-                            View Comments
-                          </ContextMenuItem>
-                          
-                          {nostrService.publicKey && note.author === nostrService.publicKey && (
-                            <ContextMenuItem 
-                              className="text-destructive focus:text-destructive focus:bg-destructive/10" 
-                              onClick={() => setNoteToDelete(note.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Note
-                            </ContextMenuItem>
-                          )}
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 border rounded-lg">
-                    <p className="text-muted-foreground">No saved notes yet.</p>
-                  </div>
+                </div>
+                
+                {!nostrService.publicKey && (
+                  <p className="text-sm text-muted-foreground text-center mt-4">
+                    You need to be logged in to save notes.
+                  </p>
                 )}
               </div>
-            </ResizablePanel>
-            
-            <ResizableHandle withHandle />
-            
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <div className="h-full border-l">
-                <DiscordStyleChat 
-                  selectedNote={selectedNote} 
-                  profiles={profiles} 
-                />
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+            </CardContent>
+          </Card>
+          
+          {/* Display Saved Notebins */}
+          <h2 className="text-xl font-semibold mb-4">Your Saved Notes</h2>
+          
+          {!nostrService.publicKey ? (
+            <div className="text-center py-8 border rounded-lg">
+              <p className="text-muted-foreground">Login to view your saved notes.</p>
+            </div>
+          ) : isLoading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading saved notes...</p>
+            </div>
+          ) : savedNotes.length > 0 ? (
+            <div className="space-y-4">
+              {savedNotes.map((note) => (
+                <ContextMenu key={note.id}>
+                  <ContextMenuTrigger>
+                    <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                      <CardContent className="p-4">
+                        <h3 className="text-lg font-medium">{note.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1 flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {note.publishedAt}
+                        </p>
+                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                          {note.content}
+                        </p>
+                        
+                        {/* Only show delete button for user's own notes */}
+                        {nostrService.publicKey && note.author === nostrService.publicKey && (
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete(note.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    {nostrService.publicKey && note.author === nostrService.publicKey && (
+                      <ContextMenuItem 
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10" 
+                        onClick={() => setNoteToDelete(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Note
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 border rounded-lg">
+              <p className="text-muted-foreground">No saved notes yet.</p>
+            </div>
+          )}
         </div>
         
         {/* Delete Confirmation Dialog */}
