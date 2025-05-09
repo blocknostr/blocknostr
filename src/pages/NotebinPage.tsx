@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 const NotebinPage = () => {
@@ -44,18 +42,26 @@ const NotebinPage = () => {
   // Fetch saved notebins when the page loads
   useEffect(() => {
     const fetchSavedNotes = async () => {
+      if (!nostrService.publicKey) {
+        // If user is not logged in, don't fetch notes
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
-        // Query for kind 30023 events (NIP-23 long-form content)
-        const filter = {
-          kinds: [30023],
-          limit: 20
-        };
-        
         // Connect to relays if not already connected
         await nostrService.connectToDefaultRelays();
         
-        // Use subscribe instead of queryEvents since that's what's available in nostrService
+        // Query for kind 30023 events (NIP-23 long-form content)
+        // Only fetch notes created by the current user
+        const filter = {
+          kinds: [30023],
+          authors: [nostrService.publicKey],
+          limit: 20
+        };
+        
+        // Use subscribe to fetch events
         const subId = nostrService.subscribe([filter], (event) => {
           console.log("Received event:", event);
           
@@ -320,7 +326,11 @@ const NotebinPage = () => {
           {/* Display Saved Notebins */}
           <h2 className="text-xl font-semibold mb-4">Your Saved Notes</h2>
           
-          {isLoading ? (
+          {!nostrService.publicKey ? (
+            <div className="text-center py-8 border rounded-lg">
+              <p className="text-muted-foreground">Login to view your saved notes.</p>
+            </div>
+          ) : isLoading ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Loading saved notes...</p>
             </div>
@@ -359,15 +369,13 @@ const NotebinPage = () => {
                     </Card>
                   </ContextMenuTrigger>
                   <ContextMenuContent>
-                    {nostrService.publicKey && note.author === nostrService.publicKey && (
-                      <ContextMenuItem 
-                        className="text-destructive focus:text-destructive focus:bg-destructive/10" 
-                        onClick={() => setNoteToDelete(note.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Note
-                      </ContextMenuItem>
-                    )}
+                    <ContextMenuItem 
+                      className="text-destructive focus:text-destructive focus:bg-destructive/10" 
+                      onClick={() => setNoteToDelete(note.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Note
+                    </ContextMenuItem>
                   </ContextMenuContent>
                 </ContextMenu>
               ))}
@@ -375,11 +383,6 @@ const NotebinPage = () => {
           ) : (
             <div className="text-center py-8 border rounded-lg">
               <p className="text-muted-foreground">No saved notes yet.</p>
-              {!nostrService.publicKey && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Login to create and save notes.
-                </p>
-              )}
             </div>
           )}
           
