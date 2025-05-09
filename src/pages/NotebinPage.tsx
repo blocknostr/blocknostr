@@ -52,6 +52,9 @@ const NotebinPage = () => {
           limit: 20
         };
         
+        // Connect to relays if not already connected
+        await nostrService.connectToDefaultRelays();
+        
         // Use subscribe instead of queryEvents since that's what's available in nostrService
         const subId = nostrService.subscribe([filter], (event) => {
           console.log("Received event:", event);
@@ -89,9 +92,6 @@ const NotebinPage = () => {
           nostrService.unsubscribe(subId);
           setIsLoading(false);
         }, 5000);
-        
-        // Connect to relays if not already connected
-        await nostrService.connectToDefaultRelays();
       } catch (error) {
         console.error("Error fetching saved notes:", error);
         toast({
@@ -195,6 +195,7 @@ const NotebinPage = () => {
           description: "You can only delete your own notes",
           variant: "destructive"
         });
+        setIsDeleting(false);
         return;
       }
       
@@ -342,38 +343,16 @@ const NotebinPage = () => {
                         {/* Only show delete button for user's own notes */}
                         {nostrService.publicKey && note.author === nostrService.publicKey && (
                           <div className="mt-3 flex justify-end">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setNoteToDelete(note.id);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Note</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this note? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(note.id)}
-                                    disabled={isDeleting}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    {isDeleting ? "Deleting..." : "Delete"}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            <Button
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNoteToDelete(note.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
                           </div>
                         )}
                       </CardContent>
