@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -314,154 +313,156 @@ const NotebinPage = () => {
         </header>
         
         <div className="p-4 h-[calc(100vh-3.5rem)] overflow-auto">
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Input 
-                      placeholder="Note Title" 
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="text-lg font-medium"
+          <div className="max-w-3xl mx-auto"> {/* Added container with max width */}
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1">
+                      <Input 
+                        placeholder="Note Title" 
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        className="text-lg font-medium"
+                      />
+                    </div>
+                    
+                    <div className="w-full md:w-48">
+                      <Select value={language} onValueChange={setLanguage}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LANGUAGE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="min-h-[300px] border rounded-md">
+                    <CodeEditor
+                      value={content}
+                      language={language}
+                      placeholder="Enter your code or text here..."
+                      onChange={(evn) => setContent(evn.target.value)}
+                      padding={15}
+                      style={{
+                        backgroundColor: "var(--background)",
+                        fontFamily: "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+                        fontSize: 14,
+                        minHeight: "300px",
+                        width: "100%"
+                      }}
+                      className="min-h-[300px]"
                     />
                   </div>
                   
-                  <div className="w-full md:w-48">
-                    <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LANGUAGE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="min-h-[300px] border rounded-md">
-                  <CodeEditor
-                    value={content}
-                    language={language}
-                    placeholder="Enter your code or text here..."
-                    onChange={(evn) => setContent(evn.target.value)}
-                    padding={15}
-                    style={{
-                      backgroundColor: "var(--background)",
-                      fontFamily: "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-                      fontSize: 14,
-                      minHeight: "300px",
-                      width: "100%"
-                    }}
-                    className="min-h-[300px]"
-                  />
-                </div>
-                
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => {
-                      setTitle("");
-                      setContent("");
-                      setLanguage("text");
-                    }}>
-                      Clear
-                    </Button>
+                  <div className="flex flex-col md:flex-row justify-between gap-4">
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => {
+                        setTitle("");
+                        setContent("");
+                        setLanguage("text");
+                      }}>
+                        Clear
+                      </Button>
+                      
+                      <Button variant="outline" onClick={copyToClipboard}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </Button>
+                    </div>
                     
-                    <Button variant="outline" onClick={copyToClipboard}>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        disabled={!title || !content}
+                      >
+                        <Share className="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                      
+                      <Button 
+                        onClick={handleSave}
+                        disabled={isSaving || !nostrService.publicKey || !title || !content}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </Button>
+                    </div>
                   </div>
                   
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline"
-                      disabled={!title || !content}
-                    >
-                      <Share className="h-4 w-4 mr-2" />
-                      Share
-                    </Button>
-                    
-                    <Button 
-                      onClick={handleSave}
-                      disabled={isSaving || !nostrService.publicKey || !title || !content}
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
+                  {!nostrService.publicKey && (
+                    <p className="text-sm text-muted-foreground text-center mt-4">
+                      You need to be logged in to save notes.
+                    </p>
+                  )}
                 </div>
-                
-                {!nostrService.publicKey && (
-                  <p className="text-sm text-muted-foreground text-center mt-4">
-                    You need to be logged in to save notes.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Display Saved Notebins */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-4">
-              <FileText className="h-5 w-5" />
-              <h2 className="text-xl font-semibold">Your Saved Notes</h2>
-            </div>
+              </CardContent>
+            </Card>
             
-            {!nostrService.publicKey ? (
-              <div className="text-center py-8 border rounded-lg">
-                <p className="text-muted-foreground">Login to view your saved notes.</p>
+            {/* Display Saved Notebins */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <FileText className="h-5 w-5" />
+                <h2 className="text-xl font-semibold">Your Saved Notes</h2>
               </div>
-            ) : isLoading ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Loading saved notes...</p>
-              </div>
-            ) : savedNotes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {savedNotes.map((note) => (
-                  <Card 
-                    key={note.id} 
-                    className="hover:border-primary/50 transition-colors cursor-pointer"
-                    onClick={() => viewNote(note)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <h3 className="font-medium truncate">{note.title}</h3>
-                        <Button
-                          variant="ghost" 
-                          size="sm"
-                          className="ml-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setNoteToDelete(note.id);
-                          }}
-                        >
-                          <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                        </Button>
-                      </div>
-                      <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                        <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded-md">
-                          {note.language || 'text'}
+              
+              {!nostrService.publicKey ? (
+                <div className="text-center py-8 border rounded-lg">
+                  <p className="text-muted-foreground">Login to view your saved notes.</p>
+                </div>
+              ) : isLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Loading saved notes...</p>
+                </div>
+              ) : savedNotes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedNotes.map((note) => (
+                    <Card 
+                      key={note.id} 
+                      className="hover:border-primary/50 transition-colors cursor-pointer"
+                      onClick={() => viewNote(note)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <h3 className="font-medium truncate">{note.title}</h3>
+                          <Button
+                            variant="ghost" 
+                            size="sm"
+                            className="ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNoteToDelete(note.id);
+                            }}
+                          >
+                            <Copy className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                          </Button>
                         </div>
-                        <span className="mx-2">•</span>
-                        <span>{note.publishedAt}</span>
-                      </div>
-                      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground border-t pt-2">
-                        {note.content}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 border rounded-lg">
-                <p className="text-muted-foreground">No saved notes yet.</p>
-              </div>
-            )}
+                        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                          <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded-md">
+                            {note.language || 'text'}
+                          </div>
+                          <span className="mx-2">•</span>
+                          <span>{note.publishedAt}</span>
+                        </div>
+                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground border-t pt-2">
+                          {note.content}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 border rounded-lg">
+                  <p className="text-muted-foreground">No saved notes yet.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
