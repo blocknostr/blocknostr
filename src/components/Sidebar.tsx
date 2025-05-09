@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Home, Hash, Bell, Mail, User, Users, Settings } from "lucide-react";
+import { Home, Hash, Bell, Mail, User, Users, Settings, FileText, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,18 @@ const Sidebar = () => {
       requiresAuth: false
     },
     {
+      name: "Notebin",
+      icon: FileText,
+      href: "/notebin",
+      requiresAuth: false
+    },
+    {
+      name: "X Articles",
+      icon: BookOpen,
+      href: "/articles",
+      requiresAuth: false
+    },
+    {
       name: "Settings",
       icon: Settings,
       href: "/settings",
@@ -56,7 +68,7 @@ const Sidebar = () => {
   ];
   
   return (
-    <aside className="w-64 border-r h-full fixed left-0 top-0 py-4 bg-background">
+    <aside className="w-64 border-r h-full fixed left-0 top-0 py-4 bg-background hidden md:block">
       <div className="flex flex-col h-full px-4">
         <div className="mb-6">
           <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">

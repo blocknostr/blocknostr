@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Input } from "@/components/ui/input";
@@ -217,7 +216,7 @@ const MessagingSystem = () => {
     const dmSubId = nostrService.subscribe(
       [
         {
-          kinds: [4, 14],
+          kinds: [4, 14], // Support both legacy DM and NIP-17
           authors: [contact.pubkey],
           '#p': [currentUserPubkey]
         },
@@ -274,6 +273,7 @@ const MessagingSystem = () => {
     setSendingMessage(true);
     
     try {
+      // Use NIP-17 for direct messages (kind 14)
       await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
       setNewMessage("");
     } catch (error) {
