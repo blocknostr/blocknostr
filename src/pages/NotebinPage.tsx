@@ -5,9 +5,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Menu, Save, Share, Clock } from "lucide-react";
+import { Menu, Save, Share, Clock, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { nostrService } from "@/lib/nostr";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const NotebinPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -16,6 +33,8 @@ const NotebinPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [savedNotes, setSavedNotes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   
   const toggleSidebar = () => {
@@ -148,6 +167,71 @@ const NotebinPage = () => {
       setIsSaving(false);
     }
   };
+  
+  const handleDelete = async (noteId: string) => {
+    if (!nostrService.publicKey) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to delete notes",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsDeleting(true);
+    
+    try {
+      // Find the note to be deleted
+      const noteToDelete = savedNotes.find(note => note.id === noteId);
+      
+      if (!noteToDelete) {
+        throw new Error("Note not found");
+      }
+      
+      // Check if user is the author of the note
+      if (noteToDelete.author !== nostrService.publicKey) {
+        toast({
+          title: "Error",
+          description: "You can only delete your own notes",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Create a deletion event (NIP-09)
+      const deletionEvent = {
+        kind: 5, // Event deletion
+        content: "Deleted notebin",
+        tags: [
+          ["e", noteId] // Reference to the event being deleted
+        ]
+      };
+      
+      const deletionEventId = await nostrService.publishEvent(deletionEvent);
+      
+      if (deletionEventId) {
+        // Remove the note from the local state
+        setSavedNotes(prev => prev.filter(note => note.id !== noteId));
+        
+        toast({
+          title: "Success",
+          description: "Note deleted successfully!"
+        });
+      } else {
+        throw new Error("Failed to delete note");
+      }
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete note. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setNoteToDelete(null);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -242,18 +326,71 @@ const NotebinPage = () => {
           ) : savedNotes.length > 0 ? (
             <div className="space-y-4">
               {savedNotes.map((note) => (
-                <Card key={note.id} className="hover:border-primary/50 transition-colors">
-                  <CardContent className="p-4">
-                    <h3 className="text-lg font-medium">{note.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1 flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {note.publishedAt}
-                    </p>
-                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                      {note.content}
-                    </p>
-                  </CardContent>
-                </Card>
+                <ContextMenu key={note.id}>
+                  <ContextMenuTrigger>
+                    <Card className="hover:border-primary/50 transition-colors">
+                      <CardContent className="p-4">
+                        <h3 className="text-lg font-medium">{note.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1 flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {note.publishedAt}
+                        </p>
+                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                          {note.content}
+                        </p>
+                        
+                        {/* Only show delete button for user's own notes */}
+                        {nostrService.publicKey && note.author === nostrService.publicKey && (
+                          <div className="mt-3 flex justify-end">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNoteToDelete(note.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this note? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(note.id)}
+                                    disabled={isDeleting}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    {nostrService.publicKey && note.author === nostrService.publicKey && (
+                      <ContextMenuItem 
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10" 
+                        onClick={() => setNoteToDelete(note.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Note
+                      </ContextMenuItem>
+                    )}
+                  </ContextMenuContent>
+                </ContextMenu>
               ))}
             </div>
           ) : (
@@ -266,6 +403,28 @@ const NotebinPage = () => {
               )}
             </div>
           )}
+          
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={!!noteToDelete} onOpenChange={(open) => !open && setNoteToDelete(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this note? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => noteToDelete && handleDelete(noteToDelete)}
+                  disabled={isDeleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>
