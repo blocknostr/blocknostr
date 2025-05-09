@@ -19,7 +19,7 @@ const Index = () => {
 
   return (
     <div className="layout-container">
-      <div className="sidebar-left hidden-mobile">
+      <div className="sidebar-left">
         <Sidebar />
       </div>
       
@@ -36,7 +36,7 @@ const Index = () => {
         </div>
       </div>
       
-      <div className="sidebar-right hidden-mobile">
+      <div className="sidebar-right">
         <div className="space-y-6">
           <TrendingSection />
           <WhoToFollow />

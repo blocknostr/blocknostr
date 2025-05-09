@@ -95,11 +95,12 @@ body {
 
 @media (max-width: 1024px) {
   .sidebar-right {
-    display: none;
+    display: block;
+    width: 240px;
   }
   
   .main-content {
-    border-right: none;
+    border-right: 1px solid hsl(var(--border));
   }
 }
 
@@ -112,10 +113,15 @@ body {
     display: none;
   }
   
+  .sidebar-right {
+    display: none;
+  }
+  
   .main-content {
     max-width: 100%;
     min-width: 0;
     border-left: none;
+    border-right: none;
   }
 }
 
