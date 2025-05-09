@@ -1,7 +1,8 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2 } from "lucide-react";
+import { Copy, FileText, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Note {
   id: string;
@@ -28,6 +29,17 @@ const NotesList = ({
   onDeleteClick, 
   isLoggedIn 
 }: NotesListProps) => {
+
+  const handleCopyContent = (content: string) => {
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        toast.success("Note content copied to clipboard");
+      })
+      .catch(() => {
+        toast.error("Failed to copy content");
+      });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
@@ -54,17 +66,32 @@ const NotesList = ({
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <h3 className="font-medium truncate">{note.title}</h3>
-                  <Button
-                    variant="ghost" 
-                    size="sm"
-                    className="ml-2 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteClick(note.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost" 
+                      size="sm"
+                      className="text-muted-foreground hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyContent(note.content);
+                      }}
+                      aria-label="Copy note content"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost" 
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteClick(note.id);
+                      }}
+                      aria-label="Delete note"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex items-center mt-2 text-xs text-muted-foreground">
                   <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded-md">
