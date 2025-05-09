@@ -4,9 +4,11 @@ import { Home, Hash, Bell, Mail, User, Users, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 
 const Sidebar = () => {
   const isLoggedIn = !!nostrService.publicKey;
+  const location = useLocation();
   
   const navItems = [
     {
@@ -43,7 +45,7 @@ const Sidebar = () => {
       name: "Communities",
       icon: Users,
       href: "/communities",
-      requiresAuth: true
+      requiresAuth: false
     },
     {
       name: "Settings",
@@ -69,6 +71,8 @@ const Sidebar = () => {
                 return null;
               }
               
+              const isActive = location.pathname === item.href;
+              
               return (
                 <li key={item.name}>
                   <Link to={item.href}>
@@ -76,7 +80,7 @@ const Sidebar = () => {
                       variant="ghost"
                       className={cn(
                         "w-full justify-start text-left font-medium",
-                        window.location.pathname === item.href ? "bg-accent text-accent-foreground" : ""
+                        isActive ? "bg-accent text-accent-foreground" : ""
                       )}
                     >
                       <item.icon className="mr-2 h-5 w-5" />

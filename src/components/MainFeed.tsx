@@ -3,16 +3,20 @@ import { useEffect, useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
 import CreateNoteForm from "./CreateNoteForm";
+import FollowingFeed from "./FollowingFeed";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const MainFeed = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [activeTab, setActiveTab] = useState("global");
+  const isLoggedIn = !!nostrService.publicKey;
   
   useEffect(() => {
     const fetchEvents = async () => {
       // Connect to relays
-      await nostrService.connectToDefaultRelays();
+      await nostrService.connectToUserRelays();
       
       // Subscribe to text notes (kind 1)
       const subId = nostrService.subscribe(
@@ -87,25 +91,54 @@ const MainFeed = () => {
       
       <CreateNoteForm />
       
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">
-          Loading posts...
-        </div>
-      ) : events.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground">
-          No posts found. Connect to more relays or follow more people.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {events.map(event => (
-            <NoteCard 
-              key={event.id} 
-              event={event} 
-              profileData={event.pubkey ? profiles[event.pubkey] : undefined} 
-            />
-          ))}
-        </div>
-      )}
+      <Tabs 
+        defaultValue={activeTab} 
+        onValueChange={setActiveTab}
+        className="mt-4"
+      >
+        <TabsList className="w-full mb-4">
+          <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
+          <TabsTrigger 
+            value="following" 
+            className="flex-1" 
+            disabled={!isLoggedIn}
+          >
+            Following
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="global">
+          {loading ? (
+            <div className="py-8 text-center text-muted-foreground">
+              Loading posts...
+            </div>
+          ) : events.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              No posts found. Connect to more relays or follow more people.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {events.map(event => (
+                <NoteCard 
+                  key={event.id} 
+                  event={event} 
+                  profileData={event.pubkey ? profiles[event.pubkey] : undefined} 
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="following">
+          {!isLoggedIn ? (
+            <div className="py-8 text-center text-muted-foreground">
+              You need to log in to see posts from people you follow.
+            </div>
+          ) : (
+            <FollowingFeed />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

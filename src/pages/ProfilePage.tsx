@@ -1,12 +1,17 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { NostrEvent, nostrService } from "@/lib/nostr";
+import { NostrEvent, nostrService, Relay } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import NoteCard from "@/components/NoteCard";
 import Sidebar from "@/components/Sidebar";
+import FollowButton from "@/components/FollowButton";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Loader2, Plus } from "lucide-react";
 
 interface ProfileData {
   name?: string;
@@ -23,6 +28,9 @@ const ProfilePage = () => {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [relays, setRelays] = useState<Relay[]>([]);
+  const [newRelayUrl, setNewRelayUrl] = useState("");
+  const [isAddingRelay, setIsAddingRelay] = useState(false);
   
   const currentUserPubkey = nostrService.publicKey;
   const isCurrentUser = currentUserPubkey && 
@@ -34,7 +42,7 @@ const ProfilePage = () => {
       
       try {
         // Connect to relays if not already connected
-        await nostrService.connectToDefaultRelays();
+        await nostrService.connectToUserRelays();
         
         // Convert npub to hex if needed
         let hexPubkey = npub;
@@ -96,7 +104,13 @@ const ProfilePage = () => {
     };
     
     fetchProfileData();
-  }, [npub]);
+    
+    // Load relay status if this is the current user
+    if (isCurrentUser) {
+      const relayStatus = nostrService.getRelayStatus();
+      setRelays(relayStatus);
+    }
+  }, [npub, isCurrentUser]);
   
   // Show current user's profile if no npub is provided
   useEffect(() => {
@@ -104,6 +118,35 @@ const ProfilePage = () => {
       window.location.href = `/profile/${nostrService.formatPubkey(currentUserPubkey)}`;
     }
   }, [npub, currentUserPubkey]);
+  
+  const handleAddRelay = async () => {
+    if (!newRelayUrl.trim()) return;
+    
+    setIsAddingRelay(true);
+    
+    try {
+      const success = await nostrService.addRelay(newRelayUrl);
+      if (success) {
+        toast.success(`Added relay: ${newRelayUrl}`);
+        setNewRelayUrl("");
+        // Update relay status
+        const relayStatus = nostrService.getRelayStatus();
+        setRelays(relayStatus);
+      }
+    } catch (error) {
+      console.error("Error adding relay:", error);
+    } finally {
+      setIsAddingRelay(false);
+    }
+  };
+  
+  const handleRemoveRelay = (relayUrl: string) => {
+    nostrService.removeRelay(relayUrl);
+    // Update relay status
+    const relayStatus = nostrService.getRelayStatus();
+    setRelays(relayStatus);
+    toast.success(`Removed relay: ${relayUrl}`);
+  };
   
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
@@ -153,7 +196,7 @@ const ProfilePage = () => {
                     {isCurrentUser ? (
                       <Button variant="outline">Edit profile</Button>
                     ) : (
-                      <Button>Follow</Button>
+                      <FollowButton pubkey={nostrService.getHexFromNpub(npub || '')} />
                     )}
                   </div>
                   
@@ -181,6 +224,73 @@ const ProfilePage = () => {
               </CardContent>
             </Card>
           </div>
+          
+          {/* Relays section (only for current user) */}
+          {isCurrentUser && (
+            <div className="mb-6">
+              <Card>
+                <CardContent className="pt-4">
+                  <h3 className="text-lg font-semibold mb-4 flex justify-between items-center">
+                    <span>My Relays</span>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm">
+                          <Plus className="h-4 w-4 mr-2" /> Add Relay
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add a new relay</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex gap-2 mt-4">
+                          <Input
+                            placeholder="wss://relay.example.com"
+                            value={newRelayUrl}
+                            onChange={(e) => setNewRelayUrl(e.target.value)}
+                          />
+                          <Button 
+                            onClick={handleAddRelay}
+                            disabled={isAddingRelay || !newRelayUrl.trim()}
+                          >
+                            {isAddingRelay ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              'Add'
+                            )}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    {relays.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No relays connected</p>
+                    ) : (
+                      relays.map((relay) => (
+                        <div key={relay.url} className="flex items-center justify-between bg-muted/50 p-2 rounded">
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${
+                              relay.status === 'connected' ? 'bg-green-500' : 
+                              relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}></span>
+                            <span className="text-sm">{relay.url}</span>
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleRemoveRelay(relay.url)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
           
           {/* Notes */}
           <div>
