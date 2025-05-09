@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
-import { SmilePlus, SendHorizontal } from "lucide-react";
+import { SmilePlus, SendHorizontal, MessageSquare } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -32,7 +31,7 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
   const authorProfile = selectedNote?.author ? profiles[selectedNote.author] : null;
   const authorName = authorProfile?.name || 
     authorProfile?.display_name || 
-    `${selectedNote?.author?.substring(0, 8)}...`;
+    (selectedNote?.author ? `${selectedNote.author.substring(0, 8)}...` : '');
   const authorPicture = authorProfile?.picture || '';
   
   // Get the first character for the avatar fallback
@@ -104,10 +103,26 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
     }
   };
 
+  // Chat placeholder when no note is selected
   if (!selectedNote) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Select a note to view details</p>
+      <div className="flex flex-col h-full bg-background">
+        <div className="border-b px-4 py-3">
+          <h2 className="text-lg font-semibold text-muted-foreground">Chat</h2>
+        </div>
+        
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-center p-8">
+            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <p className="text-muted-foreground">Select a note to view comments</p>
+          </div>
+        </div>
+        
+        <div className="border-t p-3">
+          <p className="text-center text-sm text-muted-foreground">
+            Select a note to start chatting
+          </p>
+        </div>
       </div>
     );
   }
