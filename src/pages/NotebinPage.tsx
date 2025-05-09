@@ -33,8 +33,10 @@ const NotebinPage = () => {
           limit: 20
         };
         
-        const events = await nostrService.queryEvents(filter);
-        const processedNotes = events.map(event => {
+        // Use subscribe instead of queryEvents since that's what's available in nostrService
+        const subId = nostrService.subscribe([filter], (event) => {
+          console.log("Received event:", event);
+          
           // Extract title from tags
           const titleTag = event.tags.find(tag => tag[0] === 'title');
           const title = titleTag ? titleTag[1] : 'Untitled Note';
@@ -45,7 +47,7 @@ const NotebinPage = () => {
             ? new Date(parseInt(publishedTag[1]) * 1000).toLocaleString() 
             : new Date(event.created_at * 1000).toLocaleString();
             
-          return {
+          const note = {
             id: event.id,
             title,
             content: event.content,
@@ -53,9 +55,24 @@ const NotebinPage = () => {
             author: event.pubkey,
             event
           };
+          
+          // Add to saved notes if not already there
+          setSavedNotes(prev => {
+            if (prev.some(n => n.id === note.id)) {
+              return prev;
+            }
+            return [note, ...prev];
+          });
         });
         
-        setSavedNotes(processedNotes);
+        // Unsubscribe after a short time to avoid continuous updates
+        setTimeout(() => {
+          nostrService.unsubscribe(subId);
+          setIsLoading(false);
+        }, 5000);
+        
+        // Connect to relays if not already connected
+        await nostrService.connectToDefaultRelays();
       } catch (error) {
         console.error("Error fetching saved notes:", error);
         toast({
@@ -63,7 +80,6 @@ const NotebinPage = () => {
           description: "Failed to fetch saved notes",
           variant: "destructive"
         });
-      } finally {
         setIsLoading(false);
       }
     };
