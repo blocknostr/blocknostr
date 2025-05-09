@@ -1,5 +1,5 @@
 
-import { getEventHash, getPublicKey, nip19, signEvent } from 'nostr-tools';
+import { getEventHash, getPublicKey, nip19, SimplePool, generatePrivateKey, finalizeEvent } from 'nostr-tools';
 import { toast } from "sonner";
 
 export interface NostrEvent {
@@ -41,10 +41,12 @@ class NostrService {
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private pubkeyHandles: Map<string, string> = new Map();
+  private pool: SimplePool | null = null;
   
   constructor() {
     // Try to restore from localStorage
     this.loadUserKeys();
+    this.pool = new SimplePool();
   }
   
   // User authentication and keys
@@ -168,7 +170,7 @@ class NostrService {
       content: event.content || '',
     };
     
-    const eventId = getEventHash(fullEvent);
+    const eventId = getEventHash(fullEvent as any);
     let signedEvent: NostrEvent;
     
     try {
@@ -177,8 +179,15 @@ class NostrService {
         signedEvent = await window.nostr.signEvent(fullEvent);
       } else if (this._privateKey) {
         // Use private key if available (not recommended for production)
-        const sig = await signEvent(fullEvent, this._privateKey);
-        signedEvent = { ...fullEvent, id: eventId, sig };
+        signedEvent = finalizeEvent(
+          {
+            kind: fullEvent.kind,
+            created_at: fullEvent.created_at,
+            tags: fullEvent.tags,
+            content: fullEvent.content,
+          },
+          this._privateKey
+        );
       } else {
         toast.error("No signing method available");
         return null;
