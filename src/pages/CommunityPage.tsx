@@ -1,17 +1,19 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { nostrService, NostrEvent } from "@/lib/nostr";
-import { Loader2, ArrowLeft, Users, Plus, Check, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Users, Plus, Check, Clock, UserPlus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { formatDistanceToNow } from 'date-fns';
+import { Toaster } from "@/components/ui/sonner";
 
 interface Community {
   id: string;
@@ -42,7 +44,7 @@ const CommunityPage = () => {
   const [community, setCommunity] = useState<Community | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("info");
+  const [activeTab, setActiveTab] = useState("proposals");
   
   // Form states for creating a new proposal
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
@@ -362,6 +364,48 @@ const CommunityPage = () => {
     }
   };
   
+  const handleLeaveCommunity = async () => {
+    if (!currentUserPubkey || !community) return;
+    
+    try {
+      // Remove user from members list
+      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
+      
+      // Create an updated community event without the current user
+      const communityData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(communityData),
+        tags: [
+          ['d', community.uniqueId],
+          ...updatedMembers.map(member => ['p', member])
+        ]
+      };
+      
+      await nostrService.publishEvent(event);
+      toast.success("You have left the community");
+      
+      // Update local state
+      setCommunity({
+        ...community,
+        members: updatedMembers
+      });
+      
+      // Redirect back to communities list
+      navigate('/communities');
+    } catch (error) {
+      console.error("Error leaving community:", error);
+      toast.error("Failed to leave community");
+    }
+  };
+  
   const getVoteCounts = (proposal: Proposal) => {
     const counts = proposal.options.map(() => 0);
     
@@ -385,6 +429,24 @@ const CommunityPage = () => {
   
   const isProposalActive = (proposal: Proposal) => {
     return proposal.endsAt > Math.floor(Date.now() / 1000);
+  };
+  
+  const getRandomColor = (str: string) => {
+    const colors = [
+      "bg-blue-500", "bg-green-500", "bg-yellow-500", 
+      "bg-purple-500", "bg-pink-500", "bg-indigo-500"
+    ];
+    const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
   
   if (loading) {
@@ -423,7 +485,7 @@ const CommunityPage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
-      <div className="flex-1 ml-0 md:ml-64">
+      <div className="flex-1 ml-0 md:ml-64 overflow-auto">
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-10">
           <div className="flex items-center justify-between h-14 px-4">
             <div className="flex items-center gap-2">
@@ -435,7 +497,7 @@ const CommunityPage = () => {
             
             {!isMember && !isCreator && currentUserPubkey && (
               <Button onClick={handleJoinCommunity}>
-                <Users className="h-4 w-4 mr-2" />
+                <UserPlus className="h-4 w-4 mr-2" />
                 Join
               </Button>
             )}
@@ -448,202 +510,261 @@ const CommunityPage = () => {
           </div>
         </header>
         
-        <div className="h-[calc(100vh-3.5rem)] overflow-y-auto p-4">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>About this community</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{community.description}</p>
-              <div className="text-sm text-muted-foreground mt-4 flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                {community.members.length} members • Created {new Date(community.createdAt * 1000).toLocaleDateString()}
-              </div>
-              
-              {/* Leave Community button */}
-              {isMember && !isCreator && (
-                <div className="mt-4">
-                  <Button variant="outline" className="w-full">
-                    Leave Community
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold mb-2">Proposals</h2>
-              {(isMember || isCreator) && (
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      New Proposal
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create a new proposal</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Input
-                          placeholder="Proposal Title"
-                          value={newProposalTitle}
-                          onChange={(e) => setNewProposalTitle(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Textarea
-                          placeholder="Description"
-                          value={newProposalDesc}
-                          onChange={(e) => setNewProposalDesc(e.target.value)}
-                          rows={4}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Voting Period</p>
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="range" 
-                            min="1" 
-                            max="30" 
-                            value={proposalDuration} 
-                            onChange={(e) => setProposalDuration(parseInt(e.target.value))}
-                            className="flex-1"
-                          />
-                          <span className="min-w-[100px] text-sm flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {proposalDuration} {proposalDuration === 1 ? 'day' : 'days'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium">Options</p>
-                        {newProposalOptions.map((option, index) => (
-                          <div key={index} className="flex gap-2">
-                            <Input
-                              placeholder={`Option ${index + 1}`}
-                              value={option}
-                              onChange={(e) => {
-                                const updated = [...newProposalOptions];
-                                updated[index] = e.target.value;
-                                setNewProposalOptions(updated);
-                              }}
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                if (newProposalOptions.length > 2) {
-                                  setNewProposalOptions(
-                                    newProposalOptions.filter((_, i) => i !== index)
-                                  );
-                                }
-                              }}
-                              disabled={newProposalOptions.length <= 2}
-                            >
-                              &times;
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          onClick={() => setNewProposalOptions([...newProposalOptions, ""])}
-                        >
-                          Add Option
-                        </Button>
-                      </div>
-                      <Button 
-                        onClick={handleCreateProposal}
-                        disabled={isCreatingProposal || !newProposalTitle.trim()}
-                        className="w-full"
-                      >
-                        {isCreatingProposal ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4 mr-2" />
-                        )}
-                        Create Proposal
-                      </Button>
+        <div className="px-4 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Community Info - Sidebar */}
+            <div className="lg:col-span-4 space-y-4">
+              <Card>
+                <div className={`h-32 ${getRandomColor(community.id)} flex items-center justify-center`}>
+                  {community.image ? (
+                    <img src={community.image} alt={community.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-white text-4xl font-bold">
+                      {getInitials(community.name)}
                     </div>
-                  </DialogContent>
-                </Dialog>
-              )}
+                  )}
+                </div>
+                
+                <CardHeader>
+                  <CardTitle>{community.name}</CardTitle>
+                </CardHeader>
+                
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {community.description || "No description provided."}
+                  </p>
+                  
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Users className="h-4 w-4 mr-1" />
+                    <span>{community.members.length} members</span>
+                    <span className="mx-1">•</span>
+                    <span>Created {new Date(community.createdAt * 1000).toLocaleDateString()}</span>
+                  </div>
+                </CardContent>
+                
+                <CardFooter>
+                  {isMember && !isCreator && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full text-red-500 hover:text-red-600"
+                      onClick={handleLeaveCommunity}
+                    >
+                      Leave Community
+                    </Button>
+                  )}
+                </CardFooter>
+              </Card>
+              
+              {/* Members List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Members ({community.members.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-[400px] overflow-y-auto">
+                  <div className="space-y-2">
+                    {community.members.map((member, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
+                        <div className="flex-shrink-0">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback>{member.substring(0, 2)}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex-1 truncate">
+                          <p className="text-sm font-medium">{nostrService.getNpubFromHex(member).substring(0, 12)}...</p>
+                        </div>
+                        {member === community.creator && (
+                          <span className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full">Creator</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             
-            {proposals.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8 bg-muted/30 rounded-lg">
-                <p className="mb-2">No proposals have been created yet.</p>
+            {/* Main Content */}
+            <div className="lg:col-span-8 space-y-5">
+              {/* Proposals Section */}
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Proposals</h2>
                 {(isMember || isCreator) && (
-                  <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
-                    Create the first proposal
-                  </Button>
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Proposal
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create a new proposal</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Proposal Title"
+                            value={newProposalTitle}
+                            onChange={(e) => setNewProposalTitle(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Textarea
+                            placeholder="Description"
+                            value={newProposalDesc}
+                            onChange={(e) => setNewProposalDesc(e.target.value)}
+                            rows={4}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Voting Period</p>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="range" 
+                              min="1" 
+                              max="30" 
+                              value={proposalDuration} 
+                              onChange={(e) => setProposalDuration(parseInt(e.target.value))}
+                              className="flex-1"
+                            />
+                            <span className="min-w-[100px] text-sm flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {proposalDuration} {proposalDuration === 1 ? 'day' : 'days'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Options</p>
+                          {newProposalOptions.map((option, index) => (
+                            <div key={index} className="flex gap-2">
+                              <Input
+                                placeholder={`Option ${index + 1}`}
+                                value={option}
+                                onChange={(e) => {
+                                  const updated = [...newProposalOptions];
+                                  updated[index] = e.target.value;
+                                  setNewProposalOptions(updated);
+                                }}
+                              />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => {
+                                  if (newProposalOptions.length > 2) {
+                                    setNewProposalOptions(
+                                      newProposalOptions.filter((_, i) => i !== index)
+                                    );
+                                  }
+                                }}
+                                disabled={newProposalOptions.length <= 2}
+                              >
+                                &times;
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            variant="outline"
+                            onClick={() => setNewProposalOptions([...newProposalOptions, ""])}
+                          >
+                            Add Option
+                          </Button>
+                        </div>
+                        <Button 
+                          onClick={handleCreateProposal}
+                          disabled={isCreatingProposal || !newProposalTitle.trim()}
+                          className="w-full"
+                        >
+                          {isCreatingProposal ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-2" />
+                          )}
+                          Create Proposal
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                {proposals.map(proposal => {
-                  const voteCounts = getVoteCounts(proposal);
-                  const totalVotes = getTotalVotes(proposal);
-                  const userVote = getUserVote(proposal);
-                  const isActive = isProposalActive(proposal);
-                  
-                  return (
-                    <Card key={proposal.id} className="overflow-hidden">
-                      <CardHeader className="pb-2">
-                        <CardTitle>{proposal.title}</CardTitle>
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <span>{totalVotes} votes</span>
-                            <span className="mx-2">•</span>
-                            <span className={isActive ? "text-green-500 flex items-center gap-1" : "text-red-500"}>
+              
+              {proposals.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8 bg-muted/30 rounded-lg">
+                  <p className="mb-2">No proposals have been created yet.</p>
+                  {(isMember || isCreator) && (
+                    <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
+                      Create the first proposal
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {proposals.map(proposal => {
+                    const voteCounts = getVoteCounts(proposal);
+                    const totalVotes = getTotalVotes(proposal);
+                    const userVote = getUserVote(proposal);
+                    const isActive = isProposalActive(proposal);
+                    
+                    return (
+                      <Card key={proposal.id} className="overflow-hidden">
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-lg">{proposal.title}</CardTitle>
+                            <div className={isActive ? "text-green-500 flex items-center gap-1" : "text-red-500 flex items-center gap-1"}>
                               {isActive ? (
                                 <>
                                   <Clock className="h-4 w-4" />
                                   {timeLeft[proposal.id] || "Active"}
                                 </>
-                              ) : "Closed"}
-                            </span>
+                              ) : (
+                                <>
+                                  <Clock className="h-4 w-4" />
+                                  Ended
+                                </>
+                              )}
+                            </div>
                           </div>
-                          {userVote !== -1 && (
-                            <span className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs flex items-center">
-                              <Check className="h-3 w-3 mr-1" /> Voted
-                            </span>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-sm">{proposal.description}</p>
-                        
-                        <div className="space-y-3">
-                          {proposal.options.map((option, index) => {
-                            const voteCount = voteCounts[index];
-                            const votePercentage = totalVotes > 0 
-                              ? Math.round((voteCount / totalVotes) * 100) 
-                              : 0;
-                            
-                            return (
-                              <div key={index} className="space-y-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-medium">{option}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {voteCount} ({votePercentage}%)
-                                  </span>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <span>{totalVotes} votes</span>
+                            {userVote !== -1 && (
+                              <>
+                                <span className="mx-1">•</span>
+                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs flex items-center">
+                                  <Check className="h-3 w-3 mr-1" /> Voted
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <p className="text-sm">{proposal.description}</p>
+                          
+                          <div className="space-y-3">
+                            {proposal.options.map((option, index) => {
+                              const voteCount = voteCounts[index];
+                              const votePercentage = totalVotes > 0 
+                                ? Math.round((voteCount / totalVotes) * 100) 
+                                : 0;
+                              
+                              return (
+                                <div key={index} className="space-y-1">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">{option}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {voteCount} ({votePercentage}%)
+                                    </span>
+                                  </div>
+                                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full ${userVote === index ? 'bg-primary' : 'bg-primary/60'}`} 
+                                      style={{ width: `${votePercentage}%` }}
+                                    ></div>
+                                  </div>
                                 </div>
-                                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                  <div 
-                                    className={`h-full ${userVote === index ? 'bg-primary' : 'bg-primary/60'}`} 
-                                    style={{ width: `${votePercentage}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
                         
-                        <div className="w-full flex flex-wrap gap-2 pt-2">
+                        <CardFooter className="border-t pt-4 gap-2 flex-wrap">
                           {isActive && currentUserPubkey && (isMember || isCreator) && userVote === -1 && (
                             proposal.options.map((option, index) => (
                               <Button
@@ -673,40 +794,16 @@ const CommunityPage = () => {
                               Join the community to vote
                             </div>
                           )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-            
-            <Card className="mt-8">
-              <CardHeader>
-                <CardTitle>Members ({community.members.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {community.members.map((member, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted">
-                      <div className="flex-shrink-0">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>{member.substring(0, 2)}</AvatarFallback>
-                        </Avatar>
-                      </div>
-                      <div className="flex-1 truncate">
-                        <p className="text-sm font-medium">{nostrService.getNpubFromHex(member).substring(0, 12)}...</p>
-                      </div>
-                      {member === community.creator && (
-                        <span className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full">Creator</span>
-                      )}
-                    </div>
-                  ))}
+                        </CardFooter>
+                      </Card>
+                    );
+                  })}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
           </div>
         </div>
+        <Toaster position="bottom-right" />
       </div>
     </div>
   );
