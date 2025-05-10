@@ -224,7 +224,17 @@ class NostrService {
   }
   
   // New method to fetch user profile 
-  public async getUserProfile(pubkey: string) {
+  public async getUserProfile(pubkey: string): Promise<{
+    name?: string;
+    displayName?: string;
+    picture?: string;
+    nip05?: string;
+    about?: string;
+    banner?: string;
+    website?: string;
+    lud16?: string;
+    [key: string]: any;
+  } | null> {
     if (!pubkey) return null;
     
     try {
