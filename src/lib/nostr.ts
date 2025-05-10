@@ -1,25 +1,9 @@
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
-import { type SubCloser } from './nostr/types';
+import { NostrEvent, Relay, type SubCloser } from './nostr/types';
 
-export interface NostrEvent {
-  id?: string;
-  pubkey?: string;
-  created_at: number;
-  kind: number;
-  tags: string[][];
-  content: string;
-  sig?: string;
-}
+export { NostrEvent, Relay, SubCloser };
 
-export interface Relay {
-  url: string;
-  status: 'connected' | 'connecting' | 'disconnected' | 'error';
-  read: boolean;
-  write: boolean;
-}
-
-// Event types based on Nostr Kinds
 export const EVENT_KINDS = {
   META: 0,            // Profile metadata
   TEXT_NOTE: 1,       // Standard note/post

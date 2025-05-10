@@ -1,5 +1,6 @@
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Relay, type SubCloser } from './types';
+import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
+import { toast } from "sonner";
+import { NostrEvent, Relay, SubCloser } from './nostr/types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';
@@ -9,6 +10,8 @@ import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
+
+export { NostrEvent, Relay, SubCloser };
 
 class NostrService {
   private userManager: UserManager;
