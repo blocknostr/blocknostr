@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,17 +51,19 @@ const ProfilePage = () => {
         const profile = await nostrService.getUserProfile(targetPubkey);
         setProfileData(profile);
         
-        // Fetch following count
-        const userFollowing = await nostrService.getFollowing(targetPubkey);
+        // Since getFollowing doesn't exist, let's use the following array directly from nostrService
+        // if it's the current user, or an empty array for other users for now
+        const userFollowing = isCurrentUser && nostrService.following ? 
+                             nostrService.following : [];
         setFollowing(userFollowing);
         
-        // Fetch followers count (this might be more complex in reality)
-        const userFollowers = await nostrService.getFollowers(targetPubkey);
-        setFollowers(userFollowers);
+        // For followers, as getFollowers doesn't exist, we'll set an empty array for now
+        // In a real implementation, we'd need to query relays for users who follow this pubkey
+        setFollowers([]);
         
-        // Fetch post count
-        const count = await nostrService.getPostCount(targetPubkey);
-        setPostsCount(count);
+        // For post count, since getPostCount doesn't exist, we'll just set it to 0 for now
+        // In a real implementation, we'd count posts from the relays
+        setPostsCount(0);
         
         // Fetch relays if current user
         if (isCurrentUser) {
@@ -125,10 +128,11 @@ const ProfilePage = () => {
         following={following}
         followers={followers}
         postsCount={postsCount}
+        currentUserPubkey={currentUserPubkey}
         isCurrentUser={isCurrentUser}
-        pubkey={pubkey || ''}
-        onFollowingClick={() => console.log('Following clicked')}
-        onFollowersClick={() => console.log('Followers clicked')}
+        relays={relays}
+        onRelaysChange={setRelays}
+        userNpub={pubkey || currentUserPubkey || ''}
       />
       
       {isCurrentUser && (

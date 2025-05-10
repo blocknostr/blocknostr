@@ -292,6 +292,134 @@ class NostrService {
     );
   }
 
+  /**
+   * Get the list of users the specified user is following
+   * @param pubkey The public key of the user
+   * @returns Array of public keys the user is following
+   */
+  public async getFollowing(pubkey: string): Promise<string[]> {
+    if (!pubkey) return [];
+    
+    // If it's the current user, return from the userManager
+    if (pubkey === this.publicKey) {
+      return this.userManager.following;
+    }
+    
+    // Otherwise fetch from the network
+    return new Promise((resolve) => {
+      const following: string[] = [];
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [3], // contacts list
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract pubkeys from p tags
+          const followingPubkeys = event.tags
+            .filter(tag => tag.length >= 2 && tag[0] === 'p')
+            .map(tag => tag[1]);
+            
+          followingPubkeys.forEach(pk => {
+            if (!following.includes(pk)) {
+              following.push(pk);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found following
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(following);
+      }, 3000);
+    });
+  }
+
+  /**
+   * Get the list of users who follow the specified user
+   * @param pubkey The public key of the user
+   * @returns Array of public keys that follow the user
+   */
+  public async getFollowers(pubkey: string): Promise<string[]> {
+    if (!pubkey) return [];
+    
+    return new Promise((resolve) => {
+      const followers: string[] = [];
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      if (connectedRelays.length === 0) {
+        resolve([]);
+        return;
+      }
+      
+      // This is inefficient in a production app, but works for demonstration
+      // In a real app, you'd need a dedicated relay index for followers
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [3], // contacts list
+            "#p": [pubkey], // Look for contacts lists that reference this pubkey
+            limit: 10
+          }
+        ],
+        (event) => {
+          // Add the author of this contact list to followers
+          if (!followers.includes(event.pubkey)) {
+            followers.push(event.pubkey);
+          }
+        }
+      );
+      
+      // Set a timeout to resolve with found followers
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(followers);
+      }, 3000);
+    });
+  }
+
+  /**
+   * Get the count of posts for a specific user
+   * @param pubkey The public key of the user
+   * @returns Number of posts by the user
+   */
+  public async getPostCount(pubkey: string): Promise<number> {
+    if (!pubkey) return 0;
+    
+    return new Promise((resolve) => {
+      let count = 0;
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      if (connectedRelays.length === 0) {
+        resolve(0);
+        return;
+      }
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [1], // text notes
+            authors: [pubkey],
+            limit: 50 // Limit to 50 posts to avoid excessive data
+          }
+        ],
+        () => {
+          count++;
+        }
+      );
+      
+      // Set a timeout to resolve with the count
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(count);
+      }, 3000);
+    });
+  }
+  
   // Utility methods
   public formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub'): string {
     return this.userManager.formatPubkey(pubkey, format);
