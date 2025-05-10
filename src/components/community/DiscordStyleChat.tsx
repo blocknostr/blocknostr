@@ -1,27 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
-import { nostrService, NostrEvent } from "@/lib/nostr";
+
+import React, { useState, useEffect } from "react";
+import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
-import { SendHorizontal, SmilePlus, Reply, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { SmilePlus, SendHorizontal, MessageSquare, Reply } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface DiscordStyleChatProps {
   proposalId: string;
@@ -29,303 +18,245 @@ interface DiscordStyleChatProps {
   currentUserPubkey: string | null;
 }
 
-interface Comment {
+interface CommentType {
   id: string;
+  pubkey: string;
   content: string;
-  author: string;
   createdAt: number;
-  reactions: Record<string, string[]>; // emoji -> array of pubkeys who reacted
-  replyTo?: string; // Optional ID of the parent comment
-  deleted?: boolean;
+  replyToId?: string;
+  reactions: {[key: string]: string[]};
 }
 
-// Common emoji reactions
+// Constants
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+const COMMENT_KIND = 1; // Regular note kind for comments
+const REACTION_KIND = 7; // Reaction kind
 
 const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({ 
-  proposalId, 
+  proposalId,
   communityId,
   currentUserPubkey
 }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [replyTo, setReplyTo] = useState<Comment | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(true);
+  const [comments, setComments] = useState<CommentType[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
-  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
-  const [isDeletingComment, setIsDeletingComment] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Scroll to bottom when comments change
+  // Load comments and reactions on mount
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [comments]);
-  
-  // Load comments when component mounts
-  useEffect(() => {
-    const loadComments = async () => {
-      await nostrService.connectToUserRelays();
-      
-      const commentsSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [34553], // Comment kind
-            '#e': [proposalId], // Filter by proposal ID
-            limit: 100
-          }
-        ],
-        handleCommentEvent
-      );
-      
-      // Also subscribe to deletion events
-      const deletionSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [5], // Deletion kind
-            limit: 100
-          }
-        ],
-        handleDeletionEvent
-      );
-      
-      // Cleanup subscription after timeout
-      setTimeout(() => {
-        setLoadingComments(false);
-      }, 2000);
-      
-      return () => {
-        nostrService.unsubscribe(commentsSubId);
-        nostrService.unsubscribe(deletionSubId);
-      };
-    };
+    if (!proposalId) return;
     
-    loadComments();
+    setIsLoading(true);
+    
+    // Subscribe to comments for this proposal
+    const commentsSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [COMMENT_KIND],
+          '#e': [proposalId],
+          limit: 100
+        }
+      ],
+      handleCommentEvent
+    );
+    
+    // Subscribe to reactions
+    const reactionsSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [REACTION_KIND],
+          '#e': [proposalId],
+          limit: 100
+        }
+      ],
+      handleReactionEvent
+    );
+    
+    // Set loading to false after a short delay to ensure we've had time to receive some events
+    const loadingTimeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+    
+    return () => {
+      nostrService.unsubscribe(commentsSubId);
+      nostrService.unsubscribe(reactionsSubId);
+      clearTimeout(loadingTimeout);
+    };
   }, [proposalId]);
+  
+  // Load profiles for comment authors
+  useEffect(() => {
+    const authorPubkeys = [...new Set(comments.map(comment => comment.pubkey))];
+    
+    if (authorPubkeys.length === 0) return;
+    
+    const profilesSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [0], // Kind 0 is metadata
+          authors: authorPubkeys,
+          limit: authorPubkeys.length
+        }
+      ],
+      handleProfileEvent
+    );
+    
+    return () => {
+      nostrService.unsubscribe(profilesSubId);
+    };
+  }, [comments]);
   
   const handleCommentEvent = (event: NostrEvent) => {
     try {
-      if (!event.id || !event.pubkey) return;
+      if (!event.id || !event.content) return;
       
-      // Find the proposal reference tag
-      const proposalTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e' && tag[1] === proposalId);
-      if (!proposalTag) return;
-      
-      // Check for reactions
-      const isReaction = event.kind === 7;
-      
-      if (isReaction) {
-        // Process reaction event
-        const targetId = event.tags.find(tag => tag[0] === 'e')?.[1];
-        if (targetId && event.content) {
-          setComments(prev => {
-            return prev.map(comment => {
-              if (comment.id === targetId) {
-                // Add reaction
-                const emoji = event.content;
-                const reactions = {...comment.reactions};
-                if (!reactions[emoji]) {
-                  reactions[emoji] = [];
-                }
-                if (!reactions[emoji].includes(event.pubkey!)) {
-                  reactions[emoji] = [...reactions[emoji], event.pubkey!];
-                }
-                return {...comment, reactions};
-              }
-              return comment;
-            });
-          });
-        }
-      } else {
-        // Check if it's a reply
-        let replyToId: string | undefined;
-        
-        // Find 'reply' tag if it exists
-        for (const tag of event.tags) {
-          if (tag.length >= 3 && tag[0] === 'e' && tag[3] === 'reply') {
-            replyToId = tag[1];
-            break;
-          }
-        }
-        
-        // Process comment event
-        const comment: Comment = {
-          id: event.id,
-          content: event.content,
-          author: event.pubkey,
-          createdAt: event.created_at,
-          reactions: {},
-          replyTo: replyToId
-        };
-        
-        setComments(prev => {
-          // Check if we already have this comment
-          if (prev.some(c => c.id === comment.id)) {
-            return prev;
-          }
-          
-          // Fetch profile data for the comment author
-          fetchProfileData(event.pubkey);
-          
-          // Add new comment and sort by creation time
-          // For replies, we want to keep them near their parent comment
-          // For top-level comments, chronological ordering is fine
-          return [...prev, comment].sort((a, b) => {
-            // If both are replies to the same parent, sort by time
-            if (a.replyTo === b.replyTo) {
-              return a.createdAt - b.createdAt;
-            }
-            // If a is a reply to b, place a after b
-            if (a.replyTo === b.id) return 1;
-            // If b is a reply to a, place b after a
-            if (b.replyTo === a.id) return -1;
-            // Otherwise, sort chronologically
-            return a.createdAt - b.createdAt;
-          });
-        });
+      // Check if the event is really for this proposal
+      if (!event.tags.some(tag => tag[0] === 'e' && tag[1] === proposalId)) {
+        return;
       }
-    } catch (e) {
-      console.error("Error processing comment event:", e);
+      
+      // Find reply reference if any
+      const replyTag = event.tags.find(
+        tag => tag.length >= 3 && tag[0] === 'e' && tag[2] === 'reply'
+      );
+      
+      const replyToId = replyTag ? replyTag[1] : undefined;
+      
+      const newComment: CommentType = {
+        id: event.id,
+        pubkey: event.pubkey,
+        content: event.content,
+        createdAt: event.created_at,
+        replyToId,
+        reactions: {}
+      };
+      
+      setComments(prev => {
+        // Skip if we already have this comment
+        if (prev.some(c => c.id === event.id)) {
+          return prev;
+        }
+        
+        // Sort by time (newest first)
+        return [...prev, newComment].sort((a, b) => b.createdAt - a.createdAt);
+      });
+    } catch (error) {
+      console.error("Error processing comment:", error);
     }
   };
   
-  const handleDeletionEvent = (event: NostrEvent) => {
+  const handleReactionEvent = (event: NostrEvent) => {
     try {
-      if (!event.id || !event.pubkey) return;
+      if (!event.id || !event.content) return;
       
-      // Find the deletion reference tags
-      const deletedEventIds = event.tags
-        .filter(tag => tag.length >= 2 && tag[0] === 'e')
-        .map(tag => tag[1]);
+      // Find the comment tag
+      const commentTag = event.tags.find(tag => tag[0] === 'e');
+      if (!commentTag) return;
       
-      if (deletedEventIds.length === 0) return;
+      const commentId = commentTag[1];
+      const reaction = event.content;
       
       setComments(prev => {
         return prev.map(comment => {
-          // If this comment is being deleted and the deleter is the author
-          if (deletedEventIds.includes(comment.id) && comment.author === event.pubkey) {
-            return { ...comment, deleted: true, content: "This message was deleted" };
+          if (comment.id === commentId) {
+            // Initialize reactions object if needed
+            const reactions = {...(comment.reactions || {})};
+            
+            if (!reactions[reaction]) {
+              reactions[reaction] = [];
+            }
+            
+            // Add reaction if not already there
+            if (!reactions[reaction].includes(event.pubkey)) {
+              reactions[reaction] = [...reactions[reaction], event.pubkey];
+            }
+            
+            return { ...comment, reactions };
           }
           return comment;
         });
       });
-    } catch (e) {
-      console.error("Error processing deletion event:", e);
+    } catch (error) {
+      console.error("Error processing reaction:", error);
     }
   };
   
-  const fetchProfileData = (authorPubkey: string) => {
-    // Only fetch if we don't already have it
-    if (profiles[authorPubkey]) return;
-    
-    const metadataSubId = nostrService.subscribe(
-      [{
-        kinds: [0],
-        authors: [authorPubkey],
-        limit: 1
-      }],
-      (event) => {
-        try {
-          const metadata = JSON.parse(event.content);
-          setProfiles(prev => ({
-            ...prev,
-            [authorPubkey]: metadata
-          }));
-        } catch (e) {
-          console.error('Failed to parse profile metadata:', e);
-        }
+  const handleProfileEvent = (event: NostrEvent) => {
+    try {
+      if (!event.pubkey) return;
+      
+      try {
+        const content = JSON.parse(event.content);
+        setProfiles(prev => ({
+          ...prev,
+          [event.pubkey]: content
+        }));
+      } catch (e) {
+        console.error("Invalid profile metadata:", e);
       }
-    );
-    
-    // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(metadataSubId);
-    }, 5000);
+    } catch (error) {
+      console.error("Error processing profile:", error);
+    }
   };
   
-  const handleSubmitComment = async () => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to comment");
-      return;
-    }
-    
-    if (!newComment.trim() || isSubmitting) {
-      return;
-    }
-    
-    setIsSubmitting(true);
+  const handleSendComment = async () => {
+    if (!newComment.trim() || !currentUserPubkey) return;
     
     try {
       // Create tags for the comment
       const tags = [
-        ['e', proposalId], // Reference to proposal
-        ['e', communityId, 'root'] // Reference to community as root
+        ['e', proposalId], // Reference to the proposal
+        ['e', communityId, 'root'], // Reference to the community as root
       ];
       
-      // Add reply tag if replying to someone
-      if (replyTo) {
-        tags.push(['e', replyTo.id, '', 'reply']); // Mark as reply to specific comment
-        tags.push(['p', replyTo.author]); // Reference the author we're replying to
+      // If replying to a specific comment
+      if (replyingTo) {
+        tags.push(['e', replyingTo, 'reply']);
       }
       
       // Create comment event
       const event = {
-        kind: 34553, // Comment kind
-        content: newComment.trim(),
+        kind: COMMENT_KIND,
+        content: newComment,
         tags: tags
       };
       
-      const commentId = await nostrService.publishEvent(event);
+      const eventId = await nostrService.publishEvent(event);
       
-      if (commentId) {
-        // Add to local state for immediate feedback
-        const newCommentObj = {
-          id: commentId,
-          content: newComment.trim(),
-          author: currentUserPubkey,
-          createdAt: Math.floor(Date.now() / 1000),
-          reactions: {},
-          replyTo: replyTo?.id
+      if (eventId) {
+        setNewComment("");
+        setReplyingTo(null);
+        
+        // Add to local state for immediate display
+        const timestamp = Math.floor(Date.now() / 1000);
+        const newLocalComment: CommentType = {
+          id: eventId,
+          pubkey: currentUserPubkey,
+          content: newComment,
+          createdAt: timestamp,
+          replyToId: replyingTo || undefined,
+          reactions: {}
         };
         
-        setComments(prev => [...prev, newCommentObj].sort((a, b) => {
-          // Same sorting logic as in handleCommentEvent
-          if (a.replyTo === b.replyTo) {
-            return a.createdAt - b.createdAt;
-          }
-          if (a.replyTo === b.id) return 1;
-          if (b.replyTo === a.id) return -1;
-          return a.createdAt - b.createdAt;
-        }));
-        
-        setNewComment("");
-        setReplyTo(null); // Clear reply state
-        toast.success("Comment added");
+        setComments(prev => [newLocalComment, ...prev]);
       }
     } catch (error) {
-      console.error("Error posting comment:", error);
-      toast.error("Failed to post comment");
-    } finally {
-      setIsSubmitting(false);
+      console.error("Failed to send comment:", error);
     }
   };
-
-  const handleReaction = async (commentId: string, emoji: string) => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to react");
-      return;
-    }
+  
+  const handleReaction = async (emoji: string, commentId: string) => {
+    if (!currentUserPubkey) return;
     
     try {
       // Create reaction event
       const event = {
-        kind: 7, // Reaction kind
+        kind: REACTION_KIND,
         content: emoji,
         tags: [
-          ['e', commentId], // Reference to comment
-          ['p', comments.find(c => c.id === commentId)?.author || ''] // Reference to comment author
+          ['e', commentId],
+          ['p', comments.find(c => c.id === commentId)?.pubkey || '']
         ]
       };
       
@@ -335,323 +266,197 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
       setComments(prev => {
         return prev.map(comment => {
           if (comment.id === commentId) {
-            const reactions = {...comment.reactions};
+            const reactions = {...(comment.reactions || {})};
+            
             if (!reactions[emoji]) {
               reactions[emoji] = [];
             }
+            
             if (!reactions[emoji].includes(currentUserPubkey)) {
               reactions[emoji] = [...reactions[emoji], currentUserPubkey];
             }
-            return {...comment, reactions};
+            
+            return { ...comment, reactions };
           }
           return comment;
         });
       });
     } catch (error) {
-      console.error("Error adding reaction:", error);
-      toast.error("Failed to add reaction");
+      console.error("Failed to publish reaction:", error);
     }
   };
   
-  const handleDeleteComment = async (commentId: string) => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to delete comments");
-      return;
-    }
+  const renderComment = (comment: CommentType, isReply = false) => {
+    const profile = comment.pubkey ? profiles[comment.pubkey] : null;
+    const authorName = profile?.name || profile?.display_name || 
+      `${comment.pubkey.substring(0, 8)}...`;
+    const authorPicture = profile?.picture || '';
+    const avatarFallback = authorName.charAt(0).toUpperCase();
+    const commentDate = formatDistanceToNow(new Date(comment.createdAt * 1000), { addSuffix: true });
     
-    setCommentToDelete(commentId);
-  };
-  
-  const confirmDeleteComment = async () => {
-    if (!commentToDelete || !currentUserPubkey) return;
-    
-    setIsDeletingComment(true);
-    
-    try {
-      // Create deletion event
-      const event = {
-        kind: 5, // Deletion event
-        content: "Comment deleted",
-        tags: [
-          ['e', commentToDelete] // Reference to deleted event
-        ]
-      };
-      
-      await nostrService.publishEvent(event);
-      
-      // Update local state immediately for better UX
-      setComments(prev => prev.map(comment => 
-        comment.id === commentToDelete 
-          ? { ...comment, deleted: true, content: "This message was deleted" }
-          : comment
-      ));
-      
-      toast.success("Comment deleted");
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      toast.error("Failed to delete comment");
-    } finally {
-      setCommentToDelete(null);
-      setIsDeletingComment(false);
-    }
-  };
-  
-  // Get user's display name from their profile data
-  const getUserDisplayInfo = (pubkey: string) => {
-    const profile = profiles[pubkey];
-    const npub = nostrService.getNpubFromHex(pubkey);
-    const shortNpub = `${npub.substring(0, 6)}...${npub.substring(npub.length - 4)}`;
-    
-    return {
-      name: profile?.name || profile?.display_name || shortNpub,
-      picture: profile?.picture || '',
-      shortNpub
-    };
-  };
-  
-  // Format timestamp
-  const formatTime = (timestamp: number) => {
-    return formatDistanceToNow(new Date(timestamp * 1000), { addSuffix: true });
-  };
-  
-  // Find replies to a specific comment
-  const findReplies = (commentId: string): Comment[] => {
-    return comments.filter(c => c.replyTo === commentId);
-  };
-  
-  // Get comment by ID (for finding parent comment)
-  const getCommentById = (id?: string): Comment | undefined => {
-    if (!id) return undefined;
-    return comments.find(c => c.id === id);
-  };
-  
-  // Render a comment with reference to its parent
-  const renderComment = (comment: Comment, depth: number = 0) => {
-    if (!comment) return null;
-    
-    const { name, picture, shortNpub } = getUserDisplayInfo(comment.author);
-    const timeAgo = formatTime(comment.createdAt);
-    const isCurrentUser = comment.author === currentUserPubkey;
-    const replies = findReplies(comment.id);
-    const parentComment = getCommentById(comment.replyTo);
+    // Find replies to this comment
+    const replies = comments.filter(c => c.replyToId === comment.id);
     
     return (
-      <div key={comment.id}>
-        <div 
-          className={`group ${depth > 0 ? 'pl-4 border-l-2 border-border ml-4' : ''}`}
-        >
-          {/* If this is a reply, show reference to parent comment */}
-          {parentComment && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1 ml-10">
-              <Reply className="h-3 w-3 rotate-180" />
-              <span>Replying to </span>
-              <span className="font-medium">{getUserDisplayInfo(parentComment.author).name}</span>
-            </div>
-          )}
+      <div key={comment.id} className={`flex items-start ${isReply ? 'ml-8 mt-3' : 'mt-4'}`}>
+        <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
+          <AvatarImage src={authorPicture} />
+          <AvatarFallback>{avatarFallback}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <div className="flex items-center">
+            <span className="font-semibold text-sm mr-2">{authorName}</span>
+            <span className="text-xs text-muted-foreground">{commentDate}</span>
+          </div>
           
-          <div className="flex items-start gap-3">
-            <Avatar className="h-8 w-8 shrink-0">
-              <AvatarImage src={picture} />
-              <AvatarFallback>
-                {name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+          <div className="mt-0.5 text-sm whitespace-pre-wrap">{comment.content}</div>
+          
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            {/* Reply button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-2 text-xs"
+              onClick={() => setReplyingTo(comment.id)}
+            >
+              <Reply className="h-3 w-3 mr-1" />
+              Reply
+            </Button>
             
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className={`font-medium ${isCurrentUser ? 'text-primary' : ''}`}>
-                  {name}
-                </span>
-                <span className="text-xs text-muted-foreground">@{shortNpub}</span>
-                <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-muted-foreground">{timeAgo}</span>
-              </div>
-              
-              <div className="mt-1 text-sm">
-                {comment.deleted 
-                  ? <span className="italic text-muted-foreground">{comment.content}</span>
-                  : comment.content
-                }
-              </div>
-              
-              {/* Reactions display */}
-              {Object.entries(comment.reactions || {}).length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {Object.entries(comment.reactions || {}).map(([emoji, reactors]) => (
-                    <div 
-                      key={emoji} 
-                      className="bg-muted px-2 py-0.5 rounded-full text-xs flex items-center gap-1"
-                      title={`${reactors.length} ${reactors.length === 1 ? 'reaction' : 'reactions'}`}
-                    >
-                      <span>{emoji}</span>
-                      <span>{reactors.length}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Action buttons */}
-              {!comment.deleted && currentUserPubkey && (
-                <div className="mt-1 flex gap-2">
-                  {/* Reply button with improved styling */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-7 px-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-1"
-                    onClick={() => setReplyTo(comment)}
-                  >
-                    <Reply className="h-3 w-3" />
-                    Reply
-                  </Button>
-                  
-                  {/* Add reaction button */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-7 px-2 text-xs hover:bg-primary/10 hover:text-primary"
-                      >
-                        <SmilePlus className="h-3 w-3 mr-1" />
-                        React
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-1">
-                      <div className="flex gap-1">
-                        {EMOJI_REACTIONS.map(emoji => (
-                          <Button 
-                            key={emoji} 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                            onClick={() => handleReaction(comment.id, emoji)}
-                          >
-                            {emoji}
-                          </Button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {/* Delete button (only for comment author) */}
-                  {isCurrentUser && (
+            {/* Reactions popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                  <SmilePlus className="h-3 w-3 mr-1" />
+                  React
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-1">
+                <div className="flex gap-1">
+                  {EMOJI_REACTIONS.map(emoji => (
                     <Button 
+                      key={emoji} 
                       variant="ghost" 
                       size="sm"
-                      className="h-7 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => handleDeleteComment(comment.id)}
+                      className="h-8 w-8 p-0"
+                      onClick={() => handleReaction(emoji, comment.id)}
                     >
-                      <Trash2 className="h-3 w-3 mr-1" />
-                      Delete
+                      {emoji}
                     </Button>
-                  )}
+                  ))}
                 </div>
-              )}
+              </PopoverContent>
+            </Popover>
+            
+            {/* Display reactions */}
+            {comment.reactions && Object.entries(comment.reactions).map(([emoji, users]) => (
+              users.length > 0 && (
+                <span key={emoji} className="bg-muted px-2 py-0.5 rounded-full text-xs">
+                  {emoji} {users.length}
+                </span>
+              )
+            ))}
+          </div>
+          
+          {/* Nested replies */}
+          {replies.length > 0 && (
+            <div className="mt-2 space-y-2 border-l-2 border-muted pl-2">
+              {replies.map(reply => renderComment(reply, true))}
             </div>
-          </div>
+          )}
         </div>
-        
-        {/* Render replies to this comment */}
-        {replies.length > 0 && (
-          <div className="mt-2">
-            {replies.map(reply => renderComment(reply, depth + 1))}
-          </div>
-        )}
       </div>
     );
   };
   
-  // Get top-level comments (comments without replyTo)
-  const topLevelComments = comments.filter(c => !c.replyTo);
+  // Filter out replies so we only render top-level comments
+  const topLevelComments = comments.filter(comment => !comment.replyToId);
+  
+  // Chat placeholder when loading
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <div className="border-b px-4 py-3">
+          <h2 className="text-lg font-semibold">Discussion</h2>
+        </div>
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-center p-8">
+            <div className="animate-pulse flex justify-center">
+              <div className="h-10 w-10 bg-muted rounded-full"></div>
+            </div>
+            <p className="text-muted-foreground mt-4">Loading comments...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <div className="flex flex-col h-full">
-      {/* Chat messages area with improved scrolling */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {loadingComments && comments.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">Loading comments...</p>
-          ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No comments yet</p>
-              <p className="text-sm mt-1">Be the first to start the discussion!</p>
-            </div>
-          ) : (
-            <>
-              {/* Render top-level comments and their replies */}
-              {topLevelComments.map(comment => renderComment(comment))}
-            </>
-          )}
-          <div ref={messagesEndRef} /> {/* Empty div for scrolling to bottom */}
-        </div>
-      </ScrollArea>
+    <div className="flex flex-col h-full bg-background">
+      {/* Header */}
+      <div className="border-b px-4 py-3">
+        <h2 className="text-lg font-semibold">Discussion</h2>
+      </div>
       
-      {/* Comment input area */}
+      {/* Chat content area */}
+      <div className="flex-1 overflow-y-auto px-4 py-3">
+        {topLevelComments.length > 0 ? (
+          <div className="space-y-4">
+            {topLevelComments.map(comment => renderComment(comment))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <p className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Input area */}
       {currentUserPubkey ? (
-        <div className="border-t p-4">
-          {replyTo && (
-            <div className="mb-2 bg-muted/50 p-2 rounded-md flex justify-between items-center">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Replying to </span>
-                <span className="font-medium">{getUserDisplayInfo(replyTo.author).name}</span>
-              </div>
+        <div className="border-t p-3">
+          {/* Reply indicator */}
+          {replyingTo && (
+            <div className="text-xs text-primary mb-2 flex items-center">
+              <span>Replying to: </span>
+              <span className="font-semibold mx-1 truncate max-w-[150px]">
+                {comments.find(c => c.id === replyingTo)?.content.substring(0, 20)}...
+              </span>
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-6 w-6 p-0"
-                onClick={() => setReplyTo(null)}
+                className="h-5 w-5 p-0 ml-1" 
+                onClick={() => setReplyingTo(null)}
               >
-                <span className="sr-only">Cancel reply</span>
-                ×
+                ✕
               </Button>
             </div>
           )}
-          <Textarea 
-            placeholder={replyTo ? "Write your reply..." : "Type your message here..."}
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="resize-none mb-2"
-            rows={2}
-          />
-          <div className="flex justify-end">
+          
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder={replyingTo ? "Write your reply..." : "Write a comment..."}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              className="flex-1"
+              onKeyPress={(e) => e.key === 'Enter' && handleSendComment()}
+            />
             <Button 
-              onClick={handleSubmitComment} 
-              disabled={!newComment.trim() || isSubmitting}
-              size="sm"
-              className="gap-1"
+              onClick={handleSendComment} 
+              disabled={!newComment.trim()}
+              size="icon"
             >
               <SendHorizontal className="h-4 w-4" />
-              {isSubmitting ? "Sending..." : replyTo ? "Reply" : "Send"}
             </Button>
           </div>
         </div>
       ) : (
-        <div className="border-t p-4 text-center text-muted-foreground text-sm">
-          Login to join the conversation
+        <div className="border-t p-3">
+          <p className="text-center text-sm text-muted-foreground">
+            Login to leave a comment
+          </p>
         </div>
       )}
-      
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!commentToDelete} onOpenChange={(open) => !open && setCommentToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete comment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this comment? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmDeleteComment}
-              disabled={isDeletingComment}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {isDeletingComment ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

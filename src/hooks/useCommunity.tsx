@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nostrService, NostrEvent } from "@/lib/nostr";
 import { toast } from "sonner";
 
@@ -44,6 +44,48 @@ export const useCommunity = (communityId: string | undefined) => {
   const isMember = community?.members.includes(currentUserPubkey || '') || false;
   const isCreator = community?.creator === currentUserPubkey;
   const isCreatorOnlyMember = community?.members.length === 1 && isCreator;
+  
+  // Cache of vote events to handle votes that arrive before their proposals
+  const [pendingVotes, setPendingVotes] = useState<Record<string, NostrEvent[]>>({});
+  
+  // Callback to apply pending votes for a proposal
+  const applyPendingVotes = useCallback((proposalId: string) => {
+    if (pendingVotes[proposalId] && pendingVotes[proposalId].length > 0) {
+      console.log(`Applying ${pendingVotes[proposalId].length} pending votes for proposal ${proposalId}`);
+      
+      // Process each pending vote for this proposal
+      pendingVotes[proposalId].forEach(voteEvent => {
+        setProposals(prev => {
+          const proposalIndex = prev.findIndex(p => p.id === proposalId);
+          if (proposalIndex < 0) return prev;
+          
+          const updatedProposals = [...prev];
+          const proposal = {...updatedProposals[proposalIndex]};
+          
+          // Ensure votes object exists
+          if (!proposal.votes) {
+            proposal.votes = {};
+          }
+          
+          // Parse option index and add vote
+          const optionIndex = parseInt(voteEvent.content);
+          if (!isNaN(optionIndex)) {
+            proposal.votes[voteEvent.pubkey] = optionIndex;
+          }
+          
+          updatedProposals[proposalIndex] = proposal;
+          return updatedProposals;
+        });
+      });
+      
+      // Clear pending votes for this proposal
+      setPendingVotes(prev => {
+        const updated = {...prev};
+        delete updated[proposalId];
+        return updated;
+      });
+    }
+  }, [pendingVotes]);
   
   useEffect(() => {
     const loadCommunity = async () => {
@@ -131,7 +173,6 @@ export const useCommunity = (communityId: string | undefined) => {
       [
         {
           kinds: [34552], // Vote events
-          // Don't filter by community - we'll filter by proposal ID in the handler
           limit: 200
         }
       ],
@@ -206,6 +247,10 @@ export const useCommunity = (communityId: string | undefined) => {
         // Add new proposal
         return [...prev, proposal].sort((a, b) => b.createdAt - a.createdAt);
       });
+      
+      // Apply any pending votes for this proposal
+      applyPendingVotes(event.id);
+      
     } catch (e) {
       console.error("Error processing proposal event:", e);
     }
@@ -213,7 +258,6 @@ export const useCommunity = (communityId: string | undefined) => {
   
   const handleVoteEvent = (event: NostrEvent) => {
     try {
-      console.log("Received vote event:", event);
       if (!event.id || !event.pubkey) return;
       
       // Find the proposal reference tag
@@ -221,11 +265,25 @@ export const useCommunity = (communityId: string | undefined) => {
       if (!proposalTag) return;
       const proposalId = proposalTag[1];
       
+      console.log(`Received vote from ${event.pubkey} for proposal ${proposalId}: ${event.content}`);
+      
       // Find the proposal
       const proposalIndex = proposals.findIndex(p => p.id === proposalId);
+      
       if (proposalIndex < 0) {
-        console.log("Vote for unknown proposal:", proposalId);
-        return; // We don't have this proposal
+        console.log(`Vote for unknown proposal: ${proposalId}, storing as pending`);
+        
+        // Store vote as pending to be applied when we receive the proposal
+        setPendingVotes(prev => {
+          const updated = {...prev};
+          if (!updated[proposalId]) {
+            updated[proposalId] = [];
+          }
+          updated[proposalId].push(event);
+          return updated;
+        });
+        
+        return;
       }
       
       // Parse the option index from content
