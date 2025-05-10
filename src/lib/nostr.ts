@@ -853,6 +853,57 @@ class NostrService {
       return null;
     }
   }
+  
+  // Method to get relays for a user
+  public async getRelaysForUser(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const relays: string[] = [];
+      
+      // Subscribe to relay list event
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relays.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(relays);
+      }, 3000);
+    });
+  }
+  
+  // Method to add multiple relays at once
+  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    if (!relayUrls.length) return 0;
+    
+    let successCount = 0;
+    
+    for (const url of relayUrls) {
+      try {
+        const success = await this.addRelay(url);
+        if (success) successCount++;
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
+      }
+    }
+    
+    return successCount;
+  }
 }
 
 // Create singleton instance
