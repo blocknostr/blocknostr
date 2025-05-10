@@ -26,6 +26,8 @@ export interface NostrProfileMetadata {
   website?: string;
   lud16?: string; // Lightning address
   twitter?: string; // X (Twitter) handle
+  twitter_verified?: boolean; // Track if Twitter/X account has been verified
+  twitter_proof?: string; // Store proof of verification (e.g., tweet ID)
   [key: string]: any; // For any other custom fields
 }
 
