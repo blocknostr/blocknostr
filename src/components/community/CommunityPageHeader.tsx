@@ -1,46 +1,51 @@
 
-import { ArrowLeft, Check, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { UserPlus } from "lucide-react";
+import DeleteCommunityButton from "./DeleteCommunityButton";
 
 interface CommunityPageHeaderProps {
   name: string;
   isMember: boolean;
   isCreator: boolean;
+  isCreatorOnlyMember?: boolean;
   currentUserPubkey: string | null;
   onJoinCommunity: () => void;
+  onDeleteCommunity?: () => Promise<void>;
 }
 
-const CommunityPageHeader = ({ 
+const CommunityPageHeader = ({
   name,
   isMember,
   isCreator,
+  isCreatorOnlyMember = false,
   currentUserPubkey,
-  onJoinCommunity
+  onJoinCommunity,
+  onDeleteCommunity
 }: CommunityPageHeaderProps) => {
-  const navigate = useNavigate();
-  
   return (
-    <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-      <div className="flex items-center justify-between h-14 px-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/communities')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-xl font-semibold">{name}</h1>
-        </div>
-        
+    <header className="sticky top-0 z-10 bg-background/95 backdrop-blur h-16 border-b flex items-center px-6">
+      <div className="flex-1">
+        <h1 className="text-lg font-bold truncate">{name}</h1>
+      </div>
+      
+      <div className="flex items-center gap-2">
         {!isMember && !isCreator && currentUserPubkey && (
-          <Button onClick={onJoinCommunity}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Join
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onJoinCommunity}
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Join Community
           </Button>
         )}
-        {isMember && (
-          <div className="flex items-center gap-1 text-sm text-primary">
-            <Check className="h-4 w-4" />
-            Member
-          </div>
+        
+        {isCreator && isCreatorOnlyMember && onDeleteCommunity && (
+          <DeleteCommunityButton 
+            communityName={name}
+            onDelete={onDeleteCommunity}
+          />
         )}
       </div>
     </header>

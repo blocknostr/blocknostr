@@ -23,9 +23,11 @@ const CommunityPage = () => {
     currentUserPubkey,
     isMember,
     isCreator,
+    isCreatorOnlyMember,
     handleJoinCommunity,
     handleCreateKickProposal,
-    handleVoteOnKick
+    handleVoteOnKick,
+    handleDeleteCommunity
   } = useCommunity(id);
   
   if (loading) {
@@ -45,8 +47,10 @@ const CommunityPage = () => {
           name={community.name}
           isMember={isMember}
           isCreator={isCreator}
+          isCreatorOnlyMember={isCreatorOnlyMember}
           currentUserPubkey={currentUserPubkey}
           onJoinCommunity={handleJoinCommunity}
+          onDeleteCommunity={handleDeleteCommunity}
         />
         
         <div className="container mx-auto px-4 py-6 max-w-7xl">

@@ -43,6 +43,7 @@ export const useCommunity = (communityId: string | undefined) => {
   const currentUserPubkey = nostrService.publicKey;
   const isMember = community?.members.includes(currentUserPubkey || '') || false;
   const isCreator = community?.creator === currentUserPubkey;
+  const isCreatorOnlyMember = community?.members.length === 1 && isCreator;
   
   useEffect(() => {
     const loadCommunity = async () => {
@@ -459,6 +460,51 @@ export const useCommunity = (communityId: string | undefined) => {
     }
   };
   
+  // Function to delete a community (only allowed if creator is the only member)
+  const handleDeleteCommunity = async () => {
+    if (!currentUserPubkey || !community) {
+      return;
+    }
+    
+    if (!isCreator) {
+      toast.error("Only the creator can delete this community");
+      return;
+    }
+    
+    if (community.members.length > 1) {
+      toast.error("You can only delete the community when you're the only member");
+      return;
+    }
+    
+    try {
+      // Create a deletion event (a special community event with deleted=true flag)
+      const deletionData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt,
+        deleted: true
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(deletionData),
+        tags: [
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey, 'creator']
+        ]
+      };
+      
+      await nostrService.publishEvent(event);
+      toast.success("Community has been deleted");
+      window.location.href = '/communities'; // Navigate back to communities page
+    } catch (error) {
+      console.error("Error deleting community:", error);
+      toast.error("Failed to delete community");
+    }
+  };
+  
   return {
     community,
     proposals,
@@ -467,10 +513,11 @@ export const useCommunity = (communityId: string | undefined) => {
     currentUserPubkey,
     isMember,
     isCreator,
+    isCreatorOnlyMember,
     handleJoinCommunity,
     handleCreateKickProposal,
     handleKickMember,
-    handleVoteOnKick
+    handleVoteOnKick,
+    handleDeleteCommunity
   };
 };
-

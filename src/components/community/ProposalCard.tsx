@@ -41,14 +41,16 @@ const ProposalCard = ({
   setExpandedProposal
 }: ProposalCardProps) => {
   const isExpanded = expandedProposal === proposal.id;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Utility functions
   const getVoteCounts = () => {
     const counts = proposal.options.map(() => 0);
     
-    Object.values(proposal.votes).forEach(optionIndex => {
-      if (optionIndex >= 0 && optionIndex < counts.length) {
-        counts[optionIndex]++;
+    Object.entries(proposal.votes).forEach(([_, optionIndex]) => {
+      const index = typeof optionIndex === 'number' ? optionIndex : parseInt(optionIndex as string);
+      if (index >= 0 && index < counts.length) {
+        counts[index]++;
       }
     });
     
@@ -61,7 +63,8 @@ const ProposalCard = ({
   
   const getUserVote = () => {
     if (!currentUserPubkey) return -1;
-    return proposal.votes[currentUserPubkey] ?? -1;
+    const vote = proposal.votes[currentUserPubkey];
+    return vote !== undefined ? Number(vote) : -1;
   };
   
   const getAllVoters = () => {
@@ -101,6 +104,11 @@ const ProposalCard = ({
       return;
     }
     
+    if (!isMember && !isCreator) {
+      toast.error("You must be a member of this community to vote");
+      return;
+    }
+    
     // Check if user already voted for this option
     if (getUserVote() === optionIndex) {
       toast.info("You already voted for this option");
@@ -108,11 +116,17 @@ const ProposalCard = ({
     }
     
     try {
+      setIsSubmitting(true);
       await nostrService.voteOnProposal(proposal.id, optionIndex);
       toast.success("Vote recorded!");
+      
+      // Update local state to show vote immediately
+      proposal.votes[currentUserPubkey] = optionIndex;
     } catch (error) {
       console.error("Error voting:", error);
       toast.error("Failed to record vote");
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -199,8 +213,9 @@ const ProposalCard = ({
                   variant="outline"
                   size="sm"
                   onClick={() => handleVote(index)}
+                  disabled={isSubmitting}
                 >
-                  {option}
+                  {isSubmitting ? "Voting..." : option}
                 </Button>
               ))}
             </div>
