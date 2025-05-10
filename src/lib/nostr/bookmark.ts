@@ -5,8 +5,6 @@ import { SimplePool } from 'nostr-tools';
 
 export class BookmarkManager {
   private eventManager: EventManager;
-  private bookmarksCache: Map<string, string[]> = new Map(); // Cache for bookmarks by pubkey
-  private fetchPromises: Map<string, Promise<string[]>> = new Map(); // Track ongoing fetch operations
 
   constructor(eventManager: EventManager) {
     this.eventManager = eventManager;
@@ -26,7 +24,7 @@ export class BookmarkManager {
 
     // Create a NIP-51 bookmark list event
     try {
-      // First, get the current bookmark list (use cache if available)
+      // First, get the current bookmark list
       const currentBookmarks = await this.getBookmarkList(pool, publicKey, relays);
       
       // Check if this event is already bookmarked
@@ -36,9 +34,6 @@ export class BookmarkManager {
       
       // Add the new bookmark
       const updatedBookmarks = [...currentBookmarks, eventId];
-
-      // Update cache immediately for fast UI feedback
-      this.bookmarksCache.set(publicKey, updatedBookmarks);
 
       // Create the bookmark list event
       const event = {
@@ -75,7 +70,7 @@ export class BookmarkManager {
     }
 
     try {
-      // Get the current bookmark list (use cache if available)
+      // Get the current bookmark list
       const currentBookmarks = await this.getBookmarkList(pool, publicKey, relays);
       
       // Remove the bookmark
@@ -85,9 +80,6 @@ export class BookmarkManager {
       if (currentBookmarks.length === updatedBookmarks.length) {
         return true;
       }
-      
-      // Update cache immediately for fast UI feedback
-      this.bookmarksCache.set(publicKey, updatedBookmarks);
       
       // Create updated bookmark list event
       const event = {
@@ -116,21 +108,11 @@ export class BookmarkManager {
     publicKey: string,
     relays: string[]
   ): Promise<string[]> {
-    // Check cache first
-    if (this.bookmarksCache.has(publicKey)) {
-      return this.bookmarksCache.get(publicKey) || [];
-    }
-    
-    // Check if we already have a fetch in progress
-    const cacheKey = `${publicKey}`;
-    if (this.fetchPromises.has(cacheKey)) {
-      return this.fetchPromises.get(cacheKey) || [];
-    }
-    
-    // Create a new fetch promise
-    const fetchPromise = new Promise<string[]>((resolve) => {
+    return new Promise((resolve) => {
       const bookmarkEvents: string[] = [];
       
+      // Subscribe to bookmark list events using the correct method signature
+      // The subscribeMany method returns a SubCloser object that has different methods
       const sub = pool.subscribeMany(
         relays,
         [{
@@ -146,32 +128,17 @@ export class BookmarkManager {
               .map(tag => tag[1]);
               
             bookmarkEvents.push(...bookmarks);
-          },
-          oneose: () => {
-            // When we've received all events or timed out
-            this.bookmarksCache.set(publicKey, bookmarkEvents);
-            this.fetchPromises.delete(cacheKey);
-            resolve(bookmarkEvents);
-            sub.close();
           }
         }
       );
       
-      // Set a timeout to resolve with found bookmarks if oneose doesn't trigger
+      // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        if (this.fetchPromises.has(cacheKey)) {
-          this.bookmarksCache.set(publicKey, bookmarkEvents);
-          this.fetchPromises.delete(cacheKey);
-          resolve(bookmarkEvents);
-          sub.close();
-        }
+        // Close the subscription properly
+        sub.close();
+        resolve(bookmarkEvents);
       }, 3000);
     });
-    
-    // Store the promise so we don't start multiple fetches
-    this.fetchPromises.set(cacheKey, fetchPromise);
-    
-    return fetchPromise;
   }
 
   async isBookmarked(
@@ -188,15 +155,6 @@ export class BookmarkManager {
     } catch (error) {
       console.error("Error checking bookmark status:", error);
       return false;
-    }
-  }
-  
-  // Clear cache for a specific user
-  clearCache(publicKey?: string) {
-    if (publicKey) {
-      this.bookmarksCache.delete(publicKey);
-    } else {
-      this.bookmarksCache.clear();
     }
   }
 }

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -13,7 +13,7 @@ import {
 
 interface NoteCardActionsProps {
   eventId: string;
-  pubkey: string;
+  pubkey?: string;
   onCommentClick?: () => void;
   replyCount?: number;
   isAuthor?: boolean;
@@ -35,7 +35,6 @@ const NoteCardActions = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
   // Check bookmarked status on mount
@@ -118,24 +117,13 @@ const NoteCardActions = ({
     }
   };
   
-  // Use useCallback to prevent unnecessary recreations of the function
-  const handleBookmark = useCallback(async (e: React.MouseEvent) => {
-    // Prevent event bubbling to parent elements
-    e.stopPropagation();
-    
+  const handleBookmark = async () => {
     if (!isLoggedIn) {
       toast.error("You must be logged in to bookmark posts");
       return;
     }
     
-    // If an operation is already pending, don't allow another one
-    if (isBookmarkPending) {
-      return;
-    }
-    
     try {
-      setIsBookmarkPending(true);
-      
       if (isBookmarked) {
         // Remove bookmark
         setIsBookmarked(false); // Optimistically update UI
@@ -161,116 +149,77 @@ const NoteCardActions = ({
       console.error("Error bookmarking post:", error);
       setIsBookmarked(!isBookmarked); // Revert UI state
       toast.error("Failed to update bookmark");
-    } finally {
-      setIsBookmarkPending(false);
-    }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending]);
-  
-  // Handle comment click with event stopping
-  const handleCommentButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onCommentClick) {
-      onCommentClick();
-    }
-  };
-  
-  // Handle delete click with event stopping
-  const handleDeleteButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete();
     }
   };
   
   return (
     <div className="flex items-center justify-between pt-2">
-      <div className="flex items-center space-x-4 md:space-x-5">
-        {/* Like Button */}
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
-            onClick={handleLike}
-            title="Like"
-          >
-            <Heart className="h-[18px] w-[18px]" />
-          </Button>
-        </div>
+      <div className="flex items-center space-x-5">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
+          onClick={handleLike}
+          title="Like"
+        >
+          <Heart className="h-[18px] w-[18px]" />
+        </Button>
         
-        {/* Repost Button */}
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
-            onClick={handleRepost}
-            title="Repost"
-            disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
-          >
-            <Repeat className="h-[18px] w-[18px]" />
-          </Button>
-        </div>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
+          onClick={handleRepost}
+          title="Repost"
+          disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
+        >
+          <Repeat className="h-[18px] w-[18px]" />
+        </Button>
         
-        {/* Comment Button with Reply Count */}
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
-            onClick={handleCommentButtonClick}
-            title="Reply"
-          >
-            <MessageSquare className="h-[18px] w-[18px]" />
-          </Button>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
+          onClick={onCommentClick}
+          title="Reply"
+        >
+          <MessageSquare className="h-[18px] w-[18px]" />
           {replyCount > 0 && (
-            <span className="ml-1 text-xs font-medium text-muted-foreground">{replyCount}</span>
+            <span className="ml-1 text-xs">{replyCount}</span>
           )}
-        </div>
+        </Button>
         
-        {/* Bookmark Button */}
-        <div className="flex items-center">
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
-                title="Bookmark"
-                onClick={handleBookmark}
-                disabled={isBookmarkPending}
-              >
-                <Bookmark className="h-[18px] w-[18px]" />
-              </Button>
-            </ContextMenuTrigger>
-            <ContextMenuContent onClick={(e) => e.stopPropagation()}>
-              <ContextMenuItem onClick={(e) => {
-                e.preventDefault();
-                handleBookmark(e as unknown as React.MouseEvent);
-              }}>
-                {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
-        </div>
-        
-        {/* Delete Button (only for authors) */}
-        {isAuthor && (
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
               size="icon"
-              className="rounded-full hover:text-red-500 hover:bg-red-500/10"
-              onClick={handleDeleteButtonClick}
-              title="Delete"
+              className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
+              title="Bookmark"
             >
-              <Trash2 className="h-[18px] w-[18px]" />
+              <Bookmark className="h-[18px] w-[18px]" />
             </Button>
-          </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onClick={handleBookmark}>
+              {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+        
+        {isAuthor && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover:text-red-500 hover:bg-red-500/10"
+            onClick={onDelete}
+            title="Delete"
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </Button>
         )}
       </div>
       
-      {/* Share Button */}
       <Button 
         variant="ghost" 
         size="icon" 
