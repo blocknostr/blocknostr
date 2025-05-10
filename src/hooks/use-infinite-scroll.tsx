@@ -48,6 +48,9 @@ export const useInfiniteScroll = (
 
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
     loadMoreRef.current = node;
+    if (node && observer.current) {
+      observer.current.observe(node);
+    }
   }, []);
 
   return {

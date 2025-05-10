@@ -13,8 +13,8 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({}); 
   const following = nostrService.following;
-  const [since, setSince] = useState(Math.floor(Date.now() / 1000));
-  const [until, setUntil] = useState<number | undefined>(undefined);
+  const [since, setSince] = useState<number | undefined>(undefined);
+  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [subId, setSubId] = useState<string | null>(null);
   
   const loadMoreEvents = () => {
@@ -26,14 +26,33 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     }
 
     // Create new subscription with older timestamp range
-    const newUntil = until || Math.floor(Date.now() / 1000);
-    const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before the until time
-    
-    setUntil(newSince);
-    
-    // Start the new subscription with the older timestamp range
-    const newSubId = setupSubscription(newSince, newUntil);
-    setSubId(newSubId);
+    if (!since) {
+      // If no since value yet, get the oldest post timestamp
+      const oldestEvent = events.length > 0 ? 
+        events.reduce((oldest, current) => oldest.created_at < current.created_at ? oldest : current) : 
+        null;
+      
+      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
+      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    } else {
+      // We already have a since value, so use it to get older posts
+      const newUntil = since;
+      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    }
   };
   
   const {
@@ -93,8 +112,10 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
               return prev;
             }
             
-            // Add new event and sort by creation time (newest first)
-            const newEvents = [...prev, event].sort((a, b) => b.created_at - a.created_at);
+            const newEvents = [...prev, event];
+            
+            // Sort by creation time (newest first)
+            newEvents.sort((a, b) => b.created_at - a.created_at);
             
             // If we've reached the limit, set hasMore to false
             if (newEvents.length >= 100) {
@@ -233,9 +254,9 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       setLoading(true);
       
       // Reset the timestamp range for new subscription
-      const newSince = Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 7; // Last 7 days
-      setSince(newSince);
-      setUntil(undefined);
+      const currentTime = Math.floor(Date.now() / 1000);
+      setSince(undefined);
+      setUntil(currentTime);
       
       // Close previous subscription if exists
       if (subId) {
@@ -243,7 +264,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(newSince);
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
       setSubId(newSubId);
       
       if (following.length === 0) {
