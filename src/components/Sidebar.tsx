@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Home, Bell, Mail, User, Users, Settings, FileText, Sun, Moon } from "lucide-react";
+import { Home, Hash, Bell, Mail, User, Users, Settings, FileText, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,12 @@ const Sidebar = () => {
       href: "/",
       requiresAuth: false
     },
-    // Removed "Explore" menu item as requested
+    {
+      name: "Explore",
+      icon: Hash,
+      href: "/explore",
+      requiresAuth: false
+    },
     {
       name: "Notifications",
       icon: Bell,

@@ -1,6 +1,6 @@
 
 import { Card } from "@/components/ui/card";
-import { Users, FileText, Heart } from "lucide-react";
+import { Users } from "lucide-react";
 
 interface ProfileStatsProps {
   followers: string[];
@@ -15,17 +15,14 @@ const ProfileStats = ({ followers, following, postsCount }: ProfileStatsProps) =
         <StatItem 
           label="Posts" 
           value={postsCount.toLocaleString()} 
-          icon={<FileText className="h-4 w-4 text-muted-foreground" />}
         />
         <StatItem 
           label="Following" 
           value={following.length.toLocaleString()} 
-          icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
         <StatItem 
           label="Followers" 
           value={followers.length.toLocaleString()} 
-          icon={<Heart className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
     </Card>
