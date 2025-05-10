@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 
 export const useCommunitySubscriptions = (
@@ -9,41 +10,43 @@ export const useCommunitySubscriptions = (
   handleKickProposalEvent: (event: NostrEvent) => void,
   handleKickVoteEvent: (event: NostrEvent) => void
 ) => {
-  const loadCommunity = async () => {
+  useEffect(() => {
     if (!communityId) return;
     
-    await nostrService.connectToUserRelays();
+    let cleanupFunctions: Array<() => void> = [];
     
-    // Subscribe to community events with this ID
-    const communitySubId = nostrService.subscribe(
-      [
-        {
-          kinds: [34550],
-          ids: [communityId],
-          limit: 1
-        }
-      ],
-      handleCommunityEvent
-    );
+    const initSubscriptions = async () => {
+      await nostrService.connectToUserRelays();
+      
+      // Subscribe to community events with this ID
+      const communitySubId = nostrService.subscribe(
+        [
+          {
+            kinds: [34550],
+            ids: [communityId],
+            limit: 1
+          }
+        ],
+        handleCommunityEvent
+      );
+      
+      cleanupFunctions.push(() => nostrService.unsubscribe(communitySubId));
+      
+      // Load proposals for this community
+      const proposalSubIds = loadProposals(communityId);
+      cleanupFunctions.push(proposalSubIds);
+      
+      // Load kick proposals for this community
+      const kickSubIds = loadKickProposals(communityId);
+      cleanupFunctions.push(kickSubIds);
+    };
     
-    // Load proposals for this community
-    const proposalSubId = loadProposals(communityId);
-    
-    // Load kick proposals for this community
-    const kickSubIds = loadKickProposals(communityId);
+    initSubscriptions();
     
     return () => {
-      nostrService.unsubscribe(communitySubId);
-      if (proposalSubId) {
-        nostrService.unsubscribe(proposalSubId.proposalSubId);
-        nostrService.unsubscribe(proposalSubId.votesSubId);
-      }
-      if (kickSubIds) {
-        nostrService.unsubscribe(kickSubIds.kickProposalSubId);
-        nostrService.unsubscribe(kickSubIds.kickVotesSubId);
-      }
+      cleanupFunctions.forEach(cleanup => cleanup());
     };
-  };
+  }, [communityId, handleCommunityEvent, handleProposalEvent, handleVoteEvent, handleKickProposalEvent, handleKickVoteEvent]);
   
   const loadProposals = (communityId: string) => {
     // Subscribe to proposal events for this community
@@ -69,7 +72,10 @@ export const useCommunitySubscriptions = (
       handleVoteEvent
     );
     
-    return { proposalSubId, votesSubId };
+    return () => {
+      nostrService.unsubscribe(proposalSubId);
+      nostrService.unsubscribe(votesSubId);
+    };
   };
   
   const loadKickProposals = (communityId: string) => {
@@ -94,10 +100,16 @@ export const useCommunitySubscriptions = (
       handleKickVoteEvent
     );
     
-    return { kickProposalSubId, kickVotesSubId };
+    return () => {
+      nostrService.unsubscribe(kickProposalSubId);
+      nostrService.unsubscribe(kickVotesSubId);
+    };
   };
   
   return {
-    loadCommunity
+    loadCommunity: async () => {
+      if (!communityId) return;
+      await nostrService.connectToUserRelays();
+    }
   };
 };

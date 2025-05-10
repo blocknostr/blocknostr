@@ -31,6 +31,9 @@ export interface NostrProfileMetadata {
   [key: string]: any; // For any other custom fields
 }
 
+// Define the SubCloser type based on nostr-tools
+export type SubCloser = () => void;
+
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {

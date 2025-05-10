@@ -1,10 +1,11 @@
 
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent } from './types';
+import { NostrEvent, SubCloser } from './types';
 
 export class SubscriptionManager {
   private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
   private pool: SimplePool;
+  private subClosers: Map<string, SubCloser> = new Map(); // Store SubCloser functions
   
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -20,7 +21,7 @@ export class SubscriptionManager {
     this.subscriptions.set(subId, new Set([onEvent]));
     
     // Use the pool to subscribe
-    this.pool.subscribeMany(
+    const subCloser = this.pool.subscribeMany(
       relays,
       filters,
       {
@@ -33,11 +34,21 @@ export class SubscriptionManager {
       }
     );
     
+    // Store the closer function with the subId
+    this.subClosers.set(subId, subCloser);
+    
     return subId;
   }
   
   unsubscribe(subId: string): void {
+    // Get and execute the closer function
+    const closer = this.subClosers.get(subId);
+    if (closer) {
+      closer(); // Call the SubCloser function
+    }
+    
+    // Clean up 
     this.subscriptions.delete(subId);
-    this.pool.close([subId]);
+    this.subClosers.delete(subId);
   }
 }
