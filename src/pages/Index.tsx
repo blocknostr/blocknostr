@@ -2,6 +2,7 @@
 import MainFeed from "@/components/MainFeed";
 import Sidebar from "@/components/Sidebar";
 import TrendingSection from "@/components/TrendingSection";
+import WhoToFollow from "@/components/WhoToFollow";
 import { useEffect, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
@@ -123,7 +124,7 @@ const Index = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => setRightPanelOpen(true)}
-                  aria-label="Open trending"
+                  aria-label="Open trending and who to follow"
                 >
                   <ArrowRight className="h-5 w-5" />
                 </Button>
@@ -150,6 +151,7 @@ const Index = () => {
                   <GlobalSearch />
                 </div>
                 <TrendingSection onTopicClick={handleTopicClick} />
+                <WhoToFollow />
               </div>
             </aside>
           )}
@@ -165,6 +167,7 @@ const Index = () => {
                 <GlobalSearch />
               </div>
               <TrendingSection onTopicClick={handleTopicClick} />
+              <WhoToFollow />
             </div>
           </SheetContent>
         </Sheet>
