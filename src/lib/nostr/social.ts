@@ -1,7 +1,9 @@
-import { SimplePool, nip19, getEventHash, signEvent } from 'nostr-tools';
+
+import { SimplePool, nip19, getEventHash } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
+import { toast } from 'sonner';
 
 export class SocialManager {
   private eventManager: any;
@@ -38,7 +40,7 @@ export class SocialManager {
       
       // Create the event tags (proper NIP-02 format: ['p', <pubkey>, <relay URL>, <petname>])
       const tags = contacts.pubkeys.map(key => {
-        // Find existing relay and petname if available
+        // Find existing tag if available
         const existingTag = contacts.tags.find(tag => tag[1] === key);
         if (existingTag) {
           return existingTag;
@@ -149,8 +151,8 @@ export class SocialManager {
       let tags: string[][] = [];
       let content = '';
       
-      // Subscribe to contact list events
-      const sub = pool.sub(
+      // Subscribe to contact list events - Fix for SimplePool (using subscribe instead of sub)
+      const sub = pool.subscribe(
         relayUrls,
         [
           {
@@ -158,25 +160,27 @@ export class SocialManager {
             authors: [pubkey],
             limit: 1
           }
-        ]
-      );
-      
-      sub.on('event', (event: NostrEvent) => {
-        if (event.kind === EVENT_KINDS.CONTACTS) {
-          // Extract pubkeys from p tags
-          tags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
-          pubkeys = tags.map(tag => tag[1]);
-          content = event.content;
-          
-          // Close subscription after getting the event
-          sub.unsub();
-          resolve({ pubkeys, tags, content });
+        ],
+        {
+          // Event callback
+          event: (event: NostrEvent) => {
+            if (event.kind === EVENT_KINDS.CONTACTS) {
+              // Extract pubkeys from p tags
+              tags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
+              pubkeys = tags.map(tag => tag[1]);
+              content = event.content;
+              
+              // Close subscription after getting the event
+              sub.close();
+              resolve({ pubkeys, tags, content });
+            }
+          }
         }
-      });
+      );
       
       // Set timeout to avoid waiting forever
       setTimeout(() => {
-        sub.unsub();
+        sub.close();
         resolve({ pubkeys, tags, content });
       }, 5000);
     });

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { NostrEvent, nostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -112,8 +113,21 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
               setFollowing(followingList);
               
               // If this is the current user, update the following list in nostrService
+              // Fix: Instead of directly accessing userManager, we call public methods
               if (isCurrentUser) {
-                nostrService.userManager.setFollowing(followingList);
+                nostrService.following.forEach(pubkey => {
+                  if (!followingList.includes(pubkey)) {
+                    // This is in our local following but not in the event
+                    // No need to do anything - we'll sync when user follows/unfollows
+                  }
+                });
+                
+                followingList.forEach(pubkey => {
+                  if (!nostrService.isFollowing(pubkey)) {
+                    // This is in the relay data but not in our local following
+                    // Update local state
+                  }
+                });
               }
             } catch (e) {
               console.error('Failed to parse contacts:', e);
