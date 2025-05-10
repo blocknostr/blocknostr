@@ -113,29 +113,33 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
 
   return (
     <>
-      <Card className="mb-4 hover:bg-accent/20 transition-colors">
-        {repostData && (
-          <div className="px-4 pt-2 text-xs text-muted-foreground flex items-center gap-1">
-            <Repeat className="h-3 w-3" />
-            <span>Reposted by </span>
-            <Link 
-              to={`/profile/${repostData.reposterPubkey}`} 
-              className="font-medium hover:underline"
-            >
-              {repostData.reposterProfile?.name || repostData.reposterProfile?.display_name || "Unknown"}
-            </Link>
-          </div>
-        )}
-        <CardContent className="pt-4">
-          <NoteCardHeader 
-            pubkey={event.pubkey || ''} 
-            createdAt={event.created_at} 
-            profileData={profileData} 
-          />
-          <NoteCardContent content={event.content} />
-        </CardContent>
+      <Card className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden">
+        <Link to={`/post/${event.id}`} className="block cursor-pointer">
+          {repostData && (
+            <div className="px-5 pt-3 pb-1 text-xs text-muted-foreground flex items-center gap-1 bg-muted/50">
+              <Repeat className="h-3 w-3" />
+              <span>Reposted by </span>
+              <Link 
+                to={`/profile/${repostData.reposterPubkey}`} 
+                className="font-medium hover:underline hover:text-primary"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {repostData.reposterProfile?.name || repostData.reposterProfile?.display_name || "Unknown"}
+              </Link>
+            </div>
+          )}
+          
+          <CardContent className="pt-5 px-5 pb-3">
+            <NoteCardHeader 
+              pubkey={event.pubkey || ''} 
+              createdAt={event.created_at} 
+              profileData={profileData} 
+            />
+            <NoteCardContent content={event.content} />
+          </CardContent>
+        </Link>
         
-        <CardFooter>
+        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1">
           <NoteCardActions 
             eventId={event.id || ''} 
             pubkey={event.pubkey || ''} 
@@ -147,11 +151,13 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         </CardFooter>
         
         {showComments && (
-          <NoteCardComments
-            eventId={event.id || ''}
-            pubkey={event.pubkey || ''}
-            onReplyAdded={handleReplyAdded}
-          />
+          <div className="bg-muted/30 animate-fade-in">
+            <NoteCardComments
+              eventId={event.id || ''}
+              pubkey={event.pubkey || ''}
+              onReplyAdded={handleReplyAdded}
+            />
+          </div>
         )}
       </Card>
       

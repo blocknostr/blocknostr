@@ -36,7 +36,7 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
     setHashtags(tags);
   }, [content]);
 
-  // Format content to highlight hashtags
+  // Format content to highlight hashtags and links
   const renderFormattedContent = () => {
     if (!displayContent) return null;
     
@@ -46,8 +46,10 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
       formattedContent = formattedContent.replace(url, '');
     });
 
-    // Replace hashtags with styled spans
-    return formattedContent.split(/(#\w+)/g).map((part, index) => {
+    // Split by hashtags and URLs
+    return formattedContent.split(/(#\w+)|(https?:\/\/\S+)/g).map((part, index) => {
+      if (!part) return null;
+      
       if (part.startsWith('#')) {
         const tag = part.substring(1);
         return (
@@ -55,20 +57,40 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
             {part}
           </span>
         );
+      } else if (part.startsWith('http')) {
+        // Don't include media URLs that we'll render separately
+        if (!mediaUrls.includes(part)) {
+          return (
+            <a 
+              key={index} 
+              href={part} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#0EA5E9] hover:underline"
+              onClick={e => e.stopPropagation()}
+            >
+              {part}
+            </a>
+          );
+        }
+        return null;
       }
       return part;
     });
   };
 
   return (
-    <div>
-      <p className="mt-1 whitespace-pre-wrap break-words text-[15px] md:text-base">{renderFormattedContent()}</p>
+    <div className="mt-3">
+      <p className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">{renderFormattedContent()}</p>
       
       {shouldTruncate && (
         <Button 
           variant="link" 
           size="sm" 
-          onClick={() => setIsExpanded(!isExpanded)} 
+          onClick={(e) => {
+            e.preventDefault(); 
+            setIsExpanded(!isExpanded);
+          }} 
           className="text-[#0EA5E9] hover:text-[#0EA5E9]/80 p-0 h-auto mt-1 font-medium flex items-center gap-1"
         >
           {isExpanded ? (
@@ -83,11 +105,11 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
         </Button>
       )}
       
-      {/* Display hashtags as badges if they're not already shown in the content */}
-      {hashtags.length > 0 && (
+      {/* Display hashtags as badges if more than 1 */}
+      {hashtags.length > 1 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {hashtags.map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-xs">
+            <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary hover:bg-primary/20">
               #{tag}
             </Badge>
           ))}
@@ -96,7 +118,7 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
       
       {/* Display media content */}
       {mediaUrls.length > 0 && (
-        <div className="space-y-2 mt-2">
+        <div className="space-y-2 mt-3 rounded-md overflow-hidden">
           {mediaUrls.map((url, index) => (
             <MediaPreview 
               key={index} 

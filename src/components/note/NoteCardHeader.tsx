@@ -2,6 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -31,16 +32,30 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
 
   return (
     <div className="flex">
-      <Avatar className="h-10 w-10 mr-3 shrink-0">
-        <AvatarImage src={picture} alt={name} />
-        <AvatarFallback>{avatarFallback}</AvatarFallback>
-      </Avatar>
+      <Link 
+        to={`/profile/${hexPubkey}`} 
+        className="mr-3 shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Avatar className="h-11 w-11 border border-muted">
+          <AvatarImage src={picture} alt={name} />
+          <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
+        </Avatar>
+      </Link>
+      
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold truncate">{displayName}</span>
+        <div className="flex items-baseline gap-x-1 flex-wrap">
+          <Link 
+            to={`/profile/${hexPubkey}`}
+            className="font-bold hover:underline truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayName}
+          </Link>
+          
           <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
-          <span className="text-muted-foreground text-sm">·</span>
-          <span className="text-muted-foreground text-sm">{timeAgo}</span>
+          <span className="text-muted-foreground text-sm mx-0.5">·</span>
+          <span className="text-muted-foreground text-sm hover:underline cursor-pointer">{timeAgo}</span>
         </div>
       </div>
     </div>

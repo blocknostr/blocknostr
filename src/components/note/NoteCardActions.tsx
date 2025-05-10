@@ -94,56 +94,75 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
   };
 
   return (
-    <div className="flex justify-between pt-0 flex-wrap">
+    <div className="flex justify-between pt-0 flex-wrap w-full gap-1">
       <Button 
         variant="ghost" 
         size="sm" 
-        className="text-muted-foreground"
-        onClick={onCommentClick}
+        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
+        onClick={(e) => {
+          e.preventDefault();
+          onCommentClick();
+        }}
       >
         <MessageCircle className="h-4 w-4 mr-1" />
-        {replyCount > 0 ? replyCount : ''}
+        {replyCount > 0 && <span className="text-xs font-medium">{replyCount}</span>}
       </Button>
       
       <Button 
         variant="ghost" 
         size="sm" 
-        className={retweeted ? "text-green-500" : "text-muted-foreground"}
-        onClick={handleRetweet}
+        className={`rounded-full ${retweeted 
+          ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
+          : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
+        onClick={(e) => {
+          e.preventDefault();
+          handleRetweet();
+        }}
       >
         <Repeat className="h-4 w-4 mr-1" />
-        {retweetCount > 0 ? retweetCount : ''}
+        {retweetCount > 0 && <span className="text-xs font-medium">{retweetCount}</span>}
       </Button>
       
       <Button 
         variant="ghost" 
         size="sm" 
-        className={liked ? "text-red-500" : "text-muted-foreground"}
-        onClick={handleLike}
+        className={`rounded-full ${liked 
+          ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
+          : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
+        onClick={(e) => {
+          e.preventDefault();
+          handleLike();
+        }}
       >
         <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
-        {likeCount > 0 ? likeCount : ''}
+        {likeCount > 0 && <span className="text-xs font-medium">{likeCount}</span>}
       </Button>
 
       <Button
         variant="ghost"
         size="sm"
-        className="text-muted-foreground"
-        onClick={handleSendTip}
+        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
+        onClick={(e) => {
+          e.preventDefault();
+          handleSendTip();
+        }}
       >
         <DollarSign className="h-4 w-4 mr-1" />
-        Tip
+        <span className="text-xs">Tip</span>
       </Button>
       
       {isAuthor && (
         <Button
           variant="ghost"
           size="sm"
-          className="text-red-500 hover:bg-red-100 hover:text-red-600"
-          onClick={handleDelete}
+          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full ml-auto"
+          onClick={(e) => {
+            e.preventDefault();
+            handleDelete();
+          }}
         >
           <Trash2 className="h-4 w-4 mr-1" />
-          Delete
+          <span className="text-xs">Delete</span>
         </Button>
       )}
     </div>
