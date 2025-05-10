@@ -6,7 +6,6 @@ import NoteCardHeader from './note/NoteCardHeader';
 import NoteCardContent from './note/NoteCardContent';
 import NoteCardActions from './note/NoteCardActions';
 import NoteCardComments from './note/NoteCardComments';
-import { Link } from 'react-router-dom';
 import RepostHeader from './note/RepostHeader';
 import DeleteNoteDialog from './note/DeleteNoteDialog';
 import { useNoteReachCount } from '@/hooks/useNoteReachCount';
@@ -39,7 +38,11 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setIsDeleteDialogOpen(true);
   };
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent navigation if the click is handled by child elements
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
     window.location.href = `/post/${event.id}`;
   };
 
