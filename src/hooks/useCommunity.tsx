@@ -6,7 +6,8 @@ import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers
 import { useCommunityActions } from "./community/useCommunityActions";
 import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions";
 
-export { Community, Proposal, KickProposal } from "@/types/community";
+// Use 'export type' instead of 'export' for type re-exports
+export type { Community, Proposal, KickProposal } from "@/types/community";
 
 export const useCommunity = (communityId: string | undefined) => {
   const [community, setCommunity] = useState<Community | null>(null);
