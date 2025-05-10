@@ -627,6 +627,9 @@ class NostrService {
 // Create singleton instance
 export const nostrService = new NostrService();
 
-// Export types and constants
-export type { NostrEvent, Relay } from './types';
+// Re-export types from internal modules
+export type { NostrEvent, Relay, NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
+
+// Re-export from social module
+export { SocialManager, ReactionCounts, ContactList } from './social';
