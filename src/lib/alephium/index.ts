@@ -1,5 +1,11 @@
 
 import { toast } from "sonner";
+import { 
+  AlephiumConnectProvider, 
+  AlephiumWalletProvider, 
+  useAlephiumConnectContext,
+  AlephiumConnectButton as WcAlephiumConnectButton
+} from "@alephium/web3-react";
 
 export interface WalletBalance {
   address: string;
@@ -16,9 +22,26 @@ export interface TokenBalance {
   logo?: string;
 }
 
+export const AlephiumConnectButton = WcAlephiumConnectButton;
+
+export const AlephiumWalletContext = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <AlephiumConnectProvider
+      projectId="840a690e3ccb0cd3cb3189c0cd37a877"
+      network="mainnet"
+      theme="dark"
+      dAppName="BlockNoster"
+      autoConnect={true}
+    >
+      <AlephiumWalletProvider>
+        {children}
+      </AlephiumWalletProvider>
+    </AlephiumConnectProvider>
+  );
+};
+
 export class AlephiumService {
   private static instance: AlephiumService;
-  private isConnected: boolean = false;
   private currentAddress: string | null = null;
   private balances: WalletBalance[] = [];
 
@@ -33,138 +56,52 @@ export class AlephiumService {
     return AlephiumService.instance;
   }
 
-  public isWalletAvailable(): boolean {
-    return typeof window !== 'undefined' && 
-           (window as any).alephium !== undefined;
-  }
-
-  public async connectWallet(): Promise<boolean> {
+  // This is a helper function to format balances for display
+  public formatBalances(rawBalances: any): WalletBalance[] {
     try {
-      // Check if alephium wallet extension exists
-      if (!this.isWalletAvailable()) {
-        toast.error("Alephium wallet extension not found. Please install it first.");
-        console.error("Alephium wallet not available in window object");
-        // Open wallet installation page
-        window.open("https://chrome.google.com/webstore/detail/alephium-extension-wallet/gdokollfhmnbfckbobkdbakhidagfcjj", "_blank");
-        return false;
+      if (!rawBalances) {
+        return [];
       }
       
-      const alephium = (window as any).alephium;
+      // Extract the main ALPH balance
+      const alphBalance = rawBalances.balance ? (parseInt(rawBalances.balance) / 10**18).toFixed(4) : "0";
       
-      // For development/testing, provide a mock wallet if real one is not available
-      if (process.env.NODE_ENV === 'development' && !alephium) {
-        console.log("Using mock wallet for development");
-        this.isConnected = true;
-        this.currentAddress = "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH";
-        await this.fetchBalances();
-        toast.success("Connected to mock wallet (development mode)");
-        return true;
-      }
+      // Format the tokens
+      const tokens = rawBalances.tokenBalances ? 
+        Object.entries(rawBalances.tokenBalances).map(([id, details]: [string, any]) => ({
+          id,
+          symbol: details.symbol || "Unknown",
+          name: details.name || "Unknown Token",
+          balance: (parseInt(details.balance) / 10**details.decimals).toFixed(4),
+          decimals: details.decimals || 18,
+          logo: details.logo || undefined
+        })) : [];
       
-      await alephium.enable();
-      console.log("Wallet enabled successfully");
-
-      // Set connection status
-      this.isConnected = true;
-      
-      // Get current address
-      const addresses = await alephium.getAccounts();
-      console.log("Accounts received:", addresses);
-      
-      if (addresses && addresses.length > 0) {
-        this.currentAddress = addresses[0];
-        await this.fetchBalances();
-        toast.success("Wallet connected successfully");
-        return true;
-      } else {
-        toast.error("No accounts found in the wallet");
-        console.error("No accounts found in wallet");
-        this.isConnected = false;
-        return false;
-      }
-    } catch (error) {
-      console.error("Failed to connect wallet:", error);
-      toast.error(`Failed to connect wallet: ${error instanceof Error ? error.message : "Unknown error"}`);
-      this.isConnected = false;
-      return false;
-    }
-  }
-
-  public async disconnect(): Promise<void> {
-    this.isConnected = false;
-    this.currentAddress = null;
-    this.balances = [];
-    toast.success("Wallet disconnected");
-  }
-
-  public async fetchBalances(): Promise<WalletBalance[]> {
-    if (!this.isConnected || !this.currentAddress) {
-      return [];
-    }
-
-    try {
-      // In a real implementation, we would call the Alephium API here
-      // For this demo, we'll use mock data
-      this.balances = [{
-        address: this.currentAddress,
-        balance: "10.5",
-        tokens: [
-          {
-            id: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-            symbol: "ALPH",
-            name: "Alephium",
-            balance: "10.5",
-            decimals: 18,
-            logo: "https://cryptologos.cc/logos/alephium-alph-logo.png"
-          },
-          {
-            id: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-            symbol: "TOKEN",
-            name: "Example Token",
-            balance: "100",
-            decimals: 18
-          }
-        ]
+      return [{
+        address: this.currentAddress || "",
+        balance: alphBalance,
+        tokens: tokens as TokenBalance[]
       }];
-      
-      return this.balances;
     } catch (error) {
-      console.error("Failed to fetch balances:", error);
-      toast.error("Failed to fetch wallet balances");
+      console.error("Error formatting balances:", error);
       return [];
     }
-  }
-
-  public getBalances(): WalletBalance[] {
-    return this.balances;
   }
 
   public getCurrentAddress(): string | null {
     return this.currentAddress;
   }
 
-  public isWalletConnected(): boolean {
-    return this.isConnected;
+  public setCurrentAddress(address: string | null): void {
+    this.currentAddress = address;
   }
 
-  // Listen for account changes
-  public setupEventListeners(): void {
-    if (this.isWalletAvailable()) {
-      const alephium = (window as any).alephium;
-      if (alephium && alephium.on) {
-        alephium.on('accountsChanged', async (accounts: string[]) => {
-          if (accounts && accounts.length > 0) {
-            this.currentAddress = accounts[0];
-            await this.fetchBalances();
-            toast.info("Account changed");
-          } else {
-            this.isConnected = false;
-            this.currentAddress = null;
-            this.balances = [];
-          }
-        });
-      }
-    }
+  public getBalances(): WalletBalance[] {
+    return this.balances;
+  }
+
+  public setBalances(balances: WalletBalance[]): void {
+    this.balances = balances;
   }
 }
 

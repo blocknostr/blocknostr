@@ -13,9 +13,11 @@ import { RefreshCcw, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import TokenBalanceItem from "./TokenBalanceItem";
+import { useWallet } from "@alephium/web3-react";
 
 const WalletMenu = () => {
-  const { address, formatAddress, balances, isLoading, refreshBalances, disconnectWallet } = useAlephium();
+  const { address, formatAddress, balances, isLoading, refreshBalances, getExplorerAddressUrl } = useAlephium();
+  const { disconnect } = useWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const handleRefresh = async () => {
@@ -32,7 +34,13 @@ const WalletMenu = () => {
   };
   
   const handleDisconnect = async () => {
-    await disconnectWallet();
+    try {
+      await disconnect();
+      toast.success("Wallet disconnected");
+    } catch (error) {
+      console.error("Failed to disconnect wallet:", error);
+      toast.error("Failed to disconnect wallet");
+    }
   };
 
   const mainBalance = balances[0]?.balance || "0";
@@ -72,7 +80,7 @@ const WalletMenu = () => {
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6"
-                    onClick={() => window.open(`https://explorer.alephium.org/addresses/${address}`, '_blank')}
+                    onClick={() => window.open(getExplorerAddressUrl(address), '_blank')}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Button>
@@ -96,7 +104,7 @@ const WalletMenu = () => {
               {balances[0]?.tokens.map((token) => (
                 <TokenBalanceItem key={token.id} token={token} />
               ))}
-              {balances[0]?.tokens.length === 0 && (
+              {(!balances[0]?.tokens || balances[0]?.tokens.length === 0) && (
                 <div className="text-sm text-muted-foreground text-center py-2">
                   No tokens found
                 </div>

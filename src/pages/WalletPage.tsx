@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { useAlephium } from "@/hooks/use-alephium";
 import { Button } from "@/components/ui/button";
@@ -9,38 +9,21 @@ import { Copy, ExternalLink, RefreshCcw, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import TokenBalanceItem from "@/components/wallet/TokenBalanceItem";
 import { Separator } from "@/components/ui/separator";
-import { useNavigate } from "react-router-dom";
+import { AlephiumConnectButton } from "@/lib/alephium";
 
 const WalletPage = () => {
-  const navigate = useNavigate();
   const { 
-    isConnected, 
-    connectWallet,
-    disconnectWallet,
-    address, 
-    formatAddress, 
-    balances, 
+    isConnected,
+    address,
+    formatAddress,
+    balances,
     isLoading,
     refreshBalances,
-    isWalletAvailable
+    getExplorerAddressUrl
   } = useAlephium();
   
   const [activeTab, setActiveTab] = useState("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  useEffect(() => {
-    const checkWallet = async () => {
-      if (!isConnected) {
-        // Try to connect if not already connected
-        const success = await connectWallet();
-        if (!success) {
-          toast.error("Please connect your wallet to access this page");
-        }
-      }
-    };
-    
-    checkWallet();
-  }, [isConnected, connectWallet]);
   
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -53,15 +36,6 @@ const WalletPage = () => {
       navigator.clipboard.writeText(address);
       toast.success("Address copied to clipboard");
     }
-  };
-  
-  const handleDisconnect = async () => {
-    await disconnectWallet();
-    navigate("/");
-  };
-  
-  const handleInstallWallet = () => {
-    window.open("https://chrome.google.com/webstore/detail/alephium-extension-wallet/gdokollfhmnbfckbobkdbakhidagfcjj", "_blank");
   };
 
   const mainBalance = balances[0]?.balance || "0";
@@ -82,7 +56,7 @@ const WalletPage = () => {
                 variant="ghost" 
                 size="icon"
                 onClick={handleRefresh}
-                disabled={isRefreshing || isLoading}
+                disabled={isRefreshing || isLoading || !isConnected}
               >
                 <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
@@ -91,20 +65,28 @@ const WalletPage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-6">
-          {!isWalletAvailable ? (
+          {!isConnected ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-10 space-y-4">
                 <Wallet className="h-16 w-16 text-muted-foreground" />
-                <h2 className="text-xl font-semibold">Alephium Wallet Not Detected</h2>
+                <h2 className="text-xl font-semibold">Connect Your Wallet</h2>
                 <p className="text-muted-foreground text-center max-w-md">
-                  You need to install the Alephium Extension Wallet to connect to this application.
+                  Connect your Alephium wallet to view your balances and transactions
                 </p>
-                <Button onClick={handleInstallWallet} className="mt-4">
-                  Install Alephium Wallet
-                </Button>
+                <AlephiumConnectButton.Custom>
+                  {({ isConnecting, openConnectModal }) => (
+                    <Button 
+                      onClick={openConnectModal} 
+                      disabled={isConnecting} 
+                      className="mt-4"
+                    >
+                      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                    </Button>
+                  )}
+                </AlephiumConnectButton.Custom>
               </CardContent>
             </Card>
-          ) : isConnected ? (
+          ) : (
             <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
               <TabsList className="mb-6">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -135,7 +117,7 @@ const WalletPage = () => {
                           variant="ghost" 
                           size="icon" 
                           className="h-8 w-8"
-                          onClick={() => window.open(`https://explorer.alephium.org/addresses/${address}`, '_blank')}
+                          onClick={() => window.open(getExplorerAddressUrl(address!), '_blank')}
                         >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
@@ -155,9 +137,17 @@ const WalletPage = () => {
                     
                     {/* Actions */}
                     <div className="pt-4">
-                      <Button onClick={handleDisconnect} variant="outline" className="w-full">
-                        Disconnect Wallet
-                      </Button>
+                      <AlephiumConnectButton.Custom>
+                        {({ disconnect }) => (
+                          <Button 
+                            onClick={() => disconnect()} 
+                            variant="outline" 
+                            className="w-full"
+                          >
+                            Disconnect Wallet
+                          </Button>
+                        )}
+                      </AlephiumConnectButton.Custom>
                     </div>
                   </CardContent>
                 </Card>
@@ -179,7 +169,7 @@ const WalletPage = () => {
                           <Separator className="my-2" />
                         </div>
                       ))}
-                      {balances[0]?.tokens.length === 0 && (
+                      {(!balances[0]?.tokens || balances[0]?.tokens.length === 0) && (
                         <div className="text-center py-10 text-muted-foreground">
                           No tokens found in your wallet
                         </div>
@@ -205,19 +195,6 @@ const WalletPage = () => {
                 </Card>
               </TabsContent>
             </Tabs>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-10 space-y-4">
-                <Wallet className="h-16 w-16 text-muted-foreground" />
-                <h2 className="text-xl font-semibold">Connect Your Wallet</h2>
-                <p className="text-muted-foreground text-center max-w-md">
-                  Connect your Alephium wallet to view your balances and transactions
-                </p>
-                <Button onClick={connectWallet} className="mt-4">
-                  Connect Wallet
-                </Button>
-              </CardContent>
-            </Card>
           )}
         </div>
       </div>
