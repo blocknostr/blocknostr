@@ -1,11 +1,12 @@
-
 import { nip19, getPublicKey } from 'nostr-tools';
 import { toast } from "sonner";
+import { EVENT_KINDS } from './constants';
 
 export class UserManager {
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private _following: Set<string> = new Set();
+  private _profileCache: Map<string, any> = new Map(); // Cache for user profiles
   
   get publicKey(): string | null {
     return this._publicKey;
@@ -140,5 +141,27 @@ export class UserManager {
   setFollowing(following: string[]): void {
     this._following = new Set(following);
     this.saveFollowing();
+  }
+  
+  // New method to get user profile data
+  async getUserProfile(pubkey: string): Promise<{
+    name?: string;
+    displayName?: string;
+    picture?: string;
+    nip05?: string;
+    about?: string;
+    banner?: string;
+    website?: string;
+    lud16?: string; // Lightning address
+    [key: string]: any; // For any other custom fields
+  } | null> {
+    if (!pubkey) return null;
+    
+    // Check cache first
+    if (this._profileCache.has(pubkey)) {
+      return this._profileCache.get(pubkey);
+    }
+    
+    return null; // Default return if no methods for fetching are available yet
   }
 }

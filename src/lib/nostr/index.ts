@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -222,6 +221,52 @@ class NostrService {
   
   public getHexFromNpub(npub: string): string {
     return this.userManager.getHexFromNpub(npub);
+  }
+  
+  // New method to fetch user profile 
+  public async getUserProfile(pubkey: string) {
+    if (!pubkey) return null;
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      return new Promise((resolve) => {
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.META],
+              authors: [pubkey],
+              limit: 1
+            }
+          ],
+          (event) => {
+            try {
+              const profile = JSON.parse(event.content);
+              resolve(profile);
+              // Cleanup subscription after receiving the profile
+              setTimeout(() => {
+                this.unsubscribe(subId);
+              }, 100);
+            } catch (e) {
+              console.error("Error parsing profile:", e);
+              resolve(null);
+            }
+          }
+        );
+        
+        // Set a timeout to resolve with null if no profile is found
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(null);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
   }
   
   // Private helper methods
