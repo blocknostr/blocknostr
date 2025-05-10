@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { Relay } from './types';
 
@@ -165,7 +166,7 @@ export class RelayManager {
     return Array.from(relayMap.values());
   }
   
-  // Method to add multiple relays at once
+  // New method to add multiple relays at once
   async addMultipleRelays(relayUrls: string[]): Promise<number> {
     if (!relayUrls.length) return 0;
     
@@ -176,46 +177,10 @@ export class RelayManager {
         const success = await this.addRelay(url);
         if (success) successCount++;
       } catch (error) {
-        console.error(`Failed to connect to relay ${url}:`, error);
+        console.error(`Failed to add relay ${url}:`, error);
       }
     }
     
     return successCount;
-  }
-  
-  // Add method to get relays for a user
-  async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subscription = this.pool.subscribeMany(
-        Array.from(this._userRelays.keys()),
-        [
-          {
-            kinds: [10050], // Relay list event kind
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        {
-          onevent: (event) => {
-            // Extract relay URLs from r tags
-            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-            relayTags.forEach(tag => {
-              if (tag[1] && typeof tag[1] === 'string') {
-                relays.push(tag[1]);
-              }
-            });
-          }
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        subscription.close();
-        resolve(relays);
-      }, 3000);
-    });
   }
 }

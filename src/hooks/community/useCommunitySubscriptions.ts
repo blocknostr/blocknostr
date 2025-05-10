@@ -1,6 +1,5 @@
 
 import { NostrEvent, nostrService } from "@/lib/nostr";
-import { useEffect } from "react";
 
 export const useCommunitySubscriptions = (
   communityId: string | undefined,
@@ -11,12 +10,12 @@ export const useCommunitySubscriptions = (
   handleKickVoteEvent: (event: NostrEvent) => void
 ) => {
   const loadCommunity = async () => {
-    if (!communityId) return () => {};
+    if (!communityId) return;
     
     await nostrService.connectToUserRelays();
     
     // Subscribe to community events with this ID
-    const communitySubscriptionObj = nostrService.subscribe(
+    const communitySubId = nostrService.subscribe(
       [
         {
           kinds: [34550],
@@ -28,46 +27,27 @@ export const useCommunitySubscriptions = (
     );
     
     // Load proposals for this community
-    const proposalSubscriptions = loadProposals(communityId);
+    const proposalSubId = loadProposals(communityId);
     
     // Load kick proposals for this community
-    const kickSubscriptions = loadKickProposals(communityId);
+    const kickSubIds = loadKickProposals(communityId);
     
-    // Return a cleanup function that calls all the unsubscribe functions
     return () => {
-      if (communitySubscriptionObj && typeof communitySubscriptionObj.unsubscribe === 'function') {
-        communitySubscriptionObj.unsubscribe();
+      nostrService.unsubscribe(communitySubId);
+      if (proposalSubId) {
+        nostrService.unsubscribe(proposalSubId.proposalSubId);
+        nostrService.unsubscribe(proposalSubId.votesSubId);
       }
-      
-      if (proposalSubscriptions) {
-        if (proposalSubscriptions.proposalSubscriptionObj && 
-            typeof proposalSubscriptions.proposalSubscriptionObj.unsubscribe === 'function') {
-          proposalSubscriptions.proposalSubscriptionObj.unsubscribe();
-        }
-        
-        if (proposalSubscriptions.votesSubscriptionObj && 
-            typeof proposalSubscriptions.votesSubscriptionObj.unsubscribe === 'function') {
-          proposalSubscriptions.votesSubscriptionObj.unsubscribe();
-        }
-      }
-      
-      if (kickSubscriptions) {
-        if (kickSubscriptions.kickProposalSubscriptionObj && 
-            typeof kickSubscriptions.kickProposalSubscriptionObj.unsubscribe === 'function') {
-          kickSubscriptions.kickProposalSubscriptionObj.unsubscribe();
-        }
-        
-        if (kickSubscriptions.kickVotesSubscriptionObj && 
-            typeof kickSubscriptions.kickVotesSubscriptionObj.unsubscribe === 'function') {
-          kickSubscriptions.kickVotesSubscriptionObj.unsubscribe();
-        }
+      if (kickSubIds) {
+        nostrService.unsubscribe(kickSubIds.kickProposalSubId);
+        nostrService.unsubscribe(kickSubIds.kickVotesSubId);
       }
     };
   };
   
   const loadProposals = (communityId: string) => {
     // Subscribe to proposal events for this community
-    const proposalSubscriptionObj = nostrService.subscribe(
+    const proposalSubId = nostrService.subscribe(
       [
         {
           kinds: [34551],
@@ -79,7 +59,7 @@ export const useCommunitySubscriptions = (
     );
     
     // Subscribe to vote events
-    const votesSubscriptionObj = nostrService.subscribe(
+    const votesSubId = nostrService.subscribe(
       [
         {
           kinds: [34552], // Vote events
@@ -89,11 +69,11 @@ export const useCommunitySubscriptions = (
       handleVoteEvent
     );
     
-    return { proposalSubscriptionObj, votesSubscriptionObj };
+    return { proposalSubId, votesSubId };
   };
   
   const loadKickProposals = (communityId: string) => {
-    const kickProposalSubscriptionObj = nostrService.subscribe(
+    const kickProposalSubId = nostrService.subscribe(
       [
         {
           kinds: [34554], // Kick proposal kind
@@ -104,7 +84,7 @@ export const useCommunitySubscriptions = (
       handleKickProposalEvent
     );
     
-    const kickVotesSubscriptionObj = nostrService.subscribe(
+    const kickVotesSubId = nostrService.subscribe(
       [
         {
           kinds: [34555], // Kick vote kind
@@ -114,7 +94,7 @@ export const useCommunitySubscriptions = (
       handleKickVoteEvent
     );
     
-    return { kickProposalSubscriptionObj, kickVotesSubscriptionObj };
+    return { kickProposalSubId, kickVotesSubId };
   };
   
   return {

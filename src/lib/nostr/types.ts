@@ -31,12 +31,6 @@ export interface NostrProfileMetadata {
   [key: string]: any; // For any other custom fields
 }
 
-// Define a type for subscription objects returned by nostrService.subscribe()
-export interface SubscriptionObject {
-  subscription: any;
-  unsubscribe: () => void;
-}
-
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {

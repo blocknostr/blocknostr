@@ -1,87 +1,86 @@
 
-import { useEffect, useState } from 'react';
-import { nostrService, NostrEvent } from '@/lib/nostr';
-import { useNavigate } from 'react-router-dom';
-import { useToast } from './use-toast';
-import { Community } from '@/types/community';
-import { useCommunityEventHandlers } from './community/useCommunityEventHandlers';
-import { useCommunitySubscriptions } from './community/useCommunitySubscriptions';
-import { useCommunityActions } from './community/useCommunityActions';
+import { useState, useEffect } from "react";
+import { nostrService } from "@/lib/nostr";
+import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers";
+import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions";
+import { useCommunityActions } from "./community/useCommunityActions";
+import { Community, Proposal, KickProposal, PendingVotes } from "@/types/community";
 
-export function useCommunity(communityId: string | undefined) {
+// Fix re-exporting with 'export type' for isolatedModules
+export type { Community, Proposal, KickProposal } from "@/types/community";
+
+export const useCommunity = (communityId: string | undefined) => {
   const [community, setCommunity] = useState<Community | null>(null);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [kickProposals, setKickProposals] = useState<KickProposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const eventHandlers = useCommunityEventHandlers();
-  const { proposals, votes, kickProposals, kickVotes, members } = eventHandlers;
-
-  const { loadCommunity } = useCommunitySubscriptions(
-    communityId,
-    eventHandlers.handleCommunityEvent,
-    eventHandlers.handleProposalEvent,
-    eventHandlers.handleVoteEvent,
-    eventHandlers.handleKickProposalEvent,
-    eventHandlers.handleKickVoteEvent
-  );
-
-  // Get community actions
+  
+  const currentUserPubkey = nostrService.publicKey;
+  const isMember = community?.members.includes(currentUserPubkey || '') || false;
+  const isCreator = community?.creator === currentUserPubkey;
+  const isCreatorOnlyMember = community?.members.length === 1 && isCreator;
+  
+  // Cache of vote events to handle votes that arrive before their proposals
+  const [pendingVotes, setPendingVotes] = useState<PendingVotes>({});
+  
+  // Create community action handlers
   const {
-    currentUserPubkey,
-    isMember,
-    isCreator,
-    isCreatorOnlyMember,
     handleJoinCommunity,
     handleLeaveCommunity,
     handleCreateKickProposal,
+    handleKickMember,
     handleVoteOnKick,
     handleDeleteCommunity
-  } = useCommunityActions(community);
-
+  } = useCommunityActions(community, setCommunity, currentUserPubkey);
+  
+  // Create event handlers
+  const {
+    handleCommunityEvent,
+    handleProposalEvent,
+    handleVoteEvent,
+    handleKickProposalEvent,
+    handleKickVoteEvent,
+    applyPendingVotes
+  } = useCommunityEventHandlers(
+    setCommunity,
+    setProposals,
+    setKickProposals,
+    pendingVotes,
+    setPendingVotes,
+    handleKickMember
+  );
+  
+  // Create subscription handlers
+  const { loadCommunity } = useCommunitySubscriptions(
+    communityId,
+    handleCommunityEvent,
+    handleProposalEvent,
+    handleVoteEvent,
+    handleKickProposalEvent,
+    handleKickVoteEvent
+  );
+  
   useEffect(() => {
-    if (!communityId) {
-      setLoading(false);
-      setError('Community ID is required');
-      return;
-    }
-
     let cleanup: (() => void) | undefined;
     
-    const loadData = async () => {
+    const initCommunity = async () => {
       setLoading(true);
-      setError(null);
-      
-      try {
-        cleanup = await loadCommunity();
-      } catch (err) {
-        console.error('Error loading community:', err);
-        setError('Failed to load community');
-      } finally {
-        setLoading(false);
-      }
+      cleanup = await loadCommunity();
+      setLoading(false);
     };
-
-    loadData();
+    
+    initCommunity();
     
     return () => {
-      if (cleanup) {
-        cleanup();
-      }
+      if (cleanup) cleanup();
     };
   }, [communityId]);
-
+  
   return {
     community,
-    setCommunity,
-    loading,
-    error,
     proposals,
-    votes,
     kickProposals,
-    kickVotes,
-    members,
+    loading,
     currentUserPubkey,
     isMember,
     isCreator,
@@ -89,7 +88,8 @@ export function useCommunity(communityId: string | undefined) {
     handleJoinCommunity,
     handleLeaveCommunity,
     handleCreateKickProposal,
+    handleKickMember,
     handleVoteOnKick,
     handleDeleteCommunity
   };
-}
+};

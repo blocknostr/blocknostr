@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Check, Loader2, Network, Plus, Wifi, X } from "lucide-react";
-import { Relay, SubscriptionObject, nostrService } from "@/lib/nostr";
+import { Relay, nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 
 interface ProfileRelaysDialogProps {
@@ -71,53 +71,17 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Try to find the user's relays from their published relay list
-      const relaysFound: string[] = [];
+      // Try to find the user's relays
+      const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
-      // Subscribe to relay list events for this user
-      const subInfo: SubscriptionObject = nostrService.subscribe(
-        [
-          {
-            kinds: [10050], // Relay list event kind
-            authors: [userPubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              relaysFound.push(tag[1]);
-            }
-          });
-        }
-      );
-      
-      // Wait a bit to collect relays
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Unsubscribe
-      if (subInfo && typeof subInfo.unsubscribe === 'function') {
-        subInfo.unsubscribe();
-      }
-      
-      if (relaysFound.length === 0) {
+      if (userRelays.length === 0) {
         toast.info("No relays found for this user");
         setIsImportingRelays(false);
         return;
       }
       
-      // Add all found relays one by one
-      let successCount = 0;
-      for (const url of relaysFound) {
-        try {
-          const success = await nostrService.addRelay(url);
-          if (success) successCount++;
-        } catch (error) {
-          console.error(`Failed to add relay ${url}:`, error);
-        }
-      }
+      // Add all found relays
+      const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);

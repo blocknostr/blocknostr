@@ -176,17 +176,13 @@ class NostrService {
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ) {
+  ): string {
     const connectedRelays = this.getConnectedRelayUrls();
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
-  public unsubscribe(subId: { subscription?: any, unsubscribe?: () => void }): void {
-    if (typeof subId === 'string') {
-      this.subscriptionManager.unsubscribe(subId);
-    } else if (subId && typeof subId.unsubscribe === 'function') {
-      subId.unsubscribe();
-    }
+  public unsubscribe(subId: string): void {
+    this.subscriptionManager.unsubscribe(subId);
   }
   
   // Social features
@@ -392,7 +388,7 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      const subscription = this.subscribe(
+      const subId = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -412,7 +408,7 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subscription);
+        this.unsubscribe(subId);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);
