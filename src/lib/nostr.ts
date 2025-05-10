@@ -384,13 +384,17 @@ class NostrService {
       content: event.content || '',
     };
     
+    console.log("Full event before signing:", fullEvent);
+    
     const eventId = getEventHash(fullEvent as any);
     let signedEvent: NostrEvent;
     
     try {
       if (window.nostr) {
         // Use NIP-07 browser extension for signing
+        console.log("Using NIP-07 extension for signing");
         signedEvent = await window.nostr.signEvent(fullEvent);
+        console.log("Event signed successfully:", signedEvent);
       } else if (this._privateKey) {
         // Use private key if available (not recommended for production)
         // Import the function dynamically to fix the missing export issue
@@ -409,20 +413,31 @@ class NostrService {
         return null;
       }
       
+      // Ensure we have open relays to publish to
+      if (this.relays.size === 0) {
+        console.log("No relays connected, connecting to user relays");
+        await this.connectToUserRelays();
+      }
+      
       // Publish to all connected relays
       let publishedCount = 0;
       for (const [url, socket] of this.relays.entries()) {
         if (socket.readyState === WebSocket.OPEN) {
+          console.log(`Publishing to relay: ${url}`);
           socket.send(JSON.stringify(["EVENT", signedEvent]));
           publishedCount++;
+        } else {
+          console.log(`Relay ${url} not ready, state: ${socket.readyState}`);
         }
       }
       
       if (publishedCount === 0) {
+        console.error("Not connected to any relays");
         toast.error("Not connected to any relays");
         return null;
       }
       
+      console.log(`Published to ${publishedCount} relays`);
       return eventId;
     } catch (error) {
       console.error("Error publishing event:", error);
@@ -461,7 +476,7 @@ class NostrService {
     }
   }
   
-  // Messaging with NIP-17
+  // Messaging with NIP-04
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     if (!this._publicKey) {
       toast.error("You must be logged in to send messages");
@@ -469,27 +484,47 @@ class NostrService {
     }
     
     try {
-      // Encrypt message using NIP-04 if available through extension
-      let encryptedContent = content;
+      console.log("Starting sendDirectMessage process");
+      console.log("Recipient:", recipientPubkey);
+      console.log("Sender:", this._publicKey);
       
-      if (window.nostr && window.nostr.nip04) {
-        encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+      // Encrypt message using NIP-04 through extension
+      let encryptedContent: string;
+      
+      if (window.nostr?.nip04) {
+        try {
+          console.log("Using window.nostr.nip04.encrypt");
+          encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+          console.log("Message encrypted successfully with NIP-04");
+        } catch (e) {
+          console.error("NIP-04 encryption failed:", e);
+          toast.error("Message encryption failed - check your Nostr extension");
+          return null;
+        }
       } else {
-        toast.error("Message encryption not available - install a Nostr extension with NIP-04 support");
+        console.error("No NIP-04 support found in extension");
+        toast.error("Your Nostr extension doesn't support NIP-04 encryption");
         return null;
       }
       
-      // Create the direct message event (NIP-17)
+      // Create the direct message event (NIP-04)
       const event = {
-        kind: EVENT_KINDS.ENCRYPTED_DM, // Using kind 14 (NIP-17)
+        kind: EVENT_KINDS.DIRECT_MESSAGE, // Using kind 4 (NIP-04 standard)
         content: encryptedContent,
         tags: [
           ['p', recipientPubkey]
         ]
       };
       
+      console.log("Created event:", event);
+      
+      // Connect to relays before publishing
+      await this.connectToUserRelays();
+      
       // Publish to relays
-      return await this.publishEvent(event);
+      const eventId = await this.publishEvent(event);
+      console.log("Published event, received ID:", eventId);
+      return eventId;
     } catch (error) {
       console.error("Error sending direct message:", error);
       toast.error("Failed to send message");

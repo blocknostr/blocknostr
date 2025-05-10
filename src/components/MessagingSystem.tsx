@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,7 @@ const MessagingSystem = () => {
       const dmSubId = nostrService.subscribe(
         [
           {
-            kinds: [4, 14], // Both legacy and NIP-17
+            kinds: [4, 14], // Both NIP-04 and NIP-17
             '#p': [currentUserPubkey], // Messages where user is tagged
           },
           {
@@ -159,6 +160,7 @@ const MessagingSystem = () => {
           try {
             content = await window.nostr.nip04.decrypt(otherPubkey, content);
             decryptionSuccessful = true;
+            console.log("Successfully decrypted message from:", otherPubkey);
           } catch (e) {
             console.error("Failed to decrypt with NIP-04:", e);
           }
@@ -329,15 +331,50 @@ const MessagingSystem = () => {
     setSendingMessage(true);
     
     try {
-      // Use NIP-17 for direct messages (kind 14)
+      console.log("Preparing to send message to:", activeContact.pubkey);
+      
+      // Use proper NIP-04 (kind 4) for direct messages
       const messageId = await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
+      
       if (messageId) {
+        console.log("Message sent successfully with ID:", messageId);
+        
+        // Add message to the UI immediately
+        const message = {
+          id: messageId,
+          content: newMessage,
+          sender: currentUserPubkey,
+          recipient: activeContact.pubkey,
+          created_at: Math.floor(Date.now() / 1000)
+        };
+        
+        setMessages(prev => [...prev, message].sort((a, b) => a.created_at - b.created_at));
+        
+        // Update last message for contact
+        setContacts(prev => {
+          return prev.map(c => {
+            if (c.pubkey === activeContact.pubkey) {
+              return {
+                ...c,
+                lastMessage: newMessage,
+                lastMessageTime: Math.floor(Date.now() / 1000)
+              };
+            }
+            return c;
+          }).sort((a, b) => {
+            if (!a.lastMessageTime) return 1;
+            if (!b.lastMessageTime) return -1;
+            return b.lastMessageTime - a.lastMessageTime;
+          });
+        });
+        
         setNewMessage("");
         toast({
           title: "Message sent",
           description: "Your encrypted message has been sent"
         });
       } else {
+        console.error("Failed to send message, no event ID returned");
         toast({
           title: "Failed to send message",
           description: "Please check your connection and try again",
