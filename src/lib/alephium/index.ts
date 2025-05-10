@@ -24,6 +24,7 @@ export interface TokenBalance {
 
 export const AlephiumConnectButton = WcAlephiumConnectButton;
 
+// Fixed the component to be a proper functional React component
 export const AlephiumWalletContext = ({ children }: { children: React.ReactNode }) => {
   return (
     <AlephiumConnectProvider

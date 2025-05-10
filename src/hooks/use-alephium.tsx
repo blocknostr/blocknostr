@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { alephiumService, WalletBalance } from "@/lib/alephium";
 import { useWallet, useAccount, useBalance, useNetwork } from "@alephium/web3-react";
+import { toast } from "sonner";
 
 export function useAlephium() {
   const { connectionStatus, connect, disconnect, address } = useWallet();
