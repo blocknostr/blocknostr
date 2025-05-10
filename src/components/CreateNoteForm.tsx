@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -332,13 +331,13 @@ const CreateNoteForm = () => {
               </Select>
               
               {/* Zap amount */}
-              <Select value={zapAmount || ''} onValueChange={setZapAmount}>
+              <Select value={zapAmount || "none"} onValueChange={setZapAmount}>
                 <SelectTrigger className="h-9 w-[100px]">
                   <Zap className="h-4 w-4 mr-1" />
                   <SelectValue placeholder="Zap" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Zap</SelectItem>
+                  <SelectItem value="none">No Zap</SelectItem>
                   <SelectItem value="10">10 sats</SelectItem>
                   <SelectItem value="50">50 sats</SelectItem>
                   <SelectItem value="100">100 sats</SelectItem>
