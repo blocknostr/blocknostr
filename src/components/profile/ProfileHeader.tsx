@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar } from "lucid
 import FollowButton from "@/components/FollowButton";
 import { formatDistanceToNow } from "date-fns";
 import { nostrService } from "@/lib/nostr";
+import EditProfileDialog from "./EditProfileDialog";
 
 interface ProfileHeaderProps {
   profileData: any | null;
@@ -16,6 +18,8 @@ interface ProfileHeaderProps {
 }
 
 const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileHeaderProps) => {
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
   
@@ -111,7 +115,10 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 )}
                 
                 {isCurrentUser ? (
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setIsEditProfileOpen(true)}
+                  >
                     <Edit className="h-4 w-4 mr-2" />
                     Edit profile
                   </Button>
@@ -154,6 +161,15 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
           </div>
         </CardContent>
       </Card>
+      
+      {/* Edit Profile Dialog */}
+      {isCurrentUser && (
+        <EditProfileDialog
+          open={isEditProfileOpen}
+          onOpenChange={setIsEditProfileOpen}
+          profileData={profileData}
+        />
+      )}
     </div>
   );
 };
