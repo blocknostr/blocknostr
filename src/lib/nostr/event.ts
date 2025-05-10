@@ -92,7 +92,7 @@ export class EventManager {
         return null;
       }
       
-      pool.publish(relays, signedEvent);
+      pool.publish(relays, signedEvent as NostrToolsEvent);
       return eventId;
       
     } catch (error) {
