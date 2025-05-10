@@ -1,5 +1,5 @@
 
-import { getEventHash, validateEvent, SimplePool, finalizeEvent, type UnsignedEvent } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool, finalizeEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
@@ -32,17 +32,48 @@ export class EventManager {
         // Use NIP-07 browser extension for signing
         signedEvent = await window.nostr.signEvent(fullEvent);
       } else if (privateKey) {
-        // Use private key if available (not recommended for production)
-        signedEvent = finalizeEvent(
-          {
+        // Convert privateKey string to Uint8Array if needed
+        let privateKeyBytes: Uint8Array;
+        
+        try {
+          // Handle hex private key
+          if (privateKey.match(/^[0-9a-fA-F]{64}$/)) {
+            privateKeyBytes = new Uint8Array(
+              privateKey.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+            );
+          } 
+          // Handle nsec private key
+          else if (privateKey.startsWith('nsec')) {
+            const { data } = nip19.decode(privateKey);
+            privateKeyBytes = data as Uint8Array;
+          } 
+          // Default fallback
+          else {
+            privateKeyBytes = new TextEncoder().encode(privateKey);
+          }
+          
+          // Verify keypair before using
+          const derivedPubkey = getPublicKey(privateKeyBytes);
+          if (derivedPubkey !== publicKey) {
+            console.error("Private key doesn't match public key");
+            return null;
+          }
+          
+          // Use private key for signing
+          const unsignedEvent: UnsignedEvent = {
             kind: fullEvent.kind,
             created_at: fullEvent.created_at,
             tags: fullEvent.tags,
             content: fullEvent.content,
             pubkey: fullEvent.pubkey,
-          } as UnsignedEvent,
-          privateKey
-        );
+          };
+          
+          signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes);
+          
+        } catch (keyError) {
+          console.error("Invalid private key format:", keyError);
+          return null;
+        }
       } else {
         return null;
       }
