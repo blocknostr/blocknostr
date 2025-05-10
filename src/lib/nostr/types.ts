@@ -31,12 +31,24 @@ export interface NostrProfileMetadata {
   [key: string]: any; // For any other custom fields
 }
 
+// NIP-B7 Trust-based relay schema
+export interface NIPB7TrustedRelay {
+  url: string;
+  trust: number;  // 0 = default, 1 = untrusted, 2 = read-only, 3 = trusted, 4 = personal
+  read: boolean;
+  write: boolean;
+}
+
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {
     nostr?: {
       getPublicKey(): Promise<string>;
       signEvent(event: object): Promise<NostrEvent>;
+      // NIP-B7 Extension (may not be implemented by all extensions yet)
+      getTrustedRelays?: () => Promise<NIPB7TrustedRelay[]>;
+      addTrustedRelay?: (relay: NIPB7TrustedRelay) => Promise<boolean>;
+      removeTrustedRelay?: (url: string) => Promise<boolean>;
       nip04?: {
         encrypt(pubkey: string, plaintext: string): Promise<string>;
         decrypt(pubkey: string, ciphertext: string): Promise<string>;

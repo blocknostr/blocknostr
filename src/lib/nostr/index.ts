@@ -10,6 +10,7 @@ import { CommunityManager } from './community';
 import { BookmarkManager } from './bookmark';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
+import { RelayTrustLevel } from './trustRelays';
 
 class NostrService {
   private userManager: UserManager;
@@ -82,6 +83,10 @@ class NostrService {
     await this.relayManager.connectToUserRelays();
   }
   
+  public async connectToTrustedRelays(minTrustLevel: number = 0): Promise<void> {
+    await this.relayManager.connectToTrustedRelays(minTrustLevel);
+  }
+  
   public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     const success = await this.relayManager.addRelay(relayUrl, readWrite);
     if (success) {
@@ -99,6 +104,40 @@ class NostrService {
   
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
+  }
+  
+  // Trust-based relay methods (NIP-B7)
+  public async updateRelayTrust(
+    url: string, 
+    trustLevel: number,
+    read: boolean = true,
+    write: boolean = true
+  ): Promise<boolean> {
+    return this.relayManager.updateRelayTrust(url, trustLevel, read, write);
+  }
+  
+  public getRelayTrustLevel(url: string): number {
+    return this.relayManager.trustManager.getRelayTrustLevel(url);
+  }
+  
+  public getTrustedRelays(): any[] {
+    return this.relayManager.trustManager.trustedRelays;
+  }
+  
+  public getPublishingRelays(): any[] {
+    return this.relayManager.trustManager.getPublishingRelays();
+  }
+  
+  public getReadingRelays(): any[] {
+    return this.relayManager.trustManager.getReadingRelays();
+  }
+  
+  public async testRelayConnection(url: string): Promise<number> {
+    try {
+      return await this.relayManager.testRelayConnection(url);
+    } catch (error) {
+      throw error;
+    }
   }
   
   // Method to add multiple relays at once
@@ -477,7 +516,19 @@ class NostrService {
     return await this.publishEvent(event);
   }
   
+  // Update to use trust-based relays based on NIP-B7
   private getConnectedRelayUrls(): string[] {
+    // Get connected relays based on trust levels
+    const publishingRelays = this.relayManager.trustManager.getPublishingRelays()
+      .filter(relay => relay.status === 'connected')
+      .map(relay => relay.url);
+      
+    // If we have trusted relays, use those
+    if (publishingRelays.length > 0) {
+      return publishingRelays;
+    }
+    
+    // Fallback to regular connected relays
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
@@ -490,3 +541,4 @@ export const nostrService = new NostrService();
 // Export types and constants
 export type { NostrEvent, Relay } from './types';
 export { EVENT_KINDS } from './constants';
+export { RelayTrustLevel } from './trustRelays';
