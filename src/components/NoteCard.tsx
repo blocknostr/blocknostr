@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import NoteCardHeader from './note/NoteCardHeader';
@@ -35,6 +35,38 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const [replyCount, setReplyCount] = useState(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Fetch reply count when component mounts
+  useEffect(() => {
+    if (!event.id) return;
+    
+    const fetchReplyCount = async () => {
+      const subId = nostrService.subscribe(
+        [{
+          kinds: [1], // Regular notes (kind 1)
+          "#e": [event.id || ''], // Filter by reference to this event
+          limit: 100
+        }],
+        (replyEvent) => {
+          // Check if it's actually a reply to this event
+          const isReply = replyEvent.tags.some(tag => 
+            tag[0] === 'e' && tag[1] === event.id && (tag[3] === 'reply' || !tag[3])
+          );
+          
+          if (isReply) {
+            setReplyCount(count => count + 1);
+          }
+        }
+      );
+      
+      // Cleanup subscription after a short time
+      setTimeout(() => {
+        nostrService.unsubscribe(subId);
+      }, 5000);
+    };
+    
+    fetchReplyCount();
+  }, [event.id]);
   
   const handleCommentClick = () => {
     setShowComments(!showComments);

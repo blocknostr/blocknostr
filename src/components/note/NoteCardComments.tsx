@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,58 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
   const [newComment, setNewComment] = useState("");
   const [replyToDelete, setReplyToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch replies when component mounts
+  useEffect(() => {
+    const fetchReplies = async () => {
+      setIsLoading(true);
+      
+      // Subscribe to replies using #e tag filter
+      const subId = nostrService.subscribe(
+        [{
+          kinds: [1], // Regular notes (kind 1)
+          "#e": [eventId], // Filter by reference to parent event
+          limit: 50
+        }],
+        (event) => {
+          // Process each reply event
+          const isReply = event.tags.some(tag => 
+            tag[0] === 'e' && tag[1] === eventId && (tag[3] === 'reply' || !tag[3])
+          );
+          
+          if (isReply) {
+            // Add to comments if not already present
+            setComments(prev => {
+              // Check if we already have this comment
+              if (prev.some(c => c.id === event.id)) {
+                return prev;
+              }
+              
+              const newComment = {
+                id: event.id,
+                content: event.content,
+                author: event.pubkey || '',
+                created_at: event.created_at
+              };
+              
+              // Add new comment and sort by creation time (newest first)
+              return [...prev, newComment].sort((a, b) => b.created_at - a.created_at);
+            });
+          }
+        }
+      );
+      
+      setIsLoading(false);
+      
+      // Cleanup subscription
+      return () => {
+        nostrService.unsubscribe(subId);
+      };
+    };
+    
+    fetchReplies();
+  }, [eventId]);
   
   const handleSubmitComment = async () => {
     if (!newComment.trim()) return;
@@ -59,7 +111,7 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
         created_at: Math.floor(Date.now() / 1000)
       };
       
-      setComments(prev => [...prev, newCommentObj]);
+      setComments(prev => [newCommentObj, ...prev]);
       setNewComment("");
       onReplyAdded();
       toast.success("Comment posted");
@@ -108,7 +160,9 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
     <>
       <div className="px-4 pb-4 pt-2 border-t">
         <div className="mb-4 space-y-4">
-          {comments.length === 0 ? (
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading comments...</p>
+          ) : comments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment!</p>
           ) : (
             comments.map((comment, index) => (
