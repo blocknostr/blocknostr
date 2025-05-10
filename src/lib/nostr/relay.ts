@@ -284,7 +284,7 @@ export class RelayManager {
         }
       ];
       
-      // Store the subscription as a SubCloser object
+      // Store the subscription
       const sub = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 

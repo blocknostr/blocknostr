@@ -1,6 +1,7 @@
+
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
-import { NostrEvent, Relay, SubCloser } from './nostr/types';
+import { NostrEvent, Relay, SubCloser } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';

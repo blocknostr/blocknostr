@@ -16,7 +16,7 @@ export interface Relay {
   write: boolean;
 }
 
-// Define our custom SubCloser type that matches what nostr-tools SimplePool returns
+// Update the SubCloser type to match what nostr-tools returns (a function that closes the subscription)
 export type SubCloser = () => void;
 
 export interface NostrProfileMetadata {

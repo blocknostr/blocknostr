@@ -604,45 +604,18 @@ class NostrService {
     }
   }
   
-  // Subscribe to events - Updated to handle SubCloser return type
+  // Subscription management - Updated to handle SubCloser return type
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
   ): SubCloser {
-    const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
-    
-    this.subscriptions.set(subId, new Set([onEvent]));
-    
-    // Send subscription request to all connected relays
-    for (const [_, socket] of this.relays.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["REQ", subId, ...filters]));
-      }
-    }
-    
-    // Return a function that will unsubscribe when called
-    const subCloser = () => {
-      this.unsubscribe(subId);
-    };
-    
-    return subCloser;
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Return the SubCloser function from the subscription manager
+    return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
-  public unsubscribe(subHandle: SubCloser | string): void {
-    // Use type 'SubCloser | string' for subHandle to accommodate both string IDs and SubCloser objects
-    if (typeof subHandle === 'string') {
-      this.subscriptions.delete(subHandle);
-      
-      // Send unsubscribe request to all connected relays
-      for (const [_, socket] of this.relays.entries()) {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(["CLOSE", subHandle]));
-        }
-      }
-    } else if (this.pool) {
-      // If it's a SubCloser from SimplePool
-      this.pool.close([subHandle]);
-    }
+  public unsubscribe(subHandle: SubCloser): void {
+    this.subscriptionManager.unsubscribe(subHandle);
   }
   
   // Messaging with NIP-17

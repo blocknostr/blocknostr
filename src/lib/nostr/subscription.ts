@@ -34,12 +34,15 @@ export class SubscriptionManager {
       }
     );
     
-    // Return the subscription handle for later use with pool.close()
-    return subscription;
+    // Return a function that closes the subscription when called
+    return () => {
+      this.pool.close([subscription]);
+      this.subscriptions.delete(subId);
+    };
   }
   
   unsubscribe(subHandle: SubCloser): void {
-    // Close the subscription in the SimplePool
-    this.pool.close([subHandle]);
+    // Call the function directly to close the subscription
+    subHandle();
   }
 }
