@@ -7,6 +7,8 @@ import FollowingFeed from "./FollowingFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -19,6 +21,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [activeTab, setActiveTab] = useState("global");
   const isLoggedIn = !!nostrService.publicKey;
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     const fetchEvents = async () => {
@@ -136,7 +139,10 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         onValueChange={setActiveTab}
         className="mt-4"
       >
-        <TabsList className="w-full mb-4">
+        <TabsList className={cn(
+          "w-full mb-4",
+          isMobile ? "grid grid-cols-2" : ""
+        )}>
           <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
           <TabsTrigger 
             value="following" 

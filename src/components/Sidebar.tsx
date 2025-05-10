@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Sidebar = () => {
   const isLoggedIn = !!nostrService.publicKey;
   const location = useLocation();
+  const isMobile = useIsMobile();
   
   const navItems = [
     {
@@ -56,7 +58,10 @@ const Sidebar = () => {
   ];
   
   return (
-    <aside className="w-64 border-r h-full fixed left-0 top-0 py-4 bg-background hidden md:block">
+    <aside className={cn(
+      "border-r h-full py-4 bg-background",
+      isMobile ? "w-full" : "w-64 fixed left-0 top-0 hidden md:block"
+    )}>
       <div className="flex flex-col h-full px-4">
         <div className="mb-6">
           <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">

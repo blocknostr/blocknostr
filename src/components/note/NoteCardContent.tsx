@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NoteCardContentProps {
   content: string;
@@ -13,6 +14,7 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  const isMobile = useIsMobile();
   
   const CHARACTER_LIMIT = 280;
   const shouldTruncate = content.length > CHARACTER_LIMIT;
@@ -60,7 +62,7 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
 
   return (
     <div>
-      <p className="mt-1 whitespace-pre-wrap break-words">{renderFormattedContent()}</p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-[15px] md:text-base">{renderFormattedContent()}</p>
       
       {shouldTruncate && (
         <Button 
@@ -94,9 +96,13 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
       
       {/* Display media content */}
       {mediaUrls.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 mt-2">
           {mediaUrls.map((url, index) => (
-            <MediaPreview key={index} url={url} alt={`Media attachment ${index + 1}`} />
+            <MediaPreview 
+              key={index} 
+              url={url} 
+              alt={`Media attachment ${index + 1}`} 
+            />
           ))}
         </div>
       )}
