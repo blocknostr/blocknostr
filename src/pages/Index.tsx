@@ -3,11 +3,32 @@ import MainFeed from "@/components/MainFeed";
 import Sidebar from "@/components/Sidebar";
 import TrendingSection from "@/components/TrendingSection";
 import WhoToFollow from "@/components/WhoToFollow";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
+import { Lightbulb } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
+  const [darkMode, setDarkMode] = useState(true);
+  
+  // Toggle dark mode function
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+
+  // Set initial dark mode state based on html class
+  useEffect(() => {
+    setDarkMode(document.documentElement.classList.contains('dark'));
+  }, []);
+  
   useEffect(() => {
     // Init connection to relays when the app loads
     const initNostr = async () => {
@@ -25,7 +46,19 @@ const Index = () => {
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Home</h1>
-            <LoginButton />
+            <div className="flex items-center space-x-2">
+              <Button 
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={toggleDarkMode}
+                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
+              </Button>
+              <LoginButton />
+            </div>
           </div>
         </header>
         
