@@ -55,3 +55,35 @@ export const formatSerialNumber = (num: number): string => {
   return `#${letters}${numbers}`;
 };
 
+/**
+ * Parse a formatted serial number to extract the numeric component
+ * This helps with searching by partial serial number
+ * @param formattedSerial The formatted serial string (e.g. #ABC123)
+ * @returns The numeric value or null if invalid format
+ */
+export const parseSerialNumber = (formattedSerial: string): number | null => {
+  // Remove the # if present
+  const cleanedSerial = formattedSerial.startsWith('#') ? 
+    formattedSerial.substring(1) : formattedSerial;
+  
+  // Extract letters and numbers
+  const lettersPart = cleanedSerial.substring(0, 3);
+  const numbersPart = cleanedSerial.substring(3);
+  
+  if (!lettersPart.match(/^[A-Za-z]{1,3}$/) || !numbersPart.match(/^\d{1,3}$/)) {
+    return null;
+  }
+  
+  // Convert letters to number
+  let letterValue = 0;
+  for (let i = 0; i < lettersPart.length; i++) {
+    const charCode = lettersPart.charCodeAt(i);
+    const value = (charCode >= 97) ? charCode - 97 : charCode - 65;
+    letterValue += value * Math.pow(26, i);
+  }
+  
+  // Calculate final number
+  const numericValue = parseInt(numbersPart) * Math.pow(26, 3) + letterValue;
+  return numericValue;
+};
+

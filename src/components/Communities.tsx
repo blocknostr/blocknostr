@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
 import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
+import { formatSerialNumber } from "@/lib/community-utils";
 
 const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -110,10 +110,23 @@ const Communities = () => {
   }));
   
   // Filter communities based on search term (name or serial number)
-  const filteredCommunities = communitiesWithNumbers.filter(community => 
-    community.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (community.serialNumber && community.serialNumber.toString().includes(searchTerm))
-  );
+  const filteredCommunities = communitiesWithNumbers.filter(community => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    
+    // Check if searching for a serial number
+    if (searchLower.startsWith('#')) {
+      // Format the community's serial number for comparison
+      const communitySerialFormat = formatSerialNumber(community.serialNumber || 0);
+      // Compare with search term, ignoring case
+      return communitySerialFormat.toLowerCase().includes(searchLower);
+    }
+    
+    // Otherwise search by name or direct serial number match
+    return (
+      community.name.toLowerCase().includes(searchLower) || 
+      (community.serialNumber && community.serialNumber.toString().includes(searchTerm))
+    );
+  });
   
   const userCommunities = filteredCommunities.filter(community => 
     community.members.includes(currentUserPubkey || '')
@@ -127,7 +140,11 @@ const Communities = () => {
           <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
         </div>
         
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} placeholderText="Search by name or community #" />
+        <SearchBar 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm} 
+          placeholderText="Search by name or #ABC123" 
+        />
       </div>
       
       <div className="flex-1 p-4">
