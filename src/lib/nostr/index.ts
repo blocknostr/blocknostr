@@ -285,5 +285,5 @@ class NostrService {
 export const nostrService = new NostrService();
 
 // Export types and constants
-export { NostrEvent, Relay } from './types';
+export type { NostrEvent, Relay } from './types';
 export { EVENT_KINDS } from './constants';

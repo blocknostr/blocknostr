@@ -1,5 +1,5 @@
 
-import { getEventHash, validateEvent } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
