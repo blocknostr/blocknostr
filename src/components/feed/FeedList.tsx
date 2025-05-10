@@ -7,7 +7,7 @@ interface FeedListProps {
   events: NostrEvent[];
   profiles: Record<string, any>;
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
-  loadMoreRef: React.RefObject<HTMLDivElement>;
+  loadMoreRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void);
   loading: boolean;
 }
 
@@ -33,7 +33,7 @@ const FeedList: React.FC<FeedListProps> = ({
       ))}
       
       {/* Loading indicator at the bottom */}
-      <div ref={loadMoreRef} className="py-4 text-center">
+      <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-4 text-center">
         {loading && events.length > 0 && (
           <div className="text-muted-foreground text-sm">
             Loading more posts...

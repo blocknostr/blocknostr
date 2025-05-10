@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -628,6 +629,7 @@ class NostrService {
 export const nostrService = new NostrService();
 
 // Re-export types from internal modules
+// Fix: Use 'export type' instead of 'export' for type re-exports
 export type { NostrEvent, Relay } from './types';
 export type { NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
