@@ -327,3 +327,4 @@ export class RelayManager {
     return Object.fromEntries(this._userRelays);
   }
 }
+
