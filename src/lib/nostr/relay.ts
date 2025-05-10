@@ -1,5 +1,6 @@
+
 import { SimplePool } from 'nostr-tools';
-import { Relay, SubCloser } from './types';
+import { Relay } from './types';
 
 export class RelayManager {
   private relays: Map<string, WebSocket> = new Map();
@@ -10,7 +11,6 @@ export class RelayManager {
   ];
   private _userRelays: Map<string, boolean> = new Map(); // Map of relay URLs to read/write status
   private pool: SimplePool;
-  private subClosers: Map<string, SubCloser> = new Map(); // Store SubCloser functions
   
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -164,50 +164,6 @@ export class RelayManager {
     });
     
     return Array.from(relayMap.values());
-  }
-  
-  async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subId = `relay_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const subCloser = this.pool.subscribeMany(
-        Array.from(this._userRelays.keys()),
-        [
-          {
-            kinds: [10050], // Relay list events
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        {
-          onevent: (event) => {
-            // Extract relay URLs from r tags
-            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-            relayTags.forEach(tag => {
-              if (tag[1] && typeof tag[1] === 'string') {
-                relays.push(tag[1]);
-              }
-            });
-          }
-        }
-      );
-      
-      // Store the closer function
-      this.subClosers.set(subId, subCloser);
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        // Execute the closer function
-        if (this.subClosers.has(subId)) {
-          this.subClosers.get(subId)?.();
-          this.subClosers.delete(subId);
-        }
-        resolve(relays);
-      }, 3000);
-    });
   }
   
   // New method to add multiple relays at once
