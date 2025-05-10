@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Repeat, DollarSign, Eye, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -182,103 +181,101 @@ const NoteCardActions = ({
   };
 
   return (
-    <div className="flex items-center justify-between w-full gap-4 pt-2">
-      <div className="flex items-center gap-4">
-        {/* Comment button */}
-        <div className="flex items-center gap-1.5">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
-            onClick={(e) => {
-              e.preventDefault();
-              onCommentClick();
-            }}
-            aria-label="Comment"
-          >
-            <MessageCircle className="h-4 w-4" />
-          </Button>
-          {replyCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">{replyCount}</span>
-          )}
-        </div>
-        
-        {/* Retweet button */}
-        <div className="flex items-center gap-1.5">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`rounded-full p-2 h-8 w-8 ${retweeted 
-              ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
-              : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
-            onClick={(e) => {
-              e.preventDefault();
-              handleRetweet();
-            }}
-            aria-label="Repost"
-          >
-            <Repeat className="h-4 w-4" />
-          </Button>
-          {retweetCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">{retweetCount}</span>
-          )}
-        </div>
-        
-        {/* Like button */}
-        <div className="flex items-center gap-1.5">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`rounded-full p-2 h-8 w-8 ${liked 
-              ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
-              : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
-            onClick={(e) => {
-              e.preventDefault();
-              handleLike();
-            }}
-            aria-label="Like"
-          >
-            <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
-          </Button>
-          {likeCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">{likeCount}</span>
-          )}
-        </div>
-        
-        {/* View stats */}
-        <div className="flex items-center gap-1.5">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground rounded-full p-2 h-8 w-8"
-            onClick={(e) => e.preventDefault()}
-            aria-label="Views"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          {reachCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">{reachCount}</span>
-          )}
-        </div>
-        
-        {/* Tip button */}
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
-            onClick={(e) => {
-              e.preventDefault();
-              handleSendTip();
-            }}
-            aria-label="Send tip"
-          >
-            <DollarSign className="h-4 w-4" />
-          </Button>
-          {tipCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">{tipCount}</span>
-          )}
-        </div>
+    <div className="flex items-center w-full gap-5 pt-2">
+      {/* Comment button */}
+      <div className="flex items-center gap-1.5">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+          onClick={(e) => {
+            e.preventDefault();
+            onCommentClick();
+          }}
+          aria-label="Comment"
+        >
+          <MessageCircle className="h-4 w-4" />
+        </Button>
+        {replyCount > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">{replyCount}</span>
+        )}
+      </div>
+      
+      {/* Retweet button */}
+      <div className="flex items-center gap-1.5">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={`rounded-full p-2 h-8 w-8 ${retweeted 
+            ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
+            : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleRetweet();
+          }}
+          aria-label="Repost"
+        >
+          <Repeat className="h-4 w-4" />
+        </Button>
+        {retweetCount > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">{retweetCount}</span>
+        )}
+      </div>
+      
+      {/* Like button */}
+      <div className="flex items-center gap-1.5">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={`rounded-full p-2 h-8 w-8 ${liked 
+            ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
+            : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleLike();
+          }}
+          aria-label="Like"
+        >
+          <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
+        </Button>
+        {likeCount > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">{likeCount}</span>
+        )}
+      </div>
+      
+      {/* View stats */}
+      <div className="flex items-center gap-1.5">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-muted-foreground hover:bg-gray-100 rounded-full p-2 h-8 w-8"
+          onClick={(e) => e.preventDefault()}
+          aria-label="Views"
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        {reachCount > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">{reachCount}</span>
+        )}
+      </div>
+      
+      {/* Tip button */}
+      <div className="flex items-center gap-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+          onClick={(e) => {
+            e.preventDefault();
+            handleSendTip();
+          }}
+          aria-label="Send tip"
+        >
+          <DollarSign className="h-4 w-4" />
+        </Button>
+        {tipCount > 0 && (
+          <span className="text-xs font-medium text-muted-foreground">{tipCount}</span>
+        )}
       </div>
       
       {/* Delete button for post author */}
