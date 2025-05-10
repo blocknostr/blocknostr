@@ -154,25 +154,25 @@ const MessagingSystem = () => {
         // Message received by current user
         otherPubkey = event.pubkey || '';
         
-        // Try to decrypt received message with NIP-44 first, then fall back to NIP-04
+        // Try to decrypt received message with NIP-04 first (more widely supported)
         let decryptionSuccessful = false;
         
-        if (window.nostr && window.nostr.nip44) {
-          try {
-            content = await window.nostr.nip44.decrypt(otherPubkey, content);
-            decryptionSuccessful = true;
-          } catch (e) {
-            console.error("Failed to decrypt with NIP-44, trying NIP-04:", e);
-          }
-        }
-        
-        // Fall back to NIP-04 if NIP-44 failed or isn't available
-        if (!decryptionSuccessful && window.nostr && window.nostr.nip04) {
+        if (window.nostr?.nip04) {
           try {
             content = await window.nostr.nip04.decrypt(otherPubkey, content);
             decryptionSuccessful = true;
           } catch (e) {
             console.error("Failed to decrypt with NIP-04:", e);
+          }
+        }
+        
+        // Fall back to NIP-44 if NIP-04 failed and NIP-44 is available
+        if (!decryptionSuccessful && window.nostr?.nip44) {
+          try {
+            content = await window.nostr.nip44.decrypt(otherPubkey, content);
+            decryptionSuccessful = true;
+          } catch (e) {
+            console.error("Failed to decrypt with NIP-44:", e);
           }
         }
         
@@ -293,23 +293,23 @@ const MessagingSystem = () => {
           if (event.pubkey !== currentUserPubkey) {
             let decryptionSuccessful = false;
             
-            // Try NIP-44 first
-            if (window.nostr && window.nostr.nip44) {
-              try {
-                content = await window.nostr.nip44.decrypt(event.pubkey || '', content);
-                decryptionSuccessful = true;
-              } catch (e) {
-                console.error("Failed to decrypt with NIP-44, trying NIP-04:", e);
-              }
-            }
-            
-            // Fall back to NIP-04
-            if (!decryptionSuccessful && window.nostr && window.nostr.nip04) {
+            // Try NIP-04 first (more compatible)
+            if (window.nostr?.nip04) {
               try {
                 content = await window.nostr.nip04.decrypt(event.pubkey || '', content);
                 decryptionSuccessful = true;
               } catch (e) {
                 console.error("Failed to decrypt with NIP-04:", e);
+              }
+            }
+            
+            // Fall back to NIP-44 if available
+            if (!decryptionSuccessful && window.nostr?.nip44) {
+              try {
+                content = await window.nostr.nip44.decrypt(event.pubkey || '', content);
+                decryptionSuccessful = true;
+              } catch (e) {
+                console.error("Failed to decrypt with NIP-44:", e);
               }
             }
             
