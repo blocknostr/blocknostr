@@ -21,7 +21,14 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
   
   const handleCreateProposal = async () => {
     if (!nostrService.publicKey) {
-      toast.error("You must be logged in and have a community selected");
+      toast.error("You must be logged in to create a proposal");
+      return;
+    }
+    
+    // Double-check membership status before creating proposal
+    const community = await nostrService.fetchCommunity(communityId);
+    if (!community || !community.members.includes(nostrService.publicKey)) {
+      toast.error("You must be a member of this community to create proposals");
       return;
     }
     

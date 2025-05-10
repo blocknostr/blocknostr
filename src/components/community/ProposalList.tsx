@@ -25,11 +25,14 @@ const ProposalList = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
   
+  // Only allow members or creators to create proposals
+  const canCreateProposal = isMember || isCreator;
+  
   return (
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Proposals</h2>
-        {(isMember || isCreator) && (
+        {canCreateProposal ? (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -47,13 +50,18 @@ const ProposalList = ({
               />
             </DialogContent>
           </Dialog>
-        )}
+        ) : currentUserPubkey ? (
+          <Button variant="outline" disabled title="You must be a member to create proposals">
+            <Plus className="h-4 w-4 mr-2" />
+            Join to Create Proposals
+          </Button>
+        ) : null}
       </div>
       
       {proposals.length === 0 ? (
         <div className="text-center text-muted-foreground py-8 bg-muted/30 rounded-lg">
           <p className="mb-2">No proposals have been created yet.</p>
-          {(isMember || isCreator) && (
+          {canCreateProposal && (
             <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(true)}>
               Create the first proposal
             </Button>
