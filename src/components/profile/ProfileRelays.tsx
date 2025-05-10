@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, ExternalLink } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Relay, nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 
@@ -20,11 +20,6 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
   
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
-    
-    if (!newRelayUrl.startsWith('wss://')) {
-      toast.error("Relay URL must start with wss://");
-      return;
-    }
     
     setIsAddingRelay(true);
     
@@ -56,109 +51,50 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
     toast.success(`Removed relay: ${relayUrl}`);
   };
   
-  const fetchNip05Relays = async () => {
-    if (!nostrService.publicKey) {
-      toast.error("You need to be logged in to fetch NIP-05 relays");
-      return;
-    }
-    
-    try {
-      const profile = await nostrService.getUserProfile(nostrService.publicKey);
-      
-      if (!profile?.nip05) {
-        toast.warning("No NIP-05 identifier found in your profile");
-        return;
-      }
-      
-      const nip05Data = await nostrService.fetchNip05Data(profile.nip05);
-      
-      if (!nip05Data?.relays || Object.keys(nip05Data.relays).length === 0) {
-        toast.warning("No relays found in your NIP-05 configuration");
-        return;
-      }
-      
-      // Add each relay from NIP-05
-      let addedCount = 0;
-      for (const [relayUrl, _] of Object.entries(nip05Data.relays)) {
-        try {
-          const added = await nostrService.addRelay(relayUrl);
-          if (added) addedCount++;
-        } catch (e) {
-          console.error(`Error adding relay ${relayUrl}:`, e);
-        }
-      }
-      
-      // Update relay status
-      const relayStatus = nostrService.getRelayStatus();
-      onRelaysChange(relayStatus);
-      
-      if (addedCount > 0) {
-        toast.success(`Added ${addedCount} relays from your NIP-05 identifier`);
-      } else {
-        toast.info("No new relays were added from your NIP-05 identifier");
-      }
-    } catch (error) {
-      console.error("Error fetching NIP-05 relays:", error);
-      toast.error("Failed to fetch relays from NIP-05 identifier");
-    }
-  };
-  
   return (
     <div className="mb-6">
       <Card>
         <CardContent className="pt-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">My Relays</h3>
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={fetchNip05Relays}
-                title="Import relays from your NIP-05 identifier"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Import NIP-05 Relays
-              </Button>
-              
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" /> Add Relay
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add a new relay</DialogTitle>
-                  </DialogHeader>
-                  <div className="flex flex-col gap-2 mt-4">
-                    <Input
-                      placeholder="wss://relay.example.com"
-                      value={newRelayUrl}
-                      onChange={(e) => setNewRelayUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !isAddingRelay && newRelayUrl.trim()) {
-                          handleAddRelay();
-                        }
-                      }}
-                    />
-                    <div className="text-xs text-muted-foreground mb-2">
-                      Relay URLs should start with wss:// and be trusted by both you and your contacts
-                    </div>
-                    <Button 
-                      onClick={handleAddRelay}
-                      disabled={isAddingRelay || !newRelayUrl.trim()}
-                    >
-                      {isAddingRelay ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Plus className="h-4 w-4 mr-2" />
-                      )}
-                      Add Relay
-                    </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" /> Add Relay
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add a new relay</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-2 mt-4">
+                  <Input
+                    placeholder="wss://relay.example.com"
+                    value={newRelayUrl}
+                    onChange={(e) => setNewRelayUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !isAddingRelay && newRelayUrl.trim()) {
+                        handleAddRelay();
+                      }
+                    }}
+                  />
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Relay URLs should start with wss:// and be trusted by both you and your contacts
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+                  <Button 
+                    onClick={handleAddRelay}
+                    disabled={isAddingRelay || !newRelayUrl.trim()}
+                  >
+                    {isAddingRelay ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Add Relay
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           
           <div className="space-y-2">

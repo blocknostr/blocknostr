@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  private relayManager: RelayManager;
+  public relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -85,9 +85,6 @@ class NostrService {
     if (success) {
       // Publish relay list to network
       await this.publishRelayList();
-      toast.success(`Relay ${relayUrl} added successfully`);
-    } else {
-      toast.error(`Failed to add relay ${relayUrl}`);
     }
     return success;
   }
@@ -96,11 +93,61 @@ class NostrService {
     this.relayManager.removeRelay(relayUrl);
     // Publish updated relay list
     this.publishRelayList();
-    toast.success(`Relay ${relayUrl} removed`);
   }
   
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
+  }
+  
+  // Method to add multiple relays at once
+  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    if (!relayUrls.length) return 0;
+    
+    let successCount = 0;
+    
+    for (const url of relayUrls) {
+      try {
+        const success = await this.addRelay(url);
+        if (success) successCount++;
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
+      }
+    }
+    
+    return successCount;
+  }
+  
+  // Method to get relays for a user
+  public async getRelaysForUser(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const relays: string[] = [];
+      
+      // Subscribe to relay list event
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relays.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(relays);
+      }, 3000);
+    });
   }
 
   // Event publication
@@ -117,40 +164,13 @@ class NostrService {
   
   public async publishProfileMetadata(metadata: Record<string, any>): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
-    if (!this.publicKey) {
-      toast.error("You must be logged in to update your profile");
-      return false;
-    }
-    
-    try {
-      const result = await this.eventManager.publishProfileMetadata(
-        this.pool,
-        this.publicKey,
-        null, // We're not storing private keys
-        metadata,
-        connectedRelays
-      );
-      
-      if (result) {
-        // If NIP-05 is set, verify it immediately for feedback
-        if (metadata.nip05) {
-          this.verifyNip05(metadata.nip05, this.publicKey)
-            .then(verified => {
-              if (verified) {
-                toast.success("NIP-05 identifier verified successfully");
-              } else {
-                toast.warning("NIP-05 identifier could not be verified. It may take time to propagate.");
-              }
-            });
-        }
-        
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error("Error publishing profile metadata:", error);
-      return false;
-    }
+    return this.eventManager.publishProfileMetadata(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      metadata,
+      connectedRelays
+    );
   }
   
   // Subscription management
@@ -193,13 +213,40 @@ class NostrService {
   
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
+    
+    // Try to find recipient's preferred relays via NIP-05 or kind:10050 event
+    let recipientRelays: string[] = [];
+    
+    try {
+      // First try to get profile for potential NIP-05 identifier
+      const profile = await this.getUserProfile(recipientPubkey);
+      
+      if (profile?.nip05) {
+        // If recipient has NIP-05, try to fetch relay preferences from it
+        const nip05Data = await this.fetchNip05Data(profile.nip05);
+        if (nip05Data?.relays) {
+          recipientRelays = Object.keys(nip05Data.relays);
+        }
+      }
+      
+      // If no relays found yet, try to find a kind:10050 relay list event
+      if (recipientRelays.length === 0) {
+        recipientRelays = await this.getRelaysForUser(recipientPubkey);
+      }
+    } catch (error) {
+      console.error("Error finding recipient's relays:", error);
+    }
+    
+    // Combine connected relays with recipient's relays
+    const publishToRelays = Array.from(new Set([...connectedRelays, ...recipientRelays]));
+    
     return this.socialManager.sendDirectMessage(
       this.pool,
       recipientPubkey,
       content,
       this.publicKey,
       null, // We're not storing private keys
-      connectedRelays
+      publishToRelays.length > 0 ? publishToRelays : connectedRelays
     );
   }
   
@@ -333,127 +380,6 @@ class NostrService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
-  }
-  
-  // Helper methods for profile functionality
-  public async getFollowing(pubkey: string): Promise<string[]> {
-    if (!pubkey) return [];
-    
-    try {
-      const connectedRelays = this.getConnectedRelayUrls();
-      if (connectedRelays.length === 0) {
-        await this.connectToDefaultRelays();
-      }
-      
-      return new Promise((resolve) => {
-        const following: string[] = [];
-        const subId = this.subscribe(
-          [
-            {
-              kinds: [EVENT_KINDS.CONTACTS],
-              authors: [pubkey],
-              limit: 1
-            }
-          ],
-          (event) => {
-            // Extract pubkeys from p tags
-            const pubkeys = event.tags
-              .filter(tag => tag.length >= 2 && tag[0] === 'p')
-              .map(tag => tag[1]);
-              
-            resolve(pubkeys);
-            
-            // Cleanup subscription
-            setTimeout(() => {
-              this.unsubscribe(subId);
-            }, 100);
-          }
-        );
-        
-        // Timeout if no data found
-        setTimeout(() => {
-          this.unsubscribe(subId);
-          resolve(following);
-        }, 5000);
-      });
-    } catch (error) {
-      console.error("Error fetching following list:", error);
-      return [];
-    }
-  }
-  
-  public async getFollowers(pubkey: string): Promise<string[]> {
-    if (!pubkey) return [];
-    
-    try {
-      const connectedRelays = this.getConnectedRelayUrls();
-      if (connectedRelays.length === 0) {
-        await this.connectToDefaultRelays();
-      }
-      
-      return new Promise((resolve) => {
-        const followers: string[] = [];
-        const subId = this.subscribe(
-          [
-            {
-              kinds: [EVENT_KINDS.CONTACTS],
-              "#p": [pubkey],
-              limit: 50
-            }
-          ],
-          (event) => {
-            followers.push(event.pubkey);
-          }
-        );
-        
-        // Timeout to collect all events and resolve
-        setTimeout(() => {
-          this.unsubscribe(subId);
-          resolve(followers);
-        }, 5000);
-      });
-    } catch (error) {
-      console.error("Error fetching followers list:", error);
-      return [];
-    }
-  }
-  
-  public async getPostCount(pubkey: string): Promise<number> {
-    if (!pubkey) return 0;
-    
-    try {
-      const connectedRelays = this.getConnectedRelayUrls();
-      if (connectedRelays.length === 0) {
-        await this.connectToDefaultRelays();
-      }
-      
-      // For simplicity we're just getting a rough count from the relays
-      // A more accurate count would require checking more relays and deduplicating
-      return new Promise((resolve) => {
-        let count = 0;
-        const subId = this.subscribe(
-          [
-            {
-              kinds: [EVENT_KINDS.TEXT_NOTE],
-              authors: [pubkey],
-              limit: 100
-            }
-          ],
-          (event) => {
-            count++;
-          }
-        );
-        
-        // Timeout to collect all events and resolve
-        setTimeout(() => {
-          this.unsubscribe(subId);
-          resolve(count);
-        }, 5000);
-      });
-    } catch (error) {
-      console.error("Error fetching post count:", error);
-      return 0;
-    }
   }
   
   // Private helper methods

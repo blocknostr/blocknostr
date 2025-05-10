@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -53,7 +52,7 @@ const SettingsPage = () => {
     }
     
     toast.loading("Connecting to relay...");
-    const success = await nostrService.connectToRelay(newRelayUrl);
+    const success = await nostrService.addRelay(newRelayUrl);
     
     if (success) {
       toast.success(`Connected to ${newRelayUrl}`);
@@ -62,6 +61,12 @@ const SettingsPage = () => {
     } else {
       toast.error(`Failed to connect to ${newRelayUrl}`);
     }
+  };
+  
+  const handleRemoveRelay = (relayUrl: string) => {
+    nostrService.removeRelay(relayUrl);
+    setRelays(nostrService.getRelayStatus());
+    toast.success(`Removed relay: ${relayUrl}`);
   };
   
   return (
@@ -145,6 +150,11 @@ const SettingsPage = () => {
                           placeholder="wss://relay.example.com"
                           value={newRelayUrl}
                           onChange={(e) => setNewRelayUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newRelayUrl.trim()) {
+                              handleAddRelay();
+                            }
+                          }}
                         />
                         <Button 
                           onClick={handleAddRelay}
@@ -182,6 +192,7 @@ const SettingsPage = () => {
                                   variant="ghost" 
                                   size="sm" 
                                   className="h-7 w-7 p-0"
+                                  onClick={() => handleRemoveRelay(relay.url)}
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>

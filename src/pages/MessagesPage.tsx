@@ -4,10 +4,14 @@ import MessagingSystem from "@/components/MessagingSystem";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const MessagesPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [encryptionInfoShown, setEncryptionInfoShown] = useState(true);
   const { toast } = useToast();
 
   const toggleSidebar = () => {
@@ -15,36 +19,53 @@ const MessagesPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       {/* Mobile sidebar - conditionally shown */}
       <div className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden ${sidebarVisible ? 'block' : 'hidden'}`} 
            onClick={() => setSidebarVisible(false)}>
-        <div className="w-64 h-full bg-background border-r" onClick={e => e.stopPropagation()}>
+        <div className="w-72 h-full bg-background border-r shadow-lg" onClick={e => e.stopPropagation()}>
           <Sidebar />
         </div>
       </div>
       
       {/* Desktop sidebar */}
-      <div className="hidden md:block w-64 border-r fixed h-full">
+      <div className="hidden md:block w-72 border-r fixed h-full shadow-sm">
         <Sidebar />
       </div>
       
-      <div className="flex-1 ml-0 md:ml-64">
-        <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex items-center h-14 px-4">
+      <div className="flex-1 ml-0 md:ml-72 flex flex-col h-screen">
+        <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-10 shadow-sm">
+          <div className="flex items-center h-12 px-4">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="mr-2 md:hidden"
+              className="mr-3 md:hidden"
               onClick={toggleSidebar}
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="font-semibold">Messages</h1>
+            <h1 className="font-semibold text-lg">Messages</h1>
           </div>
         </header>
         
-        <div className="flex-1">
+        {encryptionInfoShown && (
+          <Alert className="mx-4 mt-1 mb-1">
+            <InfoIcon className="h-4 w-4" />
+            <AlertTitle>End-to-End Encrypted</AlertTitle>
+            <AlertDescription className="text-xs">
+              Messages are encrypted using NIP-04 for maximum security. Only you and your recipient can read them.
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-xs ml-2"
+                onClick={() => setEncryptionInfoShown(false)}
+              >
+                Dismiss
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="flex-1 overflow-hidden">
           <MessagingSystem />
         </div>
       </div>

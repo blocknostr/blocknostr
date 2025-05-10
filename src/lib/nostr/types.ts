@@ -16,6 +16,21 @@ export interface Relay {
   write: boolean;
 }
 
+export interface NostrProfileMetadata {
+  name?: string;
+  display_name?: string;
+  picture?: string;
+  nip05?: string;
+  about?: string;
+  banner?: string;
+  website?: string;
+  lud16?: string; // Lightning address
+  twitter?: string; // X (Twitter) handle
+  twitter_verified?: boolean; // Track if Twitter/X account has been verified
+  twitter_proof?: string; // Store proof of verification (e.g., tweet ID)
+  [key: string]: any; // For any other custom fields
+}
+
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {
