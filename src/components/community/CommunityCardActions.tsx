@@ -1,10 +1,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Link as LinkIcon, UserMinus } from "lucide-react";
+import { UserPlus, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
-import LeaveCommunityButton from "./LeaveCommunityButton";
 
 interface CommunityCardActionsProps {
   community: {
@@ -68,42 +67,6 @@ const CommunityCardActions = ({
     }
   };
 
-  const handleLeaveClick = async () => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to leave a community");
-      return;
-    }
-    
-    try {
-      // Remove the current user from members
-      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
-      
-      // Create an updated community event without the current user
-      const communityData = {
-        name: community.name,
-        description: community.description,
-        image: community.image,
-        creator: community.creator,
-        createdAt: community.createdAt
-      };
-      
-      const event = {
-        kind: 34550,
-        content: JSON.stringify(communityData),
-        tags: [
-          ['d', community.uniqueId],
-          ...updatedMembers.map(member => ['p', member])
-        ]
-      };
-      
-      await nostrService.publishEvent(event);
-      toast.success("You have left the community");
-    } catch (error) {
-      console.error("Error leaving community:", error);
-      toast.error("Failed to leave community");
-    }
-  };
-
   const shareInviteLink = (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -127,29 +90,20 @@ const CommunityCardActions = ({
   };
 
   return (
-    <div className="w-full">
+    <>
       <div className="flex w-full gap-2">
         {!isMember && !isCreator && currentUserPubkey && (
           <Button 
             variant="outline" 
-            className="flex-1 flex items-center gap-2" 
+            className="flex-1" 
             onClick={handleJoinClick}
           >
-            <UserPlus className="h-4 w-4" />
+            <UserPlus className="h-4 w-4 mr-2" />
             Join
           </Button>
         )}
         {(isMember || isCreator) && (
           <>
-            {/* Show Leave button for members who aren't creators */}
-            {isMember && !isCreator && (
-              <LeaveCommunityButton 
-                onLeave={handleLeaveClick}
-                communityName={community.name}
-              />
-            )}
-            
-            {/* Show view and share buttons */}
             <Button 
               variant="outline" 
               className="flex-1"
@@ -172,7 +126,7 @@ const CommunityCardActions = ({
           Invite link copied to clipboard!
         </div>
       )}
-    </div>
+    </>
   );
 };
 

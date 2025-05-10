@@ -1,6 +1,6 @@
 
 import { Avatar } from "@/components/ui/avatar";
-import { getInitials, getRandomColor, formatSerialNumber } from "@/lib/community-utils";
+import { getInitials, getRandomColor } from "@/lib/community-utils";
 
 export interface CommunityCardHeaderProps {
   id: string;
@@ -11,7 +11,7 @@ export interface CommunityCardHeaderProps {
 
 const CommunityCardHeader = ({ id, name, image, serialNumber }: CommunityCardHeaderProps) => {
   return (
-    <div className={`h-24 ${getRandomColor(id)} flex items-center justify-center relative rounded-t-lg overflow-hidden`}>
+    <div className={`h-24 ${getRandomColor(id)} flex items-center justify-center relative`}>
       {image ? (
         <img 
           src={image} 
@@ -23,7 +23,11 @@ const CommunityCardHeader = ({ id, name, image, serialNumber }: CommunityCardHea
           {getInitials(name)}
         </div>
       )}
-      {/* Don't display serial number anymore as per user request */}
+      {serialNumber && (
+        <div className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+          {serialNumber}
+        </div>
+      )}
     </div>
   );
 };

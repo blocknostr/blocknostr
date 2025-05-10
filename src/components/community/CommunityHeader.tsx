@@ -69,14 +69,6 @@ const CommunityHeader = ({
       toast.error("Failed to leave community");
     }
   };
-
-  // Create leave button element only if the user is a member but not the creator
-  const leaveButton = isMember && !isCreator ? (
-    <LeaveCommunityButton 
-      onLeave={handleLeaveCommunity} 
-      communityName={community.name}
-    />
-  ) : null;
   
   return (
     <Card>
@@ -84,7 +76,6 @@ const CommunityHeader = ({
         id={community.id}
         name={community.name}
         image={community.image}
-        overlayButton={leaveButton}
       />
       
       <CardContent className="pt-6">
@@ -93,6 +84,10 @@ const CommunityHeader = ({
           membersCount={community.members.length}
           createdAt={community.createdAt}
         />
+        
+        {isMember && !isCreator && (
+          <LeaveCommunityButton onLeave={handleLeaveCommunity} />
+        )}
       </CardContent>
     </Card>
   );
