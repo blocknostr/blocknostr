@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { useFeedEvents } from "./useFeedEvents";
+import { useFeedEvents } from "./hooks";
 
 interface UseFollowingFeedProps {
   activeHashtag?: string;

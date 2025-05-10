@@ -1,0 +1,40 @@
+
+import { useState } from "react";
+import { nostrService } from "@/lib/nostr";
+
+export function useProfileFetcher() {
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  
+  const fetchProfileData = (pubkey: string) => {
+    const metadataSubId = nostrService.subscribe(
+      [
+        {
+          kinds: [0],
+          authors: [pubkey],
+          limit: 1
+        }
+      ],
+      (event) => {
+        try {
+          const metadata = JSON.parse(event.content);
+          setProfiles(prev => ({
+            ...prev,
+            [pubkey]: metadata
+          }));
+        } catch (e) {
+          console.error('Failed to parse profile metadata:', e);
+        }
+      }
+    );
+    
+    // Cleanup subscription after a short time
+    setTimeout(() => {
+      nostrService.unsubscribe(metadataSubId);
+    }, 5000);
+  };
+
+  return {
+    profiles,
+    fetchProfileData
+  };
+}
