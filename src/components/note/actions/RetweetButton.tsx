@@ -6,15 +6,22 @@ interface RetweetButtonProps {
   onClick: () => void;
   retweeted: boolean;
   retweetCount: number;
+  onRetweetStatusChange?: (isRetweeted: boolean) => void;
 }
 
-const RetweetButton = ({ onClick, retweeted, retweetCount }: RetweetButtonProps) => {
+const RetweetButton = ({ onClick, retweeted, retweetCount, onRetweetStatusChange }: RetweetButtonProps) => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onClick();
+    if (onRetweetStatusChange) {
+      // Pass the expected new status (opposite of current)
+      onRetweetStatusChange(!retweeted);
+    }
+  };
+
   return (
     <ActionButton
-      onClick={(e) => {
-        e.preventDefault();
-        onClick();
-      }}
+      onClick={handleClick}
       icon={<Repeat className="h-4 w-4" />}
       label="Repost"
       count={retweetCount}

@@ -297,6 +297,14 @@ const ProfilePage = () => {
     localStorage.setItem('lastMessagedUser', npub);
   };
   
+  const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
+    // If the retweet is being undone (isRetweeted is false)
+    if (!isRetweeted) {
+      // Remove the repost from the list immediately
+      setReposts(prev => prev.filter(r => r.originalEvent.id !== eventId));
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex min-h-screen bg-background">
@@ -392,6 +400,7 @@ const ProfilePage = () => {
                           reposterPubkey: repostEvent.pubkey || '',
                           reposterProfile: profileData
                         }}
+                        onRetweetStatusChange={handleRetweetStatusChange}
                       />
                     ))}
                   </div>

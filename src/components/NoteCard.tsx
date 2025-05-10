@@ -20,9 +20,10 @@ interface NoteCardProps {
     reposterProfile?: Record<string, any>;
   }
   onDelete?: () => void;
+  onRetweetStatusChange?: (eventId: string, isRetweeted: boolean) => void;
 }
 
-const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) => {
+const NoteCard = ({ event, profileData, repostData, onDelete, onRetweetStatusChange }: NoteCardProps) => {
   const [showComments, setShowComments] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
@@ -37,6 +38,12 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   
   const handleDeleteClick = () => {
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleRetweetChange = (isRetweeted: boolean) => {
+    if (onRetweetStatusChange && event.id) {
+      onRetweetStatusChange(event.id, isRetweeted);
+    }
   };
 
   return (
@@ -72,6 +79,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             isAuthor={isCurrentUserAuthor}
             onDelete={handleDeleteClick}
             reachCount={reachCount}
+            onRetweetStatusChange={handleRetweetChange}
           />
         </CardFooter>
         

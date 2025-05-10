@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
@@ -25,7 +24,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [subId, setSubId] = useState<string | null>(null);
+  const [filteredEvents, setFilteredEvents] = useState<NostrEvent[]>([]);
   
+  useEffect(() => {
+    setFilteredEvents(events);
+  }, [events]);
+
   const loadMoreEvents = () => {
     if (!subId) return;
     
@@ -289,6 +293,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     }
   }, [events, loading]);
 
+  const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
+    if (!isRetweeted) {
+      // Filter out the unreposted event
+      setFilteredEvents(prev => prev.filter(event => event.id !== eventId));
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="border-b pb-4 mb-4">
@@ -333,23 +344,23 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </TabsList>
         
         <TabsContent value="global">
-          {activeHashtag && events.length === 0 && !loading && (
+          {activeHashtag && filteredEvents.length === 0 && !loading && (
             <div className="py-4 text-center text-muted-foreground">
               No posts found with #{activeHashtag} hashtag
             </div>
           )}
           
-          {loading && events.length === 0 ? (
+          {loading && filteredEvents.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''}...
             </div>
-          ) : events.length === 0 && !activeHashtag ? (
+          ) : filteredEvents.length === 0 && !activeHashtag ? (
             <div className="py-8 text-center text-muted-foreground">
               No posts found. Connect to more relays or follow more people.
             </div>
           ) : (
             <div className="space-y-4">
-              {events.map(event => (
+              {filteredEvents.map(event => (
                 <NoteCard 
                   key={event.id} 
                   event={event} 
@@ -358,12 +369,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
                     reposterPubkey: repostData[event.id].pubkey,
                     reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
                   } : undefined}
+                  onRetweetStatusChange={handleRetweetStatusChange}
                 />
               ))}
               
               {/* Loading indicator at the bottom */}
               <div ref={loadMoreRef} className="py-4 text-center">
-                {loading && events.length > 0 && (
+                {loading && filteredEvents.length > 0 && (
                   <div className="text-muted-foreground text-sm">
                     Loading more posts...
                   </div>
