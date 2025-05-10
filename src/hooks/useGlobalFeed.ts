@@ -150,9 +150,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     if (!subId) return;
     
     // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
-    }
+    nostrService.unsubscribe(subId);
 
     // Create new subscription with older timestamp range
     if (!since) {
@@ -188,10 +186,11 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   useEffect(() => {
     const initFeed = async () => {
       // Connect to relays
-      await nostrService.connectToUserRelays();
+      await nostrService.connectToDefaultRelays();
       
       // Reset state when filter changes
       setEvents([]);
+      setFilteredEvents([]);
       setHasMore(true);
       setLoading(true);
 
@@ -208,7 +207,6 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
       // Start a new subscription
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      setLoading(false);
     };
     
     initFeed();
@@ -219,7 +217,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
         nostrService.unsubscribe(subId);
       }
     };
-  }, [activeHashtag, setupSubscription, subId]);
+  }, [activeHashtag, setupSubscription]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {

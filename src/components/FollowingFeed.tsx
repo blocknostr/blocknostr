@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFollowingFeed } from "@/hooks/useFollowingFeed";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import FollowingFeedEmpty from "./following/FollowingFeedEmpty";
@@ -24,7 +24,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   const [filteredEvents, setFilteredEvents] = useState(events);
 
   // Update filtered events when events change
-  React.useEffect(() => {
+  useEffect(() => {
     setFilteredEvents(events);
   }, [events]);
 
@@ -35,6 +35,15 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     hasMore: scrollHasMore,
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+
+  // Ensure we're passing the state setters to the useInfiniteScroll
+  useEffect(() => {
+    setHasMore(hasMore);
+  }, [hasMore, setHasMore]);
+
+  useEffect(() => {
+    setLoading(loading);
+  }, [loading, setLoading]);
 
   const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
     if (!isRetweeted) {

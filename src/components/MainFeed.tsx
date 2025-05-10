@@ -41,6 +41,15 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
+  // Ensure we're passing the state setters to the useInfiniteScroll
+  React.useEffect(() => {
+    setHasMore(hasMore);
+  }, [hasMore, setHasMore]);
+
+  React.useEffect(() => {
+    setLoading(loading);
+  }, [loading, setLoading]);
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="border-b pb-4 mb-4">

@@ -152,9 +152,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
     if (!subId || following.length === 0) return;
     
     // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
-    }
+    nostrService.unsubscribe(subId);
 
     // Create new subscription with older timestamp range
     if (!since) {
