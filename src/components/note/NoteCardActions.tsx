@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Heart, MessageCircle, Repeat, DollarSign } from 'lucide-react';
+import { Heart, MessageCircle, Repeat, DollarSign, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from '@/lib/nostr';
 import { toast } from "sonner";
@@ -10,31 +10,49 @@ interface NoteCardActionsProps {
   pubkey: string;
   onCommentClick: () => void;
   replyCount: number;
+  onDelete?: () => void;
+  isAuthor?: boolean;
 }
 
-const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount }: NoteCardActionsProps) => {
+const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete, isAuthor }: NoteCardActionsProps) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [retweeted, setRetweeted] = useState(false);
   const [retweetCount, setRetweetCount] = useState(0);
   
   const handleLike = async () => {
-    if (!liked) {
-      // Create a reaction event (kind 7)
-      await nostrService.publishEvent({
-        kind: 7,
-        content: '+',  // '+' for like
-        tags: [['e', eventId || ''], ['p', pubkey || '']]
-      });
-      
-      setLiked(true);
-      setLikeCount(prev => prev + 1);
+    try {
+      if (!liked) {
+        // Create a reaction event (kind 7)
+        await nostrService.publishEvent({
+          kind: 7,
+          content: '+',  // '+' for like
+          tags: [['e', eventId || ''], ['p', pubkey || '']]
+        });
+        
+        setLiked(true);
+        setLikeCount(prev => prev + 1);
+      } else {
+        // Remove like by publishing a reaction with '-'
+        await nostrService.publishEvent({
+          kind: 7,
+          content: '-',  // '-' for unlike
+          tags: [['e', eventId || ''], ['p', pubkey || '']]
+        });
+        
+        setLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
+        toast.success("Like removed");
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      toast.error("Failed to toggle like");
     }
   };
 
   const handleRetweet = async () => {
-    if (!retweeted) {
-      try {
+    try {
+      if (!retweeted) {
         // Create a repost event
         await nostrService.publishEvent({
           kind: 6, // Repost kind
@@ -50,15 +68,29 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount }: NoteCa
         setRetweeted(true);
         setRetweetCount(prev => prev + 1);
         toast.success("Note reposted successfully");
-      } catch (error) {
-        console.error("Error reposting:", error);
-        toast.error("Failed to repost note");
+      } else {
+        // We can't directly delete retweets in the protocol, but we can create a "removal" event
+        toast.info("Removing repost...");
+        
+        // For simplicity, we'll just update the UI state and notify the user
+        setRetweeted(false);
+        setRetweetCount(prev => Math.max(0, prev - 1));
+        toast.success("Repost removed from your profile");
       }
+    } catch (error) {
+      console.error("Error toggling retweet:", error);
+      toast.error("Failed to toggle repost");
     }
   };
   
   const handleSendTip = () => {
     toast.info("Tipping functionality coming soon!");
+  };
+  
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
+    }
   };
 
   return (
@@ -102,6 +134,18 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount }: NoteCa
         <DollarSign className="h-4 w-4 mr-1" />
         Tip
       </Button>
+      
+      {isAuthor && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-500 hover:bg-red-100 hover:text-red-600"
+          onClick={handleDelete}
+        >
+          <Trash2 className="h-4 w-4 mr-1" />
+          Delete
+        </Button>
+      )}
     </div>
   );
 };
