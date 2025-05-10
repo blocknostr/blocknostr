@@ -4,7 +4,11 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, ZapIcon, Heart } from "lucide-react";
 
-const TrendingSection = () => {
+interface TrendingSectionProps {
+  onTopicClick?: (topic: string) => void;
+}
+
+const TrendingSection = ({ onTopicClick }: TrendingSectionProps) => {
   const [activeFilter, setActiveFilter] = useState("popular");
   
   // This would be fetched from Nostr in a real implementation
@@ -48,6 +52,12 @@ const TrendingSection = () => {
   
   const trendingTopics = getTrendingTopics();
   
+  const handleTopicClick = (topic: string) => {
+    if (onTopicClick) {
+      onTopicClick(topic);
+    }
+  };
+  
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -77,7 +87,11 @@ const TrendingSection = () => {
         <div className="space-y-4">
           {trendingTopics.length > 0 ? (
             trendingTopics.map((topic) => (
-              <div key={topic.name} className="hover:bg-accent/50 px-2 py-1 rounded-md -mx-2 cursor-pointer">
+              <div 
+                key={topic.name} 
+                className="hover:bg-accent/50 px-2 py-1 rounded-md -mx-2 cursor-pointer transition-colors"
+                onClick={() => handleTopicClick(topic.name)}
+              >
                 <div className="font-semibold text-md">#{topic.name}</div>
                 <div className="text-sm text-muted-foreground">{topic.posts} posts</div>
               </div>

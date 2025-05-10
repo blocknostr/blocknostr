@@ -12,6 +12,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 
 const Index = () => {
   const [darkMode, setDarkMode] = useState(true);
+  const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   
   // Toggle dark mode function
   const toggleDarkMode = () => {
@@ -38,6 +39,16 @@ const Index = () => {
     
     initNostr();
   }, []);
+
+  const handleTopicClick = (topic: string) => {
+    setActiveHashtag(topic);
+    // Scroll to top of the feed
+    window.scrollTo(0, 0);
+  };
+
+  const clearHashtag = () => {
+    setActiveHashtag(undefined);
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -66,7 +77,10 @@ const Index = () => {
         <div className="flex">
           <main className="flex-1 border-r min-h-screen">
             <div className="max-w-2xl mx-auto px-4 py-4">
-              <MainFeed />
+              <MainFeed 
+                activeHashtag={activeHashtag} 
+                onClearHashtag={clearHashtag}
+              />
             </div>
           </main>
           
@@ -75,7 +89,7 @@ const Index = () => {
               <div className="mb-4">
                 <GlobalSearch />
               </div>
-              <TrendingSection />
+              <TrendingSection onTopicClick={handleTopicClick} />
               <WhoToFollow />
             </div>
           </aside>
