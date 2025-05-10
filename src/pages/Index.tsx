@@ -8,6 +8,7 @@ import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
 import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import GlobalSearch from "@/components/GlobalSearch";
 
 const Index = () => {
   const [darkMode, setDarkMode] = useState(true);
@@ -71,6 +72,9 @@ const Index = () => {
           
           <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
             <div className="space-y-6">
+              <div className="mb-4">
+                <GlobalSearch />
+              </div>
               <TrendingSection />
               <WhoToFollow />
             </div>

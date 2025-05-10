@@ -1,10 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import SearchBar from "@/components/community/SearchBar";
 import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, ZapIcon, Heart } from "lucide-react";
 
 const TrendingSection = () => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState("popular");
   
   // This would be fetched from Nostr in a real implementation
   const allTrendingTopics = [
@@ -14,25 +15,64 @@ const TrendingSection = () => {
     { name: "Decentralization", posts: "42K" },
     { name: "Web5", posts: "38K" },
   ];
+
+  const mostZappedTopics = [
+    { name: "Bitcoin", posts: "98K" },
+    { name: "Nostr", posts: "76K" },
+    { name: "Sats", posts: "54K" },
+    { name: "Lightning", posts: "41K" },
+    { name: "BTC", posts: "32K" },
+  ];
+
+  const mostLiked24hTopics = [
+    { name: "Nostr", posts: "42K" },
+    { name: "Bitcoin", posts: "38K" },
+    { name: "AI", posts: "25K" },
+    { name: "Web5", posts: "19K" },
+    { name: "Tech", posts: "12K" },
+  ];
   
-  // Filter trending topics based on search term
-  const trendingTopics = searchTerm 
-    ? allTrendingTopics.filter(topic => 
-        topic.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    : allTrendingTopics;
+  // Get the appropriate topics based on the active filter
+  const getTrendingTopics = () => {
+    switch (activeFilter) {
+      case "popular":
+        return allTrendingTopics;
+      case "zapped":
+        return mostZappedTopics;
+      case "liked24h":
+        return mostLiked24hTopics;
+      default:
+        return allTrendingTopics;
+    }
+  };
+  
+  const trendingTopics = getTrendingTopics();
   
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-xl">Trending</CardTitle>
-        <div className="mt-2">
-          <SearchBar 
-            searchTerm={searchTerm} 
-            setSearchTerm={setSearchTerm} 
-            placeholderText="Search topics..." 
-          />
-        </div>
       </CardHeader>
+      
+      <div className="px-4 pb-2">
+        <Tabs value={activeFilter} onValueChange={setActiveFilter} className="w-full">
+          <TabsList className="grid grid-cols-3 mb-2">
+            <TabsTrigger value="popular" className="text-xs flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" />
+              <span className="hidden sm:inline">Popular</span>
+            </TabsTrigger>
+            <TabsTrigger value="zapped" className="text-xs flex items-center gap-1">
+              <ZapIcon className="h-3 w-3" />
+              <span className="hidden sm:inline">Most Zapped</span>
+            </TabsTrigger>
+            <TabsTrigger value="liked24h" className="text-xs flex items-center gap-1">
+              <Heart className="h-3 w-3" />
+              <span className="hidden sm:inline">Liked 24h</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      
       <CardContent className="px-4 pb-3">
         <div className="space-y-4">
           {trendingTopics.length > 0 ? (
