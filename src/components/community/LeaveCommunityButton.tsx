@@ -30,12 +30,11 @@ const LeaveCommunityButton = ({ onLeave, communityName }: LeaveCommunityButtonPr
     <>
       <Button 
         variant="outline" 
-        className="flex items-center gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 border-red-200"
+        size="icon"
+        className="bg-background/80 backdrop-blur-sm border-none hover:bg-background/90"
         onClick={() => setShowConfirmation(true)}
-        size="sm"
       >
-        <UserMinus className="h-4 w-4" />
-        Leave Community
+        <UserMinus className="h-4 w-4 text-red-500" />
       </Button>
 
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
