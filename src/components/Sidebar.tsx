@@ -18,12 +18,6 @@ const Sidebar = () => {
       requiresAuth: false
     },
     {
-      name: "Explore",
-      icon: Hash,
-      href: "/explore",
-      requiresAuth: false
-    },
-    {
       name: "Notifications",
       icon: Bell,
       href: "/notifications",
