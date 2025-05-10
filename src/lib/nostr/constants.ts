@@ -8,7 +8,8 @@ export const EVENT_KINDS = {
   DIRECT_MESSAGE: 4,  // Encrypted direct messages (legacy)
   REACTION: 7,        // Reactions to notes
   ENCRYPTED_DM: 14,   // NIP-17 Encrypted Direct Messages
-  RELAY_LIST: 10050,  // Relay lists
+  RELAY_LIST: 10001,  // Legacy relay lists (older format)
+  NIP65_RELAY_LIST: 10002, // NIP-65 relay list kind
   COMMUNITY: 34550,   // Communities/DAOs
   PROPOSAL: 34551,    // Proposals within communities
   VOTE: 34552,        // Votes on proposals

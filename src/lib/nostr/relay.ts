@@ -9,7 +9,7 @@ export class RelayManager {
     'wss://relay.nostr.band',
     'wss://nostr.bitcoiner.social'
   ];
-  private _userRelays: Map<string, boolean> = new Map(); // Map of relay URLs to read/write status
+  private _userRelays: Map<string, {read: boolean; write: boolean}> = new Map(); // NIP-65 format
   private pool: SimplePool;
   
   constructor(pool: SimplePool) {
@@ -17,7 +17,7 @@ export class RelayManager {
     this.loadUserRelays();
   }
   
-  get userRelays(): Map<string, boolean> {
+  get userRelays(): Map<string, {read: boolean; write: boolean}> {
     return new Map(this._userRelays);
   }
   
@@ -26,14 +26,24 @@ export class RelayManager {
     if (savedRelays) {
       try {
         const relaysObject = JSON.parse(savedRelays);
-        this._userRelays = new Map(Object.entries(relaysObject));
+        // Convert to Map with read/write properties per NIP-65
+        this._userRelays = new Map(
+          Object.entries(relaysObject).map(([url, value]) => {
+            // Handle both old format (boolean) and new format (object with read/write)
+            if (typeof value === 'boolean') {
+              return [url, { read: true, write: value }];
+            } else {
+              return [url, value as {read: boolean; write: boolean}];
+            }
+          })
+        );
       } catch (e) {
         console.error('Error loading user relays:', e);
       }
     } else {
       // Default to the app's default relays
       this.defaultRelays.forEach(relay => {
-        this._userRelays.set(relay, true); // Read/write by default
+        this._userRelays.set(relay, { read: true, write: true }); // Read/write by default
       });
     }
   }
@@ -93,7 +103,7 @@ export class RelayManager {
     await Promise.all(promises);
   }
   
-  async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
+  async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
     // Validate URL format
     try {
       new URL(relayUrl);
@@ -101,7 +111,7 @@ export class RelayManager {
       return false;
     }
     
-    // Add to user relays
+    // Add to user relays with NIP-65 format
     this._userRelays.set(relayUrl, readWrite);
     this.saveUserRelays();
     
@@ -127,15 +137,15 @@ export class RelayManager {
     const relayMap = new Map<string, Relay>();
     
     // Add all user relays first (even if not connected)
-    Array.from(this._userRelays.keys()).forEach(url => {
+    Array.from(this._userRelays.entries()).forEach(([url, permissions]) => {
       const isConnected = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.OPEN;
       const isConnecting = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.CONNECTING;
       
       relayMap.set(url, {
         url,
         status: isConnected ? 'connected' : (isConnecting ? 'connecting' : 'disconnected'),
-        read: true,
-        write: !!this._userRelays.get(url)
+        read: permissions.read,
+        write: permissions.write
       });
     });
     
@@ -166,21 +176,37 @@ export class RelayManager {
     return Array.from(relayMap.values());
   }
   
-  // New method to add multiple relays at once
-  async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls.length) return 0;
+  // Update relay permissions
+  updateRelayPermissions(relayUrl: string, permissions: {read: boolean; write: boolean}): boolean {
+    if (!this._userRelays.has(relayUrl)) {
+      return false;
+    }
+    
+    this._userRelays.set(relayUrl, permissions);
+    this.saveUserRelays();
+    return true;
+  }
+  
+  // New method to add multiple relays at once with NIP-65 format
+  async addMultipleRelays(relays: {url: string, read: boolean, write: boolean}[]): Promise<number> {
+    if (!relays.length) return 0;
     
     let successCount = 0;
     
-    for (const url of relayUrls) {
+    for (const relay of relays) {
       try {
-        const success = await this.addRelay(url);
+        const success = await this.addRelay(relay.url, {read: relay.read, write: relay.write});
         if (success) successCount++;
       } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
+        console.error(`Failed to add relay ${relay.url}:`, error);
       }
     }
     
     return successCount;
+  }
+  
+  // Create a NIP-65 formatted relay list for publishing
+  getNIP65RelayList(): Record<string, {read: boolean, write: boolean}> {
+    return Object.fromEntries(this._userRelays);
   }
 }

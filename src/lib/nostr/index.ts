@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -53,7 +54,7 @@ class NostrService {
     return this.userManager.following;
   }
   
-  get userRelays(): Map<string, boolean> {
+  get userRelays(): Map<string, {read: boolean; write: boolean}> {
     return this.relayManager.userRelays;
   }
 
@@ -62,6 +63,8 @@ class NostrService {
     const success = await this.userManager.login();
     if (success) {
       await this.fetchFollowingList();
+      // Fetch relay list after login
+      await this.fetchRelayList();
     }
     return success;
   }
@@ -79,10 +82,10 @@ class NostrService {
     await this.relayManager.connectToUserRelays();
   }
   
-  public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
+  public async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
     const success = await this.relayManager.addRelay(relayUrl, readWrite);
     if (success) {
-      // Publish relay list to network
+      // Publish relay list to network using NIP-65
       await this.publishRelayList();
     }
     return success;
@@ -94,38 +97,94 @@ class NostrService {
     this.publishRelayList();
   }
   
+  public updateRelayPermissions(relayUrl: string, permissions: {read: boolean; write: boolean}): boolean {
+    const success = this.relayManager.updateRelayPermissions(relayUrl, permissions);
+    if (success) {
+      this.publishRelayList();
+    }
+    return success;
+  }
+  
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
   
-  // Method to add multiple relays at once
-  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls.length) return 0;
-    
-    let successCount = 0;
-    
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) successCount++;
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-      }
+  // Method to add multiple relays at once with NIP-65 format
+  public async addMultipleRelays(relays: {url: string, read: boolean, write: boolean}[]): Promise<number> {
+    const successCount = await this.relayManager.addMultipleRelays(relays);
+    if (successCount > 0) {
+      // Publish updated relay list
+      await this.publishRelayList();
     }
-    
     return successCount;
   }
   
-  // Method to get relays for a user
-  public async getRelaysForUser(pubkey: string): Promise<string[]> {
+  // Method to get relays for a user following NIP-65 standard
+  public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
     return new Promise((resolve) => {
-      const relays: string[] = [];
+      const relays: {url: string, read: boolean, write: boolean}[] = [];
       
-      // Subscribe to relay list event
+      // Subscribe to NIP-65 relay list event (kind 10002)
       const subId = this.subscribe(
         [
           {
-            kinds: [EVENT_KINDS.RELAY_LIST],
+            kinds: [10002], // NIP-65 relay list kind
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          try {
+            // Parse the relay list from tags
+            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+            
+            relayTags.forEach(tag => {
+              if (tag[1] && typeof tag[1] === 'string') {
+                let read = true;
+                let write = true;
+                
+                // Check if read/write permissions specified in tag
+                if (tag.length >= 3 && typeof tag[2] === 'string') {
+                  const relayPermission = tag[2].toLowerCase();
+                  read = relayPermission.includes('read');
+                  write = relayPermission.includes('write');
+                }
+                
+                relays.push({ url: tag[1], read, write });
+              }
+            });
+          } catch (error) {
+            console.error("Error parsing relay list:", error);
+          }
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        
+        // If no relays found via NIP-65, try the older NIP-01 kind (10001)
+        if (relays.length === 0) {
+          this.fetchLegacyRelayList(pubkey).then(legacyRelays => {
+            resolve(legacyRelays);
+          });
+        } else {
+          resolve(relays);
+        }
+      }, 3000);
+    });
+  }
+
+  // Fallback method to fetch relays from older NIP-01 format
+  private async fetchLegacyRelayList(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
+    return new Promise((resolve) => {
+      const relays: {url: string, read: boolean, write: boolean}[] = [];
+      
+      // Subscribe to the older relay list event kind
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST], // Older kind for relay list (10001)
             authors: [pubkey],
             limit: 1
           }
@@ -135,7 +194,16 @@ class NostrService {
           const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
           relayTags.forEach(tag => {
             if (tag[1] && typeof tag[1] === 'string') {
-              relays.push(tag[1]);
+              let read = true;
+              let write = true;
+              
+              // Check for permissions in third position
+              if (tag.length >= 3 && typeof tag[2] === 'string') {
+                read = tag[2].includes('read');
+                write = tag[2].includes('write');
+              }
+              
+              relays.push({ url: tag[1], read, write });
             }
           });
         }
@@ -415,15 +483,43 @@ class NostrService {
     }
   }
   
+  // Fetch user's NIP-65 relay list
+  private async fetchRelayList(): Promise<void> {
+    if (!this.publicKey) return;
+    
+    try {
+      await this.connectToDefaultRelays();
+      
+      // First try kind 10002 (NIP-65)
+      const nip65Relays = await this.getRelaysForUser(this.publicKey);
+      
+      if (nip65Relays.length > 0) {
+        // Add all relays from the user's NIP-65 list
+        await this.addMultipleRelays(nip65Relays);
+        console.log("Loaded NIP-65 relays:", nip65Relays);
+      }
+    } catch (error) {
+      console.error("Error fetching relay list:", error);
+    }
+  }
+  
+  // Publish relay list according to NIP-65
   private async publishRelayList(): Promise<string | null> {
     if (!this.publicKey) return null;
     
+    // Create relay list tags in NIP-65 format
     const relayList = Array.from(this.userRelays.entries()).map(
-      ([url, readWrite]) => ['r', url, readWrite ? 'read write' : 'read']
+      ([url, {read, write}]) => {
+        const permission = [];
+        if (read) permission.push('read');
+        if (write) permission.push('write');
+        return ['r', url, permission.join(' ')];
+      }
     );
     
+    // Create and publish the NIP-65 event (kind 10002)
     const event = {
-      kind: EVENT_KINDS.RELAY_LIST,
+      kind: 10002, // NIP-65 relay list kind
       content: '',
       tags: relayList
     };
