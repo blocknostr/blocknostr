@@ -50,13 +50,13 @@ export const createGlobalFeedFilters = (
   let filters: any[] = [
     {
       kinds: [1], // Regular notes
-      limit: 30, // Increased for better doomscrolling
+      limit: 50, // Increased limit for better post loading
       ...(since && { since }),
       ...(until && { until })
     },
     {
       kinds: [6], // Reposts
-      limit: 20,
+      limit: 30, // Increased limit for reposts
       ...(since && { since }),
       ...(until && { until })
     }

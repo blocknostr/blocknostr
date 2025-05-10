@@ -85,8 +85,8 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
             
             const newEvents = [...prev, event];
             
-            // Sort by creation time (oldest first to show newest at bottom)
-            newEvents.sort((a, b) => a.created_at - b.created_at);
+            // Sort by creation time (newest first to show newest at top)
+            newEvents.sort((a, b) => b.created_at - a.created_at);
             
             // If we've reached the limit, set hasMore to false
             if (newEvents.length >= 200) { // Increased limit for better doomscrolling
@@ -116,7 +116,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     
     // Use our utility to load more events
     loadMoreGlobalFeedEvents(
-      since || Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 2,
+      since || Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 3, // Load from the last 3 days if no since value
       until,
       setupSubscription,
       isLoadingMore,
@@ -142,8 +142,8 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
         // Reset the timestamp range for new subscription
         const currentTime = resetPagination();
 
-        // Start a new subscription
-        setupSubscription(currentTime - 24 * 60 * 60 * 2, currentTime);
+        // Start a new subscription - load from last 3 days for better initial content
+        setupSubscription(currentTime - 24 * 60 * 60 * 3, currentTime);
       } catch (error) {
         console.error("Error initializing global feed:", error);
         setLoading(false);
@@ -162,10 +162,12 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
 
   // Mark the loading as finished when we get events
   useEffect(() => {
-    if (events.length > 0 && loading && !isLoadingMore) {
-      setLoading(false);
+    if (events.length > 0 && loading) {
+      setTimeout(() => {
+        setLoading(false);
+      }, 500); // Small delay to prevent UI flicker
     }
-  }, [events, loading, isLoadingMore, setLoading]);
+  }, [events, loading, setLoading]);
 
   const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
     if (!isRetweeted) {

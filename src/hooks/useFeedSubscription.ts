@@ -36,8 +36,8 @@ export const useFeedSubscription = ({ filters, onEventReceived }: UseFeedSubscri
               return prev;
             }
             
-            // Add new event and sort by creation time (oldest first to show newest at bottom)
-            return [...prev, originalEvent].sort((a, b) => a.created_at - b.created_at);
+            // Add new event and sort by creation time (newest first)
+            return [...prev, originalEvent].sort((a, b) => b.created_at - a.created_at);
           });
           
           // Fetch profile data for this pubkey if we don't have it yet
@@ -69,8 +69,8 @@ export const useFeedSubscription = ({ filters, onEventReceived }: UseFeedSubscri
             
             const newEvents = [...prev, event];
             
-            // Sort by creation time (oldest first to show newest at bottom)
-            return newEvents.sort((a, b) => a.created_at - b.created_at);
+            // Sort by creation time (newest first)
+            return newEvents.sort((a, b) => b.created_at - a.created_at);
           });
           
           // Call the onEventReceived callback if provided
