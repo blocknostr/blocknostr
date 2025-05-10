@@ -76,6 +76,12 @@ const PostPage = () => {
     navigate(-1);
   };
   
+  // Handle replies being added to a post
+  const handleReplyAdded = () => {
+    // Could refetch the post or update local state
+    console.log("Reply added to post");
+  };
+  
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -112,12 +118,16 @@ const PostPage = () => {
               <NoteCard 
                 event={event} 
                 profileData={profileData}
-                showFullContent 
+                onDelete={handleBack}
               />
               
               <div className="mt-6">
                 <h2 className="text-lg font-semibold mb-4">Responses</h2>
-                <NoteCardComments eventId={event.id} />
+                <NoteCardComments 
+                  eventId={event.id} 
+                  pubkey={event.pubkey}
+                  onReplyAdded={handleReplyAdded}
+                />
               </div>
             </>
           )}

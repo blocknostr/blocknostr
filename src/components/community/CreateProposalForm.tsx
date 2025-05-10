@@ -41,12 +41,16 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       // Calculate endsAt based on the proposalDuration in days
       const endsAt = Math.floor(Date.now() / 1000) + (proposalDuration * 24 * 60 * 60);
       
+      const proposalData = {
+        title: newProposalTitle.trim(),
+        description: newProposalDesc.trim(),
+        options: newProposalOptions.filter(opt => opt.trim() !== ""),
+        endsAt: endsAt
+      };
+      
       const proposalId = await nostrService.createProposal(
         communityId,
-        newProposalTitle.trim(),
-        newProposalDesc.trim(),
-        newProposalOptions.filter(opt => opt.trim() !== ""),
-        endsAt
+        proposalData
       );
       
       if (proposalId) {

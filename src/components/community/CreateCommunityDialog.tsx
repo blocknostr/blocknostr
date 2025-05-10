@@ -36,10 +36,11 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
     setIsCreatingCommunity(true);
     
     try {
-      const communityId = await nostrService.createCommunity(
-        newCommunityName.trim(),
-        newCommunityDesc.trim()
-      );
+      const communityId = await nostrService.createCommunity({
+        name: newCommunityName.trim(),
+        description: newCommunityDesc.trim(),
+        id: `community-${Date.now()}` // Generate a unique ID
+      });
       
       if (communityId) {
         toast.success("Community created successfully!");

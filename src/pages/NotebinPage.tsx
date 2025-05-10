@@ -37,6 +37,11 @@ const NotebinPage = () => {
     navigate(-1);
   };
   
+  const handleNoteSaved = (noteId: string) => {
+    toast.success("Note saved successfully");
+    navigate(`/notebin/${noteId}`);
+  };
+  
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -69,12 +74,12 @@ const NotebinPage = () => {
                   Create and share text snippets, markdown documents, and more. Your notes are saved to the Nostr network and can be accessed from any device.
                 </div>
                 <Separator />
-                <NoteEditor />
+                <NoteEditor onNoteSaved={handleNoteSaved} />
               </div>
             </TabsContent>
             
             <TabsContent value="view">
-              <NotesList noteId={id} />
+              <NotesList selectedId={id} />
             </TabsContent>
           </Tabs>
         </div>

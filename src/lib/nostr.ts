@@ -1,4 +1,3 @@
-
 import {
   nip19,
   getEventHash,
@@ -118,9 +117,10 @@ class NostrService {
   }
 
   async generateNewKeys() {
-    // Use nip06 to generate keys
-    this._privateKey = nip06.generatePrivateKey();
-    this._publicKey = getPublicKey(this._privateKey);
+    // Generate a new private key using nip06
+    const privateKeyHex = nip06.generatePrivateKey();
+    this._privateKey = privateKeyHex;
+    this._publicKey = getPublicKey(privateKeyHex);
     
     // Store the private key securely (e.g., using nip19)
     const encodedPrivateKey = nip19.nsecEncode(this._privateKey);
@@ -287,13 +287,14 @@ class NostrService {
     callback: (event: NostrEvent) => void
   ): string {
     try {
-      const sub = this.pool.sub(filters);
-      
-      sub.on('event', (event: NostrEvent) => {
-        callback(event);
+      // Use the SimplePool's subscribe method instead of sub
+      const sub = this.pool.subscribeMany(this.getConnectedRelays(), filters, {
+        onevent: (event: NostrEvent) => {
+          callback(event);
+        }
       });
       
-      return sub.id || `sub_${Date.now()}`;
+      return sub; // SimplePool returns id directly
     } catch (error) {
       console.error("Error subscribing:", error);
       return `error_${Date.now()}`;
@@ -301,17 +302,25 @@ class NostrService {
   }
 
   batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): any {
-    const sub = this.pool.sub(filters);
-    
-    sub.on('event', (event: NostrEvent) => {
-      callback(event);
+    // Use the SimplePool's subscribe method instead of sub
+    const sub = this.pool.subscribeMany(this.getConnectedRelays(), filters, {
+      onevent: (event: NostrEvent) => {
+        callback(event);
+      }
     });
     
     return sub;
   }
 
   unsubscribe(subscriptionId: string) {
-    this.pool.close([subscriptionId]);
+    this.pool.unsubscribe(subscriptionId);
+  }
+
+  // Helper method to get all connected relay URLs
+  private getConnectedRelays(): string[] {
+    return Object.entries(this.relayConnections)
+      .filter(([_, conn]) => conn.status === 'connected')
+      .map(([url, _]) => url);
   }
 
   async publishEvent(event: any): Promise<string | null> {
@@ -536,14 +545,13 @@ class NostrService {
     return await this.publishEvent(event);
   }
   
-  async voteOnProposal(proposalId: string, communityId: string, vote: 'up' | 'down'): Promise<string | null> {
+  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
     // Implement voting logic
     const event = {
       kind: 34552, // Community vote
-      content: vote,
+      content: optionIndex.toString(),
       tags: [
         ['e', proposalId], // Reference to proposal
-        ['a', `34550:${this._publicKey}:${communityId}`], // Reference to community
       ]
     };
     

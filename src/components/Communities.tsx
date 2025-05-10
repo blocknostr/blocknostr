@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -7,7 +6,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Users } from "lucide-react";
 import { nostrService, EVENT_KINDS } from "@/lib/nostr";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
-import { useToast } from "./ui/use-toast";
+import { toast } from "sonner";
 
 interface CommunitiesProps {
   limit?: number;
@@ -24,7 +23,6 @@ const Communities = ({
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
   
   useEffect(() => {
     const fetchCommunities = async () => {
@@ -237,9 +235,8 @@ const Communities = ({
       )}
       
       <CreateCommunityDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
-        onCreateCommunity={handleCreateCommunity}
+        isOpen={isCreateDialogOpen}
+        setIsOpen={setIsCreateDialogOpen}
       />
     </div>
   );

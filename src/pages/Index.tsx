@@ -6,14 +6,14 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import TrendingSection from "@/components/TrendingSection";
 import WhoToFollow from "@/components/WhoToFollow";
 import { nostrService, EVENT_KINDS } from "@/lib/nostr";
-import { useMediaQuery } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const { hashtag } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = !useIsMobile();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(hashtag);
   
   // Listen for changes from URL parameters

@@ -8,18 +8,28 @@ import { Link } from "react-router-dom";
 
 interface NoteCardActionsProps {
   eventId: string;
+  pubkey?: string;
+  replyCount?: number;
   reposted?: boolean;
   liked?: boolean;
   disliked?: boolean;
   showReplyButton?: boolean;
+  onCommentClick?: () => void;
+  isAuthor?: boolean;
+  onDelete?: () => void;
 }
 
 const NoteCardActions = ({ 
-  eventId, 
+  eventId,
+  pubkey,
+  replyCount = 0, 
   reposted = false, 
   liked = false, 
   disliked = false,
-  showReplyButton = true
+  showReplyButton = true,
+  onCommentClick,
+  isAuthor = false,
+  onDelete
 }: NoteCardActionsProps) => {
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(liked);
@@ -181,11 +191,18 @@ const NoteCardActions = ({
   
   return (
     <div className="flex justify-between mt-2">
-      {showReplyButton && (
+      {showReplyButton && onCommentClick && (
+        <Button variant="ghost" size="sm" onClick={onCommentClick}>
+          <MessageCircle className="h-4 w-4 mr-1" />
+          <span className="text-xs">Reply{replyCount > 0 ? ` (${replyCount})` : ''}</span>
+        </Button>
+      )}
+      
+      {showReplyButton && !onCommentClick && (
         <Button variant="ghost" size="sm" asChild>
           <Link to={`/note/${eventId}`}>
             <MessageCircle className="h-4 w-4 mr-1" />
-            <span className="text-xs">Reply</span>
+            <span className="text-xs">Reply{replyCount > 0 ? ` (${replyCount})` : ''}</span>
           </Link>
         </Button>
       )}
