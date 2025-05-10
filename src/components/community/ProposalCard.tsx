@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
@@ -252,7 +251,7 @@ const ProposalCard = ({
           
           {/* Discord-style chat section */}
           {isExpanded && (
-            <div className="mt-4 pt-4 border-t w-full max-h-[400px] overflow-hidden rounded-md border">
+            <div className="mt-4 pt-4 border-t w-full max-h-[500px] overflow-hidden rounded-md border">
               <DiscordStyleChat 
                 proposalId={proposal.id} 
                 communityId={communityId}
