@@ -4,20 +4,20 @@ import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileData } from "./useProfileData";
 import { useNostrEvents } from "./useNostrEvents";
 
-interface UseFollowingFeedProps {
+interface UseGlobalFeedProps {
   activeHashtag?: string;
 }
 
-export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
+export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({});
-  const following = nostrService.following;
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [subId, setSubId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [filteredEvents, setFilteredEvents] = useState<NostrEvent[]>([]);
   
   const { fetchProfileData } = useProfileData();
   const { fetchOriginalPost: fetchOriginalPostBase } = useNostrEvents();
@@ -25,6 +25,10 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
   const fetchOriginalPost = useCallback((eventId: string) => {
     fetchOriginalPostBase(eventId, profiles, setEvents, fetchProfileData, setProfiles);
   }, [profiles, fetchOriginalPostBase, fetchProfileData]);
+  
+  useEffect(() => {
+    setFilteredEvents(events);
+  }, [events]);
 
   const handleRepostEvent = useCallback((event: NostrEvent) => {
     try {
@@ -73,23 +77,16 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
   }, [fetchOriginalPost]);
 
   const setupSubscription = useCallback((since: number, until?: number) => {
-    if (following.length === 0) {
-      setLoading(false);
-      return null;
-    }
-    
-    // Create filters for followed users
+    // Create filters for the nostr subscription
     let filters: any[] = [
       {
         kinds: [1], // Regular notes
-        authors: following,
-        limit: 50,
+        limit: 20,
         since: since,
         until: until
       },
       {
         kinds: [6], // Reposts
-        authors: following,
         limit: 20,
         since: since,
         until: until
@@ -98,18 +95,19 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
     
     // If we have an active hashtag, filter by it
     if (activeHashtag) {
+      // Add tag filter
       filters = [
         {
           ...filters[0],
           "#t": [activeHashtag.toLowerCase()]
         },
         {
-          ...filters[1] // Keep the reposts filter
+          ...filters[1], // Keep the reposts filter
         }
       ];
     }
-    
-    // Subscribe to events
+
+    // Subscribe to text notes and reposts
     const newSubId = nostrService.subscribe(
       filters,
       (event) => {
@@ -144,12 +142,12 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
         }
       }
     );
-    
+
     return newSubId;
-  }, [following, activeHashtag, profiles, handleRepostEvent, fetchProfileData]);
+  }, [activeHashtag, profiles, handleRepostEvent, fetchProfileData]);
 
   const loadMoreEvents = useCallback(() => {
-    if (!subId || following.length === 0) return;
+    if (!subId) return;
     
     // Close previous subscription
     if (subId) {
@@ -164,7 +162,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -175,7 +173,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -184,7 +182,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  }, [subId, following, events, since, until, setupSubscription]);
+  }, [subId, events, since, until, setupSubscription]);
 
   // Initialize feed
   useEffect(() => {
@@ -196,35 +194,33 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
       setEvents([]);
       setHasMore(true);
       setLoading(true);
-      
+
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
       setSince(undefined);
       setUntil(currentTime);
-      
+
       // Close previous subscription if exists
       if (subId) {
         nostrService.unsubscribe(subId);
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      
-      if (following.length === 0) {
-        setLoading(false);
-      }
+      setLoading(false);
     };
     
     initFeed();
     
+    // Cleanup subscription when component unmounts
     return () => {
       if (subId) {
         nostrService.unsubscribe(subId);
       }
     };
-  }, [following, activeHashtag, setupSubscription, subId]);
-  
+  }, [activeHashtag, setupSubscription, subId]);
+
   // Mark the loading as finished when we get events
   useEffect(() => {
     if (events.length > 0 && loading) {
@@ -232,13 +228,20 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
     }
   }, [events, loading]);
 
+  const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
+    if (!isRetweeted) {
+      // Filter out the unreposted event
+      setFilteredEvents(prev => prev.filter(event => event.id !== eventId));
+    }
+  };
+
   return {
-    events,
+    events: filteredEvents,
     profiles,
     repostData,
     loading,
     hasMore,
     loadMoreEvents,
-    following
+    handleRetweetStatusChange
   };
 };
