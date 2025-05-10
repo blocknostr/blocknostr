@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
@@ -76,7 +75,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     fetchReplyCount();
   }, [event.id, event.created_at]);
   
-  const handleCommentClick = () => {
+  const handleCommentClick = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setShowComments(!showComments);
   };
   
@@ -86,7 +86,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   
   const isCurrentUserAuthor = event.pubkey === nostrService.publicKey;
   
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation(); 
     setIsDeleteDialogOpen(true);
   };
   
@@ -150,10 +151,10 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
           </CardContent>
         </Link>
         
-        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1">
+        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
           <NoteCardActions 
             eventId={event.id || ''} 
-            pubkey={event.pubkey || ''} 
+            pubkey={event.pubkey || ''}
             onCommentClick={handleCommentClick} 
             replyCount={replyCount}
             isAuthor={isCurrentUserAuthor}

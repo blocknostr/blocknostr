@@ -15,4 +15,10 @@ export const EVENT_KINDS = {
   COMMENT: 34553,     // Comments on proposals
   KICK_PROPOSAL: 34554, // Proposal to kick a member
   KICK_VOTE: 34555,   // Vote on kick proposal
+  
+  // NIP-51 Lists
+  BOOKMARK_LIST: 30001,  // Bookmarks list
+  MUTE_LIST: 10000,      // Muted users/posts
+  PIN_LIST: 10001,       // Pinned notes
+  CURATED_LIST: 30000,   // Generic lists
 };

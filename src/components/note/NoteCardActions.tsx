@@ -1,264 +1,268 @@
 
-import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { nostrService } from '@/lib/nostr';
-import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
+import { toast } from 'sonner';
+import { 
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 interface NoteCardActionsProps {
   eventId: string;
   pubkey: string;
-  onCommentClick: () => void;
-  replyCount: number;
-  onDelete?: () => void;
+  onCommentClick?: () => void;
+  replyCount?: number;
   isAuthor?: boolean;
+  onDelete?: () => void;
+  reposterPubkey?: string | null;
+  showRepostHeader?: boolean;
 }
 
-const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete, isAuthor }: NoteCardActionsProps) => {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [retweeted, setRetweeted] = useState(false);
-  const [retweetCount, setRetweetCount] = useState(0);
-  const [tipCount, setTipCount] = useState(0);
-  const [repostId, setRepostId] = useState<string | null>(null);
+const NoteCardActions = ({ 
+  eventId, 
+  pubkey,
+  onCommentClick,
+  replyCount = 0,
+  isAuthor = false,
+  onDelete,
+  reposterPubkey, 
+  showRepostHeader
+}: NoteCardActionsProps) => {
+  const [isLiked, setIsLiked] = useState(false);
+  const [isReposted, setIsReposted] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isBookmarkPending, setIsBookmarkPending] = useState(false);
+  const isLoggedIn = !!nostrService.publicKey;
   
-  // Fetch reaction counts when component mounts
+  // Check bookmarked status on mount
   useEffect(() => {
-    const fetchReactions = async () => {
-      await nostrService.connectToDefaultRelays();
-      
-      // Subscribe to reactions for this post
-      const reactionSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [7], // Reaction events
-            '#e': [eventId], // For this post
-            limit: 100
-          }
-        ],
-        (event) => {
-          // Check if it's a like ('+')
-          if (event.content === '+') {
-            setLikeCount(prev => prev + 1);
-            
-            // Check if current user liked
-            if (event.pubkey === nostrService.publicKey) {
-              setLiked(true);
-            }
-          }
-        }
-      );
-      
-      // Subscribe to reposts
-      const repostSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [6], // Repost events
-            '#e': [eventId], // For this post
-            limit: 50
-          }
-        ],
-        (event) => {
-          setRetweetCount(prev => prev + 1);
-          
-          // Check if current user reposted
-          if (event.pubkey === nostrService.publicKey) {
-            setRetweeted(true);
-            setRepostId(event.id); // Store repost ID for undoing later
-          }
-        }
-      );
-      
-      // Subscribe to zap (tip) events - simplified simulation
-      // In a real implementation, we would look for zap receipts
-      const zapSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [9735], // Zap receipts
-            '#e': [eventId], // For this post
-            limit: 50
-          }
-        ],
-        (event) => {
-          setTipCount(prev => prev + 1);
-        }
-      );
-      
-      // Cleanup subscriptions after data is loaded
-      setTimeout(() => {
-        nostrService.unsubscribe(reactionSubId);
-        nostrService.unsubscribe(repostSubId);
-        nostrService.unsubscribe(zapSubId);
-      }, 5000);
+    const checkBookmarkStatus = async () => {
+      if (isLoggedIn) {
+        const bookmarked = await nostrService.isBookmarked(eventId);
+        setIsBookmarked(bookmarked);
+      }
     };
     
-    fetchReactions();
-    
-    // Also set some initial numbers if we have no real data yet
-    // This is just for UI demonstration purposes
-    if (Math.random() > 0.5) {
-      setLikeCount(Math.floor(Math.random() * 20));
-      setRetweetCount(Math.floor(Math.random() * 10));
-      setTipCount(Math.floor(Math.random() * 5));
-    }
-  }, [eventId, nostrService.publicKey]);
+    checkBookmarkStatus();
+  }, [eventId, isLoggedIn]);
   
   const handleLike = async () => {
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to like posts");
+      return;
+    }
+    
     try {
-      if (!liked) {
-        // Create a reaction event (kind 7)
-        await nostrService.publishEvent({
-          kind: 7,
-          content: '+',  // '+' for like
-          tags: [['e', eventId || ''], ['p', pubkey || '']]
-        });
-        
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      } else {
-        // Remove like by publishing a reaction with '-'
-        await nostrService.publishEvent({
-          kind: 7,
-          content: '-',  // '-' for unlike
-          tags: [['e', eventId || ''], ['p', pubkey || '']]
-        });
-        
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-        toast.success("Like removed");
+      // Optimistically update UI
+      setIsLiked(true);
+      
+      // Create and publish reaction event
+      const event = {
+        kind: 7, // Reaction
+        content: "+", // "+" means like
+        tags: [
+          ['e', eventId], // Reference to the post being liked
+        ]
+      };
+      
+      const result = await nostrService.publishEvent(event);
+      
+      if (!result) {
+        // If failed, revert UI
+        setIsLiked(false);
+        toast.error("Failed to like post");
       }
     } catch (error) {
-      console.error("Error toggling like:", error);
-      toast.error("Failed to toggle like");
+      console.error("Error liking post:", error);
+      setIsLiked(false);
+      toast.error("Failed to like post");
     }
   };
-
-  const handleRetweet = async () => {
+  
+  const handleRepost = async () => {
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to repost");
+      return;
+    }
+    
     try {
-      if (!retweeted) {
-        // Create a repost event
-        const repostEventId = await nostrService.publishEvent({
-          kind: 6, // Repost kind
-          content: JSON.stringify({
-            event: { id: eventId, pubkey }
-          }),
-          tags: [
-            ['e', eventId || ''], // Reference to original note
-            ['p', pubkey || ''] // Original author
-          ]
-        });
-        
-        setRetweeted(true);
-        setRetweetCount(prev => prev + 1);
-        setRepostId(repostEventId); // Store repost ID
-        toast.success("Note reposted successfully");
+      // Optimistically update UI
+      setIsReposted(true);
+      
+      // Create repost event (kind 6)
+      const event = {
+        kind: 6, // Repost
+        content: "", // Empty content for standard reposts
+        tags: [
+          ['e', eventId], // Reference to the post being reposted
+        ]
+      };
+      
+      const result = await nostrService.publishEvent(event);
+      
+      if (!result) {
+        // If failed, revert UI
+        setIsReposted(false);
+        toast.error("Failed to repost");
       } else {
-        // If we have the repost ID, we can delete it using a deletion event (kind 5)
-        if (repostId) {
-          await nostrService.publishEvent({
-            kind: 5, // Deletion event
-            content: "Removing repost",
-            tags: [
-              ['e', repostId] // Reference to the repost event we want to delete
-            ]
-          });
-          
-          setRetweeted(false);
-          setRetweetCount(prev => Math.max(0, prev - 1));
-          setRepostId(null);
-          toast.success("Repost removed");
+        toast.success("Post reposted");
+      }
+    } catch (error) {
+      console.error("Error reposting:", error);
+      setIsReposted(false);
+      toast.error("Failed to repost");
+    }
+  };
+  
+  // Use useCallback to prevent unnecessary recreations of the function
+  const handleBookmark = useCallback(async (e: React.MouseEvent) => {
+    // Prevent event bubbling to parent elements
+    e.stopPropagation();
+    
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to bookmark posts");
+      return;
+    }
+    
+    // If an operation is already pending, don't allow another one
+    if (isBookmarkPending) {
+      return;
+    }
+    
+    try {
+      setIsBookmarkPending(true);
+      
+      if (isBookmarked) {
+        // Remove bookmark
+        setIsBookmarked(false); // Optimistically update UI
+        const result = await nostrService.removeBookmark(eventId);
+        if (result) {
+          toast.success("Bookmark removed");
         } else {
-          toast.info("Cannot undo repost - repost ID not found");
+          setIsBookmarked(true); // Revert if failed
+          toast.error("Failed to remove bookmark");
+        }
+      } else {
+        // Add bookmark
+        setIsBookmarked(true); // Optimistically update UI
+        const result = await nostrService.addBookmark(eventId);
+        if (result) {
+          toast.success("Post bookmarked");
+        } else {
+          setIsBookmarked(false); // Revert if failed
+          toast.error("Failed to bookmark post");
         }
       }
     } catch (error) {
-      console.error("Error toggling retweet:", error);
-      toast.error("Failed to toggle repost");
+      console.error("Error bookmarking post:", error);
+      setIsBookmarked(!isBookmarked); // Revert UI state
+      toast.error("Failed to update bookmark");
+    } finally {
+      setIsBookmarkPending(false);
+    }
+  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending]);
+  
+  // Handle comment click with event stopping
+  const handleCommentButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onCommentClick) {
+      onCommentClick();
     }
   };
   
-  const handleSendTip = () => {
-    toast.info("Tipping functionality coming soon!");
-  };
-  
-  const handleDelete = () => {
+  // Handle delete click with event stopping
+  const handleDeleteButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (onDelete) {
       onDelete();
     }
   };
-
+  
   return (
-    <div className="flex justify-between pt-0 flex-wrap w-full gap-1">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          onCommentClick();
-        }}
-      >
-        <MessageCircle className="h-4 w-4 mr-1" />
-        {replyCount > 0 && <span className="text-xs font-medium">{replyCount}</span>}
-      </Button>
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${retweeted 
-          ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
-          : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleRetweet();
-        }}
-      >
-        <Repeat className="h-4 w-4 mr-1" />
-        {retweetCount > 0 && <span className="text-xs font-medium">{retweetCount}</span>}
-      </Button>
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${liked 
-          ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
-          : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleLike();
-        }}
-      >
-        <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
-        {likeCount > 0 && <span className="text-xs font-medium">{likeCount}</span>}
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          handleSendTip();
-        }}
-      >
-        <DollarSign className="h-4 w-4 mr-1" />
-        {tipCount > 0 && <span className="text-xs font-medium">{tipCount}</span>}
-      </Button>
-      
-      {isAuthor && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full ml-auto"
-          onClick={(e) => {
-            e.preventDefault();
-            handleDelete();
-          }}
+    <div className="flex items-center justify-between pt-2">
+      <div className="flex items-center space-x-5">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
+          onClick={handleLike}
+          title="Like"
         >
-          <Trash2 className="h-4 w-4 mr-1" />
-          <span className="text-xs">Delete</span>
+          <Heart className="h-[18px] w-[18px]" />
         </Button>
-      )}
+        
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
+          onClick={handleRepost}
+          title="Repost"
+          disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
+        >
+          <Repeat className="h-[18px] w-[18px]" />
+        </Button>
+        
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
+          onClick={handleCommentButtonClick}
+          title="Reply"
+        >
+          <MessageSquare className="h-[18px] w-[18px]" />
+          {replyCount > 0 && (
+            <span className="ml-1 text-xs">{replyCount}</span>
+          )}
+        </Button>
+        
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
+              title="Bookmark"
+              onClick={handleBookmark}
+              disabled={isBookmarkPending}
+            >
+              <Bookmark className="h-[18px] w-[18px]" />
+            </Button>
+          </ContextMenuTrigger>
+          <ContextMenuContent onClick={(e) => e.stopPropagation()}>
+            <ContextMenuItem onClick={(e) => {
+              e.preventDefault();
+              handleBookmark(e as unknown as React.MouseEvent);
+            }}>
+              {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+        
+        {isAuthor && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover:text-red-500 hover:bg-red-500/10"
+            onClick={handleDeleteButtonClick}
+            title="Delete"
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </Button>
+        )}
+      </div>
+      
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="rounded-full hover:text-primary hover:bg-primary/10"
+        title="Share"
+      >
+        <Share className="h-[18px] w-[18px]" />
+      </Button>
     </div>
   );
 };
