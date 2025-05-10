@@ -673,6 +673,151 @@ class NostrService {
       return npub;
     }
   }
+  
+  // Add the missing getUserProfile method
+  public async getUserProfile(pubkey: string): Promise<{
+    name?: string;
+    displayName?: string;
+    picture?: string;
+    nip05?: string;
+    about?: string;
+    banner?: string;
+    website?: string;
+    lud16?: string;
+    [key: string]: any;
+  } | null> {
+    if (!pubkey) return null;
+    
+    try {
+      await this.connectToUserRelays();
+      
+      return new Promise((resolve) => {
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.META],
+              authors: [pubkey],
+              limit: 1
+            }
+          ],
+          (event) => {
+            try {
+              const profile = JSON.parse(event.content);
+              
+              // Convert to camelCase if needed
+              const formattedProfile = {
+                ...profile,
+                displayName: profile.display_name || profile.displayName || undefined,
+              };
+              
+              resolve(formattedProfile);
+              
+              // Cleanup subscription after receiving the profile
+              setTimeout(() => {
+                this.unsubscribe(subId);
+              }, 100);
+            } catch (e) {
+              console.error("Error parsing profile:", e);
+              resolve(null);
+            }
+          }
+        );
+        
+        // Set a timeout to resolve with null if no profile is found
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(null);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  }
+  
+  // Add the verifyNip05 method
+  public async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
+    try {
+      if (!identifier || !identifier.includes('@')) {
+        return false;
+      }
+  
+      const [name, domain] = identifier.split('@');
+      if (!name || !domain) {
+        return false;
+      }
+  
+      // Fetch from /.well-known/nostr.json
+      const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
+      
+      // Fetch the data
+      const response = await fetch(url);
+      if (!response.ok) {
+        return false;
+      }
+  
+      // Parse the JSON response
+      const data = await response.json();
+      
+      // NIP-05 specifies that the JSON should contain a "names" object
+      // with usernames as keys and pubkeys as values
+      if (!data.names || !data.names[name]) {
+        return false;
+      }
+  
+      // Check if the resolved pubkey matches the expected pubkey
+      return data.names[name] === pubkey;
+    } catch (error) {
+      console.error('Error verifying NIP-05 identifier:', error);
+      return false;
+    }
+  }
+  
+  // Add fetchNip05Data method
+  public async fetchNip05Data(identifier: string): Promise<{
+    relays?: Record<string, { read: boolean; write: boolean }>;
+    [key: string]: any;
+  } | null> {
+    try {
+      if (!identifier || !identifier.includes('@')) {
+        return null;
+      }
+  
+      const [name, domain] = identifier.split('@');
+      if (!name || !domain) {
+        return null;
+      }
+  
+      // Fetch from /.well-known/nostr.json
+      const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
+      
+      // Fetch the data
+      const response = await fetch(url);
+      if (!response.ok) {
+        return null;
+      }
+  
+      // Parse the JSON response
+      const data = await response.json();
+      
+      // If we have relays data for this user, return it
+      const result: { relays?: Record<string, { read: boolean; write: boolean }> } = {};
+      
+      if (data.names && data.names[name] && data.relays && data.relays[data.names[name]]) {
+        result.relays = {};
+        
+        // Format relays data according to our internal format
+        for (const relay of data.relays[data.names[name]]) {
+          result.relays[relay] = { read: true, write: true };
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching NIP-05 data:', error);
+      return null;
+    }
+  }
 }
 
 // Create singleton instance
