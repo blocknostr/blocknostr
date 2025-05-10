@@ -6,6 +6,7 @@ import NoteCardHeader from './note/NoteCardHeader';
 import NoteCardContent from './note/NoteCardContent';
 import NoteCardActions from './note/NoteCardActions';
 import NoteCardComments from './note/NoteCardComments';
+import { Link } from 'react-router-dom';
 import RepostHeader from './note/RepostHeader';
 import DeleteNoteDialog from './note/DeleteNoteDialog';
 import { useNoteReachCount } from '@/hooks/useNoteReachCount';
@@ -28,31 +29,20 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const { reachCount } = useNoteReachCount(event.created_at);
   const { replyCount, handleReplyAdded } = useNoteReplies(event.id || '');
   
-  const handleCommentClick = (e: React.MouseEvent) => {
+  const handleCommentClick = () => {
     setShowComments(!showComments);
   };
   
   const isCurrentUserAuthor = event.pubkey === nostrService.publicKey;
   
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const handleDeleteClick = () => {
     setIsDeleteDialogOpen(true);
-  };
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent navigation if the click is handled by child elements
-    if ((e.target as HTMLElement).closest('button')) {
-      return;
-    }
-    window.location.href = `/post/${event.id}`;
   };
 
   return (
     <>
       <Card className="mb-4 hover:bg-accent/5 transition-colors border-accent/10 shadow-sm overflow-hidden">
-        <div 
-          onClick={handleCardClick}
-          className="cursor-pointer"
-        >
+        <Link to={`/post/${event.id}`} className="block cursor-pointer">
           {repostData && (
             <RepostHeader 
               reposterPubkey={repostData.reposterPubkey}
@@ -71,7 +61,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
               reachCount={reachCount}
             />
           </CardContent>
-        </div>
+        </Link>
         
         <CardFooter className="pt-0 px-5 pb-2">
           <NoteCardActions 

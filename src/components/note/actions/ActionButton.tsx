@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ReactNode } from "react";
 
 interface ActionButtonProps {
-  onClick: (e?: React.MouseEvent) => void;
+  onClick: (e: React.MouseEvent) => void;
   icon: ReactNode;
   label: string;
   count?: number;
@@ -22,25 +22,21 @@ const ActionButton = ({
   hoverClass = "hover:bg-gray-100"
 }: ActionButtonProps) => {
   return (
-    <div className="flex items-center gap-1.5 mx-0 py-0 px-[24px] my-0 center align">
+    <div className="flex items-center gap-1">
       <Button 
         variant="ghost" 
         size="sm" 
-        className={`rounded-full p-2 h-8 w-8 ${active ? activeClass : "text-muted-foreground"} ${hoverClass}`} 
-        onClick={e => {
-          e.preventDefault();
-          e.stopPropagation(); // Prevent event bubbling
-          onClick(e);
-        }} 
-        aria-label={label}
+        onClick={onClick}
+        aria-label={label} 
+        className={`p-2 rounded-full ${active ? activeClass : ''} ${hoverClass} transition-colors`}
       >
         {icon}
       </Button>
-      {count !== undefined && count > 0 && (
+      {count !== undefined && count > 0 && 
         <span className="text-xs font-medium text-muted-foreground">
           {count}
         </span>
-      )}
+      }
     </div>
   );
 };

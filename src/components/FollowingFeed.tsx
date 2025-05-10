@@ -1,269 +1,57 @@
 
-import { useEffect, useState } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
-import NoteCard from "./NoteCard";
+import { useFollowingFeed } from "@/hooks/useFollowingFeed";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import FollowingFeedEmpty from "./following/FollowingFeedEmpty";
+import FollowingFeedLoading from "./following/FollowingFeedLoading";
+import FollowingFeedContent from "./following/FollowingFeedContent";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
 }
 
 const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
-  const [events, setEvents] = useState<NostrEvent[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
-  const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({}); 
-  const [loading, setLoading] = useState(true);
-  const [subId, setSubId] = useState<string | null>(null);
-  const following = nostrService.following;
-  
-  const setupSubscription = () => {
-    if (following.length === 0) {
-      setLoading(false);
-      return null;
-    }
-    
-    // Create filters for followed users
-    const currentTime = Math.floor(Date.now() / 1000);
-    const since = currentTime - 24 * 60 * 60 * 7; // Last 7 days
-    
-    let filters: any[] = [
-      {
-        kinds: [1], // Regular notes
-        authors: following,
-        limit: 50,
-        since: since
-      },
-      {
-        kinds: [6], // Reposts
-        authors: following,
-        limit: 20,
-        since: since
-      }
-    ];
-    
-    // If we have an active hashtag, filter by it
-    if (activeHashtag) {
-      filters = [
-        {
-          ...filters[0],
-          "#t": [activeHashtag.toLowerCase()]
-        },
-        {
-          ...filters[1] // Keep the reposts filter
-        }
-      ];
-    }
-    
-    // Subscribe to events
-    const newSubId = nostrService.subscribe(
-      filters,
-      (event) => {
-        if (event.kind === 1) {
-          // Regular note
-          setEvents(prev => {
-            // Check if we already have this event
-            if (prev.some(e => e.id === event.id)) {
-              return prev;
-            }
-            
-            const newEvents = [...prev, event];
-            
-            // Sort by creation time (newest first)
-            newEvents.sort((a, b) => b.created_at - a.created_at);
-            
-            return newEvents.slice(0, 100); // Limit to 100 events
-          });
-        }
-        else if (event.kind === 6) {
-          // Repost - extract the referenced event
-          try {
-            // Some clients store the original event in content as JSON
-            const content = JSON.parse(event.content);
-            
-            if (content.event && content.event.id) {
-              const originalEventId = content.event.id;
-              const originalEventPubkey = content.event.pubkey;
-              
-              // Track repost data for later display
-              setRepostData(prev => ({
-                ...prev,
-                [originalEventId]: { 
-                  pubkey: event.pubkey,  // The reposter
-                  original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
-                }
-              }));
-              
-              // Fetch the original post
-              fetchOriginalPost(originalEventId);
-            }
-          } catch (e) {
-            // If parsing fails, try to get event reference from tags
-            const eventReference = event.tags.find(tag => tag[0] === 'e');
-            if (eventReference && eventReference[1]) {
-              const originalEventId = eventReference[1];
-              
-              // Find pubkey reference
-              const pubkeyReference = event.tags.find(tag => tag[0] === 'p');
-              const originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
-              
-              // Track repost data
-              setRepostData(prev => ({
-                ...prev,
-                [originalEventId]: { 
-                  pubkey: event.pubkey,  // The reposter
-                  original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
-                }
-              }));
-              
-              // Fetch the original post
-              fetchOriginalPost(originalEventId);
-            }
-          }
-        }
-        
-        // Fetch profile data for this pubkey if we don't have it yet
-        if (event.pubkey && !profiles[event.pubkey]) {
-          fetchProfileData(event.pubkey);
-        }
-      }
+  const {
+    events,
+    profiles,
+    repostData,
+    loading,
+    hasMore,
+    loadMoreEvents,
+    following
+  } = useFollowingFeed({ activeHashtag });
+
+  const {
+    loadMoreRef,
+    loading: scrollLoading,
+    setLoading,
+    hasMore: scrollHasMore,
+    setHasMore
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+
+  // Show empty state when no events and not loading
+  if (events.length === 0 && !loading) {
+    return (
+      <FollowingFeedEmpty 
+        activeHashtag={activeHashtag} 
+        hasFollowing={following.length > 0} 
+      />
     );
-    
-    return newSubId;
-  };
-  
-  const fetchOriginalPost = (eventId: string) => {
-    // Subscribe to a specific event by ID
-    const eventSubId = nostrService.subscribe(
-      [
-        {
-          ids: [eventId],
-          kinds: [1]
-        }
-      ],
-      (event) => {
-        setEvents(prev => {
-          // Check if we already have this event
-          if (prev.some(e => e.id === event.id)) {
-            return prev;
-          }
-          
-          // Add new event and sort by creation time (newest first)
-          const newEvents = [...prev, event];
-          newEvents.sort((a, b) => b.created_at - a.created_at);
-          return newEvents.slice(0, 100); // Limit to 100 events
-        });
-        
-        // Fetch profile data for this pubkey if we don't have it yet
-        if (event.pubkey && !profiles[event.pubkey]) {
-          fetchProfileData(event.pubkey);
-        }
-      }
-    );
-    
-    // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(eventSubId);
-    }, 5000);
-  };
-  
-  const fetchProfileData = (pubkey: string) => {
-    const metadataSubId = nostrService.subscribe(
-      [
-        {
-          kinds: [0],
-          authors: [pubkey],
-          limit: 1
-        }
-      ],
-      (event) => {
-        try {
-          const metadata = JSON.parse(event.content);
-          setProfiles(prev => ({
-            ...prev,
-            [pubkey]: metadata
-          }));
-        } catch (e) {
-          console.error('Failed to parse profile metadata:', e);
-        }
-      }
-    );
-    
-    // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(metadataSubId);
-    }, 5000);
-  };
-  
-  useEffect(() => {
-    const initFeed = async () => {
-      // Connect to relays
-      await nostrService.connectToUserRelays();
-      
-      // Reset state when filter changes
-      setEvents([]);
-      setLoading(true);
-      
-      // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-      
-      // Start a new subscription
-      const newSubId = setupSubscription();
-      setSubId(newSubId);
-      
-      // Set loading to false after a short delay to ensure we get some results
-      setTimeout(() => {
-        setLoading(false);
-      }, 3000);
-      
-      if (following.length === 0) {
-        setLoading(false);
-      }
-    };
-    
-    initFeed();
-    
-    return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-    };
-  }, [following, activeHashtag]);
-  
+  }
+
+  // Show loading state when initially loading with no events
+  if (loading && events.length === 0) {
+    return <FollowingFeedLoading activeHashtag={activeHashtag} isInitialLoad={true} />;
+  }
+
+  // Show the feed content with events
   return (
-    <div>
-      {activeHashtag && events.length === 0 && !loading && (
-        <div className="py-4 text-center text-muted-foreground">
-          No posts found with #{activeHashtag} hashtag from people you follow
-        </div>
-      )}
-      
-      {loading ? (
-        <div className="py-8 text-center text-muted-foreground">
-          Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''} from people you follow...
-        </div>
-      ) : events.length === 0 && !activeHashtag ? (
-        <div className="py-8 text-center text-muted-foreground">
-          {following.length > 0 
-            ? "No posts from people you follow yet. Try following more users or connecting to more relays."
-            : "You're not following anyone yet. Follow some users to see their posts here."}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {events.map(event => (
-            <NoteCard 
-              key={event.id} 
-              event={event} 
-              profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-              repostData={event.id && repostData[event.id] ? {
-                reposterPubkey: repostData[event.id].pubkey,
-                reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-              } : undefined}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <FollowingFeedContent
+      events={events}
+      profiles={profiles}
+      repostData={repostData}
+      loadMoreRef={loadMoreRef}
+      loading={loading || scrollLoading}
+    />
   );
 };
 

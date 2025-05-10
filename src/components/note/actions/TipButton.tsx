@@ -3,7 +3,7 @@ import { DollarSign } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface TipButtonProps {
-  onClick: (e?: React.MouseEvent) => void;
+  onClick: () => void;
   tipCount?: number;
 }
 
@@ -11,8 +11,8 @@ const TipButton = ({ onClick, tipCount }: TipButtonProps) => {
   return (
     <ActionButton
       onClick={(e) => {
-        if (e) e.preventDefault();
-        onClick(e);
+        e.preventDefault();
+        onClick();
       }}
       icon={<DollarSign className="h-4 w-4" />}
       label="Tip"

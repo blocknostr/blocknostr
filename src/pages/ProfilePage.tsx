@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileHeader from "@/components/profile/ProfileHeader";
-import ProfileRelays from "@/components/profile/ProfileRelays";
 import { useToast } from "@/components/ui/use-toast";
 
 const ProfilePage = () => {
@@ -335,15 +334,9 @@ const ProfilePage = () => {
             followers={followers}
             following={following}
             postsCount={events.length + reposts.length}
+            relays={relays.filter(r => r.status === 'connected').length}
+            isCurrentUser={isCurrentUser}
           />
-          
-          {/* Relays section (only for current user) */}
-          {isCurrentUser && (
-            <ProfileRelays 
-              relays={relays}
-              onRelaysChange={setRelays}
-            />
-          )}
           
           {/* Tabbed Content */}
           <div className="mt-6">

@@ -3,7 +3,7 @@ import { MessageCircle } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface CommentButtonProps {
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
   replyCount: number;
 }
 
@@ -11,8 +11,8 @@ const CommentButton = ({ onClick, replyCount }: CommentButtonProps) => {
   return (
     <ActionButton
       onClick={(e) => {
-        if (e) e.preventDefault();
-        onClick(e);
+        e.preventDefault();
+        onClick();
       }}
       icon={<MessageCircle className="h-4 w-4" />}
       label="Comment"

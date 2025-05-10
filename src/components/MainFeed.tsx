@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -21,24 +22,70 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [activeTab, setActiveTab] = useState("global");
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(true);
+  const [since, setSince] = useState<number | undefined>(undefined);
+  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [subId, setSubId] = useState<string | null>(null);
   
-  const setupSubscription = () => {
-    // Create filters for the nostr subscription
-    const currentTime = Math.floor(Date.now() / 1000);
-    const since = currentTime - 24 * 60 * 60 * 3; // Last 3 days
+  const loadMoreEvents = () => {
+    if (!subId) return;
     
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
+    }
+
+    // Create new subscription with older timestamp range
+    if (!since) {
+      // If no since value yet, get the oldest post timestamp
+      const oldestEvent = events.length > 0 ? 
+        events.reduce((oldest, current) => oldest.created_at < current.created_at ? oldest : current) : 
+        null;
+      
+      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    } else {
+      // We already have a since value, so use it to get older posts
+      const newUntil = since;
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    }
+  };
+  
+  const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+
+  const setupSubscription = (since: number, until?: number) => {
+    // Create filters for the nostr subscription
     let filters: any[] = [
       {
         kinds: [1], // Regular notes
-        limit: 30,
-        since: since
+        limit: 20,
+        since: since,
+        until: until
       },
       {
         kinds: [6], // Reposts
         limit: 20,
-        since: since
+        since: since,
+        until: until
       }
     ];
     
@@ -51,7 +98,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           "#t": [activeHashtag.toLowerCase()]
         },
         {
-          ...filters[1] // Keep the reposts filter
+          ...filters[1], // Keep the reposts filter
         }
       ];
     }
@@ -73,7 +120,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             // Sort by creation time (newest first)
             newEvents.sort((a, b) => b.created_at - a.created_at);
             
-            return newEvents.slice(0, 100); // Limit to 100 events
+            // If we've reached the limit, set hasMore to false
+            if (newEvents.length >= 100) {
+              setHasMore(false);
+            }
+            
+            return newEvents;
           });
         }
         else if (event.kind === 6) {
@@ -150,9 +202,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           }
           
           // Add new event and sort by creation time (newest first)
-          const newEvents = [...prev, event];
-          newEvents.sort((a, b) => b.created_at - a.created_at);
-          return newEvents.slice(0, 100); // Limit to 100 events
+          return [...prev, event].sort((a, b) => b.created_at - a.created_at);
         });
         
         // Fetch profile data for this pubkey if we don't have it yet
@@ -199,11 +249,17 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   useEffect(() => {
     const initFeed = async () => {
       // Connect to relays
-      await nostrService.connectToDefaultRelays();
+      await nostrService.connectToUserRelays();
       
       // Reset state when filter changes
       setEvents([]);
+      setHasMore(true);
       setLoading(true);
+
+      // Reset the timestamp range for new subscription
+      const currentTime = Math.floor(Date.now() / 1000);
+      setSince(undefined);
+      setUntil(currentTime);
 
       // Close previous subscription if exists
       if (subId) {
@@ -211,13 +267,9 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription();
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      
-      // Set loading to false after a short delay to ensure we get some results
-      setTimeout(() => {
-        setLoading(false);
-      }, 3000);
+      setLoading(false);
     };
     
     initFeed();
@@ -229,6 +281,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       }
     };
   }, [activeHashtag]);
+
+  // Mark the loading as finished when we get events
+  useEffect(() => {
+    if (events.length > 0 && loading) {
+      setLoading(false);
+    }
+  }, [events, loading]);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -280,7 +339,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             </div>
           )}
           
-          {loading ? (
+          {loading && events.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''}...
             </div>
@@ -301,6 +360,15 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
                   } : undefined}
                 />
               ))}
+              
+              {/* Loading indicator at the bottom */}
+              <div ref={loadMoreRef} className="py-4 text-center">
+                {loading && events.length > 0 && (
+                  <div className="text-muted-foreground text-sm">
+                    Loading more posts...
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </TabsContent>

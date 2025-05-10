@@ -1,9 +1,10 @@
 
 import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import EnhancedPostEditor from './post/EnhancedPostEditor';
 
 const CreateNoteForm = () => {
   const [content, setContent] = useState("");
@@ -12,8 +13,11 @@ const CreateNoteForm = () => {
   
   // Max note length (for UI only, actual limit depends on relays)
   const MAX_NOTE_LENGTH = 280;
+  const charsLeft = MAX_NOTE_LENGTH - content.length;
   
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!content.trim()) {
       return;
     }
@@ -52,22 +56,34 @@ const CreateNoteForm = () => {
   const avatarFallback = pubkey ? pubkey.substring(0, 2).toUpperCase() : 'N';
   
   return (
-    <div className="border-b pb-4 mb-4">
+    <form onSubmit={handleSubmit} className="border-b pb-4 mb-4">
       <div className="flex gap-3">
         <Avatar className="h-10 w-10">
           <AvatarFallback>{avatarFallback}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <EnhancedPostEditor
-            content={content}
-            setContent={setContent}
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            maxCharLength={MAX_NOTE_LENGTH}
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="What's happening?"
+            className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0"
+            maxLength={MAX_NOTE_LENGTH}
           />
+          <div className="flex justify-between items-center mt-2">
+            <div className={`text-sm ${charsLeft < 20 ? 'text-amber-500' : charsLeft < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+              {charsLeft} characters left
+            </div>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || content.length === 0 || content.length > MAX_NOTE_LENGTH}
+              className="rounded-full"
+            >
+              Post
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 };
 

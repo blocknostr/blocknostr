@@ -3,7 +3,7 @@ import { Repeat } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface RetweetButtonProps {
-  onClick: (e?: React.MouseEvent) => void;
+  onClick: () => void;
   retweeted: boolean;
   retweetCount: number;
 }
@@ -12,8 +12,8 @@ const RetweetButton = ({ onClick, retweeted, retweetCount }: RetweetButtonProps)
   return (
     <ActionButton
       onClick={(e) => {
-        if (e) e.preventDefault();
-        onClick(e);
+        e.preventDefault();
+        onClick();
       }}
       icon={<Repeat className="h-4 w-4" />}
       label="Repost"

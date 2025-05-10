@@ -14,6 +14,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
   const [retweeted, setRetweeted] = useState(false);
   const [retweetCount, setRetweetCount] = useState(0);
   const [tipCount, setTipCount] = useState(0);
+  const [repostEventId, setRepostEventId] = useState<string | null>(null);
 
   // Fetch reaction counts when component mounts
   useEffect(() => {
@@ -57,6 +58,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
           // Check if current user reposted
           if (event.pubkey === nostrService.publicKey) {
             setRetweeted(true);
+            setRepostEventId(event.id || null);
           }
         }
       );
@@ -93,7 +95,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   }, [eventId, nostrService.publicKey]);
 
-  const handleLike = async (e?: React.MouseEvent) => {
+  const handleLike = async () => {
     try {
       if (!liked) {
         // Create a reaction event (kind 7)
@@ -123,11 +125,11 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   };
 
-  const handleRetweet = async (e?: React.MouseEvent) => {
+  const handleRetweet = async () => {
     try {
       if (!retweeted) {
         // Create a repost event
-        await nostrService.publishEvent({
+        const repostId = await nostrService.publishEvent({
           kind: 6, // Repost kind
           content: JSON.stringify({
             event: { id: eventId, pubkey }
@@ -138,17 +140,30 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
           ]
         });
         
-        setRetweeted(true);
-        setRetweetCount(prev => prev + 1);
-        toast.success("Note reposted successfully");
+        if (repostId) {
+          setRepostEventId(repostId);
+          setRetweeted(true);
+          setRetweetCount(prev => prev + 1);
+          toast.success("Note reposted successfully");
+        }
       } else {
-        // We can't directly delete retweets in the protocol, but we can create a "removal" event
-        toast.info("Removing repost...");
-        
-        // For simplicity, we'll just update the UI state and notify the user
-        setRetweeted(false);
-        setRetweetCount(prev => Math.max(0, prev - 1));
-        toast.success("Repost removed from your profile");
+        // For removing a repost, we need to publish a deletion event for our repost
+        if (repostEventId) {
+          await nostrService.publishEvent({
+            kind: 5, // Deletion event
+            content: "Removing repost",
+            tags: [
+              ['e', repostEventId] // Reference to the repost event we want to delete
+            ]
+          });
+          
+          setRetweeted(false);
+          setRetweetCount(prev => Math.max(0, prev - 1));
+          setRepostEventId(null);
+          toast.success("Repost removed from your profile");
+        } else {
+          toast.error("Could not find the original repost to remove");
+        }
       }
     } catch (error) {
       console.error("Error toggling retweet:", error);
@@ -156,7 +171,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   };
   
-  const handleSendTip = (e?: React.MouseEvent) => {
+  const handleSendTip = () => {
     toast.info("Tipping functionality coming soon!");
   };
 

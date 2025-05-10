@@ -9,7 +9,7 @@ interface ViewButtonProps {
 const ViewButton = ({ reachCount }: ViewButtonProps) => {
   return (
     <ActionButton
-      onClick={() => {}} // No action required, just a display component
+      onClick={(e) => e.preventDefault()}
       icon={<BarChart2 className="h-4 w-4" />}
       label="Analytics"
       count={reachCount > 0 ? reachCount : undefined}
