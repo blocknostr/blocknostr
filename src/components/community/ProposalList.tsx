@@ -3,8 +3,9 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import ProposalCard, { Proposal } from "./ProposalCard";
+import ProposalCard from "./ProposalCard";
 import CreateProposalForm from "./CreateProposalForm";
+import { Proposal } from "@/types/community"; // Import Proposal type from types
 
 interface ProposalListProps {
   communityId: string;

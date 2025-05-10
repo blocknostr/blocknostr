@@ -6,7 +6,8 @@ import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers
 import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions";
 import { useCommunityActions } from "./community/useCommunityActions";
 
-export { Community, Proposal, KickProposal } from "@/types/community";
+// Fix re-exporting with 'export type' for isolatedModules
+export type { Community, Proposal, KickProposal } from "@/types/community";
 
 export const useCommunity = (communityId: string | undefined) => {
   const [community, setCommunity] = useState<Community | null>(null);
