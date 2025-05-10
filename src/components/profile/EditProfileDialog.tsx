@@ -9,7 +9,7 @@ import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
 import { Loader2, HelpCircle, Twitter, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { NostrProfileMetadata } from '@/lib/nostr/types';
+import { NostrProfileMetadata, NostrEvent } from '@/lib/nostr/types';
 import { initiateXVerification, extractTweetId, extractUsername, verifyTweet } from '@/lib/nostr/xVerification';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { zodResolver } from '@hookform/resolvers/zod';
