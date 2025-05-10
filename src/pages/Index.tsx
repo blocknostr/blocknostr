@@ -106,7 +106,7 @@ const Index = () => {
                 <span className="sr-only">Menu</span>
               </Button>
             )}
-            <h1 className="font-semibold"></h1>
+            <h1 className="font-semibold">Home</h1>
             <div className="flex items-center space-x-2">
               <Button 
                 variant="ghost"
