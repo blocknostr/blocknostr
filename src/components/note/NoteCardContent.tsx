@@ -11,7 +11,7 @@ interface NoteCardContentProps {
   reachCount?: number;
 }
 
-const NoteCardContent = ({ content }: NoteCardContentProps) => {
+const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -127,6 +127,13 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
               alt={`Media attachment ${index + 1}`} 
             />
           ))}
+        </div>
+      )}
+      
+      {/* Post Reach information - Moved below media */}
+      {reachCount > 0 && (
+        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+          <span>{reachCount.toLocaleString()} views</span>
         </div>
       )}
     </div>
