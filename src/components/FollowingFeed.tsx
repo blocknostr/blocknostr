@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
+import { NostrEvent, nostrService, type SubCloser } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
@@ -14,14 +14,14 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   const following = nostrService.following;
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
-  const [subId, setSubId] = useState<string | null>(null);
+  const [subHandle, setSubHandle] = useState<SubCloser | null>(null);
   
   const loadMoreEvents = () => {
-    if (!subId || following.length === 0) return;
+    if (!subHandle || following.length === 0) return;
     
     // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
+    if (subHandle) {
+      nostrService.unsubscribe(subHandle);
     }
 
     // Create new subscription with older timestamp range
@@ -38,8 +38,8 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(newSince, newUntil);
+      setSubHandle(newSubHandle);
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
@@ -49,8 +49,8 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(newSince, newUntil);
+      setSubHandle(newSubHandle);
     }
   };
   
@@ -62,7 +62,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
-  const setupSubscription = (since: number, until?: number) => {
+  const setupSubscription = (since: number, until?: number): SubCloser | null => {
     if (following.length === 0) {
       setLoading(false);
       return null;
@@ -100,7 +100,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     }
     
     // Subscribe to events
-    const newSubId = nostrService.subscribe(
+    const newSubHandle = nostrService.subscribe(
       filters,
       (event) => {
         if (event.kind === 1) {
@@ -178,12 +178,12 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       }
     );
     
-    return newSubId;
+    return newSubHandle;
   };
   
   const fetchOriginalPost = (eventId: string) => {
     // Subscribe to a specific event by ID
-    const eventSubId = nostrService.subscribe(
+    const eventSubHandle = nostrService.subscribe(
       [
         {
           ids: [eventId],
@@ -210,12 +210,12 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     
     // Cleanup subscription after a short time
     setTimeout(() => {
-      nostrService.unsubscribe(eventSubId);
+      nostrService.unsubscribe(eventSubHandle);
     }, 5000);
   };
   
   const fetchProfileData = (pubkey: string) => {
-    const metadataSubId = nostrService.subscribe(
+    const metadataSubHandle = nostrService.subscribe(
       [
         {
           kinds: [0],
@@ -238,7 +238,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     
     // Cleanup subscription after a short time
     setTimeout(() => {
-      nostrService.unsubscribe(metadataSubId);
+      nostrService.unsubscribe(metadataSubHandle);
     }, 5000);
   };
   
@@ -258,13 +258,13 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       setUntil(currentTime);
       
       // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (subHandle) {
+        nostrService.unsubscribe(subHandle);
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
+      setSubHandle(newSubHandle);
       
       if (following.length === 0) {
         setLoading(false);
@@ -274,8 +274,8 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     initFeed();
     
     return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (subHandle) {
+        nostrService.unsubscribe(subHandle);
       }
     };
   }, [following, activeHashtag]);

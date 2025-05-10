@@ -620,11 +620,11 @@ class NostrService {
     }
   }
   
-  // Subscribe to events - Updated to handle SubCloser instead of string
+  // Subscribe to events - Updated to handle SubCloser return type
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): SubCloser | string {
+  ): SubCloser {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
@@ -636,8 +636,12 @@ class NostrService {
       }
     }
     
-    // For backwards compatibility, return the subscription ID as before
-    return subId;
+    // Return a function that will unsubscribe when called
+    const subCloser = () => {
+      this.unsubscribe(subId);
+    };
+    
+    return subCloser;
   }
   
   public unsubscribe(subHandle: SubCloser | string): void {

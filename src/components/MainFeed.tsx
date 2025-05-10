@@ -1,6 +1,5 @@
-
 import { useEffect, useState } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
+import { NostrEvent, nostrService, type SubCloser } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -24,14 +23,14 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const isMobile = useIsMobile();
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
-  const [subId, setSubId] = useState<string | null>(null);
+  const [subHandle, setSubHandle] = useState<SubCloser | null>(null);
   
   const loadMoreEvents = () => {
-    if (!subId) return;
+    if (!subHandle) return;
     
     // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
+    if (subHandle) {
+      nostrService.unsubscribe(subHandle);
     }
 
     // Create new subscription with older timestamp range
@@ -48,8 +47,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(newSince, newUntil);
+      setSubHandle(newSubHandle);
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
@@ -59,8 +58,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(newSince, newUntil);
+      setSubHandle(newSubHandle);
     }
   };
   
@@ -72,7 +71,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
-  const setupSubscription = (since: number, until?: number) => {
+  const setupSubscription = (since: number, until?: number): SubCloser | null => {
     // Create filters for the nostr subscription
     let filters: any[] = [
       {
@@ -104,7 +103,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     }
 
     // Subscribe to text notes and reposts
-    const newSubId = nostrService.subscribe(
+    const newSubHandle = nostrService.subscribe(
       filters,
       (event) => {
         if (event.kind === 1) {
@@ -182,7 +181,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       }
     );
 
-    return newSubId;
+    return newSubHandle;
   };
 
   const fetchOriginalPost = (eventId: string) => {
@@ -262,13 +261,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       setUntil(currentTime);
 
       // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (subHandle) {
+        nostrService.unsubscribe(subHandle);
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
-      setSubId(newSubId);
+      const newSubHandle = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      setSubHandle(newSubHandle);
       setLoading(false);
     };
     
@@ -276,8 +275,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     
     // Cleanup subscription when component unmounts
     return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (subHandle) {
+        nostrService.unsubscribe(subHandle);
       }
     };
   }, [activeHashtag]);

@@ -220,8 +220,7 @@ export class RelayManager {
       ];
       
       // Use the correct SimplePool methods according to NIP-01
-      // Store the subscription as a SubCloser object
-      const subscription: SubCloser = this.pool.subscribeMany(
+      const sub = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -257,7 +256,7 @@ export class RelayManager {
       
       // Set a timeout to resolve with found relays
       setTimeout(() => {
-        this.pool.close([subscription]);
+        this.pool.close([sub]);
         
         // If no relays found via NIP-65, try the older NIP-01 kind (10001)
         if (relays.length === 0) {
@@ -286,7 +285,7 @@ export class RelayManager {
       ];
       
       // Store the subscription as a SubCloser object
-      const subscription: SubCloser = this.pool.subscribeMany(
+      const sub = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -316,7 +315,7 @@ export class RelayManager {
       
       // Set a timeout to resolve with found relays
       setTimeout(() => {
-        this.pool.close([subscription]);
+        this.pool.close([sub]);
         resolve(relays);
       }, 3000);
     });
