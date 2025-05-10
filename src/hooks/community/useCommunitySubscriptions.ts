@@ -1,5 +1,6 @@
 
 import { NostrEvent, nostrService } from "@/lib/nostr";
+import { SubCloser } from "nostr-tools";
 
 export const useCommunitySubscriptions = (
   communityId: string | undefined,

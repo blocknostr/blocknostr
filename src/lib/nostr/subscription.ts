@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
+import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {
@@ -14,7 +14,7 @@ export class SubscriptionManager {
     relays: string[],
     filters: Filter[],
     onEvent: (event: NostrEvent) => void
-  ): any {
+  ): SubCloser {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
@@ -38,12 +38,7 @@ export class SubscriptionManager {
     return subscription;
   }
   
-  unsubscribe(subHandle: any): void {
-    // Handle both string IDs (for backward compatibility) and SubCloser objects
-    if (typeof subHandle === 'string') {
-      this.subscriptions.delete(subHandle);
-    }
-    
+  unsubscribe(subHandle: SubCloser): void {
     // Close the subscription in the SimplePool
     this.pool.close([subHandle]);
   }

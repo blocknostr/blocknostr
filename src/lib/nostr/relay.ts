@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
+import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
 import { Relay } from './types';
 
 export class RelayManager {
@@ -221,8 +221,8 @@ export class RelayManager {
       ];
       
       // Use the correct SimplePool methods according to NIP-01
-      // Fix: Store the subscription as an opaque handle, not a string
-      const subscription = this.pool.subscribeMany(
+      // Store the subscription as a SubCloser object
+      const subscription: SubCloser = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -286,8 +286,8 @@ export class RelayManager {
         }
       ];
       
-      // Fix: Store the subscription as an opaque handle, not a string
-      const subscription = this.pool.subscribeMany(
+      // Store the subscription as a SubCloser object
+      const subscription: SubCloser = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 

@@ -1,4 +1,4 @@
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type SubCloser } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
@@ -146,17 +146,17 @@ class NostrService {
     );
   }
   
-  // Subscription management
+  // Subscription management - Updated to handle SubCloser return type
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): any {
+  ): SubCloser {
     const connectedRelays = this.getConnectedRelayUrls();
     // Return the SubCloser object from the subscription manager
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
-  public unsubscribe(subHandle: any): void {
+  public unsubscribe(subHandle: SubCloser): void {
     this.subscriptionManager.unsubscribe(subHandle);
   }
   

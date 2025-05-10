@@ -1,4 +1,4 @@
-import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
+import { getEventHash, getPublicKey, nip19, SimplePool, type SubCloser } from 'nostr-tools';
 import { toast } from "sonner";
 
 export interface NostrEvent {
@@ -237,7 +237,7 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      // Fix: Store the subscription as an opaque handle, not as a string ID
+      // Fix: Store the subscription as an opaque SubCloser object, not as a string ID
       const subHandle = this.subscribe(
         [
           {
@@ -619,11 +619,11 @@ class NostrService {
     }
   }
   
-  // Subscribe to events
+  // Subscribe to events - Updated to return SubCloser instead of string
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): string {
+  ): SubCloser | string {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
@@ -638,8 +638,8 @@ class NostrService {
     return subId;
   }
   
-  public unsubscribe(subHandle: any): void {
-    // Use type 'any' for subHandle to accommodate both string IDs and SubCloser objects
+  public unsubscribe(subHandle: SubCloser | string): void {
+    // Use type 'SubCloser | string' for subHandle to accommodate both string IDs and SubCloser objects
     if (typeof subHandle === 'string') {
       this.subscriptions.delete(subHandle);
       
@@ -904,7 +904,7 @@ class NostrService {
       await this.connectToUserRelays();
       
       return new Promise((resolve) => {
-        const subId = this.subscribe(
+        const subHandle = this.subscribe(
           [
             {
               kinds: [EVENT_KINDS.META],
@@ -926,7 +926,7 @@ class NostrService {
               
               // Cleanup subscription after receiving the profile
               setTimeout(() => {
-                this.unsubscribe(subId);
+                this.unsubscribe(subHandle);
               }, 100);
             } catch (e) {
               console.error("Error parsing profile:", e);
@@ -937,7 +937,7 @@ class NostrService {
         
         // Set a timeout to resolve with null if no profile is found
         setTimeout(() => {
-          this.unsubscribe(subId);
+          this.unsubscribe(subHandle);
           resolve(null);
         }, 5000);
       });
