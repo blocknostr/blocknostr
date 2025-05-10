@@ -16,7 +16,7 @@ export const useCommunitySubscriptions = (
     await nostrService.connectToUserRelays();
     
     // Subscribe to community events with this ID
-    const communitySubscription = nostrService.subscribe(
+    const communitySubscriptionObj = nostrService.subscribe(
       [
         {
           kinds: [34550],
@@ -33,23 +33,37 @@ export const useCommunitySubscriptions = (
     // Load kick proposals for this community
     const kickSubscriptions = loadKickProposals(communityId);
     
-    // Return a cleanup function that calls all the subscription closers
+    // Return a cleanup function that calls all the unsubscribe functions
     return () => {
-      if (communitySubscription) communitySubscription.unsubscribe();
-      if (proposalSubscriptions) {
-        proposalSubscriptions.proposalSubscription.unsubscribe();
-        proposalSubscriptions.votesSubscription.unsubscribe();
+      if (communitySubscriptionObj && typeof communitySubscriptionObj.unsubscribe === 'function') {
+        communitySubscriptionObj.unsubscribe();
       }
+      
+      if (proposalSubscriptions) {
+        if (proposalSubscriptions.proposalSubscriptionObj && typeof proposalSubscriptions.proposalSubscriptionObj.unsubscribe === 'function') {
+          proposalSubscriptions.proposalSubscriptionObj.unsubscribe();
+        }
+        
+        if (proposalSubscriptions.votesSubscriptionObj && typeof proposalSubscriptions.votesSubscriptionObj.unsubscribe === 'function') {
+          proposalSubscriptions.votesSubscriptionObj.unsubscribe();
+        }
+      }
+      
       if (kickSubscriptions) {
-        kickSubscriptions.kickProposalSubscription.unsubscribe();
-        kickSubscriptions.kickVotesSubscription.unsubscribe();
+        if (kickSubscriptions.kickProposalSubscriptionObj && typeof kickSubscriptions.kickProposalSubscriptionObj.unsubscribe === 'function') {
+          kickSubscriptions.kickProposalSubscriptionObj.unsubscribe();
+        }
+        
+        if (kickSubscriptions.kickVotesSubscriptionObj && typeof kickSubscriptions.kickVotesSubscriptionObj.unsubscribe === 'function') {
+          kickSubscriptions.kickVotesSubscriptionObj.unsubscribe();
+        }
       }
     };
   };
   
   const loadProposals = (communityId: string) => {
     // Subscribe to proposal events for this community
-    const proposalSubscription = nostrService.subscribe(
+    const proposalSubscriptionObj = nostrService.subscribe(
       [
         {
           kinds: [34551],
@@ -61,7 +75,7 @@ export const useCommunitySubscriptions = (
     );
     
     // Subscribe to vote events
-    const votesSubscription = nostrService.subscribe(
+    const votesSubscriptionObj = nostrService.subscribe(
       [
         {
           kinds: [34552], // Vote events
@@ -71,11 +85,11 @@ export const useCommunitySubscriptions = (
       handleVoteEvent
     );
     
-    return { proposalSubscription, votesSubscription };
+    return { proposalSubscriptionObj, votesSubscriptionObj };
   };
   
   const loadKickProposals = (communityId: string) => {
-    const kickProposalSubscription = nostrService.subscribe(
+    const kickProposalSubscriptionObj = nostrService.subscribe(
       [
         {
           kinds: [34554], // Kick proposal kind
@@ -86,7 +100,7 @@ export const useCommunitySubscriptions = (
       handleKickProposalEvent
     );
     
-    const kickVotesSubscription = nostrService.subscribe(
+    const kickVotesSubscriptionObj = nostrService.subscribe(
       [
         {
           kinds: [34555], // Kick vote kind
@@ -96,7 +110,7 @@ export const useCommunitySubscriptions = (
       handleKickVoteEvent
     );
     
-    return { kickProposalSubscription, kickVotesSubscription };
+    return { kickProposalSubscriptionObj, kickVotesSubscriptionObj };
   };
   
   return {

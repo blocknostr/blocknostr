@@ -1,6 +1,6 @@
 
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent } from './types';
+import { NostrEvent, SubscriptionObject } from './types';
 
 export class SubscriptionManager {
   private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
@@ -14,7 +14,7 @@ export class SubscriptionManager {
     relays: string[],
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ) {
+  ): SubscriptionObject {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));

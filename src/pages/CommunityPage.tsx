@@ -39,6 +39,13 @@ const CommunityPage = () => {
     return <CommunityNotFound />;
   }
   
+  // Create a wrapper function to match the expected type signature
+  const handleKickProposalWrapper = (kickProposalId: string) => {
+    // Call the original function with a default vote value of true
+    // This adapts the function to match what MembersList expects
+    handleCreateKickProposal(kickProposalId);
+  };
+  
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -83,7 +90,7 @@ const CommunityPage = () => {
               <MembersList 
                 community={community}
                 currentUserPubkey={currentUserPubkey}
-                onKickProposal={handleCreateKickProposal}
+                onKickProposal={handleKickProposalWrapper}
                 kickProposals={kickProposals}
                 onVoteKick={handleVoteOnKick}
                 onLeaveCommunity={handleLeaveCommunity}
