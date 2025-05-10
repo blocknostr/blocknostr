@@ -19,6 +19,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({}); 
   const [activeTab, setActiveTab] = useState("global");
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
@@ -30,7 +31,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       
       let filters: any[] = [
         {
-          kinds: [1],
+          kinds: [1], // Regular notes
+          limit: 20,
+          since: Math.floor(Date.now() / 1000) - 24 * 60 * 60 // Last 24 hours
+        },
+        {
+          kinds: [6], // Reposts
           limit: 20,
           since: Math.floor(Date.now() / 1000) - 24 * 60 * 60 // Last 24 hours
         }
@@ -43,6 +49,9 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           {
             ...filters[0],
             "#t": [activeHashtag.toLowerCase()]
+          },
+          {
+            ...filters[1], // Keep the reposts filter
           }
         ];
       }
@@ -51,9 +60,92 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       setEvents([]);
       setLoading(true);
       
-      // Subscribe to text notes (kind 1)
+      // Subscribe to text notes (kind 1) and reposts (kind 6)
       const subId = nostrService.subscribe(
         filters,
+        (event) => {
+          if (event.kind === 1) {
+            // Regular note
+            setEvents(prev => {
+              // Check if we already have this event
+              if (prev.some(e => e.id === event.id)) {
+                return prev;
+              }
+              
+              // Add new event and sort by creation time (newest first)
+              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+            });
+          }
+          else if (event.kind === 6) {
+            // Repost - extract the referenced event
+            try {
+              // Some clients store the original event in content as JSON
+              const content = JSON.parse(event.content);
+              
+              if (content.event && content.event.id) {
+                const originalEventId = content.event.id;
+                const originalEventPubkey = content.event.pubkey;
+
+                // Track repost data for later display
+                setRepostData(prev => ({
+                  ...prev,
+                  [originalEventId]: { 
+                    pubkey: event.pubkey,  // The reposter
+                    original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
+                  }
+                }));
+                
+                // Fetch the original post
+                fetchOriginalPost(originalEventId);
+              }
+            } catch (e) {
+              // If parsing fails, try to get event reference from tags
+              const eventReference = event.tags.find(tag => tag[0] === 'e');
+              if (eventReference && eventReference[1]) {
+                const originalEventId = eventReference[1];
+                
+                // Find pubkey reference
+                const pubkeyReference = event.tags.find(tag => tag[0] === 'p');
+                const originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
+                
+                // Track repost data
+                setRepostData(prev => ({
+                  ...prev,
+                  [originalEventId]: { 
+                    pubkey: event.pubkey,  // The reposter
+                    original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
+                  }
+                }));
+                
+                // Fetch the original post
+                fetchOriginalPost(originalEventId);
+              }
+            }
+          }
+          
+          // Fetch profile data for this pubkey if we don't have it yet
+          if (event.pubkey && !profiles[event.pubkey]) {
+            fetchProfileData(event.pubkey);
+          }
+        }
+      );
+      
+      setLoading(false);
+      
+      return () => {
+        nostrService.unsubscribe(subId);
+      };
+    };
+    
+    const fetchOriginalPost = (eventId: string) => {
+      // Subscribe to a specific event by ID
+      const eventSubId = nostrService.subscribe(
+        [
+          {
+            ids: [eventId],
+            kinds: [1]
+          }
+        ],
         (event) => {
           setEvents(prev => {
             // Check if we already have this event
@@ -72,11 +164,10 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         }
       );
       
-      setLoading(false);
-      
-      return () => {
-        nostrService.unsubscribe(subId);
-      };
+      // Cleanup subscription after a short time
+      setTimeout(() => {
+        nostrService.unsubscribe(eventSubId);
+      }, 5000);
     };
     
     const fetchProfileData = (pubkey: string) => {
@@ -174,7 +265,11 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
                 <NoteCard 
                   key={event.id} 
                   event={event} 
-                  profileData={event.pubkey ? profiles[event.pubkey] : undefined} 
+                  profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                  repostData={event.id && repostData[event.id] ? {
+                    reposterPubkey: repostData[event.id].pubkey,
+                    reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                  } : undefined}
                 />
               ))}
             </div>

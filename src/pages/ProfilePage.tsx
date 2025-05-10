@@ -1,19 +1,11 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { NostrEvent, nostrService, Relay } from "@/lib/nostr";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import NoteCard from "@/components/NoteCard";
 import Sidebar from "@/components/Sidebar";
-import FollowButton from "@/components/FollowButton";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { toast } from "sonner";
-import { Loader2, MessageSquare, Plus, Users, Bookmark, Calendar, Globe, ExternalLink, Link2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileRelays from "@/components/profile/ProfileRelays";
@@ -26,12 +18,17 @@ const ProfilePage = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [replies, setReplies] = useState<NostrEvent[]>([]);
   const [media, setMedia] = useState<NostrEvent[]>([]);
+  const [reposts, setReposts] = useState<{ 
+    originalEvent: NostrEvent; 
+    repostEvent: NostrEvent;
+  }[]>([]);
   const [loading, setLoading] = useState(true);
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isAddingRelay, setIsAddingRelay] = useState(false);
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+  const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
   const { toast } = useToast();
   
   const currentUserPubkey = nostrService.publicKey;
@@ -109,6 +106,49 @@ const ProfilePage = () => {
           }
         );
 
+        // Subscribe to user's reposts (kind 6)
+        const repostsSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [6],
+              authors: [hexPubkey],
+              limit: 50
+            }
+          ],
+          (repostEvent) => {
+            try {
+              // Try to parse the content first (some clients store event as JSON)
+              let originalEventId: string | null = null;
+              let originalEventPubkey: string | null = null;
+
+              try {
+                const content = JSON.parse(repostEvent.content);
+                if (content.event && content.event.id) {
+                  originalEventId = content.event.id;
+                  originalEventPubkey = content.event.pubkey;
+                }
+              } catch (e) {
+                // If parsing fails, try to get event reference from tags
+                const eventReference = repostEvent.tags.find(tag => tag[0] === 'e');
+                if (eventReference && eventReference[1]) {
+                  originalEventId = eventReference[1];
+                  
+                  // Find pubkey reference
+                  const pubkeyReference = repostEvent.tags.find(tag => tag[0] === 'p');
+                  originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
+                }
+              }
+
+              if (originalEventId) {
+                // Fetch the original event
+                fetchOriginalPost(originalEventId, originalEventPubkey, repostEvent);
+              }
+            } catch (error) {
+              console.error("Error processing repost:", error);
+            }
+          }
+        );
+
         // Fetch follower/following data
         const contactsSubId = nostrService.subscribe(
           [
@@ -155,6 +195,7 @@ const ProfilePage = () => {
         return () => {
           nostrService.unsubscribe(metadataSubId);
           nostrService.unsubscribe(notesSubId);
+          nostrService.unsubscribe(repostsSubId);
           nostrService.unsubscribe(contactsSubId);
           nostrService.unsubscribe(followersSubId);
         };
@@ -167,6 +208,68 @@ const ProfilePage = () => {
         });
         setLoading(false);
       }
+    };
+    
+    const fetchOriginalPost = (eventId: string, pubkey: string | null, repostEvent: NostrEvent) => {
+      // Subscribe to the original event by ID
+      const eventSubId = nostrService.subscribe(
+        [
+          {
+            ids: [eventId],
+            kinds: [1]
+          }
+        ],
+        (originalEvent) => {
+          setReposts(prev => {
+            if (prev.some(r => r.originalEvent.id === originalEvent.id)) {
+              return prev;
+            }
+            
+            const newRepost = {
+              originalEvent,
+              repostEvent
+            };
+            
+            return [...prev, newRepost].sort(
+              (a, b) => b.repostEvent.created_at - a.repostEvent.created_at
+            );
+          });
+          
+          // Fetch profile data for the original author if we don't have it yet
+          if (originalEvent.pubkey && !originalPostProfiles[originalEvent.pubkey]) {
+            const metadataSubId = nostrService.subscribe(
+              [
+                {
+                  kinds: [0],
+                  authors: [originalEvent.pubkey],
+                  limit: 1
+                }
+              ],
+              (event) => {
+                try {
+                  const metadata = JSON.parse(event.content);
+                  setOriginalPostProfiles(prev => ({
+                    ...prev,
+                    [originalEvent.pubkey]: metadata
+                  }));
+                } catch (e) {
+                  console.error('Failed to parse profile metadata for repost:', e);
+                }
+              }
+            );
+            
+            // Cleanup subscription after a short time
+            setTimeout(() => {
+              nostrService.unsubscribe(metadataSubId);
+            }, 5000);
+          }
+        }
+      );
+      
+      // Cleanup subscription after a short time
+      setTimeout(() => {
+        nostrService.unsubscribe(eventSubId);
+      }, 5000);
     };
     
     fetchProfileData();
@@ -231,7 +334,7 @@ const ProfilePage = () => {
           <ProfileStats 
             followers={followers}
             following={following}
-            postsCount={events.length}
+            postsCount={events.length + reposts.length}
           />
           
           {/* Relays section (only for current user) */}
@@ -245,9 +348,10 @@ const ProfilePage = () => {
           {/* Tabbed Content */}
           <div className="mt-6">
             <Tabs defaultValue="posts" className="w-full">
-              <TabsList className="w-full grid grid-cols-4">
+              <TabsList className="w-full grid grid-cols-5">
                 <TabsTrigger value="posts">Posts</TabsTrigger>
                 <TabsTrigger value="replies">Replies</TabsTrigger>
+                <TabsTrigger value="reposts">Reposts</TabsTrigger>
                 <TabsTrigger value="media">Media</TabsTrigger>
                 <TabsTrigger value="likes">Likes</TabsTrigger>
               </TabsList>
@@ -276,6 +380,29 @@ const ProfilePage = () => {
                 <div className="py-8 text-center text-muted-foreground">
                   Replies coming soon.
                 </div>
+              </TabsContent>
+
+              {/* Reposts Tab */}
+              <TabsContent value="reposts" className="mt-4">
+                {reposts.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    No reposts found.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reposts.map(({ originalEvent, repostEvent }) => (
+                      <NoteCard 
+                        key={originalEvent.id} 
+                        event={originalEvent} 
+                        profileData={originalEvent.pubkey ? originalPostProfiles[originalEvent.pubkey] : undefined}
+                        repostData={{
+                          reposterPubkey: repostEvent.pubkey || '',
+                          reposterProfile: profileData
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </TabsContent>
               
               {/* Media Tab */}
