@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { UserPlus, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
+import { useNavigate } from "react-router-dom";
 import LeaveCommunityButton from "./LeaveCommunityButton";
 
 interface CommunityCardActionsProps {
@@ -28,6 +29,7 @@ const CommunityCardActions = ({
   currentUserPubkey 
 }: CommunityCardActionsProps) => {
   const [showInviteLink, setShowInviteLink] = useState(false);
+  const navigate = useNavigate();
 
   const handleJoinClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -136,6 +138,11 @@ const CommunityCardActions = ({
     }
   };
 
+  const navigateToCommunity = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/communities/${community.id}`);
+  };
+
   return (
     <div className="w-full">
       <div className="flex w-full gap-2">
@@ -155,6 +162,7 @@ const CommunityCardActions = ({
             <Button 
               variant="outline" 
               className="flex-1"
+              onClick={navigateToCommunity}
             >
               View
             </Button>

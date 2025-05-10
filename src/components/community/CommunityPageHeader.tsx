@@ -1,7 +1,8 @@
 
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { UserPlus, ArrowLeft } from "lucide-react";
 import DeleteCommunityButton from "./DeleteCommunityButton";
+import { useNavigate } from "react-router-dom";
 
 interface CommunityPageHeaderProps {
   name: string;
@@ -10,7 +11,7 @@ interface CommunityPageHeaderProps {
   isCreatorOnlyMember?: boolean;
   currentUserPubkey: string | null;
   onJoinCommunity: () => void;
-  onLeaveCommunity: () => void;  // Added this prop
+  onLeaveCommunity: () => void;
   onDeleteCommunity?: () => Promise<void>;
 }
 
@@ -21,11 +22,27 @@ const CommunityPageHeader = ({
   isCreatorOnlyMember = false,
   currentUserPubkey,
   onJoinCommunity,
-  onLeaveCommunity,  // Added this prop
+  onLeaveCommunity,
   onDeleteCommunity
 }: CommunityPageHeaderProps) => {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    navigate('/communities');
+  };
+
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur h-16 border-b flex items-center px-6">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={handleBack}
+        className="mr-2"
+        title="Back to Communities"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+      
       <div className="flex-1">
         <h1 className="text-lg font-bold truncate">{name}</h1>
       </div>
