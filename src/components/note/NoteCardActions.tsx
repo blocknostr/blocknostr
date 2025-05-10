@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye, Share2, Flag, Bookmark } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -244,72 +243,82 @@ const NoteCardActions = ({
   };
 
   return (
-    <div className="flex justify-between pt-0 flex-wrap w-full gap-1">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          onCommentClick();
-        }}
-      >
-        <MessageCircle className="h-4 w-4 mr-1" />
-        {replyCount > 0 && <span className="text-xs font-medium">{replyCount}</span>}
-      </Button>
+    <div className="flex justify-between items-center w-full gap-2 pt-2">
+      <div className="flex items-center space-x-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+          onClick={(e) => {
+            e.preventDefault();
+            onCommentClick();
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+        </Button>
+        {replyCount > 0 && <span className="text-xs font-medium text-muted-foreground">{replyCount}</span>}
+      </div>
       
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${retweeted 
-          ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
-          : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleRetweet();
-        }}
-      >
-        <Repeat className="h-4 w-4 mr-1" />
-        {retweetCount > 0 && <span className="text-xs font-medium">{retweetCount}</span>}
-      </Button>
+      <div className="flex items-center space-x-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={`rounded-full p-2 h-8 w-8 ${retweeted 
+            ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
+            : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleRetweet();
+          }}
+        >
+          <Repeat className="h-4 w-4" />
+        </Button>
+        {retweetCount > 0 && <span className="text-xs font-medium text-muted-foreground">{retweetCount}</span>}
+      </div>
       
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${liked 
-          ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
-          : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleLike();
-        }}
-      >
-        <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
-        {likeCount > 0 && <span className="text-xs font-medium">{likeCount}</span>}
-      </Button>
+      <div className="flex items-center space-x-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className={`rounded-full p-2 h-8 w-8 ${liked 
+            ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
+            : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
+          onClick={(e) => {
+            e.preventDefault();
+            handleLike();
+          }}
+        >
+          <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
+        </Button>
+        {likeCount > 0 && <span className="text-xs font-medium text-muted-foreground">{likeCount}</span>}
+      </div>
       
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => e.preventDefault()}
-      >
-        <Eye className="h-4 w-4 mr-1" />
-        <span className="text-xs font-medium">{reachCount}</span>
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          handleSendTip();
-        }}
-      >
-        <DollarSign className="h-4 w-4 mr-1" />
-        {tipCount > 0 && <span className="text-xs font-medium">{tipCount}</span>}
-      </Button>
+      <div className="flex items-center space-x-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="text-muted-foreground rounded-full p-2 h-8 w-8"
+          onClick={(e) => e.preventDefault()}
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+        {reachCount > 0 && <span className="text-xs font-medium text-muted-foreground">{reachCount}</span>}
+      </div>
+      
+      <div className="flex items-center space-x-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+          onClick={(e) => {
+            e.preventDefault();
+            handleSendTip();
+          }}
+        >
+          <DollarSign className="h-4 w-4" />
+        </Button>
+        {tipCount > 0 && <span className="text-xs font-medium text-muted-foreground">{tipCount}</span>}
+      </div>
       
       {/* Options dropdown menu - enhanced */}
       <div className="ml-auto">
@@ -318,7 +327,7 @@ const NoteCardActions = ({
             <Button
               variant="ghost"
               size="sm" 
-              className="text-muted-foreground hover:bg-accent rounded-full"
+              className="text-muted-foreground hover:bg-accent rounded-full p-2 h-8 w-8"
               onClick={(e) => e.preventDefault()}
             >
               <MoreHorizontal className="h-4 w-4" />

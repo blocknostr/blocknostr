@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
@@ -145,11 +144,12 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             />
             <NoteCardContent 
               content={event.content} 
+              reachCount={reachCount}
             />
           </CardContent>
         </Link>
         
-        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1">
+        <CardFooter className="pt-0 px-5 pb-3">
           <NoteCardActions 
             eventId={event.id || ''} 
             pubkey={event.pubkey || ''} 
