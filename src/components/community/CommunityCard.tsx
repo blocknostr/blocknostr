@@ -1,4 +1,3 @@
-
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Users } from "lucide-react";
@@ -6,6 +5,8 @@ import CommunityCardHeader from "./CommunityCardHeader";
 import CommunityCardActions from "./CommunityCardActions";
 import { formatSerialNumber } from "@/lib/community-utils";
 import LeaveCommunityButton from "./LeaveCommunityButton";
+import { nostrService } from "@/lib/nostr";
+import { toast } from "sonner";
 
 export interface Community {
   id: string;
@@ -38,6 +39,52 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
     return date.toLocaleDateString();
   };
 
+  const handleLeaveClick = () => {
+    if (!currentUserPubkey) {
+      return;
+    }
+    
+    try {
+      // Remove the current user from members
+      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
+      
+      // Create an updated community event without the current user
+      const communityData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(communityData),
+        tags: [
+          ['d', community.uniqueId],
+          ...updatedMembers.map(member => ['p', member])
+        ]
+      };
+      
+      // Handle the promise internally
+      nostrService.publishEvent(event)
+        .then((publishResult) => {
+          if (publishResult) {
+            toast.success("You have left the community");
+          } else {
+            toast.error("Failed to leave the community");
+          }
+        })
+        .catch((error) => {
+          console.error("Error leaving community:", error);
+          toast.error("Failed to leave community");
+        });
+    } catch (error) {
+      console.error("Error leaving community:", error);
+      toast.error("Failed to leave community");
+    }
+  };
+
   return (
     <Card 
       className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col"
@@ -54,7 +101,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         {isMember && !isCreator && currentUserPubkey && (
           <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
             <LeaveCommunityButton 
-              onLeave={() => {}} // Will be handled by CommunityCardActions
+              onLeave={handleLeaveClick}
               communityName={community.name}
               subtle={true}
             />

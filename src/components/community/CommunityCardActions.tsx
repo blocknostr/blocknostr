@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Link as LinkIcon, UserMinus } from "lucide-react";
+import { UserPlus, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import LeaveCommunityButton from "./LeaveCommunityButton";
@@ -149,15 +149,9 @@ const CommunityCardActions = ({
             Join
           </Button>
         )}
-        {isMember && !isCreator && currentUserPubkey && (
-          <LeaveCommunityButton
-            onLeave={handleLeaveClick}
-            communityName={community.name}
-          />
-        )}
         {(isMember || isCreator) && (
           <>
-            {/* Show view button */}
+            {/* Show view button - now full width */}
             <Button 
               variant="outline" 
               className="flex-1"
