@@ -4,6 +4,7 @@ import { nostrService } from "@/lib/nostr";
 import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers";
 import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions";
 import { useCommunityActions } from "./community/useCommunityActions";
+import { Community, Proposal, KickProposal, PendingVotes } from "@/types/community";
 
 // Fix re-exporting with 'export type' for isolatedModules
 export type { Community, Proposal, KickProposal } from "@/types/community";

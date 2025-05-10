@@ -10,6 +10,7 @@ interface CommunityPageHeaderProps {
   isCreatorOnlyMember?: boolean;
   currentUserPubkey: string | null;
   onJoinCommunity: () => void;
+  onLeaveCommunity: () => void;  // Added this prop
   onDeleteCommunity?: () => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ const CommunityPageHeader = ({
   isCreatorOnlyMember = false,
   currentUserPubkey,
   onJoinCommunity,
+  onLeaveCommunity,  // Added this prop
   onDeleteCommunity
 }: CommunityPageHeaderProps) => {
   return (

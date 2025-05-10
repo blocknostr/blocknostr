@@ -24,50 +24,21 @@ interface CommunityHeaderProps {
   currentUserPubkey: string | null;
   isCreator: boolean;
   isMember: boolean;
+  onLeaveCommunity: () => void; // Added prop
 }
 
 const CommunityHeader = ({ 
   community, 
   currentUserPubkey, 
   isCreator, 
-  isMember 
+  isMember,
+  onLeaveCommunity
 }: CommunityHeaderProps) => {
   const navigate = useNavigate();
 
   const handleLeaveCommunity = async () => {
-    if (!currentUserPubkey) return;
-    
-    try {
-      // Remove user from members list
-      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
-      
-      // Create an updated community event without the current user
-      const communityData = {
-        name: community.name,
-        description: community.description,
-        image: community.image,
-        creator: community.creator,
-        createdAt: community.createdAt
-      };
-      
-      const event = {
-        kind: 34550,
-        content: JSON.stringify(communityData),
-        tags: [
-          ['d', community.uniqueId],
-          ...updatedMembers.map(member => ['p', member])
-        ]
-      };
-      
-      await nostrService.publishEvent(event);
-      toast.success("You have left the community");
-      
-      // Redirect back to communities list
-      navigate('/communities');
-    } catch (error) {
-      console.error("Error leaving community:", error);
-      toast.error("Failed to leave community");
-    }
+    await onLeaveCommunity();
+    navigate('/communities');
   };
   
   return (

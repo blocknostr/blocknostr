@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Link as LinkIcon, UserMinus } from "lucide-react";
@@ -68,7 +67,7 @@ const CommunityCardActions = ({
     }
   };
 
-  const handleLeaveClick = async (e: React.MouseEvent<HTMLElement>) => {
+  const handleLeaveClick = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
     
     if (!currentUserPubkey) {
@@ -98,12 +97,19 @@ const CommunityCardActions = ({
         ]
       };
       
-      const publishResult = await nostrService.publishEvent(event);
-      if (publishResult) {
-        toast.success("You have left the community");
-      } else {
-        toast.error("Failed to leave the community");
-      }
+      // Handle the promise internally
+      nostrService.publishEvent(event)
+        .then((publishResult) => {
+          if (publishResult) {
+            toast.success("You have left the community");
+          } else {
+            toast.error("Failed to leave the community");
+          }
+        })
+        .catch((error) => {
+          console.error("Error leaving community:", error);
+          toast.error("Failed to leave community");
+        });
     } catch (error) {
       console.error("Error leaving community:", error);
       toast.error("Failed to leave community");
@@ -147,7 +153,7 @@ const CommunityCardActions = ({
         )}
         {isMember && !isCreator && currentUserPubkey && (
           <LeaveCommunityButton
-            onLeave={(e) => handleLeaveClick(e as unknown as React.MouseEvent<HTMLElement>)}
+            onLeave={handleLeaveClick}
             communityName={community.name}
           />
         )}

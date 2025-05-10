@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,7 +32,8 @@ interface MembersListProps {
   currentUserPubkey: string | null;
   onKickProposal: (targetMember: string) => void;
   kickProposals: KickProposal[];
-  onVoteKick?: (kickProposalId: string) => void; // Added this prop
+  onVoteKick?: (kickProposalId: string) => void; 
+  onLeaveCommunity: () => void; // Added prop
 }
 
 const MembersList: React.FC<MembersListProps> = ({ 
@@ -41,7 +41,8 @@ const MembersList: React.FC<MembersListProps> = ({
   currentUserPubkey,
   onKickProposal,
   kickProposals,
-  onVoteKick
+  onVoteKick,
+  onLeaveCommunity // Added prop
 }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
