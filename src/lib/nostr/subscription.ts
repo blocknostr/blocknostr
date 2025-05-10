@@ -1,6 +1,6 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
-import { NostrEvent, type SubCloser } from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent } from './types';
 
 export class SubscriptionManager {
   private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
@@ -12,15 +12,15 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: Filter[],
+    filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): SubCloser {
+  ): string {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
     
-    // Use the pool to subscribe according to NIP-01 guidelines
-    const subscription = this.pool.subscribeMany(
+    // Use the pool to subscribe
+    this.pool.subscribeMany(
       relays,
       filters,
       {
@@ -33,17 +33,11 @@ export class SubscriptionManager {
       }
     );
     
-    // Return a function that closes the subscription when called
-    const subCloser: SubCloser = () => {
-      this.pool.close([subscription]);
-      this.subscriptions.delete(subId);
-    };
-    
-    return subCloser;
+    return subId;
   }
   
-  unsubscribe(subHandle: SubCloser): void {
-    // Call the function directly to close the subscription
-    subHandle();
+  unsubscribe(subId: string): void {
+    this.subscriptions.delete(subId);
+    this.pool.close([subId]);
   }
 }

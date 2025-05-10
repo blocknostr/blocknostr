@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -5,9 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Check, Loader2, Network, Plus, Wifi, X } from "lucide-react";
 import { Relay, nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 interface ProfileRelaysDialogProps {
   open: boolean;
@@ -29,10 +27,6 @@ const ProfileRelaysDialog = ({
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isAddingRelay, setIsAddingRelay] = useState(false);
   const [isImportingRelays, setIsImportingRelays] = useState(false);
-  const [newRelayPermissions, setNewRelayPermissions] = useState({
-    read: true,
-    write: true
-  });
 
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
@@ -40,13 +34,10 @@ const ProfileRelaysDialog = ({
     setIsAddingRelay(true);
     
     try {
-      // Fix: Pass the read/write object correctly to addRelay
-      const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
-      
+      const success = await nostrService.addRelay(newRelayUrl);
       if (success) {
         toast.success(`Added relay: ${newRelayUrl}`);
         setNewRelayUrl("");
-        setNewRelayPermissions({ read: true, write: true });
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
         if (onRelaysChange) {
@@ -72,17 +63,6 @@ const ProfileRelaysDialog = ({
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
-  
-  const handleUpdateRelayPermissions = (relayUrl: string, permissions: {read: boolean; write: boolean}) => {
-    // Use the updateRelayPermissions method on NostrService
-    nostrService.updateRelayPermissions(relayUrl, permissions);
-    // Update relay status
-    const relayStatus = nostrService.getRelayStatus();
-    if (onRelaysChange) {
-      onRelaysChange(relayStatus);
-    }
-    toast.success(`Updated permissions for ${relayUrl}`);
-  };
 
   const handleImportRelays = async () => {
     if (!userNpub || isCurrentUser) return;
@@ -91,7 +71,7 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Use the getRelaysForUser method on NostrService
+      // Try to find the user's relays
       const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
@@ -100,7 +80,7 @@ const ProfileRelaysDialog = ({
         return;
       }
       
-      // Use the addMultipleRelays method on NostrService
+      // Add all found relays
       const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
@@ -130,60 +110,28 @@ const ProfileRelaysDialog = ({
         
         <div className="space-y-4 py-2">
           {isCurrentUser ? (
-            <div className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <Input
-                  placeholder="wss://relay.example.com"
-                  value={newRelayUrl}
-                  onChange={(e) => setNewRelayUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !isAddingRelay && newRelayUrl.trim()) {
-                      handleAddRelay();
-                    }
-                  }}
-                />
-                
-                <div className="flex flex-col space-y-2 mt-2">
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="read-permission"
-                      checked={newRelayPermissions.read}
-                      onCheckedChange={(checked) => 
-                        setNewRelayPermissions(prev => ({...prev, read: checked}))
-                      }
-                    />
-                    <Label htmlFor="read-permission">Read (receive notes from this relay)</Label>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="write-permission"
-                      checked={newRelayPermissions.write}
-                      onCheckedChange={(checked) => 
-                        setNewRelayPermissions(prev => ({...prev, write: checked}))
-                      }
-                    />
-                    <Label htmlFor="write-permission">Write (publish notes to this relay)</Label>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={handleAddRelay}
-                  disabled={isAddingRelay || !newRelayUrl.trim()}
-                  className="w-full mt-2"
-                >
-                  {isAddingRelay ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Plus className="h-4 w-4 mr-2" />
-                  )}
-                  Add Relay
-                </Button>
-              </div>
-              
-              <div className="text-xs text-muted-foreground">
-                Relay URLs should start with wss:// and be trusted by both you and your contacts
-              </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="wss://relay.example.com"
+                value={newRelayUrl}
+                onChange={(e) => setNewRelayUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isAddingRelay && newRelayUrl.trim()) {
+                    handleAddRelay();
+                  }
+                }}
+              />
+              <Button 
+                onClick={handleAddRelay}
+                disabled={isAddingRelay || !newRelayUrl.trim()}
+              >
+                {isAddingRelay ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Add
+              </Button>
             </div>
           ) : userNpub ? (
             <div className="flex justify-end">
@@ -201,6 +149,12 @@ const ProfileRelaysDialog = ({
               </Button>
             </div>
           ) : null}
+          
+          {isCurrentUser && (
+            <div className="text-xs text-muted-foreground">
+              Relay URLs should start with wss:// and be trusted by both you and your contacts
+            </div>
+          )}
           
           <div className="space-y-2 max-h-[40vh] overflow-y-auto">
             {relays.length === 0 ? (
@@ -228,62 +182,18 @@ const ProfileRelaysDialog = ({
                         relay.status === 'connected' ? 'bg-green-500' : 
                         relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
                       }`}></span>
-                      <span className="text-sm font-mono truncate max-w-[200px]">{relay.url}</span>
-                      
-                      <div className="flex gap-1 ml-2">
-                        {relay.read && (
-                          <Badge variant="outline" className="text-xs py-0 h-5">
-                            Read
-                          </Badge>
-                        )}
-                        {relay.write && (
-                          <Badge variant="outline" className="text-xs py-0 h-5">
-                            Write
-                          </Badge>
-                        )}
-                      </div>
+                      <span className="text-sm font-mono truncate max-w-[300px]">{relay.url}</span>
                     </div>
-                    
                     {isCurrentUser && (
-                      <div className="flex items-center gap-2">
-                        {relay.status === 'connected' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-sm"
-                            onClick={() => handleUpdateRelayPermissions(relay.url, {
-                              read: !relay.read,
-                              write: relay.write
-                            })}
-                          >
-                            {relay.read ? "R ✓" : "R ✗"}
-                          </Button>
-                        )}
-                        
-                        {relay.status === 'connected' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-sm"
-                            onClick={() => handleUpdateRelayPermissions(relay.url, {
-                              read: relay.read,
-                              write: !relay.write
-                            })}
-                          >
-                            {relay.write ? "W ✓" : "W ✗"}
-                          </Button>
-                        )}
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-100/10"
-                          onClick={() => handleRemoveRelay(relay.url)}
-                        >
-                          <X className="h-4 w-4" />
-                          <span className="sr-only">Remove</span>
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100/10"
+                        onClick={() => handleRemoveRelay(relay.url)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove</span>
+                      </Button>
                     )}
                   </div>
                 ))}

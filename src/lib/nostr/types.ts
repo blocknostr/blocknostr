@@ -16,9 +16,6 @@ export interface Relay {
   write: boolean;
 }
 
-// Update the SubCloser type to match what nostr-tools returns (a function that closes the subscription)
-export type SubCloser = () => void;
-
 export interface NostrProfileMetadata {
   name?: string;
   display_name?: string;

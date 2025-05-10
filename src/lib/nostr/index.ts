@@ -1,6 +1,5 @@
-import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
-import { toast } from "sonner";
-import { NostrEvent, type Relay, type SubCloser } from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';
@@ -9,13 +8,11 @@ import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { verifyNip05, fetchNip05Data } from './nip05';
-
-// Only export types once
-export type { NostrEvent, Relay, SubCloser };
+import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  private relayManager: RelayManager; 
+  public relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -56,7 +53,7 @@ class NostrService {
     return this.userManager.following;
   }
   
-  get userRelays(): Map<string, {read: boolean; write: boolean}> {
+  get userRelays(): Map<string, boolean> {
     return this.relayManager.userRelays;
   }
 
@@ -65,8 +62,6 @@ class NostrService {
     const success = await this.userManager.login();
     if (success) {
       await this.fetchFollowingList();
-      // Fetch relay list after login
-      await this.fetchRelayList();
     }
     return success;
   }
@@ -75,7 +70,7 @@ class NostrService {
     this.userManager.signOut();
   }
 
-  // Relay management - Public methods that delegate to RelayManager
+  // Relay management
   public async connectToDefaultRelays(): Promise<void> {
     await this.relayManager.connectToDefaultRelays();
   }
@@ -84,10 +79,10 @@ class NostrService {
     await this.relayManager.connectToUserRelays();
   }
   
-  public async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
+  public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     const success = await this.relayManager.addRelay(relayUrl, readWrite);
     if (success) {
-      // Publish relay list to network using NIP-65
+      // Publish relay list to network
       await this.publishRelayList();
     }
     return success;
@@ -99,31 +94,59 @@ class NostrService {
     this.publishRelayList();
   }
   
-  public updateRelayPermissions(relayUrl: string, permissions: {read: boolean; write: boolean}): boolean {
-    const success = this.relayManager.updateRelayPermissions(relayUrl, permissions);
-    if (success) {
-      this.publishRelayList();
-    }
-    return success;
-  }
-  
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
   
-  // Method to add multiple relays at once with NIP-65 format
-  public async addMultipleRelays(relays: {url: string, read: boolean, write: boolean}[]): Promise<number> {
-    const successCount = await this.relayManager.addMultipleRelays(relays);
-    if (successCount > 0) {
-      // Publish updated relay list
-      await this.publishRelayList();
+  // Method to add multiple relays at once
+  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    if (!relayUrls.length) return 0;
+    
+    let successCount = 0;
+    
+    for (const url of relayUrls) {
+      try {
+        const success = await this.addRelay(url);
+        if (success) successCount++;
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
+      }
     }
+    
     return successCount;
   }
   
-  // Method to get relays for a user following NIP-65 standard
-  public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
-    return this.relayManager.getRelaysForUser(pubkey);
+  // Method to get relays for a user
+  public async getRelaysForUser(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const relays: string[] = [];
+      
+      // Subscribe to relay list event
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relays.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(relays);
+      }, 3000);
+    });
   }
 
   // Event publication
@@ -149,18 +172,17 @@ class NostrService {
     );
   }
   
-  // Subscription management - Updated to handle SubCloser return type
+  // Subscription management
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): SubCloser {
+  ): string {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Return the SubCloser function from the subscription manager
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
-  public unsubscribe(subHandle: SubCloser): void {
-    this.subscriptionManager.unsubscribe(subHandle);
+  public unsubscribe(subId: string): void {
+    this.subscriptionManager.unsubscribe(subId);
   }
   
   // Social features
@@ -208,8 +230,7 @@ class NostrService {
       
       // If no relays found yet, try to find a kind:10050 relay list event
       if (recipientRelays.length === 0) {
-        const userRelaysInfo = await this.getRelaysForUser(recipientPubkey);
-        recipientRelays = userRelaysInfo.map(r => r.url);
+        recipientRelays = await this.getRelaysForUser(recipientPubkey);
       }
     } catch (error) {
       console.error("Error finding recipient's relays:", error);
@@ -367,7 +388,7 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      const subHandle = this.subscribe(
+      const subId = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -387,50 +408,22 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subHandle);
+        this.unsubscribe(subId);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);
     }
   }
   
-  // Fetch user's NIP-65 relay list
-  private async fetchRelayList(): Promise<void> {
-    if (!this.publicKey) return;
-    
-    try {
-      await this.connectToDefaultRelays();
-      
-      // First try kind 10002 (NIP-65)
-      const nip65Relays = await this.getRelaysForUser(this.publicKey);
-      
-      if (nip65Relays.length > 0) {
-        // Add all relays from the user's NIP-65 list
-        await this.addMultipleRelays(nip65Relays);
-        console.log("Loaded NIP-65 relays:", nip65Relays);
-      }
-    } catch (error) {
-      console.error("Error fetching relay list:", error);
-    }
-  }
-  
-  // Publish relay list according to NIP-65
   private async publishRelayList(): Promise<string | null> {
     if (!this.publicKey) return null;
     
-    // Create relay list tags in NIP-65 format
     const relayList = Array.from(this.userRelays.entries()).map(
-      ([url, {read, write}]) => {
-        const permission = [];
-        if (read) permission.push('read');
-        if (write) permission.push('write');
-        return ['r', url, permission.join(' ')];
-      }
+      ([url, readWrite]) => ['r', url, readWrite ? 'read write' : 'read']
     );
     
-    // Create and publish the NIP-65 event (kind 10002)
     const event = {
-      kind: 10002, // NIP-65 relay list kind
+      kind: EVENT_KINDS.RELAY_LIST,
       content: '',
       tags: relayList
     };
@@ -448,5 +441,6 @@ class NostrService {
 // Create singleton instance
 export const nostrService = new NostrService();
 
-// Export constants
+// Export types and constants
+export type { NostrEvent, Relay } from './types';
 export { EVENT_KINDS } from './constants';

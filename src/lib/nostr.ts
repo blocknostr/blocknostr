@@ -1,11 +1,24 @@
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
-// Use explicit type imports to fix the isolatedModules error
-import type { NostrEvent, Relay, SubCloser } from './nostr/types';
 
-// Re-export types with the correct syntax for isolatedModules
-export type { NostrEvent, Relay, SubCloser };
+export interface NostrEvent {
+  id?: string;
+  pubkey?: string;
+  created_at: number;
+  kind: number;
+  tags: string[][];
+  content: string;
+  sig?: string;
+}
 
+export interface Relay {
+  url: string;
+  status: 'connected' | 'connecting' | 'disconnected' | 'error';
+  read: boolean;
+  write: boolean;
+}
+
+// Event types based on Nostr Kinds
 export const EVENT_KINDS = {
   META: 0,            // Profile metadata
   TEXT_NOTE: 1,       // Standard note/post
@@ -37,7 +50,7 @@ class NostrService {
   private pubkeyHandles: Map<string, string> = new Map();
   private pool: SimplePool | null = null;
   private _following: Set<string> = new Set();
-  private _userRelays: Map<string, {read: boolean; write: boolean}> = new Map(); // Updated to NIP-65 format
+  private _userRelays: Map<string, boolean> = new Map(); // Map of relay URLs to read/write status
   
   constructor() {
     // Try to restore from localStorage
@@ -56,7 +69,7 @@ class NostrService {
     return Array.from(this._following);
   }
   
-  public get userRelays(): Map<string, {read: boolean; write: boolean}> {
+  public get userRelays(): Map<string, boolean> {
     return new Map(this._userRelays);
   }
   
@@ -89,24 +102,14 @@ class NostrService {
     if (savedRelays) {
       try {
         const relaysObject = JSON.parse(savedRelays);
-        // Convert to Map with read/write properties per NIP-65
-        this._userRelays = new Map(
-          Object.entries(relaysObject).map(([url, value]) => {
-            // Handle both old format (boolean) and new format (object with read/write)
-            if (typeof value === 'boolean') {
-              return [url, { read: true, write: value }];
-            } else {
-              return [url, value as {read: boolean; write: boolean}];
-            }
-          })
-        );
+        this._userRelays = new Map(Object.entries(relaysObject));
       } catch (e) {
         console.error('Error loading user relays:', e);
       }
     } else {
       // Default to the app's default relays
       this.defaultRelays.forEach(relay => {
-        this._userRelays.set(relay, { read: true, write: true }); // Read/write by default
+        this._userRelays.set(relay, true); // Read/write by default
       });
     }
   }
@@ -224,8 +227,7 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      // Fix: Store the subscription as an opaque SubCloser object, not as a string ID
-      const subCloser = this.subscribe(
+      const subId = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -246,7 +248,7 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subCloser);
+        this.unsubscribe(subId);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);
@@ -306,7 +308,7 @@ class NostrService {
     await Promise.all(promises);
   }
   
-  public async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
+  public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     // Validate URL format
     try {
       new URL(relayUrl);
@@ -315,7 +317,7 @@ class NostrService {
       return false;
     }
     
-    // Add to user relays with NIP-65 format
+    // Add to user relays
     this._userRelays.set(relayUrl, readWrite);
     this.saveUserRelays();
     
@@ -346,19 +348,6 @@ class NostrService {
     this.publishRelayList();
   }
   
-  public updateRelayPermissions(relayUrl: string, permissions: {read: boolean; write: boolean}): boolean {
-    if (!this._userRelays.has(relayUrl)) {
-      return false;
-    }
-    
-    this._userRelays.set(relayUrl, permissions);
-    this.saveUserRelays();
-    
-    // Publish updated relay list
-    this.publishRelayList();
-    return true;
-  }
-  
   private saveUserRelays(): void {
     const relaysObject = Object.fromEntries(this._userRelays);
     localStorage.setItem('nostr_user_relays', JSON.stringify(relaysObject));
@@ -367,181 +356,17 @@ class NostrService {
   private async publishRelayList(): Promise<string | null> {
     if (!this._publicKey) return null;
     
-    // Create relay list tags in NIP-65 format
     const relayList = Array.from(this._userRelays.entries()).map(
-      ([url, {read, write}]) => {
-        const permission = [];
-        if (read) permission.push('read');
-        if (write) permission.push('write');
-        return ['r', url, permission.join(' ')];
-      }
+      ([url, readWrite]) => ['r', url, readWrite ? 'read write' : 'read']
     );
     
-    // Create and publish the NIP-65 event (kind 10002)
     const event = {
-      kind: 10002, // NIP-65 relay list kind
+      kind: EVENT_KINDS.RELAY_LIST,
       content: '',
       tags: relayList
     };
     
     return await this.publishEvent(event);
-  }
-  
-  // Method to add multiple relays at once with NIP-65 format
-  public async addMultipleRelays(relays: {url: string, read: boolean, write: boolean}[]): Promise<number> {
-    if (!relays.length) return 0;
-    
-    let successCount = 0;
-    
-    for (const relay of relays) {
-      try {
-        const success = await this.addRelay(relay.url, {read: relay.read, write: relay.write});
-        if (success) successCount++;
-      } catch (error) {
-        console.error(`Failed to add relay ${relay.url}:`, error);
-      }
-    }
-    
-    return successCount;
-  }
-  
-  // Method to get relays for a user following NIP-65 standard
-  public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
-    if (!this.pool) return [];
-    
-    return new Promise((resolve) => {
-      const relays: {url: string, read: boolean, write: boolean}[] = [];
-      
-      // Subscribe to NIP-65 relay list event (kind 10002)
-      // Use the correct subscription method as per NIP-01
-      const filters = [
-        {
-          kinds: [10002], // NIP-65 relay list kind
-          authors: [pubkey],
-          limit: 1
-        }
-      ];
-      
-      // Get relay URLs to connect to
-      const relayUrls = Array.from(this.relays.keys()).length > 0 
-        ? Array.from(this.relays.keys()) 
-        : this.defaultRelays;
-      
-      if (relayUrls.length === 0) {
-        resolve([]);
-        return;
-      }
-      
-      // Use the SimplePool for subscription
-      const sub = this.pool.subscribeMany(
-        relayUrls,
-        filters,
-        {
-          onevent: (event) => {
-            try {
-              // Parse the relay list from tags
-              const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-              
-              relayTags.forEach(tag => {
-                if (tag[1] && typeof tag[1] === 'string') {
-                  let read = true;
-                  let write = true;
-                  
-                  // Check if read/write permissions specified in tag
-                  if (tag.length >= 3 && typeof tag[2] === 'string') {
-                    const relayPermission = tag[2].toLowerCase();
-                    read = relayPermission.includes('read');
-                    write = relayPermission.includes('write');
-                  }
-                  
-                  relays.push({ url: tag[1], read, write });
-                }
-              });
-            } catch (error) {
-              console.error("Error parsing relay list:", error);
-            }
-          }
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        if (this.pool) {
-          this.pool.close([sub]);
-        }
-        
-        // If no relays found via NIP-65, try the older kind (10001)
-        if (relays.length === 0) {
-          this.fetchLegacyRelayList(pubkey).then(legacyRelays => {
-            resolve(legacyRelays);
-          });
-        } else {
-          resolve(relays);
-        }
-      }, 3000);
-    });
-  }
-
-  // Fallback method to fetch relays from older format
-  private async fetchLegacyRelayList(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
-    if (!this.pool) return [];
-    
-    return new Promise((resolve) => {
-      const relays: {url: string, read: boolean, write: boolean}[] = [];
-      
-      // Subscribe to the older relay list event kind
-      const filters = [
-        {
-          kinds: [10001], // Older kind for relay list
-          authors: [pubkey],
-          limit: 1
-        }
-      ];
-      
-      // Get relay URLs to connect to
-      const relayUrls = Array.from(this.relays.keys()).length > 0 
-        ? Array.from(this.relays.keys()) 
-        : this.defaultRelays;
-      
-      if (relayUrls.length === 0) {
-        resolve([]);
-        return;
-      }
-      
-      // Use the SimplePool for subscription
-      const sub = this.pool.subscribeMany(
-        relayUrls,
-        filters,
-        {
-          onevent: (event) => {
-            // Extract relay URLs from r tags
-            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-            relayTags.forEach(tag => {
-              if (tag[1] && typeof tag[1] === 'string') {
-                let read = true;
-                let write = true;
-                
-                // Check for permissions in third position
-                if (tag.length >= 3 && typeof tag[2] === 'string') {
-                  read = tag[2].includes('read');
-                  write = tag[2].includes('write');
-                }
-                
-                relays.push({ url: tag[1], read, write });
-              }
-            });
-          }
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        if (this.pool) {
-          this.pool.close([sub]);
-        }
-        resolve(relays);
-      }, 3000);
-    });
   }
   
   // Publish events
@@ -606,11 +431,11 @@ class NostrService {
     }
   }
   
-  // Subscription management - Updated to handle SubCloser return type
+  // Subscribe to events
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): SubCloser {
+  ): string {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
@@ -622,21 +447,10 @@ class NostrService {
       }
     }
     
-    // Return a function that will unsubscribe when called
-    return () => {
-      this.unsubscribe(subId);
-    };
+    return subId;
   }
   
-  public unsubscribe(subHandle: SubCloser | string): void {
-    // If it's a function (SubCloser), execute it to close
-    if (typeof subHandle === 'function') {
-      subHandle();
-      return;
-    }
-    
-    // Otherwise, it's a string ID
-    const subId = subHandle;
+  public unsubscribe(subId: string): void {
     this.subscriptions.delete(subId);
     
     // Send unsubscribe request to all connected relays
@@ -816,47 +630,29 @@ class NostrService {
   }
   
   public getRelayStatus(): Relay[] {
-    // First get all relays from userRelays
-    const relayMap = new Map<string, Relay>();
-    
-    // Add all user relays first (even if not connected)
-    Array.from(this._userRelays.entries()).forEach(([url, permissions]) => {
-      const isConnected = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.OPEN;
-      const isConnecting = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.CONNECTING;
-      
-      relayMap.set(url, {
-        url,
-        status: isConnected ? 'connected' : (isConnecting ? 'connecting' : 'disconnected'),
-        read: permissions.read,
-        write: permissions.write
-      });
-    });
-    
-    // Add any connected relays that might not be in userRelays yet
-    Array.from(this.relays.entries()).forEach(([url, socket]) => {
-      if (!relayMap.has(url)) {
-        let status: Relay['status'];
-        switch (socket.readyState) {
-          case WebSocket.CONNECTING:
-            status = 'connecting';
-            break;
-          case WebSocket.OPEN:
-            status = 'connected';
-            break;
-          default:
-            status = 'disconnected';
-        }
-        
-        relayMap.set(url, {
-          url,
-          status,
-          read: true,
-          write: true
-        });
+    return Array.from(this.relays.entries()).map(([url, socket]) => {
+      let status: Relay['status'];
+      switch (socket.readyState) {
+        case WebSocket.CONNECTING:
+          status = 'connecting';
+          break;
+        case WebSocket.OPEN:
+          status = 'connected';
+          break;
+        case WebSocket.CLOSED:
+          status = 'disconnected';
+          break;
+        default:
+          status = 'error';
       }
+      
+      return {
+        url,
+        status,
+        read: true,
+        write: true
+      };
     });
-    
-    return Array.from(relayMap.values());
   }
   
   public getNpubFromHex(hex: string): string {
@@ -896,7 +692,7 @@ class NostrService {
       await this.connectToUserRelays();
       
       return new Promise((resolve) => {
-        const subHandle = this.subscribe(
+        const subId = this.subscribe(
           [
             {
               kinds: [EVENT_KINDS.META],
@@ -918,7 +714,7 @@ class NostrService {
               
               // Cleanup subscription after receiving the profile
               setTimeout(() => {
-                this.unsubscribe(subHandle);
+                this.unsubscribe(subId);
               }, 100);
             } catch (e) {
               console.error("Error parsing profile:", e);
@@ -929,7 +725,7 @@ class NostrService {
         
         // Set a timeout to resolve with null if no profile is found
         setTimeout(() => {
-          this.unsubscribe(subHandle);
+          this.unsubscribe(subId);
           resolve(null);
         }, 5000);
       });
