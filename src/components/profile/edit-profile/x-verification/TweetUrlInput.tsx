@@ -23,12 +23,14 @@ const TweetUrlInput = ({ form, isVerifying, onVerify }: TweetUrlInputProps) => {
             <div className="flex gap-2">
               <Input 
                 placeholder="https://x.com/username/status/123456789"
+                className="dark:bg-gray-700 dark:border-gray-600"
                 {...field}
               />
               <Button 
                 type="button" 
                 onClick={onVerify}
                 disabled={isVerifying}
+                className="bg-gray-800 hover:bg-gray-700 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-200"
               >
                 {isVerifying ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
