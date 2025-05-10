@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { nostrService, NostrEvent } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -414,44 +413,19 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
     return formatDistanceToNow(new Date(timestamp * 1000), { addSuffix: true });
   };
   
-  // Build a comment tree structure for proper nesting
-  const buildCommentTree = () => {
-    const commentMap: Record<string, Comment & { replies: string[] }> = {};
-    
-    // First pass: create map with all comments and initialize replies array
-    comments.forEach(comment => {
-      commentMap[comment.id] = { ...comment, replies: [] };
-    });
-    
-    // Second pass: populate replies arrays
-    comments.forEach(comment => {
-      if (comment.replyTo && commentMap[comment.replyTo]) {
-        commentMap[comment.replyTo].replies.push(comment.id);
-      }
-    });
-    
-    // Return top-level comments (those without a replyTo or with replyTo that doesn't exist)
-    return comments.filter(comment => 
-      !comment.replyTo || !commentMap[comment.replyTo]
-    );
-  };
-  
-  // Recursively render a comment with all its nested replies
-  const renderCommentWithReplies = (comment: Comment, depth = 0) => {
+  // Render a comment with its replies
+  const renderComment = (comment: Comment, isReply = false) => {
     if (!comment) return null;
     
     const { name, picture, shortNpub } = getUserDisplayInfo(comment.author);
     const timeAgo = formatTime(comment.createdAt);
     const isCurrentUser = comment.author === currentUserPubkey;
     
-    // Find all replies to this comment
-    const replies = comments.filter(c => c.replyTo === comment.id);
-    
-    // Calculate left margin based on depth, with a maximum
-    const marginLeft = depth > 0 ? `${Math.min(depth * 16, 48)}px` : '0';
-    
     return (
-      <div key={comment.id} className="group mt-4" style={{ marginLeft }}>
+      <div 
+        key={comment.id}
+        className={`group ${isReply ? 'ml-8 mt-2' : 'mt-4'}`}
+      >
         <div className="flex items-start gap-3">
           <Avatar className="h-8 w-8 shrink-0">
             <AvatarImage src={picture} />
@@ -552,24 +526,17 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
             )}
           </div>
         </div>
-        
-        {/* Render all replies to this comment recursively with increased depth */}
-        {replies.length > 0 && (
-          <div className="pl-6 border-l border-muted ml-4 mt-2">
-            {replies.map(reply => renderCommentWithReplies(reply, depth + 1))}
-          </div>
-        )}
       </div>
     );
   };
   
-  // Get top-level comments
-  const topLevelComments = comments.filter(c => !c.replyTo);
+  // Process comments to display threads properly
+  const processedComments = comments.filter(c => !c.replyTo); // Top-level comments
   
   return (
     <div className="flex flex-col h-full">
-      {/* Chat messages area with improved styling for nested comments */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      {/* Chat messages area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {loadingComments && comments.length === 0 ? (
           <p className="text-center py-8 text-muted-foreground">Loading comments...</p>
         ) : comments.length === 0 ? (
@@ -579,8 +546,17 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
           </div>
         ) : (
           <>
-            {/* Render comments using our recursive rendering function */}
-            {topLevelComments.map(comment => renderCommentWithReplies(comment))}
+            {/* Render top-level comments */}
+            {processedComments.map(comment => (
+              <React.Fragment key={comment.id}>
+                {renderComment(comment)}
+                
+                {/* Render immediate replies to this comment */}
+                {comments
+                  .filter(reply => reply.replyTo === comment.id)
+                  .map(reply => renderComment(reply, true))}
+              </React.Fragment>
+            ))}
             <div ref={messagesEndRef} /> {/* Empty div for scrolling to bottom */}
           </>
         )}
