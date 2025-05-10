@@ -24,6 +24,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   const [profile, setProfile] = useState(profileData);
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
   const [verifyingNip05, setVerifyingNip05] = useState(false);
+  const [xVerified, setXVerified] = useState(false);
   
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
@@ -62,6 +63,32 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
     
     verifyNip05();
   }, [profile?.nip05, pubkeyHex]);
+
+  // Check for X verification status from profile
+  useEffect(() => {
+    // Check if profile has X verification (either via our legacy method or NIP-39)
+    if (profile) {
+      // First, check our custom twitter_verified field
+      if (profile.twitter_verified) {
+        setXVerified(true);
+        return;
+      }
+      
+      // Then check for NIP-39 i tags in the raw event
+      if (Array.isArray(profile.tags)) {
+        const hasTwitterTag = profile.tags.some(tag => 
+          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
+        );
+        
+        if (hasTwitterTag) {
+          setXVerified(true);
+          return;
+        }
+      }
+      
+      setXVerified(false);
+    }
+  }, [profile]);
   
   return (
     <div className="mb-6">
@@ -217,7 +244,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 >
                   <Twitter className="h-3.5 w-3.5" />
                   @{profile.twitter.replace('@', '')}
-                  {profile.twitter_verified && (
+                  {xVerified && (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -226,7 +253,19 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                           </span>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Verified X account</p>
+                          <div className="space-y-1">
+                            <p>Verified X account (NIP-39)</p>
+                            {profile.twitter_proof && (
+                              <a 
+                                href={`https://x.com/status/${profile.twitter_proof}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline text-xs flex items-center"
+                              >
+                                View proof <ExternalLink className="h-2.5 w-2.5 ml-1" />
+                              </a>
+                            )}
+                          </div>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>

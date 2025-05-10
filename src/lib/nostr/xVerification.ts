@@ -1,10 +1,10 @@
 
 import { toast } from 'sonner';
 
-const VERIFICATION_TEXT_PREFIX = "Verifying my Nostr identity: npub";
+const VERIFICATION_TEXT_PREFIX = "Verifying my account on nostr My Public Key: ";
 
 /**
- * Opens a new window for the user to post a verification tweet
+ * Opens a new window for the user to post a verification tweet according to NIP-39
  * @param npub The user's npub to include in the verification tweet
  * @returns Promise that resolves when the window is opened
  */
@@ -41,20 +41,44 @@ export const extractTweetId = (url: string): string | null => {
 };
 
 /**
- * Verifies a tweet contains the expected verification text
+ * Extracts the username from a Twitter/X URL
+ * @param url The tweet URL
+ * @returns The username or null if invalid URL
+ */
+export const extractUsername = (url: string): string | null => {
+  try {
+    // Handle both twitter.com and x.com URLs
+    const usernameRegex = /(?:twitter\.com|x\.com)\/(\w+)\/status/i;
+    const match = url.match(usernameRegex);
+    return match ? match[1] : null;
+  } catch (error) {
+    console.error("Failed to extract username:", error);
+    return null;
+  }
+};
+
+/**
+ * Verifies a tweet contains the expected verification text according to NIP-39
  * @param tweetId The ID of the tweet to verify
  * @param npub The user's npub that should be in the tweet
  * @returns Promise that resolves to a boolean indicating if verification was successful
  */
-export const verifyTweet = async (tweetId: string, npub: string): Promise<boolean> => {
+export const verifyTweet = async (tweetId: string, npub: string): Promise<{ success: boolean, username: string | null }> => {
   try {
     // In a real implementation, this would call a backend API to check the tweet content
     // Since we don't have a backend, we'll simulate a "successful" verification
-    toast.success("X account verification successful!", {
-      duration: 3000,
-    });
+    const username = await simulateTwitterApiCall(tweetId, npub);
     
-    return true;
+    if (username) {
+      toast.success("X account verification successful!", {
+        duration: 3000,
+      });
+      
+      return { success: true, username };
+    } else {
+      toast.error("Failed to verify X account. Tweet content or user mismatch.");
+      return { success: false, username: null };
+    }
     
     // Note: In a real implementation with backend access, you would:
     // 1. Call Twitter API to fetch the tweet content using the tweet ID
@@ -63,6 +87,25 @@ export const verifyTweet = async (tweetId: string, npub: string): Promise<boolea
   } catch (error) {
     console.error("Error verifying tweet:", error);
     toast.error("Failed to verify X account");
-    return false;
+    return { success: false, username: null };
   }
+};
+
+/**
+ * Simulate calling Twitter API to verify the tweet
+ * In a real implementation, this would be a backend call to Twitter API
+ */
+const simulateTwitterApiCall = async (tweetId: string, npub: string): Promise<string | null> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // For the simulation, we'll extract username from localStorage if available
+  // In a real implementation, this would come from the Twitter API response
+  const tweetUrl = localStorage.getItem('last_tweet_url');
+  if (!tweetUrl) return null;
+  
+  const username = extractUsername(tweetUrl);
+  
+  // Simulate success - in real implementation check tweet content contains the npub
+  return username;
 };

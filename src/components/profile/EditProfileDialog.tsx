@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { Loader2, HelpCircle, Twitter, AlertCircle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { NostrProfileMetadata } from '@/lib/nostr/types';
-import { initiateXVerification, extractTweetId, verifyTweet } from '@/lib/nostr/xVerification';
+import { initiateXVerification, extractTweetId, extractUsername, verifyTweet } from '@/lib/nostr/xVerification';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -41,6 +41,8 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState<'idle' | 'tweet' | 'verify'>('idle');
   const [twitterVerified, setTwitterVerified] = useState(false);
+  const [tweetId, setTweetId] = useState<string | null>(null);
+  const [xUsername, setXUsername] = useState<string | null>(null);
   
   // Initialize form with react-hook-form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -75,6 +77,9 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       
       // Check if Twitter is already verified
       setTwitterVerified(!!profileData.twitter_verified);
+      if (profileData.twitter_proof) {
+        setTweetId(profileData.twitter_proof);
+      }
     }
   }, [profileData, open, form]);
   
@@ -100,7 +105,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
     const npub = nostrService.formatPubkey(currentUserPubkey);
     
     try {
-      // Open Twitter intent to tweet
+      // Open Twitter intent to tweet with NIP-39 format
       await initiateXVerification(npub);
       setVerificationStep('verify');
     } catch (error) {
@@ -118,8 +123,11 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       return;
     }
     
-    const tweetId = extractTweetId(tweetUrl);
-    if (!tweetId) {
+    // Save tweet URL to localStorage for simulation purposes
+    localStorage.setItem('last_tweet_url', tweetUrl);
+    
+    const extractedTweetId = extractTweetId(tweetUrl);
+    if (!extractedTweetId) {
       toast.error("Invalid tweet URL. Please ensure it's a full X/Twitter status URL");
       return;
     }
@@ -131,12 +139,14 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       const currentUserPubkey = nostrService.publicKey;
       const npub = nostrService.formatPubkey(currentUserPubkey || '');
       
-      // Verify the tweet
-      const verified = await verifyTweet(tweetId, npub);
+      // Verify the tweet according to NIP-39
+      const { success, username } = await verifyTweet(extractedTweetId, npub);
       
-      if (verified) {
+      if (success && username) {
         setTwitterVerified(true);
-        form.setValue('twitter', form.getValues('twitter').replace('@', ''));
+        setTweetId(extractedTweetId);
+        setXUsername(username);
+        form.setValue('twitter', username);
         toast.success("X account verified successfully!");
       } else {
         toast.error("X account verification failed. Please try again.");
@@ -167,13 +177,27 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       };
       
       // Add Twitter verification status if verified
-      if (twitterVerified) {
+      if (twitterVerified && tweetId && xUsername) {
         metadata.twitter_verified = true;
-        metadata.twitter_proof = form.getValues('tweetUrl'); // Store the proof (tweet URL)
+        metadata.twitter_proof = tweetId;
+      }
+      
+      // Create the event object to publish
+      const eventToPublish: Partial<NostrEvent> = {
+        kind: 0,
+        content: JSON.stringify(metadata),
+        tags: []
+      };
+      
+      // Add NIP-39 i tag if Twitter is verified
+      if (twitterVerified && tweetId && xUsername) {
+        const cleanUsername = xUsername.replace('@', '');
+        eventToPublish.tags = eventToPublish.tags || [];
+        eventToPublish.tags.push(['i', `twitter:${cleanUsername}`, tweetId]);
       }
       
       // Publish metadata to Nostr network
-      const success = await nostrService.publishProfileMetadata(metadata);
+      const success = await nostrService.publishEvent(eventToPublish);
       
       if (success) {
         toast.success("Profile updated successfully");
@@ -342,6 +366,27 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
               <div className="flex items-center gap-2 mb-2">
                 <Twitter className="h-5 w-5 text-blue-500" />
                 <h3 className="font-medium">X (Twitter) Account</h3>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>Verification follows NIP-39 standard for external identity verification.</p>
+                      <p className="mt-2">You'll need to post a tweet containing your Nostr public key.</p>
+                      <a 
+                        href="https://github.com/nostr-protocol/nips/blob/master/39.md" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline mt-2 block"
+                      >
+                        Learn more about NIP-39
+                      </a>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               
               <div className="space-y-4">
@@ -406,7 +451,10 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
                     </p>
                     <p className="mt-2">
                       A new window should open for you to post a verification tweet. 
-                      The tweet must contain your Nostr public key.
+                      The tweet must contain your Nostr public key exactly as shown.
+                    </p>
+                    <p className="mt-2">
+                      This follows the NIP-39 standard for external identity verification.
                     </p>
                   </div>
                 )}
@@ -455,7 +503,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
                   <div className="bg-green-50 border border-green-200 rounded-md p-3 text-sm flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      X account verified successfully
+                      X account verified successfully (NIP-39)
                     </span>
                     <a 
                       href={`https://x.com/${form.getValues('twitter').replace('@', '')}`}
