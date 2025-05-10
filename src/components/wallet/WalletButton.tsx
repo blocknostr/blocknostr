@@ -10,7 +10,7 @@ import {
 import WalletMenu from "./WalletMenu";
 
 const WalletButton = () => {
-  const { isConnected, connectWallet } = useAlephium();
+  const { isConnected, connectWallet, isWalletAvailable } = useAlephium();
 
   const handleConnect = async () => {
     await connectWallet();
@@ -40,6 +40,7 @@ const WalletButton = () => {
           variant="outline"
           size="sm"
           className="flex items-center gap-2"
+          title={isWalletAvailable ? "Connect your Alephium wallet" : "Alephium wallet extension not detected"}
         >
           <Wallet className="h-4 w-4" />
           <span>Connect Wallet</span>

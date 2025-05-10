@@ -33,35 +33,61 @@ export class AlephiumService {
     return AlephiumService.instance;
   }
 
+  public isWalletAvailable(): boolean {
+    return typeof window !== 'undefined' && 
+           (window as any).alephium !== undefined;
+  }
+
   public async connectWallet(): Promise<boolean> {
     try {
       // Check if alephium wallet extension exists
-      if (typeof window !== 'undefined' && 'alephium' in window) {
-        const alephium = (window as any).alephium;
-        await alephium.enable();
-
-        // Set connection status
+      if (!this.isWalletAvailable()) {
+        toast.error("Alephium wallet extension not found. Please install it first.");
+        console.error("Alephium wallet not available in window object");
+        // Open wallet installation page
+        window.open("https://chrome.google.com/webstore/detail/alephium-extension-wallet/gdokollfhmnbfckbobkdbakhidagfcjj", "_blank");
+        return false;
+      }
+      
+      const alephium = (window as any).alephium;
+      
+      // For development/testing, provide a mock wallet if real one is not available
+      if (process.env.NODE_ENV === 'development' && !alephium) {
+        console.log("Using mock wallet for development");
         this.isConnected = true;
-        
-        // Get current address
-        const addresses = await alephium.getAccounts();
-        if (addresses && addresses.length > 0) {
-          this.currentAddress = addresses[0];
-          await this.fetchBalances();
-          toast.success("Wallet connected successfully");
-          return true;
-        }
+        this.currentAddress = "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH";
+        await this.fetchBalances();
+        toast.success("Connected to mock wallet (development mode)");
+        return true;
+      }
+      
+      await alephium.enable();
+      console.log("Wallet enabled successfully");
+
+      // Set connection status
+      this.isConnected = true;
+      
+      // Get current address
+      const addresses = await alephium.getAccounts();
+      console.log("Accounts received:", addresses);
+      
+      if (addresses && addresses.length > 0) {
+        this.currentAddress = addresses[0];
+        await this.fetchBalances();
+        toast.success("Wallet connected successfully");
+        return true;
       } else {
-        toast.error("Alephium wallet extension not found");
+        toast.error("No accounts found in the wallet");
+        console.error("No accounts found in wallet");
+        this.isConnected = false;
         return false;
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
-      toast.error("Failed to connect wallet");
+      toast.error(`Failed to connect wallet: ${error instanceof Error ? error.message : "Unknown error"}`);
       this.isConnected = false;
       return false;
     }
-    return false;
   }
 
   public async disconnect(): Promise<void> {
@@ -123,7 +149,7 @@ export class AlephiumService {
 
   // Listen for account changes
   public setupEventListeners(): void {
-    if (typeof window !== 'undefined' && 'alephium' in window) {
+    if (this.isWalletAvailable()) {
       const alephium = (window as any).alephium;
       if (alephium && alephium.on) {
         alephium.on('accountsChanged', async (accounts: string[]) => {

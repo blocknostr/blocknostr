@@ -21,7 +21,8 @@ const WalletPage = () => {
     formatAddress, 
     balances, 
     isLoading,
-    refreshBalances 
+    refreshBalances,
+    isWalletAvailable
   } = useAlephium();
   
   const [activeTab, setActiveTab] = useState("overview");
@@ -58,6 +59,10 @@ const WalletPage = () => {
     await disconnectWallet();
     navigate("/");
   };
+  
+  const handleInstallWallet = () => {
+    window.open("https://chrome.google.com/webstore/detail/alephium-extension-wallet/gdokollfhmnbfckbobkdbakhidagfcjj", "_blank");
+  };
 
   const mainBalance = balances[0]?.balance || "0";
   
@@ -86,7 +91,20 @@ const WalletPage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-6">
-          {isConnected ? (
+          {!isWalletAvailable ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-10 space-y-4">
+                <Wallet className="h-16 w-16 text-muted-foreground" />
+                <h2 className="text-xl font-semibold">Alephium Wallet Not Detected</h2>
+                <p className="text-muted-foreground text-center max-w-md">
+                  You need to install the Alephium Extension Wallet to connect to this application.
+                </p>
+                <Button onClick={handleInstallWallet} className="mt-4">
+                  Install Alephium Wallet
+                </Button>
+              </CardContent>
+            </Card>
+          ) : isConnected ? (
             <Tabs defaultValue="overview" onValueChange={setActiveTab} value={activeTab}>
               <TabsList className="mb-6">
                 <TabsTrigger value="overview">Overview</TabsTrigger>

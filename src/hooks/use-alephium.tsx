@@ -7,11 +7,18 @@ export function useAlephium() {
   const [address, setAddress] = useState<string | null>(null);
   const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isWalletAvailable, setIsWalletAvailable] = useState<boolean>(false);
 
   // Initialize and check connection status
   useEffect(() => {
     const checkConnection = async () => {
       setIsLoading(true);
+      
+      // Check if wallet is available
+      const available = alephiumService.isWalletAvailable();
+      setIsWalletAvailable(available);
+      
+      // Check connection status
       const connected = alephiumService.isWalletConnected();
       setIsConnected(connected);
       
@@ -76,6 +83,7 @@ export function useAlephium() {
     isLoading,
     connectWallet,
     disconnectWallet,
-    refreshBalances
+    refreshBalances,
+    isWalletAvailable
   };
 }
