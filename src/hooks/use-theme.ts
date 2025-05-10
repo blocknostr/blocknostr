@@ -39,7 +39,7 @@ export const useTheme = () => {
     // Remove transition class after transition completes to prevent affecting other interactions
     setTimeout(() => {
       document.documentElement.classList.remove('color-theme-in-transition');
-    }, 3000); // Match the 3s transition duration
+    }, 1000); // Match the 1s transition duration
   };
 
   // Set initial dark mode state based on html class
