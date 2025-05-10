@@ -108,7 +108,6 @@ const ProposalCard = ({
     }
     
     try {
-      // Updated to use the correct parameters
       await nostrService.voteOnProposal(proposal.id, optionIndex);
       toast.success("Vote recorded!");
     } catch (error) {

@@ -9,42 +9,32 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 
 interface DeleteDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => Promise<void> | void;
-  title: string;
-  description: string;
+  isDeleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
 }
 
-const DeleteDialog = ({
-  isOpen,
-  onOpenChange,
-  onConfirm,
-  title,
-  description
-}: DeleteDialogProps) => {
+const DeleteDialog = ({ isOpen, isDeleting, onClose, onConfirm }: DeleteDialogProps) => {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogTitle>Delete Note</AlertDialogTitle>
           <AlertDialogDescription>
-            {description}
+            Are you sure you want to delete this note? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
-            className="bg-destructive hover:bg-destructive/90"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Delete
+            {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
