@@ -29,10 +29,7 @@ const NotificationsPage = () => {
       {!isMobile && <Sidebar />}
       
       <div className={`flex-1 ${isMobile ? "" : "ml-0 md:ml-64"}`}>
-        <NotificationsHeader 
-          darkMode={darkMode}
-          toggleDarkMode={toggleDarkMode}
-        />
+        <NotificationsHeader />
         
         <div className="flex">
           <main className={`flex-1 ${isMobile ? "" : "border-r"} min-h-screen`}>
