@@ -1,29 +1,25 @@
 
-import { HelpCircle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 
 const XVerificationTooltip = () => {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-            <HelpCircle className="h-4 w-4" />
+          <Button variant="ghost" size="icon">
+            <HelpCircle className="h-4 w-4 text-muted-foreground" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs bg-gray-800 text-white dark:bg-white dark:text-gray-800">
-          <p>Verification follows NIP-39 standard for external identity verification.</p>
-          <p className="mt-2">You'll post a tweet containing your Nostr public key, and we'll add an "i" tag to your profile metadata.</p>
-          <p className="mt-2">The format is: ["i", "twitter:username", "tweetId"]</p>
-          <a 
-            href="https://github.com/nostr-protocol/nips/blob/master/39.md" 
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#1DA1F2] hover:underline mt-2 block"
-          >
-            Learn more about NIP-39
-          </a>
+        <TooltipContent className="max-w-xs">
+          <p>You can verify your X (Twitter) account by posting a verification tweet.</p>
+          <p className="mt-2">This follows the NIP-39 protocol for cross-platform identity verification.</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

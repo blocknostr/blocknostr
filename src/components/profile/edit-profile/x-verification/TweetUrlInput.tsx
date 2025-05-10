@@ -1,8 +1,8 @@
 
-import { FormField, FormItem, FormControl } from "@/components/ui/form";
+import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from "lucide-react";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from '../types';
 
@@ -14,33 +14,39 @@ interface TweetUrlInputProps {
 
 const TweetUrlInput = ({ form, isVerifying, onVerify }: TweetUrlInputProps) => {
   return (
-    <FormField
-      control={form.control}
-      name="tweetUrl"
-      render={({ field }) => (
-        <FormItem>
-          <FormControl>
-            <div className="flex gap-2">
-              <Input 
-                placeholder="https://x.com/username/status/123456789"
-                className="dark:bg-gray-700 dark:border-gray-600"
+    <div className="space-y-2">
+      <FormField
+        control={form.control}
+        name="tweetUrl"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Tweet URL</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="https://twitter.com/username/status/123456789"
                 {...field}
               />
-              <Button 
-                type="button" 
-                onClick={onVerify}
-                disabled={isVerifying}
-                className="bg-gray-800 hover:bg-gray-700 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-200"
-              >
-                {isVerifying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : "Verify"}
-              </Button>
-            </div>
-          </FormControl>
-        </FormItem>
-      )}
-    />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+      
+      <Button
+        type="button"
+        onClick={onVerify}
+        disabled={isVerifying || !form.getValues('tweetUrl')}
+        className="mt-2 w-full"
+      >
+        {isVerifying ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Verifying...
+          </>
+        ) : (
+          "Verify Tweet"
+        )}
+      </Button>
+    </div>
   );
 };
 

@@ -1,9 +1,9 @@
 
-import { FormField, FormItem, FormControl, FormDescription } from "@/components/ui/form";
+import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { CheckCircle2 } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from '../types';
+import { Check } from "lucide-react";
 
 interface TwitterUsernameInputProps {
   form: UseFormReturn<ProfileFormValues>;
@@ -17,34 +17,30 @@ const TwitterUsernameInput = ({ form, twitterVerified }: TwitterUsernameInputPro
       name="twitter"
       render={({ field }) => (
         <FormItem>
-          <div className="flex items-center gap-2">
-            <FormDescription>Username</FormDescription>
+          <FormLabel className="flex items-center gap-2">
+            Username
             {twitterVerified && (
-              <span className="flex items-center text-xs gap-1 text-white bg-[#1DA1F2] dark:bg-[#1789cd] px-2 py-1 rounded-full shadow-sm">
-                <CheckCircle2 className="h-3 w-3" />
+              <span className="text-green-500 flex items-center text-xs font-normal">
+                <Check className="h-3 w-3 mr-1" />
                 Verified
               </span>
             )}
-          </div>
+          </FormLabel>
           <FormControl>
-            <div className="relative">
-              <Input
-                value={field.value}
-                onChange={field.onChange}
-                placeholder="@username"
-                className="pl-8 dark:bg-gray-700 dark:border-gray-600"
-                style={{ 
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='%231DA1F2' stroke='%231DA1F2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z'%3E%3C/path%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: '10px center',
-                  paddingLeft: '2rem'
-                }}
-              />
-            </div>
+            <Input
+              placeholder="@username"
+              {...field}
+              value={field.value}
+              onChange={(e) => {
+                // Remove @ if it's already in the input
+                const value = e.target.value.startsWith('@')
+                  ? e.target.value
+                  : `@${e.target.value}`;
+                field.onChange(value);
+              }}
+              disabled={twitterVerified}
+            />
           </FormControl>
-          <FormDescription>
-            Enter your X (Twitter) username with or without the @ symbol
-          </FormDescription>
         </FormItem>
       )}
     />

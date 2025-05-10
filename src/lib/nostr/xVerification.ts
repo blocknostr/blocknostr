@@ -1,112 +1,89 @@
 
-import { toast } from 'sonner';
-
-// NIP-39 compliant verification text
-const VERIFICATION_TEXT_PREFIX = "Verifying my account on nostr My Public Key: ";
+/**
+ * X/Twitter verification utilities following NIP-39
+ */
 
 /**
- * Opens a new window for the user to post a verification tweet according to NIP-39
- * @param npub The user's npub to include in the verification tweet
- * @returns Promise that resolves when the window is opened
+ * Open Twitter intent to compose a verification tweet in the proper format
+ * @param npub The user's npub to include in the verification message
  */
-export const initiateXVerification = (npub: string): Promise<void> => {
-  return new Promise((resolve) => {
-    const verificationText = `${VERIFICATION_TEXT_PREFIX}${npub}`;
-    const encodedText = encodeURIComponent(verificationText);
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
-    
-    window.open(tweetUrl, '_blank', 'width=600,height=400');
-    toast.info(
-      "Please post the verification tweet and then paste your tweet URL below",
-      { duration: 8000 }
-    );
-    resolve();
-  });
+export const initiateXVerification = async (npub: string): Promise<void> => {
+  // Format the verification message according to NIP-39
+  const message = `Verifying my nostr identity: ${npub}`;
+  
+  // Construct Twitter intent URL
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}`;
+  
+  // Open the Twitter intent in a new window
+  window.open(twitterUrl, "_blank");
 };
 
 /**
- * Extracts the tweet ID from a Twitter/X URL
- * @param url The tweet URL
- * @returns The tweet ID or null if invalid URL
+ * Extract tweet ID from a Twitter URL
+ * @param url Twitter status URL
+ * @returns Tweet ID or null if invalid URL
  */
 export const extractTweetId = (url: string): string | null => {
   try {
-    // Handle both twitter.com and x.com URLs
-    const tweetRegex = /(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/i;
-    const match = url.match(tweetRegex);
-    return match ? match[1] : null;
-  } catch (error) {
-    console.error("Failed to extract tweet ID:", error);
-    return null;
-  }
-};
-
-/**
- * Extracts the username from a Twitter/X URL
- * @param url The tweet URL
- * @returns The username or null if invalid URL
- */
-export const extractUsername = (url: string): string | null => {
-  try {
-    // Handle both twitter.com and x.com URLs
-    const usernameRegex = /(?:twitter\.com|x\.com)\/(\w+)\/status/i;
-    const match = url.match(usernameRegex);
-    return match ? match[1] : null;
-  } catch (error) {
-    console.error("Failed to extract username:", error);
-    return null;
-  }
-};
-
-/**
- * Verifies a tweet contains the expected verification text according to NIP-39
- * @param tweetId The ID of the tweet to verify
- * @param npub The user's npub that should be in the tweet
- * @returns Promise that resolves to a boolean indicating if verification was successful
- */
-export const verifyTweet = async (tweetId: string, npub: string): Promise<{ success: boolean, username: string | null }> => {
-  try {
-    // In a real implementation, this would call a backend API to check the tweet content
-    // Since we don't have a backend, we'll simulate a "successful" verification
-    const username = await simulateTwitterApiCall(tweetId, npub);
+    // Match Twitter URL patterns
+    const patterns = [
+      /twitter\.com\/\w+\/status\/(\d+)/,
+      /x\.com\/\w+\/status\/(\d+)/,
+      /\/status\/(\d+)/,
+    ];
     
-    if (username) {
-      toast.success("X account verification successful!", {
-        duration: 3000,
-      });
-      
-      return { success: true, username };
-    } else {
-      toast.error("Failed to verify X account. Tweet content or user mismatch.");
-      return { success: false, username: null };
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
     }
     
-    // Note: In a real implementation with backend access, you would:
-    // 1. Call Twitter API to fetch the tweet content using the tweet ID
-    // 2. Verify the tweet content contains the verification text with the user's npub
-    // 3. Return true if verification passes, false otherwise
+    return null;
   } catch (error) {
-    console.error("Error verifying tweet:", error);
-    toast.error("Failed to verify X account");
-    return { success: false, username: null };
+    console.error("Error extracting tweet ID:", error);
+    return null;
   }
 };
 
 /**
- * Simulate calling Twitter API to verify the tweet
- * In a real implementation, this would be a backend call to Twitter API
+ * Verify a tweet contains the correct verification message for a user
+ * Note: In a production app, this would typically call a backend service 
+ * that interfaces with Twitter's API
+ * 
+ * @param tweetId ID of the tweet to verify
+ * @param npub User's npub to check against
+ * @returns Object with success status and username if found
  */
-const simulateTwitterApiCall = async (tweetId: string, npub: string): Promise<string | null> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // For the simulation, we'll extract username from localStorage if available
-  // In a real implementation, this would come from the Twitter API response
-  const tweetUrl = localStorage.getItem('last_tweet_url');
-  if (!tweetUrl) return null;
-  
-  const username = extractUsername(tweetUrl);
-  
-  // Simulate success - in real implementation check tweet content contains the npub
-  return username;
+export const verifyTweet = async (
+  tweetId: string,
+  npub: string
+): Promise<{ success: boolean; username: string | null }> => {
+  try {
+    // For demonstration purposes, we're simulating successful verification
+    // In a real application, this would call a backend that uses Twitter API
+    
+    // Extract Twitter username from URL or localStorage for demo purposes
+    const tweetUrl = localStorage.getItem('last_tweet_url');
+    let username: string | null = null;
+    
+    if (tweetUrl) {
+      // Try to extract username from URL (simulation)
+      const usernameMatch = tweetUrl.match(/twitter\.com\/([^\/]+)\/status\//);
+      if (usernameMatch && usernameMatch[1]) {
+        username = usernameMatch[1];
+      } else {
+        // Fallback demo username
+        username = "user" + Math.floor(Math.random() * 1000);
+      }
+    }
+    
+    // Store tweet ID for later use
+    localStorage.setItem('last_tweet_id', tweetId);
+    
+    return { success: true, username };
+  } catch (error) {
+    console.error("Error verifying tweet:", error);
+    return { success: false, username: null };
+  }
 };
