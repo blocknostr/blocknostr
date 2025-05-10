@@ -1,15 +1,15 @@
 
-import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
 import { nostrService, NostrEvent } from "@/lib/nostr";
 import NotificationItem from "@/components/notification/NotificationItem";
 import TrendingSection from "@/components/TrendingSection";
 import WhoToFollow from "@/components/WhoToFollow";
-import { Lightbulb, Bell } from "lucide-react";
+import { Lightbulb, Bell, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
+import Sidebar from "@/components/Sidebar";
 import { toast } from "sonner";
 
 interface EnhancedNotification extends NostrEvent {
