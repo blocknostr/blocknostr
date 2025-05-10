@@ -123,64 +123,28 @@ export class RelayManager {
   }
   
   getRelayStatus(): Relay[] {
-    // First get all relays from userRelays
-    const relayMap = new Map<string, Relay>();
-    
-    // Add all user relays first (even if not connected)
-    Array.from(this._userRelays.keys()).forEach(url => {
-      const isConnected = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.OPEN;
-      const isConnecting = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.CONNECTING;
+    return Array.from(this.relays.entries()).map(([url, socket]) => {
+      let status: Relay['status'];
+      switch (socket.readyState) {
+        case WebSocket.CONNECTING:
+          status = 'connecting';
+          break;
+        case WebSocket.OPEN:
+          status = 'connected';
+          break;
+        case WebSocket.CLOSED:
+          status = 'disconnected';
+          break;
+        default:
+          status = 'error';
+      }
       
-      relayMap.set(url, {
+      return {
         url,
-        status: isConnected ? 'connected' : (isConnecting ? 'connecting' : 'disconnected'),
+        status,
         read: true,
-        write: !!this._userRelays.get(url)
-      });
+        write: true
+      };
     });
-    
-    // Add any connected relays that might not be in userRelays yet
-    Array.from(this.relays.entries()).forEach(([url, socket]) => {
-      if (!relayMap.has(url)) {
-        let status: Relay['status'];
-        switch (socket.readyState) {
-          case WebSocket.CONNECTING:
-            status = 'connecting';
-            break;
-          case WebSocket.OPEN:
-            status = 'connected';
-            break;
-          default:
-            status = 'disconnected';
-        }
-        
-        relayMap.set(url, {
-          url,
-          status,
-          read: true,
-          write: true
-        });
-      }
-    });
-    
-    return Array.from(relayMap.values());
-  }
-  
-  // New method to add multiple relays at once
-  async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls.length) return 0;
-    
-    let successCount = 0;
-    
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) successCount++;
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-      }
-    }
-    
-    return successCount;
   }
 }

@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -13,7 +12,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  public relayManager: RelayManager;
+  private relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -98,57 +97,6 @@ class NostrService {
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
-  
-  // Method to add multiple relays at once
-  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls.length) return 0;
-    
-    let successCount = 0;
-    
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) successCount++;
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-      }
-    }
-    
-    return successCount;
-  }
-  
-  // Method to get relays for a user
-  public async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST],
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              relays.push(tag[1]);
-            }
-          });
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        resolve(relays);
-      }, 3000);
-    });
-  }
 
   // Event publication
   public async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
@@ -213,40 +161,13 @@ class NostrService {
   
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    
-    // Try to find recipient's preferred relays via NIP-05 or kind:10050 event
-    let recipientRelays: string[] = [];
-    
-    try {
-      // First try to get profile for potential NIP-05 identifier
-      const profile = await this.getUserProfile(recipientPubkey);
-      
-      if (profile?.nip05) {
-        // If recipient has NIP-05, try to fetch relay preferences from it
-        const nip05Data = await this.fetchNip05Data(profile.nip05);
-        if (nip05Data?.relays) {
-          recipientRelays = Object.keys(nip05Data.relays);
-        }
-      }
-      
-      // If no relays found yet, try to find a kind:10050 relay list event
-      if (recipientRelays.length === 0) {
-        recipientRelays = await this.getRelaysForUser(recipientPubkey);
-      }
-    } catch (error) {
-      console.error("Error finding recipient's relays:", error);
-    }
-    
-    // Combine connected relays with recipient's relays
-    const publishToRelays = Array.from(new Set([...connectedRelays, ...recipientRelays]));
-    
     return this.socialManager.sendDirectMessage(
       this.pool,
       recipientPubkey,
       content,
       this.publicKey,
       null, // We're not storing private keys
-      publishToRelays.length > 0 ? publishToRelays : connectedRelays
+      connectedRelays
     );
   }
   

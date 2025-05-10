@@ -1,20 +1,14 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { NostrProfileMetadata, NostrEvent } from '@/lib/nostr/types';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { nostrService } from '@/lib/nostr';
-import { Form } from "@/components/ui/form";
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-
-// Import refactored components
-import ProfileBasicFields from './edit-profile/ProfileBasicFields';
-import ExternalLinksFields from './edit-profile/ExternalLinksFields';
-import XVerificationSection from './edit-profile/XVerificationSection';
-import { profileFormSchema, ProfileFormValues } from './edit-profile/types';
+import { toast } from 'sonner';
+import { Loader2, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -24,113 +18,50 @@ interface EditProfileDialogProps {
 }
 
 const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }: EditProfileDialogProps) => {
+  const [name, setName] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [about, setAbout] = useState('');
+  const [picture, setPicture] = useState('');
+  const [banner, setBanner] = useState('');
+  const [website, setWebsite] = useState('');
+  const [nip05, setNip05] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [twitterVerified, setTwitterVerified] = useState(false);
-  const [tweetId, setTweetId] = useState<string | null>(null);
-  const [xUsername, setXUsername] = useState<string | null>(null);
-  
-  // Initialize form with react-hook-form
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: '',
-      display_name: '',
-      about: '',
-      picture: '',
-      banner: '',
-      website: '',
-      nip05: '',
-      twitter: '',
-      tweetUrl: ''
-    }
-  });
   
   // Load existing profile data when dialog opens
   useEffect(() => {
     if (profileData) {
-      // Fill form with existing data
-      form.reset({
-        name: profileData.name || '',
-        display_name: profileData.display_name || '',
-        about: profileData.about || '',
-        picture: profileData.picture || '',
-        banner: profileData.banner || '',
-        website: profileData.website || '',
-        nip05: profileData.nip05 || '',
-        twitter: profileData.twitter || '',
-        tweetUrl: ''
-      });
-      
-      // Check if Twitter is already verified via NIP-39 "i" tag
-      if (Array.isArray(profileData.tags)) {
-        const twitterTag = profileData.tags.find(tag => 
-          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
-        );
-        
-        if (twitterTag) {
-          setTwitterVerified(true);
-          setTweetId(twitterTag[2]); // Tweet ID is in position 2
-          const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
-          setXUsername(username);
-          form.setValue('twitter', username);
-        } else if (profileData.twitter_verified) {
-          // Legacy verification
-          setTwitterVerified(!!profileData.twitter_verified);
-          if (profileData.twitter_proof) {
-            setTweetId(profileData.twitter_proof);
-          }
-        }
-      }
+      setName(profileData.name || '');
+      setDisplayName(profileData.display_name || '');
+      setAbout(profileData.about || '');
+      setPicture(profileData.picture || '');
+      setBanner(profileData.banner || '');
+      setWebsite(profileData.website || '');
+      setNip05(profileData.nip05 || '');
     }
-  }, [profileData, open, form]);
+  }, [profileData, open]);
   
-  const handleSubmit = async (values: ProfileFormValues) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
     
     try {
       // Prepare metadata object
-      const metadata: NostrProfileMetadata = {
-        name: values.name,
-        display_name: values.display_name,
-        about: values.about,
-        picture: values.picture,
-        banner: values.banner,
-        website: values.website,
-        nip05: values.nip05,
-        twitter: values.twitter.replace('@', '') // Remove @ if present
+      const metadata = {
+        name,
+        display_name: displayName,
+        about,
+        picture,
+        banner,
+        website,
+        nip05
       };
-      
-      // Create the event object to publish
-      const eventToPublish: Partial<NostrEvent> = {
-        kind: 0,
-        content: JSON.stringify(metadata),
-        tags: []
-      };
-      
-      // Add NIP-39 "i" tag for Twitter verification if verified
-      if (twitterVerified && tweetId && xUsername) {
-        const cleanUsername = xUsername.replace('@', '');
-        eventToPublish.tags = [
-          // NIP-39 compliant format: ["i", "twitter:username", "tweetId"]
-          ["i", `twitter:${cleanUsername}`, tweetId]
-        ];
-      }
       
       // Publish metadata to Nostr network
-      const success = await nostrService.publishEvent(eventToPublish);
+      const success = await nostrService.publishProfileMetadata(metadata);
       
       if (success) {
-        // Create a new updated profile object that combines the old data with new values
-        const updatedProfile = {
-          ...profileData,
-          ...metadata,
-          tags: eventToPublish.tags // Include the updated tags
-        };
-        
         toast.success("Profile updated successfully");
         onOpenChange(false);
-        
-        // Call the callback with the updated profile data
         onProfileUpdated();
       } else {
         toast.error("Failed to update profile");
@@ -148,50 +79,129 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
-          <DialogDescription>
-            Update your profile details and verify your social accounts
-          </DialogDescription>
         </DialogHeader>
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
-            {/* Basic profile fields */}
-            <ProfileBasicFields form={form} />
+        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Username</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="username"
+              />
+            </div>
             
-            {/* External links fields */}
-            <ExternalLinksFields form={form} />
-
-            {/* X (Twitter) Account Verification */}
-            <XVerificationSection 
-              form={form}
-              twitterVerified={twitterVerified}
-              setTwitterVerified={setTwitterVerified}
-              setTweetId={setTweetId}
-              setXUsername={setXUsername}
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Display Name"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="about">About</Label>
+            <Textarea
+              id="about"
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              placeholder="Tell us about yourself"
+              rows={3}
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="picture">Profile Picture URL</Label>
+            <Input
+              id="picture"
+              value={picture}
+              onChange={(e) => setPicture(e.target.value)}
+              placeholder="https://example.com/profile.jpg"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="banner">Banner Image URL</Label>
+            <Input
+              id="banner"
+              value={banner}
+              onChange={(e) => setBanner(e.target.value)}
+              placeholder="https://example.com/banner.jpg"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://yourwebsite.com"
+              />
+            </div>
             
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="nip05">NIP-05 Identifier</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>NIP-05 identifiers provide verification of your identity.</p>
+                      <p className="mt-2">Format: you@yourdomain.com</p>
+                      <p className="mt-2">You need to set up a <code>.well-known/nostr.json</code> file on your domain to link your identifier to your public key.</p>
+                      <a 
+                        href="https://github.com/nostr-protocol/nips/blob/master/05.md" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline mt-2 block"
+                      >
+                        Learn more about NIP-05
+                      </a>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                id="nip05"
+                value={nip05}
+                onChange={(e) => setNip05(e.target.value)}
+                placeholder="you@example.com"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

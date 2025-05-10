@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,7 +14,6 @@ interface ProfileStatsProps {
   isCurrentUser: boolean;
   relays: Relay[];
   onRelaysChange?: (relays: Relay[]) => void;
-  userNpub?: string;
 }
 
 const ProfileStats = ({ 
@@ -25,8 +23,7 @@ const ProfileStats = ({
   currentUserPubkey,
   isCurrentUser,
   relays,
-  onRelaysChange,
-  userNpub
+  onRelaysChange
 }: ProfileStatsProps) => {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
@@ -52,7 +49,7 @@ const ProfileStats = ({
         <StatItem 
           label="Relays" 
           value={relays.length.toLocaleString()} 
-          onClick={() => setShowRelays(true)}
+          onClick={isCurrentUser ? () => setShowRelays(true) : undefined}
         />
       </div>
       
@@ -105,14 +102,14 @@ const ProfileStats = ({
       </Dialog>
 
       {/* Relays Dialog */}
-      <ProfileRelaysDialog
-        open={showRelays}
-        onOpenChange={setShowRelays}
-        relays={relays}
-        onRelaysChange={onRelaysChange}
-        isCurrentUser={isCurrentUser}
-        userNpub={userNpub}
-      />
+      {isCurrentUser && (
+        <ProfileRelaysDialog
+          open={showRelays}
+          onOpenChange={setShowRelays}
+          relays={relays}
+          onRelaysChange={onRelaysChange}
+        />
+      )}
     </Card>
   );
 };

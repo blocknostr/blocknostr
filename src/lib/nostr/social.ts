@@ -104,23 +104,13 @@ export class SocialManager {
     }
     
     try {
-      // Use NIP-04 encryption through extension (standard method)
+      // Encrypt message using NIP-04 if available through extension
       let encryptedContent = content;
-      let encryptionSuccessful = false;
       
-      if (window.nostr?.nip04) {
-        // Use NIP-04 encryption through extension
-        try {
-          encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
-          encryptionSuccessful = true;
-          console.log("Message encrypted with NIP-04");
-        } catch (e) {
-          console.error("NIP-04 encryption failed:", e);
-        }
-      }
-      
-      if (!encryptionSuccessful) {
-        toast.error("Message encryption failed - install a Nostr extension with NIP-04 support");
+      if (window.nostr && window.nostr.nip04) {
+        encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+      } else {
+        toast.error("Message encryption not available - install a Nostr extension with NIP-04 support");
         return null;
       }
       

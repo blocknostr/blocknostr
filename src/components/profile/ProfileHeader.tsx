@@ -4,9 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar, Check, AlertCircle, Twitter, BadgeCheck } from "lucide-react";
+import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar, Check, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import FollowButton from "@/components/FollowButton";
 import { formatDistanceToNow } from "date-fns";
 import { nostrService } from "@/lib/nostr";
@@ -24,13 +23,6 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   const [profile, setProfile] = useState(profileData);
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
   const [verifyingNip05, setVerifyingNip05] = useState(false);
-  const [xVerified, setXVerified] = useState(false);
-  const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
-  
-  // Update local state when profileData prop changes
-  useEffect(() => {
-    setProfile(profileData);
-  }, [profileData]);
   
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
@@ -44,14 +36,10 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   // Get account creation date (using NIP-01 bech32 encoding timestamp)
   const creationDate = npub ? new Date() : new Date(); // Placeholder, would need actual creation date logic
   
-  const handleProfileUpdated = async () => {
-    // Fetch fresh profile data after update
-    if (pubkeyHex) {
-      const freshProfile = await nostrService.getUserProfile(pubkeyHex);
-      if (freshProfile) {
-        setProfile(freshProfile);
-      }
-    }
+  const handleProfileUpdated = () => {
+    // Update the profile state with the new data
+    // In a real app, you might want to fetch the latest profile data from the network
+    setProfile(profileData);
   };
 
   // Verify NIP-05 identifier when profile data changes
@@ -73,40 +61,6 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
     
     verifyNip05();
   }, [profile?.nip05, pubkeyHex]);
-
-  // Check for X verification status from profile according to NIP-39
-  useEffect(() => {
-    if (profile) {
-      // First, check for NIP-39 "i" tags in the event
-      if (Array.isArray(profile.tags)) {
-        const twitterTag = profile.tags.find(tag => 
-          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
-        );
-        
-        if (twitterTag) {
-          const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
-          const tweetId = twitterTag[2]; // Tweet ID is in position 2
-          
-          setXVerified(true);
-          setXVerifiedInfo({ username, tweetId });
-          return;
-        }
-      }
-      
-      // Fall back to legacy verification if no NIP-39 tag found
-      if (profile.twitter_verified) {
-        setXVerified(true);
-        setXVerifiedInfo({ 
-          username: profile.twitter || '', 
-          tweetId: profile.twitter_proof || '' 
-        });
-        return;
-      }
-      
-      setXVerified(false);
-      setXVerifiedInfo(null);
-    }
-  }, [profile]);
   
   return (
     <div className="mb-6">
@@ -249,45 +203,6 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 >
                   <Globe className="h-3.5 w-3.5" />
                   {profile.website.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-              
-              {(profile?.twitter || xVerifiedInfo?.username) && (
-                <a 
-                  href={`https://x.com/${(profile?.twitter || xVerifiedInfo?.username).replace('@', '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
-                >
-                  <Twitter className="h-3.5 w-3.5" />
-                  @{(profile?.twitter || xVerifiedInfo?.username).replace('@', '')}
-                  {xVerified && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="flex items-center">
-                            <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="space-y-1">
-                            <p>Verified X account (NIP-39)</p>
-                            {xVerifiedInfo?.tweetId && (
-                              <a 
-                                href={`https://x.com/status/${xVerifiedInfo.tweetId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:underline text-xs flex items-center"
-                              >
-                                View proof <ExternalLink className="h-2.5 w-2.5 ml-1" />
-                              </a>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}

@@ -1,10 +1,8 @@
-
-import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal, BadgeCheck } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import FollowButton from '../FollowButton';
 import {
   DropdownMenu,
@@ -13,13 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { toast } from 'sonner';
+import { useState } from 'react';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -33,7 +26,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const currentUserPubkey = nostrService.publicKey;
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const [isUserMuted, setIsUserMuted] = useState(false);
-  const [xVerified, setXVerified] = useState(false);
   
   // Handle short display of npub (first 5 and last 5 chars)
   const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
@@ -69,32 +61,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     toast.success(`Blocked ${displayName}`);
   };
 
-  // Check for X verification status from profile
-  useEffect(() => {
-    // Check if profile has X verification (either via our legacy method or NIP-39)
-    if (profileData) {
-      // First, check our custom twitter_verified field
-      if (profileData.twitter_verified) {
-        setXVerified(true);
-        return;
-      }
-      
-      // Then check for NIP-39 i tags in the raw event
-      if (profileData.tags && Array.isArray(profileData.tags)) {
-        const hasTwitterTag = profileData.tags.some(tag => 
-          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
-        );
-        
-        if (hasTwitterTag) {
-          setXVerified(true);
-          return;
-        }
-      }
-      
-      setXVerified(false);
-    }
-  }, [profileData]);
-
   return (
     <div className="flex justify-between">
       <div className="flex">
@@ -113,24 +79,10 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
           <div className="flex items-baseline gap-x-1 flex-wrap">
             <Link 
               to={`/profile/${hexPubkey}`}
-              className="font-bold hover:underline truncate flex items-center gap-1"
+              className="font-bold hover:underline truncate"
               onClick={(e) => e.stopPropagation()}
             >
               {displayName}
-              {xVerified && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <BadgeCheck className="h-3.5 w-3.5 text-blue-500 inline-block ml-0.5" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Verified X account (NIP-39)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
             </Link>
             
             <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
