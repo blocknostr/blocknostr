@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  public relayManager: RelayManager; // Must be public so it can be accessed directly
+  private relayManager: RelayManager; // Changed back to private with proper public methods
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -73,7 +73,7 @@ class NostrService {
     this.userManager.signOut();
   }
 
-  // Relay management
+  // Relay management - Public methods that delegate to RelayManager
   public async connectToDefaultRelays(): Promise<void> {
     await this.relayManager.connectToDefaultRelays();
   }
@@ -82,7 +82,6 @@ class NostrService {
     await this.relayManager.connectToUserRelays();
   }
   
-  // Updated to match RelayManager's method signature
   public async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
     const success = await this.relayManager.addRelay(relayUrl, readWrite);
     if (success) {
@@ -121,7 +120,6 @@ class NostrService {
   }
   
   // Method to get relays for a user following NIP-65 standard
-  // Fixed return type to match actual return value
   public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
     return this.relayManager.getRelaysForUser(pubkey);
   }
@@ -207,7 +205,8 @@ class NostrService {
       
       // If no relays found yet, try to find a kind:10050 relay list event
       if (recipientRelays.length === 0) {
-        recipientRelays = await this.getRelaysForUser(recipientPubkey);
+        const userRelaysInfo = await this.getRelaysForUser(recipientPubkey);
+        recipientRelays = userRelaysInfo.map(r => r.url);
       }
     } catch (error) {
       console.error("Error finding recipient's relays:", error);
@@ -400,7 +399,7 @@ class NostrService {
       await this.connectToDefaultRelays();
       
       // First try kind 10002 (NIP-65)
-      const nip65Relays = await this.relayManager.getRelaysForUser(this.publicKey);
+      const nip65Relays = await this.getRelaysForUser(this.publicKey);
       
       if (nip65Relays.length > 0) {
         // Add all relays from the user's NIP-65 list

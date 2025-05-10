@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {
@@ -12,14 +12,14 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
+    filters: Filter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
     
-    // Use the pool to subscribe
+    // Use the pool to subscribe according to NIP-01 guidelines
     this.pool.subscribeMany(
       relays,
       filters,

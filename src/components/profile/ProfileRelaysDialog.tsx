@@ -40,7 +40,7 @@ const ProfileRelaysDialog = ({
     setIsAddingRelay(true);
     
     try {
-      // Use updated NostrService method that accepts read/write permissions
+      // Use the updated addRelay method with proper types
       const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
       if (success) {
         toast.success(`Added relay: ${newRelayUrl}`);
@@ -73,7 +73,7 @@ const ProfileRelaysDialog = ({
   };
   
   const handleUpdateRelayPermissions = (relayUrl: string, permissions: {read: boolean; write: boolean}) => {
-    // Use NostrService's method directly
+    // Use the public method on NostrService
     nostrService.updateRelayPermissions(relayUrl, permissions);
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
@@ -90,7 +90,7 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Use NostrService's method directly
+      // Use the public method on NostrService
       const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
@@ -99,7 +99,7 @@ const ProfileRelaysDialog = ({
         return;
       }
       
-      // Use NostrService's method directly
+      // Use the public method on NostrService
       const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
