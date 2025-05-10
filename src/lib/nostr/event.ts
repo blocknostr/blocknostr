@@ -114,13 +114,15 @@ export class EventManager {
     }
     
     try {
-      const event = {
+      // Create an event object that follows the NostrEvent structure
+      const metadataEvent: Partial<NostrEvent> = {
         kind: EVENT_KINDS.META,
         content: JSON.stringify(metadata),
         tags: []
       };
       
-      const eventId = await this.publishEvent(pool, publicKey, privateKey, event, relays);
+      // Use the existing publishEvent method which handles proper event creation and signing
+      const eventId = await this.publishEvent(pool, publicKey, privateKey, metadataEvent, relays);
       return !!eventId;
     } catch (error) {
       console.error("Error publishing profile metadata:", error);
