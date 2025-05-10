@@ -10,6 +10,7 @@ import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
+import WalletsPage from './pages/WalletsPage';
 import NotFound from './pages/NotFound';
 import Header from './components/Header/Header';
 import Sidebar from './components/Sidebar';
@@ -42,6 +43,7 @@ function App() {
               <Route path="/post/:id" element={<PostPage />} />
               <Route path="/notebin" element={<NotebinPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
+              <Route path="/wallets" element={<WalletsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
