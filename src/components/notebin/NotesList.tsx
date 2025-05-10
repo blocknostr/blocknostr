@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -241,7 +240,7 @@ const NotesList = ({ selectedId }: NotesListProps) => {
 
       <DeleteDialog
         isOpen={deleteDialogOpen}
-        setIsOpen={setDeleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
         onConfirm={handleDeleteConfirm}
         title="Delete Note"
         description="Are you sure you want to delete this note? This action cannot be undone."

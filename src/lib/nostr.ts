@@ -1,12 +1,11 @@
-
 import {
   nip19,
   getEventHash,
   getPublicKey,
   validateEvent,
-  SimplePool
+  SimplePool,
+  generatePrivateKey
 } from "nostr-tools";
-import { generatePrivateKey } from "nostr-tools/lib/nip06";
 
 export interface NostrEvent {
   id: string;
@@ -71,6 +70,7 @@ class NostrService {
       try {
         const decoded = nip19.decode(storedPrivateKey);
         if (decoded.type === "nsec") {
+          // Handle string or Uint8Array
           const privateKeyHex = decoded.data as string;
           this._privateKey = privateKeyHex;
           this._publicKey = getPublicKey(privateKeyHex);
@@ -122,7 +122,7 @@ class NostrService {
   }
 
   async generateNewKeys() {
-    // Generate a new private key using nip06
+    // Generate a new private key using the imported generatePrivateKey function
     const privateKeyHex = generatePrivateKey();
     this._privateKey = privateKeyHex;
     this._publicKey = getPublicKey(privateKeyHex);
@@ -141,6 +141,7 @@ class NostrService {
     try {
       const decoded = nip19.decode(privateKey);
       if (decoded.type === "nsec") {
+        // Handle string or Uint8Array
         const privateKeyHex = decoded.data as string;
         this._privateKey = privateKeyHex;
         this._publicKey = getPublicKey(privateKeyHex);
@@ -293,27 +294,27 @@ class NostrService {
     callback: (event: NostrEvent) => void
   ): string {
     try {
-      // Use the SimplePool's subscribe method instead of sub
+      // Use the SimplePool's subscribe method
       const sub = this.pool.subscribeMany(this.getConnectedRelays(), filters, {
         onevent: (event: NostrEvent) => {
           callback(event);
         }
-      });
+      }) as string; // Cast the return value to string
       
-      return sub; // SimplePool returns id directly
+      return sub;
     } catch (error) {
       console.error("Error subscribing:", error);
       return `error_${Date.now()}`;
     }
   }
 
-  batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): SubCloser {
-    // Use the SimplePool's subscribe method instead of sub
+  batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): string {
+    // Use the SimplePool's subscribe method
     const sub = this.pool.subscribeMany(this.getConnectedRelays(), filters, {
       onevent: (event: NostrEvent) => {
         callback(event);
       }
-    });
+    }) as string; // Cast the return value to string
     
     return sub;
   }
