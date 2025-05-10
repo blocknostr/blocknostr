@@ -72,7 +72,7 @@ const ProfileRelaysDialog = ({
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
       // Try to find the user's relays
-      const userRelays = await (nostrService as any).getRelaysForUser(userPubkey);
+      const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
         toast.info("No relays found for this user");
@@ -81,7 +81,7 @@ const ProfileRelaysDialog = ({
       }
       
       // Add all found relays
-      const successCount = await (nostrService as any).addMultipleRelays(userRelays);
+      const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);
@@ -168,31 +168,36 @@ const ProfileRelaysDialog = ({
                 </p>
               </div>
             ) : (
-              relays.map((relay) => (
-                <div 
-                  key={relay.url} 
-                  className="flex items-center justify-between bg-muted/50 p-3 rounded hover:bg-muted/80 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${
-                      relay.status === 'connected' ? 'bg-green-500' : 
-                      relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}></span>
-                    <span className="text-sm font-mono truncate max-w-[300px]">{relay.url}</span>
-                  </div>
-                  {isCurrentUser && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-100/10"
-                      onClick={() => handleRemoveRelay(relay.url)}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Remove</span>
-                    </Button>
-                  )}
+              <>
+                <div className="text-sm font-medium text-center mb-2">
+                  Connected to {relays.filter(r => r.status === 'connected').length} of {relays.length} relays
                 </div>
-              ))
+                {relays.map((relay) => (
+                  <div 
+                    key={relay.url} 
+                    className="flex items-center justify-between bg-muted/50 p-3 rounded hover:bg-muted/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${
+                        relay.status === 'connected' ? 'bg-green-500' : 
+                        relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}></span>
+                      <span className="text-sm font-mono truncate max-w-[300px]">{relay.url}</span>
+                    </div>
+                    {isCurrentUser && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100/10"
+                        onClick={() => handleRemoveRelay(relay.url)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove</span>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </>
             )}
           </div>
         </div>
