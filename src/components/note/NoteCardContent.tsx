@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
 interface NoteCardContentProps {
   content: string;
@@ -63,12 +64,20 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
       
       {shouldTruncate && (
         <Button 
-          variant="ghost" 
+          variant="link" 
           size="sm" 
           onClick={() => setIsExpanded(!isExpanded)} 
-          className="text-primary hover:text-primary/80 p-0 h-auto mt-1"
+          className="text-[#0EA5E9] hover:text-[#0EA5E9]/80 p-0 h-auto mt-1 font-medium flex items-center gap-1"
         >
-          {isExpanded ? "Show less" : "Show more"}
+          {isExpanded ? (
+            <>
+              <ArrowUp size={16} /> Show less
+            </>
+          ) : (
+            <>
+              <ArrowDown size={16} /> Show more
+            </>
+          )}
         </Button>
       )}
       
