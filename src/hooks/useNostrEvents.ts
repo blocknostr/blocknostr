@@ -1,12 +1,12 @@
 
 import { useCallback } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
+import { nostrService } from "@/lib/nostr";
 
 export const useNostrEvents = () => {
   const fetchOriginalPost = useCallback((
     eventId: string, 
     profiles: Record<string, any>, 
-    setEvents: (updater: (prev: NostrEvent[]) => NostrEvent[]) => void, 
+    setEvents: (updater: (prev: any[]) => any[]) => void, 
     fetchProfileData: (pubkey: string, profiles: Record<string, any>, setProfiles: (profiles: Record<string, any>) => void) => void,
     setProfiles: (updater: (prev: Record<string, any>) => Record<string, any>) => void
   ) => {
