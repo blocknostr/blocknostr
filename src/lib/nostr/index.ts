@@ -181,8 +181,12 @@ class NostrService {
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
-  public unsubscribe(subId: string): void {
-    this.subscriptionManager.unsubscribe(subId);
+  public unsubscribe(subId: { subscription?: any, unsubscribe?: () => void }): void {
+    if (typeof subId === 'string') {
+      this.subscriptionManager.unsubscribe(subId);
+    } else if (subId && typeof subId.unsubscribe === 'function') {
+      subId.unsubscribe();
+    }
   }
   
   // Social features
@@ -388,7 +392,7 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      const subId = this.subscribe(
+      const subscription = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -408,7 +412,7 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subId);
+        this.unsubscribe(subscription);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);

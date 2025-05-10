@@ -33,12 +33,12 @@ export class SubscriptionManager {
       }
     );
     
-    // Return an object that contains both the subscription and a function to unsubscribe
+    // Return an object with the subscription and a function to unsubscribe
     return {
-      sub,
+      subscription: sub,
       unsubscribe: () => {
         this.unsubscribe(subId);
-        sub.close();
+        sub.close(); // Use close() instead of unsubscribe()
       }
     };
   }

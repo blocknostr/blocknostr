@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -75,7 +74,7 @@ const ProfileRelaysDialog = ({
       const relaysFound: string[] = [];
       
       // Subscribe to relay list events for this user
-      const subscription = nostrService.subscribe(
+      const { subscription, unsubscribe } = nostrService.subscribe(
         [
           {
             kinds: [10050], // Relay list event kind
@@ -98,7 +97,7 @@ const ProfileRelaysDialog = ({
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Unsubscribe
-      subscription.unsubscribe();
+      unsubscribe();
       
       if (relaysFound.length === 0) {
         toast.info("No relays found for this user");

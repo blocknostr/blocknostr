@@ -1,6 +1,5 @@
-
 import { SimplePool } from 'nostr-tools';
-import { Relay, SubCloser } from './types';
+import { Relay } from './types';
 
 export class RelayManager {
   private relays: Map<string, WebSocket> = new Map();
@@ -177,20 +176,20 @@ export class RelayManager {
         const success = await this.addRelay(url);
         if (success) successCount++;
       } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
+        console.error(`Failed to connect to relay ${url}:`, error);
       }
     }
     
     return successCount;
   }
   
-  // Add method to get relays for a user (needed for one of the errors)
+  // Add method to get relays for a user
   async getRelaysForUser(pubkey: string): Promise<string[]> {
     return new Promise((resolve) => {
       const relays: string[] = [];
       
       // Subscribe to relay list event
-      const sub = this.pool.subscribeMany(
+      const subscription = this.pool.subscribeMany(
         Array.from(this._userRelays.keys()),
         [
           {
@@ -214,7 +213,7 @@ export class RelayManager {
       
       // Set a timeout to resolve with found relays
       setTimeout(() => {
-        sub.close();
+        subscription.close();
         resolve(relays);
       }, 3000);
     });
