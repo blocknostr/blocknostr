@@ -359,6 +359,8 @@ class NostrService {
     }
   }
 
+  // Adding methods to fix build errors
+
   /**
    * Verify a NIP-05 identifier and check if it matches the expected pubkey
    * @param identifier - NIP-05 identifier in the format username@domain.com
@@ -380,6 +382,107 @@ class NostrService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
+  }
+  
+  /**
+   * Get a list of pubkeys that this user is following
+   * @param pubkey - The public key to check
+   * @returns An array of pubkeys this user follows
+   */
+  public async getFollowing(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const following: string[] = [];
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.CONTACTS],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract pubkeys from p tags
+          const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p')
+            .map(tag => tag[1]);
+            
+          pTags.forEach(pubkey => {
+            if (!following.includes(pubkey)) {
+              following.push(pubkey);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found following
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(following);
+      }, 3000);
+    });
+  }
+  
+  /**
+   * Get a list of pubkeys that follow this user
+   * @param pubkey - The public key to check
+   * @returns An array of pubkeys that follow this user
+   */
+  public async getFollowers(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const followers: string[] = [];
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.CONTACTS],
+            "#p": [pubkey],
+            limit: 50
+          }
+        ],
+        (event) => {
+          const followerPubkey = event.pubkey;
+          if (!followers.includes(followerPubkey)) {
+            followers.push(followerPubkey);
+          }
+        }
+      );
+      
+      // Set a timeout to resolve with found followers
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(followers);
+      }, 3000);
+    });
+  }
+  
+  /**
+   * Get an approximate count of posts made by a user
+   * @param pubkey - The public key to check
+   * @returns The number of posts
+   */
+  public async getPostCount(pubkey: string): Promise<number> {
+    return new Promise((resolve) => {
+      let count = 0;
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.TEXT_NOTE],
+            authors: [pubkey],
+            limit: 100 // Limit to 100 posts for performance
+          }
+        ],
+        () => {
+          count++;
+        }
+      );
+      
+      // Set a timeout to resolve with the count
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(count);
+      }, 3000);
+    });
   }
   
   // Private helper methods
