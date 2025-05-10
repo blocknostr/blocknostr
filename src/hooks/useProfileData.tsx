@@ -1,7 +1,10 @@
 
-import { useState, useEffect } from 'react';
-import { NostrEvent, nostrService, Relay } from '@/lib/nostr';
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { useProfileMetadata } from './profile/useProfileMetadata';
+import { useProfilePosts } from './profile/useProfilePosts';
+import { useProfileRelations } from './profile/useProfileRelations';
+import { useProfileReposts } from './profile/useProfileReposts';
+import { useProfileRelays } from './profile/useProfileRelays';
 
 interface UseProfileDataProps {
   npub: string | undefined;
@@ -9,233 +12,39 @@ interface UseProfileDataProps {
 }
 
 export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
-  const [profileData, setProfileData] = useState<any | null>(null);
-  const [events, setEvents] = useState<NostrEvent[]>([]);
-  const [replies, setReplies] = useState<NostrEvent[]>([]);
-  const [media, setMedia] = useState<NostrEvent[]>([]);
-  const [reposts, setReposts] = useState<{ 
-    originalEvent: NostrEvent; 
-    repostEvent: NostrEvent;
-  }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [relays, setRelays] = useState<Relay[]>([]);
-  const [followers, setFollowers] = useState<string[]>([]);
-  const [following, setFollowing] = useState<string[]>([]);
+  // State for tracking original post profiles (used in reposts)
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
   
-  // Determine if this is the current user's profile
-  // If npub starts with 'npub1', convert it to hex first for comparison
-  const hexNpub = npub && npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
-  const isCurrentUser = currentUserPubkey && hexNpub === currentUserPubkey;
+  // Get profile metadata and loading state
+  const { 
+    profileData, 
+    loading, 
+    isCurrentUser,
+    hexNpub
+  } = useProfileMetadata({ npub, currentUserPubkey });
   
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      if (!npub && !currentUserPubkey) return;
-      
-      try {
-        setLoading(true);
-        
-        // Connect to relays if not already connected
-        await nostrService.connectToUserRelays();
-        
-        // Convert npub to hex if needed
-        let hexPubkey = '';
-        
-        if (npub) {
-          // If npub is provided, use it (convert from npub1 format if needed)
-          hexPubkey = npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
-        } else if (currentUserPubkey) {
-          // Fallback to current user if no npub provided
-          hexPubkey = currentUserPubkey;
-        }
-        
-        if (!hexPubkey) {
-          toast.error("Invalid profile identifier");
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch profile metadata directly
-        const profileMetadata = await nostrService.getUserProfile(hexPubkey);
-        if (profileMetadata) {
-          setProfileData(profileMetadata);
-        }
-        
-        // Subscribe to user's notes (kind 1)
-        const notesSubId = nostrService.subscribe(
-          [
-            {
-              kinds: [1],
-              authors: [hexPubkey],
-              limit: 50
-            }
-          ],
-          (event) => {
-            setEvents(prev => {
-              // Check if we already have this event
-              if (prev.some(e => e.id === event.id)) {
-                return prev;
-              }
-              
-              // Add new event and sort by creation time (newest first)
-              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-            });
-
-            // Check if note contains media
-            try {
-              if (event.content.includes("https://") && 
-                 (event.content.includes(".jpg") || 
-                  event.content.includes(".jpeg") || 
-                  event.content.includes(".png") || 
-                  event.content.includes(".gif"))) {
-                setMedia(prev => {
-                  if (prev.some(e => e.id === event.id)) return prev;
-                  return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-                });
-              }
-            } catch (err) {
-              console.error("Error processing media:", err);
-            }
-          }
-        );
-
-        // Fetch contact list according to NIP-02
-        const contactsSubId = nostrService.subscribe(
-          [
-            {
-              kinds: [3], // Contact Lists (NIP-02)
-              authors: [hexPubkey],
-              limit: 1
-            }
-          ],
-          (event) => {
-            try {
-              // Extract pubkeys from p tags properly according to NIP-02
-              const followingList = event.tags
-                .filter(tag => tag.length >= 2 && tag[0] === 'p')
-                .map(tag => tag[1]);
-              
-              setFollowing(followingList);
-              
-              // If this is the current user, we access the following list using public methods
-              if (isCurrentUser) {
-                // No need to directly access userManager anymore
-                followingList.forEach(pubkey => {
-                  if (!nostrService.isFollowing(pubkey)) {
-                    // This is in the relay data but not in our local following
-                    // We'll rely on the user explicitly following/unfollowing to sync
-                  }
-                });
-              }
-            } catch (e) {
-              console.error('Failed to parse contacts:', e);
-            }
-          }
-        );
-
-        // Fetch followers (other users who have this user in their contacts)
-        const followersSubId = nostrService.subscribe(
-          [
-            {
-              kinds: [3], // Contact Lists (NIP-02)
-              "#p": [hexPubkey], // Filter for contact lists that contain this pubkey
-              limit: 50
-            }
-          ],
-          (event) => {
-            const followerPubkey = event.pubkey;
-            setFollowers(prev => {
-              if (prev.includes(followerPubkey)) return prev;
-              return [...prev, followerPubkey];
-            });
-          }
-        );
-        
-        setLoading(false);
-        
-        return () => {
-          nostrService.unsubscribe(notesSubId);
-          nostrService.unsubscribe(contactsSubId);
-          nostrService.unsubscribe(followersSubId);
-        };
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        toast.error("Could not load profile data. Please try again.");
-        setLoading(false);
-      }
-    };
-    
-    fetchProfileData();
-    
-    // Load relay status if this is the current user
-    if (isCurrentUser) {
-      const relayStatus = nostrService.getRelayStatus();
-      setRelays(relayStatus);
-    }
-  }, [npub, isCurrentUser, currentUserPubkey]);
-
-  const fetchOriginalPost = (eventId: string, pubkey: string | null, repostEvent: NostrEvent) => {
-    // Subscribe to the original event by ID
-    const eventSubId = nostrService.subscribe(
-      [
-        {
-          ids: [eventId],
-          kinds: [1]
-        }
-      ],
-      (originalEvent) => {
-        setReposts(prev => {
-          if (prev.some(r => r.originalEvent.id === originalEvent.id)) {
-            return prev;
-          }
-          
-          const newRepost = {
-            originalEvent,
-            repostEvent
-          };
-          
-          return [...prev, newRepost].sort(
-            (a, b) => b.repostEvent.created_at - a.repostEvent.created_at
-          );
-        });
-        
-        // Fetch profile data for the original author if we don't have it yet
-        if (originalEvent.pubkey && !originalPostProfiles[originalEvent.pubkey]) {
-          const metadataSubId = nostrService.subscribe(
-            [
-              {
-                kinds: [0],
-                authors: [originalEvent.pubkey],
-                limit: 1
-              }
-            ],
-            (event) => {
-              try {
-                const metadata = JSON.parse(event.content);
-                setOriginalPostProfiles(prev => ({
-                  ...prev,
-                  [originalEvent.pubkey]: metadata
-                }));
-              } catch (e) {
-                console.error('Failed to parse profile metadata for repost:', e);
-              }
-            }
-          );
-          
-          // Cleanup subscription after a short time
-          setTimeout(() => {
-            nostrService.unsubscribe(metadataSubId);
-          }, 5000);
-        }
-      }
-    );
-    
-    // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(eventSubId);
-    }, 5000);
-  };
-
+  // Get user's posts and media
+  const { events, media } = useProfilePosts({ 
+    hexPubkey: hexNpub 
+  });
+  
+  // Get followers and following
+  const { followers, following } = useProfileRelations({ 
+    hexPubkey: hexNpub, 
+    isCurrentUser 
+  });
+  
+  // Get reposts and handle fetching original posts
+  const { reposts, replies, fetchOriginalPost } = useProfileReposts({ 
+    originalPostProfiles, 
+    setOriginalPostProfiles 
+  });
+  
+  // Get relays information
+  const { relays, setRelays } = useProfileRelays({ 
+    isCurrentUser 
+  });
+  
   return {
     profileData,
     events,
