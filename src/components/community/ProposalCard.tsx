@@ -2,24 +2,13 @@
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { useProposal } from "@/hooks/useProposal";
+import { Proposal } from "@/types/community";
 
 // Components
 import ProposalHeader from "./proposal/ProposalHeader";
 import ProposalOptions from "./proposal/ProposalOptions";
 import VotingSection from "./proposal/VotingSection";
 import DiscussionSection from "./proposal/DiscussionSection";
-
-export interface Proposal {
-  id: string;
-  communityId: string;
-  title: string;
-  description: string;
-  options: string[];
-  createdAt: number;
-  endsAt: number;
-  creator: string;
-  votes: Record<string, number>;
-}
 
 interface ProposalCardProps {
   proposal: Proposal;

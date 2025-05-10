@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
-import { Proposal } from "@/components/community/ProposalCard";
+import { Proposal } from "@/types/community";
 
 interface UseProposalProps {
   proposal: Proposal;
