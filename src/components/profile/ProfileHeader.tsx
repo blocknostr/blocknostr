@@ -27,6 +27,11 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   const [xVerified, setXVerified] = useState(false);
   const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
   
+  // Update local state when profileData prop changes
+  useEffect(() => {
+    setProfile(profileData);
+  }, [profileData]);
+  
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
   
@@ -39,10 +44,14 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   // Get account creation date (using NIP-01 bech32 encoding timestamp)
   const creationDate = npub ? new Date() : new Date(); // Placeholder, would need actual creation date logic
   
-  const handleProfileUpdated = () => {
-    // Update the profile state with the new data
-    // In a real app, you might want to fetch the latest profile data from the network
-    setProfile(profileData);
+  const handleProfileUpdated = async () => {
+    // Fetch fresh profile data after update
+    if (pubkeyHex) {
+      const freshProfile = await nostrService.getUserProfile(pubkeyHex);
+      if (freshProfile) {
+        setProfile(freshProfile);
+      }
+    }
   };
 
   // Verify NIP-05 identifier when profile data changes

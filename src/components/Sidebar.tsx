@@ -31,12 +31,20 @@ const Sidebar = () => {
     nip05?: string;
   }>({});
   
+  // Force profile refresh when route changes, user logs in, or after 30 seconds
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (isLoggedIn) {
         try {
           const profile = await nostrService.getUserProfile(nostrService.publicKey);
-          setUserProfile(profile || {});
+          if (profile) {
+            setUserProfile({
+              name: profile.name,
+              displayName: profile.display_name,
+              picture: profile.picture,
+              nip05: profile.nip05
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch user profile:", error);
         }
@@ -44,7 +52,12 @@ const Sidebar = () => {
     };
     
     fetchUserProfile();
-  }, [isLoggedIn]);
+    
+    // Set up an interval to periodically refresh the profile
+    const intervalId = setInterval(fetchUserProfile, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [isLoggedIn, location.pathname]);
   
   const navItems = [
     {

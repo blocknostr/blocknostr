@@ -120,8 +120,17 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       const success = await nostrService.publishEvent(eventToPublish);
       
       if (success) {
+        // Create a new updated profile object that combines the old data with new values
+        const updatedProfile = {
+          ...profileData,
+          ...metadata,
+          tags: eventToPublish.tags // Include the updated tags
+        };
+        
         toast.success("Profile updated successfully");
         onOpenChange(false);
+        
+        // Call the callback with the updated profile data
         onProfileUpdated();
       } else {
         toast.error("Failed to update profile");
