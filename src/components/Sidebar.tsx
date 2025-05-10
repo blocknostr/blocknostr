@@ -46,7 +46,7 @@ const Sidebar = () => {
           if (profile) {
             setUserProfile({
               name: profile.name,
-              displayName: profile.display_name,
+              display_name: profile.display_name,
               picture: profile.picture,
               nip05: profile.nip05
             });
@@ -132,8 +132,8 @@ const Sidebar = () => {
   
   // Get user initials for avatar fallback
   const getUserInitials = () => {
-    if (userProfile.displayName || userProfile.name) {
-      const name = (userProfile.displayName || userProfile.name || '').trim();
+    if (userProfile.display_name || userProfile.name) {
+      const name = (userProfile.display_name || userProfile.name || '').trim();
       if (name) {
         return name.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2);
       }
@@ -191,14 +191,14 @@ const Sidebar = () => {
                     <AvatarFallback className="animate-pulse">{getUserInitials()}</AvatarFallback>
                   ) : (
                     <>
-                      <AvatarImage src={userProfile.picture} alt={userProfile.displayName || userProfile.name || 'User'} />
+                      <AvatarImage src={userProfile.picture} alt={userProfile.display_name || userProfile.name || 'User'} />
                       <AvatarFallback>{getUserInitials()}</AvatarFallback>
                     </>
                   )}
                 </Avatar>
                 <div className="flex flex-col">
                   <span className="font-medium text-sm truncate max-w-[140px]">
-                    {userProfile.displayName || userProfile.name || 'User'}
+                    {userProfile.display_name || userProfile.name || 'User'}
                   </span>
                   {userProfile.nip05 && (
                     <span className="text-xs text-muted-foreground truncate max-w-[140px]">{userProfile.nip05}</span>
