@@ -36,9 +36,11 @@ const NoteCardActions = ({
   const [isReposted, setIsReposted] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [repostCount, setRepostCount] = useState(0);
   const isLoggedIn = !!nostrService.publicKey;
   
-  // Check bookmarked status on mount
+  // Check bookmarked status and fetch reaction counts on mount
   useEffect(() => {
     const checkBookmarkStatus = async () => {
       if (isLoggedIn) {
@@ -47,8 +49,55 @@ const NoteCardActions = ({
       }
     };
     
+    // Fetch reaction and repost counts
+    const fetchReactionCounts = async () => {
+      // Subscribe to reactions (kind 7)
+      const reactionSubId = nostrService.subscribe(
+        [{
+          kinds: [7], // Reactions
+          "#e": [eventId], // Reference to this post
+          limit: 500
+        }],
+        (event) => {
+          // Check if it's a like (content is "+")
+          if (event.content === "+") {
+            setLikeCount(prev => prev + 1);
+            
+            // Check if the current user has liked this post
+            if (event.pubkey === nostrService.publicKey) {
+              setIsLiked(true);
+            }
+          }
+        }
+      );
+      
+      // Subscribe to reposts (kind 6)
+      const repostSubId = nostrService.subscribe(
+        [{
+          kinds: [6], // Reposts
+          "#e": [eventId], // Reference to this post
+          limit: 100
+        }],
+        (event) => {
+          setRepostCount(prev => prev + 1);
+          
+          // Check if the current user has reposted this post
+          if (event.pubkey === nostrService.publicKey) {
+            setIsReposted(true);
+          }
+        }
+      );
+      
+      // Clean up subscriptions after a short time
+      setTimeout(() => {
+        nostrService.unsubscribe(reactionSubId);
+        nostrService.unsubscribe(repostSubId);
+      }, 5000);
+    };
+    
     checkBookmarkStatus();
-  }, [eventId, isLoggedIn]);
+    fetchReactionCounts();
+  }, [eventId, isLoggedIn, nostrService.publicKey]);
   
   const handleLike = async () => {
     if (!isLoggedIn) {
@@ -59,6 +108,7 @@ const NoteCardActions = ({
     try {
       // Optimistically update UI
       setIsLiked(true);
+      setLikeCount(prev => prev + 1);
       
       // Create and publish reaction event
       const event = {
@@ -74,11 +124,13 @@ const NoteCardActions = ({
       if (!result) {
         // If failed, revert UI
         setIsLiked(false);
+        setLikeCount(prev => Math.max(0, prev - 1));
         toast.error("Failed to like post");
       }
     } catch (error) {
       console.error("Error liking post:", error);
       setIsLiked(false);
+      setLikeCount(prev => Math.max(0, prev - 1));
       toast.error("Failed to like post");
     }
   };
@@ -92,6 +144,7 @@ const NoteCardActions = ({
     try {
       // Optimistically update UI
       setIsReposted(true);
+      setRepostCount(prev => prev + 1);
       
       // Create repost event (kind 6)
       const event = {
@@ -107,6 +160,7 @@ const NoteCardActions = ({
       if (!result) {
         // If failed, revert UI
         setIsReposted(false);
+        setRepostCount(prev => Math.max(0, prev - 1));
         toast.error("Failed to repost");
       } else {
         toast.success("Post reposted");
@@ -114,6 +168,7 @@ const NoteCardActions = ({
     } catch (error) {
       console.error("Error reposting:", error);
       setIsReposted(false);
+      setRepostCount(prev => Math.max(0, prev - 1));
       toast.error("Failed to repost");
     }
   };
@@ -193,6 +248,9 @@ const NoteCardActions = ({
           title="Like"
         >
           <Heart className="h-[18px] w-[18px]" />
+          {likeCount > 0 && (
+            <span className="ml-1 text-xs">{likeCount}</span>
+          )}
         </Button>
         
         <Button 
@@ -204,6 +262,9 @@ const NoteCardActions = ({
           disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
         >
           <Repeat className="h-[18px] w-[18px]" />
+          {repostCount > 0 && (
+            <span className="ml-1 text-xs">{repostCount}</span>
+          )}
         </Button>
         
         <Button 
