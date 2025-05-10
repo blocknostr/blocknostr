@@ -111,25 +111,31 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       const bookmarkEvents: string[] = [];
       
-      // Subscribe to bookmark list events - use the correct method based on SimplePool's API
-      const sub = pool.subscribeMany(relays, [{
-        kinds: [EVENT_KINDS.BOOKMARK_LIST],
-        authors: [publicKey],
-        limit: 1
-      }]);
-      
-      sub.on('event', (event) => {
-        // Extract event IDs from 'e' tags
-        const bookmarks = event.tags
-          .filter(tag => tag.length >= 2 && tag[0] === 'e')
-          .map(tag => tag[1]);
-          
-        bookmarkEvents.push(...bookmarks);
-      });
+      // Subscribe to bookmark list events using the correct method signature
+      // The subscribeMany method returns a SubCloser object that has different methods
+      const sub = pool.subscribeMany(
+        relays,
+        [{
+          kinds: [EVENT_KINDS.BOOKMARK_LIST],
+          authors: [publicKey],
+          limit: 1
+        }],
+        {
+          onevent: (event) => {
+            // Extract event IDs from 'e' tags
+            const bookmarks = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'e')
+              .map(tag => tag[1]);
+              
+            bookmarkEvents.push(...bookmarks);
+          }
+        }
+      );
       
       // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        sub.unsub();
+        // Close the subscription properly
+        sub.close();
         resolve(bookmarkEvents);
       }, 3000);
     });
