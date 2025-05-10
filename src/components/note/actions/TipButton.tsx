@@ -1,5 +1,5 @@
 
-import { Share } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface TipButtonProps {
@@ -14,8 +14,8 @@ const TipButton = ({ onClick, tipCount }: TipButtonProps) => {
         e.preventDefault();
         onClick();
       }}
-      icon={<Share className="h-4 w-4" />}
-      label="Share"
+      icon={<DollarSign className="h-4 w-4" />}
+      label="Tip"
       count={tipCount && tipCount > 0 ? tipCount : undefined}
       hoverClass="hover:text-blue-500 group-hover:text-blue-500"
     />
