@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
@@ -159,6 +160,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             replyCount={replyCount}
             isAuthor={isCurrentUserAuthor}
             onDelete={handleDeleteClick}
+            reposterPubkey={repostData?.reposterPubkey}
+            showRepostHeader={!!repostData}
           />
         </CardFooter>
         
