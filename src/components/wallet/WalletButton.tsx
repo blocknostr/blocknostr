@@ -8,10 +8,13 @@ import {
   PopoverTrigger 
 } from "@/components/ui/popover";
 import WalletMenu from "./WalletMenu";
-import { AlephiumConnectButton } from "@/lib/alephium";
 
 const WalletButton = () => {
-  const { isConnected } = useAlephium();
+  const { isConnected, connectWallet } = useAlephium();
+
+  const handleConnect = async () => {
+    await connectWallet();
+  };
 
   return (
     <>
@@ -32,20 +35,15 @@ const WalletButton = () => {
           </PopoverContent>
         </Popover>
       ) : (
-        <AlephiumConnectButton.Custom>
-          {({ isConnecting, openConnectModal }) => (
-            <Button 
-              onClick={openConnectModal}
-              disabled={isConnecting}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              <span>{isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
-            </Button>
-          )}
-        </AlephiumConnectButton.Custom>
+        <Button 
+          onClick={handleConnect}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <Wallet className="h-4 w-4" />
+          <span>Connect Wallet</span>
+        </Button>
       )}
     </>
   );

@@ -13,11 +13,9 @@ import { RefreshCcw, Copy, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import TokenBalanceItem from "./TokenBalanceItem";
-import { useWallet } from "@alephium/web3-react";
 
 const WalletMenu = () => {
-  const { address, formatAddress, balances, isLoading, refreshBalances, getExplorerAddressUrl } = useAlephium();
-  const { disconnect } = useWallet();
+  const { address, formatAddress, balances, isLoading, refreshBalances, disconnectWallet, getExplorerAddressUrl } = useAlephium();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   const handleRefresh = async () => {
@@ -35,8 +33,7 @@ const WalletMenu = () => {
   
   const handleDisconnect = async () => {
     try {
-      await disconnect();
-      toast.success("Wallet disconnected");
+      await disconnectWallet();
     } catch (error) {
       console.error("Failed to disconnect wallet:", error);
       toast.error("Failed to disconnect wallet");

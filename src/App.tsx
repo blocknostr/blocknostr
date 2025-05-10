@@ -2,6 +2,7 @@
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AlephiumWalletContext } from "./lib/alephium";
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -14,7 +15,6 @@ import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
 import NotebinPage from "./pages/NotebinPage";
 import WalletPage from "./pages/WalletPage";
-import { AlephiumWalletContext } from "./lib/alephium";
 
 import "./App.css";
 
