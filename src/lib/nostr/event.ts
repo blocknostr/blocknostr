@@ -92,6 +92,7 @@ export class EventManager {
         return null;
       }
       
+      // Explicitly cast to NostrToolsEvent to satisfy type requirements
       pool.publish(relays, signedEvent as NostrToolsEvent);
       return eventId;
       

@@ -20,6 +20,7 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
   const [retweeted, setRetweeted] = useState(false);
   const [retweetCount, setRetweetCount] = useState(0);
   const [tipCount, setTipCount] = useState(0);
+  const [repostId, setRepostId] = useState<string | null>(null);
   
   // Fetch reaction counts when component mounts
   useEffect(() => {
@@ -63,6 +64,7 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
           // Check if current user reposted
           if (event.pubkey === nostrService.publicKey) {
             setRetweeted(true);
+            setRepostId(event.id); // Store repost ID for undoing later
           }
         }
       );
@@ -135,7 +137,7 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
     try {
       if (!retweeted) {
         // Create a repost event
-        await nostrService.publishEvent({
+        const repostEventId = await nostrService.publishEvent({
           kind: 6, // Repost kind
           content: JSON.stringify({
             event: { id: eventId, pubkey }
@@ -148,15 +150,26 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
         
         setRetweeted(true);
         setRetweetCount(prev => prev + 1);
+        setRepostId(repostEventId); // Store repost ID
         toast.success("Note reposted successfully");
       } else {
-        // We can't directly delete retweets in the protocol, but we can create a "removal" event
-        toast.info("Removing repost...");
-        
-        // For simplicity, we'll just update the UI state and notify the user
-        setRetweeted(false);
-        setRetweetCount(prev => Math.max(0, prev - 1));
-        toast.success("Repost removed from your profile");
+        // If we have the repost ID, we can delete it using a deletion event (kind 5)
+        if (repostId) {
+          await nostrService.publishEvent({
+            kind: 5, // Deletion event
+            content: "Removing repost",
+            tags: [
+              ['e', repostId] // Reference to the repost event we want to delete
+            ]
+          });
+          
+          setRetweeted(false);
+          setRetweetCount(prev => Math.max(0, prev - 1));
+          setRepostId(null);
+          toast.success("Repost removed");
+        } else {
+          toast.info("Cannot undo repost - repost ID not found");
+        }
       }
     } catch (error) {
       console.error("Error toggling retweet:", error);
