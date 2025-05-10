@@ -34,10 +34,12 @@ export class SubscriptionManager {
     );
     
     // Return a function that closes the subscription when called
-    return () => {
+    const subCloser: SubCloser = () => {
       this.pool.close([subscription]);
       this.subscriptions.delete(subId);
     };
+    
+    return subCloser;
   }
   
   unsubscribe(subHandle: SubCloser): void {
