@@ -1,3 +1,4 @@
+
 import { SimplePool, nip19, getEventHash, Filter } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
@@ -162,8 +163,8 @@ export class SocialManager {
         relayUrls,
         [filter], // Pass as an array to subscribeMany
         {
-          // Event callback
-          event: (event: NostrEvent) => {
+          // Changed from 'event' to 'onevent' to match the correct property name
+          onevent: (event: NostrEvent) => {
             if (event.kind === EVENT_KINDS.CONTACTS) {
               // Extract pubkeys from p tags
               tags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
@@ -393,7 +394,8 @@ export class SocialManager {
         relayUrls,
         [reactionFilter], // Pass as an array to subscribeMany
         {
-          event: (event: NostrEvent) => {
+          // Changed from 'event' to 'onevent' to match the correct property name
+          onevent: (event: NostrEvent) => {
             if (event.content === "+" || event.content === "❤️" || event.content === "❤") {
               likes++;
               likers.push(event.pubkey);
@@ -412,7 +414,8 @@ export class SocialManager {
         relayUrls,
         [repostFilter], // Pass as an array to subscribeMany
         {
-          event: (event: NostrEvent) => {
+          // Changed from 'event' to 'onevent' to match the correct property name
+          onevent: (event: NostrEvent) => {
             reposts++;
             
             // Check if current user has reposted
