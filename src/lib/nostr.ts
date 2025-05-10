@@ -4,11 +4,9 @@ import {
   getEventHash,
   getPublicKey,
   validateEvent,
-  verifySignature,
-  generatePrivateKey,
-  Relay as NostrRelay
+  SimplePool
 } from "nostr-tools";
-import { SimplePool } from "nostr-tools";
+import * as nip06 from "nostr-tools/nip06";
 
 export interface NostrEvent {
   id: string;
@@ -27,7 +25,7 @@ export interface RelayStatus {
 
 // Create internal Relay interface to avoid conflicts with nostr-tools Relay
 interface RelayConnection {
-  relay: NostrRelay;
+  relay: any; // Using any for relay since the SimplePool API is different 
   status: RelayStatus["status"];
 }
 
@@ -120,7 +118,8 @@ class NostrService {
   }
 
   async generateNewKeys() {
-    this._privateKey = generatePrivateKey();
+    // Use nip06 to generate keys
+    this._privateKey = nip06.generatePrivateKey();
     this._publicKey = getPublicKey(this._privateKey);
     
     // Store the private key securely (e.g., using nip19)
@@ -246,7 +245,8 @@ class NostrService {
     }
     
     try {
-      const relay = this.pool.registerRelay(relayUrl);
+      // Using pool.ensureRelay instead of registerRelay
+      const relay = this.pool.ensureRelay(relayUrl);
       
       this.relayConnections[relayUrl] = {
         relay,
@@ -277,7 +277,7 @@ class NostrService {
   
   removeRelay(relayUrl: string): void {
     if (this.relayConnections[relayUrl]) {
-      this.pool.disconnectRelay(relayUrl);
+      this.pool.close([relayUrl]); // Using close instead of disconnectRelay
       delete this.relayConnections[relayUrl];
     }
   }
@@ -293,7 +293,7 @@ class NostrService {
         callback(event);
       });
       
-      return sub.id;
+      return sub.id || `sub_${Date.now()}`;
     } catch (error) {
       console.error("Error subscribing:", error);
       return `error_${Date.now()}`;
@@ -311,7 +311,7 @@ class NostrService {
   }
 
   unsubscribe(subscriptionId: string) {
-    this.pool.unsub(subscriptionId);
+    this.pool.close([subscriptionId]);
   }
 
   async publishEvent(event: any): Promise<string | null> {
@@ -354,7 +354,7 @@ class NostrService {
         throw new Error("No signing method available");
       }
 
-      if (validateEvent(signedEvent) && verifySignature(signedEvent)) {
+      if (validateEvent(signedEvent)) {
         // Get connected relays
         const relays = this.getRelayStatus()
           .filter(relay => relay.status === 'connected')
@@ -577,11 +577,11 @@ export const EVENT_KINDS = {
   REACTION: 7,
   COMMUNITY_DEFINITION: 34550,
   COMMUNITY_PROPOSAL: 34551,
-  COMMUNITY_VOTE: 34552
+  COMMUNITY_VOTE: 34552,
+  COMMUNITY: 34550 // Added for backward compatibility
 };
 
 const nostrService = new NostrService();
 
 export { nostrService };
 export type { RelayStatus as Relay };
-

@@ -1,251 +1,236 @@
 
-import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye } from 'lucide-react';
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from '@/lib/nostr';
-import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
+import { useToast } from "@/components/ui/use-toast";
+import { Heart, MessageCircle, Repeat, Share, ThumbsDown } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface NoteCardActionsProps {
   eventId: string;
-  pubkey: string;
-  onCommentClick: () => void;
-  replyCount: number;
-  onDelete?: () => void;
-  isAuthor?: boolean;
+  reposted?: boolean;
+  liked?: boolean;
+  disliked?: boolean;
+  showReplyButton?: boolean;
 }
 
-const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete, isAuthor }: NoteCardActionsProps) => {
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [retweeted, setRetweeted] = useState(false);
-  const [retweetCount, setRetweetCount] = useState(0);
-  const [tipCount, setTipCount] = useState(0);
-  
-  // Fetch reaction counts when component mounts
-  useEffect(() => {
-    const fetchReactions = async () => {
-      await nostrService.connectToDefaultRelays();
-      
-      // Subscribe to reactions for this post
-      const reactionSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [7], // Reaction events
-            '#e': [eventId], // For this post
-            limit: 100
-          }
-        ],
-        (event) => {
-          // Check if it's a like ('+')
-          if (event.content === '+') {
-            setLikeCount(prev => prev + 1);
-            
-            // Check if current user liked
-            if (event.pubkey === nostrService.publicKey) {
-              setLiked(true);
-            }
-          }
-        }
-      );
-      
-      // Subscribe to reposts
-      const repostSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [6], // Repost events
-            '#e': [eventId], // For this post
-            limit: 50
-          }
-        ],
-        (event) => {
-          setRetweetCount(prev => prev + 1);
-          
-          // Check if current user reposted
-          if (event.pubkey === nostrService.publicKey) {
-            setRetweeted(true);
-          }
-        }
-      );
-      
-      // Subscribe to zap (tip) events - simplified simulation
-      // In a real implementation, we would look for zap receipts
-      const zapSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [9735], // Zap receipts
-            '#e': [eventId], // For this post
-            limit: 50
-          }
-        ],
-        (event) => {
-          setTipCount(prev => prev + 1);
-        }
-      );
-      
-      // Cleanup subscriptions after data is loaded
-      setTimeout(() => {
-        nostrService.unsubscribe(reactionSubId);
-        nostrService.unsubscribe(repostSubId);
-        nostrService.unsubscribe(zapSubId);
-      }, 5000);
-    };
-    
-    fetchReactions();
-    
-    // Also set some initial numbers if we have no real data yet
-    // This is just for UI demonstration purposes
-    if (Math.random() > 0.5) {
-      setLikeCount(Math.floor(Math.random() * 20));
-      setRetweetCount(Math.floor(Math.random() * 10));
-      setTipCount(Math.floor(Math.random() * 5));
-    }
-  }, [eventId, nostrService.publicKey]);
+const NoteCardActions = ({ 
+  eventId, 
+  reposted = false, 
+  liked = false, 
+  disliked = false,
+  showReplyButton = true
+}: NoteCardActionsProps) => {
+  const { toast } = useToast();
+  const [isLiked, setIsLiked] = useState(liked);
+  const [isDisliked, setIsDisliked] = useState(disliked);
+  const [isReposted, setIsReposted] = useState(reposted);
+  const isLoggedIn = !!nostrService.publicKey;
   
   const handleLike = async () => {
-    try {
-      if (!liked) {
-        // Create a reaction event (kind 7)
-        await nostrService.publishEvent({
-          kind: 7,
-          content: '+',  // '+' for like
-          tags: [['e', eventId || ''], ['p', pubkey || '']]
-        });
-        
-        setLiked(true);
-        setLikeCount(prev => prev + 1);
-      } else {
-        // Remove like by publishing a reaction with '-'
-        await nostrService.publishEvent({
-          kind: 7,
-          content: '-',  // '-' for unlike
-          tags: [['e', eventId || ''], ['p', pubkey || '']]
-        });
-        
-        setLiked(false);
-        setLikeCount(prev => Math.max(0, prev - 1));
-        toast.success("Like removed");
-      }
-    } catch (error) {
-      console.error("Error toggling like:", error);
-      toast.error("Failed to toggle like");
+    if (!isLoggedIn) {
+      toast({
+        title: "Login required",
+        description: "You need to log in to like posts"
+      });
+      return;
     }
-  };
-
-  const handleRetweet = async () => {
+    
+    // First connect to relays
+    await nostrService.connectToRelays();
+    
+    // Create and publish like event
     try {
-      if (!retweeted) {
-        // Create a repost event
-        await nostrService.publishEvent({
-          kind: 6, // Repost kind
-          content: JSON.stringify({
-            event: { id: eventId, pubkey }
-          }),
-          tags: [
-            ['e', eventId || ''], // Reference to original note
-            ['p', pubkey || ''] // Original author
-          ]
+      const event = {
+        kind: 7, // Reaction
+        tags: [
+          ['e', eventId], // reference to the note
+        ],
+        content: '+' // '+' for like
+      };
+      
+      const success = await nostrService.publishEvent(event);
+      
+      if (success) {
+        // Toggle like state
+        setIsLiked(!isLiked);
+        if (isDisliked) setIsDisliked(false);
+        
+        toast({
+          title: isLiked ? "Like removed" : "Post liked",
+          duration: 1500
         });
-        
-        setRetweeted(true);
-        setRetweetCount(prev => prev + 1);
-        toast.success("Note reposted successfully");
-      } else {
-        // We can't directly delete retweets in the protocol, but we can create a "removal" event
-        toast.info("Removing repost...");
-        
-        // For simplicity, we'll just update the UI state and notify the user
-        setRetweeted(false);
-        setRetweetCount(prev => Math.max(0, prev - 1));
-        toast.success("Repost removed from your profile");
       }
     } catch (error) {
-      console.error("Error toggling retweet:", error);
-      toast.error("Failed to toggle repost");
+      console.error("Error liking post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to like post",
+        variant: "destructive"
+      });
     }
   };
   
-  const handleSendTip = () => {
-    toast.info("Tipping functionality coming soon!");
-  };
-  
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete();
+  const handleDislike = async () => {
+    if (!isLoggedIn) {
+      toast({
+        title: "Login required",
+        description: "You need to log in to interact with posts"
+      });
+      return;
+    }
+    
+    // First connect to relays
+    await nostrService.connectToRelays();
+    
+    // Create and publish dislike event
+    try {
+      const event = {
+        kind: 7, // Reaction
+        tags: [
+          ['e', eventId], // reference to the note
+        ],
+        content: '-' // '-' for dislike
+      };
+      
+      const success = await nostrService.publishEvent(event);
+      
+      if (success) {
+        // Toggle dislike state
+        setIsDisliked(!isDisliked);
+        if (isLiked) setIsLiked(false);
+        
+        toast({
+          title: isDisliked ? "Dislike removed" : "Post disliked",
+          duration: 1500
+        });
+      }
+    } catch (error) {
+      console.error("Error disliking post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to dislike post",
+        variant: "destructive"
+      });
     }
   };
-
+  
+  const handleRepost = async () => {
+    if (!isLoggedIn) {
+      toast({
+        title: "Login required",
+        description: "You need to log in to repost"
+      });
+      return;
+    }
+    
+    // First connect to relays
+    await nostrService.connectToRelays();
+    
+    try {
+      // Create repost event
+      const event = {
+        kind: 6, // Repost
+        tags: [
+          ['e', eventId],  // reference to the original note
+        ],
+        content: '' // Empty content for simple repost
+      };
+      
+      const success = await nostrService.publishEvent(event);
+      
+      if (success) {
+        setIsReposted(true);
+        toast({
+          title: "Post reposted",
+          description: "The post has been reposted to your profile",
+          duration: 2000
+        });
+      }
+    } catch (error) {
+      console.error("Error reposting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to repost",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Shared via BlockNostr',
+          text: 'Check out this post on BlockNostr',
+          url: `${window.location.origin}/note/${eventId}`
+        });
+      } else {
+        // Fallback to copying the URL
+        await navigator.clipboard.writeText(`${window.location.origin}/note/${eventId}`);
+        toast({
+          title: "Link copied",
+          description: "Post link copied to clipboard"
+        });
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      // Silently handle share rejection
+    }
+  };
+  
   return (
-    <div className="flex justify-between pt-0 flex-wrap w-full gap-1">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          onCommentClick();
-        }}
-      >
-        <MessageCircle className="h-4 w-4 mr-1" />
-        {replyCount > 0 && <span className="text-xs font-medium">{replyCount}</span>}
-      </Button>
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${retweeted 
-          ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
-          : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleRetweet();
-        }}
-      >
-        <Repeat className="h-4 w-4 mr-1" />
-        {retweetCount > 0 && <span className="text-xs font-medium">{retweetCount}</span>}
-      </Button>
-      
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className={`rounded-full ${liked 
-          ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
-          : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
-        onClick={(e) => {
-          e.preventDefault();
-          handleLike();
-        }}
-      >
-        <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
-        {likeCount > 0 && <span className="text-xs font-medium">{likeCount}</span>}
-      </Button>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
-        onClick={(e) => {
-          e.preventDefault();
-          handleSendTip();
-        }}
-      >
-        <DollarSign className="h-4 w-4 mr-1" />
-        {tipCount > 0 && <span className="text-xs font-medium">{tipCount}</span>}
-      </Button>
-      
-      {isAuthor && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full ml-auto"
-          onClick={(e) => {
-            e.preventDefault();
-            handleDelete();
-          }}
-        >
-          <Trash2 className="h-4 w-4 mr-1" />
-          <span className="text-xs">Delete</span>
+    <div className="flex justify-between mt-2">
+      {showReplyButton && (
+        <Button variant="ghost" size="sm" asChild>
+          <Link to={`/note/${eventId}`}>
+            <MessageCircle className="h-4 w-4 mr-1" />
+            <span className="text-xs">Reply</span>
+          </Link>
         </Button>
       )}
+      
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={handleRepost} 
+        disabled={isReposted}
+        className={isReposted ? "text-green-600" : ""}
+      >
+        <Repeat className="h-4 w-4 mr-1" />
+        <span className="text-xs">
+          {isReposted ? "Reposted" : "Repost"}
+        </span>
+      </Button>
+      
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={handleLike}
+        className={isLiked ? "text-red-600" : ""}
+      >
+        <Heart className={`h-4 w-4 mr-1 ${isLiked ? "fill-red-600" : ""}`} />
+        <span className="text-xs">
+          {isLiked ? "Liked" : "Like"}
+        </span>
+      </Button>
+      
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={handleDislike}
+        className={isDisliked ? "text-blue-600" : ""}
+      >
+        <ThumbsDown className={`h-4 w-4 mr-1 ${isDisliked ? "fill-blue-600" : ""}`} />
+        <span className="text-xs">
+          {isDisliked ? "Disliked" : "Dislike"}
+        </span>
+      </Button>
+      
+      <Button variant="ghost" size="sm" onClick={handleShare}>
+        <Share className="h-4 w-4 mr-1" />
+        <span className="text-xs">Share</span>
+      </Button>
     </div>
   );
 };
