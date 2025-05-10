@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Home, Hash, Bell, Mail, User, Users, Settings, FileText } from "lucide-react";
+import { Home, Hash, Bell, Mail, User, Users, Settings, FileText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,12 @@ const Sidebar = () => {
       name: "Communities",
       icon: Users,
       href: "/communities",
+      requiresAuth: false
+    },
+    {
+      name: "Wallet",
+      icon: Wallet,
+      href: "/wallet",
       requiresAuth: false
     },
     {

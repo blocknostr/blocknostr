@@ -14,6 +14,7 @@ import CommunityPage from "./pages/CommunityPage";
 import NotebinPage from "./pages/NotebinPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
+import WalletPage from "./pages/WalletPage";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +35,7 @@ const App = () => (
           <Route path="/notebin" element={<NotebinPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/post/:id" element={<PostPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/wallet" element={<WalletPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
