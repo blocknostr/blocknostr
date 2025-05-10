@@ -1,16 +1,50 @@
 
 import { Link } from "react-router-dom";
-import { Home, Hash, Bell, Mail, User, Users, Settings, FileText } from "lucide-react";
+import { 
+  Home, 
+  Bell, 
+  Mail, 
+  User, 
+  Users, 
+  Settings, 
+  FileText, 
+  Wallet, 
+  Bookmark, 
+  Crown 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { cn } from "@/lib/utils";
 import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
 
 const Sidebar = () => {
   const isLoggedIn = !!nostrService.publicKey;
   const location = useLocation();
   const isMobile = useIsMobile();
+  const [userProfile, setUserProfile] = useState<{
+    name?: string;
+    displayName?: string;
+    picture?: string;
+    nip05?: string;
+  }>({});
+  
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (isLoggedIn) {
+        try {
+          const profile = await nostrService.getUserProfile(nostrService.publicKey);
+          setUserProfile(profile || {});
+        } catch (error) {
+          console.error("Failed to fetch user profile:", error);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [isLoggedIn]);
   
   const navItems = [
     {
@@ -20,21 +54,27 @@ const Sidebar = () => {
       requiresAuth: false
     },
     {
+      name: "Wallets",
+      icon: Wallet,
+      href: "/wallets",
+      requiresAuth: true
+    },
+    {
       name: "Notifications",
       icon: Bell,
       href: "/notifications",
       requiresAuth: true
     },
     {
-      name: "Messages",
+      name: "BlockMail",
       icon: Mail,
       href: "/messages",
       requiresAuth: true
     },
     {
-      name: "Profile",
-      icon: User,
-      href: "/profile",
+      name: "Bookmarks",
+      icon: Bookmark,
+      href: "/bookmarks",
       requiresAuth: true
     },
     {
@@ -50,12 +90,35 @@ const Sidebar = () => {
       requiresAuth: false
     },
     {
+      name: "Premium",
+      icon: Crown,
+      href: "/premium",
+      requiresAuth: false
+    },
+    {
+      name: "Profile",
+      icon: User,
+      href: "/profile",
+      requiresAuth: true
+    },
+    {
       name: "Settings",
       icon: Settings,
       href: "/settings",
       requiresAuth: false
     }
   ];
+  
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    if (userProfile.displayName || userProfile.name) {
+      const name = (userProfile.displayName || userProfile.name || '').trim();
+      if (name) {
+        return name.split(' ').map(part => part[0]).join('').toUpperCase().substring(0, 2);
+      }
+    }
+    return 'U';
+  };
   
   return (
     <aside className={cn(
@@ -100,12 +163,22 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (
-            <Button 
-              className="w-full"
-              onClick={() => { window.location.href = "/compose"; }}
-            >
-              Post
-            </Button>
+            <Link to="/profile">
+              <div className="flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md transition-colors">
+                <Avatar>
+                  <AvatarImage src={userProfile.picture} alt={userProfile.displayName || userProfile.name || 'User'} />
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="font-medium text-sm truncate max-w-[140px]">
+                    {userProfile.displayName || userProfile.name || 'User'}
+                  </span>
+                  {userProfile.nip05 && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[140px]">{userProfile.nip05}</span>
+                  )}
+                </div>
+              </div>
+            </Link>
           )}
         </div>
       </div>

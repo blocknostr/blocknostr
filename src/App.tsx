@@ -38,6 +38,10 @@ const App = () => {
             <Route path="/notebin" element={<NotebinPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/post/:id" element={<PostPage />} />
+            {/* Placeholder routes for the new sidebar items */}
+            <Route path="/wallets" element={<NotFound />} />
+            <Route path="/bookmarks" element={<NotFound />} />
+            <Route path="/premium" element={<NotFound />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
