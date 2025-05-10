@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { Menu, Search, Bell, MessageSquare, BookmarkIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import LoginButton from '../LoginButton';
-import ConnectWalletButton from '../wallet/ConnectWalletButton';
 import GlobalSearch from '../GlobalSearch';
 import { nostrService } from '@/lib/nostr';
 
@@ -58,14 +57,9 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   <MessageSquare className="h-5 w-5" />
                 </Link>
               </Button>
-              
-              <ConnectWalletButton />
             </>
           ) : (
-            <>
-              <ConnectWalletButton />
-              <LoginButton />
-            </>
+            <LoginButton />
           )}
         </div>
       </div>
