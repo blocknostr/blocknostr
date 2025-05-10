@@ -1,46 +1,79 @@
 
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { useState, useEffect } from 'react';
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import ImagePreview from './media/ImagePreview';
+import VideoPreview from './media/VideoPreview';
+import MediaLightbox from './media/MediaLightbox';
+import MediaLoadingState from './media/MediaLoadingState';
+import MediaErrorState from './media/MediaErrorState';
+import ExpandButton from './media/ExpandButton';
 
 interface MediaPreviewProps {
-  file: File;
-  onRemove: () => void;
+  url: string;
+  alt?: string;
 }
 
-const MediaPreview = ({ file, onRemove }: MediaPreviewProps) => {
-  const isImage = file.type.startsWith("image/");
-  const isVideo = file.type.startsWith("video/");
-  const url = URL.createObjectURL(file);
+const MediaPreview = ({ url, alt }: MediaPreviewProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isVideo, setIsVideo] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState(false);
+  
+  useEffect(() => {
+    // Determine if the URL is for a video
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov'];
+    setIsVideo(videoExtensions.some(ext => url.toLowerCase().endsWith(ext)));
+    
+    // Reset states when URL changes
+    setIsLoaded(false);
+    setError(false);
+  }, [url]);
+  
+  const handleMediaLoad = () => {
+    setIsLoaded(true);
+  };
+  
+  const handleError = () => {
+    setError(true);
+  };
   
   return (
-    <div className="relative group rounded-md overflow-hidden border w-24 h-24">
-      <AspectRatio ratio={1}>
-        {isImage && (
-          <img
-            src={url}
-            alt={file.name}
-            className="object-cover w-full h-full"
-          />
-        )}
-        {isVideo && (
-          <video
-            src={url}
-            className="object-cover w-full h-full"
-          />
-        )}
-      </AspectRatio>
+    <>
+      <div className="mt-3 rounded-lg overflow-hidden border border-border bg-accent/20 relative group">
+        <AspectRatio ratio={16/9} className="bg-muted">
+          {isVideo ? (
+            <VideoPreview
+              url={url}
+              onLoad={handleMediaLoad}
+              onError={handleError}
+            />
+          ) : (
+            <ImagePreview
+              url={url}
+              alt={alt}
+              onLoad={handleMediaLoad}
+              onError={handleError}
+            />
+          )}
+          
+          {!isLoaded && !error && <MediaLoadingState />}
+          {error && <MediaErrorState isVideo={isVideo} />}
+          
+          {isLoaded && !error && (
+            <ExpandButton onClick={() => setIsOpen(true)} />
+          )}
+        </AspectRatio>
+      </div>
       
-      <Button
-        onClick={onRemove}
-        size="icon"
-        variant="destructive"
-        className="absolute top-1 right-1 h-5 w-5 opacity-80 hover:opacity-100"
-      >
-        <X size={12} />
-      </Button>
-    </div>
+      <MediaLightbox
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        url={url}
+        alt={alt}
+        isVideo={isVideo}
+      />
+    </>
   );
-}
+};
 
-export { MediaPreview };
+export default MediaPreview;
