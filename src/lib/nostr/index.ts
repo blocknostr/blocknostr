@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -98,6 +99,7 @@ class NostrService {
     return this.relayManager.getRelayStatus();
   }
   
+  // Add a method to add multiple relays at once
   public async addMultipleRelays(relayUrls: string[]): Promise<number> {
     if (!relayUrls.length) return 0;
     
@@ -115,7 +117,7 @@ class NostrService {
     return successCount;
   }
   
-  // Add a public method to get relays for a user
+  // Public method to get relays for a user
   public async getRelaysForUser(pubkey: string): Promise<string[]> {
     return new Promise((resolve) => {
       const relays: string[] = [];
@@ -378,39 +380,6 @@ class NostrService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
-  }
-  
-  // Add a public method to get relays for a user
-  public async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST],
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              relays.push(tag[1]);
-            }
-          });
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        resolve(relays);
-      }, 3000);
-    });
   }
   
   // Private helper methods
