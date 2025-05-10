@@ -1,5 +1,5 @@
 
-import { Eye } from 'lucide-react';
+import { BarChart2 } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface ViewButtonProps {
@@ -10,10 +10,10 @@ const ViewButton = ({ reachCount }: ViewButtonProps) => {
   return (
     <ActionButton
       onClick={(e) => e.preventDefault()}
-      icon={<Eye className="h-4 w-4" />}
-      label="Views"
-      count={reachCount}
-      hoverClass="hover:bg-gray-100"
+      icon={<BarChart2 className="h-4 w-4" />}
+      label="Analytics"
+      count={reachCount > 0 ? reachCount : undefined}
+      hoverClass="hover:text-blue-500 group-hover:text-blue-500"
     />
   );
 };

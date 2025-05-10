@@ -19,8 +19,8 @@ const LikeButton = ({ onClick, liked, likeCount }: LikeButtonProps) => {
       label="Like"
       count={likeCount}
       active={liked}
-      activeClass="text-red-500"
-      hoverClass="hover:bg-red-50 hover:text-red-600"
+      activeClass="text-pink-500"
+      hoverClass="hover:text-pink-500 group-hover:text-pink-500"
     />
   );
 };

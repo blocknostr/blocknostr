@@ -22,11 +22,11 @@ const ActionButton = ({
   hoverClass = "hover:bg-gray-100"
 }: ActionButtonProps) => {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center group">
       <Button 
         variant="ghost" 
         size="sm" 
-        className={`rounded-full p-2 h-8 w-8 flex items-center justify-center ${active ? activeClass : "text-muted-foreground"} ${hoverClass}`}
+        className={`rounded-full p-2 flex items-center justify-center ${active ? activeClass : "text-muted-foreground"} ${hoverClass}`}
         onClick={(e) => {
           e.preventDefault();
           onClick(e);
@@ -36,7 +36,7 @@ const ActionButton = ({
         {icon}
       </Button>
       {count !== undefined && count > 0 && (
-        <span className="text-xs font-medium text-muted-foreground min-w-[1rem] text-center">
+        <span className="text-xs text-muted-foreground group-hover:text-inherit transition-colors ml-1">
           {count}
         </span>
       )}

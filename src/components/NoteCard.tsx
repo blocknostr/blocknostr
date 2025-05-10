@@ -41,7 +41,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
 
   return (
     <>
-      <Card className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden">
+      <Card className="mb-4 hover:bg-accent/5 transition-colors border-accent/10 shadow-sm overflow-hidden">
         <Link to={`/post/${event.id}`} className="block cursor-pointer">
           {repostData && (
             <RepostHeader 
@@ -50,7 +50,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             />
           )}
           
-          <CardContent className="pt-5 px-5 pb-3">
+          <CardContent className="pt-5 px-5 pb-2">
             <NoteCardHeader 
               pubkey={event.pubkey || ''} 
               createdAt={event.created_at} 
@@ -63,7 +63,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
           </CardContent>
         </Link>
         
-        <CardFooter className="pt-0 px-5 pb-4">
+        <CardFooter className="pt-0 px-5 pb-2">
           <NoteCardActions 
             eventId={event.id || ''} 
             pubkey={event.pubkey || ''} 

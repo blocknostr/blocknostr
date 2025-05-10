@@ -16,7 +16,7 @@ const DeleteButton = ({ onClick }: DeleteButtonProps) => {
       icon={<Trash2 className="h-4 w-4" />}
       label="Delete post"
       activeClass="text-red-500"
-      hoverClass="hover:bg-red-50 hover:text-red-600"
+      hoverClass="hover:text-red-500 group-hover:text-red-500"
     />
   );
 };

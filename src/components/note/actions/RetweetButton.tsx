@@ -20,7 +20,7 @@ const RetweetButton = ({ onClick, retweeted, retweetCount }: RetweetButtonProps)
       count={retweetCount}
       active={retweeted}
       activeClass="text-green-500"
-      hoverClass="hover:bg-green-50 hover:text-green-600"
+      hoverClass="hover:text-green-500 group-hover:text-green-500"
     />
   );
 };
