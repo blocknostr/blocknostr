@@ -9,11 +9,11 @@ interface CommunityHeaderImageProps {
 
 const CommunityHeaderImage = ({ id, name, image }: CommunityHeaderImageProps) => {
   return (
-    <div className={`h-32 ${getRandomColor(id)} flex items-center justify-center`}>
+    <div className={`h-40 ${getRandomColor(id)} flex items-center justify-center rounded-lg overflow-hidden`}>
       {image ? (
         <img src={image} alt={name} className="w-full h-full object-cover" />
       ) : (
-        <div className="text-white text-4xl font-bold">
+        <div className="text-white text-5xl font-bold">
           {getInitials(name)}
         </div>
       )}

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Users } from "lucide-react";
 import CommunityCardHeader from "./CommunityCardHeader";
 import CommunityCardActions from "./CommunityCardActions";
+import { formatSerialNumber } from "@/lib/community-utils";
 
 export interface Community {
   id: string;
@@ -14,7 +15,7 @@ export interface Community {
   createdAt: number;
   members: string[];
   uniqueId: string;
-  serialNumber?: number; // Added serial number property
+  serialNumber?: number;
 }
 
 interface CommunityCardProps {
@@ -38,29 +39,35 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
 
   return (
     <Card 
-      className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer ${isMember ? 'border-primary/30' : ''}`}
+      className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col ${isMember ? 'border-primary/30' : ''}`}
       onClick={navigateToCommunity}
     >
       <CommunityCardHeader 
         id={community.id}
         name={community.name}
         image={community.image}
-        serialNumber={community.serialNumber}
       />
       
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">
-          <span>{community.name}</span>
-          {isMember && (
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-              Member
+      <CardHeader className="pb-2 flex-none">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base line-clamp-1">{community.name}</CardTitle>
+          
+          {community.serialNumber && (
+            <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-mono">
+              {formatSerialNumber(community.serialNumber)}
             </span>
           )}
-        </CardTitle>
+        </div>
+        
+        {isMember && (
+          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full self-start mt-1">
+            Member
+          </span>
+        )}
       </CardHeader>
       
-      <CardContent>
-        <p className="text-sm text-muted-foreground line-clamp-2 h-10">
+      <CardContent className="flex-grow">
+        <p className="text-sm text-muted-foreground line-clamp-2">
           {community.description || "No description provided."}
         </p>
         
@@ -72,7 +79,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0">
+      <CardFooter className="pt-3 border-t mt-auto">
         <CommunityCardActions 
           community={community}
           isMember={isMember}
