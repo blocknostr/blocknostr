@@ -628,8 +628,10 @@ class NostrService {
 export const nostrService = new NostrService();
 
 // Re-export types from internal modules
-export type { NostrEvent, Relay, NostrProfileMetadata } from './types';
+export type { NostrEvent, Relay } from './types';
+export type { NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
 
 // Re-export from social module
-export { SocialManager, ReactionCounts, ContactList } from './social';
+export { SocialManager } from './social';
+export type { ReactionCounts, ContactList } from './social/types';
