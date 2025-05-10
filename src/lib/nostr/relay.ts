@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { Relay } from './types';
 
@@ -211,7 +210,8 @@ export class RelayManager {
       const relays: {url: string, read: boolean, write: boolean}[] = [];
       
       // Subscribe to NIP-65 relay list event (kind 10002)
-      const sub = this.pool.sub(
+      // Fix: Use the subscribe method correctly on SimplePool
+      const sub = this.pool.subscribe(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -272,7 +272,8 @@ export class RelayManager {
       const relays: {url: string, read: boolean, write: boolean}[] = [];
       
       // Subscribe to the older relay list event kind
-      const sub = this.pool.sub(
+      // Fix: Use the subscribe method correctly on SimplePool
+      const sub = this.pool.subscribe(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 

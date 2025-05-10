@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -12,7 +13,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  public relayManager: RelayManager; // Changed to public to allow direct access
+  public relayManager: RelayManager; // Must be public so it can be accessed directly
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -81,6 +82,7 @@ class NostrService {
     await this.relayManager.connectToUserRelays();
   }
   
+  // Updated to match RelayManager's method signature
   public async addRelay(relayUrl: string, readWrite: {read: boolean; write: boolean} = {read: true, write: true}): Promise<boolean> {
     const success = await this.relayManager.addRelay(relayUrl, readWrite);
     if (success) {
@@ -119,6 +121,7 @@ class NostrService {
   }
   
   // Method to get relays for a user following NIP-65 standard
+  // Fixed return type to match actual return value
   public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
     return this.relayManager.getRelaysForUser(pubkey);
   }
