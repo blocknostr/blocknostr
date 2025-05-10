@@ -170,7 +170,7 @@ const InlineProfileEditor = ({ profileData, npub, onCancel, onSave }: InlineProf
           <Input
             {...form.register('picture')}
             placeholder="Profile picture URL"
-            className="absolute -bottom-20 w-32 opacity-0"
+            className="w-full mt-1 text-sm"
           />
         </div>
       </div>
