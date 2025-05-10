@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from 'react';
 import { nostrService } from "@/lib/nostr";

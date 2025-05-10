@@ -1,26 +1,37 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nostrService } from "@/lib/nostr";
+import { nostrService, Relay } from "@/lib/nostr";
 import FollowButton from "../FollowButton";
+import ProfileRelaysDialog from "./ProfileRelaysDialog";
 
 interface ProfileStatsProps {
   followers: string[];
   following: string[];
   postsCount: number;
   currentUserPubkey: string | null;
+  isCurrentUser: boolean;
+  relays: Relay[];
+  onRelaysChange?: (relays: Relay[]) => void;
 }
 
-const ProfileStats = ({ followers, following, postsCount, currentUserPubkey }: ProfileStatsProps) => {
+const ProfileStats = ({ 
+  followers, 
+  following, 
+  postsCount, 
+  currentUserPubkey,
+  isCurrentUser,
+  relays,
+  onRelaysChange
+}: ProfileStatsProps) => {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [showRelays, setShowRelays] = useState(false);
   
   return (
     <Card className="mb-6 overflow-hidden">
-      <div className="grid grid-cols-3 divide-x">
+      <div className="grid grid-cols-4 divide-x">
         <StatItem 
           label="Posts" 
           value={postsCount.toLocaleString()} 
@@ -34,6 +45,11 @@ const ProfileStats = ({ followers, following, postsCount, currentUserPubkey }: P
           label="Followers" 
           value={followers.length.toLocaleString()} 
           onClick={() => setShowFollowers(true)}
+        />
+        <StatItem 
+          label="Relays" 
+          value={relays.length.toLocaleString()} 
+          onClick={isCurrentUser ? () => setShowRelays(true) : undefined}
         />
       </div>
       
@@ -84,6 +100,16 @@ const ProfileStats = ({ followers, following, postsCount, currentUserPubkey }: P
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Relays Dialog */}
+      {isCurrentUser && (
+        <ProfileRelaysDialog
+          open={showRelays}
+          onOpenChange={setShowRelays}
+          relays={relays}
+          onRelaysChange={onRelaysChange}
+        />
+      )}
     </Card>
   );
 };

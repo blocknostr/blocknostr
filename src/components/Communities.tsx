@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
