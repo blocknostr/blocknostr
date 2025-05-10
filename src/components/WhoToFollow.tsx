@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import FollowButton from "@/components/FollowButton";
 import { nostrService } from "@/lib/nostr";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 const WhoToFollow = () => {
@@ -55,7 +56,10 @@ const WhoToFollow = () => {
             
             return (
               <div key={user.npub} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <Link 
+                  to={`/profile/${pubkey}`} 
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
                   <Avatar>
                     <AvatarImage src={user.picture} />
                     <AvatarFallback>{avatarFallback}</AvatarFallback>
@@ -64,7 +68,7 @@ const WhoToFollow = () => {
                     <div className="font-medium">{user.name}</div>
                     <div className="text-sm text-muted-foreground">{shortNpub}</div>
                   </div>
-                </div>
+                </Link>
                 <FollowButton 
                   pubkey={pubkey} 
                   className="rounded-full"
