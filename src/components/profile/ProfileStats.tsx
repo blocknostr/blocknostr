@@ -1,11 +1,9 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nostrService } from "@/lib/nostr";
+import { nostrService, Relay } from "@/lib/nostr";
 import FollowButton from "../FollowButton";
-import { Relay } from "@/lib/nostr";
 import ProfileRelaysDialog from "./ProfileRelaysDialog";
 
 interface ProfileStatsProps {
