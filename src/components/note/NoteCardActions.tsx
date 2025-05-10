@@ -1,3 +1,4 @@
+
 import { useNoteActions } from './actions/useNoteActions';
 import CommentButton from './actions/CommentButton';
 import RetweetButton from './actions/RetweetButton';
@@ -5,6 +6,7 @@ import LikeButton from './actions/LikeButton';
 import ViewButton from './actions/ViewButton';
 import TipButton from './actions/TipButton';
 import DeleteButton from './actions/DeleteButton';
+
 interface NoteCardActionsProps {
   eventId: string;
   pubkey: string;
@@ -14,6 +16,7 @@ interface NoteCardActionsProps {
   isAuthor?: boolean;
   reachCount?: number;
 }
+
 const NoteCardActions = ({
   eventId,
   pubkey,
@@ -36,18 +39,22 @@ const NoteCardActions = ({
     eventId,
     pubkey
   });
-  return <div className="flex items-center w-full gap-5 pt-2 px-[10px]">
-      <CommentButton onClick={onCommentClick} replyCount={replyCount} />
+  
+  return (
+    <div className="flex items-center justify-between w-full pt-2 px-[10px]">
+      <div className="flex items-center">
+        <CommentButton onClick={onCommentClick} replyCount={replyCount} />
+        <RetweetButton onClick={handleRetweet} retweeted={retweeted} retweetCount={retweetCount} />
+        <LikeButton onClick={handleLike} liked={liked} likeCount={likeCount} />
+      </div>
       
-      <RetweetButton onClick={handleRetweet} retweeted={retweeted} retweetCount={retweetCount} />
-      
-      <LikeButton onClick={handleLike} liked={liked} likeCount={likeCount} />
-      
-      <ViewButton reachCount={reachCount} />
-      
-      <TipButton onClick={handleSendTip} tipCount={tipCount} />
-      
-      {isAuthor && onDelete && <DeleteButton onClick={onDelete} />}
-    </div>;
+      <div className="flex items-center">
+        <ViewButton reachCount={reachCount} />
+        <TipButton onClick={handleSendTip} tipCount={tipCount} />
+        {isAuthor && onDelete && <DeleteButton onClick={onDelete} />}
+      </div>
+    </div>
+  );
 };
+
 export default NoteCardActions;
