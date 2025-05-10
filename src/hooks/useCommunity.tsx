@@ -114,6 +114,7 @@ export const useCommunity = (communityId: string | undefined) => {
   };
   
   const loadProposals = (communityId: string) => {
+    // Subscribe to proposal events for this community
     const proposalSubId = nostrService.subscribe(
       [
         {
@@ -125,11 +126,13 @@ export const useCommunity = (communityId: string | undefined) => {
       handleProposalEvent
     );
     
+    // Subscribe to vote events
     const votesSubId = nostrService.subscribe(
       [
         {
-          kinds: [34552],
-          limit: 100
+          kinds: [34552], // Vote events
+          // Don't filter by community - we'll filter by proposal ID in the handler
+          limit: 200
         }
       ],
       handleVoteEvent
@@ -171,6 +174,7 @@ export const useCommunity = (communityId: string | undefined) => {
   
   const handleProposalEvent = (event: NostrEvent) => {
     try {
+      console.log("Received proposal event:", event);
       if (!event.id) return;
       
       // Find the community reference tag
@@ -209,7 +213,8 @@ export const useCommunity = (communityId: string | undefined) => {
   
   const handleVoteEvent = (event: NostrEvent) => {
     try {
-      if (!event.id) return;
+      console.log("Received vote event:", event);
+      if (!event.id || !event.pubkey) return;
       
       // Find the proposal reference tag
       const proposalTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e');
@@ -218,18 +223,34 @@ export const useCommunity = (communityId: string | undefined) => {
       
       // Find the proposal
       const proposalIndex = proposals.findIndex(p => p.id === proposalId);
-      if (proposalIndex < 0) return; // We don't have this proposal
+      if (proposalIndex < 0) {
+        console.log("Vote for unknown proposal:", proposalId);
+        return; // We don't have this proposal
+      }
       
+      // Parse the option index from content
       const optionIndex = parseInt(event.content);
-      if (isNaN(optionIndex)) return;
+      if (isNaN(optionIndex)) {
+        console.error("Invalid vote option index:", event.content);
+        return;
+      }
+
+      console.log(`Vote from ${event.pubkey} for proposal ${proposalId}, option ${optionIndex}`);
       
       // Update the votes
       setProposals(prev => {
         const updated = [...prev];
         const proposal = {...updated[proposalIndex]};
         
+        // Create votes object if it doesn't exist
+        if (!proposal.votes) {
+          proposal.votes = {};
+        }
+        
         // Record this vote (overwriting any previous vote from this pubkey)
-        proposal.votes[event.pubkey || ''] = optionIndex;
+        proposal.votes[event.pubkey] = optionIndex;
+        
+        console.log("Updated proposal votes:", proposal.votes);
         
         updated[proposalIndex] = proposal;
         return updated;

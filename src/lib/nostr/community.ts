@@ -121,22 +121,27 @@ export class CommunityManager {
     }
     
     try {
+      console.log(`Publishing vote for proposal ${proposalId}, option ${optionIndex}`);
+      
       // Create vote event
       const event = {
         kind: EVENT_KINDS.VOTE,
-        content: optionIndex.toString(),
+        content: optionIndex.toString(), // Content must be a string
         tags: [
-          ['e', proposalId], // Reference to proposal
+          ['e', proposalId] // Reference to proposal
         ]
       };
       
-      return await this.eventManager.publishEvent(
+      const eventId = await this.eventManager.publishEvent(
         pool,
         currentUserPubkey,
         privateKey,
         event,
         relays
       );
+      
+      console.log("Vote published with ID:", eventId);
+      return eventId;
     } catch (error) {
       console.error("Error voting on proposal:", error);
       toast.error("Failed to vote");

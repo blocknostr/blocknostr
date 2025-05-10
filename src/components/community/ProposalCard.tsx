@@ -42,12 +42,13 @@ const ProposalCard = ({
 }: ProposalCardProps) => {
   const isExpanded = expandedProposal === proposal.id;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localVotes, setLocalVotes] = useState<Record<string, number>>(proposal.votes || {});
   
   // Utility functions
   const getVoteCounts = () => {
     const counts = proposal.options.map(() => 0);
     
-    Object.entries(proposal.votes).forEach(([_, optionIndex]) => {
+    Object.entries(localVotes).forEach(([_, optionIndex]) => {
       const index = typeof optionIndex === 'number' ? optionIndex : parseInt(optionIndex as string);
       if (index >= 0 && index < counts.length) {
         counts[index]++;
@@ -58,17 +59,17 @@ const ProposalCard = ({
   };
   
   const getTotalVotes = () => {
-    return Object.keys(proposal.votes).length;
+    return Object.keys(localVotes).length;
   };
   
   const getUserVote = () => {
     if (!currentUserPubkey) return -1;
-    const vote = proposal.votes[currentUserPubkey];
+    const vote = localVotes[currentUserPubkey];
     return vote !== undefined ? Number(vote) : -1;
   };
   
   const getAllVoters = () => {
-    return Object.keys(proposal.votes);
+    return Object.keys(localVotes);
   };
   
   const isProposalActive = () => {
@@ -97,6 +98,11 @@ const ProposalCard = ({
     const interval = setInterval(updateCountdown, 60000); // Update every minute
     return () => clearInterval(interval);
   }, [proposal.endsAt]);
+
+  // Sync proposal votes with local votes when the proposal changes
+  React.useEffect(() => {
+    setLocalVotes(proposal.votes || {});
+  }, [proposal.votes]);
   
   const handleVote = async (optionIndex: number) => {
     if (!currentUserPubkey) {
@@ -117,11 +123,25 @@ const ProposalCard = ({
     
     try {
       setIsSubmitting(true);
-      await nostrService.voteOnProposal(proposal.id, optionIndex);
-      toast.success("Vote recorded!");
+      const eventId = await nostrService.voteOnProposal(proposal.id, optionIndex);
       
-      // Update local state to show vote immediately
-      proposal.votes[currentUserPubkey] = optionIndex;
+      if (eventId) {
+        // Update local state immediately for better UX
+        setLocalVotes(prev => ({
+          ...prev,
+          [currentUserPubkey]: optionIndex
+        }));
+        toast.success("Vote recorded!");
+        
+        // Log for debugging
+        console.log("Vote published with event ID:", eventId);
+        console.log("Updated local votes:", {
+          ...localVotes,
+          [currentUserPubkey]: optionIndex
+        });
+      } else {
+        toast.error("Failed to publish vote");
+      }
     } catch (error) {
       console.error("Error voting:", error);
       toast.error("Failed to record vote");
