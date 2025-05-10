@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
-import { Loader2, HelpCircle } from 'lucide-react';
+import { Loader2, HelpCircle, AlertCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditProfileDialogProps {
@@ -26,6 +26,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
   const [website, setWebsite] = useState('');
   const [nip05, setNip05] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nip05ValidationMessage, setNip05ValidationMessage] = useState('');
   
   // Load existing profile data when dialog opens
   useEffect(() => {
@@ -40,8 +41,36 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
     }
   }, [profileData, open]);
   
+  // Validate NIP-05 format
+  const validateNip05 = (value: string) => {
+    if (!value) {
+      setNip05ValidationMessage('');
+      return;
+    }
+    
+    if (!value.includes('@')) {
+      setNip05ValidationMessage('NIP-05 must be in format: name@domain.com');
+      return;
+    }
+    
+    setNip05ValidationMessage('');
+  };
+  
+  const handleNip05Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNip05(value);
+    validateNip05(value);
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate NIP-05 format if provided
+    if (nip05 && !nip05.includes('@')) {
+      toast.error("Invalid NIP-05 format. Must be in format: name@domain.com");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -172,12 +201,23 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Input
-                id="nip05"
-                value={nip05}
-                onChange={(e) => setNip05(e.target.value)}
-                placeholder="you@example.com"
-              />
+              <div className="relative">
+                <Input
+                  id="nip05"
+                  value={nip05}
+                  onChange={handleNip05Change}
+                  placeholder="you@example.com"
+                  className={nip05ValidationMessage ? "border-red-300 pr-10" : ""}
+                />
+                {nip05ValidationMessage && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  </div>
+                )}
+              </div>
+              {nip05ValidationMessage && (
+                <p className="text-xs text-red-500 mt-1">{nip05ValidationMessage}</p>
+              )}
             </div>
           </div>
           
@@ -190,7 +230,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !!nip05ValidationMessage}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

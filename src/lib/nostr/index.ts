@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -84,6 +85,9 @@ class NostrService {
     if (success) {
       // Publish relay list to network
       await this.publishRelayList();
+      toast.success(`Relay ${relayUrl} added successfully`);
+    } else {
+      toast.error(`Failed to add relay ${relayUrl}`);
     }
     return success;
   }
@@ -92,6 +96,7 @@ class NostrService {
     this.relayManager.removeRelay(relayUrl);
     // Publish updated relay list
     this.publishRelayList();
+    toast.success(`Relay ${relayUrl} removed`);
   }
   
   public getRelayStatus(): Relay[] {
@@ -112,13 +117,40 @@ class NostrService {
   
   public async publishProfileMetadata(metadata: Record<string, any>): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.publishProfileMetadata(
-      this.pool,
-      this.publicKey,
-      null, // We're not storing private keys
-      metadata,
-      connectedRelays
-    );
+    if (!this.publicKey) {
+      toast.error("You must be logged in to update your profile");
+      return false;
+    }
+    
+    try {
+      const result = await this.eventManager.publishProfileMetadata(
+        this.pool,
+        this.publicKey,
+        null, // We're not storing private keys
+        metadata,
+        connectedRelays
+      );
+      
+      if (result) {
+        // If NIP-05 is set, verify it immediately for feedback
+        if (metadata.nip05) {
+          this.verifyNip05(metadata.nip05, this.publicKey)
+            .then(verified => {
+              if (verified) {
+                toast.success("NIP-05 identifier verified successfully");
+              } else {
+                toast.warning("NIP-05 identifier could not be verified. It may take time to propagate.");
+              }
+            });
+        }
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error publishing profile metadata:", error);
+      return false;
+    }
   }
   
   // Subscription management
@@ -301,6 +333,127 @@ class NostrService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
+  }
+  
+  // Helper methods for profile functionality
+  public async getFollowing(pubkey: string): Promise<string[]> {
+    if (!pubkey) return [];
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      return new Promise((resolve) => {
+        const following: string[] = [];
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.CONTACTS],
+              authors: [pubkey],
+              limit: 1
+            }
+          ],
+          (event) => {
+            // Extract pubkeys from p tags
+            const pubkeys = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'p')
+              .map(tag => tag[1]);
+              
+            resolve(pubkeys);
+            
+            // Cleanup subscription
+            setTimeout(() => {
+              this.unsubscribe(subId);
+            }, 100);
+          }
+        );
+        
+        // Timeout if no data found
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(following);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching following list:", error);
+      return [];
+    }
+  }
+  
+  public async getFollowers(pubkey: string): Promise<string[]> {
+    if (!pubkey) return [];
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      return new Promise((resolve) => {
+        const followers: string[] = [];
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.CONTACTS],
+              "#p": [pubkey],
+              limit: 50
+            }
+          ],
+          (event) => {
+            followers.push(event.pubkey);
+          }
+        );
+        
+        // Timeout to collect all events and resolve
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(followers);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching followers list:", error);
+      return [];
+    }
+  }
+  
+  public async getPostCount(pubkey: string): Promise<number> {
+    if (!pubkey) return 0;
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      // For simplicity we're just getting a rough count from the relays
+      // A more accurate count would require checking more relays and deduplicating
+      return new Promise((resolve) => {
+        let count = 0;
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.TEXT_NOTE],
+              authors: [pubkey],
+              limit: 100
+            }
+          ],
+          (event) => {
+            count++;
+          }
+        );
+        
+        // Timeout to collect all events and resolve
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(count);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching post count:", error);
+      return 0;
+    }
   }
   
   // Private helper methods
