@@ -1,18 +1,19 @@
 
 import { useState } from 'react';
 import { Twitter } from 'lucide-react';
-import { UseFormReturn } from 'react-hook-form';
-import { ProfileFormValues } from './types';
+import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
 import { initiateXVerification, extractTweetId, verifyTweet } from '@/lib/nostr/xVerification';
-import { toast } from 'sonner';
+import { UseFormReturn } from 'react-hook-form';
+import { ProfileFormValues } from '../types';
 
-import XVerificationTooltip from './x-verification/XVerificationTooltip';
-import TwitterUsernameInput from './x-verification/TwitterUsernameInput';
-import InitiateVerificationButton from './x-verification/InitiateVerificationButton';
-import TweetInstructions from './x-verification/TweetInstructions';
-import TweetUrlInput from './x-verification/TweetUrlInput';
-import VerificationSuccess from './x-verification/VerificationSuccess';
+// Import refactored components
+import XVerificationTooltip from './XVerificationTooltip';
+import TwitterUsernameInput from './TwitterUsernameInput';
+import InitiateVerificationButton from './InitiateVerificationButton';
+import TweetInstructions from './TweetInstructions';
+import TweetUrlInput from './TweetUrlInput';
+import VerificationSuccess from './VerificationSuccess';
 
 interface XVerificationSectionProps {
   form: UseFormReturn<ProfileFormValues>;
@@ -118,8 +119,10 @@ const XVerificationSection = ({
       </div>
       
       <div className="space-y-4">
+        {/* Twitter username input field */}
         <TwitterUsernameInput form={form} twitterVerified={twitterVerified} />
         
+        {/* Verification initiation button - only shown when not verified and in idle state */}
         {!twitterVerified && verificationStep === 'idle' && (
           <InitiateVerificationButton 
             isVerifying={isVerifying}
@@ -127,10 +130,12 @@ const XVerificationSection = ({
           />
         )}
         
+        {/* Instructions for the current verification step */}
         {(verificationStep === 'tweet' || verificationStep === 'verify') && (
           <TweetInstructions step={verificationStep} />
         )}
         
+        {/* Tweet URL input field - only shown in verify step */}
         {verificationStep === 'verify' && (
           <TweetUrlInput 
             form={form} 
@@ -139,6 +144,7 @@ const XVerificationSection = ({
           />
         )}
         
+        {/* Success message - only shown when verified */}
         {twitterVerified && (
           <VerificationSuccess username={form.getValues('twitter')} />
         )}
