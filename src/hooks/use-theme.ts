@@ -9,27 +9,27 @@ export const useTheme = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
     
-    // Add/remove dark class with transition
+    // Add transition class before changing theme
+    document.documentElement.classList.add('color-theme-in-transition');
+    
+    // Add/remove dark class
     if (newDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    
+    // Remove transition class after transition completes to prevent affecting other interactions
+    setTimeout(() => {
+      document.documentElement.classList.remove('color-theme-in-transition');
+    }, 3000); // Match the 3s transition duration
   };
 
   // Set initial dark mode state based on html class
   useEffect(() => {
-    // Add transition class on mount to enable smooth transitions
-    document.documentElement.classList.add('color-theme-transition');
     setDarkMode(document.documentElement.classList.contains('dark'));
     
-    // Prevent transition on page load
-    setTimeout(() => {
-      document.documentElement.classList.add('color-theme-in-transition');
-    }, 0);
-    
     return () => {
-      document.documentElement.classList.remove('color-theme-transition');
       document.documentElement.classList.remove('color-theme-in-transition');
     };
   }, []);
