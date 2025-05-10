@@ -92,7 +92,7 @@ const MainFeed = () => {
       <CreateNoteForm />
       
       <Tabs 
-        defaultValue={activeTab} 
+        value={activeTab} 
         onValueChange={setActiveTab}
         className="mt-4"
       >
