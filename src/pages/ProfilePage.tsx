@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileHeader from "@/components/profile/ProfileHeader";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 const ProfilePage = () => {
   const { npub } = useParams();
@@ -28,6 +28,7 @@ const ProfilePage = () => {
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
+  const { toast } = useToast();
   
   const currentUserPubkey = nostrService.publicKey;
   const isCurrentUser = currentUserPubkey && 
@@ -199,7 +200,8 @@ const ProfilePage = () => {
         };
       } catch (error) {
         console.error("Error fetching profile:", error);
-        toast("Error loading profile", {
+        toast({
+          title: "Error loading profile",
           description: "Could not load profile data. Please try again.",
           variant: "destructive",
         });
@@ -276,7 +278,7 @@ const ProfilePage = () => {
       const relayStatus = nostrService.getRelayStatus();
       setRelays(relayStatus);
     }
-  }, [npub, isCurrentUser]);
+  }, [npub, isCurrentUser, toast]);
   
   // Show current user's profile if no npub is provided
   useEffect(() => {

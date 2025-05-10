@@ -1,6 +1,9 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
+import { useNavigate } from "react-router-dom";
 import CommunityHeaderImage from "./CommunityHeaderImage";
 import CommunityDescription from "./CommunityDescription";
 import LeaveCommunityButton from "./LeaveCommunityButton";
@@ -21,7 +24,7 @@ interface CommunityHeaderProps {
   currentUserPubkey: string | null;
   isCreator: boolean;
   isMember: boolean;
-  onLeaveCommunity: () => void;
+  onLeaveCommunity: () => void; // Added prop
 }
 
 const CommunityHeader = ({ 
@@ -31,6 +34,13 @@ const CommunityHeader = ({
   isMember,
   onLeaveCommunity
 }: CommunityHeaderProps) => {
+  const navigate = useNavigate();
+
+  const handleLeaveCommunity = async () => {
+    await onLeaveCommunity();
+    navigate('/communities');
+  };
+  
   return (
     <Card>
       <CommunityHeaderImage 
@@ -48,7 +58,7 @@ const CommunityHeader = ({
         
         {isMember && !isCreator && (
           <LeaveCommunityButton 
-            onLeave={onLeaveCommunity} 
+            onLeave={handleLeaveCommunity} 
             communityName={community.name} 
           />
         )}
