@@ -25,7 +25,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       // Connect to relays
       await nostrService.connectToUserRelays();
       
-      let filters = [
+      let filters: any[] = [
         {
           kinds: [1],
           limit: 20,
