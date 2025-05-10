@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface DeleteButtonProps {
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
 }
 
 const DeleteButton = ({ onClick }: DeleteButtonProps) => {
@@ -11,7 +11,7 @@ const DeleteButton = ({ onClick }: DeleteButtonProps) => {
     <ActionButton
       onClick={(e) => {
         e.preventDefault();
-        onClick();
+        onClick(e);
       }}
       icon={<Trash2 className="h-4 w-4" />}
       label="Delete post"

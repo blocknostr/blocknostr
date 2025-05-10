@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react';
 import ActionButton from './ActionButton';
 
 interface LikeButtonProps {
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   liked: boolean;
   likeCount: number;
 }
@@ -13,7 +13,7 @@ const LikeButton = ({ onClick, liked, likeCount }: LikeButtonProps) => {
     <ActionButton
       onClick={(e) => {
         e.preventDefault();
-        onClick();
+        onClick(e);
       }}
       icon={<Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />}
       label="Like"

@@ -10,9 +10,9 @@ import DeleteButton from './actions/DeleteButton';
 interface NoteCardActionsProps {
   eventId: string;
   pubkey: string;
-  onCommentClick: () => void;
+  onCommentClick: (e: React.MouseEvent) => void;
   replyCount: number;
-  onDelete?: () => void;
+  onDelete?: (e: React.MouseEvent) => void;
   isAuthor?: boolean;
   reachCount?: number;
 }
@@ -43,20 +43,20 @@ const NoteCardActions = ({
   return (
     <div className="flex items-center justify-between w-full pt-2 px-[10px]">
       <div className="flex items-center">
-        <CommentButton onClick={(e: React.MouseEvent) => {
+        <CommentButton onClick={(e) => {
           e.stopPropagation(); // Prevent navigation when clicking comment
-          onCommentClick();
+          onCommentClick(e);
         }} replyCount={replyCount} />
-        <RetweetButton onClick={(e: React.MouseEvent) => handleRetweet(e)} retweeted={retweeted} retweetCount={retweetCount} />
-        <LikeButton onClick={(e: React.MouseEvent) => handleLike(e)} liked={liked} likeCount={likeCount} />
+        <RetweetButton onClick={(e) => handleRetweet(e)} retweeted={retweeted} retweetCount={retweetCount} />
+        <LikeButton onClick={(e) => handleLike(e)} liked={liked} likeCount={likeCount} />
       </div>
       
       <div className="flex items-center">
         <ViewButton reachCount={reachCount} />
-        <TipButton onClick={(e: React.MouseEvent) => handleSendTip(e)} tipCount={tipCount} />
-        {isAuthor && onDelete && <DeleteButton onClick={(e: React.MouseEvent) => {
+        <TipButton onClick={(e) => handleSendTip(e)} tipCount={tipCount} />
+        {isAuthor && onDelete && <DeleteButton onClick={(e) => {
           e.stopPropagation(); // Prevent navigation when clicking delete
-          onDelete();
+          onDelete(e);
         }} />}
       </div>
     </div>

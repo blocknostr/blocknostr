@@ -28,13 +28,13 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const { reachCount } = useNoteReachCount(event.created_at);
   const { replyCount, handleReplyAdded } = useNoteReplies(event.id || '');
   
-  const handleCommentClick = () => {
+  const handleCommentClick = (e: React.MouseEvent) => {
     setShowComments(!showComments);
   };
   
   const isCurrentUserAuthor = event.pubkey === nostrService.publicKey;
   
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     setIsDeleteDialogOpen(true);
   };
 
