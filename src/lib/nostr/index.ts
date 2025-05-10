@@ -176,7 +176,7 @@ class NostrService {
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
-  ): string {
+  ) {
     const connectedRelays = this.getConnectedRelayUrls();
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }

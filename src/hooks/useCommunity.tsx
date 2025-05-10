@@ -6,6 +6,7 @@ import { useToast } from './use-toast';
 import { Community } from '@/types/community';
 import { useCommunityEventHandlers } from './community/useCommunityEventHandlers';
 import { useCommunitySubscriptions } from './community/useCommunitySubscriptions';
+import { useCommunityActions } from './community/useCommunityActions';
 
 export function useCommunity(communityId: string | undefined) {
   const [community, setCommunity] = useState<Community | null>(null);
@@ -14,27 +15,30 @@ export function useCommunity(communityId: string | undefined) {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const {
-    handleCommunityEvent,
-    handleProposalEvent,
-    handleVoteEvent,
-    handleKickProposalEvent, 
-    handleKickVoteEvent,
-    proposals,
-    votes,
-    kickProposals,
-    kickVotes,
-    members
-  } = useCommunityEventHandlers();
+  const eventHandlers = useCommunityEventHandlers();
+  const { proposals, votes, kickProposals, kickVotes, members } = eventHandlers;
 
   const { loadCommunity } = useCommunitySubscriptions(
     communityId,
-    handleCommunityEvent,
-    handleProposalEvent,
-    handleVoteEvent,
-    handleKickProposalEvent,
-    handleKickVoteEvent
+    eventHandlers.handleCommunityEvent,
+    eventHandlers.handleProposalEvent,
+    eventHandlers.handleVoteEvent,
+    eventHandlers.handleKickProposalEvent,
+    eventHandlers.handleKickVoteEvent
   );
+
+  // Get community actions
+  const {
+    currentUserPubkey,
+    isMember,
+    isCreator,
+    isCreatorOnlyMember,
+    handleJoinCommunity,
+    handleLeaveCommunity,
+    handleCreateKickProposal,
+    handleVoteOnKick,
+    handleDeleteCommunity
+  } = useCommunityActions(community);
 
   useEffect(() => {
     if (!communityId) {
@@ -43,14 +47,14 @@ export function useCommunity(communityId: string | undefined) {
       return;
     }
 
-    let unsubscribe: (() => void) | undefined;
+    let cleanup: (() => void) | undefined;
     
     const loadData = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        unsubscribe = await loadCommunity();
+        cleanup = await loadCommunity();
       } catch (err) {
         console.error('Error loading community:', err);
         setError('Failed to load community');
@@ -62,8 +66,8 @@ export function useCommunity(communityId: string | undefined) {
     loadData();
     
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (cleanup) {
+        cleanup();
       }
     };
   }, [communityId]);
@@ -77,6 +81,15 @@ export function useCommunity(communityId: string | undefined) {
     votes,
     kickProposals,
     kickVotes,
-    members
+    members,
+    currentUserPubkey,
+    isMember,
+    isCreator,
+    isCreatorOnlyMember,
+    handleJoinCommunity,
+    handleLeaveCommunity,
+    handleCreateKickProposal,
+    handleVoteOnKick,
+    handleDeleteCommunity
   };
 }

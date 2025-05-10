@@ -71,17 +71,51 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Try to find the user's relays
-      const userRelays = await nostrService.getRelaysForUser(userPubkey);
+      // Try to find the user's relays from their published relay list
+      const relaysFound: string[] = [];
       
-      if (userRelays.length === 0) {
+      // Subscribe to relay list events for this user
+      const subscription = nostrService.subscribe(
+        [
+          {
+            kinds: [10050], // Relay list event kind
+            authors: [userPubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relaysFound.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Wait a bit to collect relays
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Unsubscribe
+      subscription.unsubscribe();
+      
+      if (relaysFound.length === 0) {
         toast.info("No relays found for this user");
         setIsImportingRelays(false);
         return;
       }
       
-      // Add all found relays
-      const successCount = await nostrService.addMultipleRelays(userRelays);
+      // Add all found relays one by one
+      let successCount = 0;
+      for (const url of relaysFound) {
+        try {
+          const success = await nostrService.addRelay(url);
+          if (success) successCount++;
+        } catch (error) {
+          console.error(`Failed to add relay ${url}:`, error);
+        }
+      }
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);

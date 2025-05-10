@@ -1,6 +1,5 @@
 
 import { NostrEvent, nostrService } from "@/lib/nostr";
-import { SubCloser } from "@/lib/nostr/types";
 import { useEffect } from "react";
 
 export const useCommunitySubscriptions = (
@@ -12,12 +11,12 @@ export const useCommunitySubscriptions = (
   handleKickVoteEvent: (event: NostrEvent) => void
 ) => {
   const loadCommunity = async () => {
-    if (!communityId) return;
+    if (!communityId) return () => {};
     
     await nostrService.connectToUserRelays();
     
     // Subscribe to community events with this ID
-    const communitySubCloser = nostrService.subscribe(
+    const communitySubscription = nostrService.subscribe(
       [
         {
           kinds: [34550],
@@ -29,28 +28,28 @@ export const useCommunitySubscriptions = (
     );
     
     // Load proposals for this community
-    const proposalSubClosers = loadProposals(communityId);
+    const proposalSubscriptions = loadProposals(communityId);
     
     // Load kick proposals for this community
-    const kickSubClosers = loadKickProposals(communityId);
+    const kickSubscriptions = loadKickProposals(communityId);
     
     // Return a cleanup function that calls all the subscription closers
     return () => {
-      communitySubCloser();
-      if (proposalSubClosers) {
-        proposalSubClosers.proposalSubCloser();
-        proposalSubClosers.votesSubCloser();
+      if (communitySubscription) communitySubscription.unsubscribe();
+      if (proposalSubscriptions) {
+        proposalSubscriptions.proposalSubscription.unsubscribe();
+        proposalSubscriptions.votesSubscription.unsubscribe();
       }
-      if (kickSubClosers) {
-        kickSubClosers.kickProposalSubCloser();
-        kickSubClosers.kickVotesSubCloser();
+      if (kickSubscriptions) {
+        kickSubscriptions.kickProposalSubscription.unsubscribe();
+        kickSubscriptions.kickVotesSubscription.unsubscribe();
       }
     };
   };
   
   const loadProposals = (communityId: string) => {
     // Subscribe to proposal events for this community
-    const proposalSubCloser = nostrService.subscribe(
+    const proposalSubscription = nostrService.subscribe(
       [
         {
           kinds: [34551],
@@ -62,7 +61,7 @@ export const useCommunitySubscriptions = (
     );
     
     // Subscribe to vote events
-    const votesSubCloser = nostrService.subscribe(
+    const votesSubscription = nostrService.subscribe(
       [
         {
           kinds: [34552], // Vote events
@@ -72,11 +71,11 @@ export const useCommunitySubscriptions = (
       handleVoteEvent
     );
     
-    return { proposalSubCloser, votesSubCloser };
+    return { proposalSubscription, votesSubscription };
   };
   
   const loadKickProposals = (communityId: string) => {
-    const kickProposalSubCloser = nostrService.subscribe(
+    const kickProposalSubscription = nostrService.subscribe(
       [
         {
           kinds: [34554], // Kick proposal kind
@@ -87,7 +86,7 @@ export const useCommunitySubscriptions = (
       handleKickProposalEvent
     );
     
-    const kickVotesSubCloser = nostrService.subscribe(
+    const kickVotesSubscription = nostrService.subscribe(
       [
         {
           kinds: [34555], // Kick vote kind
@@ -97,7 +96,7 @@ export const useCommunitySubscriptions = (
       handleKickVoteEvent
     );
     
-    return { kickProposalSubCloser, kickVotesSubCloser };
+    return { kickProposalSubscription, kickVotesSubscription };
   };
   
   return {
