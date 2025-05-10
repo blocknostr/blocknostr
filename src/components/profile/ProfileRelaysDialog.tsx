@@ -72,7 +72,7 @@ const ProfileRelaysDialog = ({
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
       // Try to find the user's relays
-      const userRelays = await nostrService.getRelaysForUser(userPubkey);
+      const userRelays = await (nostrService as any).getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
         toast.info("No relays found for this user");
@@ -81,7 +81,7 @@ const ProfileRelaysDialog = ({
       }
       
       // Add all found relays
-      const successCount = await nostrService.addMultipleRelays(userRelays);
+      const successCount = await (nostrService as any).addMultipleRelays(userRelays);
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);
