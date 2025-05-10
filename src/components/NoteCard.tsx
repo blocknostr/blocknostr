@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
@@ -133,6 +132,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
       setIsDeleteDialogOpen(false);
     }
   };
+
+  const npub = event.pubkey ? nostrService.getNpubFromHex(event.pubkey) : '';
 
   return (
     <>

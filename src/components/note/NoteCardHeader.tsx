@@ -99,7 +99,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     <div className="flex justify-between">
       <div className="flex">
         <Link 
-          to={`/profile/${hexPubkey}`} 
+          to={`/profile/${npub}`} 
           className="mr-3 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
@@ -112,7 +112,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
             <Link 
-              to={`/profile/${hexPubkey}`}
+              to={`/profile/${npub}`}
               className="font-bold hover:underline truncate flex items-center gap-1"
               onClick={(e) => e.stopPropagation()}
             >

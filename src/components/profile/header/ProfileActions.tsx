@@ -1,8 +1,9 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
+import { Edit, MessageSquare } from "lucide-react";
 import FollowButton from "@/components/FollowButton";
+import { Link } from "react-router-dom";
 
 interface ProfileActionsProps {
   isCurrentUser: boolean;
@@ -19,7 +20,15 @@ const ProfileActions = ({ isCurrentUser, onEditProfile, pubkeyHex }: ProfileActi
           Edit profile
         </Button>
       ) : (
-        <FollowButton pubkey={pubkeyHex} />
+        <div className="flex gap-2">
+          <FollowButton pubkey={pubkeyHex} />
+          <Link to={`/messages/${pubkeyHex}`}>
+            <Button variant="outline" size="sm">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Message
+            </Button>
+          </Link>
+        </div>
       )}
     </div>
   );
