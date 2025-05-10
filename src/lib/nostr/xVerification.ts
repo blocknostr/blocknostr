@@ -1,6 +1,7 @@
 
 import { toast } from 'sonner';
 
+// NIP-39 compliant verification text
 const VERIFICATION_TEXT_PREFIX = "Verifying my account on nostr My Public Key: ";
 
 /**

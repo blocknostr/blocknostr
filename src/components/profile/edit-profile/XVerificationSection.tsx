@@ -121,7 +121,8 @@ const XVerificationSection = ({
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <p>Verification follows NIP-39 standard for external identity verification.</p>
-              <p className="mt-2">You'll need to post a tweet containing your Nostr public key.</p>
+              <p className="mt-2">You'll post a tweet containing your Nostr public key, and we'll add an "i" tag to your profile metadata.</p>
+              <p className="mt-2">The format is: ["i", "twitter:username", "tweetId"]</p>
               <a 
                 href="https://github.com/nostr-protocol/nips/blob/master/39.md" 
                 target="_blank"

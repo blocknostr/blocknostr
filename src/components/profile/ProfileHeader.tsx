@@ -25,6 +25,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
   const [verifyingNip05, setVerifyingNip05] = useState(false);
   const [xVerified, setXVerified] = useState(false);
+  const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
   
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
@@ -64,29 +65,37 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
     verifyNip05();
   }, [profile?.nip05, pubkeyHex]);
 
-  // Check for X verification status from profile
+  // Check for X verification status from profile according to NIP-39
   useEffect(() => {
-    // Check if profile has X verification (either via our legacy method or NIP-39)
     if (profile) {
-      // First, check our custom twitter_verified field
-      if (profile.twitter_verified) {
-        setXVerified(true);
-        return;
-      }
-      
-      // Then check for NIP-39 i tags in the raw event
+      // First, check for NIP-39 "i" tags in the event
       if (Array.isArray(profile.tags)) {
-        const hasTwitterTag = profile.tags.some(tag => 
+        const twitterTag = profile.tags.find(tag => 
           tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
         );
         
-        if (hasTwitterTag) {
+        if (twitterTag) {
+          const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
+          const tweetId = twitterTag[2]; // Tweet ID is in position 2
+          
           setXVerified(true);
+          setXVerifiedInfo({ username, tweetId });
           return;
         }
       }
       
+      // Fall back to legacy verification if no NIP-39 tag found
+      if (profile.twitter_verified) {
+        setXVerified(true);
+        setXVerifiedInfo({ 
+          username: profile.twitter || '', 
+          tweetId: profile.twitter_proof || '' 
+        });
+        return;
+      }
+      
       setXVerified(false);
+      setXVerifiedInfo(null);
     }
   }, [profile]);
   
@@ -235,15 +244,15 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 </a>
               )}
               
-              {profile?.twitter && (
+              {(profile?.twitter || xVerifiedInfo?.username) && (
                 <a 
-                  href={`https://x.com/${profile.twitter.replace('@', '')}`}
+                  href={`https://x.com/${(profile?.twitter || xVerifiedInfo?.username).replace('@', '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
                 >
                   <Twitter className="h-3.5 w-3.5" />
-                  @{profile.twitter.replace('@', '')}
+                  @{(profile?.twitter || xVerifiedInfo?.username).replace('@', '')}
                   {xVerified && (
                     <TooltipProvider>
                       <Tooltip>
@@ -255,9 +264,9 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                         <TooltipContent>
                           <div className="space-y-1">
                             <p>Verified X account (NIP-39)</p>
-                            {profile.twitter_proof && (
+                            {xVerifiedInfo?.tweetId && (
                               <a 
-                                href={`https://x.com/status/${profile.twitter_proof}`}
+                                href={`https://x.com/status/${xVerifiedInfo.tweetId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline text-xs flex items-center"

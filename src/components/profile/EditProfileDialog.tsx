@@ -48,6 +48,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
   // Load existing profile data when dialog opens
   useEffect(() => {
     if (profileData) {
+      // Fill form with existing data
       form.reset({
         name: profileData.name || '',
         display_name: profileData.display_name || '',
@@ -60,10 +61,25 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         tweetUrl: ''
       });
       
-      // Check if Twitter is already verified
-      setTwitterVerified(!!profileData.twitter_verified);
-      if (profileData.twitter_proof) {
-        setTweetId(profileData.twitter_proof);
+      // Check if Twitter is already verified via NIP-39 "i" tag
+      if (Array.isArray(profileData.tags)) {
+        const twitterTag = profileData.tags.find(tag => 
+          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
+        );
+        
+        if (twitterTag) {
+          setTwitterVerified(true);
+          setTweetId(twitterTag[2]); // Tweet ID is in position 2
+          const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
+          setXUsername(username);
+          form.setValue('twitter', username);
+        } else if (profileData.twitter_verified) {
+          // Legacy verification
+          setTwitterVerified(!!profileData.twitter_verified);
+          if (profileData.twitter_proof) {
+            setTweetId(profileData.twitter_proof);
+          }
+        }
       }
     }
   }, [profileData, open, form]);
@@ -84,12 +100,6 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         twitter: values.twitter.replace('@', '') // Remove @ if present
       };
       
-      // Add Twitter verification status if verified
-      if (twitterVerified && tweetId && xUsername) {
-        metadata.twitter_verified = true;
-        metadata.twitter_proof = tweetId;
-      }
-      
       // Create the event object to publish
       const eventToPublish: Partial<NostrEvent> = {
         kind: 0,
@@ -97,11 +107,13 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         tags: []
       };
       
-      // Add NIP-39 i tag if Twitter is verified
+      // Add NIP-39 "i" tag for Twitter verification if verified
       if (twitterVerified && tweetId && xUsername) {
         const cleanUsername = xUsername.replace('@', '');
-        eventToPublish.tags = eventToPublish.tags || [];
-        eventToPublish.tags.push(['i', `twitter:${cleanUsername}`, tweetId]);
+        eventToPublish.tags = [
+          // NIP-39 compliant format: ["i", "twitter:username", "tweetId"]
+          ["i", `twitter:${cleanUsername}`, tweetId]
+        ];
       }
       
       // Publish metadata to Nostr network
