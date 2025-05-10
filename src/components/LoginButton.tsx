@@ -1,10 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { LogIn, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
-import WalletButton from "./wallet/WalletButton";
 
 const LoginButton = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -57,7 +55,6 @@ const LoginButton = () => {
       
     return (
       <div className="flex items-center gap-2">
-        <WalletButton />
         <Button 
           variant="outline" 
           size="sm" 
@@ -80,13 +77,10 @@ const LoginButton = () => {
   }
   
   return (
-    <div className="flex items-center gap-2">
-      <WalletButton />
-      <Button onClick={handleLogin} className="flex items-center gap-2">
-        <LogIn className="h-4 w-4" />
-        <span>Sign in with Nostr</span>
-      </Button>
-    </div>
+    <Button onClick={handleLogin} className="flex items-center gap-2">
+      <LogIn className="h-4 w-4" />
+      <span>Sign in with Nostr</span>
+    </Button>
   );
 };
 
