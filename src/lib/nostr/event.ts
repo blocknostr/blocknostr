@@ -1,5 +1,5 @@
 
-import { getEventHash, validateEvent, SimplePool } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool, finalizeEvent, type UnsignedEvent } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
@@ -33,16 +33,15 @@ export class EventManager {
         signedEvent = await window.nostr.signEvent(fullEvent);
       } else if (privateKey) {
         // Use private key if available (not recommended for production)
-        // Import the function dynamically to fix the missing export issue
-        const { finalizeEvent } = await import('nostr-tools');
         signedEvent = finalizeEvent(
           {
             kind: fullEvent.kind,
             created_at: fullEvent.created_at,
             tags: fullEvent.tags,
             content: fullEvent.content,
-          },
-          privateKey as any // Using type assertion to fix the Uint8Array type issue
+            pubkey: fullEvent.pubkey,
+          } as UnsignedEvent,
+          privateKey
         );
       } else {
         return null;
