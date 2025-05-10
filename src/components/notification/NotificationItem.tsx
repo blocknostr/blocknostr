@@ -15,28 +15,37 @@ const NotificationItem = ({ notification, profileData }: NotificationItemProps) 
   
   const displayName = profileData?.name || profileData?.display_name || notification.pubkey.slice(0, 8);
   
+  // Find the event ID that this notification is referencing (if any)
+  const eventReference = notification.tags.find(tag => tag[0] === 'e');
+  const eventId = eventReference ? eventReference[1] : null;
+  
   return (
-    <Card className="p-4 hover:bg-accent/10 transition-colors">
-      <div className="flex items-start space-x-3">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={profileData?.picture} alt={displayName} />
-          <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline justify-between">
-            <Link to={`/profile/${notification.pubkey}`} className="font-medium hover:underline truncate">
-              {displayName}
-            </Link>
-            <span className="text-xs text-muted-foreground">{timeAgo}</span>
-          </div>
+    <Link 
+      to={eventId ? `/post/${eventId}` : `/profile/${notification.pubkey}`} 
+      className="block no-underline text-foreground"
+    >
+      <Card className="p-4 hover:bg-accent/10 transition-colors">
+        <div className="flex items-start space-x-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={profileData?.picture} alt={displayName} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
           
-          <p className="mt-1 text-sm break-words">
-            {notification.content}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline justify-between">
+              <span className="font-medium hover:underline truncate">
+                {displayName}
+              </span>
+              <span className="text-xs text-muted-foreground">{timeAgo}</span>
+            </div>
+            
+            <p className="mt-1 text-sm break-words">
+              {notification.content}
+            </p>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 };
 
