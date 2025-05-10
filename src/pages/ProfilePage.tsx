@@ -338,6 +338,7 @@ const ProfilePage = () => {
             isCurrentUser={isCurrentUser}
             relays={relays}
             onRelaysChange={setRelays}
+            userNpub={npub}
           />
           
           {/* Tabbed Content */}

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  private relayManager: RelayManager;
+  public relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -330,6 +330,39 @@ class NostrService {
     return fetchNip05Data(identifier);
   }
   
+  // Add a public method to get relays for a user
+  public async getRelaysForUser(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const relays: string[] = [];
+      
+      // Subscribe to relay list event
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relays.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(relays);
+      }, 3000);
+    });
+  }
+  
   // Private helper methods
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
@@ -362,38 +395,6 @@ class NostrService {
     } catch (error) {
       console.error("Error fetching following list:", error);
     }
-  }
-  
-  private async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST],
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              relays.push(tag[1]);
-            }
-          });
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        resolve(relays);
-      }, 3000);
-    });
   }
   
   private async publishRelayList(): Promise<string | null> {
