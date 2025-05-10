@@ -1,10 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { nostrService, NostrEvent } from "@/lib/nostr";
-
-export interface EnhancedNotification extends NostrEvent {
-  notificationType: "mention" | "reply" | "like" | "repost" | "interaction";
-}
+import { EnhancedNotification } from "@/types/notification";
 
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState<EnhancedNotification[]>([]);

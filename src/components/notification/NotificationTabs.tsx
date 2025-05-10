@@ -4,12 +4,7 @@ import { Bell, MessageCircle } from "lucide-react";
 import { NostrEvent } from "@/lib/nostr";
 import NotificationItem from "@/components/notification/NotificationItem";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
-
-interface EnhancedNotification extends NostrEvent {
-  notificationType: "mention" | "reply" | "like" | "repost" | "interaction";
-}
+import { EnhancedNotification } from "@/types/notification";
 
 interface NotificationTabsProps {
   activeTab: string;
