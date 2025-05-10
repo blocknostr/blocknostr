@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileData } from "./useProfileData";
@@ -24,7 +23,9 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     setSubId,
     subscribe,
     unsubscribe,
-    setEvents
+    setEvents,
+    setProfiles,
+    setRepostData
   } = useFeedSubscription({ filters: [] });
   
   // Use pagination hook
@@ -48,7 +49,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   
   const fetchOriginalPost = useCallback((eventId: string) => {
     fetchOriginalPostBase(eventId, profiles, setEvents, fetchProfileData, setProfiles);
-  }, [profiles, fetchOriginalPostBase, fetchProfileData]);
+  }, [profiles, fetchOriginalPostBase, fetchProfileData, setEvents, setProfiles]);
 
   // Update filtered events when events change
   useEffect(() => {
@@ -129,7 +130,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     
     setSubId(newSubId);
     return newSubId;
-  }, [activeHashtag, profiles, subId, unsubscribe, setEvents, setHasMore, fetchProfileData]);
+  }, [activeHashtag, profiles, subId, unsubscribe, setEvents, setHasMore, fetchProfileData, setProfiles, setSubId]);
 
   // Handle repost events
   const handleRepostEvent = useCallback((event: NostrEvent) => {
@@ -176,7 +177,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
         fetchOriginalPost(originalEventId);
       }
     }
-  }, [fetchOriginalPost]);
+  }, [fetchOriginalPost, setRepostData]);
 
   const loadMoreEvents = useCallback(() => {
     if (!subId || isLoadingMore) return;

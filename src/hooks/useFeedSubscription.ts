@@ -118,6 +118,8 @@ export const useFeedSubscription = ({ filters, onEventReceived }: UseFeedSubscri
     setSubId,
     subscribe,
     unsubscribe,
-    setEvents
+    setEvents,
+    setProfiles,
+    setRepostData
   };
 };
