@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
@@ -15,6 +14,7 @@ import Header from './components/Header/Header';
 import Sidebar from './components/Sidebar';
 import { Toaster } from "@/components/ui/toaster"
 import BookmarksPage from './pages/BookmarksPage';
+import WalletsPage from "./pages/WalletsPage";
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,6 +42,7 @@ function App() {
               <Route path="/post/:id" element={<PostPage />} />
               <Route path="/notebin" element={<NotebinPage />} />
               <Route path="/bookmarks" element={<BookmarksPage />} />
+              <Route path="/wallets" element={<WalletsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
