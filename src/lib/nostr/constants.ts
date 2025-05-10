@@ -1,24 +1,20 @@
 
-// Event types based on Nostr Kinds
+// Define all standard Nostr event kinds used in the application
 export const EVENT_KINDS = {
-  META: 0,            // Profile metadata
-  TEXT_NOTE: 1,       // Standard note/post
-  RECOMMEND_RELAY: 2, // Relay recommendations
-  CONTACTS: 3,        // Following list
-  DIRECT_MESSAGE: 4,  // Encrypted direct messages (legacy)
-  REACTION: 7,        // Reactions to notes
-  ENCRYPTED_DM: 14,   // NIP-17 Encrypted Direct Messages
-  RELAY_LIST: 10050,  // Relay lists
-  COMMUNITY: 34550,   // Communities/DAOs
-  PROPOSAL: 34551,    // Proposals within communities
-  VOTE: 34552,        // Votes on proposals
-  COMMENT: 34553,     // Comments on proposals
-  KICK_PROPOSAL: 34554, // Proposal to kick a member
-  KICK_VOTE: 34555,   // Vote on kick proposal
-  
-  // NIP-51 Lists
-  BOOKMARK_LIST: 30001,  // Bookmarks list
-  MUTE_LIST: 10000,      // Muted users/posts
-  PIN_LIST: 10001,       // Pinned notes
-  CURATED_LIST: 30000,   // Generic lists
+  META: 0,               // Metadata - NIP-01
+  TEXT_NOTE: 1,          // Short text note - NIP-01
+  RECOMMEND_RELAY: 2,    // Recommend relay - NIP-01
+  CONTACTS: 3,           // Contact list - NIP-02
+  ENCRYPTED_DM: 4,       // Encrypted direct message - NIP-04 (deprecated, use 14)
+  DELETE: 5,             // Delete - NIP-09
+  REPOST: 6,             // Repost - NIP-18
+  REACTION: 7,           // Reaction - NIP-25
+  BADGE_AWARD: 8,        // Badge award - NIP-58
+  ENCRYPTED_DM_V2: 14,   // Encrypted direct message - NIP-17 (replaces kind:4)
+  RELAY_LIST: 10002,     // Relay list metadata - NIP-65
+  COMMUNITY: 34550,      // Communities - NIP-172
+  BOOKMARKS: 10003,      // Bookmarks - NIP-51
+  BADGES: 30009,         // Badge definition - NIP-58
+  ZAP_REQUEST: 9734,     // Zap Request - NIP-57
+  ZAP_RECEIPT: 9735      // Zap Receipt - NIP-57
 };

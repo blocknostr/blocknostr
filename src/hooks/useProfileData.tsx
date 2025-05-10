@@ -112,20 +112,13 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
               
               setFollowing(followingList);
               
-              // If this is the current user, update the following list in nostrService
-              // Fix: Instead of directly accessing userManager, we call public methods
+              // If this is the current user, we access the following list using public methods
               if (isCurrentUser) {
-                nostrService.following.forEach(pubkey => {
-                  if (!followingList.includes(pubkey)) {
-                    // This is in our local following but not in the event
-                    // No need to do anything - we'll sync when user follows/unfollows
-                  }
-                });
-                
+                // No need to directly access userManager anymore
                 followingList.forEach(pubkey => {
                   if (!nostrService.isFollowing(pubkey)) {
                     // This is in the relay data but not in our local following
-                    // Update local state
+                    // We'll rely on the user explicitly following/unfollowing to sync
                   }
                 });
               }

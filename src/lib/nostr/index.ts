@@ -16,7 +16,7 @@ class NostrService {
   public relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
-  private socialManager: SocialManager;
+  public socialManager: SocialManager; // Changed to public for NIP implementation
   private communityManager: CommunityManager;
   private bookmarkManager: BookmarkManager;
   private pool: SimplePool;
@@ -332,6 +332,58 @@ class NostrService {
       this.publicKey,
       null, // We're not storing private keys
       publishToRelays.length > 0 ? publishToRelays : connectedRelays
+    );
+  }
+  
+  /**
+   * React to a note with specific emoji (NIP-25)
+   */
+  public async reactToPost(eventId: string, emoji: string = "+"): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.socialManager.reactToEvent(
+      this.pool,
+      eventId,
+      emoji,
+      this.publicKey,
+      null, // We're not storing private keys
+      connectedRelays
+    );
+  }
+  
+  /**
+   * Repost a note (NIP-18)
+   */
+  public async repostNote(eventId: string, authorPubkey: string): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Use first relay as hint
+    const relayHint = connectedRelays.length > 0 ? connectedRelays[0] : null;
+    
+    return this.socialManager.repostEvent(
+      this.pool,
+      eventId,
+      authorPubkey,
+      relayHint,
+      this.publicKey,
+      null, // We're not storing private keys
+      connectedRelays
+    );
+  }
+  
+  /**
+   * Get reaction counts for an event (NIP-25)
+   */
+  public async getReactionCounts(eventId: string): Promise<{
+    likes: number,
+    reposts: number,
+    userHasLiked: boolean,
+    userHasReposted: boolean,
+    likers: string[]
+  }> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.socialManager.getReactionCounts(
+      this.pool,
+      eventId,
+      connectedRelays
     );
   }
   

@@ -49,55 +49,40 @@ const NoteCardActions = ({
       }
     };
     
-    // Fetch reaction and repost counts
+    // Fetch reaction and repost counts using our new implementation
     const fetchReactionCounts = async () => {
-      // Subscribe to reactions (kind 7)
-      const reactionSubId = nostrService.subscribe(
-        [{
-          kinds: [7], // Reactions
-          "#e": [eventId], // Reference to this post
-          limit: 500
-        }],
-        (event) => {
-          // Check if it's a like (content is "+")
-          if (event.content === "+") {
-            setLikeCount(prev => prev + 1);
-            
-            // Check if the current user has liked this post
-            if (event.pubkey === nostrService.publicKey) {
-              setIsLiked(true);
-            }
-          }
-        }
-      );
-      
-      // Subscribe to reposts (kind 6)
-      const repostSubId = nostrService.subscribe(
-        [{
-          kinds: [6], // Reposts
-          "#e": [eventId], // Reference to this post
-          limit: 100
-        }],
-        (event) => {
-          setRepostCount(prev => prev + 1);
+      try {
+        // Get all connected relays
+        const relays = nostrService.getRelayStatus()
+          .filter(relay => relay.status === 'connected')
+          .map(relay => relay.url);
           
-          // Check if the current user has reposted this post
-          if (event.pubkey === nostrService.publicKey) {
-            setIsReposted(true);
-          }
+        if (relays.length === 0) {
+          await nostrService.connectToDefaultRelays();
         }
-      );
-      
-      // Clean up subscriptions after a short time
-      setTimeout(() => {
-        nostrService.unsubscribe(reactionSubId);
-        nostrService.unsubscribe(repostSubId);
-      }, 5000);
+        
+        // Get reaction counts from our social manager
+        const pool = new nostrService.relayManager.pool.constructor();
+        const counts = await nostrService.socialManager.getReactionCounts(
+          pool,
+          eventId,
+          relays
+        );
+        
+        // Update state with accurate counts
+        setLikeCount(counts.likes);
+        setRepostCount(counts.reposts);
+        setIsLiked(counts.userHasLiked);
+        setIsReposted(counts.userHasReposted);
+        
+      } catch (error) {
+        console.error("Error fetching reaction counts:", error);
+      }
     };
     
     checkBookmarkStatus();
     fetchReactionCounts();
-  }, [eventId, isLoggedIn, nostrService.publicKey]);
+  }, [eventId, isLoggedIn]);
   
   const handleLike = async () => {
     if (!isLoggedIn) {
@@ -110,16 +95,18 @@ const NoteCardActions = ({
       setIsLiked(true);
       setLikeCount(prev => prev + 1);
       
-      // Create and publish reaction event
-      const event = {
-        kind: 7, // Reaction
-        content: "+", // "+" means like
-        tags: [
-          ['e', eventId], // Reference to the post being liked
-        ]
-      };
-      
-      const result = await nostrService.publishEvent(event);
+      // Use our improved NIP-25 implementation
+      const result = await nostrService.socialManager.reactToEvent(
+        nostrService.relayManager.pool,
+        eventId,
+        "+", // "+" means like per NIP-25
+        nostrService.publicKey,
+        null, // We don't store private keys
+        nostrService.getRelayStatus()
+          .filter(relay => relay.status === 'connected')
+          .map(relay => relay.url),
+        pubkey // Pass the pubkey of the event creator for proper NIP-25 implementation
+      );
       
       if (!result) {
         // If failed, revert UI
@@ -146,16 +133,22 @@ const NoteCardActions = ({
       setIsReposted(true);
       setRepostCount(prev => prev + 1);
       
-      // Create repost event (kind 6)
-      const event = {
-        kind: 6, // Repost
-        content: "", // Empty content for standard reposts
-        tags: [
-          ['e', eventId], // Reference to the post being reposted
-        ]
-      };
-      
-      const result = await nostrService.publishEvent(event);
+      // Use our improved NIP-18 implementation
+      const relayHint = nostrService.getRelayStatus()
+        .filter(relay => relay.status === 'connected')
+        .map(relay => relay.url)[0] || null;
+        
+      const result = await nostrService.socialManager.repostEvent(
+        nostrService.relayManager.pool,
+        eventId,
+        pubkey,
+        relayHint,
+        nostrService.publicKey,
+        null, // We don't store private keys
+        nostrService.getRelayStatus()
+          .filter(relay => relay.status === 'connected')
+          .map(relay => relay.url)
+      );
       
       if (!result) {
         // If failed, revert UI
