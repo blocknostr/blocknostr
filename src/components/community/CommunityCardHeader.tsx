@@ -10,9 +10,6 @@ export interface CommunityCardHeaderProps {
 }
 
 const CommunityCardHeader = ({ id, name, image, serialNumber }: CommunityCardHeaderProps) => {
-  // Convert serial number to #aaa000 format (if it exists)
-  const formattedSerialNumber = serialNumber ? formatSerialNumber(serialNumber) : null;
-  
   return (
     <div className={`h-24 ${getRandomColor(id)} flex items-center justify-center relative`}>
       {image ? (
@@ -26,25 +23,13 @@ const CommunityCardHeader = ({ id, name, image, serialNumber }: CommunityCardHea
           {getInitials(name)}
         </div>
       )}
-      
-      {/* Serial numbers are hidden per requirements */}
+      {serialNumber && (
+        <div className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+          {serialNumber}
+        </div>
+      )}
     </div>
   );
-};
-
-// Function to format serial number as #aaa000 (three letters and three numbers)
-const formatSerialNumber = (num: number): string => {
-  // Generate three random letters
-  const letters = 'abcdefghijklmnopqrstuvwxyz';
-  let letterPart = '';
-  for (let i = 0; i < 3; i++) {
-    letterPart += letters.charAt(Math.floor(Math.random() * letters.length));
-  }
-  
-  // Format the number part to be three digits with leading zeros if needed
-  const numberPart = String(num % 1000).padStart(3, '0');
-  
-  return `#${letterPart}${numberPart}`;
 };
 
 export default CommunityCardHeader;
