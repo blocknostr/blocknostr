@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,7 +40,7 @@ const ProfileRelaysDialog = ({
     setIsAddingRelay(true);
     
     try {
-      // Use the addRelay method with proper read/write permissions
+      // Fix: Pass the read/write object correctly to addRelay
       const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
       
       if (success) {

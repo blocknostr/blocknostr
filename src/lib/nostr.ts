@@ -1,4 +1,3 @@
-
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 
@@ -45,7 +44,7 @@ class NostrService {
     'wss://nostr.bitcoiner.social'
   ];
   
-  private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
+  private subscriptions: Map<any, Set<(event: NostrEvent) => void>> = new Map();
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private pubkeyHandles: Map<string, string> = new Map();
@@ -238,7 +237,8 @@ class NostrService {
     try {
       await this.connectToDefaultRelays();
       
-      const subId = this.subscribe(
+      // Fix: Store the subscription as an opaque handle, not as a string ID
+      const subHandle = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -259,7 +259,7 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subId);
+        this.unsubscribe(subHandle);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);
@@ -638,14 +638,20 @@ class NostrService {
     return subId;
   }
   
-  public unsubscribe(subId: string): void {
-    this.subscriptions.delete(subId);
-    
-    // Send unsubscribe request to all connected relays
-    for (const [_, socket] of this.relays.entries()) {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(["CLOSE", subId]));
+  public unsubscribe(subHandle: any): void {
+    // Use type 'any' for subHandle to accommodate both string IDs and SubCloser objects
+    if (typeof subHandle === 'string') {
+      this.subscriptions.delete(subHandle);
+      
+      // Send unsubscribe request to all connected relays
+      for (const [_, socket] of this.relays.entries()) {
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(["CLOSE", subHandle]));
+        }
       }
+    } else if (this.pool) {
+      // If it's a SubCloser from SimplePool
+      this.pool.close([subHandle]);
     }
   }
   
@@ -1042,4 +1048,3 @@ declare global {
     };
   }
 }
-

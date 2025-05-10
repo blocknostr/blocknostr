@@ -221,6 +221,7 @@ export class RelayManager {
       ];
       
       // Use the correct SimplePool methods according to NIP-01
+      // Fix: Store the subscription as an opaque handle, not a string
       const subscription = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
@@ -285,7 +286,7 @@ export class RelayManager {
         }
       ];
       
-      // Use the correct SimplePool methods according to NIP-01
+      // Fix: Store the subscription as an opaque handle, not a string
       const subscription = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
@@ -327,4 +328,3 @@ export class RelayManager {
     return Object.fromEntries(this._userRelays);
   }
 }
-

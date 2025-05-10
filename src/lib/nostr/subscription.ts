@@ -14,13 +14,14 @@ export class SubscriptionManager {
     relays: string[],
     filters: Filter[],
     onEvent: (event: NostrEvent) => void
-  ): string {
+  ): any {
     const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
     
     this.subscriptions.set(subId, new Set([onEvent]));
     
     // Use the pool to subscribe according to NIP-01 guidelines
-    this.pool.subscribeMany(
+    // Return the SubCloser object from SimplePool
+    const subscription = this.pool.subscribeMany(
       relays,
       filters,
       {
@@ -33,11 +34,17 @@ export class SubscriptionManager {
       }
     );
     
-    return subId;
+    // Return the subscription handle for later use with pool.close()
+    return subscription;
   }
   
-  unsubscribe(subId: string): void {
-    this.subscriptions.delete(subId);
-    this.pool.close([subId]);
+  unsubscribe(subHandle: any): void {
+    // Handle both string IDs (for backward compatibility) and SubCloser objects
+    if (typeof subHandle === 'string') {
+      this.subscriptions.delete(subHandle);
+    }
+    
+    // Close the subscription in the SimplePool
+    this.pool.close([subHandle]);
   }
 }
