@@ -40,7 +40,6 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
-  const [commentSubmitting, setCommentSubmitting] = useState(false);
   
   // Fetch replies when component mounts
   useEffect(() => {
@@ -128,11 +127,9 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
   }, [eventId]);
   
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || commentSubmitting) return;
+    if (!newComment.trim()) return;
     
     try {
-      setCommentSubmitting(true);
-      
       // Create a reply event
       const replyEvent = await nostrService.publishEvent({
         kind: 1, // Note kind
@@ -143,33 +140,21 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
         ]
       });
       
-      // Add to local state only if we got a valid event ID back
-      // This prevents duplicate comments
-      if (replyEvent) {
-        const newCommentObj = { 
-          id: replyEvent,
-          content: newComment, 
-          author: nostrService.publicKey || '',
-          created_at: Math.floor(Date.now() / 1000)
-        };
-        
-        // Only add if it doesn't already exist
-        setComments(prev => {
-          if (prev.some(c => c.id === replyEvent)) {
-            return prev;
-          }
-          return [newCommentObj, ...prev];
-        });
-        
-        setNewComment("");
-        onReplyAdded();
-        toast.success("Comment posted");
-      }
+      // Add to local state
+      const newCommentObj = { 
+        id: replyEvent,
+        content: newComment, 
+        author: nostrService.publicKey || '',
+        created_at: Math.floor(Date.now() / 1000)
+      };
+      
+      setComments(prev => [newCommentObj, ...prev]);
+      setNewComment("");
+      onReplyAdded();
+      toast.success("Comment posted");
     } catch (error) {
       console.error("Error posting comment:", error);
       toast.error("Failed to post comment");
-    } finally {
-      setCommentSubmitting(false);
     }
   };
   
@@ -238,11 +223,11 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
               />
               <Button 
                 onClick={handleSubmitComment}
-                disabled={!newComment.trim() || commentSubmitting}
+                disabled={!newComment.trim()}
                 className="self-end"
                 size="sm"
               >
-                {commentSubmitting ? "Posting..." : "Reply"}
+                Reply
               </Button>
             </div>
           </div>
