@@ -1,14 +1,16 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { NostrEvent } from '@/lib/nostr';
+import { NostrEvent, nostrService } from '@/lib/nostr';
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
 import NoteCardComments from './NoteCardComments';
 import NoteCardRepostHeader from './NoteCardRepostHeader';
+import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { Link } from 'react-router-dom';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
+import { useNoteCardReplies } from './hooks/useNoteCardReplies';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -22,8 +24,10 @@ interface NoteCardProps {
 
 const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) => {
   const [showComments, setShowComments] = useState(false);
-  const [replyCount, setReplyCount] = useState(0);
   const [reachCount, setReachCount] = useState(0);
+  
+  // Use the replies hook instead of local state
+  const { replyCount, setReplyCount } = useNoteCardReplies({ eventId: event.id || '' });
   
   const { 
     isDeleteDialogOpen, 
@@ -52,14 +56,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     };
     
     setReachCount(calculateReachCount());
-    
-    // Fetch reply count is now handled by the useNoteCardReplies hook
-    const fetchReplyCount = async () => {
-      // This is implemented in the useNoteCardReplies hook
-      // This function is kept for compatibility with existing code
-    };
-    
-    fetchReplyCount();
   }, [event.id, event.created_at]);
   
   const handleCommentClick = (e?: React.MouseEvent) => {
