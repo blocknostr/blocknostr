@@ -18,6 +18,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [filteredEvents, setFilteredEvents] = useState<NostrEvent[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const { fetchProfileData } = useProfileData();
   const { fetchOriginalPost: fetchOriginalPostBase } = useNostrEvents();
@@ -81,7 +82,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     let filters: any[] = [
       {
         kinds: [1], // Regular notes
-        limit: 20,
+        limit: 30, // Increased for better doomscrolling
         since: since,
         until: until
       },
@@ -125,7 +126,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
             newEvents.sort((a, b) => a.created_at - b.created_at);
             
             // If we've reached the limit, set hasMore to false
-            if (newEvents.length >= 100) {
+            if (newEvents.length >= 200) { // Increased limit for better doomscrolling
               setHasMore(false);
             }
             
@@ -147,7 +148,11 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   }, [activeHashtag, profiles, handleRepostEvent, fetchProfileData]);
 
   const loadMoreEvents = useCallback(() => {
-    if (!subId) return;
+    if (!subId || isLoadingMore) return;
+    
+    // Set loading more state to prevent multiple simultaneous loads
+    setIsLoadingMore(true);
+    setLoading(true);
     
     // Close previous subscription
     nostrService.unsubscribe(subId);
@@ -160,7 +165,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      const newSince = newUntil - 24 * 60 * 60 * 3; // 3 days before until for more content
       
       setSince(newSince);
       setUntil(newUntil);
@@ -171,7 +176,7 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      const newSince = newUntil - 24 * 60 * 60 * 3; // 3 days before until for more content
       
       setSince(newSince);
       setUntil(newUntil);
@@ -180,33 +185,45 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  }, [subId, events, since, until, setupSubscription]);
+    
+    // Reset loading more state after a short delay
+    setTimeout(() => {
+      setIsLoadingMore(false);
+      setLoading(false);
+    }, 2000);
+  }, [subId, events, since, until, setupSubscription, isLoadingMore]);
 
   // Initialize feed
   useEffect(() => {
     const initFeed = async () => {
-      // Connect to relays
-      await nostrService.connectToDefaultRelays();
-      
-      // Reset state when filter changes
-      setEvents([]);
-      setFilteredEvents([]);
-      setHasMore(true);
-      setLoading(true);
+      try {
+        // Connect to relays
+        await nostrService.connectToDefaultRelays();
+        
+        // Reset state when filter changes
+        setEvents([]);
+        setFilteredEvents([]);
+        setHasMore(true);
+        setLoading(true);
+        setIsLoadingMore(false);
 
-      // Reset the timestamp range for new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
-      setSince(undefined);
-      setUntil(currentTime);
+        // Reset the timestamp range for new subscription
+        const currentTime = Math.floor(Date.now() / 1000);
+        setSince(undefined);
+        setUntil(currentTime);
 
-      // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
+        // Close previous subscription if exists
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
+        
+        // Start a new subscription
+        const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 2, currentTime);
+        setSubId(newSubId);
+      } catch (error) {
+        console.error("Error initializing global feed:", error);
+        setLoading(false);
       }
-      
-      // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
-      setSubId(newSubId);
     };
     
     initFeed();
@@ -217,14 +234,14 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
         nostrService.unsubscribe(subId);
       }
     };
-  }, [activeHashtag, setupSubscription]);
+  }, [activeHashtag, setupSubscription, subId]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {
-    if (events.length > 0 && loading) {
+    if (events.length > 0 && loading && !isLoadingMore) {
       setLoading(false);
     }
-  }, [events, loading]);
+  }, [events, loading, isLoadingMore]);
 
   const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
     if (!isRetweeted) {

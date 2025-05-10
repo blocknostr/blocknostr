@@ -34,7 +34,11 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     setLoading,
     hasMore: scrollHasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 500, // Increase threshold for earlier loading trigger
+    debounce: 500 // Add debounce to prevent multiple rapid calls
+  });
 
   // Ensure we're passing the state setters to the useInfiniteScroll
   useEffect(() => {
@@ -69,14 +73,16 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
 
   // Show the feed content with events
   return (
-    <FollowingFeedContent
-      events={filteredEvents}
-      profiles={profiles}
-      repostData={repostData}
-      loadMoreRef={loadMoreRef}
-      loading={loading || scrollLoading}
-      onRetweetStatusChange={handleRetweetStatusChange}
-    />
+    <div className="min-h-[50vh]">
+      <FollowingFeedContent
+        events={filteredEvents}
+        profiles={profiles}
+        repostData={repostData}
+        loadMoreRef={loadMoreRef}
+        loading={loading || scrollLoading}
+        onRetweetStatusChange={handleRetweetStatusChange}
+      />
+    </div>
   );
 };
 

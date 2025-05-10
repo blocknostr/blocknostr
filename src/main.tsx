@@ -22,8 +22,17 @@ const queryClient = new QueryClient({
 // Initialize nostr connection
 const initNostr = async () => {
   try {
+    // Connect to default relays during initialization
     await nostrService.connectToDefaultRelays();
     console.log("Connected to default Nostr relays");
+    
+    // Attempt to also connect to user relays if available
+    try {
+      await nostrService.connectToUserRelays();
+      console.log("Connected to user Nostr relays");
+    } catch (userRelaysError) {
+      console.info("No user relays available or connection failed:", userRelaysError);
+    }
   } catch (error) {
     console.error("Failed to connect to Nostr relays:", error);
   }

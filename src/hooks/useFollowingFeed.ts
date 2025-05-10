@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileData } from "./useProfileData";
@@ -17,6 +18,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
   const [subId, setSubId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const { fetchProfileData } = useProfileData();
   const { fetchOriginalPost: fetchOriginalPostBase } = useNostrEvents();
@@ -148,7 +150,11 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
   }, [following, activeHashtag, profiles, handleRepostEvent, fetchProfileData]);
 
   const loadMoreEvents = useCallback(() => {
-    if (!subId || following.length === 0) return;
+    if (!subId || following.length === 0 || isLoadingMore) return;
+    
+    // Set loading more state to prevent multiple simultaneous loads
+    setIsLoadingMore(true);
+    setLoading(true);
     
     // Close previous subscription
     nostrService.unsubscribe(subId);
@@ -161,7 +167,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60 * 14; // 14 days before until for more content
       
       setSince(newSince);
       setUntil(newUntil);
@@ -172,7 +178,7 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60 * 14; // 14 days before until for more content
       
       setSince(newSince);
       setUntil(newUntil);
@@ -181,34 +187,46 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  }, [subId, following, events, since, until, setupSubscription]);
+    
+    // Reset loading more state after a short delay
+    setTimeout(() => {
+      setIsLoadingMore(false);
+      setLoading(false);
+    }, 2000);
+  }, [subId, following, events, since, until, setupSubscription, isLoadingMore]);
 
   // Initialize feed
   useEffect(() => {
     const initFeed = async () => {
-      // Connect to relays
-      await nostrService.connectToUserRelays();
-      
-      // Reset state when filter changes
-      setEvents([]);
-      setHasMore(true);
-      setLoading(true);
-      
-      // Reset the timestamp range for new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
-      setSince(undefined);
-      setUntil(currentTime);
-      
-      // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-      
-      // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
-      setSubId(newSubId);
-      
-      if (following.length === 0) {
+      try {
+        // Connect to relays
+        await nostrService.connectToUserRelays();
+        
+        // Reset state when filter changes
+        setEvents([]);
+        setHasMore(true);
+        setLoading(true);
+        setIsLoadingMore(false);
+        
+        // Reset the timestamp range for new subscription
+        const currentTime = Math.floor(Date.now() / 1000);
+        setSince(undefined);
+        setUntil(currentTime);
+        
+        // Close previous subscription if exists
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
+        
+        // Start a new subscription
+        const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
+        setSubId(newSubId);
+        
+        if (following.length === 0) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing following feed:", error);
         setLoading(false);
       }
     };
@@ -224,10 +242,10 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
   
   // Mark the loading as finished when we get events
   useEffect(() => {
-    if (events.length > 0 && loading) {
+    if (events.length > 0 && loading && !isLoadingMore) {
       setLoading(false);
     }
-  }, [events, loading]);
+  }, [events, loading, isLoadingMore]);
 
   return {
     events,

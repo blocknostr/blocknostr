@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -39,14 +39,17 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     setLoading,
     hasMore: scrollHasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 500 // Increase threshold for earlier loading trigger
+  });
 
   // Ensure we're passing the state setters to the useInfiniteScroll
-  React.useEffect(() => {
+  useEffect(() => {
     setHasMore(hasMore);
   }, [hasMore, setHasMore]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setLoading(loading);
   }, [loading, setLoading]);
 
@@ -93,7 +96,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="global">
+        <TabsContent value="global" className="min-h-[50vh]">
           {activeHashtag && events.length === 0 && !loading && (
             <GlobalFeedEmpty activeHashtag={activeHashtag} />
           )}
@@ -112,7 +115,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           )}
         </TabsContent>
         
-        <TabsContent value="following">
+        <TabsContent value="following" className="min-h-[50vh]">
           {!isLoggedIn ? (
             <div className="py-8 text-center text-muted-foreground">
               You need to log in to see posts from people you follow.
