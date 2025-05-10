@@ -23,8 +23,10 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   const [following, setFollowing] = useState<string[]>([]);
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
   
-  const isCurrentUser = currentUserPubkey && 
-                       (npub ? nostrService.getHexFromNpub(npub) === currentUserPubkey : false);
+  // Determine if this is the current user's profile
+  // If npub starts with 'npub1', convert it to hex first for comparison
+  const hexNpub = npub && npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
+  const isCurrentUser = currentUserPubkey && hexNpub === currentUserPubkey;
   
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -37,10 +39,13 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
         await nostrService.connectToUserRelays();
         
         // Convert npub to hex if needed
-        let hexPubkey = npub || '';
-        if (npub && npub.startsWith('npub1')) {
-          hexPubkey = nostrService.getHexFromNpub(npub);
-        } else if (!npub && currentUserPubkey) {
+        let hexPubkey = '';
+        
+        if (npub) {
+          // If npub is provided, use it (convert from npub1 format if needed)
+          hexPubkey = npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
+        } else if (currentUserPubkey) {
+          // Fallback to current user if no npub provided
           hexPubkey = currentUserPubkey;
         }
         

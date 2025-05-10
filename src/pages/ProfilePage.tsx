@@ -11,7 +11,7 @@ import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
 
 const ProfilePage = () => {
-  const { npub } = useParams();
+  const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
   
