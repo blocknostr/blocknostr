@@ -15,8 +15,19 @@ export const handleCommunityEvent = (
     if (!idTag) return;
     const uniqueId = idTag[1];
     
-    // Parse community data
-    const communityData = JSON.parse(event.content);
+    // Parse community data - handle possible empty or malformed content
+    let communityData;
+    try {
+      communityData = event.content ? JSON.parse(event.content) : {};
+    } catch (parseError) {
+      console.error("Error parsing community JSON:", parseError);
+      // Provide minimal fallback data structure if parsing fails
+      communityData = {
+        name: 'Unnamed Community',
+        description: '',
+        image: '',
+      };
+    }
     
     // Get members from tags
     const memberTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');

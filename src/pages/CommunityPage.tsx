@@ -25,6 +25,7 @@ const CommunityPage = () => {
     isCreator,
     isCreatorOnlyMember,
     handleJoinCommunity,
+    handleLeaveCommunity,
     handleCreateKickProposal,
     handleVoteOnKick,
     handleDeleteCommunity
@@ -50,6 +51,7 @@ const CommunityPage = () => {
           isCreatorOnlyMember={isCreatorOnlyMember}
           currentUserPubkey={currentUserPubkey}
           onJoinCommunity={handleJoinCommunity}
+          onLeaveCommunity={handleLeaveCommunity}
           onDeleteCommunity={handleDeleteCommunity}
         />
         
@@ -63,6 +65,7 @@ const CommunityPage = () => {
                 currentUserPubkey={currentUserPubkey}
                 isCreator={isCreator}
                 isMember={isMember}
+                onLeaveCommunity={handleLeaveCommunity}
               />
               
               {/* Proposals Section */}
@@ -83,6 +86,7 @@ const CommunityPage = () => {
                 onKickProposal={handleCreateKickProposal}
                 kickProposals={kickProposals}
                 onVoteKick={handleVoteOnKick}
+                onLeaveCommunity={handleLeaveCommunity}
               />
             </div>
           </div>

@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
-import { Community, Proposal, KickProposal, PendingVotes } from "@/types/community";
 import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers";
 import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions";
 import { useCommunityActions } from "./community/useCommunityActions";
@@ -26,6 +25,7 @@ export const useCommunity = (communityId: string | undefined) => {
   // Create community action handlers
   const {
     handleJoinCommunity,
+    handleLeaveCommunity,
     handleCreateKickProposal,
     handleKickMember,
     handleVoteOnKick,
@@ -85,6 +85,7 @@ export const useCommunity = (communityId: string | undefined) => {
     isCreator,
     isCreatorOnlyMember,
     handleJoinCommunity,
+    handleLeaveCommunity,
     handleCreateKickProposal,
     handleKickMember,
     handleVoteOnKick,

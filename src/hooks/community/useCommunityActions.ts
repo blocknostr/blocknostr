@@ -33,17 +33,73 @@ export const useCommunityActions = (
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success("You have joined the community!");
-      
-      // Update local state
-      setCommunity({
-        ...community,
-        members: updatedMembers
-      });
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("You have joined the community!");
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          members: updatedMembers
+        });
+      } else {
+        toast.error("Failed to join community: Event could not be published");
+      }
     } catch (error) {
       console.error("Error joining community:", error);
       toast.error("Failed to join community");
+    }
+  };
+  
+  // Function to leave a community
+  const handleLeaveCommunity = async () => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be logged in and be in a community to leave");
+      return;
+    }
+    
+    try {
+      // Remove current user from members list
+      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
+      
+      // Create an updated community event without the current user
+      const communityData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(communityData),
+        tags: [
+          ['d', community.uniqueId],
+          ...updatedMembers.map(member => ['p', member])
+        ]
+      };
+      
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("You have left the community");
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          members: updatedMembers
+        });
+        
+        // If user was the only member and also the creator, redirect to communities page
+        if (updatedMembers.length === 0 && community.creator === currentUserPubkey) {
+          window.location.href = '/communities';
+        }
+      } else {
+        toast.error("Failed to leave community: Event could not be published");
+      }
+    } catch (error) {
+      console.error("Error leaving community:", error);
+      toast.error("Failed to leave community");
     }
   };
   
@@ -81,6 +137,8 @@ export const useCommunityActions = (
         
         await nostrService.publishEvent(voteEvent);
         toast.success("Kick proposal created");
+      } else {
+        toast.error("Failed to create kick proposal: Event could not be published");
       }
     } catch (error) {
       console.error("Error creating kick proposal:", error);
@@ -114,14 +172,18 @@ export const useCommunityActions = (
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success("Member has been removed from the community");
-      
-      // Update local state
-      setCommunity({
-        ...community,
-        members: updatedMembers
-      });
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("Member has been removed from the community");
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          members: updatedMembers
+        });
+      } else {
+        toast.error("Failed to remove member: Event could not be published");
+      }
     } catch (error) {
       console.error("Error kicking member:", error);
       toast.error("Failed to remove member");
@@ -145,8 +207,12 @@ export const useCommunityActions = (
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success("Vote on kick recorded");
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("Vote on kick recorded");
+      } else {
+        toast.error("Failed to vote: Event could not be published");
+      }
     } catch (error) {
       console.error("Error voting on kick:", error);
       toast.error("Failed to vote on kick");
@@ -189,9 +255,13 @@ export const useCommunityActions = (
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success("Community has been deleted");
-      window.location.href = '/communities'; // Navigate back to communities page
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("Community has been deleted");
+        window.location.href = '/communities'; // Navigate back to communities page
+      } else {
+        toast.error("Failed to delete community: Event could not be published");
+      }
     } catch (error) {
       console.error("Error deleting community:", error);
       toast.error("Failed to delete community");
@@ -200,6 +270,7 @@ export const useCommunityActions = (
 
   return {
     handleJoinCommunity,
+    handleLeaveCommunity,
     handleCreateKickProposal,
     handleKickMember,
     handleVoteOnKick,
