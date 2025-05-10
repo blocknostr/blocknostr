@@ -1,17 +1,9 @@
+
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye, Share2, Flag, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Repeat, DollarSign, Eye, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from '@/lib/nostr';
 import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from 'lucide-react';
 
 interface NoteCardActionsProps {
   eventId: string;
@@ -37,7 +29,6 @@ const NoteCardActions = ({
   const [retweeted, setRetweeted] = useState(false);
   const [retweetCount, setRetweetCount] = useState(0);
   const [tipCount, setTipCount] = useState(0);
-  const [bookmarked, setBookmarked] = useState(false);
   
   // Fetch reaction counts when component mounts
   useEffect(() => {
@@ -86,7 +77,6 @@ const NoteCardActions = ({
       );
       
       // Subscribe to zap (tip) events - simplified simulation
-      // In a real implementation, we would look for zap receipts
       const zapSubId = nostrService.subscribe(
         [
           {
@@ -100,15 +90,6 @@ const NoteCardActions = ({
         }
       );
       
-      // Check if bookmarked by current user
-      const checkBookmarkStatus = async () => {
-        // This is a simplified version; in a real app, you would query the user's bookmarks
-        const randomIsBookmarked = Math.random() > 0.8;
-        setBookmarked(randomIsBookmarked);
-      };
-      
-      checkBookmarkStatus();
-      
       // Cleanup subscriptions after data is loaded
       setTimeout(() => {
         nostrService.unsubscribe(reactionSubId);
@@ -120,7 +101,6 @@ const NoteCardActions = ({
     fetchReactions();
     
     // Also set some initial numbers if we have no real data yet
-    // This is just for UI demonstration purposes
     if (Math.random() > 0.5) {
       setLikeCount(Math.floor(Math.random() * 20));
       setRetweetCount(Math.floor(Math.random() * 10));
@@ -200,170 +180,122 @@ const NoteCardActions = ({
       onDelete();
     }
   };
-  
-  const handleBookmark = () => {
-    setBookmarked(!bookmarked);
-    toast.success(bookmarked ? "Removed from bookmarks" : "Added to bookmarks");
-  };
-  
-  const handleShare = () => {
-    // Create a shareable URL
-    const shareUrl = `${window.location.origin}/post/${eventId}`;
-    
-    // Check if Web Share API is available
-    if (navigator.share) {
-      navigator.share({
-        title: 'Shared Nostr Post',
-        text: 'Check out this post!',
-        url: shareUrl,
-      }).catch((error) => {
-        console.error('Error sharing:', error);
-        // Fallback to clipboard
-        copyToClipboard(shareUrl);
-      });
-    } else {
-      // Fallback for browsers that don't support the Web Share API
-      copyToClipboard(shareUrl);
-    }
-  };
-  
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        toast.success("Link copied to clipboard");
-      })
-      .catch((err) => {
-        toast.error("Failed to copy link");
-        console.error('Could not copy text: ', err);
-      });
-  };
-  
-  const handleReport = () => {
-    toast.info("Report submitted. Thank you for helping keep the community safe.");
-  };
 
   return (
-    <div className="flex justify-between items-center w-full gap-2 pt-2">
-      <div className="flex items-center space-x-1">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
-          onClick={(e) => {
-            e.preventDefault();
-            onCommentClick();
-          }}
-        >
-          <MessageCircle className="h-4 w-4" />
-        </Button>
-        {replyCount > 0 && <span className="text-xs font-medium text-muted-foreground">{replyCount}</span>}
+    <div className="flex items-center justify-between w-full gap-4 pt-2">
+      <div className="flex items-center gap-4">
+        {/* Comment button */}
+        <div className="flex items-center gap-1.5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+            onClick={(e) => {
+              e.preventDefault();
+              onCommentClick();
+            }}
+            aria-label="Comment"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </Button>
+          {replyCount > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">{replyCount}</span>
+          )}
+        </div>
+        
+        {/* Retweet button */}
+        <div className="flex items-center gap-1.5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`rounded-full p-2 h-8 w-8 ${retweeted 
+              ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
+              : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
+            onClick={(e) => {
+              e.preventDefault();
+              handleRetweet();
+            }}
+            aria-label="Repost"
+          >
+            <Repeat className="h-4 w-4" />
+          </Button>
+          {retweetCount > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">{retweetCount}</span>
+          )}
+        </div>
+        
+        {/* Like button */}
+        <div className="flex items-center gap-1.5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`rounded-full p-2 h-8 w-8 ${liked 
+              ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
+              : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
+            onClick={(e) => {
+              e.preventDefault();
+              handleLike();
+            }}
+            aria-label="Like"
+          >
+            <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
+          </Button>
+          {likeCount > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">{likeCount}</span>
+          )}
+        </div>
+        
+        {/* View stats */}
+        <div className="flex items-center gap-1.5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground rounded-full p-2 h-8 w-8"
+            onClick={(e) => e.preventDefault()}
+            aria-label="Views"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {reachCount > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">{reachCount}</span>
+          )}
+        </div>
+        
+        {/* Tip button */}
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+            onClick={(e) => {
+              e.preventDefault();
+              handleSendTip();
+            }}
+            aria-label="Send tip"
+          >
+            <DollarSign className="h-4 w-4" />
+          </Button>
+          {tipCount > 0 && (
+            <span className="text-xs font-medium text-muted-foreground">{tipCount}</span>
+          )}
+        </div>
       </div>
       
-      <div className="flex items-center space-x-1">
+      {/* Delete button for post author */}
+      {isAuthor && (
         <Button 
-          variant="ghost" 
-          size="sm" 
-          className={`rounded-full p-2 h-8 w-8 ${retweeted 
-            ? "text-green-500 hover:bg-green-50 hover:text-green-600" 
-            : "text-muted-foreground hover:bg-green-50 hover:text-green-600"}`}
-          onClick={(e) => {
-            e.preventDefault();
-            handleRetweet();
-          }}
-        >
-          <Repeat className="h-4 w-4" />
-        </Button>
-        {retweetCount > 0 && <span className="text-xs font-medium text-muted-foreground">{retweetCount}</span>}
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className={`rounded-full p-2 h-8 w-8 ${liked 
-            ? "text-red-500 hover:bg-red-50 hover:text-red-600" 
-            : "text-muted-foreground hover:bg-red-50 hover:text-red-600"}`}
-          onClick={(e) => {
-            e.preventDefault();
-            handleLike();
-          }}
-        >
-          <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
-        </Button>
-        {likeCount > 0 && <span className="text-xs font-medium text-muted-foreground">{likeCount}</span>}
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="text-muted-foreground rounded-full p-2 h-8 w-8"
-          onClick={(e) => e.preventDefault()}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-        {reachCount > 0 && <span className="text-xs font-medium text-muted-foreground">{reachCount}</span>}
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full p-2 h-8 w-8"
+          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full p-2 h-8 w-8 ml-auto"
           onClick={(e) => {
             e.preventDefault();
-            handleSendTip();
+            handleDelete();
           }}
+          aria-label="Delete post"
         >
-          <DollarSign className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
-        {tipCount > 0 && <span className="text-xs font-medium text-muted-foreground">{tipCount}</span>}
-      </div>
-      
-      {/* Options dropdown menu - enhanced */}
-      <div className="ml-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm" 
-              className="text-muted-foreground hover:bg-accent rounded-full p-2 h-8 w-8"
-              onClick={(e) => e.preventDefault()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Post options</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem onClick={handleShare} className="flex items-center gap-2 cursor-pointer">
-              <Share2 className="h-4 w-4" /> 
-              Share post
-            </DropdownMenuItem>
-            
-            <DropdownMenuItem onClick={handleBookmark} className="flex items-center gap-2 cursor-pointer">
-              <Bookmark className="h-4 w-4" fill={bookmarked ? "currentColor" : "none"} /> 
-              {bookmarked ? "Remove bookmark" : "Bookmark post"}
-            </DropdownMenuItem>
-            
-            {isAuthor ? (
-              <DropdownMenuItem 
-                onClick={handleDelete} 
-                className="text-red-500 flex items-center gap-2 cursor-pointer"
-              >
-                <Trash2 className="h-4 w-4" /> 
-                Delete post
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={handleReport} className="text-red-500 flex items-center gap-2 cursor-pointer">
-                <Flag className="h-4 w-4" /> 
-                Report post
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      )}
     </div>
   );
 };
