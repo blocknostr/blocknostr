@@ -184,7 +184,7 @@ const NoteCardActions = ({
   
   return (
     <div className="flex items-center justify-between pt-2">
-      <div className="flex items-center space-x-5">
+      <div className="flex items-center space-x-4 md:space-x-5">
         {/* Like Button */}
         <div className="flex items-center">
           <Button 
@@ -224,7 +224,7 @@ const NoteCardActions = ({
             <MessageSquare className="h-[18px] w-[18px]" />
           </Button>
           {replyCount > 0 && (
-            <span className="ml-1 text-xs font-medium">{replyCount}</span>
+            <span className="ml-1 text-xs font-medium text-muted-foreground">{replyCount}</span>
           )}
         </div>
         
