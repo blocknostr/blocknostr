@@ -4,15 +4,23 @@
  */
 
 /**
- * Generates a random color based on a string identifier
+ * Generates a random matte color based on a string identifier
  * @param str String to generate color from
  * @returns CSS class name for background color
  */
 export const getRandomColor = (str: string) => {
+  // Matte colors palette
   const colors = [
-    "bg-blue-500", "bg-green-500", "bg-yellow-500", 
-    "bg-purple-500", "bg-pink-500", "bg-indigo-500"
+    "bg-[#F2FCE2]", // Soft Green
+    "bg-[#FEF7CD]", // Soft Yellow
+    "bg-[#FEC6A1]", // Soft Orange
+    "bg-[#E5DEFF]", // Soft Purple
+    "bg-[#FFDEE2]", // Soft Pink
+    "bg-[#FDE1D3]", // Soft Peach
+    "bg-[#D3E4FD]", // Soft Blue
+    "bg-[#F1F0FB]"  // Soft Gray
   ];
+  
   const hash = str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return colors[hash % colors.length];
 };
