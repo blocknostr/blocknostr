@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useTheme } from "@/hooks/use-theme";
 import { useNotifications } from "@/hooks/use-notifications";
 import Sidebar from "@/components/Sidebar";
 import TrendingSection from "@/components/TrendingSection";
@@ -14,7 +13,6 @@ import { nostrService } from "@/lib/nostr";
 const NotificationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("mentions");
   const isMobile = useIsMobile();
-  const { darkMode, toggleDarkMode } = useTheme();
   const { 
     notifications, 
     interactionNotifications, 

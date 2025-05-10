@@ -14,8 +14,8 @@ const NotificationsHeader = () => {
           <Button 
             variant="ghost"
             size="icon"
-            className="rounded-full"
-            onClick={toggleDarkMode}
+            className="rounded-full theme-toggle-button"
+            onClick={(e) => toggleDarkMode(e)}
             aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
           >
