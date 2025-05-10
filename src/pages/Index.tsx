@@ -27,7 +27,7 @@ const Index = () => {
       <div className="main-content">
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center justify-between h-14 px-4">
-            <h1 className="font-semibold">Home</h1>
+            <h1 className="font-semibold text-xl">Home</h1>
             <LoginButton />
           </div>
         </header>
@@ -38,14 +38,11 @@ const Index = () => {
       </div>
       
       <div className="sidebar-right">
-        <div className="space-y-6">
+        <div className="space-y-6 sticky top-0 pt-4">
+          <SearchPanel />
           <TrendingSection />
           <WhoToFollow />
         </div>
-      </div>
-      
-      <div className="sidebar-far-right">
-        <SearchPanel />
       </div>
     </div>
   );

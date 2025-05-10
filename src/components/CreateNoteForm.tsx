@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Image, Smile, Calendar, MapPin } from "lucide-react";
 
 const CreateNoteForm = () => {
   const [content, setContent] = useState("");
@@ -37,12 +38,12 @@ const CreateNoteForm = () => {
       });
       
       if (eventId) {
-        toast.success("Note published!");
+        toast.success("Post published!");
         setContent("");
       }
     } catch (error) {
       console.error("Failed to publish note:", error);
-      toast.error("Failed to publish note");
+      toast.error("Failed to publish post");
     } finally {
       setIsSubmitting(false);
     }
@@ -56,7 +57,7 @@ const CreateNoteForm = () => {
   const avatarFallback = pubkey ? pubkey.substring(0, 2).toUpperCase() : 'N';
   
   return (
-    <form onSubmit={handleSubmit} className="border-b pb-4 mb-4">
+    <div className="border-b px-4 py-3">
       <div className="flex gap-3">
         <Avatar className="h-10 w-10">
           <AvatarFallback>{avatarFallback}</AvatarFallback>
@@ -66,24 +67,43 @@ const CreateNoteForm = () => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's happening?"
-            className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0"
+            className="resize-none border-none h-24 focus-visible:ring-0 text-xl p-0"
             maxLength={MAX_NOTE_LENGTH}
           />
-          <div className="flex justify-between items-center mt-2">
-            <div className={`text-sm ${charsLeft < 20 ? 'text-amber-500' : charsLeft < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-              {charsLeft} characters left
+          <div className="flex justify-between items-center mt-2 pt-2 border-t">
+            <div className="flex gap-2">
+              <Button variant="ghost" size="icon" className="text-primary rounded-full h-8 w-8">
+                <Image className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-primary rounded-full h-8 w-8">
+                <Smile className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-primary rounded-full h-8 w-8">
+                <Calendar className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-primary rounded-full h-8 w-8">
+                <MapPin className="h-4 w-4" />
+              </Button>
             </div>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || content.length === 0 || content.length > MAX_NOTE_LENGTH}
-              className="rounded-full"
-            >
-              Post
-            </Button>
+            <div className="flex items-center gap-3">
+              {charsLeft <= 20 && (
+                <div className={`text-sm ${charsLeft < 20 ? 'text-amber-500' : charsLeft < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  {charsLeft}
+                </div>
+              )}
+              <Button 
+                type="submit" 
+                onClick={handleSubmit}
+                disabled={isSubmitting || content.length === 0 || content.length > MAX_NOTE_LENGTH}
+                className="rounded-full bg-primary hover:bg-primary/90"
+              >
+                Post
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </form>
+    </div>
   );
 };
 

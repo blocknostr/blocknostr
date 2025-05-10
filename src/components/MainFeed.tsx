@@ -10,7 +10,7 @@ const MainFeed = () => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
-  const [activeTab, setActiveTab] = useState("global");
+  const [activeTab, setActiveTab] = useState("for-you");
   const isLoggedIn = !!nostrService.publicKey;
   
   useEffect(() => {
@@ -23,7 +23,7 @@ const MainFeed = () => {
         [
           {
             kinds: [1],
-            limit: 20,
+            limit: 30,
             since: Math.floor(Date.now() / 1000) - 24 * 60 * 60 // Last 24 hours
           }
         ],
@@ -84,61 +84,64 @@ const MainFeed = () => {
   }, []);
   
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="border-b pb-4 mb-4">
-        <h1 className="text-xl font-bold">Home</h1>
+    <div>
+      <div className="border-b">
+        <Tabs 
+          defaultValue={activeTab} 
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <TabsList className="w-full grid grid-cols-2 h-14 bg-transparent">
+            <TabsTrigger 
+              value="for-you" 
+              className="rounded-none h-full data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
+            >
+              For you
+            </TabsTrigger>
+            <TabsTrigger 
+              value="following" 
+              className="rounded-none h-full data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none"
+              disabled={!isLoggedIn}
+            >
+              Following
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       
       <CreateNoteForm />
       
-      <Tabs 
-        defaultValue={activeTab} 
-        onValueChange={setActiveTab}
-        className="mt-4"
-      >
-        <TabsList className="w-full mb-4">
-          <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
-          <TabsTrigger 
-            value="following" 
-            className="flex-1" 
-            disabled={!isLoggedIn}
-          >
-            Following
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="global">
-          {loading ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Loading posts...
-            </div>
-          ) : events.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No posts found. Connect to more relays or follow more people.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {events.map(event => (
-                <NoteCard 
-                  key={event.id} 
-                  event={event} 
-                  profileData={event.pubkey ? profiles[event.pubkey] : undefined} 
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="following">
-          {!isLoggedIn ? (
-            <div className="py-8 text-center text-muted-foreground">
-              You need to log in to see posts from people you follow.
-            </div>
-          ) : (
-            <FollowingFeed />
-          )}
-        </TabsContent>
-      </Tabs>
+      <TabsContent value="for-you" className="pt-0 mt-0">
+        {loading ? (
+          <div className="py-8 text-center text-muted-foreground">
+            Loading posts...
+          </div>
+        ) : events.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">
+            No posts found. Connect to more relays or follow more people.
+          </div>
+        ) : (
+          <div>
+            {events.map(event => (
+              <NoteCard 
+                key={event.id} 
+                event={event} 
+                profileData={event.pubkey ? profiles[event.pubkey] : undefined} 
+              />
+            ))}
+          </div>
+        )}
+      </TabsContent>
+      
+      <TabsContent value="following" className="pt-0 mt-0">
+        {!isLoggedIn ? (
+          <div className="py-8 text-center text-muted-foreground">
+            You need to log in to see posts from people you follow.
+          </div>
+        ) : (
+          <FollowingFeed />
+        )}
+      </TabsContent>
     </div>
   );
 };

@@ -99,7 +99,7 @@ const FollowingFeed = () => {
             : "You're not following anyone yet. Follow some users to see their posts here."}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div>
           {events.map(event => (
             <NoteCard 
               key={event.id} 
