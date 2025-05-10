@@ -5,6 +5,7 @@ import FollowButton from "@/components/FollowButton";
 import { nostrService } from "@/lib/nostr";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const WhoToFollow = () => {
   // This would be fetched from Nostr in a real implementation
@@ -49,19 +50,23 @@ const WhoToFollow = () => {
             const shortNpub = `${user.npub.substring(0, 8)}...`;
             const avatarFallback = user.name.charAt(0).toUpperCase();
             
-            // Convert npub to hex pubkey for follow functionality
+            // Convert npub to hex pubkey for follow functionality and profile navigation
             const pubkey = user.npub.startsWith('npub') ? 
               nostrService.getHexFromNpub(user.npub) : user.npub;
             
             return (
               <div key={user.npub} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={user.picture} />
-                    <AvatarFallback>{avatarFallback}</AvatarFallback>
-                  </Avatar>
+                  <Link to={`/profile/${pubkey}`} className="hover:opacity-80 transition-opacity">
+                    <Avatar>
+                      <AvatarImage src={user.picture} />
+                      <AvatarFallback>{avatarFallback}</AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div>
-                    <div className="font-medium">{user.name}</div>
+                    <Link to={`/profile/${pubkey}`} className="hover:underline">
+                      <div className="font-medium">{user.name}</div>
+                    </Link>
                     <div className="text-sm text-muted-foreground">{shortNpub}</div>
                   </div>
                 </div>
