@@ -11,6 +11,10 @@ import Sidebar from "@/components/Sidebar";
 import { nostrService } from "@/lib/nostr";
 import { ArrowLeft, Bookmark } from "lucide-react";
 
+interface NoteEditorProps {
+  onNoteSaved: (noteId: string) => void;
+}
+
 const NotebinPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();

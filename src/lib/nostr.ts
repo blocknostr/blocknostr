@@ -1,3 +1,4 @@
+
 import {
   nip19,
   getEventHash,
@@ -5,7 +6,7 @@ import {
   validateEvent,
   SimplePool
 } from "nostr-tools";
-import * as nip06 from "nostr-tools/nip06";
+import { generatePrivateKey } from "nostr-tools/lib/nip06";
 
 export interface NostrEvent {
   id: string;
@@ -27,6 +28,9 @@ interface RelayConnection {
   relay: any; // Using any for relay since the SimplePool API is different 
   status: RelayStatus["status"];
 }
+
+// Type for SimplePool subscription closer
+type SubCloser = string;
 
 class NostrService {
   private _publicKey: string | null = null;
@@ -67,8 +71,9 @@ class NostrService {
       try {
         const decoded = nip19.decode(storedPrivateKey);
         if (decoded.type === "nsec") {
-          this._privateKey = decoded.data as string;
-          this._publicKey = getPublicKey(this._privateKey);
+          const privateKeyHex = decoded.data as string;
+          this._privateKey = privateKeyHex;
+          this._publicKey = getPublicKey(privateKeyHex);
         } else {
           console.warn("Invalid stored private key format");
           localStorage.removeItem("privateKey");
@@ -118,12 +123,12 @@ class NostrService {
 
   async generateNewKeys() {
     // Generate a new private key using nip06
-    const privateKeyHex = nip06.generatePrivateKey();
+    const privateKeyHex = generatePrivateKey();
     this._privateKey = privateKeyHex;
     this._publicKey = getPublicKey(privateKeyHex);
     
     // Store the private key securely (e.g., using nip19)
-    const encodedPrivateKey = nip19.nsecEncode(this._privateKey);
+    const encodedPrivateKey = nip19.nsecEncode(privateKeyHex);
     localStorage.setItem("privateKey", encodedPrivateKey);
     
     return {
@@ -136,8 +141,9 @@ class NostrService {
     try {
       const decoded = nip19.decode(privateKey);
       if (decoded.type === "nsec") {
-        this._privateKey = decoded.data as string;
-        this._publicKey = getPublicKey(this._privateKey);
+        const privateKeyHex = decoded.data as string;
+        this._privateKey = privateKeyHex;
+        this._publicKey = getPublicKey(privateKeyHex);
         localStorage.setItem("privateKey", privateKey);
         
         // Load following list after setting key
@@ -301,7 +307,7 @@ class NostrService {
     }
   }
 
-  batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): any {
+  batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): SubCloser {
     // Use the SimplePool's subscribe method instead of sub
     const sub = this.pool.subscribeMany(this.getConnectedRelays(), filters, {
       onevent: (event: NostrEvent) => {
@@ -313,7 +319,9 @@ class NostrService {
   }
 
   unsubscribe(subscriptionId: string) {
-    this.pool.unsubscribe(subscriptionId);
+    if (subscriptionId) {
+      this.pool.close([subscriptionId]);
+    }
   }
 
   // Helper method to get all connected relay URLs

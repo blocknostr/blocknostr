@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -99,26 +100,21 @@ const Communities = ({
       const eventId = await nostrService.createCommunity(data);
       
       if (eventId) {
-        toast({
-          title: "Community created successfully",
+        toast.success("Community created successfully", {
           description: `Your community "${data.name}" has been created.`
         });
         
         // Navigate to the community page
         navigate(`/community/${eventId}`);
       } else {
-        toast({
-          title: "Error creating community",
-          description: "Failed to create community. Please try again.",
-          variant: "destructive"
+        toast.error("Error creating community", {
+          description: "Failed to create community. Please try again."
         });
       }
     } catch (error) {
       console.error("Error creating community:", error);
-      toast({
-        title: "Error creating community",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+      toast.error("Error creating community", {
+        description: "An unexpected error occurred. Please try again."
       });
     }
   };
@@ -237,6 +233,7 @@ const Communities = ({
       <CreateCommunityDialog
         isOpen={isCreateDialogOpen}
         setIsOpen={setIsCreateDialogOpen}
+        onCreateCommunity={handleCreateCommunity}
       />
     </div>
   );
