@@ -626,7 +626,8 @@ class NostrService {
 }
 
 // Create singleton instance
-export const nostrService = new NostrService();
+const nostrService = new NostrService();
+export { nostrService };
 
 // Re-export types from internal modules
 // Fix: Use 'export type' instead of 'export' for type re-exports
