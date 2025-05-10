@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ const ProfileRelaysDialog = ({
     try {
       // Use the updated addRelay method with proper types
       const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
+      
       if (success) {
         toast.success(`Added relay: ${newRelayUrl}`);
         setNewRelayUrl("");

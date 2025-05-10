@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { Relay } from './types';
 
 export class RelayManager {

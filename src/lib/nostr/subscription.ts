@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {

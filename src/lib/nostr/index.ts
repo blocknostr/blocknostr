@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -13,7 +12,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  private relayManager: RelayManager; // Changed back to private with proper public methods
+  private relayManager: RelayManager; 
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
