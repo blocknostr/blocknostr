@@ -205,6 +205,114 @@ export class RelayManager {
     return successCount;
   }
   
+  // Method to get relays for a user following NIP-65 standard
+  async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
+    return new Promise((resolve) => {
+      const relays: {url: string, read: boolean, write: boolean}[] = [];
+      
+      // Subscribe to NIP-65 relay list event (kind 10002)
+      const sub = this.pool.sub(
+        // Use connected relay URLs if available, otherwise default relays
+        Array.from(this.relays.keys()).length > 0 
+          ? Array.from(this.relays.keys()) 
+          : this.defaultRelays,
+        [
+          {
+            kinds: [10002], // NIP-65 relay list kind
+            authors: [pubkey],
+            limit: 1
+          }
+        ]
+      );
+      
+      sub.on('event', (event) => {
+        try {
+          // Parse the relay list from tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              let read = true;
+              let write = true;
+              
+              // Check if read/write permissions specified in tag
+              if (tag.length >= 3 && typeof tag[2] === 'string') {
+                const relayPermission = tag[2].toLowerCase();
+                read = relayPermission.includes('read');
+                write = relayPermission.includes('write');
+              }
+              
+              relays.push({ url: tag[1], read, write });
+            }
+          });
+        } catch (error) {
+          console.error("Error parsing relay list:", error);
+        }
+      });
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        sub.unsub();
+        
+        // If no relays found via NIP-65, try the older NIP-01 kind (10001)
+        if (relays.length === 0) {
+          this.fetchLegacyRelayList(pubkey).then(legacyRelays => {
+            resolve(legacyRelays);
+          });
+        } else {
+          resolve(relays);
+        }
+      }, 3000);
+    });
+  }
+
+  // Fallback method to fetch relays from older NIP-01 format
+  private async fetchLegacyRelayList(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
+    return new Promise((resolve) => {
+      const relays: {url: string, read: boolean, write: boolean}[] = [];
+      
+      // Subscribe to the older relay list event kind
+      const sub = this.pool.sub(
+        // Use connected relay URLs if available, otherwise default relays
+        Array.from(this.relays.keys()).length > 0 
+          ? Array.from(this.relays.keys()) 
+          : this.defaultRelays,
+        [
+          {
+            kinds: [10001], // Older kind for relay list
+            authors: [pubkey],
+            limit: 1
+          }
+        ]
+      );
+      
+      sub.on('event', (event) => {
+        // Extract relay URLs from r tags
+        const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+        relayTags.forEach(tag => {
+          if (tag[1] && typeof tag[1] === 'string') {
+            let read = true;
+            let write = true;
+            
+            // Check for permissions in third position
+            if (tag.length >= 3 && typeof tag[2] === 'string') {
+              read = tag[2].includes('read');
+              write = tag[2].includes('write');
+            }
+            
+            relays.push({ url: tag[1], read, write });
+          }
+        });
+      });
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        sub.unsub();
+        resolve(relays);
+      }, 3000);
+    });
+  }
+  
   // Create a NIP-65 formatted relay list for publishing
   getNIP65RelayList(): Record<string, {read: boolean, write: boolean}> {
     return Object.fromEntries(this._userRelays);

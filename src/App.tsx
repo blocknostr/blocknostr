@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
@@ -14,13 +15,13 @@ import CommunityPage from "./pages/CommunityPage";
 import NotebinPage from "./pages/NotebinPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
-import { useState } from "react";
+
+// Create a QueryClient outside of the component
+const queryClient = new QueryClient();
 
 const App = () => {
-  // Create a new QueryClient instance inside the component
-  // This ensures React context works correctly
-  const [queryClient] = useState(() => new QueryClient());
-
+  // Remove useState from here as we've moved queryClient outside the component
+  
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

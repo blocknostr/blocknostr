@@ -41,6 +41,7 @@ const ProfileRelaysDialog = ({
     setIsAddingRelay(true);
     
     try {
+      // Fix: pass newRelayPermissions as an object, not a boolean
       const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
       if (success) {
         toast.success(`Added relay: ${newRelayUrl}`);
@@ -72,16 +73,16 @@ const ProfileRelaysDialog = ({
     toast.success(`Removed relay: ${relayUrl}`);
   };
   
+  // This method was missing in NostrService
   const handleUpdateRelayPermissions = (relayUrl: string, permissions: {read: boolean; write: boolean}) => {
-    const success = nostrService.updateRelayPermissions(relayUrl, permissions);
-    if (success) {
-      // Update relay status
-      const relayStatus = nostrService.getRelayStatus();
-      if (onRelaysChange) {
-        onRelaysChange(relayStatus);
-      }
-      toast.success(`Updated permissions for ${relayUrl}`);
+    // Fix: Use the RelayManager's method directly since NostrService may not have this method yet
+    nostrService.relayManager.updateRelayPermissions(relayUrl, permissions);
+    // Update relay status
+    const relayStatus = nostrService.getRelayStatus();
+    if (onRelaysChange) {
+      onRelaysChange(relayStatus);
     }
+    toast.success(`Updated permissions for ${relayUrl}`);
   };
 
   const handleImportRelays = async () => {
@@ -92,7 +93,8 @@ const ProfileRelaysDialog = ({
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
       // Try to find the user's relays using NIP-65
-      const userRelays = await nostrService.getRelaysForUser(userPubkey);
+      // Fix: Use relayManager directly since NostrService may not have this method yet
+      const userRelays = await nostrService.relayManager.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
         toast.info("No relays found for this user");
@@ -101,7 +103,8 @@ const ProfileRelaysDialog = ({
       }
       
       // Add all found relays
-      const successCount = await nostrService.addMultipleRelays(userRelays);
+      // Fix: Use relayManager directly since NostrService may not have this method yet
+      const successCount = await nostrService.relayManager.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);

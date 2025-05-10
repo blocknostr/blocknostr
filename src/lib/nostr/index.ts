@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -13,7 +12,7 @@ import { toast } from 'sonner';
 
 class NostrService {
   private userManager: UserManager;
-  public relayManager: RelayManager;
+  public relayManager: RelayManager; // Changed to public to allow direct access
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   private socialManager: SocialManager;
@@ -121,100 +120,7 @@ class NostrService {
   
   // Method to get relays for a user following NIP-65 standard
   public async getRelaysForUser(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
-    return new Promise((resolve) => {
-      const relays: {url: string, read: boolean, write: boolean}[] = [];
-      
-      // Subscribe to NIP-65 relay list event (kind 10002)
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [10002], // NIP-65 relay list kind
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          try {
-            // Parse the relay list from tags
-            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-            
-            relayTags.forEach(tag => {
-              if (tag[1] && typeof tag[1] === 'string') {
-                let read = true;
-                let write = true;
-                
-                // Check if read/write permissions specified in tag
-                if (tag.length >= 3 && typeof tag[2] === 'string') {
-                  const relayPermission = tag[2].toLowerCase();
-                  read = relayPermission.includes('read');
-                  write = relayPermission.includes('write');
-                }
-                
-                relays.push({ url: tag[1], read, write });
-              }
-            });
-          } catch (error) {
-            console.error("Error parsing relay list:", error);
-          }
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        
-        // If no relays found via NIP-65, try the older NIP-01 kind (10001)
-        if (relays.length === 0) {
-          this.fetchLegacyRelayList(pubkey).then(legacyRelays => {
-            resolve(legacyRelays);
-          });
-        } else {
-          resolve(relays);
-        }
-      }, 3000);
-    });
-  }
-
-  // Fallback method to fetch relays from older NIP-01 format
-  private async fetchLegacyRelayList(pubkey: string): Promise<{url: string, read: boolean, write: boolean}[]> {
-    return new Promise((resolve) => {
-      const relays: {url: string, read: boolean, write: boolean}[] = [];
-      
-      // Subscribe to the older relay list event kind
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST], // Older kind for relay list (10001)
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              let read = true;
-              let write = true;
-              
-              // Check for permissions in third position
-              if (tag.length >= 3 && typeof tag[2] === 'string') {
-                read = tag[2].includes('read');
-                write = tag[2].includes('write');
-              }
-              
-              relays.push({ url: tag[1], read, write });
-            }
-          });
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        resolve(relays);
-      }, 3000);
-    });
+    return this.relayManager.getRelaysForUser(pubkey);
   }
 
   // Event publication
@@ -491,7 +397,7 @@ class NostrService {
       await this.connectToDefaultRelays();
       
       // First try kind 10002 (NIP-65)
-      const nip65Relays = await this.getRelaysForUser(this.publicKey);
+      const nip65Relays = await this.relayManager.getRelaysForUser(this.publicKey);
       
       if (nip65Relays.length > 0) {
         // Add all relays from the user's NIP-65 list
