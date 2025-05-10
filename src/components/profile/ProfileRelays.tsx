@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Plus } from "lucide-react";
-import { Relay, nostrService } from "@/lib/nostr";
+import { nostrService, Relay } from "@/lib/nostr";
 import { toast } from "sonner";
 
 interface ProfileRelaysProps {
@@ -30,7 +30,7 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
         setNewRelayUrl("");
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
-        onRelaysChange(relayStatus);
+        onRelaysChange(relayStatus as unknown as Relay[]);
         setDialogOpen(false);
       } else {
         toast.error(`Failed to add relay: ${newRelayUrl}`);
@@ -47,7 +47,7 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
     nostrService.removeRelay(relayUrl);
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
-    onRelaysChange(relayStatus);
+    onRelaysChange(relayStatus as unknown as Relay[]);
     toast.success(`Removed relay: ${relayUrl}`);
   };
   
