@@ -151,19 +151,14 @@ export class SocialManager {
       let tags: string[][] = [];
       let content = '';
       
-      // Subscribe to contact list events - Fix for SimplePool (using subscribe instead of sub)
+      // Subscribe to contact list events
       const sub = pool.subscribe(
         relayUrls,
-        [
-          {
-            kinds: [EVENT_KINDS.CONTACTS],
-            authors: [pubkey],
-            limit: 1,
-            // Add empty tag filter to satisfy TypeScript
-            '#e': [],
-            '#p': []
-          } as any // Use type assertion as a workaround
-        ],
+        [{
+          kinds: [EVENT_KINDS.CONTACTS],
+          authors: [pubkey],
+          limit: 1,
+        }],
         {
           // Event callback
           event: (event: NostrEvent) => {
