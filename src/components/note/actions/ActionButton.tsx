@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ReactNode } from "react";
 
 interface ActionButtonProps {
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (e?: React.MouseEvent) => void;
   icon: ReactNode;
   label: string;
   count?: number;

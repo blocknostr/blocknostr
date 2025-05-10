@@ -47,13 +47,13 @@ const NoteCardActions = ({
           e.stopPropagation(); // Prevent navigation when clicking comment
           onCommentClick(e);
         }} replyCount={replyCount} />
-        <RetweetButton onClick={(e) => handleRetweet(e)} retweeted={retweeted} retweetCount={retweetCount} />
-        <LikeButton onClick={(e) => handleLike(e)} liked={liked} likeCount={likeCount} />
+        <RetweetButton onClick={handleRetweet} retweeted={retweeted} retweetCount={retweetCount} />
+        <LikeButton onClick={handleLike} liked={liked} likeCount={likeCount} />
       </div>
       
       <div className="flex items-center">
         <ViewButton reachCount={reachCount} />
-        <TipButton onClick={(e) => handleSendTip(e)} tipCount={tipCount} />
+        <TipButton onClick={handleSendTip} tipCount={tipCount} />
         {isAuthor && onDelete && <DeleteButton onClick={(e) => {
           e.stopPropagation(); // Prevent navigation when clicking delete
           onDelete(e);

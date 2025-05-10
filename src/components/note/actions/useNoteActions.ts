@@ -93,7 +93,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   }, [eventId, nostrService.publicKey]);
 
-  const handleLike = async () => {
+  const handleLike = async (e?: React.MouseEvent) => {
     try {
       if (!liked) {
         // Create a reaction event (kind 7)
@@ -123,7 +123,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   };
 
-  const handleRetweet = async () => {
+  const handleRetweet = async (e?: React.MouseEvent) => {
     try {
       if (!retweeted) {
         // Create a repost event
@@ -156,7 +156,7 @@ export const useNoteActions = ({ eventId, pubkey }: UseNoteActionsProps) => {
     }
   };
   
-  const handleSendTip = () => {
+  const handleSendTip = (e?: React.MouseEvent) => {
     toast.info("Tipping functionality coming soon!");
   };
 

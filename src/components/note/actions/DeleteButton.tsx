@@ -10,7 +10,7 @@ const DeleteButton = ({ onClick }: DeleteButtonProps) => {
   return (
     <ActionButton
       onClick={(e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         onClick(e);
       }}
       icon={<Trash2 className="h-4 w-4" />}

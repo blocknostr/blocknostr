@@ -11,7 +11,7 @@ const CommentButton = ({ onClick, replyCount }: CommentButtonProps) => {
   return (
     <ActionButton
       onClick={(e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         onClick(e);
       }}
       icon={<MessageCircle className="h-4 w-4" />}
