@@ -39,16 +39,6 @@ const ProfilePage = () => {
     }
   }, [npub, currentUserPubkey, navigate]);
   
-  const handleMessageUser = () => {
-    if (!npub) return;
-    
-    // Navigate to messages page
-    navigate('/messages');
-    
-    // We'll let the messages page handle loading the contact
-    localStorage.setItem('lastMessagedUser', npub);
-  };
-  
   if (loading) {
     return <ProfileLoading />;
   }
@@ -71,7 +61,6 @@ const ProfilePage = () => {
                 profileData={profileData}
                 npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
                 isCurrentUser={isCurrentUser}
-                onMessage={handleMessageUser}
               />
               
               <ProfileStats 

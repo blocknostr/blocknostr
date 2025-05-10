@@ -18,7 +18,7 @@ interface ProfileHeaderProps {
   onMessage: () => void;
 }
 
-const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileHeaderProps) => {
+const ProfileHeader = ({ profileData, npub, isCurrentUser }: ProfileHeaderProps) => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profile, setProfile] = useState(profileData);
   
@@ -84,7 +84,6 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
               <ProfileActions
                 isCurrentUser={isCurrentUser}
                 onEditProfile={() => setIsEditProfileOpen(true)}
-                onMessage={onMessage}
                 pubkeyHex={pubkeyHex}
               />
             </div>
