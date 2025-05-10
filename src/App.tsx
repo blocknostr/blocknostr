@@ -14,32 +14,37 @@ import CommunityPage from "./pages/CommunityPage";
 import NotebinPage from "./pages/NotebinPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import PostPage from "./pages/PostPage";
+import { useState } from "react";
 
-const queryClient = new QueryClient();
+const App = () => {
+  // Create a new QueryClient instance inside the component
+  // This ensures React context works correctly
+  const [queryClient] = useState(() => new QueryClient());
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/:npub" element={<ProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/communities" element={<CommunitiesPage />} />
-          <Route path="/communities/:id" element={<CommunityPage />} />
-          <Route path="/notebin" element={<NotebinPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/post/:id" element={<PostPage />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/:npub" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/communities" element={<CommunitiesPage />} />
+            <Route path="/communities/:id" element={<CommunityPage />} />
+            <Route path="/notebin" element={<NotebinPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/post/:id" element={<PostPage />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
