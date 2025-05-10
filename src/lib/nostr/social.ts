@@ -158,8 +158,11 @@ export class SocialManager {
           {
             kinds: [EVENT_KINDS.CONTACTS],
             authors: [pubkey],
-            limit: 1
-          }
+            limit: 1,
+            // Add empty tag filter to satisfy TypeScript
+            '#e': [],
+            '#p': []
+          } as any // Use type assertion as a workaround
         ],
         {
           // Event callback
