@@ -368,7 +368,7 @@ class NostrService {
     if (!pubkey) return null;
     
     try {
-      const connectedRelays = this.getConnectedRelaysUrls();
+      const connectedRelays = this.getConnectedRelayUrls();
       if (connectedRelays.length === 0) {
         await this.connectToDefaultRelays();
       }

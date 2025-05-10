@@ -102,13 +102,29 @@ export class TrendingUsersManager {
     try {
       // 1. Fetch recent notes to analyze engagement
       console.log(`Fetching notes since ${new Date(sinceTimestamp * 1000).toLocaleString()}`);
-      const events = await pool.list(relays, [
-        {
-          kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REACTION],
-          since: sinceTimestamp,
-          limit: 500 // Limit to 500 recent events for analysis
-        }
-      ]);
+      
+      // Use the correct API method: pool.sub() instead of pool.list()
+      const events: NostrEvent[] = await new Promise((resolve) => {
+        const events: NostrEvent[] = [];
+        
+        const sub = pool.sub(relays, [
+          {
+            kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REACTION],
+            since: sinceTimestamp,
+            limit: 500 // Limit to 500 recent events for analysis
+          }
+        ]);
+        
+        sub.on('event', (event: NostrEvent) => {
+          events.push(event);
+        });
+        
+        // Close subscription after some time to gather enough events
+        setTimeout(() => {
+          sub.unsub();
+          resolve(events);
+        }, 3000); // Wait 3 seconds to collect events
+      });
       
       console.log(`Analyzing ${events.length} events for trending users`);
       
@@ -211,12 +227,27 @@ export class TrendingUsersManager {
     
     // Fetch profiles for users not in cache
     try {
-      const events = await pool.list(relays, [
-        {
-          kinds: [EVENT_KINDS.META],
-          authors: pubkeysToFetch
-        }
-      ]);
+      // Use the correct API method: pool.sub() instead of pool.list()
+      const events: NostrEvent[] = await new Promise((resolve) => {
+        const events: NostrEvent[] = [];
+        
+        const sub = pool.sub(relays, [
+          {
+            kinds: [EVENT_KINDS.META],
+            authors: pubkeysToFetch
+          }
+        ]);
+        
+        sub.on('event', (event: NostrEvent) => {
+          events.push(event);
+        });
+        
+        // Close subscription after some time
+        setTimeout(() => {
+          sub.unsub();
+          resolve(events);
+        }, 3000); // Wait 3 seconds to collect profile events
+      });
       
       // Process events and update cache
       events.forEach(event => {
