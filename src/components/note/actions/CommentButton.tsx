@@ -17,7 +17,7 @@ const CommentButton = ({ onClick, replyCount }: CommentButtonProps) => {
       icon={<MessageCircle className="h-4 w-4" />}
       label="Comment"
       count={replyCount}
-      hoverClass="hover:text-blue-500 group-hover:text-blue-500"
+      hoverClass="hover:text-[#1EAEDB] group-hover:text-[#1EAEDB]"
     />
   );
 };

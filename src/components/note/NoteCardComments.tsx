@@ -5,6 +5,7 @@ import CommentForm from './comments/CommentForm';
 import CommentItem from './comments/CommentItem';
 import DeleteCommentDialog from './comments/DeleteCommentDialog';
 import { useComments } from '@/hooks/useComments';
+import { MessageCircle } from 'lucide-react';
 
 interface NoteCardCommentsProps {
   eventId: string;
@@ -44,34 +45,41 @@ const NoteCardComments = ({
 
   return (
     <>
-      <div className="px-5 pb-4 pt-3">
-        {nostrService.publicKey && (
-          <CommentForm 
-            eventId={eventId} 
-            pubkey={pubkey}
-            onCommentAdded={handleCommentAdded}
-          />
-        )}
-        
-        <div className="space-y-4 mt-2">
-          {isLoading ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
-              Loading comments...
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
-              No comments yet. Be the first to comment!
-            </div>
+      <div className="bg-[#1A1F2C] rounded-b-lg">
+        <div className="border-t border-[#333] px-5 pb-4 pt-3">
+          {nostrService.publicKey ? (
+            <CommentForm 
+              eventId={eventId} 
+              pubkey={pubkey}
+              onCommentAdded={handleCommentAdded}
+            />
           ) : (
-            comments.map((comment) => (
-              <CommentItem 
-                key={comment.id} 
-                comment={comment} 
-                profile={profiles[comment.author] || {}}
-                onDeleteClick={handleDeleteClick}
-              />
-            ))
+            <div className="flex items-center justify-center gap-2 bg-[#222] rounded-lg p-4 text-[#8E9196] text-sm">
+              <MessageCircle className="h-4 w-4" />
+              <span>Log in to join the conversation</span>
+            </div>
           )}
+          
+          <div className="space-y-3 mt-3">
+            {isLoading ? (
+              <div className="text-sm text-center py-4 text-[#8E9196] animate-pulse">
+                Loading comments...
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-sm text-center py-4 text-[#8E9196]">
+                No comments yet. Start the conversation!
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <CommentItem 
+                  key={comment.id} 
+                  comment={comment} 
+                  profile={profiles[comment.author] || {}}
+                  onDeleteClick={handleDeleteClick}
+                />
+              ))
+            )}
+          </div>
         </div>
       </div>
       

@@ -76,13 +76,11 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         </CardFooter>
         
         {showComments && (
-          <div className="bg-muted/30 animate-fade-in">
-            <NoteCardComments
-              eventId={event.id || ''}
-              pubkey={event.pubkey || ''}
-              onReplyAdded={handleReplyAdded}
-            />
-          </div>
+          <NoteCardComments
+            eventId={event.id || ''}
+            pubkey={event.pubkey || ''}
+            onReplyAdded={handleReplyAdded}
+          />
         )}
       </Card>
       
