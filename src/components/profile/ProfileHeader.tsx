@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar, Check, AlertCircle } from "lucide-react";
+import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar, Check, AlertCircle, Twitter } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import FollowButton from "@/components/FollowButton";
 import { formatDistanceToNow } from "date-fns";
@@ -203,6 +203,19 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 >
                   <Globe className="h-3.5 w-3.5" />
                   {profile.website.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              
+              {profile?.twitter && (
+                <a 
+                  href={`https://x.com/${profile.twitter.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
+                >
+                  <Twitter className="h-3.5 w-3.5" />
+                  @{profile.twitter.replace('@', '')}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}

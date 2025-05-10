@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
-import { Loader2, HelpCircle } from 'lucide-react';
+import { Loader2, HelpCircle, Twitter } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { NostrProfileMetadata } from '@/lib/nostr/types';
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
   const [banner, setBanner] = useState('');
   const [website, setWebsite] = useState('');
   const [nip05, setNip05] = useState('');
+  const [twitter, setTwitter] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Load existing profile data when dialog opens
@@ -37,6 +39,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       setBanner(profileData.banner || '');
       setWebsite(profileData.website || '');
       setNip05(profileData.nip05 || '');
+      setTwitter(profileData.twitter || '');
     }
   }, [profileData, open]);
   
@@ -46,14 +49,15 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
     
     try {
       // Prepare metadata object
-      const metadata = {
+      const metadata: NostrProfileMetadata = {
         name,
         display_name: displayName,
         about,
         picture,
         banner,
         website,
-        nip05
+        nip05,
+        twitter: twitter.replace('@', '') // Remove @ if present
       };
       
       // Publish metadata to Nostr network
@@ -179,6 +183,28 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
                 placeholder="you@example.com"
               />
             </div>
+          </div>
+
+          {/* X (Twitter) Account Field */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="twitter">X (Twitter) Account</Label>
+              <Twitter className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Input
+              id="twitter"
+              value={twitter}
+              onChange={(e) => setTwitter(e.target.value)}
+              placeholder="@username"
+              className="pl-8"
+              style={{ 
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: '10px center',
+                paddingLeft: '2rem'
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Enter your X (Twitter) username with or without the @ symbol</p>
           </div>
           
           <DialogFooter>

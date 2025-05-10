@@ -16,6 +16,19 @@ export interface Relay {
   write: boolean;
 }
 
+export interface NostrProfileMetadata {
+  name?: string;
+  display_name?: string;
+  picture?: string;
+  nip05?: string;
+  about?: string;
+  banner?: string;
+  website?: string;
+  lud16?: string; // Lightning address
+  twitter?: string; // X (Twitter) handle
+  [key: string]: any; // For any other custom fields
+}
+
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {
