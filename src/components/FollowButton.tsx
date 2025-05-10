@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -18,10 +17,9 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
   useEffect(() => {
     // Check if user is already following this pubkey
     if (pubkey && currentUserPubkey) {
-      const followingStatus = nostrService.isFollowing(pubkey);
-      setIsFollowing(followingStatus);
+      setIsFollowing(nostrService.isFollowing(pubkey));
     }
-  }, [pubkey, currentUserPubkey, nostrService.following]); // Add following as a dependency
+  }, [pubkey, currentUserPubkey]);
   
   const handleFollowToggle = async () => {
     if (!currentUserPubkey) {
@@ -33,7 +31,6 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
     
     try {
       if (isFollowing) {
-        console.log(`Attempting to unfollow user: ${pubkey}`);
         const success = await nostrService.unfollowUser(pubkey);
         if (success) {
           setIsFollowing(false);
@@ -42,7 +39,6 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
           toast.error("Failed to unfollow user");
         }
       } else {
-        console.log(`Attempting to follow user: ${pubkey}`);
         const success = await nostrService.followUser(pubkey);
         if (success) {
           setIsFollowing(true);

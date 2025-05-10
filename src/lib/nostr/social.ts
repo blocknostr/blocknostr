@@ -27,14 +27,6 @@ export class SocialManager {
     }
     
     try {
-      // Check if already following
-      if (this.userManager.isFollowing(pubkey)) {
-        console.log(`Already following ${pubkey}`);
-        return true;
-      }
-      
-      console.log(`Following user ${pubkey}`);
-      
       // Add to local following set
       this.userManager.addFollowing(pubkey);
       
@@ -45,8 +37,6 @@ export class SocialManager {
         tags: Array.from(this.userManager.following).map(pk => ['p', pk])
       };
       
-      console.log("Publishing contacts event with tags:", event.tags);
-      
       const eventId = await this.eventManager.publishEvent(
         pool,
         currentUserPubkey,
@@ -54,8 +44,6 @@ export class SocialManager {
         event,
         relays
       );
-      
-      console.log("Follow event published with ID:", eventId);
       
       return !!eventId;
     } catch (error) {
@@ -77,14 +65,6 @@ export class SocialManager {
     }
     
     try {
-      // Check if not following
-      if (!this.userManager.isFollowing(pubkey)) {
-        console.log(`Not following ${pubkey}, nothing to unfollow`);
-        return true;
-      }
-      
-      console.log(`Unfollowing user ${pubkey}`);
-      
       // Remove from local following set
       this.userManager.removeFollowing(pubkey);
       
@@ -95,8 +75,6 @@ export class SocialManager {
         tags: Array.from(this.userManager.following).map(pk => ['p', pk])
       };
       
-      console.log("Publishing contacts event with tags:", event.tags);
-      
       const eventId = await this.eventManager.publishEvent(
         pool,
         currentUserPubkey,
@@ -104,8 +82,6 @@ export class SocialManager {
         event,
         relays
       );
-      
-      console.log("Unfollow event published with ID:", eventId);
       
       return !!eventId;
     } catch (error) {
