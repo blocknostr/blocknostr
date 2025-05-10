@@ -86,7 +86,10 @@ const CommunityHeader = ({
         />
         
         {isMember && !isCreator && (
-          <LeaveCommunityButton onLeave={handleLeaveCommunity} />
+          <LeaveCommunityButton 
+            onLeave={handleLeaveCommunity} 
+            communityName={community.name}
+          />
         )}
       </CardContent>
     </Card>
