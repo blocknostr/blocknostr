@@ -18,13 +18,19 @@ interface CreateCommunityDialogProps {
   setIsOpen: (isOpen: boolean) => void;
 }
 
-// Form validation schema
+// Form validation schema with stricter requirements
 const formSchema = z.object({
   name: z.string().min(3, {
     message: "Community name must be at least 3 characters.",
+  }).refine(name => name.trim() !== '', {
+    message: "Community name cannot be empty.",
+  }).refine(name => name !== 'Unnamed Community', {
+    message: "Community name cannot be 'Unnamed Community'.",
   }),
   description: z.string().min(10, {
     message: "Description must be at least 10 characters.",
+  }).refine(desc => desc.trim() !== '', {
+    message: "Community description cannot be empty.",
   }),
 });
 
@@ -94,7 +100,7 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Community Name</FormLabel>
+                  <FormLabel>Community Name <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Input placeholder="Enter community name" {...field} />
                   </FormControl>
@@ -107,7 +113,7 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Description <span className="text-destructive">*</span></FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Describe your community..."

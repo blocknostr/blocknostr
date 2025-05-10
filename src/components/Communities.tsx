@@ -59,8 +59,8 @@ const Communities = () => {
         return;
       }
       
-      // Skip communities without a proper name
-      if (!communityData.name || communityData.name === 'Unnamed Community') {
+      // Skip communities without a proper name or with the name 'Unnamed Community'
+      if (!communityData.name || communityData.name.trim() === '' || communityData.name === 'Unnamed Community') {
         return;
       }
       

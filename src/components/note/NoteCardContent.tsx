@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
-import { MediaPreview } from '../MediaPreview';
+import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
