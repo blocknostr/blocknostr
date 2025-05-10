@@ -10,6 +10,7 @@ import {
   getEventReference, 
   getContentPreview 
 } from "./notification-utils";
+import { nostrService } from "@/lib/nostr";
 
 const NotificationItem = ({ 
   notification, 
@@ -23,12 +24,15 @@ const NotificationItem = ({
                       notification.pubkey?.slice(0, 8) ||
                       'Unknown';
   
+  // Format the pubkey to npub for the profile link
+  const npub = notification.pubkey ? nostrService.getNpubFromHex(notification.pubkey) : '';
+  
   // Find the event ID that this notification is referencing (if any)
   const eventId = getEventReference(notification);
   
   return (
     <Link 
-      to={eventId ? `/post/${eventId}` : `/profile/${notification.pubkey}`} 
+      to={eventId ? `/post/${eventId}` : `/profile/${npub}`} 
       className="block no-underline text-foreground"
     >
       <Card className="p-4 hover:bg-accent/10 transition-colors">

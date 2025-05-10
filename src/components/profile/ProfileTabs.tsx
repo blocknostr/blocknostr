@@ -93,7 +93,10 @@ const ProfileTabs = ({
                     src={extractImageUrl(event.content)} 
                     alt="Media" 
                     className="h-full w-full object-cover transition-all hover:scale-105"
-                    onClick={() => window.location.href = `/note/${event.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.href = `/post/${event.id}`;
+                    }}
                   />
                 </div>
               ))}

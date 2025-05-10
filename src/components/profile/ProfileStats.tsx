@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -151,7 +151,7 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   const shortNpub = `${npub.substring(0, 8)}...${npub.substring(npub.length - 5)}`;
   
   // Load profile data
-  useState(() => {
+  useEffect(() => {
     const fetchProfileData = async () => {
       // This is a placeholder - in a real app, you would fetch this data from the network
       const subId = nostrService.subscribe(
@@ -173,7 +173,7 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
     };
     
     fetchProfileData();
-  });
+  }, [pubkey]);
   
   const name = profileData?.display_name || profileData?.name || shortNpub;
   const username = profileData?.name || shortNpub;
