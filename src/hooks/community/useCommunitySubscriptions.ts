@@ -40,21 +40,25 @@ export const useCommunitySubscriptions = (
       }
       
       if (proposalSubscriptions) {
-        if (proposalSubscriptions.proposalSubscriptionObj && typeof proposalSubscriptions.proposalSubscriptionObj.unsubscribe === 'function') {
+        if (proposalSubscriptions.proposalSubscriptionObj && 
+            typeof proposalSubscriptions.proposalSubscriptionObj.unsubscribe === 'function') {
           proposalSubscriptions.proposalSubscriptionObj.unsubscribe();
         }
         
-        if (proposalSubscriptions.votesSubscriptionObj && typeof proposalSubscriptions.votesSubscriptionObj.unsubscribe === 'function') {
+        if (proposalSubscriptions.votesSubscriptionObj && 
+            typeof proposalSubscriptions.votesSubscriptionObj.unsubscribe === 'function') {
           proposalSubscriptions.votesSubscriptionObj.unsubscribe();
         }
       }
       
       if (kickSubscriptions) {
-        if (kickSubscriptions.kickProposalSubscriptionObj && typeof kickSubscriptions.kickProposalSubscriptionObj.unsubscribe === 'function') {
+        if (kickSubscriptions.kickProposalSubscriptionObj && 
+            typeof kickSubscriptions.kickProposalSubscriptionObj.unsubscribe === 'function') {
           kickSubscriptions.kickProposalSubscriptionObj.unsubscribe();
         }
         
-        if (kickSubscriptions.kickVotesSubscriptionObj && typeof kickSubscriptions.kickVotesSubscriptionObj.unsubscribe === 'function') {
+        if (kickSubscriptions.kickVotesSubscriptionObj && 
+            typeof kickSubscriptions.kickVotesSubscriptionObj.unsubscribe === 'function') {
           kickSubscriptions.kickVotesSubscriptionObj.unsubscribe();
         }
       }

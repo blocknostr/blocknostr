@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Check, Loader2, Network, Plus, Wifi, X } from "lucide-react";
-import { Relay, nostrService } from "@/lib/nostr";
+import { Relay, SubscriptionObject, nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 
 interface ProfileRelaysDialogProps {
@@ -75,7 +75,7 @@ const ProfileRelaysDialog = ({
       const relaysFound: string[] = [];
       
       // Subscribe to relay list events for this user
-      const subInfo = nostrService.subscribe(
+      const subInfo: SubscriptionObject = nostrService.subscribe(
         [
           {
             kinds: [10050], // Relay list event kind
