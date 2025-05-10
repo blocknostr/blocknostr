@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
-import { ArrowDown, ArrowUp, Eye } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NoteCardContentProps {
@@ -117,12 +117,6 @@ const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
         </div>
       )}
       
-      {/* Post Reach information */}
-      <div className="flex items-center mt-2 text-xs text-muted-foreground">
-        <Eye className="h-3.5 w-3.5 mr-1" />
-        <span>{reachCount.toLocaleString()} views</span>
-      </div>
-      
       {/* Display media content */}
       {mediaUrls.length > 0 && (
         <div className="space-y-2 mt-3 rounded-md overflow-hidden">
@@ -133,6 +127,13 @@ const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
               alt={`Media attachment ${index + 1}`} 
             />
           ))}
+        </div>
+      )}
+      
+      {/* Post Reach information - Moved below media */}
+      {reachCount > 0 && (
+        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+          <span>{reachCount.toLocaleString()} views</span>
         </div>
       )}
     </div>

@@ -41,9 +41,12 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   useEffect(() => {
     if (!event.id) return;
     
-    // Get a random reach count between 50 and 10000 for demonstration
-    // In a real app, you would track actual impressions
-    setReachCount(Math.floor(Math.random() * 9950) + 50);
+    // Get a more realistic reach count - still random but based on the age of the post
+    // and some randomization for demonstration purposes
+    const postAge = Math.floor(Date.now() / 1000) - event.created_at;
+    const hoursOld = Math.max(1, postAge / 3600);
+    const baseReach = Math.floor(50 + (Math.random() * 20 * hoursOld));
+    setReachCount(baseReach);
     
     const fetchReplyCount = async () => {
       const subId = nostrService.subscribe(
@@ -71,7 +74,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     };
     
     fetchReplyCount();
-  }, [event.id]);
+  }, [event.id, event.created_at]);
   
   const handleCommentClick = () => {
     setShowComments(!showComments);
