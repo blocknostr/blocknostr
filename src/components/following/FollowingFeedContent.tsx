@@ -9,7 +9,6 @@ interface FollowingFeedContentProps {
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
   loadMoreRef: React.RefCallback<HTMLDivElement>;
   loading: boolean;
-  onRetweetStatusChange?: (eventId: string, isRetweeted: boolean) => void;
 }
 
 const FollowingFeedContent: React.FC<FollowingFeedContentProps> = ({
@@ -17,8 +16,7 @@ const FollowingFeedContent: React.FC<FollowingFeedContentProps> = ({
   profiles,
   repostData,
   loadMoreRef,
-  loading,
-  onRetweetStatusChange
+  loading
 }) => {
   return (
     <div className="space-y-4">
@@ -31,7 +29,6 @@ const FollowingFeedContent: React.FC<FollowingFeedContentProps> = ({
             reposterPubkey: repostData[event.id].pubkey,
             reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
           } : undefined}
-          onRetweetStatusChange={onRetweetStatusChange}
         />
       ))}
       

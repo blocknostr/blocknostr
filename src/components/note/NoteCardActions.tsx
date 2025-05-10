@@ -15,7 +15,6 @@ interface NoteCardActionsProps {
   onDelete?: () => void;
   isAuthor?: boolean;
   reachCount?: number;
-  onRetweetStatusChange?: (isRetweeted: boolean) => void;
 }
 
 const NoteCardActions = ({
@@ -25,8 +24,7 @@ const NoteCardActions = ({
   replyCount,
   onDelete,
   isAuthor,
-  reachCount = 0,
-  onRetweetStatusChange
+  reachCount = 0
 }: NoteCardActionsProps) => {
   const {
     liked,
@@ -42,20 +40,11 @@ const NoteCardActions = ({
     pubkey
   });
   
-  const handleRetweetAction = () => {
-    handleRetweet();
-  };
-  
   return (
     <div className="flex items-center justify-between w-full pt-2">
       <div className="flex items-center space-x-1">
         <CommentButton onClick={onCommentClick} replyCount={replyCount} />
-        <RetweetButton 
-          onClick={handleRetweetAction} 
-          retweeted={retweeted} 
-          retweetCount={retweetCount}
-          onRetweetStatusChange={onRetweetStatusChange} 
-        />
+        <RetweetButton onClick={handleRetweet} retweeted={retweeted} retweetCount={retweetCount} />
         <LikeButton onClick={handleLike} liked={liked} likeCount={likeCount} />
       </div>
       

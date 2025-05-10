@@ -1,5 +1,4 @@
 
-import React, { useState, useEffect } from "react";
 import { useFollowingFeed } from "@/hooks/useFollowingFeed";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import FollowingFeedEmpty from "./following/FollowingFeedEmpty";
@@ -21,43 +20,16 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     following
   } = useFollowingFeed({ activeHashtag });
 
-  const [filteredEvents, setFilteredEvents] = useState(events);
-
-  // Update filtered events when events change
-  useEffect(() => {
-    setFilteredEvents(events);
-  }, [events]);
-
   const {
     loadMoreRef,
     loading: scrollLoading,
     setLoading,
     hasMore: scrollHasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    threshold: 500, // Increase threshold for earlier loading trigger
-    debounce: 500 // Add debounce to prevent multiple rapid calls
-  });
-
-  // Ensure we're passing the state setters to the useInfiniteScroll
-  useEffect(() => {
-    setHasMore(hasMore);
-  }, [hasMore, setHasMore]);
-
-  useEffect(() => {
-    setLoading(loading);
-  }, [loading, setLoading]);
-
-  const handleRetweetStatusChange = (eventId: string, isRetweeted: boolean) => {
-    if (!isRetweeted) {
-      // Filter out the unreposted event
-      setFilteredEvents(prev => prev.filter(event => event.id !== eventId));
-    }
-  };
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
   // Show empty state when no events and not loading
-  if (filteredEvents.length === 0 && !loading) {
+  if (events.length === 0 && !loading) {
     return (
       <FollowingFeedEmpty 
         activeHashtag={activeHashtag} 
@@ -67,22 +39,19 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   }
 
   // Show loading state when initially loading with no events
-  if (loading && filteredEvents.length === 0) {
+  if (loading && events.length === 0) {
     return <FollowingFeedLoading activeHashtag={activeHashtag} isInitialLoad={true} />;
   }
 
   // Show the feed content with events
   return (
-    <div className="min-h-[50vh]">
-      <FollowingFeedContent
-        events={filteredEvents}
-        profiles={profiles}
-        repostData={repostData}
-        loadMoreRef={loadMoreRef}
-        loading={loading || scrollLoading}
-        onRetweetStatusChange={handleRetweetStatusChange}
-      />
-    </div>
+    <FollowingFeedContent
+      events={events}
+      profiles={profiles}
+      repostData={repostData}
+      loadMoreRef={loadMoreRef}
+      loading={loading || scrollLoading}
+    />
   );
 };
 
