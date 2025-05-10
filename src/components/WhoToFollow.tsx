@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import FollowButton from "@/components/FollowButton";
 import { nostrService } from "@/lib/nostr";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const WhoToFollow = () => {
   // This would be fetched from Nostr in a real implementation
@@ -23,6 +25,17 @@ const WhoToFollow = () => {
       picture: "" 
     },
   ];
+
+  const [following, setFollowing] = useState<Set<string>>(new Set());
+  
+  useEffect(() => {
+    // Reload following state whenever nostrService.publicKey changes
+    if (nostrService.publicKey) {
+      setFollowing(new Set(nostrService.following));
+    } else {
+      setFollowing(new Set());
+    }
+  }, [nostrService.publicKey]);
   
   return (
     <Card>

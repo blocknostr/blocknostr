@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -17,7 +18,9 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
   useEffect(() => {
     // Check if user is already following this pubkey
     if (pubkey && currentUserPubkey) {
-      setIsFollowing(nostrService.isFollowing(pubkey));
+      const followingStatus = nostrService.isFollowing(pubkey);
+      console.log(`Follow status for ${pubkey}: ${followingStatus}`);
+      setIsFollowing(followingStatus);
     }
   }, [pubkey, currentUserPubkey]);
   
@@ -31,20 +34,26 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
     
     try {
       if (isFollowing) {
+        console.log(`Attempting to unfollow user: ${pubkey}`);
         const success = await nostrService.unfollowUser(pubkey);
         if (success) {
           setIsFollowing(false);
           toast.success("Unfollowed user");
+          console.log("Unfollow successful");
         } else {
           toast.error("Failed to unfollow user");
+          console.error("Unfollow failed");
         }
       } else {
+        console.log(`Attempting to follow user: ${pubkey}`);
         const success = await nostrService.followUser(pubkey);
         if (success) {
           setIsFollowing(true);
           toast.success("Following user");
+          console.log("Follow successful");
         } else {
           toast.error("Failed to follow user");
+          console.error("Follow failed");
         }
       }
     } catch (error) {
