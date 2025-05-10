@@ -223,7 +223,7 @@ class NostrService {
     return this.userManager.getHexFromNpub(npub);
   }
   
-  // New method to fetch user profile 
+  // Add getUserProfile method with proper implementation
   public async getUserProfile(pubkey: string): Promise<{
     name?: string;
     displayName?: string;
