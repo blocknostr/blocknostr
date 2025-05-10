@@ -1,5 +1,5 @@
 
-import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
@@ -70,7 +70,7 @@ export class EventManager {
           };
           
           // Pass the correct types to finalizeEvent
-          signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes);
+          signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes) as NostrEvent;
           
         } catch (keyError) {
           console.error("Invalid private key format:", keyError);
