@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
