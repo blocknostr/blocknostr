@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, Search, Send, MessageSquare, Paperclip, User, X } from "lucide-react";
+import { Loader2, Search, Send, MessageSquare, Paperclip, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ interface Contact {
     name?: string;
     display_name?: string;
     picture?: string;
+    nip05?: string;
   };
   lastMessage?: string;
   lastMessageTime?: number;
@@ -153,16 +154,30 @@ const MessagingSystem = () => {
         // Message received by current user
         otherPubkey = event.pubkey || '';
         
-        // Decrypt received message
-        if (window.nostr && window.nostr.nip04) {
+        // Try to decrypt received message with NIP-44 first, then fall back to NIP-04
+        let decryptionSuccessful = false;
+        
+        if (window.nostr && window.nostr.nip44) {
+          try {
+            content = await window.nostr.nip44.decrypt(otherPubkey, content);
+            decryptionSuccessful = true;
+          } catch (e) {
+            console.error("Failed to decrypt with NIP-44, trying NIP-04:", e);
+          }
+        }
+        
+        // Fall back to NIP-04 if NIP-44 failed or isn't available
+        if (!decryptionSuccessful && window.nostr && window.nostr.nip04) {
           try {
             content = await window.nostr.nip04.decrypt(otherPubkey, content);
+            decryptionSuccessful = true;
           } catch (e) {
-            console.error("Failed to decrypt message:", e);
-            content = "[Encrypted message]";
+            console.error("Failed to decrypt with NIP-04:", e);
           }
-        } else {
-          content = "[Encrypted message - install a Nostr extension with NIP-04 support]";
+        }
+        
+        if (!decryptionSuccessful) {
+          content = "[Encrypted message - could not decrypt]";
         }
       }
       
@@ -236,7 +251,8 @@ const MessagingSystem = () => {
               profile: {
                 name: metadata.name,
                 display_name: metadata.display_name,
-                picture: metadata.picture
+                picture: metadata.picture,
+                nip05: metadata.nip05
               }
             });
           } catch (e) {
@@ -274,12 +290,31 @@ const MessagingSystem = () => {
           let content = event.content;
           
           // Decrypt if necessary
-          if (event.pubkey !== currentUserPubkey && window.nostr && window.nostr.nip04) {
-            try {
-              content = await window.nostr.nip04.decrypt(event.pubkey || '', content);
-            } catch (e) {
-              console.error("Failed to decrypt message:", e);
-              content = "[Encrypted message]";
+          if (event.pubkey !== currentUserPubkey) {
+            let decryptionSuccessful = false;
+            
+            // Try NIP-44 first
+            if (window.nostr && window.nostr.nip44) {
+              try {
+                content = await window.nostr.nip44.decrypt(event.pubkey || '', content);
+                decryptionSuccessful = true;
+              } catch (e) {
+                console.error("Failed to decrypt with NIP-44, trying NIP-04:", e);
+              }
+            }
+            
+            // Fall back to NIP-04
+            if (!decryptionSuccessful && window.nostr && window.nostr.nip04) {
+              try {
+                content = await window.nostr.nip04.decrypt(event.pubkey || '', content);
+                decryptionSuccessful = true;
+              } catch (e) {
+                console.error("Failed to decrypt with NIP-04:", e);
+              }
+            }
+            
+            if (!decryptionSuccessful) {
+              content = "[Encrypted message - could not decrypt]";
             }
           }
           
@@ -317,12 +352,20 @@ const MessagingSystem = () => {
     
     try {
       // Use NIP-17 for direct messages (kind 14)
-      await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
-      setNewMessage("");
-      toast({
-        title: "Message sent",
-        description: "Your encrypted message has been sent"
-      });
+      const messageId = await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
+      if (messageId) {
+        setNewMessage("");
+        toast({
+          title: "Message sent",
+          description: "Your encrypted message has been sent"
+        });
+      } else {
+        toast({
+          title: "Failed to send message",
+          description: "Please check your connection and try again",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast({

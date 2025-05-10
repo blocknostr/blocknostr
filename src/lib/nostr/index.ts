@@ -161,13 +161,40 @@ class NostrService {
   
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
+    
+    // Try to find recipient's preferred relays via NIP-05 or kind:10050 event
+    let recipientRelays: string[] = [];
+    
+    try {
+      // First try to get profile for potential NIP-05 identifier
+      const profile = await this.getUserProfile(recipientPubkey);
+      
+      if (profile?.nip05) {
+        // If recipient has NIP-05, try to fetch relay preferences from it
+        const nip05Data = await this.fetchNip05Data(profile.nip05);
+        if (nip05Data?.relays) {
+          recipientRelays = Object.keys(nip05Data.relays);
+        }
+      }
+      
+      // If no relays found yet, try to find a kind:10050 relay list event
+      if (recipientRelays.length === 0) {
+        recipientRelays = await this.getRelaysForUser(recipientPubkey);
+      }
+    } catch (error) {
+      console.error("Error finding recipient's relays:", error);
+    }
+    
+    // Combine connected relays with recipient's relays
+    const publishToRelays = Array.from(new Set([...connectedRelays, ...recipientRelays]));
+    
     return this.socialManager.sendDirectMessage(
       this.pool,
       recipientPubkey,
       content,
       this.publicKey,
       null, // We're not storing private keys
-      connectedRelays
+      publishToRelays.length > 0 ? publishToRelays : connectedRelays
     );
   }
   
@@ -335,6 +362,38 @@ class NostrService {
     } catch (error) {
       console.error("Error fetching following list:", error);
     }
+  }
+  
+  private async getRelaysForUser(pubkey: string): Promise<string[]> {
+    return new Promise((resolve) => {
+      const relays: string[] = [];
+      
+      // Subscribe to relay list event
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [pubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Extract relay URLs from r tags
+          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+          relayTags.forEach(tag => {
+            if (tag[1] && typeof tag[1] === 'string') {
+              relays.push(tag[1]);
+            }
+          });
+        }
+      );
+      
+      // Set a timeout to resolve with found relays
+      setTimeout(() => {
+        this.unsubscribe(subId);
+        resolve(relays);
+      }, 3000);
+    });
   }
   
   private async publishRelayList(): Promise<string | null> {
