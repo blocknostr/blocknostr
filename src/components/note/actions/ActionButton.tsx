@@ -1,5 +1,7 @@
+
 import { Button } from "@/components/ui/button";
 import { ReactNode } from "react";
+
 interface ActionButtonProps {
   onClick: (e: React.MouseEvent) => void;
   icon: ReactNode;
@@ -9,6 +11,7 @@ interface ActionButtonProps {
   activeClass?: string;
   hoverClass?: string;
 }
+
 const ActionButton = ({
   onClick,
   icon,
@@ -18,16 +21,24 @@ const ActionButton = ({
   activeClass = "",
   hoverClass = "hover:bg-gray-100"
 }: ActionButtonProps) => {
-  return <div className="flex items-center gap-0. py-0 my-0 center align px-0 mx-[40px]">
-      <Button variant="ghost" size="sm" onClick={e => {
-      e.preventDefault();
-      onClick(e);
-    }} aria-label={label} className="do not split the five functionalities">
+  return (
+    <div className="flex items-center gap-1">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={onClick}
+        aria-label={label} 
+        className={`p-2 rounded-full ${active ? activeClass : ''} ${hoverClass} transition-colors`}
+      >
         {icon}
       </Button>
-      {count !== undefined && count > 0 && <span className="text-xs font-medium text-muted-foreground">
+      {count !== undefined && count > 0 && 
+        <span className="text-xs font-medium text-muted-foreground">
           {count}
-        </span>}
-    </div>;
+        </span>
+      }
+    </div>
+  );
 };
+
 export default ActionButton;
