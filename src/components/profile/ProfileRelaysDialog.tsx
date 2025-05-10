@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,7 +40,7 @@ const ProfileRelaysDialog = ({
     setIsAddingRelay(true);
     
     try {
-      // Use the updated addRelay method with proper types
+      // Use the addRelay method with proper read/write permissions
       const success = await nostrService.addRelay(newRelayUrl, newRelayPermissions);
       
       if (success) {
@@ -75,7 +74,7 @@ const ProfileRelaysDialog = ({
   };
   
   const handleUpdateRelayPermissions = (relayUrl: string, permissions: {read: boolean; write: boolean}) => {
-    // Use the public method on NostrService
+    // Use the updateRelayPermissions method on NostrService
     nostrService.updateRelayPermissions(relayUrl, permissions);
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
@@ -92,7 +91,7 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Use the public method on NostrService
+      // Use the getRelaysForUser method on NostrService
       const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
@@ -101,7 +100,7 @@ const ProfileRelaysDialog = ({
         return;
       }
       
-      // Use the public method on NostrService
+      // Use the addMultipleRelays method on NostrService
       const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
