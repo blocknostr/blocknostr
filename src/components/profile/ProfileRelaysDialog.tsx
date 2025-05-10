@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -81,7 +80,7 @@ const ProfileRelaysDialog = ({
       }
       
       // Add all found relays
-      const successCount = await nostrService.relayManager.addMultipleRelays(userRelays);
+      const successCount = await nostrService.addMultipleRelays(userRelays);
       
       if (successCount > 0) {
         toast.success(`Added ${successCount} relays from ${userNpub}`);

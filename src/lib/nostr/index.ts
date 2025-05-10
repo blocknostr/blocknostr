@@ -97,6 +97,23 @@ class NostrService {
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
+  
+  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    if (!relayUrls.length) return 0;
+    
+    let successCount = 0;
+    
+    for (const url of relayUrls) {
+      try {
+        const success = await this.addRelay(url);
+        if (success) successCount++;
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
+      }
+    }
+    
+    return successCount;
+  }
 
   // Event publication
   public async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
