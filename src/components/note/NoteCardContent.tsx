@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
@@ -122,7 +123,7 @@ const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
           {mediaUrls.map((url, index) => (
             <MediaPreview 
               key={index} 
-              src={url} 
+              url={url} 
               alt={`Media attachment ${index + 1}`} 
             />
           ))}
