@@ -69,7 +69,7 @@ export class EventManager {
             pubkey: fullEvent.pubkey
           };
           
-          // Pass the correct types to finalizeEvent
+          // Fix: Explicitly cast the result to NostrEvent to satisfy TypeScript
           signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes) as NostrEvent;
           
         } catch (keyError) {
