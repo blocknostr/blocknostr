@@ -225,7 +225,7 @@ class NostrService {
       await this.connectToDefaultRelays();
       
       // Fix: Store the subscription as an opaque SubCloser object, not as a string ID
-      const subHandle = this.subscribe(
+      const subCloser = this.subscribe(
         [
           {
             kinds: [EVENT_KINDS.CONTACTS],
@@ -246,7 +246,7 @@ class NostrService {
       
       // Cleanup subscription after a short time
       setTimeout(() => {
-        this.unsubscribe(subHandle);
+        this.unsubscribe(subCloser);
       }, 5000);
     } catch (error) {
       console.error("Error fetching following list:", error);
