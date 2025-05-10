@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
 import { SendHorizontal, SmilePlus, Reply, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Popover,
   PopoverContent,
@@ -413,154 +414,177 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
     return formatDistanceToNow(new Date(timestamp * 1000), { addSuffix: true });
   };
   
-  // Render a comment with its replies
-  const renderComment = (comment: Comment, isReply = false) => {
+  // Find replies to a specific comment
+  const findReplies = (commentId: string): Comment[] => {
+    return comments.filter(c => c.replyTo === commentId);
+  };
+  
+  // Get comment by ID (for finding parent comment)
+  const getCommentById = (id?: string): Comment | undefined => {
+    if (!id) return undefined;
+    return comments.find(c => c.id === id);
+  };
+  
+  // Render a comment with reference to its parent
+  const renderComment = (comment: Comment, depth: number = 0) => {
     if (!comment) return null;
     
     const { name, picture, shortNpub } = getUserDisplayInfo(comment.author);
     const timeAgo = formatTime(comment.createdAt);
     const isCurrentUser = comment.author === currentUserPubkey;
+    const replies = findReplies(comment.id);
+    const parentComment = getCommentById(comment.replyTo);
     
     return (
-      <div 
-        key={comment.id}
-        className={`group ${isReply ? 'ml-8 mt-2' : 'mt-4'}`}
-      >
-        <div className="flex items-start gap-3">
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarImage src={picture} />
-            <AvatarFallback>
-              {name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+      <div key={comment.id}>
+        <div 
+          className={`group ${depth > 0 ? 'pl-4 border-l-2 border-border ml-4' : ''}`}
+        >
+          {/* If this is a reply, show reference to parent comment */}
+          {parentComment && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1 ml-10">
+              <Reply className="h-3 w-3 rotate-180" />
+              <span>Replying to </span>
+              <span className="font-medium">{getUserDisplayInfo(parentComment.author).name}</span>
+            </div>
+          )}
           
-          <div className="flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className={`font-medium ${isCurrentUser ? 'text-primary' : ''}`}>
-                {name}
-              </span>
-              <span className="text-xs text-muted-foreground">@{shortNpub}</span>
-              <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">{timeAgo}</span>
-            </div>
+          <div className="flex items-start gap-3">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage src={picture} />
+              <AvatarFallback>
+                {name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             
-            <div className="mt-1 text-sm">
-              {comment.deleted 
-                ? <span className="italic text-muted-foreground">{comment.content}</span>
-                : comment.content
-              }
-            </div>
-            
-            {/* Reactions display */}
-            {Object.entries(comment.reactions).length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {Object.entries(comment.reactions).map(([emoji, reactors]) => (
-                  <div 
-                    key={emoji} 
-                    className="bg-muted px-2 py-0.5 rounded-full text-xs flex items-center gap-1"
-                    title={`${reactors.length} ${reactors.length === 1 ? 'reaction' : 'reactions'}`}
-                  >
-                    <span>{emoji}</span>
-                    <span>{reactors.length}</span>
-                  </div>
-                ))}
+            <div className="flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className={`font-medium ${isCurrentUser ? 'text-primary' : ''}`}>
+                  {name}
+                </span>
+                <span className="text-xs text-muted-foreground">@{shortNpub}</span>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">{timeAgo}</span>
               </div>
-            )}
-            
-            {/* Action buttons */}
-            {!comment.deleted && currentUserPubkey && (
-              <div className="mt-1 flex gap-2">
-                {/* Reply button */}
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground"
-                  onClick={() => setReplyTo(comment)}
-                >
-                  <Reply className="h-3 w-3 mr-1" />
-                  Reply
-                </Button>
-                
-                {/* Add reaction button */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="h-6 px-2 text-xs text-muted-foreground"
+              
+              <div className="mt-1 text-sm">
+                {comment.deleted 
+                  ? <span className="italic text-muted-foreground">{comment.content}</span>
+                  : comment.content
+                }
+              </div>
+              
+              {/* Reactions display */}
+              {Object.entries(comment.reactions || {}).length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {Object.entries(comment.reactions || {}).map(([emoji, reactors]) => (
+                    <div 
+                      key={emoji} 
+                      className="bg-muted px-2 py-0.5 rounded-full text-xs flex items-center gap-1"
+                      title={`${reactors.length} ${reactors.length === 1 ? 'reaction' : 'reactions'}`}
                     >
-                      <SmilePlus className="h-3 w-3 mr-1" />
-                      React
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-1">
-                    <div className="flex gap-1">
-                      {EMOJI_REACTIONS.map(emoji => (
-                        <Button 
-                          key={emoji} 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => handleReaction(comment.id, emoji)}
-                        >
-                          {emoji}
-                        </Button>
-                      ))}
+                      <span>{emoji}</span>
+                      <span>{reactors.length}</span>
                     </div>
-                  </PopoverContent>
-                </Popover>
-                
-                {/* Delete button (only for comment author) */}
-                {isCurrentUser && (
+                  ))}
+                </div>
+              )}
+              
+              {/* Action buttons */}
+              {!comment.deleted && currentUserPubkey && (
+                <div className="mt-1 flex gap-2">
+                  {/* Reply button with improved styling */}
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    className="h-6 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
-                    onClick={() => handleDeleteComment(comment.id)}
+                    className="h-7 px-2 text-xs hover:bg-primary/10 hover:text-primary flex items-center gap-1"
+                    onClick={() => setReplyTo(comment)}
                   >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Delete
+                    <Reply className="h-3 w-3" />
+                    Reply
                   </Button>
-                )}
-              </div>
-            )}
+                  
+                  {/* Add reaction button */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-7 px-2 text-xs hover:bg-primary/10 hover:text-primary"
+                      >
+                        <SmilePlus className="h-3 w-3 mr-1" />
+                        React
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-1">
+                      <div className="flex gap-1">
+                        {EMOJI_REACTIONS.map(emoji => (
+                          <Button 
+                            key={emoji} 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleReaction(comment.id, emoji)}
+                          >
+                            {emoji}
+                          </Button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {/* Delete button (only for comment author) */}
+                  {isCurrentUser && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-7 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => handleDeleteComment(comment.id)}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        
+        {/* Render replies to this comment */}
+        {replies.length > 0 && (
+          <div className="mt-2">
+            {replies.map(reply => renderComment(reply, depth + 1))}
+          </div>
+        )}
       </div>
     );
   };
   
-  // Process comments to display threads properly
-  const processedComments = comments.filter(c => !c.replyTo); // Top-level comments
+  // Get top-level comments (comments without replyTo)
+  const topLevelComments = comments.filter(c => !c.replyTo);
   
   return (
     <div className="flex flex-col h-full">
-      {/* Chat messages area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loadingComments && comments.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">Loading comments...</p>
-        ) : comments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No comments yet</p>
-            <p className="text-sm mt-1">Be the first to start the discussion!</p>
-          </div>
-        ) : (
-          <>
-            {/* Render top-level comments */}
-            {processedComments.map(comment => (
-              <React.Fragment key={comment.id}>
-                {renderComment(comment)}
-                
-                {/* Render immediate replies to this comment */}
-                {comments
-                  .filter(reply => reply.replyTo === comment.id)
-                  .map(reply => renderComment(reply, true))}
-              </React.Fragment>
-            ))}
-            <div ref={messagesEndRef} /> {/* Empty div for scrolling to bottom */}
-          </>
-        )}
-      </div>
+      {/* Chat messages area with improved scrolling */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-4">
+          {loadingComments && comments.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">Loading comments...</p>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No comments yet</p>
+              <p className="text-sm mt-1">Be the first to start the discussion!</p>
+            </div>
+          ) : (
+            <>
+              {/* Render top-level comments and their replies */}
+              {topLevelComments.map(comment => renderComment(comment))}
+            </>
+          )}
+          <div ref={messagesEndRef} /> {/* Empty div for scrolling to bottom */}
+        </div>
+      </ScrollArea>
       
       {/* Comment input area */}
       {currentUserPubkey ? (
@@ -594,8 +618,9 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
               onClick={handleSubmitComment} 
               disabled={!newComment.trim() || isSubmitting}
               size="sm"
+              className="gap-1"
             >
-              <SendHorizontal className="h-4 w-4 mr-2" />
+              <SendHorizontal className="h-4 w-4" />
               {isSubmitting ? "Sending..." : replyTo ? "Reply" : "Send"}
             </Button>
           </div>

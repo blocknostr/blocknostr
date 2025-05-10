@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from "@/components/ui/card";
@@ -137,7 +138,7 @@ const ProposalCard = ({
   const allVoters = getAllVoters();
   
   return (
-    <Card key={proposal.id} className="overflow-hidden">
+    <Card key={proposal.id} className="overflow-hidden w-full max-w-4xl mx-auto">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">{proposal.title}</CardTitle>
@@ -236,22 +237,22 @@ const ProposalCard = ({
             </div>
           )}
           
-          {/* Chat section toggle */}
+          {/* Chat section toggle with improved styling */}
           <div className="flex items-center">
             <Button
-              variant="ghost"
+              variant={isExpanded ? "default" : "ghost"}
               size="sm"
               onClick={() => setExpandedProposal(isExpanded ? null : proposal.id)}
-              className="text-muted-foreground hover:text-foreground"
+              className={isExpanded ? "" : "text-muted-foreground hover:text-foreground"}
             >
               <MessageSquare className="h-4 w-4 mr-1" />
-              Discussion
+              {isExpanded ? "Hide discussion" : "Discussion"}
             </Button>
           </div>
           
-          {/* Discord-style chat section */}
+          {/* Discord-style chat section with improved width */}
           {isExpanded && (
-            <div className="mt-4 pt-4 border-t w-full max-h-[500px] overflow-hidden rounded-md border">
+            <div className="mt-4 pt-4 border-t w-full h-[500px] overflow-hidden rounded-md border">
               <DiscordStyleChat 
                 proposalId={proposal.id} 
                 communityId={communityId}
