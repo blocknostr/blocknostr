@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Heart, Repeat, MessageSquare, Share, Bookmark } from 'lucide-react';
+import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
@@ -13,11 +13,25 @@ import {
 
 interface NoteCardActionsProps {
   eventId: string;
+  pubkey?: string;
+  onCommentClick?: () => void;
+  replyCount?: number;
+  isAuthor?: boolean;
+  onDelete?: () => void;
   reposterPubkey?: string | null;
   showRepostHeader?: boolean;
 }
 
-const NoteCardActions = ({ eventId, reposterPubkey, showRepostHeader }: NoteCardActionsProps) => {
+const NoteCardActions = ({ 
+  eventId, 
+  pubkey,
+  onCommentClick,
+  replyCount = 0,
+  isAuthor = false,
+  onDelete,
+  reposterPubkey, 
+  showRepostHeader
+}: NoteCardActionsProps) => {
   const [isLiked, setIsLiked] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -166,9 +180,13 @@ const NoteCardActions = ({ eventId, reposterPubkey, showRepostHeader }: NoteCard
           variant="ghost" 
           size="icon" 
           className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
+          onClick={onCommentClick}
           title="Reply"
         >
           <MessageSquare className="h-[18px] w-[18px]" />
+          {replyCount > 0 && (
+            <span className="ml-1 text-xs">{replyCount}</span>
+          )}
         </Button>
         
         <ContextMenu>
@@ -188,6 +206,18 @@ const NoteCardActions = ({ eventId, reposterPubkey, showRepostHeader }: NoteCard
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
+        
+        {isAuthor && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover:text-red-500 hover:bg-red-500/10"
+            onClick={onDelete}
+            title="Delete"
+          >
+            <Trash2 className="h-[18px] w-[18px]" />
+          </Button>
+        )}
       </div>
       
       <Button 

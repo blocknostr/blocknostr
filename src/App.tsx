@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Index from './pages';
+import Index from './pages/Index';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import CommunitiesPage from './pages/CommunitiesPage';
@@ -10,7 +11,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
-import Header from './components/Header';
+import Header from './components/Header/Header';
 import Sidebar from './components/Sidebar';
 import { Toaster } from "@/components/ui/toaster"
 import BookmarksPage from './pages/BookmarksPage';

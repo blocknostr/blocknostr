@@ -42,7 +42,7 @@ export class BookmarkManager {
         tags: updatedBookmarks.map(id => ['e', id])
       };
 
-      const eventId = await this.eventManager.publishEvent(
+      const publishedEventId = await this.eventManager.publishEvent(
         pool,
         publicKey,
         privateKey,
@@ -50,7 +50,7 @@ export class BookmarkManager {
         relays
       );
 
-      return !!eventId;
+      return !!publishedEventId;
     } catch (error) {
       console.error("Error adding bookmark:", error);
       return false;
@@ -111,8 +111,8 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       const bookmarkEvents: string[] = [];
       
-      // Subscribe to bookmark list events
-      const sub = pool.sub(relays, [{
+      // Subscribe to bookmark list events - use the correct method based on SimplePool's API
+      const sub = pool.subscribeMany(relays, [{
         kinds: [EVENT_KINDS.BOOKMARK_LIST],
         authors: [publicKey],
         limit: 1
