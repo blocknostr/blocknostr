@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
