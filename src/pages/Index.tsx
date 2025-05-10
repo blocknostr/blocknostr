@@ -13,30 +13,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
+import { useTheme } from "@/hooks/use-theme";
 
 const Index = () => {
-  const [darkMode, setDarkMode] = useState(true);
+  const { darkMode, toggleDarkMode } = useTheme();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const isMobile = useIsMobile();
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
-  
-  // Toggle dark mode function
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-
-  // Set initial dark mode state based on html class
-  useEffect(() => {
-    setDarkMode(document.documentElement.classList.contains('dark'));
-  }, []);
   
   useEffect(() => {
     // Init connection to relays when the app loads

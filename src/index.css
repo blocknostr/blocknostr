@@ -104,6 +104,15 @@
   }
 }
 
+/* Theme transition classes */
+.color-theme-in-transition,
+.color-theme-in-transition *,
+.color-theme-in-transition *:before,
+.color-theme-in-transition *:after {
+  transition: all 0.5s ease-out !important;
+  transition-delay: 0 !important;
+}
+
 /* Mobile optimizations */
 @layer utilities {
   .touch-action-none {

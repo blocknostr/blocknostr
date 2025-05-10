@@ -1,13 +1,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Lightbulb } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
 
-interface NotificationsHeaderProps {
-  darkMode: boolean;
-  toggleDarkMode: () => void;
-}
-
-const NotificationsHeader = ({ darkMode, toggleDarkMode }: NotificationsHeaderProps) => {
+const NotificationsHeader = () => {
+  const { darkMode, toggleDarkMode } = useTheme();
+  
   return (
     <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
       <div className="flex items-center justify-between h-14 px-4">
