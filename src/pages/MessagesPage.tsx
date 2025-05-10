@@ -53,7 +53,7 @@ const MessagesPage = () => {
               <InfoIcon className="h-4 w-4" />
               <AlertTitle>End-to-End Encrypted</AlertTitle>
               <AlertDescription className="text-sm">
-                Messages are encrypted using NIP-44 (ChaCha20) or NIP-04 for maximum security. Only you and your recipient can read them.
+                Messages are encrypted using NIP-04 for maximum security. Only you and your recipient can read them.
                 <Button 
                   variant="link" 
                   className="p-0 h-auto text-xs ml-2"

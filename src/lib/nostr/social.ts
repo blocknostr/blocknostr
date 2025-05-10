@@ -104,7 +104,7 @@ export class SocialManager {
     }
     
     try {
-      // First try NIP-04 encryption through extension (standard method)
+      // Use NIP-04 encryption through extension (standard method)
       let encryptedContent = content;
       let encryptionSuccessful = false;
       
@@ -116,17 +116,6 @@ export class SocialManager {
           console.log("Message encrypted with NIP-04");
         } catch (e) {
           console.error("NIP-04 encryption failed:", e);
-        }
-      }
-      
-      // If NIP-04 failed and browser supports NIP-44, try that
-      if (!encryptionSuccessful && window.nostr?.nip44) {
-        try {
-          encryptedContent = await window.nostr.nip44.encrypt(recipientPubkey, content);
-          encryptionSuccessful = true;
-          console.log("Message encrypted with NIP-44");
-        } catch (e) {
-          console.error("NIP-44 encryption failed:", e);
         }
       }
       
