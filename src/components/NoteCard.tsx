@@ -39,10 +39,17 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setIsDeleteDialogOpen(true);
   };
 
+  const handleCardClick = () => {
+    window.location.href = `/post/${event.id}`;
+  };
+
   return (
     <>
       <Card className="mb-4 hover:bg-accent/5 transition-colors border-accent/10 shadow-sm overflow-hidden">
-        <Link to={`/post/${event.id}`} className="block cursor-pointer">
+        <div 
+          onClick={handleCardClick}
+          className="cursor-pointer"
+        >
           {repostData && (
             <RepostHeader 
               reposterPubkey={repostData.reposterPubkey}
@@ -61,7 +68,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
               reachCount={reachCount}
             />
           </CardContent>
-        </Link>
+        </div>
         
         <CardFooter className="pt-0 px-5 pb-2">
           <NoteCardActions 

@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
-import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
@@ -12,78 +11,32 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({}); 
-  const following = nostrService.following;
-  const [since, setSince] = useState<number | undefined>(undefined);
-  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [loading, setLoading] = useState(true);
   const [subId, setSubId] = useState<string | null>(null);
+  const following = nostrService.following;
   
-  const loadMoreEvents = () => {
-    if (!subId || following.length === 0) return;
-    
-    // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
-    }
-
-    // Create new subscription with older timestamp range
-    if (!since) {
-      // If no since value yet, get the oldest post timestamp
-      const oldestEvent = events.length > 0 ? 
-        events.reduce((oldest, current) => oldest.created_at < current.created_at ? oldest : current) : 
-        null;
-      
-      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
-      
-      setSince(newSince);
-      setUntil(newUntil);
-      
-      // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
-    } else {
-      // We already have a since value, so use it to get older posts
-      const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
-      
-      setSince(newSince);
-      setUntil(newUntil);
-      
-      // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
-    }
-  };
-  
-  const {
-    loadMoreRef,
-    loading,
-    setLoading,
-    hasMore,
-    setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
-
-  const setupSubscription = (since: number, until?: number) => {
+  const setupSubscription = () => {
     if (following.length === 0) {
       setLoading(false);
       return null;
     }
     
     // Create filters for followed users
+    const currentTime = Math.floor(Date.now() / 1000);
+    const since = currentTime - 24 * 60 * 60 * 7; // Last 7 days
+    
     let filters: any[] = [
       {
         kinds: [1], // Regular notes
         authors: following,
         limit: 50,
-        since: since,
-        until: until
+        since: since
       },
       {
         kinds: [6], // Reposts
         authors: following,
         limit: 20,
-        since: since,
-        until: until
+        since: since
       }
     ];
     
@@ -117,12 +70,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
             // Sort by creation time (newest first)
             newEvents.sort((a, b) => b.created_at - a.created_at);
             
-            // If we've reached the limit, set hasMore to false
-            if (newEvents.length >= 100) {
-              setHasMore(false);
-            }
-            
-            return newEvents;
+            return newEvents.slice(0, 100); // Limit to 100 events
           });
         }
         else if (event.kind === 6) {
@@ -199,7 +147,9 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
           }
           
           // Add new event and sort by creation time (newest first)
-          return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+          const newEvents = [...prev, event];
+          newEvents.sort((a, b) => b.created_at - a.created_at);
+          return newEvents.slice(0, 100); // Limit to 100 events
         });
         
         // Fetch profile data for this pubkey if we don't have it yet
@@ -250,13 +200,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       
       // Reset state when filter changes
       setEvents([]);
-      setHasMore(true);
       setLoading(true);
-      
-      // Reset the timestamp range for new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
-      setSince(undefined);
-      setUntil(currentTime);
       
       // Close previous subscription if exists
       if (subId) {
@@ -264,8 +208,13 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
+      const newSubId = setupSubscription();
       setSubId(newSubId);
+      
+      // Set loading to false after a short delay to ensure we get some results
+      setTimeout(() => {
+        setLoading(false);
+      }, 3000);
       
       if (following.length === 0) {
         setLoading(false);
@@ -281,13 +230,6 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
     };
   }, [following, activeHashtag]);
   
-  // Mark the loading as finished when we get events
-  useEffect(() => {
-    if (events.length > 0 && loading) {
-      setLoading(false);
-    }
-  }, [events, loading]);
-  
   return (
     <div>
       {activeHashtag && events.length === 0 && !loading && (
@@ -296,7 +238,7 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
         </div>
       )}
       
-      {loading && events.length === 0 ? (
+      {loading ? (
         <div className="py-8 text-center text-muted-foreground">
           Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''} from people you follow...
         </div>
@@ -319,15 +261,6 @@ const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
               } : undefined}
             />
           ))}
-          
-          {/* Loading indicator at the bottom */}
-          <div ref={loadMoreRef} className="py-4 text-center">
-            {loading && events.length > 0 && (
-              <div className="text-muted-foreground text-sm">
-                Loading more posts...
-              </div>
-            )}
-          </div>
         </div>
       )}
     </div>

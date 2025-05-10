@@ -29,6 +29,7 @@ const ActionButton = ({
         className={`rounded-full p-2 h-8 w-8 ${active ? activeClass : "text-muted-foreground"} ${hoverClass}`} 
         onClick={e => {
           e.preventDefault();
+          e.stopPropagation(); // Prevent event bubbling
           onClick(e);
         }} 
         aria-label={label}

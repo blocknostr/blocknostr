@@ -43,7 +43,10 @@ const NoteCardActions = ({
   return (
     <div className="flex items-center justify-between w-full pt-2 px-[10px]">
       <div className="flex items-center">
-        <CommentButton onClick={onCommentClick} replyCount={replyCount} />
+        <CommentButton onClick={(e) => {
+          e.stopPropagation(); // Prevent navigation when clicking comment
+          onCommentClick();
+        }} replyCount={replyCount} />
         <RetweetButton onClick={handleRetweet} retweeted={retweeted} retweetCount={retweetCount} />
         <LikeButton onClick={handleLike} liked={liked} likeCount={likeCount} />
       </div>
@@ -51,7 +54,10 @@ const NoteCardActions = ({
       <div className="flex items-center">
         <ViewButton reachCount={reachCount} />
         <TipButton onClick={handleSendTip} tipCount={tipCount} />
-        {isAuthor && onDelete && <DeleteButton onClick={onDelete} />}
+        {isAuthor && onDelete && <DeleteButton onClick={(e) => {
+          e.stopPropagation(); // Prevent navigation when clicking delete
+          onDelete();
+        }} />}
       </div>
     </div>
   );
