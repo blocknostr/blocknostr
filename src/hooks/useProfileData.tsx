@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { NostrEvent, nostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -94,66 +93,28 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
           }
         );
 
-        // Subscribe to user's reposts (kind 6)
-        const repostsSubId = nostrService.subscribe(
-          [
-            {
-              kinds: [6],
-              authors: [hexPubkey],
-              limit: 50
-            }
-          ],
-          (repostEvent) => {
-            try {
-              // Try to parse the content first (some clients store event as JSON)
-              let originalEventId: string | null = null;
-              let originalEventPubkey: string | null = null;
-
-              try {
-                const content = JSON.parse(repostEvent.content);
-                if (content.event && content.event.id) {
-                  originalEventId = content.event.id;
-                  originalEventPubkey = content.event.pubkey;
-                }
-              } catch (e) {
-                // If parsing fails, try to get event reference from tags
-                const eventReference = repostEvent.tags.find(tag => tag[0] === 'e');
-                if (eventReference && eventReference[1]) {
-                  originalEventId = eventReference[1];
-                  
-                  // Find pubkey reference
-                  const pubkeyReference = repostEvent.tags.find(tag => tag[0] === 'p');
-                  originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
-                }
-              }
-
-              if (originalEventId) {
-                // Fetch the original event
-                fetchOriginalPost(originalEventId, originalEventPubkey, repostEvent);
-              }
-            } catch (error) {
-              console.error("Error processing repost:", error);
-            }
-          }
-        );
-
-        // Fetch follower/following data
+        // Fetch contact list according to NIP-02
         const contactsSubId = nostrService.subscribe(
           [
             {
-              kinds: [3],
+              kinds: [3], // Contact Lists (NIP-02)
               authors: [hexPubkey],
               limit: 1
             }
           ],
           (event) => {
             try {
-              // Extract tags with 'p' which indicate following
+              // Extract pubkeys from p tags properly according to NIP-02
               const followingList = event.tags
-                .filter(tag => tag[0] === 'p')
+                .filter(tag => tag.length >= 2 && tag[0] === 'p')
                 .map(tag => tag[1]);
               
               setFollowing(followingList);
+              
+              // If this is the current user, update the following list in nostrService
+              if (isCurrentUser) {
+                nostrService.userManager.setFollowing(followingList);
+              }
             } catch (e) {
               console.error('Failed to parse contacts:', e);
             }
@@ -164,8 +125,8 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
         const followersSubId = nostrService.subscribe(
           [
             {
-              kinds: [3],
-              "#p": [hexPubkey],
+              kinds: [3], // Contact Lists (NIP-02)
+              "#p": [hexPubkey], // Filter for contact lists that contain this pubkey
               limit: 50
             }
           ],
@@ -182,7 +143,6 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
         
         return () => {
           nostrService.unsubscribe(notesSubId);
-          nostrService.unsubscribe(repostsSubId);
           nostrService.unsubscribe(contactsSubId);
           nostrService.unsubscribe(followersSubId);
         };

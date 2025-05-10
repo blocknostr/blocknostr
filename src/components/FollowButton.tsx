@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -15,7 +16,7 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
   const currentUserPubkey = nostrService.publicKey;
   
   useEffect(() => {
-    // Check if user is already following this pubkey
+    // Check if user is already following this pubkey according to NIP-02
     if (pubkey && currentUserPubkey) {
       setIsFollowing(nostrService.isFollowing(pubkey));
     }
@@ -31,6 +32,7 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
     
     try {
       if (isFollowing) {
+        // Unfollow according to NIP-02
         const success = await nostrService.unfollowUser(pubkey);
         if (success) {
           setIsFollowing(false);
@@ -39,6 +41,7 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
           toast.error("Failed to unfollow user");
         }
       } else {
+        // Follow according to NIP-02
         const success = await nostrService.followUser(pubkey);
         if (success) {
           setIsFollowing(true);
@@ -55,6 +58,7 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
     }
   };
   
+  // Don't show follow button for yourself
   if (!currentUserPubkey || currentUserPubkey === pubkey) {
     return null;
   }
