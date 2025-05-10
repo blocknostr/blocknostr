@@ -8,6 +8,7 @@ import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { BookmarkManager } from './bookmark';
+import { TrendingUsersManager, FetchTrendingUsersOptions } from './trending';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ class NostrService {
   private socialManager: SocialManager;
   private communityManager: CommunityManager;
   private bookmarkManager: BookmarkManager;
+  private trendingUsersManager: TrendingUsersManager;
   private pool: SimplePool;
   
   constructor() {
@@ -33,6 +35,7 @@ class NostrService {
     this.socialManager = new SocialManager(this.eventManager, this.userManager);
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManager(this.eventManager);
+    this.trendingUsersManager = new TrendingUsersManager();
     
     // Load user data
     this.userManager.loadUserKeys();
@@ -150,6 +153,51 @@ class NostrService {
         resolve(relays);
       }, 3000);
     });
+  }
+
+  // Add trending users methods
+  public async fetchTrendingUsers(options: FetchTrendingUsersOptions = {}): Promise<any[]> {
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      // Add current user's pubkey to excluded list
+      if (this.publicKey) {
+        options.excludePubkeys = [
+          ...(options.excludePubkeys || []),
+          this.publicKey
+        ];
+      }
+      
+      // Exclude users we already follow
+      if (this.publicKey) {
+        options.excludePubkeys = [
+          ...(options.excludePubkeys || []),
+          ...this.following
+        ];
+      }
+      
+      // Fetch trending users
+      const trendingUsers = await this.trendingUsersManager.fetchTrendingUsers(
+        this.pool,
+        this.getConnectedRelayUrls(),
+        options
+      );
+      
+      // Fetch user profiles for trending users
+      const trendingUsersWithProfiles = await this.trendingUsersManager.fetchUserProfiles(
+        this.pool,
+        this.getConnectedRelayUrls(),
+        trendingUsers
+      );
+      
+      return trendingUsersWithProfiles;
+    } catch (error) {
+      console.error("Error in fetchTrendingUsers:", error);
+      return [];
+    }
   }
 
   // Event publication
@@ -320,7 +368,7 @@ class NostrService {
     if (!pubkey) return null;
     
     try {
-      const connectedRelays = this.getConnectedRelayUrls();
+      const connectedRelays = this.getConnectedRelaysUrls();
       if (connectedRelays.length === 0) {
         await this.connectToDefaultRelays();
       }

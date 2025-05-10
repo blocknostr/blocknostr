@@ -19,10 +19,9 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
     // Check if user is already following this pubkey
     if (pubkey && currentUserPubkey) {
       const followingStatus = nostrService.isFollowing(pubkey);
-      console.log(`Follow status for ${pubkey}: ${followingStatus}`);
       setIsFollowing(followingStatus);
     }
-  }, [pubkey, currentUserPubkey]);
+  }, [pubkey, currentUserPubkey, nostrService.following]); // Add following as a dependency
   
   const handleFollowToggle = async () => {
     if (!currentUserPubkey) {
@@ -39,10 +38,8 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
         if (success) {
           setIsFollowing(false);
           toast.success("Unfollowed user");
-          console.log("Unfollow successful");
         } else {
           toast.error("Failed to unfollow user");
-          console.error("Unfollow failed");
         }
       } else {
         console.log(`Attempting to follow user: ${pubkey}`);
@@ -50,10 +47,8 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
         if (success) {
           setIsFollowing(true);
           toast.success("Following user");
-          console.log("Follow successful");
         } else {
           toast.error("Failed to follow user");
-          console.error("Follow failed");
         }
       }
     } catch (error) {
