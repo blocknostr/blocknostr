@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -35,7 +34,6 @@ const NoteCardActions = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
   // Check bookmarked status on mount
@@ -118,8 +116,7 @@ const NoteCardActions = ({
     }
   };
   
-  // Use useCallback to prevent unnecessary recreations of the function
-  const handleBookmark = useCallback(async (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
     e.stopPropagation();
     
@@ -128,14 +125,7 @@ const NoteCardActions = ({
       return;
     }
     
-    // If an operation is already pending, don't allow another one
-    if (isBookmarkPending) {
-      return;
-    }
-    
     try {
-      setIsBookmarkPending(true);
-      
       if (isBookmarked) {
         // Remove bookmark
         setIsBookmarked(false); // Optimistically update UI
@@ -161,24 +151,6 @@ const NoteCardActions = ({
       console.error("Error bookmarking post:", error);
       setIsBookmarked(!isBookmarked); // Revert UI state
       toast.error("Failed to update bookmark");
-    } finally {
-      setIsBookmarkPending(false);
-    }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending]);
-  
-  // Handle comment click with event stopping
-  const handleCommentButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onCommentClick) {
-      onCommentClick();
-    }
-  };
-  
-  // Handle delete click with event stopping
-  const handleDeleteButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete();
     }
   };
   
@@ -210,7 +182,7 @@ const NoteCardActions = ({
           variant="ghost" 
           size="icon" 
           className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
-          onClick={handleCommentButtonClick}
+          onClick={onCommentClick}
           title="Reply"
         >
           <MessageSquare className="h-[18px] w-[18px]" />
@@ -226,13 +198,12 @@ const NoteCardActions = ({
               size="icon"
               className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
               title="Bookmark"
-              onClick={handleBookmark}
-              disabled={isBookmarkPending}
+              onClick={(e) => handleBookmark(e)}
             >
               <Bookmark className="h-[18px] w-[18px]" />
             </Button>
           </ContextMenuTrigger>
-          <ContextMenuContent onClick={(e) => e.stopPropagation()}>
+          <ContextMenuContent>
             <ContextMenuItem onClick={(e) => {
               e.preventDefault();
               handleBookmark(e as unknown as React.MouseEvent);
@@ -247,7 +218,7 @@ const NoteCardActions = ({
             variant="ghost"
             size="icon"
             className="rounded-full hover:text-red-500 hover:bg-red-500/10"
-            onClick={handleDeleteButtonClick}
+            onClick={onDelete}
             title="Delete"
           >
             <Trash2 className="h-[18px] w-[18px]" />
