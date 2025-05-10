@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Users } from "lucide-react";
@@ -39,7 +40,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
     return date.toLocaleDateString();
   };
 
-  const handleLeaveClick = () => {
+  const handleLeaveClick = async () => {
     if (!currentUserPubkey) {
       return;
     }
@@ -66,19 +67,12 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         ]
       };
       
-      // Handle the promise internally
-      nostrService.publishEvent(event)
-        .then((publishResult) => {
-          if (publishResult) {
-            toast.success("You have left the community");
-          } else {
-            toast.error("Failed to leave the community");
-          }
-        })
-        .catch((error) => {
-          console.error("Error leaving community:", error);
-          toast.error("Failed to leave community");
-        });
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("You have left the community");
+      } else {
+        toast.error("Failed to leave the community");
+      }
     } catch (error) {
       console.error("Error leaving community:", error);
       toast.error("Failed to leave community");

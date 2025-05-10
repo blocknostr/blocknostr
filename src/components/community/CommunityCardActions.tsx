@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Link as LinkIcon } from "lucide-react";
@@ -61,58 +62,16 @@ const CommunityCardActions = ({
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success("You have joined the community!");
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("You have joined the community!");
+        // The UI will update when the event is received through the subscription
+      } else {
+        toast.error("Failed to join community");
+      }
     } catch (error) {
       console.error("Error joining community:", error);
       toast.error("Failed to join community");
-    }
-  };
-
-  const handleLeaveClick = () => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to leave a community");
-      return;
-    }
-    
-    try {
-      // Remove the current user from members
-      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
-      
-      // Create an updated community event without the current user
-      const communityData = {
-        name: community.name,
-        description: community.description,
-        image: community.image,
-        creator: community.creator,
-        createdAt: community.createdAt
-      };
-      
-      const event = {
-        kind: 34550,
-        content: JSON.stringify(communityData),
-        tags: [
-          ['d', community.uniqueId],
-          ...updatedMembers.map(member => ['p', member])
-        ]
-      };
-      
-      // Handle the promise internally
-      nostrService.publishEvent(event)
-        .then((publishResult) => {
-          if (publishResult) {
-            toast.success("You have left the community");
-          } else {
-            toast.error("Failed to leave the community");
-          }
-        })
-        .catch((error) => {
-          console.error("Error leaving community:", error);
-          toast.error("Failed to leave community");
-        });
-    } catch (error) {
-      console.error("Error leaving community:", error);
-      toast.error("Failed to leave community");
     }
   };
 
