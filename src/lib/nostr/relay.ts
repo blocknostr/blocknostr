@@ -95,8 +95,14 @@ export class RelayManager {
       // Calculate latency
       try {
         const startTime = performance.now();
-        const relay = this._pool.ensureRelay(url);
+        
+        // Fix: Properly await the Promise returned by ensureRelay
+        const relayPromise = this._pool.ensureRelay(url);
+        const relay = await relayPromise;
+        
+        // Now connect to the resolved relay object
         await relay.connect();
+        
         const endTime = performance.now();
         const latency = Math.round(endTime - startTime);
         
