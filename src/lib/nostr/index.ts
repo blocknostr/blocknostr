@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -8,6 +7,7 @@ import { SubscriptionManager } from './subscription';
 import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
+import { BookmarkManager } from './bookmark';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
 
@@ -18,6 +18,7 @@ class NostrService {
   private eventManager: EventManager;
   private socialManager: SocialManager;
   private communityManager: CommunityManager;
+  private bookmarkManager: BookmarkManager;
   private pool: SimplePool;
   
   constructor() {
@@ -31,6 +32,7 @@ class NostrService {
     this.eventManager = new EventManager();
     this.socialManager = new SocialManager(this.eventManager, this.userManager);
     this.communityManager = new CommunityManager(this.eventManager);
+    this.bookmarkManager = new BookmarkManager(this.eventManager);
     
     // Load user data
     this.userManager.loadUserKeys();
@@ -382,7 +384,50 @@ class NostrService {
     return fetchNip05Data(identifier);
   }
   
-  // Private helper methods
+  // Bookmark methods
+  async addBookmark(eventId: string): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.addBookmark(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      eventId,
+      connectedRelays
+    );
+  }
+  
+  async removeBookmark(eventId: string): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.removeBookmark(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      eventId,
+      connectedRelays
+    );
+  }
+  
+  async getBookmarks(): Promise<string[]> {
+    if (!this.publicKey) return [];
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.getBookmarkList(
+      this.pool,
+      this.publicKey,
+      connectedRelays
+    );
+  }
+  
+  async isBookmarked(eventId: string): Promise<boolean> {
+    if (!this.publicKey) return false;
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.isBookmarked(
+      this.pool,
+      this.publicKey,
+      eventId,
+      connectedRelays
+    );
+  }
+  
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
     
