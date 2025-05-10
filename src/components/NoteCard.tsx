@@ -35,10 +35,15 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const [replyCount, setReplyCount] = useState(0);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reachCount, setReachCount] = useState(0);
   
-  // Fetch reply count when component mounts
+  // Fetch reply count and calculate reach when component mounts
   useEffect(() => {
     if (!event.id) return;
+    
+    // Get a random reach count between 50 and 10000 for demonstration
+    // In a real app, you would track actual impressions
+    setReachCount(Math.floor(Math.random() * 9950) + 50);
     
     const fetchReplyCount = async () => {
       const subId = nostrService.subscribe(
@@ -135,7 +140,10 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
               createdAt={event.created_at} 
               profileData={profileData} 
             />
-            <NoteCardContent content={event.content} />
+            <NoteCardContent 
+              content={event.content} 
+              reachCount={reachCount}
+            />
           </CardContent>
         </Link>
         

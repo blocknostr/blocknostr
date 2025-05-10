@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NoteCardContentProps {
   content: string;
+  reachCount?: number;
 }
 
-const NoteCardContent = ({ content }: NoteCardContentProps) => {
+const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -115,6 +116,12 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
           ))}
         </div>
       )}
+      
+      {/* Post Reach information */}
+      <div className="flex items-center mt-2 text-xs text-muted-foreground">
+        <Eye className="h-3.5 w-3.5 mr-1" />
+        <span>{reachCount.toLocaleString()} views</span>
+      </div>
       
       {/* Display media content */}
       {mediaUrls.length > 0 && (
