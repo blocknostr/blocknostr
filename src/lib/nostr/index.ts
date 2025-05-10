@@ -152,6 +152,89 @@ class NostrService {
     });
   }
 
+  /**
+   * Fetch a community by its ID
+   * @param communityId - The ID of the community to fetch
+   * @returns Promise resolving to community data or null if not found
+   */
+  public async fetchCommunity(communityId: string): Promise<{
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    creator: string;
+    createdAt: number;
+    members: string[];
+    uniqueId: string;
+  } | null> {
+    if (!communityId) return null;
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      if (connectedRelays.length === 0) {
+        await this.connectToDefaultRelays();
+      }
+      
+      return new Promise((resolve) => {
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.COMMUNITY],
+              ids: [communityId],
+              limit: 1
+            }
+          ],
+          (event) => {
+            try {
+              // Parse content and extract community data
+              const content = JSON.parse(event.content);
+              
+              // Get members from p tags
+              const members = event.tags
+                .filter(tag => tag.length >= 2 && tag[0] === 'p')
+                .map(tag => tag[1]);
+              
+              // Extract unique identifier from d tag
+              const dTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'd');
+              const uniqueId = dTag ? dTag[1] : '';
+              
+              // Construct community object
+              const community = {
+                id: event.id,
+                name: content.name || '',
+                description: content.description || '',
+                image: content.image || '',
+                creator: content.creator || event.pubkey,
+                createdAt: content.createdAt || event.created_at,
+                members,
+                uniqueId
+              };
+              
+              resolve(community);
+              
+              // Cleanup subscription after receiving the community
+              setTimeout(() => {
+                this.unsubscribe(subId);
+              }, 100);
+            } catch (e) {
+              console.error("Error parsing community:", e);
+              resolve(null);
+            }
+          }
+        );
+        
+        // Set a timeout to resolve with null if no community is found
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(null);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching community:", error);
+      return null;
+    }
+  }
+
   // Event publication
   public async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
