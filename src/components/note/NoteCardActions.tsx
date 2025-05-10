@@ -38,34 +38,38 @@ const NoteCardActions = ({
   } = useNoteActions({ eventId, pubkey });
 
   return (
-    <div className="flex items-center w-full gap-5 pt-2">
-      <CommentButton 
-        onClick={onCommentClick}
-        replyCount={replyCount}
-      />
+    <div className="flex items-center justify-between w-full pt-3">
+      <div className="flex gap-2 md:gap-3">
+        <CommentButton 
+          onClick={onCommentClick}
+          replyCount={replyCount}
+        />
+        
+        <RetweetButton 
+          onClick={handleRetweet}
+          retweeted={retweeted}
+          retweetCount={retweetCount}
+        />
+        
+        <LikeButton 
+          onClick={handleLike}
+          liked={liked}
+          likeCount={likeCount}
+        />
+      </div>
       
-      <RetweetButton 
-        onClick={handleRetweet}
-        retweeted={retweeted}
-        retweetCount={retweetCount}
-      />
-      
-      <LikeButton 
-        onClick={handleLike}
-        liked={liked}
-        likeCount={likeCount}
-      />
-      
-      <ViewButton reachCount={reachCount} />
-      
-      <TipButton 
-        onClick={handleSendTip}
-        tipCount={tipCount}
-      />
-      
-      {isAuthor && onDelete && (
-        <DeleteButton onClick={onDelete} />
-      )}
+      <div className="flex gap-2 md:gap-3">
+        <ViewButton reachCount={reachCount} />
+        
+        <TipButton 
+          onClick={handleSendTip}
+          tipCount={tipCount}
+        />
+        
+        {isAuthor && onDelete && (
+          <DeleteButton onClick={onDelete} />
+        )}
+      </div>
     </div>
   );
 };
