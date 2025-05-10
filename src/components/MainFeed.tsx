@@ -1,5 +1,7 @@
+
 import { useEffect, useState } from "react";
-import { NostrEvent, nostrService, type SubCloser } from "@/lib/nostr";
+import type { NostrEvent, SubCloser } from "@/lib/nostr/types";
+import { nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";

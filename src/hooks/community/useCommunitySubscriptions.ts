@@ -1,5 +1,6 @@
 
-import { NostrEvent, nostrService, SubCloser } from "@/lib/nostr";
+import type { NostrEvent, SubCloser } from "@/lib/nostr/types";
+import { nostrService } from "@/lib/nostr";
 
 export const useCommunitySubscriptions = (
   communityId: string | undefined,

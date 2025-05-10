@@ -210,7 +210,6 @@ export class RelayManager {
       const relays: {url: string, read: boolean, write: boolean}[] = [];
       
       // Subscribe to NIP-65 relay list event (kind 10002)
-      // Use the correct subscription method as per NIP-01
       const filters: Filter[] = [
         {
           kinds: [10002], // NIP-65 relay list kind
@@ -220,7 +219,7 @@ export class RelayManager {
       ];
       
       // Use the correct SimplePool methods according to NIP-01
-      const sub = this.pool.subscribeMany(
+      const subscription = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -228,35 +227,31 @@ export class RelayManager {
         filters,
         {
           onevent: (event) => {
-            try {
-              // Parse the relay list from tags
-              const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-              
-              relayTags.forEach(tag => {
-                if (tag[1] && typeof tag[1] === 'string') {
-                  let read = true;
-                  let write = true;
-                  
-                  // Check if read/write permissions specified in tag
-                  if (tag.length >= 3 && typeof tag[2] === 'string') {
-                    const relayPermission = tag[2].toLowerCase();
-                    read = relayPermission.includes('read');
-                    write = relayPermission.includes('write');
-                  }
-                  
-                  relays.push({ url: tag[1], read, write });
+            // Parse the relay list from tags
+            const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
+            
+            relayTags.forEach(tag => {
+              if (tag[1] && typeof tag[1] === 'string') {
+                let read = true;
+                let write = true;
+                
+                // Check if read/write permissions specified in tag
+                if (tag.length >= 3 && typeof tag[2] === 'string') {
+                  const relayPermission = tag[2].toLowerCase();
+                  read = relayPermission.includes('read');
+                  write = relayPermission.includes('write');
                 }
-              });
-            } catch (error) {
-              console.error("Error parsing relay list:", error);
-            }
+                
+                relays.push({ url: tag[1], read, write });
+              }
+            });
           }
         }
       );
       
       // Set a timeout to resolve with found relays
       setTimeout(() => {
-        this.pool.close([sub]);
+        this.pool.close([subscription]);
         
         // If no relays found via NIP-65, try the older NIP-01 kind (10001)
         if (relays.length === 0) {
@@ -285,7 +280,7 @@ export class RelayManager {
       ];
       
       // Store the subscription
-      const sub = this.pool.subscribeMany(
+      const subscription = this.pool.subscribeMany(
         // Use connected relay URLs if available, otherwise default relays
         Array.from(this.relays.keys()).length > 0 
           ? Array.from(this.relays.keys()) 
@@ -315,7 +310,7 @@ export class RelayManager {
       
       // Set a timeout to resolve with found relays
       setTimeout(() => {
-        this.pool.close([sub]);
+        this.pool.close([subscription]);
         resolve(relays);
       }, 3000);
     });

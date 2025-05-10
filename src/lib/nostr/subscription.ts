@@ -20,7 +20,6 @@ export class SubscriptionManager {
     this.subscriptions.set(subId, new Set([onEvent]));
     
     // Use the pool to subscribe according to NIP-01 guidelines
-    // Return the SubCloser object from SimplePool
     const subscription = this.pool.subscribeMany(
       relays,
       filters,

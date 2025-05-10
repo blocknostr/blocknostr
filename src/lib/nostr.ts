@@ -1,8 +1,10 @@
 import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
-import { NostrEvent, Relay, type SubCloser } from './nostr/types';
+// Use explicit type imports to fix the isolatedModules error
+import type { NostrEvent, Relay, SubCloser } from './nostr/types';
 
-export { NostrEvent, Relay, SubCloser };
+// Re-export types with the correct syntax for isolatedModules
+export type { NostrEvent, Relay, SubCloser };
 
 export const EVENT_KINDS = {
   META: 0,            // Profile metadata
@@ -29,7 +31,7 @@ class NostrService {
     'wss://nostr.bitcoiner.social'
   ];
   
-  private subscriptions: Map<any, Set<(event: NostrEvent) => void>> = new Map();
+  private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private pubkeyHandles: Map<string, string> = new Map();
@@ -609,13 +611,40 @@ class NostrService {
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
   ): SubCloser {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return the SubCloser function from the subscription manager
-    return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
+    const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
+    
+    this.subscriptions.set(subId, new Set([onEvent]));
+    
+    // Send subscription request to all connected relays
+    for (const [_, socket] of this.relays.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["REQ", subId, ...filters]));
+      }
+    }
+    
+    // Return a function that will unsubscribe when called
+    return () => {
+      this.unsubscribe(subId);
+    };
   }
   
-  public unsubscribe(subHandle: SubCloser): void {
-    this.subscriptionManager.unsubscribe(subHandle);
+  public unsubscribe(subHandle: SubCloser | string): void {
+    // If it's a function (SubCloser), execute it to close
+    if (typeof subHandle === 'function') {
+      subHandle();
+      return;
+    }
+    
+    // Otherwise, it's a string ID
+    const subId = subHandle;
+    this.subscriptions.delete(subId);
+    
+    // Send unsubscribe request to all connected relays
+    for (const [_, socket] of this.relays.entries()) {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(["CLOSE", subId]));
+      }
+    }
   }
   
   // Messaging with NIP-17
