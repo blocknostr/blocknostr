@@ -99,7 +99,7 @@ class NostrService {
     return this.relayManager.getRelayStatus();
   }
   
-  // Add a method to add multiple relays at once
+  // Method to add multiple relays at once
   public async addMultipleRelays(relayUrls: string[]): Promise<number> {
     if (!relayUrls.length) return 0;
     
@@ -117,7 +117,7 @@ class NostrService {
     return successCount;
   }
   
-  // Public method to get relays for a user
+  // Method to get relays for a user
   public async getRelaysForUser(pubkey: string): Promise<string[]> {
     return new Promise((resolve) => {
       const relays: string[] = [];
