@@ -1,4 +1,3 @@
-
 import { SimplePool, nip19, getEventHash, Filter } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
@@ -151,16 +150,17 @@ export class SocialManager {
       let tags: string[][] = [];
       let content = '';
       
-      // Subscribe to contact list events - using proper Filter type
+      // Create a single filter object, not an array of filters
       const filter: Filter = {
         kinds: [EVENT_KINDS.CONTACTS],
         authors: [pubkey],
         limit: 1
       };
       
-      const sub = pool.subscribe(
+      // Use subscribeMany instead of subscribe for compatibility with Filter
+      const sub = pool.subscribeMany(
         relayUrls,
-        [filter],
+        [filter], // Pass as an array to subscribeMany
         {
           // Event callback
           event: (event: NostrEvent) => {
@@ -388,10 +388,10 @@ export class SocialManager {
         "#e": [eventId]
       };
       
-      // Subscribe to reactions (kind 7)
-      const reactSub = pool.subscribe(
+      // Use subscribeMany for both subscriptions
+      const reactSub = pool.subscribeMany(
         relayUrls,
-        [reactionFilter],
+        [reactionFilter], // Pass as an array to subscribeMany
         {
           event: (event: NostrEvent) => {
             if (event.content === "+" || event.content === "❤️" || event.content === "❤") {
@@ -408,9 +408,9 @@ export class SocialManager {
       );
       
       // Subscribe to reposts (kind 6)
-      const repostSub = pool.subscribe(
+      const repostSub = pool.subscribeMany(
         relayUrls,
-        [repostFilter],
+        [repostFilter], // Pass as an array to subscribeMany
         {
           event: (event: NostrEvent) => {
             reposts++;

@@ -4,6 +4,7 @@ import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-re
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
+import { SimplePool } from 'nostr-tools';
 import { 
   ContextMenu,
   ContextMenuContent,
@@ -61,8 +62,8 @@ const NoteCardActions = ({
           await nostrService.connectToDefaultRelays();
         }
         
-        // Get reaction counts from our social manager
-        const pool = new nostrService.relayManager.pool.constructor();
+        // Create a new SimplePool instance rather than accessing the private one
+        const pool = new SimplePool();
         const counts = await nostrService.socialManager.getReactionCounts(
           pool,
           eventId,
@@ -95,9 +96,10 @@ const NoteCardActions = ({
       setIsLiked(true);
       setLikeCount(prev => prev + 1);
       
-      // Use our improved NIP-25 implementation
+      // Create a new SimplePool instance
+      const pool = new SimplePool();
       const result = await nostrService.socialManager.reactToEvent(
-        nostrService.relayManager.pool,
+        pool,
         eventId,
         "+", // "+" means like per NIP-25
         nostrService.publicKey,
@@ -133,13 +135,15 @@ const NoteCardActions = ({
       setIsReposted(true);
       setRepostCount(prev => prev + 1);
       
+      // Create a new SimplePool instance
+      const pool = new SimplePool();
       // Use our improved NIP-18 implementation
       const relayHint = nostrService.getRelayStatus()
         .filter(relay => relay.status === 'connected')
         .map(relay => relay.url)[0] || null;
         
       const result = await nostrService.socialManager.repostEvent(
-        nostrService.relayManager.pool,
+        pool,
         eventId,
         pubkey,
         relayHint,

@@ -1,4 +1,3 @@
-
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
 import { SimplePool } from 'nostr-tools';
@@ -42,7 +41,7 @@ export class BookmarkManager {
 
       // Create the bookmark list event
       const event = {
-        kind: EVENT_KINDS.BOOKMARK_LIST,
+        kind: EVENT_KINDS.BOOKMARKS, // Use the BOOKMARKS constant
         content: "",
         tags: updatedBookmarks.map(id => ['e', id])
       };
@@ -91,7 +90,7 @@ export class BookmarkManager {
       
       // Create updated bookmark list event
       const event = {
-        kind: EVENT_KINDS.BOOKMARK_LIST,
+        kind: EVENT_KINDS.BOOKMARKS, // Use the BOOKMARKS constant
         content: "",
         tags: updatedBookmarks.map(id => ['e', id])
       };
@@ -134,7 +133,7 @@ export class BookmarkManager {
       const sub = pool.subscribeMany(
         relays,
         [{
-          kinds: [EVENT_KINDS.BOOKMARK_LIST],
+          kinds: [EVENT_KINDS.BOOKMARKS], // Use the BOOKMARKS constant
           authors: [publicKey],
           limit: 1
         }],

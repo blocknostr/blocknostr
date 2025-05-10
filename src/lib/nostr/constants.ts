@@ -13,7 +13,10 @@ export const EVENT_KINDS = {
   ENCRYPTED_DM_V2: 14,   // Encrypted direct message - NIP-17 (replaces kind:4)
   RELAY_LIST: 10002,     // Relay list metadata - NIP-65
   COMMUNITY: 34550,      // Communities - NIP-172
-  BOOKMARKS: 10003,      // Bookmarks - NIP-51
+  BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51 (was missing)
+  BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST
+  PROPOSAL: 34551,       // Custom kind for proposals (was missing)
+  VOTE: 34552,           // Custom kind for votes (was missing)
   BADGES: 30009,         // Badge definition - NIP-58
   ZAP_REQUEST: 9734,     // Zap Request - NIP-57
   ZAP_RECEIPT: 9735      // Zap Receipt - NIP-57

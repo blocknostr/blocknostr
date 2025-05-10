@@ -85,7 +85,7 @@ export class CommunityManager {
       
       // Create proposal event
       const event = {
-        kind: EVENT_KINDS.PROPOSAL,
+        kind: EVENT_KINDS.PROPOSAL, // Now using the constant we added
         content: JSON.stringify(proposalData),
         tags: [
           ['e', communityId], // Reference to community
@@ -125,7 +125,7 @@ export class CommunityManager {
       
       // Create vote event
       const event = {
-        kind: EVENT_KINDS.VOTE,
+        kind: EVENT_KINDS.VOTE, // Now using the constant we added
         content: optionIndex.toString(), // Content must be a string
         tags: [
           ['e', proposalId] // Reference to proposal
