@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
-import MediaPreview from '../MediaPreview';
+import { MediaPreview } from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -123,7 +123,7 @@ const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
           {mediaUrls.map((url, index) => (
             <MediaPreview 
               key={index} 
-              url={url} 
+              src={url} 
               alt={`Media attachment ${index + 1}`} 
             />
           ))}

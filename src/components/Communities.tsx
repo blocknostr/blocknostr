@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -54,12 +55,13 @@ const Communities = () => {
         communityData = event.content ? JSON.parse(event.content) : {};
       } catch (parseError) {
         console.error("Error parsing community JSON:", parseError);
-        // Provide minimal fallback data structure if parsing fails
-        communityData = {
-          name: 'Unnamed Community',
-          description: '',
-          image: '',
-        };
+        // Skip malformed community data
+        return;
+      }
+      
+      // Skip communities without a proper name
+      if (!communityData.name || communityData.name === 'Unnamed Community') {
+        return;
       }
       
       // Get members from tags
@@ -68,7 +70,7 @@ const Communities = () => {
       
       const community: Community = {
         id: event.id,
-        name: communityData.name || 'Unnamed Community',
+        name: communityData.name,
         description: communityData.description || '',
         image: communityData.image || '',
         creator: event.pubkey || '',

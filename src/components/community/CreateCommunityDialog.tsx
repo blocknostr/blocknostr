@@ -8,28 +8,44 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 
 interface CreateCommunityDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
 }
 
+// Form validation schema
+const formSchema = z.object({
+  name: z.string().min(3, {
+    message: "Community name must be at least 3 characters.",
+  }),
+  description: z.string().min(10, {
+    message: "Description must be at least 10 characters.",
+  }),
+});
+
 const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps) => {
   const navigate = useNavigate();
-  const [newCommunityName, setNewCommunityName] = useState("");
-  const [newCommunityDesc, setNewCommunityDesc] = useState("");
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
   
   const currentUserPubkey = nostrService.publicKey;
 
-  const handleCreateCommunity = async () => {
+  // Setup form with validation
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+    },
+  });
+  
+  const handleCreateCommunity = async (values: z.infer<typeof formSchema>) => {
     if (!currentUserPubkey) {
       toast.error("You must be logged in to create a community");
-      return;
-    }
-    
-    if (!newCommunityName.trim()) {
-      toast.error("Community name is required");
       return;
     }
     
@@ -37,14 +53,13 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
     
     try {
       const communityId = await nostrService.createCommunity(
-        newCommunityName.trim(),
-        newCommunityDesc.trim()
+        values.name.trim(),
+        values.description.trim()
       );
       
       if (communityId) {
         toast.success("Community created successfully!");
-        setNewCommunityName("");
-        setNewCommunityDesc("");
+        form.reset();
         setIsOpen(false);
         
         // Navigate to the new community
@@ -72,35 +87,52 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
         <DialogHeader>
           <DialogTitle>Create a new community</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Input
-              placeholder="Community Name"
-              value={newCommunityName}
-              onChange={(e) => setNewCommunityName(e.target.value)}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4 py-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Community Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter community name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Description"
-              value={newCommunityDesc}
-              onChange={(e) => setNewCommunityDesc(e.target.value)}
-              rows={4}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe your community..."
+                      rows={4}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <Button 
-            onClick={handleCreateCommunity}
-            disabled={isCreatingCommunity || !newCommunityName.trim()}
-            className="w-full"
-          >
-            {isCreatingCommunity ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4 mr-2" />
-            )}
-            Create Community
-          </Button>
-        </div>
+            <Button 
+              type="submit"
+              disabled={isCreatingCommunity}
+              className="w-full"
+            >
+              {isCreatingCommunity ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              Create Community
+            </Button>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
