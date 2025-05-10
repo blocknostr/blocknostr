@@ -11,9 +11,8 @@ const InitiateVerificationButton = ({ isVerifying, onClick }: InitiateVerificati
   return (
     <Button 
       type="button"
-      variant="outline"
       onClick={onClick}
-      className="w-full flex items-center gap-2"
+      className="w-full flex items-center gap-2 bg-[#1DA1F2] hover:bg-[#1a94df] text-white"
       disabled={isVerifying}
     >
       {isVerifying ? (

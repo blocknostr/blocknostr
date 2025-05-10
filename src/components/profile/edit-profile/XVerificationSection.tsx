@@ -110,10 +110,10 @@ const XVerificationSection = ({
   };
 
   return (
-    <div className="space-y-2 border border-gray-200 rounded-md p-4 bg-gray-50">
+    <div className="space-y-2 border border-gray-200 rounded-md p-4 bg-gradient-to-r from-gray-50 to-blue-50/30">
       <div className="flex items-center gap-2 mb-2">
-        <Twitter className="h-5 w-5 text-blue-500" />
-        <h3 className="font-medium">X (Twitter) Account</h3>
+        <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+        <h3 className="font-medium text-gray-800">X (Twitter) Account</h3>
         <XVerificationTooltip />
       </div>
       
