@@ -16,15 +16,55 @@ import {
 interface LeaveCommunityButtonProps {
   onLeave: () => void;
   communityName: string;
+  subtle?: boolean;
 }
 
-const LeaveCommunityButton = ({ onLeave, communityName }: LeaveCommunityButtonProps) => {
+const LeaveCommunityButton = ({ onLeave, communityName, subtle = false }: LeaveCommunityButtonProps) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const handleConfirmLeave = () => {
     onLeave();
     setShowConfirmation(false);
   };
+
+  if (subtle) {
+    return (
+      <>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-full bg-black/30 hover:bg-black/40 text-white"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowConfirmation(true);
+          }}
+          aria-label="Leave Community"
+        >
+          <UserMinus className="h-4 w-4" />
+        </Button>
+
+        <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Leave Community?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to leave <span className="font-semibold">{communityName}</span>? You'll no longer be able to participate in community discussions and proposals.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={(e) => {
+                e.stopPropagation();
+                handleConfirmLeave();
+              }} className="bg-red-500 hover:bg-red-600">
+                Leave
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
 
   return (
     <>

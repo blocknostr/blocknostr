@@ -5,6 +5,7 @@ import { Users } from "lucide-react";
 import CommunityCardHeader from "./CommunityCardHeader";
 import CommunityCardActions from "./CommunityCardActions";
 import { formatSerialNumber } from "@/lib/community-utils";
+import LeaveCommunityButton from "./LeaveCommunityButton";
 
 export interface Community {
   id: string;
@@ -39,14 +40,27 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
 
   return (
     <Card 
-      className={`overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col ${isMember ? 'border-primary/30' : ''}`}
+      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col"
       onClick={navigateToCommunity}
     >
-      <CommunityCardHeader 
-        id={community.id}
-        name={community.name}
-        image={community.image}
-      />
+      <div className="relative">
+        <CommunityCardHeader 
+          id={community.id}
+          name={community.name}
+          image={community.image}
+        />
+        
+        {/* Leave button - only shown for members who aren't creators */}
+        {isMember && !isCreator && currentUserPubkey && (
+          <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
+            <LeaveCommunityButton 
+              onLeave={() => {}} // Will be handled by CommunityCardActions
+              communityName={community.name}
+              subtle={true}
+            />
+          </div>
+        )}
+      </div>
       
       <CardHeader className="pb-2 flex-none">
         <div className="flex items-center justify-between">

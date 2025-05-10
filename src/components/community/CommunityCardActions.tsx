@@ -1,10 +1,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Link as LinkIcon, UserMinus } from "lucide-react";
+import { UserPlus, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
-import LeaveCommunityButton from "./LeaveCommunityButton";
 
 interface CommunityCardActionsProps {
   community: {
@@ -68,7 +67,9 @@ const CommunityCardActions = ({
     }
   };
 
-  const handleLeaveClick = async () => {
+  const handleLeaveClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
     if (!currentUserPubkey) {
       toast.error("You must be logged in to leave a community");
       return;
@@ -141,15 +142,7 @@ const CommunityCardActions = ({
         )}
         {(isMember || isCreator) && (
           <>
-            {/* Show Leave button for members who aren't creators */}
-            {isMember && !isCreator && (
-              <LeaveCommunityButton 
-                onLeave={handleLeaveClick}
-                communityName={community.name}
-              />
-            )}
-            
-            {/* Show view and share buttons */}
+            {/* Show view button */}
             <Button 
               variant="outline" 
               className="flex-1"
