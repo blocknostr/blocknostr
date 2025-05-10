@@ -1,12 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { NostrEvent, nostrService, RelayTrustLevel } from '@/lib/nostr';
+import { NostrEvent, nostrService } from '@/lib/nostr';
 import NoteCardHeader from './note/NoteCardHeader';
 import NoteCardContent from './note/NoteCardContent';
 import NoteCardActions from './note/NoteCardActions';
 import NoteCardComments from './note/NoteCardComments';
-import { Repeat, Shield, AlertCircle } from 'lucide-react';
+import { Repeat } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from "sonner";
 import {
@@ -19,7 +18,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -37,29 +35,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reachCount, setReachCount] = useState(0);
-  const [hasNecessaryTrustedRelays, setHasNecessaryTrustedRelays] = useState(true);
-  
-  // Check for trusted relays when posting sensitive content (NIP-B7)
-  useEffect(() => {
-    const checkTrustedRelays = () => {
-      // Determine if this content might be sensitive
-      // Consider content sensitive if it has p tags (mentions others) or a tags (contains attachments)
-      const hasMentions = event.tags.some(tag => tag[0] === 'p');
-      const hasAttachments = event.tags.some(tag => tag[0] === 'a');
-      const isDM = event.kind === 4;
-      const isSensitiveKind = [4, 13, 14, 15, 16].includes(event.kind); // DMs and other sensitive kinds
-      
-      // If this is sensitive content, check for trusted relays
-      if (isSensitiveKind || isDM || hasMentions || hasAttachments) {
-        const publishingRelays = nostrService.getPublishingRelays();
-        
-        // We need at least one trusted relay for publishing sensitive content
-        setHasNecessaryTrustedRelays(publishingRelays.length > 0);
-      }
-    };
-    
-    checkTrustedRelays();
-  }, [event]);
   
   // Fetch reply count and calculate reach when component mounts
   useEffect(() => {
@@ -173,29 +148,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
               content={event.content} 
               reachCount={reachCount}
             />
-            
-            {!hasNecessaryTrustedRelays && isCurrentUserAuthor && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="mt-2 flex items-center gap-2 p-2 rounded-md bg-yellow-100/20 border border-yellow-200/30 text-yellow-600 dark:text-yellow-400 text-sm">
-                      <AlertCircle className="h-4 w-4" />
-                      <span>No trusted relays for sensitive content (NIP-B7)</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="w-80 p-3">
-                    <div className="space-y-2">
-                      <p className="font-medium">Relay Trust Warning (NIP-B7)</p>
-                      <p className="text-sm">You don't have any trusted relays configured for sensitive content. To improve privacy and content distribution based on NIP-B7, please add trusted relays in your profile settings.</p>
-                      <div className="flex items-center gap-1 text-sm mt-1">
-                        <Shield className="h-4 w-4 text-green-500" />
-                        <span>Trusted relays protect your private and sensitive data</span>
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </CardContent>
         </Link>
         
