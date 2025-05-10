@@ -48,6 +48,12 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
         const profileMetadata = await nostrService.getUserProfile(hexPubkey);
         if (profileMetadata) {
           setProfileData(profileMetadata);
+        } else {
+          // If no profile found, set minimal data
+          setProfileData({
+            pubkey: hexPubkey,
+            created_at: Math.floor(Date.now() / 1000)
+          });
         }
         
         setLoading(false);

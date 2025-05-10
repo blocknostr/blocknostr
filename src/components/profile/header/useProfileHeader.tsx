@@ -33,7 +33,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
     if (profileData) {
       // First, check for NIP-39 "i" tags in the event
       if (Array.isArray(profileData.tags)) {
-        const twitterTag = profileData.tags.find(tag => 
+        const twitterTag = profileData.tags.find((tag: any[]) => 
           tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
         );
         
@@ -64,10 +64,10 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   
   // Format profile data for display
   const formattedNpub = npub || '';
-  const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
+  const shortNpub = formattedNpub ? `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}` : '';
   
   // Get account creation date (using NIP-01 bech32 encoding timestamp)
-  const creationDate = npub ? new Date() : new Date(); // Placeholder, would need actual creation date logic
+  const creationDate = new Date();
   
   return {
     nip05Verified,

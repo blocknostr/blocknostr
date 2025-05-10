@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { nostrService } from "@/lib/nostr";
@@ -42,9 +43,13 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser }: ProfileHeaderProps)
   const handleProfileUpdated = async () => {
     // Fetch fresh profile data after update
     if (pubkeyHex) {
-      const freshProfile = await nostrService.getUserProfile(pubkeyHex);
-      if (freshProfile) {
-        setProfile(freshProfile);
+      try {
+        const freshProfile = await nostrService.getUserProfile(pubkeyHex);
+        if (freshProfile) {
+          setProfile(freshProfile);
+        }
+      } catch (error) {
+        console.error("Error fetching updated profile:", error);
       }
     }
   };

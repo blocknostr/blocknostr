@@ -145,7 +145,7 @@ export class UserManager {
     this.saveFollowing();
   }
   
-  // New method to get user profile data
+  // Method to get user profile data - implements caching for performance
   async getUserProfile(pubkey: string): Promise<NostrProfileMetadata | null> {
     if (!pubkey) return null;
     
@@ -154,6 +154,7 @@ export class UserManager {
       return this._profileCache.get(pubkey) || null;
     }
     
-    return null; // Default return if no methods for fetching are available yet
+    // For now, return null since the actual fetching will be handled by NostrService
+    return null;
   }
 }

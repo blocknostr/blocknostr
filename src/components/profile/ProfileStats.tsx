@@ -153,23 +153,14 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   // Load profile data
   useEffect(() => {
     const fetchProfileData = async () => {
-      // This is a placeholder - in a real app, you would fetch this data from the network
-      const subId = nostrService.subscribe(
-        [{ kinds: [0], authors: [pubkey], limit: 1 }],
-        (event) => {
-          try {
-            const metadata = JSON.parse(event.content);
-            setProfileData(metadata);
-          } catch (e) {
-            console.error('Failed to parse profile metadata:', e);
-          }
+      try {
+        const profile = await nostrService.getUserProfile(pubkey);
+        if (profile) {
+          setProfileData(profile);
         }
-      );
-      
-      // Clean up subscription
-      setTimeout(() => {
-        nostrService.unsubscribe(subId);
-      }, 5000);
+      } catch (e) {
+        console.error('Failed to fetch profile metadata:', e);
+      }
     };
     
     fetchProfileData();
@@ -181,7 +172,7 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   
   return (
     <div className="flex items-center justify-between">
-      <Link to={`/profile/${npub}`} className="flex items-center gap-3 flex-1">
+      <Link to={`/profile/${npub}`} className="flex items-center gap-3 flex-1 hover:bg-muted/50 p-2 rounded-md">
         <Avatar className="h-10 w-10">
           <AvatarImage src={profileData?.picture} />
           <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
