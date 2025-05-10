@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -8,6 +7,7 @@ import { SubscriptionManager } from './subscription';
 import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
+import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
 
 class NostrService {
@@ -278,6 +278,29 @@ class NostrService {
       console.error("Error fetching user profile:", error);
       return null;
     }
+  }
+
+  /**
+   * Verify a NIP-05 identifier and check if it matches the expected pubkey
+   * @param identifier - NIP-05 identifier in the format username@domain.com
+   * @param expectedPubkey - The pubkey that should match the NIP-05 identifier
+   * @returns True if the NIP-05 identifier resolves to the expected pubkey
+   */
+  public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
+    const pubkey = await verifyNip05(identifier);
+    return pubkey !== null && pubkey === expectedPubkey;
+  }
+
+  /**
+   * Fetch additional data associated with a NIP-05 identifier
+   * @param identifier - NIP-05 identifier in the format username@domain.com
+   * @returns NIP-05 data including relays
+   */
+  public async fetchNip05Data(identifier: string): Promise<{
+    relays?: Record<string, { read: boolean; write: boolean }>;
+    [key: string]: any;
+  } | null> {
+    return fetchNip05Data(identifier);
   }
   
   // Private helper methods

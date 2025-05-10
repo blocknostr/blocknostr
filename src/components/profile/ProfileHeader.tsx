@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar } from "lucide-react";
+import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar, Check, AlertCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import FollowButton from "@/components/FollowButton";
 import { formatDistanceToNow } from "date-fns";
 import { nostrService } from "@/lib/nostr";
@@ -20,6 +21,8 @@ interface ProfileHeaderProps {
 const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileHeaderProps) => {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profile, setProfile] = useState(profileData);
+  const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
+  const [verifyingNip05, setVerifyingNip05] = useState(false);
   
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
@@ -38,6 +41,26 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
     // In a real app, you might want to fetch the latest profile data from the network
     setProfile(profileData);
   };
+
+  // Verify NIP-05 identifier when profile data changes
+  useEffect(() => {
+    const verifyNip05 = async () => {
+      if (!profile?.nip05 || !pubkeyHex) return;
+      
+      setVerifyingNip05(true);
+      try {
+        const isVerified = await nostrService.verifyNip05(profile.nip05, pubkeyHex);
+        setNip05Verified(isVerified);
+      } catch (error) {
+        console.error('Error verifying NIP-05:', error);
+        setNip05Verified(false);
+      } finally {
+        setVerifyingNip05(false);
+      }
+    };
+    
+    verifyNip05();
+  }, [profile?.nip05, pubkeyHex]);
   
   return (
     <div className="mb-6">
@@ -67,9 +90,43 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-bold">{displayName}</h2>
                   {profile?.nip05 && (
-                    <span className="bg-green-500/10 text-green-600 text-xs px-2 py-1 rounded-full">
-                      ✓ Verified
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
+                            nip05Verified === true 
+                              ? "bg-green-500/10 text-green-600" 
+                              : nip05Verified === false 
+                                ? "bg-red-500/10 text-red-600"
+                                : "bg-gray-500/10 text-gray-600"
+                          }`}>
+                            {nip05Verified === true ? (
+                              <>
+                                <Check className="h-3 w-3" />
+                                Verified
+                              </>
+                            ) : nip05Verified === false ? (
+                              <>
+                                <AlertCircle className="h-3 w-3" />
+                                Unverified
+                              </>
+                            ) : (
+                              <>Verifying...</>
+                            )}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{profile.nip05}</p>
+                          {nip05Verified === true ? (
+                            <p className="text-green-600">✓ NIP-05 verified</p>
+                          ) : nip05Verified === false ? (
+                            <p className="text-red-600">✗ NIP-05 verification failed</p>
+                          ) : (
+                            <p>Verifying NIP-05 identifier...</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
                 <p className="text-muted-foreground">@{username}</p>
@@ -153,7 +210,10 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
               {profile?.nip05 && (
                 <div className="flex items-center gap-1">
                   <Link2 className="h-3.5 w-3.5" />
-                  {profile.nip05}
+                  <span className={nip05Verified === true ? "text-green-600" : ""}>
+                    {profile.nip05}
+                    {nip05Verified === true && " ✓"}
+                  </span>
                 </div>
               )}
               

@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -146,7 +147,31 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="nip05">NIP-05 Identifier</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="nip05">NIP-05 Identifier</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>NIP-05 identifiers provide verification of your identity.</p>
+                      <p className="mt-2">Format: you@yourdomain.com</p>
+                      <p className="mt-2">You need to set up a <code>.well-known/nostr.json</code> file on your domain to link your identifier to your public key.</p>
+                      <a 
+                        href="https://github.com/nostr-protocol/nips/blob/master/05.md" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline mt-2 block"
+                      >
+                        Learn more about NIP-05
+                      </a>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Input
                 id="nip05"
                 value={nip05}
