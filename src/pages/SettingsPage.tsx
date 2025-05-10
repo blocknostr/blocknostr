@@ -35,13 +35,6 @@ const SettingsPage = () => {
       setRelays(relayStatus);
     };
     
-    // Check if we should open a specific tab (from localStorage)
-    const savedTab = localStorage.getItem('settingsActiveTab');
-    if (savedTab) {
-      setActiveTab(savedTab);
-      localStorage.removeItem('settingsActiveTab');
-    }
-    
     checkAuth();
     loadRelays();
     
@@ -70,18 +63,12 @@ const SettingsPage = () => {
       toast.error(`Failed to connect to ${newRelayUrl}`);
     }
   };
-
-  const handleRemoveRelay = (relayUrl: string) => {
-    nostrService.removeRelay(relayUrl);
-    setRelays(nostrService.getRelayStatus());
-    toast.success(`Removed relay: ${relayUrl}`);
-  };
   
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
-      <div className="flex-1 ml-0 md:ml-64">
+      <div className="flex-1 ml-64">
         <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center h-14 px-4">
             <h1 className="font-semibold">Settings</h1>
@@ -89,7 +76,7 @@ const SettingsPage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} value={activeTab}>
+          <Tabs defaultValue="account" onValueChange={setActiveTab} value={activeTab}>
             <TabsList className="mb-6">
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="relays">Relays</TabsTrigger>
@@ -158,11 +145,6 @@ const SettingsPage = () => {
                           placeholder="wss://relay.example.com"
                           value={newRelayUrl}
                           onChange={(e) => setNewRelayUrl(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newRelayUrl.trim()) {
-                              handleAddRelay();
-                            }
-                          }}
                         />
                         <Button 
                           onClick={handleAddRelay}
@@ -195,14 +177,15 @@ const SettingsPage = () => {
                                 ></div>
                                 <span className="text-sm">{relay.url}</span>
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-100/10"
-                                onClick={() => handleRemoveRelay(relay.url)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-7 w-7 p-0"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </div>
                             </div>
                           ))
                         )}
