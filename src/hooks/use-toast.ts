@@ -1,12 +1,12 @@
 
-// Re-export from sonner as our toast hook
-import { toast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 
-export { toast };
+// Extend the toast function for better type compatibility
+export const toast = sonnerToast;
 
 // For backward compatibility, provide useToast as well
 export const useToast = () => {
   return {
-    toast
+    toast: sonnerToast
   };
 };
