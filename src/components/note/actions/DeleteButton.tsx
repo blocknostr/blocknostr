@@ -1,0 +1,26 @@
+
+import { Trash2 } from 'lucide-react';
+import ActionButton from './ActionButton';
+
+interface DeleteButtonProps {
+  onClick: () => void;
+}
+
+const DeleteButton = ({ onClick }: DeleteButtonProps) => {
+  return (
+    <div className="ml-auto">
+      <ActionButton
+        onClick={(e) => {
+          e.preventDefault();
+          onClick();
+        }}
+        icon={<Trash2 className="h-4 w-4" />}
+        label="Delete post"
+        activeClass="text-red-500"
+        hoverClass="hover:bg-red-50 hover:text-red-600"
+      />
+    </div>
+  );
+};
+
+export default DeleteButton;
