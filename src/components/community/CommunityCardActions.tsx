@@ -67,9 +67,7 @@ const CommunityCardActions = ({
     }
   };
 
-  const handleLeaveClick = (e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation();
-    
+  const handleLeaveClick = () => {
     if (!currentUserPubkey) {
       toast.error("You must be logged in to leave a community");
       return;
