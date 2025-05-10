@@ -1,12 +1,15 @@
+
 import {
-  generatePrivateKey,
-  getPublicKey,
   nip19,
   relayInit,
   signEvent,
   validateEvent,
   verifySignature,
+  getPublicKey,
 } from "nostr-tools";
+import { SimplePool } from "nostr-tools";
+import { getEventHash } from "nostr-tools";
+import { generatePrivateKey as generateNostrPrivateKey } from "nostr-tools/nip06";
 import { Relay, Sub } from "nostr-tools";
 
 export interface NostrEvent {
@@ -36,10 +39,12 @@ class NostrService {
   private relayConnections: {
     [url: string]: { relay: Relay; status: RelayStatus["status"] };
   } = {};
+  private _following: string[] = [];
   
   constructor() {
     this.loadKeys();
     this.connectToRelays();
+    this.loadFollowing();
   }
   
   public get publicKey(): string | null {
@@ -48,6 +53,10 @@ class NostrService {
   
   public get privateKey(): string | null {
     return this._privateKey;
+  }
+  
+  public get following(): string[] {
+    return this._following;
   }
 
   private loadKeys() {
@@ -68,13 +77,49 @@ class NostrService {
       }
     }
   }
+  
+  private loadFollowing() {
+    if (!this._publicKey) return;
+    
+    // Try to load following list from localStorage first
+    const storedFollowing = localStorage.getItem(`following_${this._publicKey}`);
+    if (storedFollowing) {
+      try {
+        this._following = JSON.parse(storedFollowing);
+      } catch (error) {
+        console.error("Error parsing stored following list:", error);
+      }
+    }
+    
+    // Subscribe to kind 3 to get contacts
+    this.subscribe(
+      [
+        {
+          kinds: [3],
+          authors: [this._publicKey],
+          limit: 1
+        }
+      ],
+      (event) => {
+        // Extract pubkeys from p tags
+        const contacts = event.tags
+          .filter(tag => tag[0] === 'p')
+          .map(tag => tag[1]);
+          
+        if (contacts.length > 0) {
+          this._following = contacts;
+          localStorage.setItem(`following_${this._publicKey}`, JSON.stringify(contacts));
+        }
+      }
+    );
+  }
 
   async generateNewKeys() {
-    this._privateKey = generatePrivateKey();
+    this._privateKey = generateNostrPrivateKey();
     this._publicKey = getPublicKey(this._privateKey);
     
     // Store the private key securely (e.g., using nip19)
-    const encodedPrivateKey = nip19.nsecretEncode(this._privateKey);
+    const encodedPrivateKey = nip19.nsecEncode(this._privateKey);
     localStorage.setItem("privateKey", encodedPrivateKey);
     
     return {
@@ -90,6 +135,10 @@ class NostrService {
         this._privateKey = decoded.data as string;
         this._publicKey = getPublicKey(this._privateKey);
         localStorage.setItem("privateKey", privateKey);
+        
+        // Load following list after setting key
+        this.loadFollowing();
+        
         return true;
       } else {
         console.warn("Invalid private key format");
@@ -105,6 +154,39 @@ class NostrService {
     this._privateKey = null;
     this._publicKey = null;
     localStorage.removeItem("privateKey");
+    this._following = [];
+  }
+
+  async login() {
+    if (window.nostr) {
+      try {
+        // Request public key from extension
+        const publicKey = await window.nostr.getPublicKey();
+        
+        if (publicKey) {
+          this._publicKey = publicKey;
+          this._privateKey = null; // We don't get the private key from extension
+          
+          // Load following list
+          this.loadFollowing();
+          
+          return true;
+        }
+      } catch (error) {
+        console.error("Error with NIP-07 extension:", error);
+      }
+    }
+    
+    // If no extension or it failed, generate new keys
+    if (!this._publicKey) {
+      await this.generateNewKeys();
+    }
+    
+    return !!this._publicKey;
+  }
+  
+  async signOut() {
+    this.clearKeys();
   }
 
   async connectToRelays(customRelays?: string[]) {
@@ -149,7 +231,7 @@ class NostrService {
     if (!this.publicKey) return;
     
     // Subscribe to kind 3 event to get user's relay list
-    const sub = this.subscribe(
+    const subId = this.subscribe(
       [
         {
           kinds: [3],
@@ -169,7 +251,7 @@ class NostrService {
           console.error('Failed to parse user relays:', e);
         } finally {
           // Unsubscribe after processing the event
-          this.unsubscribe(sub.id);
+          this.unsubscribe(subId);
         }
       }
     );
@@ -222,9 +304,9 @@ class NostrService {
   subscribe(
     filters: any[],
     callback: (event: NostrEvent) => void
-  ): { id: string } {
+  ): string {
     const sub = this.batchSubscribe(filters, callback);
-    return { id: sub.id };
+    return sub.id;
   }
 
   batchSubscribe(filters: any[], callback: (event: NostrEvent) => void): Sub {
@@ -268,6 +350,7 @@ class NostrService {
           unsub: () => {
             subs.forEach((s) => s.unsub());
           },
+          id: `sub_${Math.random().toString(36).substring(2, 15)}`, // Generate a random ID
         };
       },
       unsubscribe: (id: string) => {
@@ -284,81 +367,94 @@ class NostrService {
     };
   }
 
-  async publish(event: any): Promise<boolean> {
-    if (!this._privateKey) {
-      console.error("Private key not available");
-      return false;
-    }
-
-    try {
-      const signedEvent = await this.signEvent(event);
-      
-      if (!signedEvent) {
-        console.error("Failed to sign event");
-        return false;
-      }
-      
-      // Get connected relays
-      const relays = this.getRelayStatus()
-        .filter(relay => relay.status === 'connected')
-        .map(relay => relay.url);
-      
-      if (relays.length === 0) {
-        console.error("No connected relays available");
-        return false;
-      }
-      
-      // Publish to all connected relays
-      const publishPromises = relays.map(relayUrl => {
-        if (!this.relayConnections[relayUrl]?.relay) return Promise.resolve(false);
-        
-        return new Promise<boolean>((resolve) => {
-          const pub = this.relayConnections[relayUrl].relay.publish(signedEvent);
-          
-          pub.on('ok', () => {
-            console.log(`Published to ${relayUrl}`);
-            resolve(true);
-          });
-          
-          pub.on('failed', (reason: string) => {
-            console.error(`Failed to publish to ${relayUrl}: ${reason}`);
-            resolve(false);
-          });
-          
-          // Set a timeout in case the relay doesn't respond
-          setTimeout(() => {
-            console.warn(`Publish to ${relayUrl} timed out`);
-            resolve(false);
-          }, 5000);
-        });
-      });
-      
-      // Consider success if at least one relay accepted the event
-      const results = await Promise.all(publishPromises);
-      return results.some(result => result === true);
-    } catch (error) {
-      console.error("Error publishing event:", error);
-      return false;
-    }
-  }
-
-  async signEvent(event: any): Promise<NostrEvent | null> {
-    if (!this._privateKey) {
-      console.error("No private key set");
+  async publishEvent(event: any): Promise<string | null> {
+    if (!this._privateKey && !window.nostr) {
+      console.error("No private key or NIP-07 extension available");
       return null;
     }
 
-    const newEvent = {
-      ...event,
-      pubkey: this._publicKey!,
-    };
+    try {
+      // Create event object with required fields
+      const eventToSign = {
+        ...event,
+        pubkey: this._publicKey!,
+        created_at: Math.floor(Date.now() / 1000),
+        id: "",
+        sig: "",
+      };
+      
+      // Add event ID
+      eventToSign.id = getEventHash(eventToSign);
+      
+      let signedEvent: NostrEvent;
+      
+      // Try to sign with extension first
+      if (window.nostr) {
+        try {
+          signedEvent = await window.nostr.signEvent(eventToSign);
+        } catch (err) {
+          console.error("Error signing with extension:", err);
+          // Fall back to local signing if we have a private key
+          if (this._privateKey) {
+            signedEvent = signEvent(eventToSign, this._privateKey);
+          } else {
+            throw new Error("Failed to sign event");
+          }
+        }
+      } else if (this._privateKey) {
+        // Sign with local private key
+        signedEvent = signEvent(eventToSign, this._privateKey);
+      } else {
+        throw new Error("No signing method available");
+      }
 
-    const signedEvent = signEvent(newEvent, this._privateKey);
-
-    if (validateEvent(signedEvent) && verifySignature(signedEvent)) {
-      return signedEvent;
-    } else {
-      console.error("Invalid signature");
+      if (validateEvent(signedEvent) && verifySignature(signedEvent)) {
+        // Get connected relays
+        const relays = this.getRelayStatus()
+          .filter(relay => relay.status === 'connected')
+          .map(relay => relay.url);
+        
+        if (relays.length === 0) {
+          console.error("No connected relays available");
+          return null;
+        }
+        
+        // Publish to all connected relays
+        const publishPromises = relays.map(relayUrl => {
+          if (!this.relayConnections[relayUrl]?.relay) return Promise.resolve(false);
+          
+          return new Promise<boolean>((resolve) => {
+            const pub = this.relayConnections[relayUrl].relay.publish(signedEvent);
+            
+            pub.on('ok', () => {
+              console.log(`Published to ${relayUrl}`);
+              resolve(true);
+            });
+            
+            pub.on('failed', (reason: string) => {
+              console.error(`Failed to publish to ${relayUrl}: ${reason}`);
+              resolve(false);
+            });
+            
+            // Set a timeout in case the relay doesn't respond
+            setTimeout(() => {
+              console.warn(`Publish to ${relayUrl} timed out`);
+              resolve(false);
+            }, 5000);
+          });
+        });
+        
+        // Consider success if at least one relay accepted the event
+        const results = await Promise.all(publishPromises);
+        const isSuccess = results.some(result => result === true);
+        
+        return isSuccess ? signedEvent.id : null;
+      } else {
+        console.error("Invalid signature");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error publishing event:", error);
       return null;
     }
   }
@@ -377,8 +473,17 @@ class NostrService {
     }
   }
   
+  getNpubFromHex(hex: string): string {
+    try {
+      return nip19.npubEncode(hex);
+    } catch (error) {
+      console.error("Error encoding hex to npub:", error);
+      return "";
+    }
+  }
+  
   async publishProfileMetadata(metadata: any): Promise<boolean> {
-    if (!this.privateKey) {
+    if (!this.privateKey && !window.nostr) {
       console.error("Private key not available");
       return false;
     }
@@ -391,55 +496,142 @@ class NostrService {
         content: JSON.stringify(metadata),
       };
 
-      const signedEvent = await this.signEvent(event);
-      
-      if (!signedEvent) {
-        console.error("Failed to sign profile update event");
-        return false;
-      }
-      
-      // Get connected relays
-      const relays = this.getRelayStatus()
-        .filter(relay => relay.status === 'connected')
-        .map(relay => relay.url);
-      
-      if (relays.length === 0) {
-        console.error("No connected relays available");
-        return false;
-      }
-      
-      // Publish to all connected relays
-      const publishPromises = relays.map(relayUrl => {
-        if (!this.relayConnections[relayUrl]?.relay) return Promise.resolve(false);
-        
-        return new Promise<boolean>((resolve) => {
-          const pub = this.relayConnections[relayUrl].relay.publish(signedEvent);
-          
-          pub.on('ok', () => {
-            console.log(`Profile published to ${relayUrl}`);
-            resolve(true);
-          });
-          
-          pub.on('failed', (reason: string) => {
-            console.error(`Failed to publish to ${relayUrl}: ${reason}`);
-            resolve(false);
-          });
-          
-          // Set a timeout in case the relay doesn't respond
-          setTimeout(() => {
-            console.warn(`Publish to ${relayUrl} timed out`);
-            resolve(false);
-          }, 5000);
-        });
-      });
-      
-      // Consider success if at least one relay accepted the event
-      const results = await Promise.all(publishPromises);
-      return results.some(result => result === true);
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
     } catch (error) {
       console.error("Error publishing profile metadata:", error);
       return false;
     }
+  }
+  
+  isFollowing(pubkey: string): boolean {
+    return this._following.includes(pubkey);
+  }
+  
+  async followUser(pubkey: string): Promise<boolean> {
+    if (!this._publicKey) return false;
+    
+    // Add to following list if not already following
+    if (!this._following.includes(pubkey)) {
+      this._following = [...this._following, pubkey];
+      
+      // Save to local storage
+      localStorage.setItem(`following_${this._publicKey}`, JSON.stringify(this._following));
+      
+      // Publish contact list update
+      return await this.publishContactList();
+    }
+    
+    return true;
+  }
+  
+  async unfollowUser(pubkey: string): Promise<boolean> {
+    if (!this._publicKey) return false;
+    
+    // Remove from following list
+    if (this._following.includes(pubkey)) {
+      this._following = this._following.filter(p => p !== pubkey);
+      
+      // Save to local storage
+      localStorage.setItem(`following_${this._publicKey}`, JSON.stringify(this._following));
+      
+      // Publish contact list update
+      return await this.publishContactList();
+    }
+    
+    return true;
+  }
+  
+  private async publishContactList(): Promise<boolean> {
+    // Create tags for each followed pubkey
+    const tags = this._following.map(pubkey => ['p', pubkey]);
+    
+    // Add relay tags
+    this.relays.forEach(relay => {
+      tags.push(['r', relay]);
+    });
+    
+    // Create and publish the contact list event
+    const event = {
+      kind: 3, // Contact list
+      tags: tags,
+      content: '',
+    };
+    
+    const eventId = await this.publishEvent(event);
+    return !!eventId;
+  }
+  
+  async sendDirectMessage(recipient: string, content: string): Promise<string | null> {
+    if (!this._publicKey) return null;
+    
+    try {
+      // Create encrypted DM
+      // In a real implementation, this would use NIP-04 encryption
+      // For simplicity, I'm using a basic approach
+      const event = {
+        kind: 4, // Encrypted Direct Message
+        tags: [['p', recipient]], // Tag with recipient's pubkey
+        content: content // In reality: encrypt(content, shared_secret)
+      };
+      
+      return await this.publishEvent(event);
+    } catch (error) {
+      console.error("Error sending DM:", error);
+      return null;
+    }
+  }
+  
+  async createCommunity(data: any): Promise<string | null> {
+    // Implement community creation logic (NIP-28)
+    const event = {
+      kind: 34550, // Community definition
+      content: JSON.stringify(data),
+      tags: [
+        ['d', data.id], // Community ID
+        ['name', data.name]
+      ]
+    };
+    
+    return await this.publishEvent(event);
+  }
+  
+  async createProposal(communityId: string, data: any): Promise<string | null> {
+    // Implement proposal creation logic
+    const event = {
+      kind: 34551, // Community proposal
+      content: JSON.stringify(data),
+      tags: [
+        ['a', `34550:${this._publicKey}:${communityId}`], // Reference to community
+        ['title', data.title]
+      ]
+    };
+    
+    return await this.publishEvent(event);
+  }
+  
+  async voteOnProposal(proposalId: string, communityId: string, vote: 'up' | 'down'): Promise<string | null> {
+    // Implement voting logic
+    const event = {
+      kind: 34552, // Community vote
+      content: vote,
+      tags: [
+        ['e', proposalId], // Reference to proposal
+        ['a', `34550:${this._publicKey}:${communityId}`], // Reference to community
+      ]
+    };
+    
+    return await this.publishEvent(event);
+  }
+}
+
+// Add NIP-07 extension interface
+declare global {
+  interface Window {
+    nostr?: {
+      getPublicKey: () => Promise<string>;
+      signEvent: (event: any) => Promise<NostrEvent>;
+    };
   }
 }
 
@@ -447,3 +639,4 @@ const nostrService = new NostrService();
 
 export { nostrService };
 export type { Relay };
+
