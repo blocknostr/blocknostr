@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { nostrService } from "@/lib/nostr";
@@ -15,7 +14,6 @@ interface ProfileHeaderProps {
   profileData: any | null;
   npub: string;
   isCurrentUser: boolean;
-  onMessage: () => void;
 }
 
 const ProfileHeader = ({ profileData, npub, isCurrentUser }: ProfileHeaderProps) => {
