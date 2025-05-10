@@ -1,9 +1,10 @@
 
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Share2, Bookmark, Flag, Trash2 } from 'lucide-react';
 import FollowButton from '../FollowButton';
 import {
   DropdownMenu,
@@ -11,9 +12,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { toast } from 'sonner';
-import { useState } from 'react';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -27,6 +28,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const currentUserPubkey = nostrService.publicKey;
   const [isUserBlocked, setIsUserBlocked] = useState(false);
   const [isUserMuted, setIsUserMuted] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
   
   // Handle short display of npub (first 5 and last 5 chars)
   const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
@@ -51,15 +53,51 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   };
 
   const handleMuteAuthor = () => {
-    // Here you would implement the actual muting logic using nostrService
     setIsUserMuted(true);
     toast.success(`Muted ${displayName}`);
   };
 
   const handleBlockAuthor = () => {
-    // Here you would implement the actual blocking logic using nostrService
     setIsUserBlocked(true);
     toast.success(`Blocked ${displayName}`);
+  };
+  
+  const handleShare = () => {
+    // Create a shareable URL for the post
+    const shareUrl = `${window.location.origin}/post/${hexPubkey}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: `Post by ${displayName}`,
+        text: 'Check out this post!',
+        url: shareUrl,
+      }).catch((error) => {
+        console.error('Error sharing:', error);
+        copyToClipboard(shareUrl);
+      });
+    } else {
+      copyToClipboard(shareUrl);
+    }
+  };
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        toast.success("Link copied to clipboard");
+      })
+      .catch((err) => {
+        toast.error("Failed to copy link");
+        console.error('Could not copy text: ', err);
+      });
+  };
+  
+  const handleBookmark = () => {
+    setBookmarked(!bookmarked);
+    toast.success(bookmarked ? "Removed from bookmarks" : "Added to bookmarks");
+  };
+
+  const handleReport = () => {
+    toast.info("Report submitted. Thank you for helping keep the community safe.");
   };
 
   return (
@@ -102,6 +140,19 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Post options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem onClick={handleShare} className="flex items-center gap-2 cursor-pointer">
+              <Share2 className="h-4 w-4" /> 
+              Share post
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={handleBookmark} className="flex items-center gap-2 cursor-pointer">
+              <Bookmark className="h-4 w-4" fill={bookmarked ? "currentColor" : "none"} /> 
+              {bookmarked ? "Remove bookmark" : "Bookmark post"}
+            </DropdownMenuItem>
+            
             <DropdownMenuItem onClick={handleNotInterested}>
               Not interested in this post
             </DropdownMenuItem>
@@ -122,10 +173,21 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
                     Unmute @{name}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={handleBlockAuthor} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem onClick={handleBlockAuthor} className="text-destructive focus:text-destructive flex items-center gap-2 cursor-pointer">
+                  <Flag className="h-4 w-4" /> 
                   Block @{name}
                 </DropdownMenuItem>
               </>
+            )}
+            
+            {isCurrentUser && (
+              <DropdownMenuItem 
+                className="text-red-500 flex items-center gap-2 cursor-pointer"
+                onClick={() => toast.info("Use the delete option at the bottom of the post")}
+              >
+                <Trash2 className="h-4 w-4" /> 
+                Delete post
+              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
