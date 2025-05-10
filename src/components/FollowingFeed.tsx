@@ -4,7 +4,11 @@ import { NostrEvent, nostrService } from "@/lib/nostr";
 import NoteCard from "./NoteCard";
 import { toast } from "sonner";
 
-const FollowingFeed = () => {
+interface FollowingFeedProps {
+  activeHashtag?: string;
+}
+
+const FollowingFeed = ({ activeHashtag }: FollowingFeedProps) => {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
@@ -20,16 +24,32 @@ const FollowingFeed = () => {
         return;
       }
       
+      // Create filter for followed users
+      let filters: any[] = [
+        {
+          kinds: [1],
+          authors: following,
+          limit: 50,
+          since: Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 7 // Last week
+        }
+      ];
+      
+      // If we have an active hashtag, filter by it
+      if (activeHashtag) {
+        filters = [
+          {
+            ...filters[0],
+            "#t": [activeHashtag.toLowerCase()]
+          }
+        ];
+      }
+      
+      // Reset events when applying a new filter
+      setEvents([]);
+      
       // Subscribe to text notes (kind 1) from followed users
       const subId = nostrService.subscribe(
-        [
-          {
-            kinds: [1],
-            authors: following,
-            limit: 50,
-            since: Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 7 // Last week
-          }
-        ],
+        filters,
         (event) => {
           setEvents(prev => {
             // Check if we already have this event
@@ -84,15 +104,21 @@ const FollowingFeed = () => {
     };
     
     fetchEvents();
-  }, [following]);
+  }, [following, activeHashtag]); // Add activeHashtag to dependency array
   
   return (
     <div>
+      {activeHashtag && events.length === 0 && !loading && (
+        <div className="py-4 text-center text-muted-foreground">
+          No posts found with #{activeHashtag} hashtag from people you follow
+        </div>
+      )}
+      
       {loading ? (
         <div className="py-8 text-center text-muted-foreground">
-          Loading posts from people you follow...
+          Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''} from people you follow...
         </div>
-      ) : events.length === 0 ? (
+      ) : events.length === 0 && !activeHashtag ? (
         <div className="py-8 text-center text-muted-foreground">
           {following.length > 0 
             ? "No posts from people you follow yet. Try following more users or connecting to more relays."
