@@ -7,7 +7,7 @@ import { Check, Clock, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { nostrService } from "@/lib/nostr";
 import VotersList from "@/components/VotersList";
-import ProposalComments from "@/components/ProposalComments";
+import DiscordStyleChat from "./DiscordStyleChat";
 
 export interface Proposal {
   id: string;
@@ -237,7 +237,7 @@ const ProposalCard = ({
             </div>
           )}
           
-          {/* Comments section toggle */}
+          {/* Chat section toggle */}
           <div className="flex items-center">
             <Button
               variant="ghost"
@@ -246,16 +246,17 @@ const ProposalCard = ({
               className="text-muted-foreground hover:text-foreground"
             >
               <MessageSquare className="h-4 w-4 mr-1" />
-              Comments
+              Discussion
             </Button>
           </div>
           
-          {/* Comments section */}
+          {/* Discord-style chat section */}
           {isExpanded && (
-            <div className="mt-4 pt-4 border-t w-full">
-              <ProposalComments 
+            <div className="mt-4 pt-4 border-t w-full max-h-[400px] overflow-hidden rounded-md border">
+              <DiscordStyleChat 
                 proposalId={proposal.id} 
                 communityId={communityId}
+                currentUserPubkey={currentUserPubkey}
               />
             </div>
           )}
