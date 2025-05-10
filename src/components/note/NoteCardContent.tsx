@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
+import { Button } from '@/components/ui/button';
 
 interface NoteCardContentProps {
   content: string;
@@ -10,6 +11,11 @@ interface NoteCardContentProps {
 const NoteCardContent = ({ content }: NoteCardContentProps) => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const CHARACTER_LIMIT = 280;
+  const shouldTruncate = content.length > CHARACTER_LIMIT;
+  const displayContent = isExpanded ? content : shouldTruncate ? content.slice(0, CHARACTER_LIMIT) : content;
   
   useEffect(() => {
     // Extract URLs from content
@@ -29,10 +35,10 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
 
   // Format content to highlight hashtags
   const renderFormattedContent = () => {
-    if (!content) return null;
+    if (!displayContent) return null;
     
     // Replace URLs with a placeholder to avoid rendering them twice
-    let formattedContent = content;
+    let formattedContent = displayContent;
     mediaUrls.forEach(url => {
       formattedContent = formattedContent.replace(url, '');
     });
@@ -54,6 +60,17 @@ const NoteCardContent = ({ content }: NoteCardContentProps) => {
   return (
     <div>
       <p className="mt-1 whitespace-pre-wrap break-words">{renderFormattedContent()}</p>
+      
+      {shouldTruncate && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setIsExpanded(!isExpanded)} 
+          className="text-primary hover:text-primary/80 p-0 h-auto mt-1"
+        >
+          {isExpanded ? "Show less" : "Show more"}
+        </Button>
+      )}
       
       {/* Display hashtags as badges if they're not already shown in the content */}
       {hashtags.length > 0 && (
