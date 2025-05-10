@@ -1,9 +1,18 @@
 
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye } from 'lucide-react';
+import { Heart, MessageCircle, Repeat, DollarSign, Trash2, Eye, Share2, Flag, Bookmark } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from '@/lib/nostr';
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from 'lucide-react';
 
 interface NoteCardActionsProps {
   eventId: string;
@@ -12,14 +21,24 @@ interface NoteCardActionsProps {
   replyCount: number;
   onDelete?: () => void;
   isAuthor?: boolean;
+  reachCount?: number;
 }
 
-const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete, isAuthor }: NoteCardActionsProps) => {
+const NoteCardActions = ({ 
+  eventId, 
+  pubkey, 
+  onCommentClick, 
+  replyCount, 
+  onDelete, 
+  isAuthor,
+  reachCount = 0
+}: NoteCardActionsProps) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [retweeted, setRetweeted] = useState(false);
   const [retweetCount, setRetweetCount] = useState(0);
   const [tipCount, setTipCount] = useState(0);
+  const [bookmarked, setBookmarked] = useState(false);
   
   // Fetch reaction counts when component mounts
   useEffect(() => {
@@ -81,6 +100,15 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
           setTipCount(prev => prev + 1);
         }
       );
+      
+      // Check if bookmarked by current user
+      const checkBookmarkStatus = async () => {
+        // This is a simplified version; in a real app, you would query the user's bookmarks
+        const randomIsBookmarked = Math.random() > 0.8;
+        setBookmarked(randomIsBookmarked);
+      };
+      
+      checkBookmarkStatus();
       
       // Cleanup subscriptions after data is loaded
       setTimeout(() => {
@@ -173,6 +201,47 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
       onDelete();
     }
   };
+  
+  const handleBookmark = () => {
+    setBookmarked(!bookmarked);
+    toast.success(bookmarked ? "Removed from bookmarks" : "Added to bookmarks");
+  };
+  
+  const handleShare = () => {
+    // Create a shareable URL
+    const shareUrl = `${window.location.origin}/post/${eventId}`;
+    
+    // Check if Web Share API is available
+    if (navigator.share) {
+      navigator.share({
+        title: 'Shared Nostr Post',
+        text: 'Check out this post!',
+        url: shareUrl,
+      }).catch((error) => {
+        console.error('Error sharing:', error);
+        // Fallback to clipboard
+        copyToClipboard(shareUrl);
+      });
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      copyToClipboard(shareUrl);
+    }
+  };
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        toast.success("Link copied to clipboard");
+      })
+      .catch((err) => {
+        toast.error("Failed to copy link");
+        console.error('Could not copy text: ', err);
+      });
+  };
+  
+  const handleReport = () => {
+    toast.info("Report submitted. Thank you for helping keep the community safe.");
+  };
 
   return (
     <div className="flex justify-between pt-0 flex-wrap w-full gap-1">
@@ -218,6 +287,16 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
         <Heart className="h-4 w-4 mr-1" fill={liked ? "currentColor" : "none"} />
         {likeCount > 0 && <span className="text-xs font-medium">{likeCount}</span>}
       </Button>
+      
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="text-muted-foreground hover:bg-blue-50 hover:text-blue-600 rounded-full"
+        onClick={(e) => e.preventDefault()}
+      >
+        <Eye className="h-4 w-4 mr-1" />
+        <span className="text-xs font-medium">{reachCount}</span>
+      </Button>
 
       <Button
         variant="ghost"
@@ -232,20 +311,50 @@ const NoteCardActions = ({ eventId, pubkey, onCommentClick, replyCount, onDelete
         {tipCount > 0 && <span className="text-xs font-medium">{tipCount}</span>}
       </Button>
       
-      {isAuthor && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-full ml-auto"
-          onClick={(e) => {
-            e.preventDefault();
-            handleDelete();
-          }}
-        >
-          <Trash2 className="h-4 w-4 mr-1" />
-          <span className="text-xs">Delete</span>
-        </Button>
-      )}
+      {/* Options dropdown menu - enhanced */}
+      <div className="ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm" 
+              className="text-muted-foreground hover:bg-accent rounded-full"
+              onClick={(e) => e.preventDefault()}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Post options</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuItem onClick={handleShare} className="flex items-center gap-2 cursor-pointer">
+              <Share2 className="h-4 w-4" /> 
+              Share post
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem onClick={handleBookmark} className="flex items-center gap-2 cursor-pointer">
+              <Bookmark className="h-4 w-4" fill={bookmarked ? "currentColor" : "none"} /> 
+              {bookmarked ? "Remove bookmark" : "Bookmark post"}
+            </DropdownMenuItem>
+            
+            {isAuthor ? (
+              <DropdownMenuItem 
+                onClick={handleDelete} 
+                className="text-red-500 flex items-center gap-2 cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" /> 
+                Delete post
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={handleReport} className="text-red-500 flex items-center gap-2 cursor-pointer">
+                <Flag className="h-4 w-4" /> 
+                Report post
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 };

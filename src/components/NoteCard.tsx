@@ -145,7 +145,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             />
             <NoteCardContent 
               content={event.content} 
-              reachCount={reachCount}
             />
           </CardContent>
         </Link>
@@ -158,6 +157,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             replyCount={replyCount}
             isAuthor={isCurrentUserAuthor}
             onDelete={handleDeleteClick}
+            reachCount={reachCount}
           />
         </CardFooter>
         
