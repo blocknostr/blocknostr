@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -117,7 +116,10 @@ const NoteCardActions = ({
     }
   };
   
-  const handleBookmark = async () => {
+  const handleBookmark = async (e: React.MouseEvent) => {
+    // Prevent event bubbling to parent elements
+    e.stopPropagation();
+    
     if (!isLoggedIn) {
       toast.error("You must be logged in to bookmark posts");
       return;
@@ -196,13 +198,16 @@ const NoteCardActions = ({
               size="icon"
               className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
               title="Bookmark"
-              onClick={handleBookmark}
+              onClick={(e) => handleBookmark(e)}
             >
               <Bookmark className="h-[18px] w-[18px]" />
             </Button>
           </ContextMenuTrigger>
           <ContextMenuContent>
-            <ContextMenuItem onClick={handleBookmark}>
+            <ContextMenuItem onClick={(e) => {
+              e.preventDefault();
+              handleBookmark(e as unknown as React.MouseEvent);
+            }}>
               {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
             </ContextMenuItem>
           </ContextMenuContent>
