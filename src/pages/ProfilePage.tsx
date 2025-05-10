@@ -335,6 +335,7 @@ const ProfilePage = () => {
             followers={followers}
             following={following}
             postsCount={events.length + reposts.length}
+            currentUserPubkey={currentUserPubkey}
           />
           
           {/* Relays section (only for current user) */}

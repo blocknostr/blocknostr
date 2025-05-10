@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { MessageSquare, Edit, Globe, Link2, ExternalLink, Calendar } from "lucid
 import FollowButton from "@/components/FollowButton";
 import { formatDistanceToNow } from "date-fns";
 import { nostrService } from "@/lib/nostr";
+import EditProfileDialog from "./EditProfileDialog";
 
 interface ProfileHeaderProps {
   profileData: any | null;
@@ -16,11 +18,14 @@ interface ProfileHeaderProps {
 }
 
 const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileHeaderProps) => {
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profile, setProfile] = useState(profileData);
+  
   const formattedNpub = npub || '';
   const shortNpub = `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}`;
   
-  const displayName = profileData?.display_name || profileData?.name || shortNpub;
-  const username = profileData?.name || shortNpub;
+  const displayName = profile?.display_name || profile?.name || shortNpub;
+  const username = profile?.name || shortNpub;
   const avatarFallback = displayName.charAt(0).toUpperCase();
   
   const pubkeyHex = npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
@@ -28,13 +33,19 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
   // Get account creation date (using NIP-01 bech32 encoding timestamp)
   const creationDate = npub ? new Date() : new Date(); // Placeholder, would need actual creation date logic
   
+  const handleProfileUpdated = () => {
+    // Update the profile state with the new data
+    // In a real app, you might want to fetch the latest profile data from the network
+    setProfile(profileData);
+  };
+  
   return (
     <div className="mb-6">
       {/* Banner */}
       <div 
         className="h-48 md:h-64 bg-gradient-to-r from-violet-500 to-fuchsia-500 w-full rounded-t-lg"
-        style={profileData?.banner ? { 
-          backgroundImage: `url(${profileData.banner})`,
+        style={profile?.banner ? { 
+          backgroundImage: `url(${profile.banner})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         } : {}}
@@ -44,7 +55,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
       <Card className="border-none shadow-lg relative -mt-5">
         <CardContent className="pt-6 relative">
           <Avatar className="h-24 w-24 md:h-32 md:w-32 absolute -top-16 left-4 border-4 border-background shadow-xl">
-            <AvatarImage src={profileData?.picture} />
+            <AvatarImage src={profile?.picture} />
             <AvatarFallback className="text-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
               {avatarFallback}
             </AvatarFallback>
@@ -55,7 +66,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-bold">{displayName}</h2>
-                  {profileData?.nip05 && (
+                  {profile?.nip05 && (
                     <span className="bg-green-500/10 text-green-600 text-xs px-2 py-1 rounded-full">
                       ✓ Verified
                     </span>
@@ -111,7 +122,7 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
                 )}
                 
                 {isCurrentUser ? (
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={() => setIsEditProfileOpen(true)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit profile
                   </Button>
@@ -121,28 +132,28 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
               </div>
             </div>
             
-            {profileData?.about && (
-              <p className="my-4 whitespace-pre-wrap">{profileData.about}</p>
+            {profile?.about && (
+              <p className="my-4 whitespace-pre-wrap">{profile.about}</p>
             )}
             
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-4">
-              {profileData?.website && (
+              {profile?.website && (
                 <a 
-                  href={profileData.website.startsWith('http') ? profileData.website : `https://${profileData.website}`}
+                  href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
                 >
                   <Globe className="h-3.5 w-3.5" />
-                  {profileData.website.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}
+                  {profile.website.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}
                   <ExternalLink className="h-3 w-3" />
                 </a>
               )}
               
-              {profileData?.nip05 && (
+              {profile?.nip05 && (
                 <div className="flex items-center gap-1">
                   <Link2 className="h-3.5 w-3.5" />
-                  {profileData.nip05}
+                  {profile.nip05}
                 </div>
               )}
               
@@ -154,6 +165,14 @@ const ProfileHeader = ({ profileData, npub, isCurrentUser, onMessage }: ProfileH
           </div>
         </CardContent>
       </Card>
+      
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog
+        open={isEditProfileOpen}
+        onOpenChange={setIsEditProfileOpen}
+        profileData={profile}
+        onProfileUpdated={handleProfileUpdated}
+      />
     </div>
   );
 };

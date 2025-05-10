@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { User, UserCheck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface FollowButtonProps {
   pubkey: string;
@@ -22,20 +23,34 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
   }, [pubkey, currentUserPubkey]);
   
   const handleFollowToggle = async () => {
-    if (!currentUserPubkey) return;
+    if (!currentUserPubkey) {
+      toast.error("You need to be logged in to follow users");
+      return;
+    }
     
     setLoading(true);
     
     try {
       if (isFollowing) {
-        await nostrService.unfollowUser(pubkey);
-        setIsFollowing(false);
+        const success = await nostrService.unfollowUser(pubkey);
+        if (success) {
+          setIsFollowing(false);
+          toast.success("Unfollowed user");
+        } else {
+          toast.error("Failed to unfollow user");
+        }
       } else {
-        await nostrService.followUser(pubkey);
-        setIsFollowing(true);
+        const success = await nostrService.followUser(pubkey);
+        if (success) {
+          setIsFollowing(true);
+          toast.success("Following user");
+        } else {
+          toast.error("Failed to follow user");
+        }
       }
     } catch (error) {
       console.error("Error toggling follow:", error);
+      toast.error("An error occurred");
     } finally {
       setLoading(false);
     }

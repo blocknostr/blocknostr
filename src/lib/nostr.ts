@@ -589,6 +589,28 @@ class NostrService {
     }
   }
   
+  // Publish profile metadata
+  public async publishProfileMetadata(metadata: Record<string, any>): Promise<boolean> {
+    if (!this._publicKey) {
+      toast.error("You must be logged in to update your profile");
+      return false;
+    }
+    
+    try {
+      const event = {
+        kind: EVENT_KINDS.META,
+        content: JSON.stringify(metadata),
+        tags: []
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error publishing profile metadata:", error);
+      return false;
+    }
+  }
+  
   // Utility methods
   public formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub'): string {
     if (!pubkey) return '';
