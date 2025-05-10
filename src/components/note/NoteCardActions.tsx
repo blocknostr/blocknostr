@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
+import { MessageSquare, Repeat, Heart, Bookmark, Share, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
@@ -49,7 +49,10 @@ const NoteCardActions = ({
     checkBookmarkStatus();
   }, [eventId, isLoggedIn]);
   
-  const handleLike = async () => {
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isLoggedIn) {
       toast.error("You must be logged in to like posts");
       return;
@@ -82,7 +85,10 @@ const NoteCardActions = ({
     }
   };
   
-  const handleRepost = async () => {
+  const handleRepost = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isLoggedIn) {
       toast.error("You must be logged in to repost");
       return;
@@ -117,7 +123,10 @@ const NoteCardActions = ({
     }
   };
   
-  const handleBookmark = async () => {
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isLoggedIn) {
       toast.error("You must be logged in to bookmark posts");
       return;
@@ -152,35 +161,37 @@ const NoteCardActions = ({
     }
   };
   
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onCommentClick) {
+      onCommentClick();
+    }
+  };
+  
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Share functionality can be implemented here
+  };
+  
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete();
+    }
+  };
+  
   return (
-    <div className="flex items-center justify-between pt-2">
+    <div className="flex items-center justify-between w-full">
       <div className="flex items-center space-x-5">
+        {/* Comment Button */}
         <Button 
           variant="ghost" 
           size="icon" 
-          className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
-          onClick={handleLike}
-          title="Like"
-        >
-          <Heart className="h-[18px] w-[18px]" />
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
-          onClick={handleRepost}
-          title="Repost"
-          disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
-        >
-          <Repeat className="h-[18px] w-[18px]" />
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
-          onClick={onCommentClick}
+          className="rounded-full hover:text-blue-500 hover:bg-blue-500/10 flex items-center"
+          onClick={handleCommentClick}
           title="Reply"
         >
           <MessageSquare className="h-[18px] w-[18px]" />
@@ -189,30 +200,56 @@ const NoteCardActions = ({
           )}
         </Button>
         
+        {/* Repost Button */}
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className={`rounded-full hover:text-green-500 hover:bg-green-500/10 flex items-center ${isReposted ? 'text-green-500' : ''}`}
+          onClick={handleRepost}
+          title="Repost"
+          disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
+        >
+          <Repeat className="h-[18px] w-[18px]" />
+        </Button>
+        
+        {/* Like Button */}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={`rounded-full hover:text-primary hover:bg-primary/10 flex items-center ${isLiked ? 'text-primary' : ''}`}
+          onClick={handleLike}
+          title="Like"
+        >
+          <Heart className="h-[18px] w-[18px]" />
+        </Button>
+        
+        {/* Bookmark Button */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon"
-              className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
+              className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 flex items-center ${isBookmarked ? 'text-yellow-500' : ''}`}
+              onClick={handleBookmark}
               title="Bookmark"
             >
               <Bookmark className="h-[18px] w-[18px]" />
             </Button>
           </ContextMenuTrigger>
-          <ContextMenuContent>
+          <ContextMenuContent onClick={e => e.stopPropagation()}>
             <ContextMenuItem onClick={handleBookmark}>
               {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
-        
+
+        {/* Delete Button (Only for authors) */}
         {isAuthor && (
           <Button
             variant="ghost"
             size="icon"
             className="rounded-full hover:text-red-500 hover:bg-red-500/10"
-            onClick={onDelete}
+            onClick={handleDeleteClick}
             title="Delete"
           >
             <Trash2 className="h-[18px] w-[18px]" />
@@ -220,10 +257,12 @@ const NoteCardActions = ({
         )}
       </div>
       
+      {/* Share Button (Right-aligned) */}
       <Button 
         variant="ghost" 
         size="icon" 
         className="rounded-full hover:text-primary hover:bg-primary/10"
+        onClick={handleShareClick}
         title="Share"
       >
         <Share className="h-[18px] w-[18px]" />
