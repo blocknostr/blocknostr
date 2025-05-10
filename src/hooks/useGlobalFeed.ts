@@ -1,9 +1,12 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileData } from "./useProfileData";
 import { useNostrEvents } from "./useNostrEvents";
 import { useFeedPagination } from "./useFeedPagination";
 import { useFeedSubscription } from "./useFeedSubscription";
+import { loadMoreGlobalFeedEvents, createGlobalFeedFilters } from "@/utils/globalFeedUtils";
+import { useGlobalFeedReposts } from "./useGlobalFeedReposts";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
@@ -12,7 +15,7 @@ interface UseGlobalFeedProps {
 export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
   const [filteredEvents, setFilteredEvents] = useState<NostrEvent[]>([]);
   
-  // Use our new subscription hook to manage events
+  // Use our subscription hook to manage events
   const {
     events,
     profiles,
@@ -56,36 +59,12 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     setFilteredEvents(events);
   }, [events]);
 
+  // Use our repost handler
+  const { handleRepostEvent } = useGlobalFeedReposts(fetchOriginalPost, setRepostData);
+
   const setupSubscription = useCallback((since: number, until?: number) => {
-    // Create filters for the nostr subscription
-    let filters: any[] = [
-      {
-        kinds: [1], // Regular notes
-        limit: 30, // Increased for better doomscrolling
-        since: since,
-        until: until
-      },
-      {
-        kinds: [6], // Reposts
-        limit: 20,
-        since: since,
-        until: until
-      }
-    ];
-    
-    // If we have an active hashtag, filter by it
-    if (activeHashtag) {
-      // Add tag filter
-      filters = [
-        {
-          ...filters[0],
-          "#t": [activeHashtag.toLowerCase()]
-        },
-        {
-          ...filters[1] // Keep the reposts filter
-        }
-      ];
-    }
+    // Create filters using our utility
+    const filters = createGlobalFeedFilters(activeHashtag, since, until);
 
     // Close previous subscription if exists
     if (subId) {
@@ -130,71 +109,21 @@ export const useGlobalFeed = ({ activeHashtag }: UseGlobalFeedProps) => {
     
     setSubId(newSubId);
     return newSubId;
-  }, [activeHashtag, profiles, subId, unsubscribe, setEvents, setHasMore, fetchProfileData, setProfiles, setSubId]);
-
-  // Handle repost events
-  const handleRepostEvent = useCallback((event: NostrEvent) => {
-    try {
-      // Some clients store the original event in content as JSON
-      const content = JSON.parse(event.content);
-      
-      if (content.event && content.event.id) {
-        const originalEventId = content.event.id;
-        const originalEventPubkey = content.event.pubkey;
-        
-        // Track repost data for later display
-        setRepostData(prev => ({
-          ...prev,
-          [originalEventId]: { 
-            pubkey: event.pubkey,  // The reposter
-            original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
-          }
-        }));
-        
-        // Fetch the original post
-        fetchOriginalPost(originalEventId);
-      }
-    } catch (e) {
-      // If parsing fails, try to get event reference from tags
-      const eventReference = event.tags.find(tag => tag[0] === 'e');
-      if (eventReference && eventReference[1]) {
-        const originalEventId = eventReference[1];
-        
-        // Find pubkey reference
-        const pubkeyReference = event.tags.find(tag => tag[0] === 'p');
-        const originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
-        
-        // Track repost data
-        setRepostData(prev => ({
-          ...prev,
-          [originalEventId]: { 
-            pubkey: event.pubkey,  // The reposter
-            original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
-          }
-        }));
-        
-        // Fetch the original post
-        fetchOriginalPost(originalEventId);
-      }
-    }
-  }, [fetchOriginalPost, setRepostData]);
+  }, [activeHashtag, profiles, subId, unsubscribe, setEvents, setHasMore, fetchProfileData, setProfiles, setSubId, handleRepostEvent]);
 
   const loadMoreEvents = useCallback(() => {
     if (!subId || isLoadingMore) return;
     
-    // Set loading more state to prevent multiple simultaneous loads
-    setIsLoadingMore(true);
-    setLoading(true);
-    
-    // Use the pagination loadMoreEvents to handle loading more
-    basePaginationLoadMore();
-    
-    // Reset loading more state after a short delay
-    setTimeout(() => {
-      setIsLoadingMore(false);
-      setLoading(false);
-    }, 2000);
-  }, [subId, isLoadingMore, setIsLoadingMore, basePaginationLoadMore, setLoading]);
+    // Use our utility to load more events
+    loadMoreGlobalFeedEvents(
+      since || Math.floor(Date.now() / 1000) - 24 * 60 * 60 * 2,
+      until,
+      setupSubscription,
+      isLoadingMore,
+      setIsLoadingMore,
+      setLoading
+    );
+  }, [subId, isLoadingMore, since, until, setupSubscription, setIsLoadingMore, setLoading]);
 
   // Initialize feed
   useEffect(() => {
