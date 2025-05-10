@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
-import MediaPreview from '../MediaPreview';
+import { MediaPreview } from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -9,6 +9,11 @@ import { useIsMobile } from '@/hooks/use-mobile';
 interface NoteCardContentProps {
   content: string;
   reachCount?: number;
+}
+
+interface MediaPreviewProps {
+  url: string;
+  alt: string;
 }
 
 const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
