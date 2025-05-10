@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const MessagesPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -18,7 +19,7 @@ const MessagesPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       {/* Mobile sidebar - conditionally shown */}
       <div className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden ${sidebarVisible ? 'block' : 'hidden'}`} 
            onClick={() => setSidebarVisible(false)}>
@@ -32,9 +33,9 @@ const MessagesPage = () => {
         <Sidebar />
       </div>
       
-      <div className="flex-1 ml-0 md:ml-72 flex flex-col">
+      <div className="flex-1 ml-0 md:ml-72 flex flex-col h-screen">
         <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-10 shadow-sm">
-          <div className="flex items-center h-16 px-4">
+          <div className="flex items-center h-12 px-4">
             <Button 
               variant="ghost" 
               size="icon" 
@@ -47,26 +48,24 @@ const MessagesPage = () => {
           </div>
         </header>
         
-        <div className="px-4 py-2">
-          {encryptionInfoShown && (
-            <Alert className="mb-3">
-              <InfoIcon className="h-4 w-4" />
-              <AlertTitle>End-to-End Encrypted</AlertTitle>
-              <AlertDescription className="text-sm">
-                Messages are encrypted using NIP-04 for maximum security. Only you and your recipient can read them.
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-xs ml-2"
-                  onClick={() => setEncryptionInfoShown(false)}
-                >
-                  Dismiss
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
+        {encryptionInfoShown && (
+          <Alert className="mx-4 mt-1 mb-1">
+            <InfoIcon className="h-4 w-4" />
+            <AlertTitle>End-to-End Encrypted</AlertTitle>
+            <AlertDescription className="text-xs">
+              Messages are encrypted using NIP-04 for maximum security. Only you and your recipient can read them.
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-xs ml-2"
+                onClick={() => setEncryptionInfoShown(false)}
+              >
+                Dismiss
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         
-        <div className="flex-1">
+        <div className="flex-1 overflow-hidden">
           <MessagingSystem />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Loader2, Search, Send, MessageSquare, Paperclip } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
   id: string;
@@ -449,171 +450,176 @@ const MessagingSystem = () => {
   
   if (!currentUserPubkey) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] p-8 gap-4">
-        <MessageSquare className="h-16 w-16 text-muted-foreground mb-2" />
-        <h2 className="text-2xl font-semibold mb-2">Welcome to BlockMail</h2>
-        <p className="text-muted-foreground text-center max-w-md mb-6">
+      <div className="flex flex-col items-center justify-center h-full p-4 gap-4">
+        <MessageSquare className="h-12 w-12 text-muted-foreground mb-1" />
+        <h2 className="text-xl font-semibold mb-1">Welcome to BlockMail</h2>
+        <p className="text-muted-foreground text-center max-w-md mb-4">
           Secure, encrypted messaging built on Nostr and Alephium blockchain
         </p>
-        <Button size="lg" onClick={() => nostrService.login()}>Login with Nostr</Button>
+        <Button onClick={() => nostrService.login()}>Login with Nostr</Button>
       </div>
     );
   }
   
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="flex h-full">
-        {/* Contacts list */}
-        <div className="w-1/3 border-r overflow-y-auto">
-          <div className="flex justify-between items-center p-3 border-b">
-            <h3 className="font-medium">Conversations</h3>
+        {/* Contacts list - more compact */}
+        <div className="w-1/3 border-r overflow-hidden flex flex-col">
+          <div className="flex justify-between items-center p-2 border-b">
+            <h3 className="font-medium text-sm">Conversations</h3>
             <Button 
               size="sm" 
               variant="outline"
+              className="h-7 text-xs"
               onClick={() => setNewContactDialog(true)}
             >
               New
             </Button>
           </div>
           
-          <div className="px-3 py-3">
+          <div className="p-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3" />
               <Input 
                 placeholder="Search conversations..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-muted/40"
+                className="pl-7 py-1 h-7 text-xs bg-muted/40"
               />
             </div>
           </div>
           
-          {filteredContacts.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              {loading ? (
-                <div className="flex flex-col items-center gap-2 py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <p>Loading conversations...</p>
-                </div>
-              ) : (
-                <div className="py-8">
-                  <MessageSquare className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
-                  <p>No conversations found</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            filteredContacts.map(contact => (
-              <div 
-                key={contact.pubkey}
-                className={`p-3 cursor-pointer border-b hover:bg-accent/50 flex items-center gap-3 transition-colors ${
-                  activeContact?.pubkey === contact.pubkey ? "bg-accent" : ""
-                }`}
-                onClick={() => loadMessagesForContact(contact)}
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={contact.profile?.picture} />
-                  <AvatarFallback>{getAvatarFallback(contact)}</AvatarFallback>
-                </Avatar>
-                <div className="overflow-hidden flex-1">
-                  <div className="font-medium truncate">{getDisplayName(contact)}</div>
-                  {contact.lastMessage && (
-                    <div className="text-sm text-muted-foreground truncate">
-                      {contact.lastMessage}
-                    </div>
-                  )}
-                </div>
-                {contact.lastMessageTime && (
-                  <div className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatTime(contact.lastMessageTime)}
+          <ScrollArea className="flex-1">
+            {filteredContacts.length === 0 ? (
+              <div className="p-3 text-center text-muted-foreground">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-1 py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <p className="text-xs">Loading conversations...</p>
+                  </div>
+                ) : (
+                  <div className="py-4">
+                    <MessageSquare className="h-8 w-8 mx-auto mb-1" />
+                    <p className="text-xs">No conversations found</p>
                   </div>
                 )}
               </div>
-            ))
-          )}
+            ) : (
+              filteredContacts.map(contact => (
+                <div 
+                  key={contact.pubkey}
+                  className={`p-2 cursor-pointer border-b hover:bg-accent/50 flex items-center gap-2 transition-colors ${
+                    activeContact?.pubkey === contact.pubkey ? "bg-accent" : ""
+                  }`}
+                  onClick={() => loadMessagesForContact(contact)}
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={contact.profile?.picture} />
+                    <AvatarFallback>{getAvatarFallback(contact)}</AvatarFallback>
+                  </Avatar>
+                  <div className="overflow-hidden flex-1">
+                    <div className="font-medium text-sm truncate">{getDisplayName(contact)}</div>
+                    {contact.lastMessage && (
+                      <div className="text-xs text-muted-foreground truncate">
+                        {contact.lastMessage}
+                      </div>
+                    )}
+                  </div>
+                  {contact.lastMessageTime && (
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatTime(contact.lastMessageTime)}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </ScrollArea>
         </div>
             
-        {/* Message area */}
-        <div className="w-2/3 flex flex-col h-full bg-background">
+        {/* Message area - more compact */}
+        <div className="w-2/3 flex flex-col h-full bg-background overflow-hidden">
           {activeContact ? (
             <>
-              {/* Header */}
-              <div className="p-3 border-b flex items-center gap-3">
-                <Avatar className="h-9 w-9">
+              {/* Header - reduced height */}
+              <div className="p-2 border-b flex items-center gap-2">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src={activeContact.profile?.picture} />
                   <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
-                  <div className="font-medium truncate">{getDisplayName(activeContact)}</div>
+                  <div className="font-medium text-sm truncate">{getDisplayName(activeContact)}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {nostrService.getNpubFromHex(activeContact.pubkey).substring(0, 10)}...
                   </div>
                 </div>
               </div>
               
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
-                {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full gap-2">
-                    <MessageSquare className="h-10 w-10 mb-2" />
-                    <p>No messages yet</p>
-                    <p className="text-sm">Send a message to start the conversation</p>
-                  </div>
-                ) : (
-                  <>
-                    {messages.map(message => {
-                      const isCurrentUser = message.sender === currentUserPubkey;
-                      
-                      return (
-                        <div 
-                          key={message.id}
-                          className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {!isCurrentUser && (
-                            <Avatar className="h-8 w-8 mr-2 mt-1 flex-shrink-0">
-                              <AvatarImage src={activeContact.profile?.picture} />
-                              <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
-                            </Avatar>
-                          )}
+              {/* Messages - using ScrollArea for better space usage */}
+              <ScrollArea className="flex-1">
+                <div className="p-2 space-y-2">
+                  {loading ? (
+                    <div className="flex justify-center items-center h-full py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 gap-1">
+                      <MessageSquare className="h-8 w-8 mb-1" />
+                      <p className="text-sm">No messages yet</p>
+                      <p className="text-xs">Send a message to start the conversation</p>
+                    </div>
+                  ) : (
+                    <>
+                      {messages.map(message => {
+                        const isCurrentUser = message.sender === currentUserPubkey;
+                        
+                        return (
                           <div 
-                            className={`max-w-[75%] px-4 py-2 rounded-2xl ${
-                              isCurrentUser 
-                                ? 'bg-primary text-primary-foreground rounded-tr-none'
-                                : 'bg-card border rounded-tl-none'
-                            }`}
+                            key={message.id}
+                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div className="text-sm break-words">{message.content}</div>
-                            <div className={`text-xs ${isCurrentUser ? 'opacity-70' : 'text-muted-foreground'} mt-1 text-right`}>
-                              {formatTime(message.created_at)}
+                            {!isCurrentUser && (
+                              <Avatar className="h-6 w-6 mr-1 mt-1 flex-shrink-0">
+                                <AvatarImage src={activeContact.profile?.picture} />
+                                <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div 
+                              className={`max-w-[75%] px-3 py-1.5 rounded-xl ${
+                                isCurrentUser 
+                                  ? 'bg-primary text-primary-foreground rounded-tr-none'
+                                  : 'bg-card border rounded-tl-none'
+                              }`}
+                            >
+                              <div className="text-sm break-words">{message.content}</div>
+                              <div className={`text-[10px] ${isCurrentUser ? 'opacity-70' : 'text-muted-foreground'} mt-0.5 text-right`}>
+                                {formatTime(message.created_at)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </>
-                )}
-              </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
               
-              {/* Message input */}
-              <div className="p-3 border-t flex gap-2 bg-background">
+              {/* Message input - reduced padding */}
+              <div className="p-2 border-t flex gap-1.5 bg-background">
                 <Button 
                   variant="ghost" 
-                  size="icon" 
-                  className="flex-shrink-0"
+                  size="icon"
+                  className="h-8 w-8 flex-shrink-0"
                   disabled={sendingMessage}
                 >
-                  <Paperclip className="h-5 w-5 text-muted-foreground" />
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
                 </Button>
                 <Input 
                   placeholder="Type a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="bg-muted/30"
+                  className="bg-muted/30 h-8"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -624,7 +630,7 @@ const MessagingSystem = () => {
                 />
                 <Button 
                   onClick={handleSendMessage}
-                  className="flex-shrink-0"
+                  className="h-8 w-8 flex-shrink-0 p-0"
                   variant="default"
                   disabled={!newMessage.trim() || sendingMessage}
                 >
@@ -637,13 +643,13 @@ const MessagingSystem = () => {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-              <MessageSquare className="h-12 w-12 mb-2" />
-              <p className="text-lg font-medium">Select a conversation</p>
-              <p className="text-sm">Choose a contact to start messaging</p>
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 p-4">
+              <MessageSquare className="h-10 w-10 mb-1" />
+              <p className="text-base font-medium">Select a conversation</p>
+              <p className="text-xs">Choose a contact to start messaging</p>
               <Button 
                 variant="outline"
-                className="mt-2"
+                className="mt-1 text-sm h-8"
                 onClick={() => setNewContactDialog(true)}
               >
                 New Conversation
@@ -659,11 +665,11 @@ const MessagingSystem = () => {
           <DialogHeader>
             <DialogTitle>Add New Contact</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground mb-4">
+          <div className="py-3">
+            <p className="text-sm text-muted-foreground mb-3">
               Enter a Nostr public key (npub) or hex key to add a new contact
             </p>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="grid gap-2">
                 <Input
                   placeholder="npub1... or hex key"
