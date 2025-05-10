@@ -1,5 +1,7 @@
 
 import { NostrEvent, nostrService } from "@/lib/nostr";
+import { SubCloser } from "@/lib/nostr/types";
+import { useEffect } from "react";
 
 export const useCommunitySubscriptions = (
   communityId: string | undefined,
@@ -15,7 +17,7 @@ export const useCommunitySubscriptions = (
     await nostrService.connectToUserRelays();
     
     // Subscribe to community events with this ID
-    const communitySubId = nostrService.subscribe(
+    const communitySubCloser = nostrService.subscribe(
       [
         {
           kinds: [34550],
@@ -27,27 +29,28 @@ export const useCommunitySubscriptions = (
     );
     
     // Load proposals for this community
-    const proposalSubId = loadProposals(communityId);
+    const proposalSubClosers = loadProposals(communityId);
     
     // Load kick proposals for this community
-    const kickSubIds = loadKickProposals(communityId);
+    const kickSubClosers = loadKickProposals(communityId);
     
+    // Return a cleanup function that calls all the subscription closers
     return () => {
-      nostrService.unsubscribe(communitySubId);
-      if (proposalSubId) {
-        nostrService.unsubscribe(proposalSubId.proposalSubId);
-        nostrService.unsubscribe(proposalSubId.votesSubId);
+      communitySubCloser();
+      if (proposalSubClosers) {
+        proposalSubClosers.proposalSubCloser();
+        proposalSubClosers.votesSubCloser();
       }
-      if (kickSubIds) {
-        nostrService.unsubscribe(kickSubIds.kickProposalSubId);
-        nostrService.unsubscribe(kickSubIds.kickVotesSubId);
+      if (kickSubClosers) {
+        kickSubClosers.kickProposalSubCloser();
+        kickSubClosers.kickVotesSubCloser();
       }
     };
   };
   
   const loadProposals = (communityId: string) => {
     // Subscribe to proposal events for this community
-    const proposalSubId = nostrService.subscribe(
+    const proposalSubCloser = nostrService.subscribe(
       [
         {
           kinds: [34551],
@@ -59,7 +62,7 @@ export const useCommunitySubscriptions = (
     );
     
     // Subscribe to vote events
-    const votesSubId = nostrService.subscribe(
+    const votesSubCloser = nostrService.subscribe(
       [
         {
           kinds: [34552], // Vote events
@@ -69,11 +72,11 @@ export const useCommunitySubscriptions = (
       handleVoteEvent
     );
     
-    return { proposalSubId, votesSubId };
+    return { proposalSubCloser, votesSubCloser };
   };
   
   const loadKickProposals = (communityId: string) => {
-    const kickProposalSubId = nostrService.subscribe(
+    const kickProposalSubCloser = nostrService.subscribe(
       [
         {
           kinds: [34554], // Kick proposal kind
@@ -84,7 +87,7 @@ export const useCommunitySubscriptions = (
       handleKickProposalEvent
     );
     
-    const kickVotesSubId = nostrService.subscribe(
+    const kickVotesSubCloser = nostrService.subscribe(
       [
         {
           kinds: [34555], // Kick vote kind
@@ -94,7 +97,7 @@ export const useCommunitySubscriptions = (
       handleKickVoteEvent
     );
     
-    return { kickProposalSubId, kickVotesSubId };
+    return { kickProposalSubCloser, kickVotesSubCloser };
   };
   
   return {

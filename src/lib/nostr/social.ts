@@ -124,9 +124,9 @@ export class SocialManager {
         return null;
       }
       
-      // Create the direct message event (NIP-17)
+      // Create the direct message event (NIP-04)
       const event = {
-        kind: EVENT_KINDS.ENCRYPTED_DM, // Using kind 14 (NIP-17)
+        kind: EVENT_KINDS.DIRECT_MESSAGE, // Using kind 4 (NIP-04) for direct messages
         content: encryptedContent,
         tags: [
           ['p', recipientPubkey]
