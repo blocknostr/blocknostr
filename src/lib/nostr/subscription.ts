@@ -1,6 +1,6 @@
 
-import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
-import { NostrEvent } from './types';
+import { SimplePool, type Filter } from 'nostr-tools';
+import { NostrEvent, type SubCloser } from './types';
 
 export class SubscriptionManager {
   private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();

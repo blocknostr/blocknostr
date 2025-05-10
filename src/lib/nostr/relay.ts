@@ -1,6 +1,5 @@
-
-import { SimplePool, type Filter, type SubCloser } from 'nostr-tools';
-import { Relay } from './types';
+import { SimplePool, type Filter } from 'nostr-tools';
+import { Relay, type SubCloser } from './types';
 
 export class RelayManager {
   private relays: Map<string, WebSocket> = new Map();

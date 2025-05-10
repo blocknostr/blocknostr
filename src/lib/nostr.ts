@@ -1,5 +1,6 @@
-import { getEventHash, getPublicKey, nip19, SimplePool, type SubCloser } from 'nostr-tools';
+import { getEventHash, getPublicKey, nip19, SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
+import { type SubCloser } from './nostr/types';
 
 export interface NostrEvent {
   id?: string;
@@ -619,7 +620,7 @@ class NostrService {
     }
   }
   
-  // Subscribe to events - Updated to return SubCloser instead of string
+  // Subscribe to events - Updated to handle SubCloser instead of string
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
@@ -635,6 +636,7 @@ class NostrService {
       }
     }
     
+    // For backwards compatibility, return the subscription ID as before
     return subId;
   }
   

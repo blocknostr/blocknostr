@@ -1,5 +1,5 @@
-import { SimplePool, type SubCloser } from 'nostr-tools';
-import { NostrEvent, Relay } from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent, Relay, type SubCloser } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';
@@ -446,5 +446,5 @@ class NostrService {
 export const nostrService = new NostrService();
 
 // Export types and constants
-export type { NostrEvent, Relay } from './types';
+export type { NostrEvent, Relay, SubCloser } from './types';
 export { EVENT_KINDS } from './constants';
