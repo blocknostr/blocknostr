@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileData } from "./useProfileData";
@@ -123,8 +122,8 @@ export const useFollowingFeed = ({ activeHashtag }: UseFollowingFeedProps) => {
             
             const newEvents = [...prev, event];
             
-            // Sort by creation time (newest first)
-            newEvents.sort((a, b) => b.created_at - a.created_at);
+            // Sort by creation time (oldest first to show newest at bottom)
+            newEvents.sort((a, b) => a.created_at - b.created_at);
             
             // If we've reached the limit, set hasMore to false
             if (newEvents.length >= 100) {

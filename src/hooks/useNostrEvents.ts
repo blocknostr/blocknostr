@@ -25,8 +25,8 @@ export const useNostrEvents = () => {
             return prev;
           }
           
-          // Add new event and sort by creation time (newest first)
-          return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+          // Add new event and sort by creation time (oldest first to show newest at bottom)
+          return [...prev, event].sort((a, b) => a.created_at - b.created_at);
         });
         
         // Fetch profile data for this pubkey if we don't have it yet
