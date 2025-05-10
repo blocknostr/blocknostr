@@ -4,9 +4,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Settings } from "lucide-react";
 import { Relay, nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface ProfileRelaysProps {
   relays: Relay[];
@@ -17,6 +18,10 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isAddingRelay, setIsAddingRelay] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  
+  // Count connected relays
+  const connectedRelaysCount = relays.filter(relay => relay.status === 'connected').length;
   
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
@@ -50,13 +55,31 @@ const ProfileRelays = ({ relays, onRelaysChange }: ProfileRelaysProps) => {
     onRelaysChange(relayStatus);
     toast.success(`Removed relay: ${relayUrl}`);
   };
+
+  const navigateToRelaySettings = () => {
+    navigate('/settings');
+    // Using localStorage to communicate which tab should be active
+    localStorage.setItem('settingsActiveTab', 'relays');
+  };
   
   return (
     <div className="mb-6">
       <Card>
         <CardContent className="pt-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">My Relays</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">My Relays</h3>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="rounded-full px-2.5 py-1 h-auto text-sm bg-primary/10 hover:bg-primary/20 border-none"
+                onClick={navigateToRelaySettings}
+              >
+                <span className="font-medium mr-1">{connectedRelaysCount}</span>
+                <span className="text-xs">connected</span>
+                <Settings className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm">

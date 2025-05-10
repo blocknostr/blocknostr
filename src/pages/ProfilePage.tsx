@@ -335,6 +335,8 @@ const ProfilePage = () => {
             followers={followers}
             following={following}
             postsCount={events.length + reposts.length}
+            relays={relays.filter(r => r.status === 'connected').length}
+            isCurrentUser={isCurrentUser}
           />
           
           {/* Relays section (only for current user) */}
