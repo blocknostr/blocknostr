@@ -1,5 +1,5 @@
 
-import { getEventHash, validateEvent, SimplePool, finalizeEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
@@ -60,14 +60,16 @@ export class EventManager {
           }
           
           // Use private key for signing
+          // Create a proper UnsignedEvent object without any excess properties
           const unsignedEvent: UnsignedEvent = {
             kind: fullEvent.kind,
             created_at: fullEvent.created_at,
             tags: fullEvent.tags,
             content: fullEvent.content,
-            pubkey: fullEvent.pubkey,
+            pubkey: fullEvent.pubkey
           };
           
+          // Pass the correct types to finalizeEvent
           signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes);
           
         } catch (keyError) {
