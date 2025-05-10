@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -11,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { nostrService, Relay } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, Plus, Trash2, Link } from "lucide-react";
+import { CircleDot, Plus, Trash2, Link } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 // Media server related constants and settings
 const DEFAULT_MEDIA_SERVER = "https://blossom.primal.net";
@@ -37,6 +37,9 @@ const SettingsPage = () => {
   );
   const [newMirrorUrl, setNewMirrorUrl] = useState("");
   
+  // New state for tracking server ping status
+  const [mediaServerStatus, setMediaServerStatus] = useState<{[key: string]: boolean}>({});
+  
   useEffect(() => {
     const checkAuth = () => {
       const pubkey = nostrService.publicKey;
@@ -56,11 +59,47 @@ const SettingsPage = () => {
     checkAuth();
     loadRelays();
     
-    // Refresh relay status every 5 seconds
-    const interval = setInterval(loadRelays, 5000);
+    // Add function to check media server status
+    const checkMediaServerStatus = async () => {
+      // Check primary media server
+      try {
+        const response = await fetch(`${mediaServer}/health`, { 
+          method: 'HEAD',
+          cache: 'no-store' 
+        });
+        setMediaServerStatus(prev => ({...prev, [mediaServer]: response.ok}));
+      } catch (error) {
+        setMediaServerStatus(prev => ({...prev, [mediaServer]: false}));
+      }
+      
+      // Check all mirrors
+      if (enableMediaMirrors) {
+        for (const mirror of mediaMirrors) {
+          try {
+            const response = await fetch(`${mirror}/health`, { 
+              method: 'HEAD',
+              cache: 'no-store'
+            });
+            setMediaServerStatus(prev => ({...prev, [mirror]: response.ok}));
+          } catch (error) {
+            setMediaServerStatus(prev => ({...prev, [mirror]: false}));
+          }
+        }
+      }
+    };
     
-    return () => clearInterval(interval);
-  }, [navigate]);
+    // Check media server status immediately and then every 30 seconds
+    checkMediaServerStatus();
+    const statusInterval = setInterval(checkMediaServerStatus, 30000);
+    
+    // Refresh relay status every 5 seconds
+    const relayInterval = setInterval(loadRelays, 5000);
+    
+    return () => {
+      clearInterval(relayInterval);
+      clearInterval(statusInterval);
+    };
+  }, [navigate, mediaServer, mediaMirrors, enableMediaMirrors]);
   
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
@@ -101,12 +140,36 @@ const SettingsPage = () => {
     localStorage.setItem("mediaServer", newMediaServerUrl);
     setNewMediaServerUrl("");
     toast.success("Media server changed successfully");
+    
+    // Check status of the new server
+    fetch(`${newMediaServerUrl}/health`, { 
+      method: 'HEAD',
+      cache: 'no-store' 
+    })
+    .then(response => {
+      setMediaServerStatus(prev => ({...prev, [newMediaServerUrl]: response.ok}));
+    })
+    .catch(() => {
+      setMediaServerStatus(prev => ({...prev, [newMediaServerUrl]: false}));
+    });
   };
   
   const handleRestoreDefaultMediaServer = () => {
     setMediaServer(DEFAULT_MEDIA_SERVER);
     localStorage.setItem("mediaServer", DEFAULT_MEDIA_SERVER);
     toast.success("Default media server restored");
+    
+    // Check status of the default server
+    fetch(`${DEFAULT_MEDIA_SERVER}/health`, { 
+      method: 'HEAD',
+      cache: 'no-store' 
+    })
+    .then(response => {
+      setMediaServerStatus(prev => ({...prev, [DEFAULT_MEDIA_SERVER]: response.ok}));
+    })
+    .catch(() => {
+      setMediaServerStatus(prev => ({...prev, [DEFAULT_MEDIA_SERVER]: false}));
+    });
   };
   
   const handleToggleMediaMirrors = (checked: boolean) => {
@@ -133,6 +196,20 @@ const SettingsPage = () => {
     localStorage.setItem("mediaMirrors", JSON.stringify(updatedMirrors));
     setNewMirrorUrl("");
     toast.success("Media mirror added");
+    
+    // Check status of the new mirror
+    if (enableMediaMirrors) {
+      fetch(`${newMirrorUrl}/health`, { 
+        method: 'HEAD',
+        cache: 'no-store' 
+      })
+      .then(response => {
+        setMediaServerStatus(prev => ({...prev, [newMirrorUrl]: response.ok}));
+      })
+      .catch(() => {
+        setMediaServerStatus(prev => ({...prev, [newMirrorUrl]: false}));
+      });
+    }
   };
   
   const handleRemoveMirror = (mirrorUrl: string) => {
@@ -140,6 +217,33 @@ const SettingsPage = () => {
     setMediaMirrors(updatedMirrors);
     localStorage.setItem("mediaMirrors", JSON.stringify(updatedMirrors));
     toast.success("Media mirror removed");
+    
+    // Remove status for this mirror
+    setMediaServerStatus(prev => {
+      const newStatus = {...prev};
+      delete newStatus[mirrorUrl];
+      return newStatus;
+    });
+  };
+  
+  // Function to render server status indicator
+  const renderStatusIndicator = (url: string) => {
+    const isLive = mediaServerStatus[url] === true;
+    
+    return (
+      <div className="flex items-center gap-2">
+        {isLive ? (
+          <>
+            <CircleDot className="h-4 w-4 text-green-500" />
+            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
+              Live
+            </Badge>
+          </>
+        ) : (
+          <div className="w-4 h-4"></div> // Empty space for alignment
+        )}
+      </div>
+    );
   };
   
   return (
@@ -283,7 +387,7 @@ const SettingsPage = () => {
               </Card>
             </TabsContent>
             
-            {/* New Media Server tab */}
+            {/* New Media Server tab with enhanced visuals */}
             <TabsContent value="media">
               <Card>
                 <CardHeader>
@@ -295,12 +399,13 @@ const SettingsPage = () => {
                 <CardContent className="space-y-6">
                   <div>
                     <Label htmlFor="currentMediaServer">Current Media Server</Label>
-                    <div className="flex items-center mt-1.5 gap-2">
+                    <div className="flex items-center mt-1.5 gap-2 mb-1">
                       <Input 
                         id="currentMediaServer" 
                         readOnly 
                         value={mediaServer}
                       />
+                      {renderStatusIndicator(mediaServer)}
                     </div>
                   </div>
                   
@@ -393,6 +498,7 @@ const SettingsPage = () => {
                                   <div className="flex items-center gap-2">
                                     <Link className="h-4 w-4 text-muted-foreground" />
                                     <span className="text-sm">{mirror}</span>
+                                    {renderStatusIndicator(mirror)}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <Button 
