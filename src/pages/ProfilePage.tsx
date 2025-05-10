@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { NostrEvent, nostrService, Relay } from "@/lib/nostr";
@@ -9,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { npub } = useParams();
@@ -28,7 +30,7 @@ const ProfilePage = () => {
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
-  const { toast } = useToast();
+  const { toast: useToastInstance } = useToast();
   
   const currentUserPubkey = nostrService.publicKey;
   const isCurrentUser = currentUserPubkey && 
@@ -36,36 +38,33 @@ const ProfilePage = () => {
   
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!npub) return;
+      if (!npub && !currentUserPubkey) return;
       
       try {
+        setLoading(true);
+        
         // Connect to relays if not already connected
         await nostrService.connectToUserRelays();
         
         // Convert npub to hex if needed
-        let hexPubkey = npub;
-        if (npub.startsWith('npub1')) {
+        let hexPubkey = npub || '';
+        if (npub && npub.startsWith('npub1')) {
           hexPubkey = nostrService.getHexFromNpub(npub);
+        } else if (!npub && currentUserPubkey) {
+          hexPubkey = currentUserPubkey;
         }
         
-        // Subscribe to profile metadata (kind 0)
-        const metadataSubId = nostrService.subscribe(
-          [
-            {
-              kinds: [0],
-              authors: [hexPubkey],
-              limit: 1
-            }
-          ],
-          (event) => {
-            try {
-              const metadata = JSON.parse(event.content);
-              setProfileData(metadata);
-            } catch (e) {
-              console.error('Failed to parse profile metadata:', e);
-            }
-          }
-        );
+        if (!hexPubkey) {
+          toast.error("Invalid profile identifier");
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch profile metadata directly
+        const profileMetadata = await nostrService.getUserProfile(hexPubkey);
+        if (profileMetadata) {
+          setProfileData(profileMetadata);
+        }
         
         // Subscribe to user's notes (kind 1)
         const notesSubId = nostrService.subscribe(
@@ -192,7 +191,6 @@ const ProfilePage = () => {
         setLoading(false);
         
         return () => {
-          nostrService.unsubscribe(metadataSubId);
           nostrService.unsubscribe(notesSubId);
           nostrService.unsubscribe(repostsSubId);
           nostrService.unsubscribe(contactsSubId);
@@ -200,11 +198,7 @@ const ProfilePage = () => {
         };
       } catch (error) {
         console.error("Error fetching profile:", error);
-        toast({
-          title: "Error loading profile",
-          description: "Could not load profile data. Please try again.",
-          variant: "destructive",
-        });
+        toast.error("Could not load profile data. Please try again.");
         setLoading(false);
       }
     };
@@ -278,14 +272,15 @@ const ProfilePage = () => {
       const relayStatus = nostrService.getRelayStatus();
       setRelays(relayStatus);
     }
-  }, [npub, isCurrentUser, toast]);
+  }, [npub, isCurrentUser]);
   
-  // Show current user's profile if no npub is provided
+  // Redirect to current user's profile if no npub is provided
   useEffect(() => {
     if (!npub && currentUserPubkey) {
-      window.location.href = `/profile/${nostrService.formatPubkey(currentUserPubkey)}`;
+      const formattedPubkey = nostrService.formatPubkey(currentUserPubkey);
+      navigate(`/profile/${formattedPubkey}`, { replace: true });
     }
-  }, [npub, currentUserPubkey]);
+  }, [npub, currentUserPubkey, navigate]);
   
   const handleMessageUser = () => {
     if (!npub) return;
@@ -323,114 +318,132 @@ const ProfilePage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <ProfileHeader 
-            profileData={profileData}
-            npub={npub || ''}
-            isCurrentUser={isCurrentUser}
-            onMessage={handleMessageUser}
-          />
-          
-          <ProfileStats 
-            followers={followers}
-            following={following}
-            postsCount={events.length + reposts.length}
-            currentUserPubkey={currentUserPubkey}
-            isCurrentUser={isCurrentUser}
-            relays={relays}
-            onRelaysChange={setRelays}
-            userNpub={npub}
-          />
-          
-          {/* Tabbed Content */}
-          <div className="mt-6">
-            <Tabs defaultValue="posts" className="w-full">
-              <TabsList className="w-full grid grid-cols-5">
-                <TabsTrigger value="posts">Posts</TabsTrigger>
-                <TabsTrigger value="replies">Replies</TabsTrigger>
-                <TabsTrigger value="reposts">Reposts</TabsTrigger>
-                <TabsTrigger value="media">Media</TabsTrigger>
-                <TabsTrigger value="likes">Likes</TabsTrigger>
-              </TabsList>
+          {profileData ? (
+            <>
+              <ProfileHeader 
+                profileData={profileData}
+                npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
+                isCurrentUser={isCurrentUser}
+                onMessage={handleMessageUser}
+              />
               
-              {/* Posts Tab */}
-              <TabsContent value="posts" className="mt-4">
-                {events.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No posts found.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {events.map(event => (
-                      <NoteCard 
-                        key={event.id} 
-                        event={event} 
-                        profileData={profileData || undefined} 
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
+              <ProfileStats 
+                followers={followers}
+                following={following}
+                postsCount={events.length + reposts.length}
+                currentUserPubkey={currentUserPubkey}
+                isCurrentUser={isCurrentUser}
+                relays={relays}
+                onRelaysChange={setRelays}
+                userNpub={npub}
+              />
               
-              {/* Replies Tab */}
-              <TabsContent value="replies" className="mt-4">
-                <div className="py-8 text-center text-muted-foreground">
-                  Replies coming soon.
-                </div>
-              </TabsContent>
-
-              {/* Reposts Tab */}
-              <TabsContent value="reposts" className="mt-4">
-                {reposts.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No reposts found.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {reposts.map(({ originalEvent, repostEvent }) => (
-                      <NoteCard 
-                        key={originalEvent.id} 
-                        event={originalEvent} 
-                        profileData={originalEvent.pubkey ? originalPostProfiles[originalEvent.pubkey] : undefined}
-                        repostData={{
-                          reposterPubkey: repostEvent.pubkey || '',
-                          reposterProfile: profileData
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-              
-              {/* Media Tab */}
-              <TabsContent value="media" className="mt-4">
-                {media.length === 0 ? (
-                  <div className="py-8 text-center text-muted-foreground">
-                    No media found.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {media.map(event => (
-                      <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
-                        <img 
-                          src={extractImageUrl(event.content)} 
-                          alt="Media" 
-                          className="h-full w-full object-cover transition-all hover:scale-105"
-                          onClick={() => navigate(`/note/${event.id}`)}
-                        />
+              {/* Tabbed Content */}
+              <div className="mt-6">
+                <Tabs defaultValue="posts" className="w-full">
+                  <TabsList className="w-full grid grid-cols-5">
+                    <TabsTrigger value="posts">Posts</TabsTrigger>
+                    <TabsTrigger value="replies">Replies</TabsTrigger>
+                    <TabsTrigger value="reposts">Reposts</TabsTrigger>
+                    <TabsTrigger value="media">Media</TabsTrigger>
+                    <TabsTrigger value="likes">Likes</TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Posts Tab */}
+                  <TabsContent value="posts" className="mt-4">
+                    {events.length === 0 ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        No posts found.
                       </div>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-              
-              {/* Likes Tab */}
-              <TabsContent value="likes" className="mt-4">
-                <div className="py-8 text-center text-muted-foreground">
-                  Likes coming soon.
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {events.map(event => (
+                          <NoteCard 
+                            key={event.id} 
+                            event={event} 
+                            profileData={profileData || undefined} 
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  {/* Replies Tab */}
+                  <TabsContent value="replies" className="mt-4">
+                    <div className="py-8 text-center text-muted-foreground">
+                      Replies coming soon.
+                    </div>
+                  </TabsContent>
+
+                  {/* Reposts Tab */}
+                  <TabsContent value="reposts" className="mt-4">
+                    {reposts.length === 0 ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        No reposts found.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {reposts.map(({ originalEvent, repostEvent }) => (
+                          <NoteCard 
+                            key={originalEvent.id} 
+                            event={originalEvent} 
+                            profileData={originalEvent.pubkey ? originalPostProfiles[originalEvent.pubkey] : undefined}
+                            repostData={{
+                              reposterPubkey: repostEvent.pubkey || '',
+                              reposterProfile: profileData
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  {/* Media Tab */}
+                  <TabsContent value="media" className="mt-4">
+                    {media.length === 0 ? (
+                      <div className="py-8 text-center text-muted-foreground">
+                        No media found.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {media.map(event => (
+                          <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
+                            <img 
+                              src={extractImageUrl(event.content)} 
+                              alt="Media" 
+                              className="h-full w-full object-cover transition-all hover:scale-105"
+                              onClick={() => navigate(`/note/${event.id}`)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  {/* Likes Tab */}
+                  <TabsContent value="likes" className="mt-4">
+                    <div className="py-8 text-center text-muted-foreground">
+                      Likes coming soon.
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          ) : (
+            <div className="py-10 text-center">
+              <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
+              <p className="text-muted-foreground">
+                We couldn't find this profile. It might not exist or might not be available on the connected relays.
+              </p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

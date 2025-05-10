@@ -19,6 +19,7 @@ import { useLocation } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const Sidebar = () => {
   const isLoggedIn = !!nostrService.publicKey;
@@ -26,16 +27,21 @@ const Sidebar = () => {
   const isMobile = useIsMobile();
   const [userProfile, setUserProfile] = useState<{
     name?: string;
-    displayName?: string;
+    display_name?: string;
     picture?: string;
     nip05?: string;
   }>({});
+  const [isLoading, setIsLoading] = useState(false);
   
   // Force profile refresh when route changes, user logs in, or after 30 seconds
   useEffect(() => {
     const fetchUserProfile = async () => {
-      if (isLoggedIn) {
+      if (isLoggedIn && nostrService.publicKey) {
         try {
+          setIsLoading(true);
+          // Make sure we're connected to relays
+          await nostrService.connectToDefaultRelays();
+          
           const profile = await nostrService.getUserProfile(nostrService.publicKey);
           if (profile) {
             setUserProfile({
@@ -47,6 +53,8 @@ const Sidebar = () => {
           }
         } catch (error) {
           console.error("Failed to fetch user profile:", error);
+        } finally {
+          setIsLoading(false);
         }
       }
     };
@@ -179,8 +187,14 @@ const Sidebar = () => {
             <Link to="/profile">
               <div className="flex items-center gap-3 px-2 py-2 hover:bg-accent rounded-md transition-colors">
                 <Avatar>
-                  <AvatarImage src={userProfile.picture} alt={userProfile.displayName || userProfile.name || 'User'} />
-                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                  {isLoading ? (
+                    <AvatarFallback className="animate-pulse">{getUserInitials()}</AvatarFallback>
+                  ) : (
+                    <>
+                      <AvatarImage src={userProfile.picture} alt={userProfile.displayName || userProfile.name || 'User'} />
+                      <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                    </>
+                  )}
                 </Avatar>
                 <div className="flex flex-col">
                   <span className="font-medium text-sm truncate max-w-[140px]">

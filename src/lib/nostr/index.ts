@@ -388,10 +388,10 @@ class NostrService {
     return this.userManager.getHexFromNpub(npub);
   }
   
-  // Add getUserProfile method with proper implementation
+  // Add getUserProfile method with improved implementation
   public async getUserProfile(pubkey: string): Promise<{
     name?: string;
-    displayName?: string;
+    display_name?: string;
     picture?: string;
     nip05?: string;
     about?: string;
@@ -420,7 +420,12 @@ class NostrService {
           (event) => {
             try {
               const profile = JSON.parse(event.content);
+              // Store the raw event tags for NIP-39 verification
+              if (Array.isArray(event.tags) && event.tags.length > 0) {
+                profile.tags = event.tags;
+              }
               resolve(profile);
+              
               // Cleanup subscription after receiving the profile
               setTimeout(() => {
                 this.unsubscribe(subId);
