@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService, Relay } from "@/lib/nostr";
 import FollowButton from "../FollowButton";
 import ProfileRelaysDialog from "./ProfileRelaysDialog";
+import { Link } from "react-router-dom";
 
 interface ProfileStatsProps {
   followers: string[];
@@ -180,7 +181,7 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   
   return (
     <div className="flex items-center justify-between">
-      <a href={`/profile/${npub}`} className="flex items-center gap-3">
+      <Link to={`/profile/${npub}`} className="flex items-center gap-3 flex-1">
         <Avatar className="h-10 w-10">
           <AvatarImage src={profileData?.picture} />
           <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
@@ -189,7 +190,7 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
           <div className="font-medium">{name}</div>
           <div className="text-sm text-muted-foreground">@{username}</div>
         </div>
-      </a>
+      </Link>
       
       {currentUserPubkey && currentUserPubkey !== pubkey && (
         <FollowButton pubkey={pubkey} />
