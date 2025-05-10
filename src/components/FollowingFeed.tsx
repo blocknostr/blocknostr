@@ -1,10 +1,10 @@
 
+import React, { useState } from "react";
 import { useFollowingFeed } from "@/hooks/useFollowingFeed";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import FollowingFeedEmpty from "./following/FollowingFeedEmpty";
 import FollowingFeedLoading from "./following/FollowingFeedLoading";
 import FollowingFeedContent from "./following/FollowingFeedContent";
-import { useState } from "react";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
