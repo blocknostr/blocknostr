@@ -153,7 +153,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1">
           <NoteCardActions 
             eventId={event.id || ''} 
-            pubkey={event.pubkey}
+            pubkey={event.pubkey || ''}
             onCommentClick={handleCommentClick} 
             replyCount={replyCount}
             isAuthor={isCurrentUserAuthor}

@@ -13,7 +13,7 @@ import {
 
 interface NoteCardActionsProps {
   eventId: string;
-  pubkey?: string;
+  pubkey: string;
   onCommentClick?: () => void;
   replyCount?: number;
   isAuthor?: boolean;
@@ -196,6 +196,7 @@ const NoteCardActions = ({
               size="icon"
               className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
               title="Bookmark"
+              onClick={handleBookmark}
             >
               <Bookmark className="h-[18px] w-[18px]" />
             </Button>
