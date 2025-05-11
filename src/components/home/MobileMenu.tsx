@@ -30,19 +30,21 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
       </Sheet>
 
       {/* Mobile menu buttons */}
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="mr-2" 
-        onClick={() => setLeftPanelOpen(true)}
-      >
-        <Menu className="h-5 w-5" />
-        <span className="sr-only">Menu</span>
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setLeftPanelOpen(true)}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Menu</span>
+        </Button>
+      </div>
       
       <Button
         variant="ghost"
         size="icon"
+        className="ml-auto mr-2"
         onClick={() => setRightPanelOpen(true)}
         aria-label="Open trending and who to follow"
       >

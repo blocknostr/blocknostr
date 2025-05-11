@@ -1,6 +1,6 @@
 
 import React from "react";
-import { ArrowRight, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoginButton from "@/components/LoginButton";
 import { useTheme } from "@/hooks/use-theme";
@@ -35,7 +35,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           />
         )}
         
-        <h1 className="font-semibold">Home</h1>
+        {isMobile && (
+          <h1 className="font-semibold">BlockNostr</h1>
+        )}
+        {!isMobile && (
+          <h1 className="font-semibold">Home</h1>
+        )}
+        
         <div className="flex items-center space-x-2">
           <Button 
             variant="ghost"
@@ -48,16 +54,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
           </Button>
           <LoginButton />
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setRightPanelOpen(true)}
-              aria-label="Open trending and who to follow"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          )}
         </div>
       </div>
     </header>
