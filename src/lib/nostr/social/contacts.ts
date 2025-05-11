@@ -1,15 +1,10 @@
 
-import { SimplePool, Filter } from 'nostr-tools';
-import { NostrEvent } from '../types';
-import { EVENT_KINDS } from '../constants';
-import { UserManager } from '../user';
+import { SimplePool } from 'nostr-tools';
 import { EventManager } from '../event';
-import { toast } from 'sonner';
+import { UserManager } from '../user';
+import { EVENT_KINDS } from '../constants';
 import { ContactList } from './types';
 
-/**
- * ContactsManager handles follow/unfollow operations and contact lists
- */
 export class ContactsManager {
   private eventManager: EventManager;
   private userManager: UserManager;
@@ -21,63 +16,39 @@ export class ContactsManager {
   
   /**
    * Follow a user by adding them to the contact list
-   * Implements NIP-02: https://github.com/nostr-protocol/nips/blob/master/02.md
    */
-  public async followUser(
+  async followUser(
     pool: SimplePool,
     pubkeyToFollow: string,
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<boolean> {
-    if (!this.userManager.publicKey) return false;
+    const publicKey = this.userManager.publicKey;
+    if (!publicKey) return false;
     
     try {
-      // First, get current contact list
-      const contacts = await this.getContactList(pool, this.userManager.publicKey, relayUrls);
+      // Get current contact list
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if already following
-      if (contacts.pubkeys.includes(pubkeyToFollow)) {
+      if (pubkeys.includes(pubkeyToFollow)) {
         return true; // Already following
       }
       
-      // Add the new pubkey to follow to the contacts list
-      contacts.pubkeys.push(pubkeyToFollow);
+      // Add to in-memory following list
+      this.userManager.addFollowing(pubkeyToFollow);
       
-      // Create the event tags (proper NIP-02 format: ['p', <pubkey>, <relay URL>, <petname>])
-      const tags = contacts.pubkeys.map(key => {
-        // Find existing tag if available
-        const existingTag = contacts.tags.find(tag => tag[1] === key);
-        if (existingTag) {
-          return existingTag;
-        }
-        // Create a new tag with default values
-        return ['p', key];
-      });
+      // Create updated contact list event
+      const updatedTags = [...tags, ["p", pubkeyToFollow]];
       
-      // Create the contact list event (kind 3)
-      const event: Partial<NostrEvent> = {
+      const event = {
         kind: EVENT_KINDS.CONTACTS,
-        tags: tags,
-        content: contacts.content || '', // Preserve existing content
-        created_at: Math.floor(Date.now() / 1000),
+        content,
+        tags: updatedTags
       };
       
-      // Publish the event
-      const eventId = await this.eventManager.publishEvent(
-        pool,
-        this.userManager.publicKey,
-        privateKey,
-        event,
-        relayUrls
-      );
-      
-      if (eventId) {
-        // Update local state
-        this.userManager.addFollowing(pubkeyToFollow);
-        return true;
-      }
-      
-      return false;
+      const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      return !!eventId;
     } catch (error) {
       console.error("Error following user:", error);
       return false;
@@ -86,55 +57,39 @@ export class ContactsManager {
   
   /**
    * Unfollow a user by removing them from the contact list
-   * Implements NIP-02: https://github.com/nostr-protocol/nips/blob/master/02.md
    */
-  public async unfollowUser(
+  async unfollowUser(
     pool: SimplePool,
     pubkeyToUnfollow: string,
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<boolean> {
-    if (!this.userManager.publicKey) return false;
+    const publicKey = this.userManager.publicKey;
+    if (!publicKey) return false;
     
     try {
       // Get current contact list
-      const contacts = await this.getContactList(pool, this.userManager.publicKey, relayUrls);
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if actually following
-      if (!contacts.pubkeys.includes(pubkeyToUnfollow)) {
-        return true; // Already not following
+      if (!pubkeys.includes(pubkeyToUnfollow)) {
+        return true; // Not following, nothing to do
       }
       
-      // Remove the pubkey from the list
-      const filteredPubkeys = contacts.pubkeys.filter(key => key !== pubkeyToUnfollow);
+      // Remove from in-memory following list
+      this.userManager.removeFollowing(pubkeyToUnfollow);
       
-      // Create the event tags, removing the user to unfollow
-      const tags = contacts.tags.filter(tag => tag[1] !== pubkeyToUnfollow);
+      // Create updated contact list event
+      const updatedTags = tags.filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
       
-      // Create the contact list event (kind 3)
-      const event: Partial<NostrEvent> = {
+      const event = {
         kind: EVENT_KINDS.CONTACTS,
-        tags: tags,
-        content: contacts.content || '', // Preserve existing content
-        created_at: Math.floor(Date.now() / 1000),
+        content,
+        tags: updatedTags
       };
       
-      // Publish the event
-      const eventId = await this.eventManager.publishEvent(
-        pool,
-        this.userManager.publicKey,
-        privateKey,
-        event,
-        relayUrls
-      );
-      
-      if (eventId) {
-        // Update local state
-        this.userManager.removeFollowing(pubkeyToUnfollow);
-        return true;
-      }
-      
-      return false;
+      const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      return !!eventId;
     } catch (error) {
       console.error("Error unfollowing user:", error);
       return false;
@@ -145,48 +100,43 @@ export class ContactsManager {
    * Get the current contact list for a user
    * @returns Object containing the pubkeys, full tags array, and content
    */
-  public async getContactList(
+  async getContactList(
     pool: SimplePool,
     pubkey: string,
     relayUrls: string[]
   ): Promise<ContactList> {
     return new Promise((resolve) => {
-      // Initialize with empty arrays
-      let pubkeys: string[] = [];
-      let tags: string[][] = [];
-      let content = '';
-      
-      // Create a single filter object, not an array of filters
-      const filter: Filter = {
-        kinds: [EVENT_KINDS.CONTACTS],
-        authors: [pubkey],
-        limit: 1
+      const defaultResult: ContactList = {
+        pubkeys: [],
+        tags: [],
+        content: ''
       };
       
-      // Use subscribeMany for compatibility with Filter
-      const sub = pool.subscribeMany(
-        relayUrls,
-        [filter], // Pass as an array to subscribeMany
+      // Subscribe to contact list events
+      const subId = pool.sub(relayUrls, [
         {
-          onevent: (event: NostrEvent) => {
-            if (event.kind === EVENT_KINDS.CONTACTS) {
-              // Extract pubkeys from p tags
-              tags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
-              pubkeys = tags.map(tag => tag[1]);
-              content = event.content;
-              
-              // Close subscription after getting the event
-              sub.close();
-              resolve({ pubkeys, tags, content });
-            }
-          }
+          kinds: [EVENT_KINDS.CONTACTS],
+          authors: [pubkey],
+          limit: 1
         }
-      );
+      ], {
+        cb: (event) => {
+          // Extract p tags (pubkeys) and other tags
+          const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
+          const pubkeys = pTags.map(tag => tag[1]);
+          
+          resolve({
+            pubkeys,
+            tags: event.tags,
+            content: event.content
+          });
+        }
+      });
       
-      // Set timeout to avoid waiting forever
+      // Set a timeout to ensure we resolve even if no contact list is found
       setTimeout(() => {
-        sub.close();
-        resolve({ pubkeys, tags, content });
+        pool.unsub(subId);
+        resolve(defaultResult);
       }, 5000);
     });
   }

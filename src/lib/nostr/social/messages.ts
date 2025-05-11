@@ -1,13 +1,8 @@
 
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent } from '../types';
-import { EVENT_KINDS } from '../constants';
 import { EventManager } from '../event';
-import { toast } from 'sonner';
+import { EVENT_KINDS } from '../constants';
 
-/**
- * MessagesManager handles encrypted direct messaging
- */
 export class MessagesManager {
   private eventManager: EventManager;
   
@@ -17,9 +12,9 @@ export class MessagesManager {
   
   /**
    * Send a direct message to a user
-   * NIP-04: Encrypted Direct Messages
+   * NIP-04: Encrypted Direct Messages (kind 4)
    */
-  public async sendDirectMessage(
+  async sendDirectMessage(
     pool: SimplePool,
     recipientPubkey: string,
     content: string,
@@ -27,52 +22,35 @@ export class MessagesManager {
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<string | null> {
-    if (!senderPubkey) {
-      toast.error("You must be logged in to send messages");
-      return null;
-    }
+    if (!senderPubkey) return null;
     
     try {
-      // Use NIP-04 encryption through extension (standard method)
       let encryptedContent = content;
-      let encryptionSuccessful = false;
       
+      // Encrypt message using NIP-04 if browser extension is available
       if (window.nostr?.nip04) {
-        // Use NIP-04 encryption through extension
         try {
           encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
-          encryptionSuccessful = true;
-          console.log("Message encrypted with NIP-04");
         } catch (e) {
-          console.error("NIP-04 encryption failed:", e);
+          console.error("Failed to encrypt message:", e);
+          return null;
         }
+      } else {
+        console.warn("No encryption available, sending plaintext message");
       }
       
-      if (!encryptionSuccessful) {
-        toast.error("Message encryption failed - install a Nostr extension with NIP-04 support");
-        return null;
-      }
-      
-      // Create the direct message event (NIP-17)
+      // Create direct message event (kind 4)
       const event = {
-        kind: EVENT_KINDS.ENCRYPTED_DM, // Using kind 14 (NIP-17)
+        kind: EVENT_KINDS.ENCRYPTED_DM,
         content: encryptedContent,
         tags: [
-          ['p', recipientPubkey]
+          ["p", recipientPubkey] // Tag recipient
         ]
       };
       
-      // Publish to relays
-      return await this.eventManager.publishEvent(
-        pool,
-        senderPubkey,
-        privateKey,
-        event,
-        relayUrls
-      );
+      return this.eventManager.publishEvent(pool, senderPubkey, privateKey, event, relayUrls);
     } catch (error) {
       console.error("Error sending direct message:", error);
-      toast.error("Failed to send message");
       return null;
     }
   }

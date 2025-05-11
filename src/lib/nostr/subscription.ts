@@ -3,8 +3,9 @@ import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {
-  private subscriptions: Map<string, Set<(event: NostrEvent) => void>> = new Map();
   private pool: SimplePool;
+  private subscriptions: Map<string, { relays: string[], filters: any[], onEvent: (event: NostrEvent) => void }> = new Map();
+  private nextId = 0;
   
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -15,29 +16,40 @@ export class SubscriptionManager {
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void
   ): string {
-    const subId = `sub_${Math.random().toString(36).substr(2, 9)}`;
+    if (relays.length === 0) {
+      console.error("No relays provided for subscription");
+      return "";
+    }
     
-    this.subscriptions.set(subId, new Set([onEvent]));
+    const id = `sub_${this.nextId++}`;
     
-    // Use the pool to subscribe
-    this.pool.subscribeMany(
-      relays,
-      filters,
-      {
-        onevent: (event) => {
-          const callbacks = this.subscriptions.get(subId);
-          if (callbacks) {
-            callbacks.forEach(cb => cb(event));
-          }
+    try {
+      // Subscribe using the pool
+      this.pool.sub(relays, filters, {
+        cb: event => {
+          onEvent(event as NostrEvent);
         }
-      }
-    );
-    
-    return subId;
+      });
+      
+      // Store subscription details for later unsubscribe
+      this.subscriptions.set(id, { relays, filters, onEvent });
+      
+      return id;
+    } catch (error) {
+      console.error("Error creating subscription:", error);
+      return "";
+    }
   }
   
   unsubscribe(subId: string): void {
-    this.subscriptions.delete(subId);
-    this.pool.close([subId]);
+    const subscription = this.subscriptions.get(subId);
+    if (subscription) {
+      try {
+        this.pool.close(subscription.relays, subscription.filters);
+        this.subscriptions.delete(subId);
+      } catch (error) {
+        console.error(`Error unsubscribing from ${subId}:`, error);
+      }
+    }
   }
 }

@@ -1,10 +1,4 @@
 
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent } from '../types';
-
-/**
- * Interface for reaction counts on an event
- */
 export interface ReactionCounts {
   likes: number;
   reposts: number;
@@ -13,9 +7,6 @@ export interface ReactionCounts {
   likers: string[];
 }
 
-/**
- * Interface for contact list data
- */
 export interface ContactList {
   pubkeys: string[];
   tags: string[][];

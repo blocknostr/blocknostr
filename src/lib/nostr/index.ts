@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -105,20 +106,7 @@ class NostrService {
   
   // Method to add multiple relays at once
   public async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls.length) return 0;
-    
-    let successCount = 0;
-    
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) successCount++;
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-      }
-    }
-    
-    return successCount;
+    return this.relayManager.addMultipleRelays(relayUrls);
   }
   
   // Method to get relays for a user
@@ -588,7 +576,7 @@ class NostrService {
     );
   }
 
-  // New collection methods
+  // Collection methods
   async createBookmarkCollection(
     name: string,
     color?: string,

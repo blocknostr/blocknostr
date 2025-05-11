@@ -1,38 +1,33 @@
+
+import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
-import { SimplePool } from 'nostr-tools';
-import { toast } from 'sonner';
 
 export interface BookmarkCollection {
   id: string;
   name: string;
   color?: string;
   description?: string;
-  createdAt: number;
+  totalItems: number;
 }
 
 export interface BookmarkWithMetadata {
-  id: string;
   eventId: string;
   collectionId?: string;
   tags?: string[];
   note?: string;
-  addedAt: number;
 }
 
 export class BookmarkManager {
   private eventManager: EventManager;
-  private bookmarksCache: Map<string, string[]> = new Map(); // Cache for bookmarks by pubkey
-  private collectionsCache: Map<string, BookmarkCollection[]> = new Map(); // Cache for collections by pubkey
-  private bookmarkMetadataCache: Map<string, BookmarkWithMetadata[]> = new Map(); // Cache for bookmark metadata
-  private fetchPromises: Map<string, Promise<string[]>> = new Map(); // Track ongoing fetch operations
-  private collectionsPromises: Map<string, Promise<BookmarkCollection[]>> = new Map(); // Track ongoing collections fetches
-  private metadataPromises: Map<string, Promise<BookmarkWithMetadata[]>> = new Map(); // Track ongoing metadata fetches
-
+  
   constructor(eventManager: EventManager) {
     this.eventManager = eventManager;
   }
-
+  
+  /**
+   * Add a bookmark for an event
+   */
   async addBookmark(
     pool: SimplePool,
     publicKey: string | null,
@@ -43,76 +38,48 @@ export class BookmarkManager {
     tags?: string[],
     note?: string
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot add bookmark: User not logged in");
-      return false;
-    }
-
+    if (!publicKey) return false;
+    
     try {
-      // First, get the current bookmark list (use cache if available)
-      const currentBookmarks = await this.getBookmarkList(pool, publicKey, relays);
+      // First get existing bookmarks
+      const bookmarks = await this.getBookmarkList(pool, publicKey, relays);
       
-      // Check if this event is already bookmarked
-      if (currentBookmarks.includes(eventId)) {
+      // Check if already bookmarked
+      if (bookmarks.includes(eventId)) {
         // If already bookmarked, just update metadata if provided
-        if (collectionId || tags || note) {
-          await this.updateBookmarkMetadata(
-            pool, 
-            publicKey, 
-            privateKey, 
-            eventId, 
-            relays, 
-            collectionId, 
-            tags, 
-            note
-          );
-          toast.success("Bookmark updated");
+        if (collectionId || tags?.length || note) {
+          return this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
         }
-        return true;
+        return true; // Already bookmarked
       }
       
-      // Add the new bookmark
-      const updatedBookmarks = [...currentBookmarks, eventId];
-
-      // Update cache immediately for fast UI feedback
-      this.bookmarksCache.set(publicKey, updatedBookmarks);
-
-      // Create the bookmark list event
+      // Create bookmarks list event (NIP-51)
       const event = {
         kind: EVENT_KINDS.BOOKMARKS,
         content: "",
-        tags: updatedBookmarks.map(id => ['e', id])
+        tags: [
+          ...bookmarks.map(id => ["e", id]), // Include all existing bookmarks
+          ["e", eventId] // Add new bookmark
+        ]
       };
-
-      const publishedEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      // If metadata is provided, save it as well
-      if (collectionId || tags || note) {
-        await this.updateBookmarkMetadata(
-          pool, 
-          publicKey, 
-          privateKey, 
-          eventId, 
-          relays, 
-          collectionId, 
-          tags, 
-          note
-        );
+      
+      const bookmarkEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      
+      // Also create bookmark metadata if provided
+      if (bookmarkEventId && (collectionId || tags?.length || note)) {
+        await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
       }
-
-      return !!publishedEventId;
+      
+      return !!bookmarkEventId;
     } catch (error) {
       console.error("Error adding bookmark:", error);
       return false;
     }
   }
-
+  
+  /**
+   * Remove a bookmark
+   */
   async removeBookmark(
     pool: SimplePool,
     publicKey: string | null,
@@ -120,132 +87,93 @@ export class BookmarkManager {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot remove bookmark: User not logged in");
-      return false;
-    }
-
+    if (!publicKey) return false;
+    
     try {
-      // Get the current bookmark list (use cache if available)
-      const currentBookmarks = await this.getBookmarkList(pool, publicKey, relays);
+      // First get existing bookmarks
+      const bookmarks = await this.getBookmarkList(pool, publicKey, relays);
       
-      // Remove the bookmark
-      const updatedBookmarks = currentBookmarks.filter(id => id !== eventId);
-      
-      // If nothing changed, no need to publish
-      if (currentBookmarks.length === updatedBookmarks.length) {
-        return true;
+      // Check if it's actually bookmarked
+      if (!bookmarks.includes(eventId)) {
+        return true; // Not bookmarked, nothing to do
       }
       
-      // Update cache immediately for fast UI feedback
-      this.bookmarksCache.set(publicKey, updatedBookmarks);
-      
-      // Create updated bookmark list event
+      // Create updated bookmarks list event without the removed bookmark
       const event = {
         kind: EVENT_KINDS.BOOKMARKS,
         content: "",
-        tags: updatedBookmarks.map(id => ['e', id])
+        tags: bookmarks
+          .filter(id => id !== eventId)
+          .map(id => ["e", id])
       };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      // Also remove any metadata for this bookmark
-      await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
-
-      return !!resultEventId;
+      
+      const bookmarkEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      
+      // Also remove any bookmark metadata
+      if (bookmarkEventId) {
+        await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
+      }
+      
+      return !!bookmarkEventId;
     } catch (error) {
       console.error("Error removing bookmark:", error);
       return false;
     }
   }
-
+  
+  /**
+   * Get list of bookmarked event IDs
+   */
   async getBookmarkList(
     pool: SimplePool,
-    publicKey: string,
+    pubkey: string,
     relays: string[]
   ): Promise<string[]> {
-    // Check cache first
-    if (this.bookmarksCache.has(publicKey)) {
-      return this.bookmarksCache.get(publicKey) || [];
-    }
-    
-    // Check if we already have a fetch in progress
-    const cacheKey = `${publicKey}`;
-    if (this.fetchPromises.has(cacheKey)) {
-      return this.fetchPromises.get(cacheKey) || [];
-    }
-    
-    // Create a new fetch promise
-    const fetchPromise = new Promise<string[]>((resolve) => {
-      const bookmarkEvents: string[] = [];
+    return new Promise((resolve) => {
+      let bookmarkedIds: string[] = [];
       
-      const sub = pool.subscribeMany(
-        relays,
-        [{
-          kinds: [EVENT_KINDS.BOOKMARKS],
-          authors: [publicKey],
-          limit: 1
-        }],
+      // Subscribe to bookmark list events
+      const subId = pool.sub(relays, [
         {
-          onevent: (event) => {
-            // Extract event IDs from 'e' tags
-            const bookmarks = event.tags
-              .filter(tag => tag.length >= 2 && tag[0] === 'e')
-              .map(tag => tag[1]);
-              
-            bookmarkEvents.push(...bookmarks);
-          },
-          oneose: () => {
-            // When we've received all events or timed out
-            this.bookmarksCache.set(publicKey, bookmarkEvents);
-            this.fetchPromises.delete(cacheKey);
-            resolve(bookmarkEvents);
-            sub.close();
-          }
+          kinds: [EVENT_KINDS.BOOKMARKS],
+          authors: [pubkey],
+          limit: 1
         }
-      );
+      ], {
+        cb: (event) => {
+          // Extract e tags (bookmarked event IDs)
+          const bookmarks = event.tags
+            .filter(tag => tag.length >= 2 && tag[0] === 'e')
+            .map(tag => tag[1]);
+          
+          bookmarkedIds = bookmarks;
+        }
+      });
       
-      // Set a timeout to resolve with found bookmarks if oneose doesn't trigger
+      // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        if (this.fetchPromises.has(cacheKey)) {
-          this.bookmarksCache.set(publicKey, bookmarkEvents);
-          this.fetchPromises.delete(cacheKey);
-          resolve(bookmarkEvents);
-          sub.close();
-        }
+        pool.unsub(subId);
+        resolve(bookmarkedIds);
       }, 3000);
     });
-    
-    // Store the promise so we don't start multiple fetches
-    this.fetchPromises.set(cacheKey, fetchPromise);
-    
-    return fetchPromise;
   }
-
+  
+  /**
+   * Check if an event is bookmarked
+   */
   async isBookmarked(
     pool: SimplePool,
-    publicKey: string,
+    pubkey: string,
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) return false;
-    
-    try {
-      const bookmarks = await this.getBookmarkList(pool, publicKey, relays);
-      return bookmarks.includes(eventId);
-    } catch (error) {
-      console.error("Error checking bookmark status:", error);
-      return false;
-    }
+    const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
+    return bookmarks.includes(eventId);
   }
   
-  // Collections API
+  /**
+   * Create a bookmark collection
+   */
   async createCollection(
     pool: SimplePool,
     publicKey: string | null,
@@ -255,58 +183,34 @@ export class BookmarkManager {
     color?: string,
     description?: string
   ): Promise<string | null> {
-    if (!publicKey) {
-      console.error("Cannot create collection: User not logged in");
-      return null;
-    }
-
-    try {
-      const collectionId = `col-${Math.random().toString(36).substring(2, 10)}`;
-      const createdAt = Math.floor(Date.now() / 1000);
-      
-      // Get current collections
-      const collections = await this.getCollections(pool, publicKey, relays);
-      
-      // Create new collection
-      const newCollection: BookmarkCollection = {
-        id: collectionId,
-        name,
-        color,
-        description,
-        createdAt
-      };
-      
-      // Update cache
-      const updatedCollections = [...collections, newCollection];
-      this.collectionsCache.set(publicKey, updatedCollections);
-      
-      // Create collection event
-      const event = {
-        kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
-        content: JSON.stringify(updatedCollections),
-        tags: [['d', 'bookmark-collections']]
-      };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      if (resultEventId) {
-        toast.success(`Collection "${name}" created`);
-        return collectionId;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error("Error creating bookmark collection:", error);
-      return null;
-    }
+    if (!publicKey) return null;
+    
+    // Create collection unique ID
+    const collectionId = `col_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Create collection metadata
+    const collectionData = {
+      name,
+      color: color || "#000000",
+      description: description || "",
+      createdAt: Math.floor(Date.now() / 1000)
+    };
+    
+    // Create collection event
+    const event = {
+      kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
+      content: JSON.stringify(collectionData),
+      tags: [
+        ["d", collectionId] // Unique identifier
+      ]
+    };
+    
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
   
+  /**
+   * Update a bookmark collection
+   */
   async updateCollection(
     pool: SimplePool,
     publicKey: string | null,
@@ -315,51 +219,40 @@ export class BookmarkManager {
     updates: Partial<BookmarkCollection>,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot update collection: User not logged in");
-      return false;
+    if (!publicKey) return false;
+    
+    // First get existing collection
+    const collections = await this.getCollections(pool, publicKey, relays);
+    const collection = collections.find(c => c.id === collectionId);
+    
+    if (!collection) {
+      return false; // Collection doesn't exist
     }
-
-    try {
-      // Get current collections
-      const collections = await this.getCollections(pool, publicKey, relays);
-      
-      // Find and update collection
-      const collectionIndex = collections.findIndex(col => col.id === collectionId);
-      if (collectionIndex === -1) return false;
-      
-      const updatedCollection = {
-        ...collections[collectionIndex],
-        ...updates
-      };
-      
-      collections[collectionIndex] = updatedCollection;
-      
-      // Update cache
-      this.collectionsCache.set(publicKey, collections);
-      
-      // Create collection event
-      const event = {
-        kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
-        content: JSON.stringify(collections),
-        tags: [['d', 'bookmark-collections']]
-      };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      return !!resultEventId;
-    } catch (error) {
-      console.error("Error updating bookmark collection:", error);
-      return false;
-    }
+    
+    // Update collection data
+    const updatedData = {
+      name: updates.name || collection.name,
+      color: updates.color || collection.color || "#000000",
+      description: updates.description || collection.description || "",
+      createdAt: Math.floor(Date.now() / 1000)
+    };
+    
+    // Create updated collection event
+    const event = {
+      kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
+      content: JSON.stringify(updatedData),
+      tags: [
+        ["d", collectionId] // Same unique identifier
+      ]
+    };
+    
+    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!eventId;
   }
   
+  /**
+   * Delete a bookmark collection
+   */
   async deleteCollection(
     pool: SimplePool,
     publicKey: string | null,
@@ -367,130 +260,82 @@ export class BookmarkManager {
     collectionId: string,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot delete collection: User not logged in");
-      return false;
-    }
-
-    try {
-      // Get current collections
-      const collections = await this.getCollections(pool, publicKey, relays);
-      
-      // Filter out the collection
-      const updatedCollections = collections.filter(col => col.id !== collectionId);
-      
-      // If nothing changed, no need to publish
-      if (collections.length === updatedCollections.length) {
-        return false;
-      }
-      
-      // Update cache
-      this.collectionsCache.set(publicKey, updatedCollections);
-      
-      // Create collection event
-      const event = {
-        kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
-        content: JSON.stringify(updatedCollections),
-        tags: [['d', 'bookmark-collections']]
-      };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      // Now remove this collection from all bookmarks
-      const metadata = await this.getBookmarkMetadata(pool, publicKey, relays);
-      const bookmarksToUpdate = metadata.filter(bm => bm.collectionId === collectionId);
-      
-      for (const bookmark of bookmarksToUpdate) {
-        await this.updateBookmarkMetadata(
-          pool,
-          publicKey,
-          privateKey,
-          bookmark.eventId,
-          relays,
-          undefined, // Remove collection reference
-          bookmark.tags,
-          bookmark.note
-        );
-      }
-
-      return !!resultEventId;
-    } catch (error) {
-      console.error("Error deleting bookmark collection:", error);
-      return false;
-    }
+    if (!publicKey) return false;
+    
+    // Create deletion event (NIP-09)
+    const event = {
+      kind: EVENT_KINDS.DELETE,
+      content: "Deleted collection",
+      tags: [
+        ["a", `${EVENT_KINDS.BOOKMARK_COLLECTIONS}:${publicKey}:${collectionId}`]
+      ]
+    };
+    
+    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!eventId;
   }
   
+  /**
+   * Get all bookmark collections
+   */
   async getCollections(
     pool: SimplePool,
-    publicKey: string,
+    pubkey: string,
     relays: string[]
   ): Promise<BookmarkCollection[]> {
-    // Check cache first
-    if (this.collectionsCache.has(publicKey)) {
-      return this.collectionsCache.get(publicKey) || [];
-    }
-    
-    // Check if we already have a fetch in progress
-    const cacheKey = `${publicKey}`;
-    if (this.collectionsPromises.has(cacheKey)) {
-      return this.collectionsPromises.get(cacheKey) || [];
-    }
-    
-    // Create a new fetch promise
-    const fetchPromise = new Promise<BookmarkCollection[]>((resolve) => {
-      let collections: BookmarkCollection[] = [];
+    return new Promise(async (resolve) => {
+      const collections: BookmarkCollection[] = [];
+      const bookmarkMetadata = await this.getBookmarkMetadata(pool, pubkey, relays);
       
-      const sub = pool.subscribeMany(
-        relays,
-        [{
-          kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
-          authors: [publicKey],
-          "#d": ["bookmark-collections"],
-          limit: 1
-        }],
+      // Count items per collection
+      const collectionCounts: Record<string, number> = {};
+      bookmarkMetadata.forEach(meta => {
+        if (meta.collectionId) {
+          collectionCounts[meta.collectionId] = (collectionCounts[meta.collectionId] || 0) + 1;
+        }
+      });
+      
+      // Subscribe to bookmark collections
+      const subId = pool.sub(relays, [
         {
-          onevent: (event) => {
-            try {
-              // Parse collections from content
-              collections = JSON.parse(event.content);
-            } catch (e) {
-              console.error("Error parsing bookmark collections:", e);
-            }
-          },
-          oneose: () => {
-            // When we've received all events or timed out
-            this.collectionsCache.set(publicKey, collections);
-            this.collectionsPromises.delete(cacheKey);
-            resolve(collections);
-            sub.close();
+          kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
+          authors: [pubkey],
+        }
+      ], {
+        cb: (event) => {
+          try {
+            const data = JSON.parse(event.content);
+            
+            // Extract collection ID from d tag
+            const dTag = event.tags.find(tag => tag[0] === 'd');
+            if (!dTag || !dTag[1]) return;
+            
+            const collectionId = dTag[1];
+            
+            collections.push({
+              id: collectionId,
+              name: data.name || "Unnamed Collection",
+              color: data.color,
+              description: data.description,
+              totalItems: collectionCounts[collectionId] || 0
+            });
+          } catch (e) {
+            console.error("Error parsing collection data:", e);
           }
         }
-      );
+      });
       
-      // Set a timeout to resolve if oneose doesn't trigger
+      // Set a timeout to resolve with found collections
       setTimeout(() => {
-        if (this.collectionsPromises.has(cacheKey)) {
-          this.collectionsCache.set(publicKey, collections);
-          this.collectionsPromises.delete(cacheKey);
-          resolve(collections);
-          sub.close();
-        }
+        pool.unsub(subId);
+        resolve(collections);
       }, 3000);
     });
-    
-    // Store the promise so we don't start multiple fetches
-    this.collectionsPromises.set(cacheKey, fetchPromise);
-    
-    return fetchPromise;
   }
-
-  // Bookmark Metadata API
+  
+  /**
+   * Update bookmark metadata
+   */
   async updateBookmarkMetadata(
     pool: SimplePool,
     publicKey: string | null,
@@ -501,72 +346,37 @@ export class BookmarkManager {
     tags?: string[],
     note?: string
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot update bookmark metadata: User not logged in");
-      return false;
+    if (!publicKey) return false;
+    
+    // Create metadata object
+    const metadata: Record<string, any> = {};
+    if (collectionId) metadata.collectionId = collectionId;
+    if (note) metadata.note = note;
+    
+    // Create metadata event
+    const event = {
+      kind: EVENT_KINDS.BOOKMARK_METADATA,
+      content: JSON.stringify(metadata),
+      tags: [
+        ["e", eventId], // Reference to bookmarked event
+        ["d", `meta_${eventId.substring(0, 8)}`] // Unique identifier based on event ID
+      ]
+    };
+    
+    // Add tags if provided
+    if (tags && tags.length > 0) {
+      tags.forEach(tag => {
+        event.tags.push(["t", tag]);
+      });
     }
-
-    try {
-      // Get current metadata
-      const allMetadata = await this.getBookmarkMetadata(pool, publicKey, relays);
-      
-      const existingIndex = allMetadata.findIndex(bm => bm.eventId === eventId);
-      const now = Math.floor(Date.now() / 1000);
-      
-      let updatedMetadata: BookmarkWithMetadata[];
-      
-      if (existingIndex >= 0) {
-        // Update existing metadata
-        const updated = {
-          ...allMetadata[existingIndex]
-        };
-        
-        if (collectionId !== undefined) updated.collectionId = collectionId;
-        if (tags !== undefined) updated.tags = tags;
-        if (note !== undefined) updated.note = note;
-        
-        updatedMetadata = [...allMetadata];
-        updatedMetadata[existingIndex] = updated;
-      } else {
-        // Create new metadata
-        const newMetadata: BookmarkWithMetadata = {
-          id: `bm-${Math.random().toString(36).substring(2, 10)}`,
-          eventId,
-          addedAt: now
-        };
-        
-        if (collectionId) newMetadata.collectionId = collectionId;
-        if (tags) newMetadata.tags = tags;
-        if (note) newMetadata.note = note;
-        
-        updatedMetadata = [...allMetadata, newMetadata];
-      }
-      
-      // Update cache
-      this.bookmarkMetadataCache.set(publicKey, updatedMetadata);
-      
-      // Create metadata event
-      const event = {
-        kind: EVENT_KINDS.BOOKMARK_METADATA,
-        content: JSON.stringify(updatedMetadata),
-        tags: [['d', 'bookmark-metadata']]
-      };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      return !!resultEventId;
-    } catch (error) {
-      console.error("Error updating bookmark metadata:", error);
-      return false;
-    }
+    
+    const metaEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!metaEventId;
   }
   
+  /**
+   * Remove bookmark metadata
+   */
   async removeBookmarkMetadata(
     pool: SimplePool,
     publicKey: string | null,
@@ -574,122 +384,72 @@ export class BookmarkManager {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot remove bookmark metadata: User not logged in");
-      return false;
-    }
-
-    try {
-      // Get current metadata
-      const allMetadata = await this.getBookmarkMetadata(pool, publicKey, relays);
-      
-      // Remove metadata for this eventId
-      const updatedMetadata = allMetadata.filter(bm => bm.eventId !== eventId);
-      
-      // If nothing changed, no need to publish
-      if (allMetadata.length === updatedMetadata.length) {
-        return true;
-      }
-      
-      // Update cache
-      this.bookmarkMetadataCache.set(publicKey, updatedMetadata);
-      
-      // Create metadata event
-      const event = {
-        kind: EVENT_KINDS.BOOKMARK_METADATA,
-        content: JSON.stringify(updatedMetadata),
-        tags: [['d', 'bookmark-metadata']]
-      };
-
-      const resultEventId = await this.eventManager.publishEvent(
-        pool,
-        publicKey,
-        privateKey,
-        event,
-        relays
-      );
-
-      return !!resultEventId;
-    } catch (error) {
-      console.error("Error removing bookmark metadata:", error);
-      return false;
-    }
+    if (!publicKey) return false;
+    
+    // Create deletion event (NIP-09)
+    const event = {
+      kind: EVENT_KINDS.DELETE,
+      content: "Deleted bookmark metadata",
+      tags: [
+        ["a", `${EVENT_KINDS.BOOKMARK_METADATA}:${publicKey}:meta_${eventId.substring(0, 8)}`]
+      ]
+    };
+    
+    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!eventId;
   }
   
+  /**
+   * Get metadata for all bookmarks
+   */
   async getBookmarkMetadata(
     pool: SimplePool,
-    publicKey: string,
+    pubkey: string,
     relays: string[]
   ): Promise<BookmarkWithMetadata[]> {
-    // Check cache first
-    if (this.bookmarkMetadataCache.has(publicKey)) {
-      return this.bookmarkMetadataCache.get(publicKey) || [];
-    }
-    
-    // Check if we already have a fetch in progress
-    const cacheKey = `${publicKey}`;
-    if (this.metadataPromises.has(cacheKey)) {
-      return this.metadataPromises.get(cacheKey) || [];
-    }
-    
-    // Create a new fetch promise
-    const fetchPromise = new Promise<BookmarkWithMetadata[]>((resolve) => {
-      let metadata: BookmarkWithMetadata[] = [];
+    return new Promise((resolve) => {
+      const metadata: BookmarkWithMetadata[] = [];
       
-      const sub = pool.subscribeMany(
-        relays,
-        [{
-          kinds: [EVENT_KINDS.BOOKMARK_METADATA],
-          authors: [publicKey],
-          "#d": ["bookmark-metadata"],
-          limit: 1
-        }],
+      // Subscribe to bookmark metadata events
+      const subId = pool.sub(relays, [
         {
-          onevent: (event) => {
-            try {
-              // Parse metadata from content
-              metadata = JSON.parse(event.content);
-            } catch (e) {
-              console.error("Error parsing bookmark metadata:", e);
-            }
-          },
-          oneose: () => {
-            // When we've received all events or timed out
-            this.bookmarkMetadataCache.set(publicKey, metadata);
-            this.metadataPromises.delete(cacheKey);
-            resolve(metadata);
-            sub.close();
+          kinds: [EVENT_KINDS.BOOKMARK_METADATA],
+          authors: [pubkey]
+        }
+      ], {
+        cb: (event) => {
+          try {
+            // Extract referenced event ID from e tag
+            const eventRef = event.tags.find(tag => tag[0] === 'e');
+            if (!eventRef || !eventRef[1]) return;
+            
+            const eventId = eventRef[1];
+            
+            // Parse metadata from content
+            const data = JSON.parse(event.content);
+            
+            // Extract any tags
+            const tagList = event.tags
+              .filter(tag => tag[0] === 't' && tag.length >= 2)
+              .map(tag => tag[1]);
+            
+            metadata.push({
+              eventId,
+              collectionId: data.collectionId,
+              note: data.note,
+              tags: tagList.length > 0 ? tagList : undefined
+            });
+          } catch (e) {
+            console.error("Error parsing bookmark metadata:", e);
           }
         }
-      );
+      });
       
-      // Set a timeout to resolve if oneose doesn't trigger
+      // Set a timeout to resolve with found metadata
       setTimeout(() => {
-        if (this.metadataPromises.has(cacheKey)) {
-          this.bookmarkMetadataCache.set(publicKey, metadata);
-          this.metadataPromises.delete(cacheKey);
-          resolve(metadata);
-          sub.close();
-        }
+        pool.unsub(subId);
+        resolve(metadata);
       }, 3000);
     });
-    
-    // Store the promise so we don't start multiple fetches
-    this.metadataPromises.set(cacheKey, fetchPromise);
-    
-    return fetchPromise;
-  }
-  
-  // Clear cache for a specific user
-  clearCache(publicKey?: string) {
-    if (publicKey) {
-      this.bookmarksCache.delete(publicKey);
-      this.collectionsCache.delete(publicKey);
-      this.bookmarkMetadataCache.delete(publicKey);
-    } else {
-      this.bookmarksCache.clear();
-      this.collectionsCache.clear();
-      this.bookmarkMetadataCache.clear();
-    }
   }
 }
