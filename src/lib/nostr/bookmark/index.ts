@@ -1,20 +1,22 @@
 
 import { BookmarkManager } from './bookmark-manager';
 import { EventManager } from '../event';
-import { BookmarkManagerDependencies } from './types';
+import { BookmarkManagerDependencies, QueuedOperation } from './types';
+import { bookmarkStorage } from './storage/bookmark-storage';
+import { validateRelays, generateStableMetadataId } from './utils/bookmark-utils';
 
 // Re-export types
 export type { 
   BookmarkCollection, 
   BookmarkWithMetadata,
-  QueuedOperation as PendingOperation,
+  QueuedOperation,
   BookmarkStatus,
   BookmarkManagerDependencies,
   BookmarkEventKinds
 } from './types';
 
 // Re-export storage 
-export { bookmarkStorage as BookmarkStorage } from './storage/bookmark-storage';
+export { bookmarkStorage } from './storage/bookmark-storage';
 
 // Re-export utils
 export { validateRelays, generateStableMetadataId } from './utils/bookmark-utils';
@@ -32,9 +34,12 @@ export class BookmarkManagerFacade {
   private bookmarkManager: BookmarkManager;
   
   constructor(eventManager: EventManager) {
+    // Create the dependencies object with proper methods
     const dependencies: BookmarkManagerDependencies = {
-      publishEvent: eventManager.publishEvent.bind(eventManager),
-      getEvents: eventManager.getEvents.bind(eventManager)
+      publishEvent: async (event: any) => eventManager.publishEvent(null, null, null, event, []),
+      getEvents: async (filters: any[], relays?: string[]) => {
+        return eventManager.getEvents(filters, relays || []);
+      }
     };
     
     this.bookmarkManager = new BookmarkManager(dependencies);

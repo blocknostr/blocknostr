@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
-import { QueuedOperation } from '@/lib/nostr/bookmark/types';
+import { QueuedOperation, BookmarkOperationType } from '@/lib/nostr/bookmark/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 type BookmarkStatus = 'bookmarked' | 'not_bookmarked';
@@ -33,37 +33,38 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
     }
   }, [eventId, pendingOperations]);
 
-  const addToPendingOperations = useCallback((operation: Partial<QueuedOperation> & { type: string, data: any }) => {
-    setPendingOperations((prev: QueuedOperation[]) => {
-      // Check if we already have this operation
-      const exists = prev.some(
-        op => op.type === operation.type && 
-        (op.type === 'add' && op.data?.eventId === operation.data?.eventId)
-      );
-      
-      if (exists) {
-        return prev;
-      }
-      
+  const addToPendingOperations = useCallback((operation: { type: BookmarkOperationType, data: any }) => {
+    const updatedOperations: QueuedOperation[] = [...pendingOperations];
+    
+    // Check if we already have this operation
+    const exists = updatedOperations.some(
+      op => op.type === operation.type && 
+      (op.type === 'add' && op.data?.eventId === operation.data?.eventId)
+    );
+    
+    if (!exists) {
       // Create complete QueuedOperation with required fields
       const completeOperation: QueuedOperation = {
         id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
         timestamp: Date.now(),
-        type: operation.type as BookmarkOperationType,
+        type: operation.type,
         status: 'pending',
         retryCount: 0,
         data: operation.data
       };
       
-      return [...prev, completeOperation];
-    });
-  }, [setPendingOperations]);
+      updatedOperations.push(completeOperation);
+    }
+    
+    setPendingOperations(updatedOperations);
+  }, [pendingOperations, setPendingOperations]);
 
   const removeFromPendingOperations = useCallback((eventId: string) => {
-    setPendingOperations((prev: QueuedOperation[]) => 
-      prev.filter(op => !(op.type === 'add' && op.data?.eventId === eventId))
+    const updatedOperations = pendingOperations.filter(
+      op => !(op.type === 'add' && op.data?.eventId === eventId)
     );
-  }, [setPendingOperations]);
+    setPendingOperations(updatedOperations);
+  }, [pendingOperations, setPendingOperations]);
 
   const handleBookmark = useCallback(async () => {
     if (isBookmarkPending) return;

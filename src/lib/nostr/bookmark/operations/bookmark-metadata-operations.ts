@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { EVENT_KINDS } from '../../constants';
 import { BookmarkManagerDependencies } from '../types';
@@ -54,6 +55,7 @@ export class BookmarkMetadataOperations {
       }
       
       console.log("Publishing bookmark metadata:", event);
+      // Use the single-argument version
       const publishResult = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata publish result:", publishResult);
       
@@ -94,6 +96,7 @@ export class BookmarkMetadataOperations {
       };
       
       console.log("Publishing bookmark metadata deletion:", event);
+      // Use the single-argument version
       const result = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata deletion result:", result);
       

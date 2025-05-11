@@ -1,9 +1,11 @@
+
 import { SimplePool } from 'nostr-tools';
 import { BookmarkManagerDependencies } from './types';
 import { BookmarkOperations } from './operations/bookmark-operations';
 import { CollectionOperations } from './operations/collection-operations';
 import { MetadataOperations } from './operations/metadata-operations';
 import { bookmarkStorage } from './storage/bookmark-storage';
+import { BookmarkCacheService } from './cache/bookmark-cache-service';
 
 /**
  * Primary facade for bookmark functionality
@@ -38,7 +40,7 @@ export class BookmarkManager {
     
     // Cache result if successful
     if (result) {
-      await bookmarkStorage.constructor.cacheBookmarkStatus(eventId, true);
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, true);
     }
     
     return result;
@@ -57,7 +59,7 @@ export class BookmarkManager {
     
     // Cache result if successful
     if (result) {
-      await bookmarkStorage.constructor.cacheBookmarkStatus(eventId, false);
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, false);
     }
     
     return result;
@@ -71,7 +73,7 @@ export class BookmarkManager {
     const results = await this.bookmarkOps.getBookmarkList(pool, pubkey, relays);
     
     // Cache results
-    await bookmarkStorage.constructor.cacheBookmarkList(results);
+    await BookmarkCacheService.cacheBookmarkList(results);
     
     return results;
   }
@@ -142,7 +144,7 @@ export class BookmarkManager {
     }));
     
     // Cache results
-    await bookmarkStorage.constructor.cacheBookmarkCollections(collectionsWithCounts);
+    await BookmarkCacheService.cacheBookmarkCollections(collectionsWithCounts);
     
     return collectionsWithCounts;
   }
@@ -156,7 +158,7 @@ export class BookmarkManager {
     const metadata = await this.metadataOps.getBookmarkMetadata(pool, pubkey, relays);
     
     // Cache results
-    await bookmarkStorage.constructor.cacheBookmarkMetadata(metadata);
+    await BookmarkCacheService.cacheBookmarkMetadata(metadata);
     
     return metadata;
   }

@@ -1,4 +1,3 @@
-
 import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
@@ -16,7 +15,7 @@ export class EventManager {
       return null;
     }
     
-    const fullEvent: NostrEvent = {
+    const fullEvent: UnsignedEvent = {
       pubkey: publicKey,
       created_at: Math.floor(Date.now() / 1000),
       kind: event.kind || EVENT_KINDS.TEXT_NOTE,
@@ -24,8 +23,8 @@ export class EventManager {
       content: event.content || '',
     };
     
-    const eventId = getEventHash(fullEvent as any);
-    let signedEvent: NostrEvent;
+    const eventId = getEventHash(fullEvent);
+    let signedEvent: NostrToolsEvent;
     
     try {
       if (window.nostr) {
@@ -77,17 +76,7 @@ export class EventManager {
           }
           
           // Use private key for signing
-          // Create a proper UnsignedEvent object without any excess properties
-          const unsignedEvent: UnsignedEvent = {
-            kind: fullEvent.kind,
-            created_at: fullEvent.created_at,
-            tags: fullEvent.tags,
-            content: fullEvent.content,
-            pubkey: fullEvent.pubkey
-          };
-          
-          // Fix: Explicitly cast the result to NostrEvent to satisfy TypeScript
-          signedEvent = finalizeEvent(unsignedEvent, privateKeyBytes) as NostrEvent;
+          signedEvent = finalizeEvent(fullEvent, privateKeyBytes);
           
         } catch (keyError) {
           console.error("Invalid private key format:", keyError);
@@ -110,8 +99,7 @@ export class EventManager {
         return null;
       }
       
-      // Explicitly cast to NostrToolsEvent to satisfy type requirements
-      pool.publish(relays, signedEvent as NostrToolsEvent);
+      pool.publish(relays, signedEvent);
       return eventId;
       
     } catch (error) {

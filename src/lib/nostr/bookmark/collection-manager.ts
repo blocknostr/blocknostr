@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 import { BookmarkCollection, BookmarkManagerDependencies, BookmarkWithMetadata } from './types';
@@ -47,7 +46,8 @@ export class BookmarkCollectionManager {
       ]
     };
     
-    return this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+    // Use the dependencies publishEvent method (single argument version)
+    return this.dependencies.publishEvent(event);
   }
   
   /**
@@ -89,7 +89,8 @@ export class BookmarkCollectionManager {
       ]
     };
     
-    const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+    // Use the dependencies publishEvent method (single argument version)
+    const publishResult = await this.dependencies.publishEvent(event);
     return !!publishResult;
   }
   
@@ -115,7 +116,8 @@ export class BookmarkCollectionManager {
       ]
     };
     
-    const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+    // Use the dependencies publishEvent method (single argument version)
+    const result = await this.dependencies.publishEvent(event);
     return !!result;
   }
   

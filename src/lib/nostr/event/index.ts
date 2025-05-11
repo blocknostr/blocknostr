@@ -1,5 +1,5 @@
 
-import { SimplePool, nip19, type Event } from 'nostr-tools';
+import { SimplePool, nip19, type Event, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 
 // EventManager interface 
@@ -27,7 +27,9 @@ export class NostrEventManager implements EventManager {
    */
   async getEvents(filters: any[], relays: string[]): Promise<any[]> {
     try {
-      return await this.pool.querySync(relays, filters);
+      // Convert array of filters to proper Filter type
+      const properFilters: Filter[] = filters.map(f => f as Filter);
+      return await this.pool.querySync(relays, properFilters);
     } catch (error) {
       console.error("Error getting events:", error);
       return [];
@@ -39,7 +41,9 @@ export class NostrEventManager implements EventManager {
    */
   async getEventById(id: string, relays: string[]): Promise<any | null> {
     try {
-      const events = await this.pool.querySync(relays, [{ ids: [id] }]);
+      // Create a proper filter object
+      const filter: Filter = { ids: [id] };
+      const events = await this.pool.querySync(relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error(`Error fetching event ${id}:`, error);
@@ -52,12 +56,13 @@ export class NostrEventManager implements EventManager {
    */
   async getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>> {
     try {
-      // Use KIND.META (0) to fetch profile information
-      const events = await this.pool.querySync(relays, [{ 
+      // Create a proper filter object
+      const filter: Filter = { 
         kinds: [EVENT_KINDS.META], 
         authors: pubkeys 
-      }]);
-
+      };
+      
+      const events = await this.pool.querySync(relays, [filter]);
       const profiles: Record<string, any> = {};
 
       for (const event of events) {
