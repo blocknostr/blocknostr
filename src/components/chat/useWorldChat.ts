@@ -14,7 +14,8 @@ const WORLD_CHAT_TAG = "world-chat";
 const MAX_MESSAGES = 15;
 const RETRY_INTERVAL = 5000; // 5 seconds for retry
 
-export { ConnectionStatus } from "./utils/connection-utils";
+// Export the type with the 'type' keyword to fix the TS1205 error
+export type { ConnectionStatus } from "./utils/connection-utils";
 
 export const useWorldChat = () => {
   const { emojiReactions, handleReaction, addReaction } = useReactionHandler();
