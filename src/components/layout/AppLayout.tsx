@@ -20,7 +20,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     activeHashtag, 
     rightPanelOpen, 
     setRightPanelOpen,
-    setActiveHashtag, // Add this line to get the setActiveHashtag function
+    setActiveHashtag,
     clearHashtag 
   } = useRightSidebar();
   
@@ -77,20 +77,41 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           "flex-1 transition-all duration-200",
           !isMobile && "ml-64"
         )}
-        {...swipeHandlers}
-        onClick={handleMainContentClick}
       >
-        {children}
+        <div 
+          className="flex w-full"
+          {...swipeHandlers}
+          onClick={handleMainContentClick}
+        >
+          {/* Main content area */}
+          <div className="flex-1">
+            {children}
+          </div>
+          
+          {/* Right sidebar - outside of children but inside the flex container */}
+          {!isMobile && preferences.uiPreferences.showTrending && (
+            <RightSidebar
+              rightPanelOpen={rightPanelOpen}
+              setRightPanelOpen={setRightPanelOpen}
+              onTopicClick={handleTopicClick}
+              isMobile={isMobile}
+              activeHashtag={activeHashtag}
+              onClearHashtag={clearHashtag}
+            />
+          )}
+        </div>
         
-        {/* Right sidebar - either fixed or sheet based on device */}
-        <RightSidebar
-          rightPanelOpen={rightPanelOpen}
-          setRightPanelOpen={setRightPanelOpen}
-          onTopicClick={handleTopicClick}
-          isMobile={isMobile}
-          activeHashtag={activeHashtag}
-          onClearHashtag={clearHashtag}
-        />
+        {/* Mobile right sidebar - rendered as a sheet */}
+        {isMobile && (
+          <RightSidebar
+            rightPanelOpen={rightPanelOpen}
+            setRightPanelOpen={setRightPanelOpen}
+            onTopicClick={handleTopicClick}
+            isMobile={isMobile}
+            activeHashtag={activeHashtag}
+            onClearHashtag={clearHashtag}
+          />
+        )}
       </div>
     </div>
   );

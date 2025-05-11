@@ -13,7 +13,7 @@ const MainContent: React.FC<MainContentProps> = ({
   onClearHashtag
 }) => {
   return (
-    <main className="flex-1 border-r min-h-screen">
+    <main className="flex-1 min-h-screen">
       <div className="max-w-2xl mx-auto px-4 py-4">
         <ConnectionStatusBanner />
         <MainFeed 
