@@ -1,3 +1,3 @@
 
-// This file is now empty as we've moved header functionality to AppLayout
+// This file is now redundant as we're using navigation/PageHeader.tsx
 export {};

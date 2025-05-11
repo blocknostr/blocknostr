@@ -23,15 +23,10 @@ const Index: React.FC = () => {
   }, [preferences.relayPreferences.autoConnect]);
 
   return (
-    <>
-      <header className="sticky top-0 z-30 flex items-center justify-between bg-background/80 backdrop-blur-sm border-b h-14 px-4">
-        <h1 className="font-semibold text-lg">Home</h1>
-      </header>
-      <MainContent
-        activeHashtag={activeHashtag}
-        onClearHashtag={clearHashtag}
-      />
-    </>
+    <MainContent
+      activeHashtag={activeHashtag}
+      onClearHashtag={clearHashtag}
+    />
   );
 };
 

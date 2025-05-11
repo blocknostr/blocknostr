@@ -82,6 +82,26 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return "BlockNoster";
   };
 
+  // Determine which pages should show a back button
+  const shouldShowBackButton = () => {
+    const path = location.pathname;
+    // Home, top-level sections, and settings don't need back buttons
+    const noBackButtonRoutes = [
+      '/',
+      '/communities',
+      '/settings',
+      '/messages',
+      '/notifications',
+      '/wallets',
+      '/premium',
+      '/notebin'
+    ];
+    
+    return !noBackButtonRoutes.includes(path) && !noBackButtonRoutes.some(route => 
+      route !== '/' && path === `${route}/`
+    );
+  };
+
   return (
     <div className={cn(
       "flex min-h-screen bg-background relative",
@@ -100,25 +120,23 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         )}
       >
         {/* Page Header - common across all pages */}
-        {location.pathname !== "/" && (
-          <PageHeader 
-            title={getPageTitle()}
-            showBackButton={!location.pathname.match(/^\/($|communities$|settings$|messages$|notifications$|wallets$|premium$)/)}
-          >
-            {isMobile && (
-              <button 
-                onClick={() => setLeftPanelOpen(true)} 
-                className="mr-2 p-1.5 rounded-md hover:bg-accent"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu">
-                  <line x1="4" x2="20" y1="12" y2="12"/>
-                  <line x1="4" x2="20" y1="6" y2="6"/>
-                  <line x1="4" x2="20" y1="18" y2="18"/>
-                </svg>
-              </button>
-            )}
-          </PageHeader>
-        )}
+        <PageHeader 
+          title={getPageTitle()}
+          showBackButton={shouldShowBackButton()}
+        >
+          {isMobile && (
+            <button 
+              onClick={() => setLeftPanelOpen(true)} 
+              className="mr-2 p-1.5 rounded-md hover:bg-accent"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu">
+                <line x1="4" x2="20" y1="12" y2="12"/>
+                <line x1="4" x2="20" y1="6" y2="6"/>
+                <line x1="4" x2="20" y1="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </PageHeader>
         
         <div 
           className="flex w-full flex-1"
