@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -12,6 +11,8 @@ import MediaPreviewList from './post/MediaPreviewList';
 import CharacterCounter from './post/CharacterCounter';
 import SubmitButton from './post/SubmitButton';
 import ScheduledIndicator from './post/ScheduledIndicator';
+import SmartComposeToolbar from './post/SmartComposeToolbar';
+import { useHashtagDetector } from '@/hooks/useHashtagDetector';
 import { cn } from "@/lib/utils";
 
 const CreateNoteForm = () => {
@@ -21,6 +22,9 @@ const CreateNoteForm = () => {
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<string>("compose");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Use our hashtag detector
+  const detectedHashtags = useHashtagDetector(content);
   
   const pubkey = nostrService.publicKey;
   
@@ -59,12 +63,10 @@ const CreateNoteForm = () => {
         tags.push(['r', url]);
       });
       
-      // Extract and add hashtags from content
-      const hashtagRegex = /#(\w+)/g;
-      let match;
-      while ((match = hashtagRegex.exec(content)) !== null) {
-        tags.push(['t', match[1]]);
-      }
+      // Add all detected hashtags (now using our detector)
+      detectedHashtags.forEach(hashtag => {
+        tags.push(['t', hashtag]);
+      });
       
       // If scheduled, add a p tag with the timestamp
       if (scheduledDate && scheduledDate > new Date()) {
@@ -113,6 +115,31 @@ const CreateNoteForm = () => {
     setContent(prev => prev + (prev ? ' ' : '') + text);
   };
   
+  // New functions for hashtag and trending topics integration
+  const handleHashtagClick = (tag: string) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    
+    setContent(
+      content.substring(0, start) + 
+      ` #${tag} ` + 
+      content.substring(start)
+    );
+    
+    // Set cursor position after the added tag
+    const newPosition = start + tag.length + 3; // +3 for space, # and trailing space
+    
+    // Need to wait for React to update the textarea
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
+  };
+  
   if (!pubkey) {
     return null;
   }
@@ -151,6 +178,23 @@ const CreateNoteForm = () => {
                 maxLength={MAX_NOTE_LENGTH}
                 textareaRef={textareaRef}
               />
+              
+              {/* Add the new SmartComposeToolbar */}
+              <SmartComposeToolbar 
+                onHashtagClick={handleHashtagClick}
+                onQuickReplyClick={handleQuickReply}
+              />
+              
+              {/* Show detected hashtags if any */}
+              {detectedHashtags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {detectedHashtags.map(tag => (
+                    <span key={tag} className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="templates" className="mt-3">
