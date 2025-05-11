@@ -8,7 +8,6 @@ import { useWorldChat } from "./useWorldChat";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -23,12 +22,9 @@ const WorldChat = () => {
     sendMessage,
     addReaction,
     error,
-    connectionStatus
+    connectionStatus,
+    reconnect
   } = useWorldChat();
-
-  const handleReconnect = async () => {
-    await nostrService.connectToUserRelays();
-  };
 
   return (
     <Card className="flex-grow flex flex-col h-[550px]">
@@ -52,7 +48,7 @@ const WorldChat = () => {
               variant="outline" 
               size="sm" 
               className="h-6 text-xs py-0" 
-              onClick={handleReconnect}
+              onClick={reconnect}
             >
               Reconnect
             </Button>
