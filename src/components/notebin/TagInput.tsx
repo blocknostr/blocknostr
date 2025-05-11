@@ -47,8 +47,6 @@ export function TagInput({ value, onChange, placeholder = "Add tags...", maxTags
   return (
     <div className="flex flex-col space-y-2">
       <div className="flex flex-wrap gap-2 items-center border rounded-md p-2">
-        <Tags className="h-4 w-4 text-muted-foreground" />
-        
         {value.map(tag => (
           <Badge key={tag} variant="secondary" className="px-2 py-1 flex items-center gap-1">
             {tag}
@@ -59,15 +57,18 @@ export function TagInput({ value, onChange, placeholder = "Add tags...", maxTags
           </Badge>
         ))}
         
-        <Input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={value.length < maxTags ? placeholder : `Maximum ${maxTags} tags`}
-          className="flex-grow border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-6"
-          disabled={value.length >= maxTags}
-        />
+        <div className="flex items-center flex-grow">
+          <Input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={value.length < maxTags ? placeholder : `Maximum ${maxTags} tags`}
+            className="flex-grow border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-6"
+            disabled={value.length >= maxTags}
+          />
+          <Tags className="h-4 w-4 text-muted-foreground ml-2" />
+        </div>
       </div>
       
       <div className="text-xs text-muted-foreground">
