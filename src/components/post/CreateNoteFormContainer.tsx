@@ -4,19 +4,19 @@ import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import QuickReplies from './post/QuickReplies';
-import NoteComposer from './post/NoteComposer';
-import FormattingToolbar from './post/FormattingToolbar';
-import MediaPreviewList from './post/MediaPreviewList';
-import CharacterCounter from './post/CharacterCounter';
-import SubmitButton from './post/SubmitButton';
-import ScheduledIndicator from './post/ScheduledIndicator';
-import SmartComposeToolbar from './post/SmartComposeToolbar';
+import QuickReplies from '../post/quick-replies/QuickRepliesContainer';
+import NoteComposer from './NoteComposer';
+import FormattingToolbar from './FormattingToolbar';
+import MediaPreviewList from './MediaPreviewList';
+import CharacterCounter from './CharacterCounter';
+import SubmitButton from './SubmitButton';
+import ScheduledIndicator from './ScheduledIndicator';
+import SmartComposeToolbar from './SmartComposeToolbar';
 import { useHashtagDetector } from '@/hooks/useHashtagDetector';
 import { cn } from "@/lib/utils";
 import { useNoteFormState } from '@/hooks/useNoteFormState';
-import NoteFormHeader from './post/NoteFormHeader';
-import NoteFormFooter from './post/NoteFormFooter';
+import NoteFormHeader from './NoteFormHeader';
+import NoteFormFooter from './NoteFormFooter';
 
 const CreateNoteFormContainer = () => {
   const {
