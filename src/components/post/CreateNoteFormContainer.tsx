@@ -1,20 +1,17 @@
+
 import { useState, useRef } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import QuickReplies from '../post/quick-replies/QuickRepliesContainer';
 import NoteComposer from './NoteComposer';
-import FormattingToolbar from './FormattingToolbar';
 import MediaPreviewList from './MediaPreviewList';
-import CharacterCounter from './CharacterCounter';
-import SubmitButton from './SubmitButton';
 import ScheduledIndicator from './ScheduledIndicator';
 import SmartComposeToolbar from './SmartComposeToolbar';
 import { useHashtagDetector } from '@/hooks/useHashtagDetector';
 import { cn } from "@/lib/utils";
 import { useNoteFormState } from '@/hooks/useNoteFormState';
-import NoteFormHeader from './NoteFormHeader';
 import NoteFormFooter from './NoteFormFooter';
 
 const CreateNoteFormContainer = () => {
@@ -27,8 +24,8 @@ const CreateNoteFormContainer = () => {
     setMediaUrls,
     scheduledDate,
     setScheduledDate,
-    activeTab,
-    setActiveTab,
+    showQuickReplies,
+    setShowQuickReplies,
     MAX_NOTE_LENGTH,
     charsLeft,
     isNearLimit,
@@ -117,6 +114,7 @@ const CreateNoteFormContainer = () => {
   
   const handleQuickReply = (text: string) => {
     setContent(prev => prev + (prev ? ' ' : '') + text);
+    setShowQuickReplies(false); // Auto-hide quick replies after selection
   };
   
   const handleHashtagClick = (tag: string) => {
@@ -157,40 +155,37 @@ const CreateNoteFormContainer = () => {
           <AvatarFallback>{avatarFallback}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <NoteFormHeader 
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-          />
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="compose" className="mt-3 p-0 border-0">
-              <NoteComposer 
-                content={content}
-                setContent={setContent}
-                maxLength={MAX_NOTE_LENGTH}
-                textareaRef={textareaRef}
-              />
-              
-              <SmartComposeToolbar 
-                onHashtagClick={handleHashtagClick}
-                onQuickReplyClick={handleQuickReply}
-              />
-              
-              {detectedHashtags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {detectedHashtags.map(tag => (
-                    <span key={tag} className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
+          <div className="mt-2">
+            <NoteComposer 
+              content={content}
+              setContent={setContent}
+              maxLength={MAX_NOTE_LENGTH}
+              textareaRef={textareaRef}
+            />
             
-            <TabsContent value="templates" className="mt-3 p-0 border-0">
-              <QuickReplies onReplySelected={handleQuickReply} />
-            </TabsContent>
-          </Tabs>
+            <SmartComposeToolbar 
+              onHashtagClick={handleHashtagClick}
+              onQuickReplyClick={handleQuickReply}
+            />
+            
+            {detectedHashtags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {detectedHashtags.map(tag => (
+                  <span key={tag} className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <Collapsible open={showQuickReplies} onOpenChange={setShowQuickReplies}>
+            <CollapsibleContent className="mt-3 data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
+              <div className="p-2 border rounded-md bg-background">
+                <QuickReplies onReplySelected={handleQuickReply} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
           
           <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
           
@@ -205,6 +200,8 @@ const CreateNoteFormContainer = () => {
             isNearLimit={isNearLimit}
             isOverLimit={isOverLimit}
             isSubmitting={isSubmitting}
+            showQuickReplies={showQuickReplies}
+            setShowQuickReplies={setShowQuickReplies}
           />
           
           <ScheduledIndicator scheduledDate={scheduledDate} />

@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 
 interface NoteComposerProps {
@@ -15,6 +15,13 @@ const NoteComposer: React.FC<NoteComposerProps> = ({
   maxLength,
   textareaRef 
 }) => {
+  // Focus the textarea when component mounts
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+  
   return (
     <Textarea
       ref={textareaRef}
