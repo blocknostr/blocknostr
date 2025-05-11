@@ -82,9 +82,10 @@ const MediaNavigation: React.FC<MediaNavigationProps> = ({
               e?.stopPropagation?.();
               // Go to this index
               if (index !== currentIndex) {
-                // This function will be passed from parent
-                if (e.currentTarget.parentElement?.querySelector(`button:nth-child(${index + 1})`)) {
-                  e.currentTarget.parentElement?.querySelector(`button:nth-child(${index + 1})`)?.focus();
+                // Fix: Cast to HTMLButtonElement to access focus method
+                const targetButton = e.currentTarget.parentElement?.querySelector(`button:nth-child(${index + 1})`) as HTMLButtonElement | null;
+                if (targetButton) {
+                  targetButton.focus();
                 }
               }
             }}
