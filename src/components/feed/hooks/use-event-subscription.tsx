@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
+import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
 
 interface UseEventSubscriptionProps {
   following?: string[];
@@ -102,15 +103,19 @@ export function useEventSubscription({
         if (event.kind === 1) {
           // Regular note
           setEvents(prev => {
-            // Check if we already have this event
-            if (prev.some(e => e.id === event.id)) {
+            // Check if we already have this event using deduplication
+            if (EventDeduplication.hasEventId(prev, event.id)) {
               return prev;
             }
             
+            // Add the new event
             const newEvents = [...prev, event];
             
+            // Deduplicate the events
+            const uniqueEvents = EventDeduplication.deduplicateById(newEvents);
+            
             // Sort by creation time (newest first)
-            newEvents.sort((a, b) => b.created_at - a.created_at);
+            uniqueEvents.sort((a, b) => b.created_at - a.created_at);
             
             // Add event to collection for caching
             collectedEvents.push(event);
@@ -118,11 +123,12 @@ export function useEventSubscription({
             // Cache the event individually
             contentCache.cacheEvent(event);
             
-            // Every 10 events, update the feed cache
-            if (collectedEvents.length % 10 === 0) {
+            // Every 5 events, update the feed cache for better performance
+            if (collectedEvents.length % 5 === 0) {
+              // Use current state to ensure we have the latest events
               contentCache.cacheFeed(
                 feedType,
-                [...prev, ...collectedEvents].sort((a, b) => b.created_at - a.created_at),
+                uniqueEvents,
                 {
                   authorPubkeys: following,
                   hashtag: activeHashtag,
@@ -130,11 +136,11 @@ export function useEventSubscription({
                   until: untilFetch,
                   mediaOnly
                 },
-                true
+                true // Mark as important for offline use
               );
             }
             
-            return newEvents;
+            return uniqueEvents;
           });
         }
         else if (event.kind === 6) {
@@ -146,9 +152,7 @@ export function useEventSubscription({
         if (event.pubkey) {
           // Check cache first
           const cachedProfile = contentCache.getProfile(event.pubkey);
-          if (cachedProfile) {
-            // Use cached profile
-          } else {
+          if (!cachedProfile) {
             // Fetch from relays if not in cache
             fetchProfileData(event.pubkey);
           }
@@ -156,9 +160,8 @@ export function useEventSubscription({
       }
     );
     
-    // Cache collected events when subscription ends
+    // Set up a scheduled task to periodically cache all collected events
     if (newSubId) {
-      // Set up a scheduled task to periodically cache all collected events
       const cacheIntervalId = setInterval(() => {
         if (collectedEvents.length > 0) {
           // Get current events from state to ensure we have everything
@@ -176,6 +179,9 @@ export function useEventSubscription({
               },
               true // Mark as important for offline use
             );
+            
+            // Update the last updated timestamp in localStorage 
+            localStorage.setItem(`${feedType}_last_updated`, Date.now().toString());
             
             return currentEvents;
           });

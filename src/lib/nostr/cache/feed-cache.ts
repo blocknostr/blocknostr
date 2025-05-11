@@ -1,7 +1,6 @@
-
 import { NostrEvent } from "../types";
 import { BaseCache } from "./base-cache";
-import { CacheConfig } from "./types";
+import { CacheConfig, CacheEntry } from "./types";
 import { STORAGE_KEYS } from "./config";
 import { EventFilter } from "./utils/event-filter";
 
@@ -35,10 +34,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     important: boolean = false
   ): void {
     // Generate a cache key based on feed type and filters
-    const cacheKey = EventFilter.generateFeedCacheKey({
-      feedType,
-      ...options
-    });
+    const cacheKey = this.generateCacheKey(feedType, options);
     
     // Cache the events
     this.cacheItem(cacheKey, events, important);
@@ -61,13 +57,30 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     }
   ): NostrEvent[] | null {
     // Generate the cache key
-    const cacheKey = EventFilter.generateFeedCacheKey({
-      feedType,
-      ...options
-    });
+    const cacheKey = this.generateCacheKey(feedType, options);
     
     // Retrieve the events from cache
     return this.getItem(cacheKey);
+  }
+
+  /**
+   * Clear a specific feed from cache
+   * @param feedType Type of feed to clear
+   * @param options Filter options for the feed
+   */
+  clearFeed(
+    feedType: string,
+    options: {
+      authorPubkeys?: string[],
+      hashtag?: string,
+      since?: number,
+      until?: number,
+      mediaOnly?: boolean
+    }
+  ): void {
+    const cacheKey = this.generateCacheKey(feedType, options);
+    this.cache.delete(cacheKey);
+    this.persistToStorage();
   }
   
   /**
@@ -104,11 +117,69 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
       mediaOnly?: boolean
     }
   ): boolean {
-    const cacheKey = EventFilter.generateFeedCacheKey({
-      feedType,
-      ...options
-    });
-    
+    const cacheKey = this.generateCacheKey(feedType, options);
     return this.cache.has(cacheKey);
+  }
+
+  /**
+   * Get raw cache entry with metadata
+   * @param key Cache key to retrieve
+   * @returns Cache entry with timestamp and metadata or null if not found
+   */
+  getRawEntry(key: string): CacheEntry<NostrEvent[]> | null {
+    if (!this.cache.has(key)) {
+      return null;
+    }
+    
+    return this.cache.get(key) || null;
+  }
+
+  /**
+   * Generate a cache key for a feed based on filters
+   * This key will be used to store and retrieve cached feeds
+   */
+  generateCacheKey(
+    feedType: string,
+    options: {
+      authorPubkeys?: string[],
+      hashtag?: string,
+      since?: number,
+      until?: number,
+      mediaOnly?: boolean
+    }
+  ): string {
+    const parts = [feedType];
+    
+    // Add author filter to key if available
+    if (options.authorPubkeys && options.authorPubkeys.length > 0) {
+      // Sort pubkeys for consistent cache keys
+      const sortedAuthors = [...options.authorPubkeys].sort();
+      // Use the first 3 authors for the key to keep it reasonable length
+      const authorKey = sortedAuthors.slice(0, 3).join(',');
+      parts.push(`authors:${authorKey}`);
+      
+      // Add author count if more than 3
+      if (sortedAuthors.length > 3) {
+        parts.push(`author_count:${sortedAuthors.length}`);
+      }
+    }
+    
+    // Add hashtag to key if available
+    if (options.hashtag) {
+      parts.push(`tag:${options.hashtag.toLowerCase()}`);
+    }
+    
+    // Add time range to key
+    if (options.since || options.until) {
+      const timeKey = `time:${options.since || 0}-${options.until || 'now'}`;
+      parts.push(timeKey);
+    }
+    
+    // Add mediaOnly flag if true
+    if (options.mediaOnly) {
+      parts.push('media-only');
+    }
+    
+    return parts.join('::');
   }
 }

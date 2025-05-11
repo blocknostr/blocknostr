@@ -70,7 +70,7 @@ class NostrService {
       this.getConnectedRelayUrls.bind(this)
     );
 
-    // Initialize the new thread service
+    // Initialize the thread service
     this.threadService = new ThreadService(
       this.pool,
       this.getConnectedRelayUrls.bind(this)
@@ -90,9 +90,10 @@ class NostrService {
     // Connect to relays
     this.relayManager.connectToUserRelays();
     
-    // Fetch following list if user is logged in
+    // Fetch following list and relay list if user is logged in
     if (this.publicKey) {
       this.fetchFollowingList();
+      this.fetchRelayList(); // Add relay list fetching for NIP-65
     }
   }
 
@@ -448,11 +449,28 @@ class NostrService {
     }
   }
   
+  /**
+   * Publish user's relay list to the network (NIP-65)
+   */
   private async publishRelayList(): Promise<string | null> {
     if (!this.publicKey) return null;
     
+    // Prepare relay tags with read/write permissions per NIP-65
     const relayList = Array.from(this.userRelays.entries()).map(
-      ([url, readWrite]) => ['r', url, readWrite ? 'read write' : 'read']
+      ([url, readWrite]) => {
+        // Format: ["r", <relay-url>, <relay-mode>]
+        // Where relay-mode is: "read", "write", or undefined for both read+write
+        let mode: string | undefined;
+        if (readWrite) {
+          // Both read and write, use undefined (cleaner JSON)
+          mode = undefined;
+        } else {
+          // Read-only relay
+          mode = "read";
+        }
+        
+        return mode ? ['r', url, mode] : ['r', url];
+      }
     );
     
     const event = {
@@ -462,6 +480,51 @@ class NostrService {
     };
     
     return await this.publishEvent(event);
+  }
+  
+  private async fetchRelayList(): Promise<void> {
+    if (!this.publicKey) return;
+    
+    try {
+      await this.connectToDefaultRelays();
+      
+      const subId = this.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.RELAY_LIST],
+            authors: [this.publicKey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          // Process NIP-65 relay list
+          const relayMap = new Map<string, boolean>();
+          
+          // Extract relay URLs and read/write settings from r tags
+          event.tags.forEach(tag => {
+            if (Array.isArray(tag) && tag[0] === 'r' && tag.length >= 2) {
+              const relayUrl = tag[1];
+              // Check the relay permission mode
+              // If tag[2] is missing or not "read", it's considered read+write
+              const isReadWrite = tag.length < 3 || tag[2] !== "read";
+              relayMap.set(relayUrl, isReadWrite);
+            }
+          });
+          
+          // Update relay manager with fetched relays
+          if (relayMap.size > 0) {
+            this.relayManager.setUserRelays(relayMap);
+          }
+        }
+      );
+      
+      // Cleanup subscription after a short time
+      setTimeout(() => {
+        this.unsubscribe(subId);
+      }, 5000);
+    } catch (error) {
+      console.error("Error fetching relay list:", error);
+    }
   }
   
   private getConnectedRelayUrls(): string[] {
@@ -510,6 +573,45 @@ class NostrService {
 
   public async isUserBlocked(pubkey: string): Promise<boolean> {
     return this.socialInteractionService.isUserBlocked(pubkey);
+  }
+  
+  /**
+   * Get relay information document using NIP-11
+   * @param relayUrl URL of the relay
+   * @returns Promise resolving to relay information or null
+   */
+  public async getRelayInformation(relayUrl: string): Promise<any> {
+    // Use the relay info service from the RelayManager
+    return this.relayManager.getRelayInformation(relayUrl);
+  }
+  
+  /**
+   * Check if a relay supports a specific NIP
+   * @param relayUrl URL of the relay
+   * @param nipNumber NIP number to check
+   * @returns Promise resolving to boolean indicating support
+   */
+  public async doesRelaySupport(relayUrl: string, nipNumber: number): Promise<boolean> {
+    return this.relayManager.doesRelaySupport(relayUrl, nipNumber);
+  }
+  
+  /**
+   * Get all relays that support a specific NIP
+   * @param nipNumber NIP number to check
+   * @returns Promise resolving to array of relay URLs
+   */
+  public async getRelaysSupportingNIP(nipNumber: number): Promise<string[]> {
+    const relayStatus = this.getRelayStatus();
+    const results = await Promise.all(
+      relayStatus
+        .filter(r => r.status === 'connected')
+        .map(async relay => {
+          const supports = await this.doesRelaySupport(relay.url, nipNumber);
+          return { url: relay.url, supports };
+        })
+    );
+    
+    return results.filter(r => r.supports).map(r => r.url);
   }
 }
 
