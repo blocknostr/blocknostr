@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { TrendingUp, ZapIcon, Heart } from "lucide-react";
+import { TrendingUp, Zap, Heart } from "lucide-react";
 import { FilterOption, FilterType, TimeOption, TimeRange, Topic } from "../types";
 
 export const useTrendingTopicsData = () => {
@@ -10,7 +10,7 @@ export const useTrendingTopicsData = () => {
   
   const filterOptions: FilterOption[] = [
     { value: "popular", label: "Popular", icon: <TrendingUp className="h-4 w-4" /> },
-    { value: "zapped", label: "Most Zapped", icon: <ZapIcon className="h-4 w-4" /> },
+    { value: "zapped", label: "Most Zapped", icon: <Zap className="h-4 w-4" /> },
     { value: "liked", label: "Most Liked", icon: <Heart className="h-4 w-4" /> }
   ];
   

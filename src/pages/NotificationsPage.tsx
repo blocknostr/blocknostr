@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNotifications } from "@/hooks/use-notifications";
 import Sidebar from "@/components/Sidebar";
-import TrendingSection from "@/components/TrendingSection";
+import { TrendingSection } from "@/components/trending";
 import WhoToFollow from "@/components/WhoToFollow";
 import NotificationsHeader from "@/components/notification/NotificationsHeader";
 import NotificationTabs from "@/components/notification/NotificationTabs";
