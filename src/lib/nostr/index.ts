@@ -5,7 +5,7 @@ import { EVENT_KINDS } from './constants';
 import { NostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { contentCache } from './cache/content-cache';
-import { contentFormatter } from './format';
+import { contentFormatter } from './format/content-formatter';
 
 // Initialize the NostrService instance
 const nostrService = new NostrService();

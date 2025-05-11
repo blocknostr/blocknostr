@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
@@ -8,12 +8,10 @@ import { useWorldChat } from "./useWorldChat";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { nostrService } from "@/lib/nostr";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
-
-// Debounce time for connection status changes (in ms)
-const DEBOUNCE_TIME = 1500;
 
 const WorldChat = () => {
   const {
@@ -25,32 +23,16 @@ const WorldChat = () => {
     sendMessage,
     addReaction,
     error,
-    connectionStatus,
-    reconnect
+    connectionStatus
   } = useWorldChat();
-  
-  // Create a stable display state for connection status to prevent flickering
-  const [displayStatus, setDisplayStatus] = useState(connectionStatus);
-  const [showConnectionAlert, setShowConnectionAlert] = useState(false);
-  
-  // Debounce the connection status updates to prevent rapid UI changes
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setDisplayStatus(connectionStatus);
-      setShowConnectionAlert(connectionStatus === 'disconnected');
-    }, DEBOUNCE_TIME);
-    
-    return () => clearTimeout(timer);
-  }, [connectionStatus]);
-  
-  // Only show the connection alert when explicitly disconnected
-  // and not during initial loading or reconnecting phases
-  const shouldShowDisconnectedAlert = 
-    !loading && showConnectionAlert && displayStatus === 'disconnected';
+
+  const handleReconnect = async () => {
+    await nostrService.connectToUserRelays();
+  };
 
   return (
     <Card className="flex-grow flex flex-col h-[550px]">
-      <WorldChatHeader connectionStatus={displayStatus} />
+      <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
         <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1">
@@ -59,7 +41,7 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      {shouldShowDisconnectedAlert && (
+      {connectionStatus === 'disconnected' && (
         <Alert variant="warning" className="mx-2 mt-1 mb-0 py-1">
           <div className="flex justify-between w-full items-center">
             <div className="flex items-center gap-2">
@@ -70,7 +52,7 @@ const WorldChat = () => {
               variant="outline" 
               size="sm" 
               className="h-6 text-xs py-0" 
-              onClick={reconnect}
+              onClick={handleReconnect}
             >
               Reconnect
             </Button>
@@ -91,7 +73,7 @@ const WorldChat = () => {
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
         onSendMessage={sendMessage}
-        disabled={displayStatus === 'disconnected'}
+        disabled={connectionStatus === 'disconnected'}
       />
     </Card>
   );

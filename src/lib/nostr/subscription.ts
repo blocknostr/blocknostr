@@ -6,12 +6,6 @@ export class SubscriptionManager {
   private pool: SimplePool;
   private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
   private nextId = 0;
-  private defaultRelays = [
-    'wss://relay.damus.io',
-    'wss://nos.lol',
-    'wss://nostr.bitcoiner.social',
-    'wss://relay.nostr.band'
-  ];
   
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -22,11 +16,13 @@ export class SubscriptionManager {
     filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void
   ): string {
-    // Use default relays if none provided
-    const relaysToUse = relays.length > 0 ? relays : this.defaultRelays;
+    if (relays.length === 0) {
+      console.error("No relays provided for subscription");
+      return "";
+    }
     
     if (filters.length === 0) {
-      console.warn("No filters provided for subscription");
+      console.error("No filters provided for subscription");
       return "";
     }
     
@@ -36,20 +32,15 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        try {
-          return this.pool.subscribe(relaysToUse, filter, {
-            onevent: (event) => {
-              onEvent(event as NostrEvent);
-            }
-          });
-        } catch (error) {
-          console.error(`Error creating filter subscription:`, error);
-          return null;
-        }
-      }).filter(Boolean); // Remove any null subscriptions
+        return this.pool.subscribe(relays, filter, {
+          onevent: (event) => {
+            onEvent(event as NostrEvent);
+          }
+        });
+      });
       
       // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays: relaysToUse, filters, subClosers });
+      this.subscriptions.set(id, { relays, filters, subClosers });
       
       return id;
     } catch (error) {
@@ -65,12 +56,7 @@ export class SubscriptionManager {
         // Close all subscriptions
         subscription.subClosers.forEach(closer => {
           if (closer && typeof closer.close === 'function') {
-            try {
-              closer.close();
-            } catch (error) {
-              console.warn("Error closing subscription:", error);
-              // Silently continue - the connection might already be closed
-            }
+            closer.close();
           }
         });
         this.subscriptions.delete(subId);
@@ -78,9 +64,5 @@ export class SubscriptionManager {
         console.error(`Error unsubscribing from ${subId}:`, error);
       }
     }
-  }
-  
-  getSubscriptionCount(): number {
-    return this.subscriptions.size;
   }
 }

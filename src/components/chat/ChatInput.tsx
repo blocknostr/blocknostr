@@ -9,14 +9,13 @@ interface ChatInputProps {
   isLoggedIn: boolean;
   maxChars: number;
   onSendMessage: (message: string) => void;
-  disabled?: boolean; // Add disabled property
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage, disabled = false }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage }) => {
   const [newMessage, setNewMessage] = useState("");
 
   const handleSend = () => {
-    if (!newMessage.trim() || !isLoggedIn || disabled) {
+    if (!newMessage.trim() || !isLoggedIn) {
       return;
     }
     
@@ -49,7 +48,6 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
           maxLength={maxChars * 2} // Allow typing past limit but show warning
           className="text-xs h-8"
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          disabled={disabled}
         />
         <div className="flex items-center gap-1">
           <span className={`text-[10px] ${newMessage.length > maxChars ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
@@ -57,7 +55,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
           </span>
           <Button 
             onClick={handleSend} 
-            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
+            disabled={!newMessage.trim() || newMessage.length > maxChars}
             size="sm"
             className="h-8 w-8 p-0"
           >
