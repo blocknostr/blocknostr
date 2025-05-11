@@ -56,7 +56,11 @@ export class BookmarkManager {
       console.log(`Adding bookmark for event ${eventId} to relays:`, relays);
       
       // First get existing bookmarks
-      const bookmarks = await this.getBookmarkList(publicKey, relays, pool);
+      const bookmarks = await this.getBookmarkList(
+        pool,
+        publicKey,
+        relays
+      );
       
       // Check if already bookmarked
       if (bookmarks.includes(eventId)) {
@@ -123,7 +127,11 @@ export class BookmarkManager {
       console.log(`Removing bookmark for event ${eventId} from relays:`, relays);
       
       // First get existing bookmarks
-      const bookmarks = await this.getBookmarkList(publicKey, relays, pool);
+      const bookmarks = await this.getBookmarkList(
+        pool,
+        publicKey,
+        relays
+      );
       
       // Check if it's actually bookmarked
       if (!bookmarks.includes(eventId)) {
