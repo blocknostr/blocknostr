@@ -15,8 +15,15 @@ export const EVENT_KINDS = {
   COMMUNITY: 34550,      // Communities - NIP-172
   BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51 (was missing)
   BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST
-  PROPOSAL: 34551,       // Custom kind for proposals (was missing)
-  VOTE: 34552,           // Custom kind for votes (was missing)
+  PROPOSAL: 34551,       // Custom kind for proposals
+  VOTE: 34552,           // Custom kind for votes
+  COMMENT: 34553,        // Custom kind for comments
+  KICK_PROPOSAL: 34554,  // Custom kind for kick proposals
+  KICK_VOTE: 34555,      // Custom kind for kick votes
+  COMMUNITY_METADATA: 34556, // New: Community guidelines, rules, etc
+  COMMUNITY_INVITE: 34557,   // New: Community invite links
+  COMMUNITY_ROLE: 34558,     // New: Role assignments within communities
+  COMMUNITY_ACTIVITY: 34559, // New: Member activity tracking
   BADGES: 30009,         // Badge definition - NIP-58
   ZAP_REQUEST: 9734,     // Zap Request - NIP-57
   ZAP_RECEIPT: 9735      // Zap Receipt - NIP-57

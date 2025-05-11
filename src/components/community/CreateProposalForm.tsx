@@ -1,11 +1,25 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Loader2, Clock, Plus } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
+import { Loader2, Plus, X } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProposalCategory } from "@/types/community";
+
+// Form schema with validation
+const formSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  category: z.enum(["governance", "feature", "poll", "other"] as const),
+  duration: z.enum(["3", "7", "14", "30"] as const),
+});
 
 interface CreateProposalFormProps {
   communityId: string;
@@ -13,148 +27,235 @@ interface CreateProposalFormProps {
 }
 
 const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFormProps) => {
-  const [newProposalTitle, setNewProposalTitle] = useState("");
-  const [newProposalDesc, setNewProposalDesc] = useState("");
-  const [newProposalOptions, setNewProposalOptions] = useState<string[]>(["Yes", "No"]);
-  const [proposalDuration, setProposalDuration] = useState(7); // Default 7 days
-  const [isCreatingProposal, setIsCreatingProposal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [options, setOptions] = useState<string[]>(["Yes", "No"]);
+  const [newOption, setNewOption] = useState("");
   
-  const handleCreateProposal = async () => {
-    if (!nostrService.publicKey) {
-      toast.error("You must be logged in to create a proposal");
+  // Initialize form with react-hook-form and zod validation
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      category: "other",
+      duration: "7",
+    },
+  });
+  
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    if (options.length < 2) {
+      toast.error("You need at least two options");
       return;
     }
     
-    // Double-check membership status before creating proposal
-    const community = await nostrService.fetchCommunity(communityId);
-    if (!community || !community.members.includes(nostrService.publicKey)) {
-      toast.error("You must be a member of this community to create proposals");
-      return;
-    }
-    
-    if (!newProposalTitle.trim()) {
-      toast.error("Proposal title is required");
-      return;
-    }
-    
-    if (newProposalOptions.length < 2) {
-      toast.error("At least two options are required");
-      return;
-    }
-    
-    setIsCreatingProposal(true);
+    setIsSubmitting(true);
     
     try {
-      // Calculate endsAt based on the proposalDuration in days
-      const endsAt = Math.floor(Date.now() / 1000) + (proposalDuration * 24 * 60 * 60);
+      // Calculate the end date based on duration
+      const durationDays = parseInt(data.duration);
+      const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
       
+      // Create the proposal
       const proposalId = await nostrService.createProposal(
         communityId,
-        newProposalTitle.trim(),
-        newProposalDesc.trim(),
-        newProposalOptions.filter(opt => opt.trim() !== ""),
+        data.title,
+        data.description,
+        options,
+        data.category as ProposalCategory,
+        undefined, // Let the server set default min quorum
         endsAt
       );
       
       if (proposalId) {
         toast.success("Proposal created successfully!");
-        setNewProposalTitle("");
-        setNewProposalDesc("");
-        setNewProposalOptions(["Yes", "No"]);
-        setProposalDuration(7);
         onProposalCreated();
+      } else {
+        toast.error("Failed to create proposal");
       }
     } catch (error) {
       console.error("Error creating proposal:", error);
       toast.error("Failed to create proposal");
     } finally {
-      setIsCreatingProposal(false);
+      setIsSubmitting(false);
     }
   };
   
+  const handleAddOption = () => {
+    if (!newOption.trim()) return;
+    if (options.includes(newOption.trim())) {
+      toast.error("This option already exists");
+      return;
+    }
+    if (options.length >= 10) {
+      toast.error("Maximum 10 options allowed");
+      return;
+    }
+    
+    setOptions([...options, newOption.trim()]);
+    setNewOption("");
+  };
+  
+  const handleRemoveOption = (option: string) => {
+    if (options.length <= 2) {
+      toast.error("You need at least two options");
+      return;
+    }
+    
+    setOptions(options.filter(o => o !== option));
+  };
+  
   return (
-    <div className="space-y-4 py-4">
-      <div className="space-y-2">
-        <Input
-          placeholder="Proposal Title"
-          value={newProposalTitle}
-          onChange={(e) => setNewProposalTitle(e.target.value)}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter proposal title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Textarea
-          placeholder="Description"
-          value={newProposalDesc}
-          onChange={(e) => setNewProposalDesc(e.target.value)}
-          rows={4}
+        
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Explain your proposal in detail" 
+                  rows={4} 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Voting Period</p>
-        <div className="flex items-center gap-2">
-          <input 
-            type="range" 
-            min="1" 
-            max="30" 
-            value={proposalDuration} 
-            onChange={(e) => setProposalDuration(parseInt(e.target.value))}
-            className="flex-1"
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="governance">Governance</SelectItem>
+                    <SelectItem value="feature">Feature</SelectItem>
+                    <SelectItem value="poll">Poll</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <span className="min-w-[100px] text-sm flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            {proposalDuration} {proposalDuration === 1 ? 'day' : 'days'}
-          </span>
+          
+          <FormField
+            control={form.control}
+            name="duration"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="3">3 days</SelectItem>
+                    <SelectItem value="7">1 week</SelectItem>
+                    <SelectItem value="14">2 weeks</SelectItem>
+                    <SelectItem value="30">1 month</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
-      </div>
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Options</p>
-        {newProposalOptions.map((option, index) => (
-          <div key={index} className="flex gap-2">
-            <Input
-              placeholder={`Option ${index + 1}`}
-              value={option}
-              onChange={(e) => {
-                const updated = [...newProposalOptions];
-                updated[index] = e.target.value;
-                setNewProposalOptions(updated);
-              }}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                if (newProposalOptions.length > 2) {
-                  setNewProposalOptions(
-                    newProposalOptions.filter((_, i) => i !== index)
-                  );
+        
+        <div className="space-y-2">
+          <FormLabel>Options</FormLabel>
+          <div className="flex flex-wrap gap-2">
+            {options.map((option) => (
+              <div 
+                key={option}
+                className="bg-muted px-3 py-1 rounded-md flex items-center gap-1"
+              >
+                <span className="text-sm">{option}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => handleRemoveOption(option)}
+                  className="h-5 w-5 p-0 rounded-full"
+                  disabled={options.length <= 2}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Add an option" 
+              value={newOption}
+              onChange={(e) => setNewOption(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddOption();
                 }
               }}
-              disabled={newProposalOptions.length <= 2}
+            />
+            <Button 
+              type="button" 
+              onClick={handleAddOption}
+              size="icon"
+              variant="outline"
+              disabled={!newOption.trim() || options.length >= 10}
             >
-              &times;
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
-        ))}
-        <Button
-          variant="outline"
-          onClick={() => setNewProposalOptions([...newProposalOptions, ""])}
-        >
-          Add Option
+          <FormDescription>
+            You need at least two options. Maximum 10 options allowed.
+          </FormDescription>
+        </div>
+        
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Proposal"
+          )}
         </Button>
-      </div>
-      <Button 
-        onClick={handleCreateProposal}
-        disabled={isCreatingProposal || !newProposalTitle.trim()}
-        className="w-full"
-      >
-        {isCreatingProposal ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Plus className="h-4 w-4 mr-2" />
-        )}
-        Create Proposal
-      </Button>
-    </div>
+      </form>
+    </Form>
   );
 };
 

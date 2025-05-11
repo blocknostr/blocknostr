@@ -1,31 +1,38 @@
 
-import React from "react";
-import { Users } from "lucide-react";
+import { CalendarIcon, Users, Lock } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 interface CommunityDescriptionProps {
   description: string;
   membersCount: number;
   createdAt: number;
+  isPrivate?: boolean;
 }
 
-const CommunityDescription = ({ 
-  description, 
-  membersCount, 
-  createdAt 
-}: CommunityDescriptionProps) => {
+const CommunityDescription = ({ description, membersCount, createdAt, isPrivate = false }: CommunityDescriptionProps) => {
   return (
-    <>
-      <p className="text-muted-foreground mb-4">
-        {description || "No description provided."}
-      </p>
+    <div className="space-y-3">
+      <p className="text-sm leading-relaxed">{description}</p>
       
-      <div className="flex items-center text-sm text-muted-foreground">
-        <Users className="h-4 w-4 mr-1" />
-        <span>{membersCount} members</span>
-        <span className="mx-1">•</span>
-        <span>Created {new Date(createdAt * 1000).toLocaleDateString()}</span>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+        <div className="flex items-center">
+          <Users className="h-4 w-4 mr-1.5" />
+          <span>{membersCount} {membersCount === 1 ? 'member' : 'members'}</span>
+        </div>
+        
+        <div className="flex items-center">
+          <CalendarIcon className="h-4 w-4 mr-1.5" />
+          <span>Created {formatDistanceToNow(new Date(createdAt * 1000), { addSuffix: true })}</span>
+        </div>
+        
+        {isPrivate && (
+          <div className="flex items-center text-amber-600 dark:text-amber-500">
+            <Lock className="h-4 w-4 mr-1.5" />
+            <span>Private community</span>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

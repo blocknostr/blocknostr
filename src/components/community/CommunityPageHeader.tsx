@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { UserPlus, ArrowLeft } from "lucide-react";
+import { UserPlus, ArrowLeft, Lock } from "lucide-react";
 import DeleteCommunityButton from "./DeleteCommunityButton";
 import { useNavigate } from "react-router-dom";
 
@@ -13,6 +13,7 @@ interface CommunityPageHeaderProps {
   onJoinCommunity: () => void;
   onLeaveCommunity: () => void;
   onDeleteCommunity?: () => Promise<void>;
+  isPrivate?: boolean;
 }
 
 const CommunityPageHeader = ({
@@ -23,7 +24,8 @@ const CommunityPageHeader = ({
   currentUserPubkey,
   onJoinCommunity,
   onLeaveCommunity,
-  onDeleteCommunity
+  onDeleteCommunity,
+  isPrivate = false
 }: CommunityPageHeaderProps) => {
   const navigate = useNavigate();
 
@@ -44,11 +46,16 @@ const CommunityPageHeader = ({
       </Button>
       
       <div className="flex-1">
-        <h1 className="text-lg font-bold truncate">{name}</h1>
+        <div className="flex items-center">
+          <h1 className="text-lg font-bold truncate">{name}</h1>
+          {isPrivate && (
+            <Lock className="h-3.5 w-3.5 ml-2 text-muted-foreground" />
+          )}
+        </div>
       </div>
       
       <div className="flex items-center gap-2">
-        {!isMember && !isCreator && currentUserPubkey && (
+        {!isMember && !isCreator && currentUserPubkey && !isPrivate && (
           <Button 
             variant="outline" 
             size="sm" 

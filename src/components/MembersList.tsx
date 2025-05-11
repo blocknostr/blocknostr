@@ -1,12 +1,14 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MoreHorizontal, Users } from "lucide-react";
+import { MoreHorizontal, Users, Shield } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
 import { formatDistanceToNow } from "date-fns";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MemberRole } from "@/types/community";
 
 interface Community {
   id: string;
@@ -17,6 +19,7 @@ interface Community {
   createdAt: number;
   members: string[];
   uniqueId: string;
+  moderators?: string[];
 }
 
 export interface KickProposal {
@@ -33,7 +36,9 @@ interface MembersListProps {
   onKickProposal: (targetMember: string) => void;
   kickProposals: KickProposal[];
   onVoteKick?: (kickProposalId: string) => void; 
-  onLeaveCommunity: () => void; // Added prop
+  onLeaveCommunity: () => void;
+  userRole: MemberRole | null;
+  canKickPropose: boolean;
 }
 
 const MembersList: React.FC<MembersListProps> = ({ 
@@ -42,12 +47,15 @@ const MembersList: React.FC<MembersListProps> = ({
   onKickProposal,
   kickProposals,
   onVoteKick,
-  onLeaveCommunity // Added prop
+  onLeaveCommunity,
+  userRole,
+  canKickPropose
 }) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   
-  const isCreator = community.creator === currentUserPubkey;
-  const isMember = community.members.includes(currentUserPubkey || '');
+  const isCreator = userRole === 'creator';
+  const isModerator = userRole === 'moderator';
+  const isMember = userRole !== null;
   
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -57,6 +65,13 @@ const MembersList: React.FC<MembersListProps> = ({
     // Creator always first
     if (a === community.creator) return -1;
     if (b === community.creator) return 1;
+    
+    // Moderators next
+    const aIsMod = community.moderators?.includes(a) || false;
+    const bIsMod = community.moderators?.includes(b) || false;
+    if (aIsMod && !bIsMod) return -1;
+    if (!aIsMod && bIsMod) return 1;
+    
     return 0;
   });
   
@@ -66,7 +81,7 @@ const MembersList: React.FC<MembersListProps> = ({
   
   const canInitiateKick = (memberPubkey: string) => {
     return (
-      isMember && 
+      canKickPropose &&
       memberPubkey !== community.creator && // Can't kick creator
       memberPubkey !== currentUserPubkey && // Can't kick self
       !kickProposals.some(p => p.targetMember === memberPubkey) // No existing proposal
@@ -99,6 +114,23 @@ const MembersList: React.FC<MembersListProps> = ({
     };
   };
   
+  const getMemberRoleBadge = (pubkey: string) => {
+    if (pubkey === community.creator) {
+      return <span className="ml-1 text-xs text-primary">(creator)</span>;
+    }
+    
+    if (community.moderators?.includes(pubkey)) {
+      return (
+        <span className="ml-1 text-xs text-amber-500 flex items-center">
+          <Shield className="h-3 w-3 mr-0.5" />
+          mod
+        </span>
+      );
+    }
+    
+    return null;
+  };
+  
   return (
     <Card className="sticky top-20">
       <CardHeader>
@@ -113,7 +145,6 @@ const MembersList: React.FC<MembersListProps> = ({
       <CardContent className="max-h-[70vh] overflow-y-auto space-y-4">
         {sortedMembers.map((member) => {
           const isCurrentUser = member === currentUserPubkey;
-          const isCommCreator = member === community.creator;
           const kickProposal = getKickProposalForMember(member);
           
           return (
@@ -127,7 +158,7 @@ const MembersList: React.FC<MembersListProps> = ({
                   <div className="font-medium text-sm flex items-center">
                     {nostrService.getNpubFromHex(member).substring(0, 8)}...
                     {isCurrentUser && <span className="ml-1 text-xs text-muted-foreground">(you)</span>}
-                    {isCommCreator && <span className="ml-1 text-xs text-primary">(creator)</span>}
+                    {getMemberRoleBadge(member)}
                   </div>
                 </div>
               </div>
@@ -165,7 +196,8 @@ const MembersList: React.FC<MembersListProps> = ({
                 </div>
               )}
               
-              {(!isCommCreator && !isCurrentUser && isMember && !kickProposal) && (
+              {/* Member options dropdown */}
+              {(!(member === community.creator) && isMember && !kickProposal) && (
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -180,6 +212,14 @@ const MembersList: React.FC<MembersListProps> = ({
                           onClick={() => onKickProposal(member)}
                         >
                           Propose to remove
+                        </DropdownMenuItem>
+                      )}
+                      {isCurrentUser && (
+                        <DropdownMenuItem 
+                          className="text-orange-500 cursor-pointer"
+                          onClick={onLeaveCommunity}
+                        >
+                          Leave community
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>

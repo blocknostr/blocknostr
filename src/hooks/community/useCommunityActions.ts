@@ -1,17 +1,24 @@
 
 import { NostrEvent, nostrService } from "@/lib/nostr";
-import { Community } from "@/types/community";
+import { Community, MemberRole } from "@/types/community";
 import { toast } from "sonner";
 
 export const useCommunityActions = (
   community: Community | null,
   setCommunity: React.Dispatch<React.SetStateAction<Community | null>>,
-  currentUserPubkey: string | null
+  currentUserPubkey: string | null,
+  userRole: MemberRole | null
 ) => {
   const handleJoinCommunity = async () => {
     if (!currentUserPubkey || !community) return;
     
     try {
+      // Check if this is a private community
+      if (community.isPrivate) {
+        toast.error("This is a private community. You need an invite to join.");
+        return;
+      }
+      
       // Get the existing community data and members
       const updatedMembers = [...community.members, currentUserPubkey];
       
@@ -21,7 +28,10 @@ export const useCommunityActions = (
         description: community.description,
         image: community.image,
         creator: community.creator,
-        createdAt: community.createdAt
+        createdAt: community.createdAt,
+        isPrivate: community.isPrivate,
+        guidelines: community.guidelines,
+        tags: community.tags
       };
       
       const event = {
@@ -59,8 +69,21 @@ export const useCommunityActions = (
     }
     
     try {
+      // Check if user is the creator and also a moderator
+      if (community.creator === currentUserPubkey && 
+          community.moderators && 
+          community.moderators.length > 0) {
+        toast.error("Please remove all moderators before leaving as creator");
+        return;
+      }
+      
       // Remove current user from members list
       const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
+      
+      // Also remove from moderators list if applicable
+      const updatedModerators = community.moderators ? 
+        community.moderators.filter(mod => mod !== currentUserPubkey) :
+        undefined;
       
       // Create an updated community event without the current user
       const communityData = {
@@ -68,7 +91,10 @@ export const useCommunityActions = (
         description: community.description,
         image: community.image,
         creator: community.creator,
-        createdAt: community.createdAt
+        createdAt: community.createdAt,
+        isPrivate: community.isPrivate,
+        guidelines: community.guidelines,
+        tags: community.tags
       };
       
       const event = {
@@ -87,7 +113,8 @@ export const useCommunityActions = (
         // Update local state
         setCommunity({
           ...community,
-          members: updatedMembers
+          members: updatedMembers,
+          moderators: updatedModerators
         });
         
         // If user was the only member and also the creator, redirect to communities page
@@ -111,6 +138,11 @@ export const useCommunityActions = (
     }
     
     try {
+      if (targetMember === community.creator) {
+        toast.error("You cannot kick the creator of the community");
+        return;
+      }
+      
       // Create kick proposal event
       const event = {
         kind: 34554, // Kick proposal kind
@@ -154,13 +186,21 @@ export const useCommunityActions = (
       // Remove member from list
       const updatedMembers = community.members.filter(member => member !== memberToKick);
       
+      // Also remove from moderators if applicable
+      const updatedModerators = community.moderators ? 
+        community.moderators.filter(mod => mod !== memberToKick) : 
+        community.moderators;
+      
       // Create an updated community event without the kicked member
       const communityData = {
         name: community.name,
         description: community.description,
         image: community.image,
         creator: community.creator,
-        createdAt: community.createdAt
+        createdAt: community.createdAt,
+        isPrivate: community.isPrivate,
+        guidelines: community.guidelines,
+        tags: community.tags
       };
       
       const event = {
@@ -179,7 +219,8 @@ export const useCommunityActions = (
         // Update local state
         setCommunity({
           ...community,
-          members: updatedMembers
+          members: updatedMembers,
+          moderators: updatedModerators
         });
       } else {
         toast.error("Failed to remove member: Event could not be published");
@@ -243,7 +284,10 @@ export const useCommunityActions = (
         image: community.image,
         creator: community.creator,
         createdAt: community.createdAt,
-        deleted: true
+        deleted: true,
+        isPrivate: community.isPrivate,
+        guidelines: community.guidelines,
+        tags: community.tags
       };
       
       const event = {
@@ -268,12 +312,406 @@ export const useCommunityActions = (
     }
   };
 
+  // New functions for enhanced features
+  
+  // Function to create a new invite link
+  const handleCreateInvite = async (maxUses?: number, expiresIn?: number) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be a member to create an invite link");
+      return null;
+    }
+    
+    try {
+      // Create invite link event
+      const currentTime = Math.floor(Date.now() / 1000);
+      const expiresAt = expiresIn ? currentTime + (expiresIn * 60 * 60) : undefined;
+      
+      const event = {
+        kind: 34557, // Community invite kind
+        content: JSON.stringify({
+          maxUses,
+          expiresAt,
+          usedCount: 0,
+          createdAt: currentTime
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey]
+        ]
+      };
+      
+      const inviteId = await nostrService.publishEvent(event);
+      if (inviteId) {
+        toast.success("Invite link created");
+        return inviteId;
+      } else {
+        toast.error("Failed to create invite link");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      toast.error("Failed to create invite link");
+      return null;
+    }
+  };
+  
+  // Function to set community privacy setting
+  const handleSetPrivate = async (isPrivate: boolean) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be the creator to change privacy settings");
+      return;
+    }
+    
+    if (community.creator !== currentUserPubkey) {
+      toast.error("Only the creator can change privacy settings");
+      return;
+    }
+    
+    try {
+      // Publish community metadata event for privacy setting
+      const event = {
+        kind: 34556, // Community metadata
+        content: JSON.stringify({
+          type: 'private',
+          content: isPrivate,
+          createdAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey]
+        ]
+      };
+      
+      const metadataId = await nostrService.publishEvent(event);
+      
+      if (metadataId) {
+        // Also update the main community event with the new privacy setting
+        const communityData = {
+          name: community.name,
+          description: community.description,
+          image: community.image,
+          creator: community.creator,
+          createdAt: community.createdAt,
+          isPrivate: isPrivate,
+          guidelines: community.guidelines,
+          tags: community.tags
+        };
+        
+        const communityEvent = {
+          kind: 34550,
+          content: JSON.stringify(communityData),
+          tags: [
+            ['d', community.uniqueId],
+            ...community.members.map(member => ['p', member])
+          ]
+        };
+        
+        await nostrService.publishEvent(communityEvent);
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          isPrivate
+        });
+        
+        toast.success(`Community is now ${isPrivate ? 'private' : 'public'}`);
+      } else {
+        toast.error("Failed to update privacy settings");
+      }
+    } catch (error) {
+      console.error("Error updating privacy settings:", error);
+      toast.error("Failed to update privacy settings");
+    }
+  };
+  
+  // Function to set community guidelines
+  const handleSetGuidelines = async (guidelines: string) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be the creator to set guidelines");
+      return;
+    }
+    
+    if (community.creator !== currentUserPubkey && 
+        (!community.moderators || !community.moderators.includes(currentUserPubkey))) {
+      toast.error("Only the creator or moderators can set guidelines");
+      return;
+    }
+    
+    try {
+      // Publish community metadata event for guidelines
+      const event = {
+        kind: 34556, // Community metadata
+        content: JSON.stringify({
+          type: 'guidelines',
+          content: guidelines,
+          createdAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey]
+        ]
+      };
+      
+      const metadataId = await nostrService.publishEvent(event);
+      
+      if (metadataId) {
+        // Also update the main community event with the new guidelines
+        const communityData = {
+          name: community.name,
+          description: community.description,
+          image: community.image,
+          creator: community.creator,
+          createdAt: community.createdAt,
+          isPrivate: community.isPrivate,
+          guidelines: guidelines,
+          tags: community.tags
+        };
+        
+        const communityEvent = {
+          kind: 34550,
+          content: JSON.stringify(communityData),
+          tags: [
+            ['d', community.uniqueId],
+            ...community.members.map(member => ['p', member])
+          ]
+        };
+        
+        await nostrService.publishEvent(communityEvent);
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          guidelines
+        });
+        
+        toast.success("Community guidelines updated");
+      } else {
+        toast.error("Failed to update guidelines");
+      }
+    } catch (error) {
+      console.error("Error updating guidelines:", error);
+      toast.error("Failed to update guidelines");
+    }
+  };
+  
+  // Function to add a moderator
+  const handleAddModerator = async (moderatorPubkey: string) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be the creator to add moderators");
+      return;
+    }
+    
+    if (community.creator !== currentUserPubkey) {
+      toast.error("Only the creator can add moderators");
+      return;
+    }
+    
+    // Convert to hex if npub format was provided
+    let targetPubkey = moderatorPubkey;
+    if (moderatorPubkey.startsWith('npub')) {
+      try {
+        targetPubkey = nostrService.getHexFromNpub(moderatorPubkey);
+      } catch (error) {
+        toast.error("Invalid npub format");
+        return;
+      }
+    }
+    
+    // Check if user is a member
+    if (!community.members.includes(targetPubkey)) {
+      toast.error("User must be a community member first");
+      return;
+    }
+    
+    // Check if already a moderator
+    if (community.moderators && community.moderators.includes(targetPubkey)) {
+      toast.error("User is already a moderator");
+      return;
+    }
+    
+    try {
+      // Publish community role event
+      const event = {
+        kind: 34558, // Community role
+        content: JSON.stringify({
+          role: 'moderator',
+          action: 'add',
+          createdAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey, 'creator'],
+          ['p', targetPubkey, 'moderator']
+        ]
+      };
+      
+      const roleId = await nostrService.publishEvent(event);
+      
+      if (roleId) {
+        // Update local state
+        const updatedModerators = community.moderators ? 
+          [...community.moderators, targetPubkey] : 
+          [targetPubkey];
+        
+        setCommunity({
+          ...community,
+          moderators: updatedModerators
+        });
+        
+        toast.success("Moderator added successfully");
+      } else {
+        toast.error("Failed to add moderator");
+      }
+    } catch (error) {
+      console.error("Error adding moderator:", error);
+      toast.error("Failed to add moderator");
+    }
+  };
+  
+  // Function to remove a moderator
+  const handleRemoveModerator = async (moderatorPubkey: string) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be the creator to remove moderators");
+      return;
+    }
+    
+    if (community.creator !== currentUserPubkey) {
+      toast.error("Only the creator can remove moderators");
+      return;
+    }
+    
+    if (!community.moderators || !community.moderators.includes(moderatorPubkey)) {
+      toast.error("User is not a moderator");
+      return;
+    }
+    
+    try {
+      // Publish community role event
+      const event = {
+        kind: 34558, // Community role
+        content: JSON.stringify({
+          role: 'moderator',
+          action: 'remove',
+          createdAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey, 'creator'],
+          ['p', moderatorPubkey, 'moderator']
+        ]
+      };
+      
+      const roleId = await nostrService.publishEvent(event);
+      
+      if (roleId) {
+        // Update local state
+        const updatedModerators = community.moderators.filter(mod => mod !== moderatorPubkey);
+        
+        setCommunity({
+          ...community,
+          moderators: updatedModerators
+        });
+        
+        toast.success("Moderator removed successfully");
+      } else {
+        toast.error("Failed to remove moderator");
+      }
+    } catch (error) {
+      console.error("Error removing moderator:", error);
+      toast.error("Failed to remove moderator");
+    }
+  };
+  
+  // Function to update community tags
+  const handleSetCommunityTags = async (tags: string[]) => {
+    if (!currentUserPubkey || !community) {
+      toast.error("You must be logged in to update community tags");
+      return;
+    }
+    
+    if (community.creator !== currentUserPubkey && 
+        (!community.moderators || !community.moderators.includes(currentUserPubkey))) {
+      toast.error("Only the creator or moderators can update community tags");
+      return;
+    }
+    
+    try {
+      // Publish community metadata event for tags
+      const event = {
+        kind: 34556, // Community metadata
+        content: JSON.stringify({
+          type: 'tags',
+          content: tags,
+          createdAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ['e', community.id],
+          ['d', community.uniqueId],
+          ['p', currentUserPubkey],
+          ...tags.map(tag => ['t', tag])
+        ]
+      };
+      
+      const metadataId = await nostrService.publishEvent(event);
+      
+      if (metadataId) {
+        // Also update the main community event with the new tags
+        const communityData = {
+          name: community.name,
+          description: community.description,
+          image: community.image,
+          creator: community.creator,
+          createdAt: community.createdAt,
+          isPrivate: community.isPrivate,
+          guidelines: community.guidelines,
+          tags: tags
+        };
+        
+        const communityEvent = {
+          kind: 34550,
+          content: JSON.stringify(communityData),
+          tags: [
+            ['d', community.uniqueId],
+            ...community.members.map(member => ['p', member]),
+            ...tags.map(tag => ['t', tag])
+          ]
+        };
+        
+        await nostrService.publishEvent(communityEvent);
+        
+        // Update local state
+        setCommunity({
+          ...community,
+          tags
+        });
+        
+        toast.success("Community tags updated");
+      } else {
+        toast.error("Failed to update tags");
+      }
+    } catch (error) {
+      console.error("Error updating tags:", error);
+      toast.error("Failed to update tags");
+    }
+  };
+
   return {
     handleJoinCommunity,
     handleLeaveCommunity,
     handleCreateKickProposal,
     handleKickMember,
     handleVoteOnKick,
-    handleDeleteCommunity
+    handleDeleteCommunity,
+    handleCreateInvite,
+    handleSetPrivate,
+    handleSetGuidelines,
+    handleAddModerator,
+    handleRemoveModerator,
+    handleSetCommunityTags
   };
 };

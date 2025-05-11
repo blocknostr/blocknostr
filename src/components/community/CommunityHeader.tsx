@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import CommunityHeaderImage from "./CommunityHeaderImage";
 import CommunityDescription from "./CommunityDescription";
 import LeaveCommunityButton from "./LeaveCommunityButton";
@@ -17,21 +18,21 @@ interface Community {
   createdAt: number;
   members: string[];
   uniqueId: string;
+  isPrivate?: boolean;
+  tags?: string[];
 }
 
 interface CommunityHeaderProps {
   community: Community;
   currentUserPubkey: string | null;
-  isCreator: boolean;
-  isMember: boolean;
-  onLeaveCommunity: () => void; // Added prop
+  userRole: 'creator' | 'moderator' | 'member' | null;
+  onLeaveCommunity: () => void;
 }
 
 const CommunityHeader = ({ 
   community, 
   currentUserPubkey, 
-  isCreator, 
-  isMember,
+  userRole,
   onLeaveCommunity
 }: CommunityHeaderProps) => {
   const navigate = useNavigate();
@@ -49,14 +50,24 @@ const CommunityHeader = ({
         image={community.image}
       />
       
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 space-y-4">
         <CommunityDescription 
           description={community.description}
           membersCount={community.members.length}
           createdAt={community.createdAt}
+          isPrivate={community.isPrivate}
         />
         
-        {isMember && !isCreator && (
+        {/* Tags */}
+        {community.tags && community.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {community.tags.map(tag => (
+              <Badge key={tag} variant="outline">{tag}</Badge>
+            ))}
+          </div>
+        )}
+        
+        {userRole === 'member' && (
           <LeaveCommunityButton 
             onLeave={handleLeaveCommunity} 
             communityName={community.name} 
