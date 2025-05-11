@@ -13,6 +13,7 @@ interface PageHeaderProps {
   className?: string;
   rightContent?: React.ReactNode;
   showThemeToggle?: boolean;
+  children?: React.ReactNode; // Add children prop for mobile menu
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
@@ -21,7 +22,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   fallbackPath,
   className = "",
   rightContent,
-  showThemeToggle = true
+  showThemeToggle = true,
+  children // Accept children for mobile menu
 }) => {
   const { darkMode, toggleDarkMode } = useTheme();
   
@@ -32,6 +34,9 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     )}>
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-3">
+          {/* Render children (mobile menu) first if provided */}
+          {children}
+          
           {showBackButton && <BackButton fallbackPath={fallbackPath} />}
           <h1 className="font-semibold">{title}</h1>
         </div>
