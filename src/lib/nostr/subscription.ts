@@ -1,16 +1,10 @@
 
 import { SimplePool, type Filter } from 'nostr-tools';
-import { NostrEvent } from './types';
-
-// Extend the Filter type to include our tag properties
-interface ExtendedFilter extends Filter {
-  '#t'?: string[]; // Support for tag filtering
-  [key: string]: any; // Allow other tag filters
-}
+import { NostrEvent, NostrFilter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: ExtendedFilter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -19,7 +13,7 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: ExtendedFilter[],
+    filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     if (relays.length === 0) {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { SmilePlus, SendHorizontal } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
 import { formatDistanceToNow } from "date-fns";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { NostrEvent } from "@/lib/nostr/types";
+import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import {
   Popover,
   PopoverContent,
@@ -41,9 +40,9 @@ const WorldChat = () => {
           [
             {
               kinds: [EVENT_KINDS.TEXT_NOTE],
-              "#t": [WORLD_CHAT_TAG], // Using "#t" (with quotes) for tag filtering
+              '#t': [WORLD_CHAT_TAG], // Using '#t' (with single quotes) for tag filtering
               limit: 25
-            }
+            } as NostrFilter
           ],
           (event) => {
             // Add new message to state (and keep only most recent)
@@ -70,9 +69,9 @@ const WorldChat = () => {
           [
             {
               kinds: [EVENT_KINDS.REACTION],
-              "#t": [WORLD_CHAT_TAG],
+              '#t': [WORLD_CHAT_TAG],
               limit: 50
-            }
+            } as NostrFilter
           ],
           (event) => {
             handleReaction(event);
