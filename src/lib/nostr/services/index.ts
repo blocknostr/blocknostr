@@ -1,6 +1,6 @@
 
 import { SimplePool, Filter } from 'nostr-tools';
-import { EventManager } from '../event';
+import { NostrEventManager, EventManager } from '../event';
 
 /**
  * Create a subscription to events matching the given filters
@@ -38,8 +38,8 @@ export function subscribeToEvents(
   }
 }
 
-// Create a local instance of EventManager to use its methods
-const localEventManager = new EventManager();
+// Create a local instance of NostrEventManager to use its methods
+const localEventManager = new NostrEventManager();
 
 /**
  * Get a single event by ID

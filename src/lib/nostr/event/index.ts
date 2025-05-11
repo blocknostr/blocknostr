@@ -4,7 +4,7 @@ import { EVENT_KINDS } from '../constants';
 
 // EventManager interface 
 export interface EventManager {
-  getEvents: (filters: any[], relays: string[]) => Promise<any[]>;
+  getEvents: (filters: Filter[], relays: string[]) => Promise<any[]>;
   getEventById: (id: string, relays: string[]) => Promise<any | null>;
   getProfilesByPubkeys: (pubkeys: string[], relays: string[]) => Promise<Record<string, any>>;
   getUserProfile: (pubkey: string, relays?: string[]) => Promise<Record<string, any> | null>;
@@ -25,11 +25,14 @@ export class NostrEventManager implements EventManager {
   /**
    * Get events based on filters
    */
-  async getEvents(filters: any[], relays: string[]): Promise<any[]> {
+  async getEvents(filters: Filter[], relays: string[]): Promise<any[]> {
     try {
-      // Convert array of filters to proper Filter format
-      // Use the first filter or create a default one
-      const filter: Filter = filters.length > 0 ? filters[0] : { kinds: [1] };
+      if (filters.length === 0) {
+        return [];
+      }
+      
+      // Use the first filter
+      const filter = filters[0];
       
       return await this.pool.querySync(relays, filter);
     } catch (error) {

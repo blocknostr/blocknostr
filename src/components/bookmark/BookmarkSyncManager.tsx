@@ -27,7 +27,8 @@ export function BookmarkSyncManager() {
         // Wait a bit for connection to stabilize
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Get pending operations
+        // Get pending operations from bookmark storage
+        // Changed from BookmarkStorage to bookmarkStorage (lowercase)
         const pendingOps = await bookmarkStorage.getPendingOperations();
         
         if (pendingOps.length === 0) {

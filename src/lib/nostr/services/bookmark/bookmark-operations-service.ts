@@ -307,7 +307,7 @@ export class BookmarkOperationsService extends BookmarkCoreService {
           await BookmarkCacheService.updateOperationStatus(
             op.id,
             'failed',
-            op.attempts + 1
+            op.retryCount + 1
           );
         }
       }
