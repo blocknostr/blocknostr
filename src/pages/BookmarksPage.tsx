@@ -75,8 +75,8 @@ const BookmarksPage = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="border-b pb-4 mb-6">
+    <div className="max-w-5xl mx-auto px-4">
+      <div className="border-b pb-3 mb-4">
         <BookmarkHeader 
           viewMode={viewMode}
           setViewMode={setViewMode}

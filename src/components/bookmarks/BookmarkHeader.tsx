@@ -18,42 +18,35 @@ const BookmarkHeader: React.FC<BookmarkHeaderProps> = ({
   setSortBy 
 }) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div>
-        <h1 className="text-xl font-bold flex items-center gap-2">
-          <Bookmark className="h-5 w-5" />
-          Bookmarks
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Your saved notes appear here
-        </p>
-      </div>
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <h1 className="text-lg font-medium flex items-center gap-2">
+        <Bookmark className="h-4 w-4" />
+        Bookmarks
+      </h1>
       
       <div className="flex items-center gap-2">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className={viewMode === "list" ? "bg-muted" : ""}
+          className={viewMode === "list" ? "bg-secondary/50" : ""}
           onClick={() => setViewMode("list")}
         >
-          <ListFilter className="h-4 w-4 mr-1" />
-          List
+          <ListFilter className="h-3.5 w-3.5" />
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className={viewMode === "grid" ? "bg-muted" : ""}
+          className={viewMode === "grid" ? "bg-secondary/50" : ""}
           onClick={() => setViewMode("grid")}
         >
-          <Grid3X3 className="h-4 w-4 mr-1" />
-          Grid
+          <Grid3X3 className="h-3.5 w-3.5" />
         </Button>
         
         <Select
           value={sortBy}
           onValueChange={(value) => setSortBy(value as "newest" | "oldest")}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-[110px] h-8 text-xs">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>

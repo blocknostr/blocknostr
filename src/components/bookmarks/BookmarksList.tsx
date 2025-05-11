@@ -43,8 +43,8 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
 }) => {
   if (!isLoggedIn) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">
+      <div className="py-8 text-center">
+        <p className="text-sm text-muted-foreground">
           You need to log in to see your bookmarks
         </p>
       </div>
@@ -53,23 +53,23 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
 
   if (loading) {
     return (
-      <div className="py-12 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span className="text-muted-foreground">Loading bookmarks...</span>
+      <div className="py-8 flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     );
   }
 
   if (filteredAndSortedEvents.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-muted-foreground">
+      <div className="py-8 text-center">
+        <p className="text-sm text-muted-foreground">
           {searchTerm || selectedCollection || selectedTags.length > 0 
             ? "No bookmarks match your filters."
             : "No bookmarks yet. Click the bookmark icon on any post to save it here."}
         </p>
         {(searchTerm || selectedCollection || selectedTags.length > 0) && (
-          <Button variant="outline" className="mt-4" onClick={handleResetFilters}>
+          <Button variant="outline" className="mt-3 text-xs h-8" onClick={handleResetFilters}>
             Clear filters
           </Button>
         )}
@@ -79,7 +79,7 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
 
   return (
     <>
-      <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-4"}>
+      <div className={`mt-4 ${viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" : "space-y-3"}`}>
         {paginatedEvents.map(event => {
           // Find metadata for this event
           const metadata = bookmarkMetadata.find(meta => meta.eventId === event.id);
@@ -91,16 +91,18 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
             <div key={event.id} className="relative">
               {collection && (
                 <div 
-                  className="absolute top-0 right-0 z-10 -mt-1 -mr-1 px-2 py-0.5 rounded-full text-xs" 
+                  className="absolute top-0 right-0 z-10 -mt-1 -mr-1 px-1.5 py-0.5 rounded-full text-xs" 
                   style={{ backgroundColor: collection.color || '#3b82f6', color: '#fff' }}
                 >
                   {collection.name}
                 </div>
               )}
-              <NoteCard 
-                event={event} 
-                profileData={profiles[event.pubkey]}
-              />
+              <div className="transform transition-transform hover:scale-[1.01]">
+                <NoteCard 
+                  event={event} 
+                  profileData={profiles[event.pubkey]}
+                />
+              </div>
             </div>
           );
         })}
@@ -108,12 +110,12 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
       
       {/* Pagination */}
       {totalPages > 1 && (
-        <Pagination className="mt-6">
+        <Pagination className="mt-4">
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious 
                 onClick={() => setPage(Math.max(1, page - 1))}
-                className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                className={`${page === 1 ? "pointer-events-none opacity-50" : ""} text-xs`}
               />
             </PaginationItem>
             
@@ -122,6 +124,7 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
                 <PaginationLink
                   isActive={page === i + 1}
                   onClick={() => setPage(i + 1)}
+                  className="text-xs h-7 w-7"
                 >
                   {i + 1}
                 </PaginationLink>
@@ -131,7 +134,7 @@ const BookmarksList: React.FC<BookmarksListProps> = ({
             <PaginationItem>
               <PaginationNext 
                 onClick={() => setPage(Math.min(totalPages, page + 1))}
-                className={page === totalPages ? "pointer-events-none opacity-50" : ""}
+                className={`${page === totalPages ? "pointer-events-none opacity-50" : ""} text-xs`}
               />
             </PaginationItem>
           </PaginationContent>
