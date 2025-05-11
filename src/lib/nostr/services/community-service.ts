@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -26,21 +25,19 @@ export class CommunityService {
       const connectedRelays = this.getConnectedRelayUrls();
       
       return new Promise((resolve) => {
-        // Properly construct the filter object according to nostr-tools Filter type
-        const filters: Filter[] = [
-          {
-            kinds: [EVENT_KINDS.COMMUNITY],
-            '#d': [communityId],
-            limit: 1
-          }
-        ];
+        // Properly construct a single filter object according to nostr-tools Filter type
+        const filter: Filter = {
+          kinds: [EVENT_KINDS.COMMUNITY],
+          '#d': [communityId],
+          limit: 1
+        };
         
         let subscription: { close: () => void } | null = null;
         
         try {
           subscription = this.pool.subscribe(
             connectedRelays,
-            filters,
+            filter,
             {
               onevent: (event) => {
                 try {

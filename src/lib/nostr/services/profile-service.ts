@@ -31,21 +31,19 @@ export class ProfileService {
       const connectedRelays = this.getConnectedRelayUrls();
       
       return new Promise((resolve) => {
-        // Properly construct the filter object according to nostr-tools Filter type
-        const filters: Filter[] = [
-          {
-            kinds: [EVENT_KINDS.META],
-            authors: [pubkey],
-            limit: 1
-          }
-        ];
+        // Properly construct a single filter object according to nostr-tools Filter type
+        const filter: Filter = {
+          kinds: [EVENT_KINDS.META],
+          authors: [pubkey],
+          limit: 1
+        };
         
         let subscription: { close: () => void } | null = null;
         
         try {
           subscription = this.pool.subscribe(
             connectedRelays,
-            filters,
+            filter,
             {
               onevent: (event) => {
                 try {
