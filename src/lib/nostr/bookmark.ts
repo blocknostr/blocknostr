@@ -1,4 +1,3 @@
-
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
 import { SimplePool } from 'nostr-tools';
@@ -694,6 +693,3 @@ export class BookmarkManager {
     }
   }
 }
-
-export type { BookmarkCollection, BookmarkWithMetadata };
-
