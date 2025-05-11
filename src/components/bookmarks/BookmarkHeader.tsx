@@ -1,56 +1,99 @@
 
-import React from "react";
-import { Grid3X3, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  LayoutGrid, 
+  List, 
+  ArrowUpDown, 
+  Clock, 
+  Zap,
+  RefreshCw,
+  WifiOff 
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface BookmarkHeaderProps {
   viewMode: "list" | "grid";
   setViewMode: (mode: "list" | "grid") => void;
-  sortBy: "newest" | "oldest";
-  setSortBy: (sort: "newest" | "oldest") => void;
+  sortBy: string;
+  setSortBy: (sort: string) => void;
+  isOnline?: boolean;
+  refreshBookmarks?: () => Promise<void>;
+  isLoading?: boolean;
 }
 
-const BookmarkHeader: React.FC<BookmarkHeaderProps> = ({ 
-  viewMode, 
-  setViewMode, 
-  sortBy, 
-  setSortBy 
-}) => {
+const BookmarkHeader = ({
+  viewMode,
+  setViewMode,
+  sortBy,
+  setSortBy,
+  isOnline = true,
+  refreshBookmarks,
+  isLoading = false
+}: BookmarkHeaderProps) => {
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        className={viewMode === "list" ? "bg-secondary/50" : ""}
-        onClick={() => setViewMode("list")}
-        title="List view"
-      >
-        <ListFilter className="h-3.5 w-3.5" />
-      </Button>
+    <div className="flex items-center space-x-2">
+      {!isOnline && (
+        <div className="flex items-center text-yellow-500 mr-1">
+          <WifiOff className="h-4 w-4 mr-1" />
+          <span className="text-xs">Offline</span>
+        </div>
+      )}
+      
+      {refreshBookmarks && (
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={refreshBookmarks}
+          disabled={isLoading}
+          title="Refresh bookmarks"
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
+      )}
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="icon" title="Sort bookmarks">
+            <ArrowUpDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
+            <DropdownMenuRadioItem value="newest" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Newest first
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="oldest" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" /> Oldest first
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="popular" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Most popular
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
       
       <Button
-        variant="ghost"
-        size="sm"
-        className={viewMode === "grid" ? "bg-secondary/50" : ""}
-        onClick={() => setViewMode("grid")}
-        title="Grid view"
+        variant="outline"
+        size="icon"
+        onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+        title={viewMode === "list" ? "Grid view" : "List view"}
       >
-        <Grid3X3 className="h-3.5 w-3.5" />
+        {viewMode === "list" ? (
+          <LayoutGrid className="h-4 w-4" />
+        ) : (
+          <List className="h-4 w-4" />
+        )}
       </Button>
-      
-      <Select
-        value={sortBy}
-        onValueChange={(value) => setSortBy(value as "newest" | "oldest")}
-      >
-        <SelectTrigger className="w-[110px] h-8 text-xs">
-          <SelectValue placeholder="Sort by" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="newest">Newest first</SelectItem>
-          <SelectItem value="oldest">Oldest first</SelectItem>
-        </SelectContent>
-      </Select>
     </div>
   );
 };

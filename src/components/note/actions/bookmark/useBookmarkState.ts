@@ -1,10 +1,14 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
+import { retry } from '@/lib/utils/retry';
+import { BookmarkCacheService } from '@/lib/nostr/bookmark/cache/bookmark-cache-service';
 
 /**
- * Hook to manage bookmark state and operations
+ * Improved hook to manage bookmark state and operations with:
+ * - Retry mechanism
+ * - Offline support
+ * - Enhanced error handling
  */
 export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) {
   const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
@@ -12,34 +16,52 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
   const [relaysConnected, setRelaysConnected] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
-  // Check relay connections on mount and ensure connectivity
+  // Check for cached bookmark status on mount
   useEffect(() => {
-    const checkAndConnectRelays = async () => {
-      const relayStatus = nostrService.getRelayStatus();
-      const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
-      
-      if (connectedCount === 0) {
-        console.log("No connected relays found, attempting connection...");
-        try {
-          await nostrService.connectToUserRelays();
-          const newStatus = nostrService.getRelayStatus();
-          const newConnectedCount = newStatus.filter(r => r.status === 'connected').length;
-          setRelaysConnected(newConnectedCount > 0);
-          console.log(`Connected to ${newConnectedCount} relays`);
-        } catch (error) {
-          console.error("Failed to connect to relays:", error);
-          setRelaysConnected(false);
+    const checkCachedStatus = async () => {
+      // Only check cache if we don't have a server-provided initial value
+      if (initialIsBookmarked === false) {
+        const cachedStatus = await BookmarkCacheService.getCachedBookmarkStatus(eventId);
+        if (cachedStatus !== null) {
+          setIsBookmarked(cachedStatus);
+          console.log(`Using cached bookmark status for ${eventId}: ${cachedStatus}`);
         }
-      } else {
-        setRelaysConnected(true);
-        console.log(`Already connected to ${connectedCount} relays`);
       }
     };
     
-    checkAndConnectRelays();
+    checkCachedStatus();
+  }, [eventId, initialIsBookmarked]);
+  
+  // Check relay connections and set up event listeners
+  useEffect(() => {
+    const checkRelayStatus = () => {
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
+      setRelaysConnected(connectedCount > 0);
+      return connectedCount > 0;
+    };
     
-    // Check connection status every 10 seconds
-    const intervalId = setInterval(checkAndConnectRelays, 10000);
+    // Initial check
+    const isConnected = checkRelayStatus();
+    
+    // Connect to relays if needed
+    const connectIfNeeded = async () => {
+      if (!isConnected) {
+        try {
+          await nostrService.connectToUserRelays();
+          checkRelayStatus();
+        } catch (error) {
+          console.error("Failed to connect to relays during initial check:", error);
+        }
+      }
+    };
+    
+    connectIfNeeded();
+    
+    // Set up interval to check connections periodically
+    const intervalId = setInterval(() => {
+      checkRelayStatus();
+    }, 10000);
     
     return () => clearInterval(intervalId);
   }, []);
@@ -47,21 +69,34 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
   // Connect to relays if needed
   const ensureRelayConnection = async () => {
     if (!relaysConnected) {
-      console.log("Attempting to connect to relays before bookmark operation...");
+      // When showing loading state, use the toast.loading with a unique ID
+      const loadingId = toast.loading("Connecting to relays...");
+      
       try {
-        await nostrService.connectToUserRelays();
+        await retry(
+          () => nostrService.connectToUserRelays(),
+          { 
+            maxAttempts: 3,
+            onRetry: (attempt) => {
+              toast.loading(`Connection attempt ${attempt}/3...`, { id: loadingId });
+            }
+          }
+        );
+        
         const status = nostrService.getRelayStatus();
         const connected = status.filter(r => r.status === 'connected').length;
         
         if (connected === 0) {
-          toast.error("Cannot bookmark: No relays available. Please check your connection.");
+          toast.error("No relays available. Please check your network connection.", { id: loadingId });
           console.error("Failed to connect to any relays for bookmark operation");
           return false;
         }
+        
         setRelaysConnected(true);
+        toast.success("Connected to relays", { id: loadingId });
         return true;
       } catch (error) {
-        toast.error("Failed to connect to relays. Please try again.");
+        toast.error("Failed to connect to relays. Please try again later.", { id: loadingId });
         console.error("Error connecting to relays:", error);
         return false;
       }
@@ -69,7 +104,7 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     return true;
   };
   
-  // Handler for bookmark actions
+  // Handler for bookmark actions with retry mechanism
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
     e.stopPropagation();
@@ -84,47 +119,91 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       return;
     }
     
-    // Ensure relay connection
-    const connected = await ensureRelayConnection();
-    if (!connected) return;
-    
     try {
       setIsBookmarkPending(true);
+      
+      // Update the local state immediately for responsive UI
+      const newBookmarkState = !isBookmarked;
+      setIsBookmarked(newBookmarkState);
+      
+      // Cache optimistically
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, newBookmarkState);
+      
+      // Prepare the operation based on whether it's an add or remove
+      const operation = newBookmarkState 
+        ? () => nostrService.addBookmark(eventId)
+        : () => nostrService.removeBookmark(eventId);
+      
+      // If offline, queue the operation for later and show appropriate message
+      if (!navigator.onLine) {
+        await BookmarkCacheService.queueOperation({
+          type: newBookmarkState ? 'add' : 'remove',
+          data: { eventId },
+          timestamp: Date.now()
+        });
+        
+        toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
+        return;
+      }
+      
+      // Try to connect to relays if needed
+      const connected = await ensureRelayConnection();
+      if (!connected) {
+        // Keep the optimistic UI update but queue the operation for later
+        await BookmarkCacheService.queueOperation({
+          type: newBookmarkState ? 'add' : 'remove',
+          data: { eventId },
+          timestamp: Date.now()
+        });
+        return;
+      }
+      
       console.log("Connected relays:", nostrService.getRelayStatus()
         .filter(r => r.status === 'connected')
         .map(r => r.url));
       
-      if (isBookmarked) {
-        // Remove bookmark
-        console.log("Attempting to remove bookmark for event:", eventId);
-        setIsBookmarked(false); // Optimistically update UI
-        const result = await nostrService.removeBookmark(eventId);
-        if (result) {
-          toast.success("Bookmark removed");
-          console.log("Bookmark removed successfully");
-        } else {
-          setIsBookmarked(true); // Revert if failed
-          console.error("Bookmark removal failed, but no error was thrown");
-          toast.error("Failed to remove bookmark");
+      // Execute the operation with retry logic
+      const result = await retry(
+        operation,
+        {
+          maxAttempts: 3,
+          onRetry: (attempt, error) => {
+            console.log(`Retry attempt ${attempt} for bookmark operation:`, error);
+          },
+          shouldRetry: (error) => {
+            // Don't retry if it's a validation error or permission issue
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            return !errorMsg.includes("validation") && !errorMsg.includes("permission");
+          }
         }
+      );
+      
+      if (result) {
+        toast.success(newBookmarkState ? "Post bookmarked" : "Bookmark removed");
+        console.log("Bookmark operation successful");
       } else {
-        // Add bookmark
-        console.log("Attempting to add bookmark for event:", eventId);
-        setIsBookmarked(true); // Optimistically update UI
-        const result = await nostrService.addBookmark(eventId);
-        if (result) {
-          toast.success("Post bookmarked");
-          console.log("Bookmark added successfully");
-        } else {
-          setIsBookmarked(false); // Revert if failed
-          console.error("Bookmark addition failed, but no error was thrown");
-          toast.error("Failed to bookmark post");
-        }
+        // Revert UI state on failure
+        setIsBookmarked(!newBookmarkState);
+        await BookmarkCacheService.cacheBookmarkStatus(eventId, !newBookmarkState);
+        console.error("Bookmark operation failed but didn't throw an error");
+        toast.error(newBookmarkState ? "Failed to bookmark post" : "Failed to remove bookmark");
       }
     } catch (error) {
       console.error("Error bookmarking post:", error);
-      setIsBookmarked(!isBookmarked); // Revert UI state
-      toast.error(`Failed to update bookmark: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // Revert UI state
+      setIsBookmarked(!isBookmarked);
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, !isBookmarked);
+      
+      // Show descriptive error based on type
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      
+      if (errorMsg.includes("timeout")) {
+        toast.error("Operation timed out. Please try again when you have a better connection.");
+      } else if (errorMsg.includes("relay")) {
+        toast.error("Unable to reach relays. Please check your network connection.");
+      } else {
+        toast.error(`Failed to update bookmark: ${errorMsg}`);
+      }
     } finally {
       setIsBookmarkPending(false);
     }
