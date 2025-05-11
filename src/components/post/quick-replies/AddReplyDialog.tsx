@@ -9,12 +9,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { 
-  TabsList,
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import { AddReplyDialogProps } from './types';
 import { QuickReply } from '@/lib/nostr/social/types';
+import { AddReplyDialogProps } from './types';
 
 const AddReplyDialog: React.FC<AddReplyDialogProps> = ({ isOpen, onOpenChange, onAddReply }) => {
   const [newReplyText, setNewReplyText] = useState('');
@@ -46,36 +42,40 @@ const AddReplyDialog: React.FC<AddReplyDialogProps> = ({ isOpen, onOpenChange, o
           
           <div>
             <div className="mb-2">Category</div>
-            <TabsList className="w-full">
-              <TabsTrigger 
-                value="greeting" 
-                className={newReplyCategory === 'greeting' ? 'bg-primary text-primary-foreground' : ''}
+            <div className="flex w-full overflow-hidden rounded-md">
+              <Button 
+                type="button"
+                variant={newReplyCategory === 'greeting' ? 'default' : 'outline'}
+                className="flex-1 rounded-none border-r"
                 onClick={() => setNewReplyCategory('greeting')}
               >
                 Greeting
-              </TabsTrigger>
-              <TabsTrigger 
-                value="thanks"
-                className={newReplyCategory === 'thanks' ? 'bg-primary text-primary-foreground' : ''}
+              </Button>
+              <Button 
+                type="button"
+                variant={newReplyCategory === 'thanks' ? 'default' : 'outline'}
+                className="flex-1 rounded-none border-r"
                 onClick={() => setNewReplyCategory('thanks')}
               >
                 Thanks
-              </TabsTrigger>
-              <TabsTrigger 
-                value="discussion"
-                className={newReplyCategory === 'discussion' ? 'bg-primary text-primary-foreground' : ''}
+              </Button>
+              <Button 
+                type="button"
+                variant={newReplyCategory === 'discussion' ? 'default' : 'outline'}
+                className="flex-1 rounded-none border-r"
                 onClick={() => setNewReplyCategory('discussion')}
               >
                 Discussion
-              </TabsTrigger>
-              <TabsTrigger 
-                value="custom"
-                className={newReplyCategory === 'custom' ? 'bg-primary text-primary-foreground' : ''}
+              </Button>
+              <Button 
+                type="button"
+                variant={newReplyCategory === 'custom' ? 'default' : 'outline'}
+                className="flex-1 rounded-none"
                 onClick={() => setNewReplyCategory('custom')}
               >
                 Custom
-              </TabsTrigger>
-            </TabsList>
+              </Button>
+            </div>
           </div>
         </div>
         
