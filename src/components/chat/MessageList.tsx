@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
 import { NostrEvent } from "@/lib/nostr/types";
@@ -146,3 +146,4 @@ const MessageList: React.FC<MessageListProps> = ({
 };
 
 export default MessageList;
+
