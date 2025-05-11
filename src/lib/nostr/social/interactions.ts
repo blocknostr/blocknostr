@@ -230,30 +230,30 @@ export async function getLightningAddress(
       let lnurl: string | null = null;
       
       // Subscribe to profile metadata to get lightning info
-      const sub = pool.subscribe(relayUrls, [{
+      const sub = pool.subscribe(relayUrls, {
         kinds: [0],
         authors: [pubkey],
         limit: 1
-      }]);
-      
-      sub.on('event', (event) => {
-        try {
-          const metadata = JSON.parse(event.content);
-          
-          // Try to get lud16 (Lightning Address) or lud06 (LNURL)
-          if (metadata.lud16) {
-            lnurl = metadata.lud16;
-          } else if (metadata.lud06) {
-            lnurl = metadata.lud06;
+      }, {
+        onevent: (event) => {
+          try {
+            const metadata = JSON.parse(event.content);
+            
+            // Try to get lud16 (Lightning Address) or lud06 (LNURL)
+            if (metadata.lud16) {
+              lnurl = metadata.lud16;
+            } else if (metadata.lud06) {
+              lnurl = metadata.lud06;
+            }
+          } catch (error) {
+            console.error("Error parsing metadata:", error);
           }
-        } catch (error) {
-          console.error("Error parsing metadata:", error);
         }
       });
       
       // Wait for a short time then resolve with the result
       setTimeout(() => {
-        sub.unsub();
+        sub.close();
         resolve(lnurl);
       }, 3000);
     });
