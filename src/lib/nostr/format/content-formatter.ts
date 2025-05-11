@@ -14,7 +14,8 @@ export class ContentFormatter implements ContentFormatterInterface {
    */
   parseContent(content: string, mediaUrls?: string[]): FormattedSegment[] {
     // Parse content into segments
-    const segments = segmentParser(content);
+    // Use the parseContent method of the segmentParser instance
+    const segments = segmentParser.parseContent(content, mediaUrls || []);
     
     // Hide media URLs from display if they exist in the mediaUrls array
     if (mediaUrls && mediaUrls.length > 0) {
