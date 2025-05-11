@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { 
   LayoutGrid, 
@@ -69,7 +68,7 @@ const BookmarkHeader = ({
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Sort by</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
+          <DropdownMenuRadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
             <DropdownMenuRadioItem value="newest" className="flex items-center gap-2">
               <Clock className="h-4 w-4" /> Newest first
             </DropdownMenuRadioItem>
@@ -97,6 +96,6 @@ const BookmarkHeader = ({
       </Button>
     </div>
   );
-};
+}
 
 export default BookmarkHeader;

@@ -1,4 +1,3 @@
-
 import { 
   getFromStore, 
   putInStore, 
@@ -9,6 +8,7 @@ import {
 import { 
   BookmarkCollection, 
   BookmarkWithMetadata, 
+  BookmarkStatus, 
   PendingOperation 
 } from "../types";
 

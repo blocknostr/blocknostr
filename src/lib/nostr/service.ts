@@ -101,7 +101,8 @@ class NostrService {
       bookmarkManager,
       this.pool,
       this.publicKey,
-      this.getConnectedRelayUrls.bind(this)
+      this.getConnectedRelayUrls.bind(this),
+      this.connectToUserRelays.bind(this)
     );
   }
 
@@ -409,6 +410,20 @@ class NostrService {
   
   public async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
     return this.bookmarkService.createBookmarkCollection(name, color, description);
+  }
+  
+  public async processPendingOperations(): Promise<void> {
+    return this.bookmarkService.processPendingOperations();
+  }
+  
+  public async getEvents(ids: string[]): Promise<any[]> {
+    const relays = this.getConnectedRelayUrls();
+    return this.eventManager.getEvents(ids, relays);
+  }
+  
+  public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
+    const relays = this.getConnectedRelayUrls();
+    return this.profileService.getProfilesByPubkeys(pubkeys, this.pool, relays);
   }
   
   // Profile methods

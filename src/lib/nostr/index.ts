@@ -2,13 +2,10 @@
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
-import { NostrService } from './service';
-import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-
-// Initialize the NostrService instance
-const nostrService = new NostrService();
+import { NostrService, nostrService } from './services';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
 export type { NostrEvent, Relay } from './types';
@@ -24,10 +21,6 @@ export type { ProposalCategory } from '@/types/community';
 
 // Re-export from bookmark module
 export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
-
-// Re-export from services
-export { ProfileService, CommunityService, BookmarkService, ThreadService } from './services';
-export type { BaseServiceConfig, SubscriptionResult, EventSubscription } from './services/types';
 
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };

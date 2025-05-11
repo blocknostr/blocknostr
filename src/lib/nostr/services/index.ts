@@ -1,11 +1,8 @@
+
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from '../event';
-import { ProfileService } from './profile-service';
-import { FeedService } from './feed-service';
-import { NotificationService } from './notification-service';
-import { ChatService } from './chat-service';
-import { BookmarkService } from './bookmark-service';
 import { BookmarkManagerFacade } from '../bookmark';
+import { BookmarkService } from './bookmark-service';
 
 /**
  * Composer service that provides access to all Nostr services
@@ -17,21 +14,12 @@ export class NostrService {
   public publicKey: string | null = null;
   private privateKey: string | null | undefined = undefined;
   
-  public readonly profileService: ProfileService;
-  public readonly feedService: FeedService;
-  public readonly notificationService: NotificationService;
-  public readonly chatService: ChatService;
   public readonly bookmarkService: BookmarkService;
   public readonly bookmarkManager: BookmarkManagerFacade;
   
   constructor() {
     this.pool = new SimplePool();
-    this.eventManager = new EventManager(this.pool);
-    
-    this.profileService = new ProfileService(this.pool);
-    this.feedService = new FeedService(this.pool);
-    this.notificationService = new NotificationService(this.pool);
-    this.chatService = new ChatService(this.pool, this.eventManager);
+    this.eventManager = new EventManager();
     
     // Initialize the BookmarkManagerFacade
     this.bookmarkManager = new BookmarkManagerFacade(this.eventManager);
@@ -41,8 +29,7 @@ export class NostrService {
       this.bookmarkManager,
       this.pool,
       null, // Will be set when user logs in
-      () => this.getRelayStatus(),
-      () => this.connectToUserRelays()
+      () => this.getRelayStatus().map(relay => relay.url)
     );
   }
 
@@ -76,7 +63,8 @@ export class NostrService {
   }
 
   getRelayStatus(): { url: string; status: string }[] {
-    const relays = Object.values(this.pool.relays);
+    // Access pool.relays safely with type assertion
+    const relays = Object.values((this.pool as any).relays || {});
     return relays.map(relay => ({
       url: relay.url,
       status: relay.status
@@ -84,7 +72,8 @@ export class NostrService {
   }
 
   async connectToRelays(relays: string[]): Promise<void> {
-    await this.eventManager.connectToRelays(relays);
+    // Connect to relays directly using pool
+    relays.forEach(url => this.pool.ensureRelay(url));
   }
 
   async connectToUserRelays(): Promise<string[]> {
@@ -93,31 +82,78 @@ export class NostrService {
       return [];
     }
     
-    return this.eventManager.connectToUserRelays(this.publicKey);
+    // Simplified implementation
+    const defaultRelays = ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
+    defaultRelays.forEach(url => this.pool.ensureRelay(url));
+    return defaultRelays;
   }
 
-  subscribe(filters: any[], onEvent: (event: any) => void): string {
-    const relays = this.getRelayUrls();
-    return this.eventManager.subscribe(filters, onEvent, relays);
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    const relayUrls = relays || this.getRelayUrls();
+    // Use pool directly for subscription
+    const sub = this.pool.sub(relayUrls, filters);
+    sub.on('event', onEvent);
+    return sub.sub;
   }
 
   unsubscribe(subId: string): void {
-    this.eventManager.unsubscribe(subId);
+    // Use pool directly to unsubscribe
+    this.pool.close([subId]);
   }
 
   async getEventById(id: string): Promise<any | null> {
     const relays = this.getRelayUrls();
-    return this.eventManager.getEventById(id, relays);
+    return new Promise((resolve) => {
+      let event = null;
+      const sub = this.subscribe([{ ids: [id] }], (e) => {
+        event = e;
+        this.unsubscribe(sub);
+        resolve(event);
+      }, relays);
+      
+      setTimeout(() => {
+        this.unsubscribe(sub);
+        resolve(event);
+      }, 5000);
+    });
   }
 
   async getEvents(ids: string[]): Promise<any[]> {
     const relays = this.getRelayUrls();
-    return this.eventManager.getEvents(ids, relays);
+    return new Promise((resolve) => {
+      const events: any[] = [];
+      const sub = this.subscribe([{ ids }], (e) => {
+        events.push(e);
+      }, relays);
+      
+      setTimeout(() => {
+        this.unsubscribe(sub);
+        resolve(events);
+      }, 5000);
+    });
   }
 
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const relays = this.getRelayUrls();
-    return this.profileService.getProfilesByPubkeys(pubkeys, this.pool, relays);
+    return new Promise((resolve) => {
+      const profiles: Record<string, any> = {};
+      
+      const sub = this.subscribe([
+        { kinds: [0], authors: pubkeys }
+      ], (event) => {
+        try {
+          const profile = JSON.parse(event.content);
+          profiles[event.pubkey] = profile;
+        } catch (e) {
+          console.error("Failed to parse profile:", e);
+        }
+      }, relays);
+      
+      setTimeout(() => {
+        this.unsubscribe(sub);
+        resolve(profiles);
+      }, 5000);
+    });
   }
 
   // Re-expose methods from BookmarkService as top-level methods
@@ -129,8 +165,8 @@ export class NostrService {
     return this.bookmarkService.removeBookmark(eventId);
   }
 
-  async getBookmarks(useCache: boolean = true): Promise<string[]> {
-    return this.bookmarkService.getBookmarks(useCache);
+  async getBookmarks(): Promise<string[]> {
+    return this.bookmarkService.getBookmarks();
   }
 
   async isBookmarked(eventId: string): Promise<boolean> {
@@ -141,12 +177,12 @@ export class NostrService {
     return this.bookmarkService.createBookmarkCollection(name, color, description);
   }
 
-  async getBookmarkCollections(useCache: boolean = true): Promise<any[]> {
-    return this.bookmarkService.getBookmarkCollections(useCache);
+  async getBookmarkCollections(): Promise<any[]> {
+    return this.bookmarkService.getBookmarkCollections();
   }
 
-  async getBookmarkMetadata(useCache: boolean = true): Promise<any[]> {
-    return this.bookmarkService.getBookmarkMetadata(useCache);
+  async getBookmarkMetadata(): Promise<any[]> {
+    return this.bookmarkService.getBookmarkMetadata();
   }
 
   async processPendingOperations(): Promise<void> {

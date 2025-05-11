@@ -98,7 +98,7 @@ export function useBookmarkData(): UseBookmarkDataResult {
       }
       
       // Get bookmark IDs
-      const bookmarkIds = await nostrService.getBookmarks(true);
+      const bookmarkIds = await nostrService.getBookmarks();
       
       if (bookmarkIds.length === 0) {
         setBookmarkedEvents([]);
@@ -107,11 +107,11 @@ export function useBookmarkData(): UseBookmarkDataResult {
       }
       
       // Get bookmark metadata
-      const metadata = await nostrService.getBookmarkMetadata(true);
+      const metadata = await nostrService.getBookmarkMetadata();
       setBookmarkMetadata(metadata);
       
       // Get bookmark collections
-      const bookmarkCollections = await nostrService.getBookmarkCollections(true);
+      const bookmarkCollections = await nostrService.getBookmarkCollections();
       setCollections(bookmarkCollections);
       
       // Load the actual events
