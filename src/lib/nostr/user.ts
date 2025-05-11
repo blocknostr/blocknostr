@@ -1,4 +1,3 @@
-
 import { nip19, getPublicKey } from 'nostr-tools';
 import { toast } from "sonner";
 import { EVENT_KINDS } from './constants';
@@ -72,8 +71,7 @@ export class UserManager {
             
             // Try to get relays from extension if supported (NIP-07 extension)
             try {
-              // Check if getRelays method exists before calling it
-              if (window.nostr.getRelays) {
+              if (typeof window.nostr.getRelays === 'function') {
                 const relays = await window.nostr.getRelays();
                 if (relays) {
                   localStorage.setItem('nostr_extension_relays', JSON.stringify(relays));
