@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { SimplePool } from 'nostr-tools';
@@ -9,7 +8,6 @@ import {
   CommentButton, 
   BookmarkButton,
   DeleteButton,
-  ShareButton,
   StatsButton,
   StatsDisplay
 } from './actions';
@@ -183,13 +181,11 @@ const NoteCardActions = ({
           )}
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <StatsButton 
             showStats={showStats}
             onClick={toggleStats}
           />
-          
-          <ShareButton />
         </div>
       </div>
       
