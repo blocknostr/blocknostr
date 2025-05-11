@@ -30,7 +30,24 @@ export class EventManager {
     try {
       if (window.nostr) {
         // Use NIP-07 browser extension for signing
-        signedEvent = await window.nostr.signEvent(fullEvent);
+        try {
+          signedEvent = await window.nostr.signEvent({
+            kind: fullEvent.kind,
+            created_at: fullEvent.created_at,
+            content: fullEvent.content,
+            tags: fullEvent.tags,
+            pubkey: publicKey
+          });
+          
+          // Validate the signature from the extension
+          if (!validateEvent(signedEvent)) {
+            console.error("Invalid signature from extension");
+            return null;
+          }
+        } catch (err) {
+          console.error("Extension signing failed:", err);
+          return null;
+        }
       } else if (privateKey) {
         // Convert privateKey string to Uint8Array if needed
         let privateKeyBytes: Uint8Array;
@@ -77,6 +94,7 @@ export class EventManager {
           return null;
         }
       } else {
+        console.error("No signing method available");
         return null;
       }
       
@@ -128,6 +146,50 @@ export class EventManager {
     } catch (error) {
       console.error("Error publishing profile metadata:", error);
       return false;
+    }
+  }
+  
+  // Method to encrypt a message using NIP-04 (can use extension or manual)
+  async encryptMessage(
+    recipientPubkey: string,
+    message: string,
+    senderPrivateKey?: string | null
+  ): Promise<string | null> {
+    try {
+      // Try to use NIP-07 extension first
+      if (window.nostr && window.nostr.nip04) {
+        return await window.nostr.nip04.encrypt(recipientPubkey, message);
+      } 
+      // In the future, implement manual encryption with senderPrivateKey
+      else {
+        console.error("No encryption method available");
+        return null;
+      }
+    } catch (error) {
+      console.error("Encryption error:", error);
+      return null;
+    }
+  }
+  
+  // Method to decrypt a message using NIP-04
+  async decryptMessage(
+    senderPubkey: string,
+    encryptedMessage: string,
+    recipientPrivateKey?: string | null
+  ): Promise<string | null> {
+    try {
+      // Try to use NIP-07 extension first
+      if (window.nostr && window.nostr.nip04) {
+        return await window.nostr.nip04.decrypt(senderPubkey, encryptedMessage);
+      } 
+      // In the future, implement manual decryption with recipientPrivateKey
+      else {
+        console.error("No decryption method available");
+        return null;
+      }
+    } catch (error) {
+      console.error("Decryption error:", error);
+      return null;
     }
   }
 }

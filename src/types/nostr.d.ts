@@ -9,6 +9,11 @@ declare global {
         decrypt: (pubkey: string, ciphertext: string) => Promise<string>;
       };
       getRelays?: () => Promise<Record<string, { read: boolean; write: boolean }>>;
+      signSchnorr?: (message: string) => Promise<string>;
+      delegate?: {
+        delegate: (constraints: any) => Promise<any>;
+        listDelegations: () => Promise<any[]>;
+      };
     };
   }
 }

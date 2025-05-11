@@ -9,6 +9,7 @@ export class UserManager {
   private _privateKey: string | null = null;
   private _following: Set<string> = new Set();
   private _profileCache: Map<string, NostrProfileMetadata> = new Map(); // Use the typings
+  private _extensionDetected: boolean = false;
   
   get publicKey(): string | null {
     return this._publicKey;
@@ -16,6 +17,10 @@ export class UserManager {
   
   get following(): string[] {
     return Array.from(this._following);
+  }
+
+  get hasExtension(): boolean {
+    return this._extensionDetected;
   }
   
   loadUserKeys(): void {
@@ -28,6 +33,9 @@ export class UserManager {
     if (savedPrivkey) {
       this._privateKey = savedPrivkey;
     }
+    
+    // Check for NIP-07 extension
+    this._extensionDetected = !!window.nostr;
   }
   
   loadFollowing(): void {
@@ -61,6 +69,19 @@ export class UserManager {
           if (pubkey) {
             this._publicKey = pubkey;
             localStorage.setItem('nostr_pubkey', pubkey);
+            
+            // Try to get relays from extension if supported (NIP-07 extension)
+            try {
+              if (window.nostr.getRelays) {
+                const relays = await window.nostr.getRelays();
+                if (relays) {
+                  localStorage.setItem('nostr_extension_relays', JSON.stringify(relays));
+                }
+              }
+            } catch (relayError) {
+              console.warn("Could not get relays from extension:", relayError);
+            }
+            
             toast.success("Successfully connected with extension");
             return true;
           }
