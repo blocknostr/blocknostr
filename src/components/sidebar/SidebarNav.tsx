@@ -10,7 +10,6 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Bookmark, 
   Crown 
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
@@ -45,12 +44,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "BlockMail",
       icon: Mail,
       href: "/messages",
-      requiresAuth: true
-    },
-    {
-      name: "Bookmarks",
-      icon: Bookmark,
-      href: "/bookmarks",
       requiresAuth: true
     },
     {

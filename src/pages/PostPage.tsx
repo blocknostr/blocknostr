@@ -44,9 +44,6 @@ const PostPage = () => {
         // Connect to relays
         await nostrService.connectToUserRelays();
         
-        // Get relay URLs to use
-        const relayUrls = defaultRelays;
-        
         // Subscribe to the specific note using the ID
         const filters = [{ ids: [id] }];
         

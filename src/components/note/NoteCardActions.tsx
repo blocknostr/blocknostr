@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Copy, MessageSquare, Share2, Loader2, Heart, Repeat, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Copy, MessageSquare, Share2, Loader2, Heart, Repeat, MoreHorizontal } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAction } from './hooks/use-action';
@@ -12,18 +12,14 @@ import { nostrService } from '@/lib/nostr';
 interface NoteCardActionsProps {
   note: Note;
   setActiveReply: (note: Note | null) => void;
-  isBookmarked: boolean;
-  onBookmarkToggle: () => void;
 }
 
 const NoteCardActions: React.FC<NoteCardActionsProps> = ({
   note,
-  setActiveReply,
-  isBookmarked,
-  onBookmarkToggle
+  setActiveReply
 }) => {
   const [isActionLoading, setIsActionLoading] = useState<
-    "reply" | "like" | "repost" | "bookmark" | null
+    "reply" | "like" | "repost" | null
   >(null);
   const { handleLike, handleRepost } = useAction(note);
   const navigate = useNavigate();
@@ -87,18 +83,6 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Repeat className="h-4 w-4" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBookmarkToggle}
-          disabled={isActionLoading === "bookmark"}
-        >
-          {isActionLoading === "bookmark" ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`} />
           )}
         </Button>
       </div>

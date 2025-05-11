@@ -31,7 +31,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const [reachCount, setReachCount] = useState(0);
   const [isInteractingWithContent, setIsInteractingWithContent] = useState(false);
   const [activeReply, setActiveReply] = useState<Note | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   
   // Use the replies hook instead of local state
@@ -96,11 +95,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setReplyCount(prev => prev + 1);
   };
 
-  const handleBookmarkToggle = () => {
-    // We'll let the BookmarkButton handle its own state
-    // This is just a passthrough
-  };
-
   return (
     <>
       <NoteCardContainer ref={cardRef} eventId={event.id}>
@@ -138,8 +132,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
           <NoteCardActions 
             note={noteForActions}
             setActiveReply={setActiveReply}
-            isBookmarked={isBookmarked}
-            onBookmarkToggle={handleBookmarkToggle}
           />
         </NoteCardFooter>
         
