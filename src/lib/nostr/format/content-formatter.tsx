@@ -1,12 +1,12 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getNpubFromHex } from '../utils/keys';
 
 interface FormattedSegment {
-  type: 'text' | 'mention' | 'hashtag' | 'url';
+  type: 'text' | 'mention' | 'hashtag' | 'url' | 'media-url';
   content: string;
   data?: string;
+  shouldRender?: boolean;
 }
 
 /**
@@ -17,13 +17,37 @@ export class ContentFormatter {
   /**
    * Parse content and split into segments for formatting
    */
-  parseContent(content: string): FormattedSegment[] {
+  parseContent(content: string, mediaUrls: string[] = []): FormattedSegment[] {
     const segments: FormattedSegment[] = [];
     
     // Regular expressions for different content types
     const mentionRegex = /(nostr:npub[a-z0-9]{59,60})/g;
     const hashtagRegex = /#(\w+)/g;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
+    
+    // Media regex patterns to identify media URLs
+    const mediaExtensionRegex = /\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov)($|\?)/i;
+    const mediaHostRegex = /(i\.imgur\.com|i\.redd\.it|pbs\.twimg\.com|media\.tenor\.com|gfycat\.com|imgur\.com|giphy\.com|tenor\.com)/i;
+    
+    // Function to check if a URL is a media URL
+    const isMediaUrl = (url: string): boolean => {
+      // Check if URL is in the provided media URLs array
+      if (mediaUrls.some(mediaUrl => url.includes(mediaUrl))) {
+        return true;
+      }
+      
+      // Check if URL has a media extension
+      if (mediaExtensionRegex.test(url)) {
+        return true;
+      }
+      
+      // Check if URL is from a common media hosting service
+      if (mediaHostRegex.test(url)) {
+        return true;
+      }
+      
+      return false;
+    };
     
     // Combine all regex patterns
     const combinedPattern = new RegExp(
@@ -61,11 +85,21 @@ export class ContentFormatter {
           data: matchedString.substring(1) // Remove # symbol
         });
       } else if (urlRegex.test(matchedString)) {
-        segments.push({
-          type: 'url',
-          content: matchedString,
-          data: matchedString
-        });
+        // Check if this is a media URL that should be hidden from the text
+        if (isMediaUrl(matchedString)) {
+          segments.push({
+            type: 'media-url',
+            content: matchedString,
+            data: matchedString,
+            shouldRender: false // Don't render media URLs in the text content
+          });
+        } else {
+          segments.push({
+            type: 'url',
+            content: matchedString,
+            data: matchedString
+          });
+        }
       }
       
       lastIndex = startIndex + matchedString.length;
@@ -117,14 +151,19 @@ export class ContentFormatter {
   }
   
   /**
-   * Format content for rendering
+   * Format content for rendering, optionally hiding media URLs
    */
-  formatContent(content: string): JSX.Element {
-    const segments = this.parseContent(content);
+  formatContent(content: string, mediaUrls: string[] = []): JSX.Element {
+    const segments = this.parseContent(content, mediaUrls);
     
     return (
       <>
         {segments.map((segment, index) => {
+          // Skip rendering segments marked as shouldRender: false
+          if (segment.shouldRender === false) {
+            return null;
+          }
+          
           switch (segment.type) {
             case 'mention':
               return (

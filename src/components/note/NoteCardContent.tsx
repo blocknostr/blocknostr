@@ -80,7 +80,8 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
   return (
     <div className="mt-3">
       <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
-        {contentFormatter.formatContent(displayContent)}
+        {/* Pass mediaUrls to the formatter so it can hide them in the content */}
+        {contentFormatter.formatContent(displayContent, mediaUrls)}
       </div>
       
       {shouldTruncate && (
