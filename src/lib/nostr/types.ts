@@ -1,58 +1,53 @@
+
 export interface NostrEvent {
-  id?: string;
-  pubkey?: string;
+  id: string;
+  pubkey: string;
   created_at: number;
   kind: number;
   tags: string[][];
   content: string;
-  sig?: string;
+  sig: string;
 }
 
 export interface Relay {
   url: string;
-  status: string;
-  read?: boolean;
-  write?: boolean;
+  read: boolean;
+  write: boolean;
+  status: 'connected' | 'connecting' | 'disconnected' | 'error';
 }
 
 export interface NostrProfileMetadata {
   name?: string;
   display_name?: string;
-  picture?: string;
-  nip05?: string;
   about?: string;
+  picture?: string;
   banner?: string;
+  nip05?: string;
+  lud16?: string;
   website?: string;
-  lud16?: string; // Lightning address
-  twitter?: string; // X (Twitter) handle
-  twitter_verified?: boolean; // Track if Twitter/X account has been verified
-  twitter_proof?: string; // Store proof of verification (e.g., tweet ID)
-  [key: string]: any; // For any other custom fields
+  [key: string]: any;
 }
 
-// Add a new interface for our extended filter
-export interface NostrFilter {
-  kinds?: number[];
-  authors?: string[];
-  since?: number;
-  limit?: number;
+export type NostrFilter = {
   ids?: string[];
-  '#p'?: string[];
+  authors?: string[];
+  kinds?: number[];
   '#e'?: string[];
+  '#p'?: string[];
   '#t'?: string[];
-  [key: string]: any; // Allow any tag-based filters
-}
+  since?: number;
+  until?: number;
+  limit?: number;
+  [key: string]: any;
+};
 
-// Add typings for the NIP-07 window extension
-declare global {
-  interface Window {
-    nostr?: {
-      getPublicKey(): Promise<string>;
-      signEvent(event: object): Promise<NostrEvent>;
-      nip04?: {
-        encrypt(pubkey: string, plaintext: string): Promise<string>;
-        decrypt(pubkey: string, ciphertext: string): Promise<string>;
-      };
-    };
-  }
+export interface NostrSubscription {
+  sub: string;
+  filters: NostrFilter[];
+  relays: string[];
+  callbacks: {
+    onevent: (event: NostrEvent) => void;
+    onclose: () => void;
+  };
+  unsub?: () => void;
 }

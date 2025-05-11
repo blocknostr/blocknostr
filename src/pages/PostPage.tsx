@@ -29,6 +29,9 @@ const PostPage = () => {
   });
 
   const socialManager = new SocialManager();
+  
+  // Define default relays if nostrService.relays is not available
+  const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
 
   // Fetch the note data on component mount
   useEffect(() => {
@@ -41,30 +44,25 @@ const PostPage = () => {
         // Connect to relays
         await nostrService.connectToUserRelays();
         
+        // Get relay URLs to use
+        const relayUrls = nostrService.getRelayUrls ? 
+          nostrService.getRelayUrls() : 
+          defaultRelays;
+        
         // Subscribe to the specific note using the ID
-        const relays = nostrService.relays.map(relay => relay.url);
         const filters = [{ ids: [id] }];
         
-        const { sub } = nostrService.subscribeToEvents(filters, relays, {
-          onevent: (event) => {
-            setCurrentNote(event);
-            
-            // If we have the event, fetch the author's profile
-            if (event && event.pubkey) {
-              fetchAuthorProfile(event.pubkey);
-            }
-
-            // Also fetch reaction counts
-            fetchReactionCounts();
-          },
-          onclose: () => {
-            console.log("Subscription closed");
-          },
-        });
+        const { sub } = nostrService.subscribe ? 
+          nostrService.subscribe(filters, (event) => {
+            handleEvent(event);
+          }, relayUrls) : 
+          { sub: '' };
 
         // Cleanup subscription
         return () => {
-          nostrService.unsubscribe(sub);
+          if (sub && nostrService.unsubscribe) {
+            nostrService.unsubscribe(sub);
+          }
         };
       } catch (error) {
         console.error('Error fetching note:', error);
@@ -76,6 +74,19 @@ const PostPage = () => {
 
     fetchNote();
   }, [id]);
+  
+  // Handle received events
+  const handleEvent = (event: any) => {
+    setCurrentNote(event);
+    
+    // If we have the event, fetch the author's profile
+    if (event && event.pubkey) {
+      fetchAuthorProfile(event.pubkey);
+    }
+
+    // Also fetch reaction counts
+    fetchReactionCounts(event.id);
+  };
 
   // Fetch the author's profile data
   const fetchAuthorProfile = async (pubkey: string) => {
@@ -89,13 +100,13 @@ const PostPage = () => {
     }
   };
 
-  // Fix the fetchReactionCounts function to handle the correct reaction counts data structure
-  const fetchReactionCounts = async () => {
+  // Fetch reaction counts for the post
+  const fetchReactionCounts = async (eventId: string) => {
     try {
-      if (!currentNote?.id) return;
+      if (!eventId) return;
       
       // Get reaction counts from the social manager
-      const counts = await socialManager.getReactionCounts(currentNote.id);
+      const counts = await socialManager.getReactionCounts(eventId);
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);

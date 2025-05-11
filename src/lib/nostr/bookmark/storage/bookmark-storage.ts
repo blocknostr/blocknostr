@@ -1,153 +1,153 @@
-import { BookmarkCollection, BookmarkWithMetadata } from '../types';
+import { BookmarkCollection, BookmarkWithMetadata, BookmarkStatus, QueuedOperation } from '../types';
 
-/**
- * In-memory storage for bookmarks
- * Used as a cache to avoid hitting the relays too often
- */
-export class BookmarkStorage {
-  private static bookmarkList: string[] = [];
-  private static bookmarkCollections: BookmarkCollection[] = [];
-  private static bookmarkMetadata: BookmarkWithMetadata[] = [];
-  private static bookmarkStatuses: Record<string, boolean> = {}; // Cache bookmark statuses
+export interface BookmarkStorageInterface {
+  getBookmarks(): BookmarkWithMetadata[];
+  getBookmarkCollections(): BookmarkCollection[];
+  getBookmarkMetadata(eventId: string): BookmarkWithMetadata | null;
+  addBookmark(eventId: string, collectionId?: string): void;
+  removeBookmark(eventId: string): void;
+  addBookmarkCollection(collection: BookmarkCollection): void;
+  updateBookmarkCollection(collectionId: string, updates: Partial<BookmarkCollection>): void;
+  removeBookmarkCollection(collectionId: string): void;
+  updateBookmarkMetadata(eventId: string, updates: Partial<BookmarkWithMetadata>): void;
+  getPendingOperations(): QueuedOperation[];
+  addPendingOperation(operation: QueuedOperation): void;
+  removePendingOperation(operationId: string): void;
+  clear(): void;
+}
 
-  /**
-   * Cache bookmark list
-   */
-  static async cacheBookmarkList(bookmarks: string[]): Promise<void> {
-    BookmarkStorage.bookmarkList = bookmarks;
+class BookmarkStorage implements BookmarkStorageInterface {
+  private bookmarks: BookmarkWithMetadata[] = [];
+  private collections: BookmarkCollection[] = [];
+  private pendingOperations: QueuedOperation[] = [];
+  private storage: Storage;
+  
+  private STORAGE_KEYS = {
+    BOOKMARKS: 'nostr_bookmarks',
+    COLLECTIONS: 'nostr_bookmark_collections',
+    OPERATIONS: 'nostr_bookmark_operations'
+  };
+  
+  constructor(storage: Storage = localStorage) {
+    this.storage = storage;
+    this.loadFromStorage();
   }
-
-  /**
-   * Get cached bookmark list
-   */
-  static async getCachedBookmarkList(): Promise<string[]> {
-    return BookmarkStorage.bookmarkList;
-  }
-
-  /**
-   * Cache bookmark collections
-   */
-  static async cacheBookmarkCollections(collections: BookmarkCollection[]): Promise<void> {
-    BookmarkStorage.bookmarkCollections = collections;
-  }
-
-  /**
-   * Get cached bookmark collections
-   */
-  static async getCachedBookmarkCollections(): Promise<BookmarkCollection[]> {
-    return BookmarkStorage.bookmarkCollections;
-  }
-
-  /**
-   * Cache bookmark metadata
-   */
-  static async cacheBookmarkMetadata(metadata: BookmarkWithMetadata[]): Promise<void> {
-    BookmarkStorage.bookmarkMetadata = metadata;
-  }
-
-  /**
-   * Get cached bookmark metadata
-   */
-  static async getCachedBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
-    return BookmarkStorage.bookmarkMetadata;
-  }
-
-  /**
-   * Cache bookmark status
-   */
-  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
-    BookmarkStorage.bookmarkStatuses[eventId] = isBookmarked;
-  }
-
-  /**
-   * Get cached bookmark status
-   */
-  static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
-    if (BookmarkStorage.bookmarkStatuses.hasOwnProperty(eventId)) {
-      return BookmarkStorage.bookmarkStatuses[eventId];
+  
+  private loadFromStorage() {
+    try {
+      const bookmarksJson = this.storage.getItem(this.STORAGE_KEYS.BOOKMARKS);
+      if (bookmarksJson) {
+        this.bookmarks = JSON.parse(bookmarksJson);
+      }
+      
+      const collectionsJson = this.storage.getItem(this.STORAGE_KEYS.COLLECTIONS);
+      if (collectionsJson) {
+        this.collections = JSON.parse(collectionsJson);
+      }
+      
+      const operationsJson = this.storage.getItem(this.STORAGE_KEYS.OPERATIONS);
+      if (operationsJson) {
+        this.pendingOperations = JSON.parse(operationsJson);
+      }
+    } catch (error) {
+      console.error('Error loading bookmarks from storage:', error);
     }
-    return null; // Not in cache
   }
-
-  /**
-   * Clear all cached data
-   */
-  static async clearCache(): Promise<void> {
-    BookmarkStorage.bookmarkList = [];
-    BookmarkStorage.bookmarkCollections = [];
-    BookmarkStorage.bookmarkMetadata = [];
-    BookmarkStorage.bookmarkStatuses = {};
-  }
-}
-
-/**
- * Manages operations queue in local storage
- */
-export class OperationQueue {
-  private static readonly STORAGE_KEY = 'nostr_bookmark_queue';
-
-  /**
-   * Add operation to the queue
-   */
-  static async enqueueOperation(operation: any): Promise<void> {
-    const queue = await OperationQueue.getQueue();
-    queue.push(operation);
-    localStorage.setItem(OperationQueue.STORAGE_KEY, JSON.stringify(queue));
-  }
-
-  /**
-   * Get the queue from local storage
-   */
-  private static async getQueue(): Promise<any[]> {
-    const storedQueue = localStorage.getItem(OperationQueue.STORAGE_KEY);
-    return storedQueue ? JSON.parse(storedQueue) : [];
-  }
-
-  /**
-   * Dequeue an operation
-   */
-  static async dequeueOperation(): Promise<any | null> {
-    const queue = await OperationQueue.getQueue();
-    if (queue.length === 0) {
-      return null;
+  
+  private saveToStorage() {
+    try {
+      this.storage.setItem(this.STORAGE_KEYS.BOOKMARKS, JSON.stringify(this.bookmarks));
+      this.storage.setItem(this.STORAGE_KEYS.COLLECTIONS, JSON.stringify(this.collections));
+      this.storage.setItem(this.STORAGE_KEYS.OPERATIONS, JSON.stringify(this.pendingOperations));
+    } catch (error) {
+      console.error('Error saving bookmarks to storage:', error);
     }
-    const operation = queue.shift();
-    localStorage.setItem(OperationQueue.STORAGE_KEY, JSON.stringify(queue));
-    return operation;
+  }
+  
+  getBookmarks(): BookmarkWithMetadata[] {
+    return [...this.bookmarks];
+  }
+  
+  getBookmarkCollections(): BookmarkCollection[] {
+    return [...this.collections];
+  }
+  
+  getBookmarkMetadata(eventId: string): BookmarkWithMetadata | null {
+    const bookmark = this.bookmarks.find(b => b.eventId === eventId);
+    return bookmark ? { ...bookmark } : null;
+  }
+  
+  addBookmark(eventId: string, collectionId?: string): void {
+    const existingBookmark = this.bookmarks.find(b => b.eventId === eventId);
+    if (!existingBookmark) {
+      const now = Date.now();
+      this.bookmarks.push({ 
+        eventId, 
+        collectionId,
+        createdAt: now,
+      });
+      this.saveToStorage();
+    }
+  }
+  
+  removeBookmark(eventId: string): void {
+    this.bookmarks = this.bookmarks.filter(b => b.eventId !== eventId);
+    this.saveToStorage();
+  }
+  
+  addBookmarkCollection(collection: BookmarkCollection): void {
+    this.collections.push(collection);
+    this.saveToStorage();
+  }
+  
+  updateBookmarkCollection(collectionId: string, updates: Partial<BookmarkCollection>): void {
+    this.collections = this.collections.map(c => {
+      if (c.id === collectionId) {
+        return { ...c, ...updates };
+      }
+      return c;
+    });
+    this.saveToStorage();
+  }
+  
+  removeBookmarkCollection(collectionId: string): void {
+    this.collections = this.collections.filter(c => c.id !== collectionId);
+    this.saveToStorage();
+  }
+  
+  updateBookmarkMetadata(eventId: string, updates: Partial<BookmarkWithMetadata>): void {
+    this.bookmarks = this.bookmarks.map(b => {
+      if (b.eventId === eventId) {
+        return { ...b, ...updates };
+      }
+      return b;
+    });
+    this.saveToStorage();
   }
 
-  /**
-   * Clear the queue
-   */
-  static async clearQueue(): Promise<void> {
-    localStorage.removeItem(OperationQueue.STORAGE_KEY);
+  getPendingOperations(): QueuedOperation[] {
+    return [...this.pendingOperations];
+  }
+  
+  addPendingOperation(operation: QueuedOperation): void {
+    this.pendingOperations.push(operation);
+    this.saveToStorage();
+  }
+  
+  removePendingOperation(operationId: string): void {
+    this.pendingOperations = this.pendingOperations.filter(op => op.id !== operationId);
+    this.saveToStorage();
+  }
+  
+  clear(): void {
+    this.bookmarks = [];
+    this.collections = [];
+    this.pendingOperations = [];
+    this.storage.removeItem(this.STORAGE_KEYS.BOOKMARKS);
+    this.storage.removeItem(this.STORAGE_KEYS.COLLECTIONS);
+    this.storage.removeItem(this.STORAGE_KEYS.OPERATIONS);
   }
 }
 
-/**
- * Manages operation statuses in local storage
- */
-export class OperationStatus {
-  private static readonly STORAGE_PREFIX = 'nostr_bookmark_status_';
-
-  /**
-   * Cache operation status
-   */
-  static async cacheOperationStatus(id: string, status: 'pending' | 'processing' | 'failed' | 'completed'): Promise<void> {
-    localStorage.setItem(OperationStatus.STORAGE_PREFIX + id, status);
-  }
-
-  /**
-   * Get cached operation status
-   */
-  static async getCachedOperationStatus(id: string): Promise<string | null> {
-    return localStorage.getItem(OperationStatus.STORAGE_PREFIX + id);
-  }
-
-  /**
-   * Remove cached operation status
-   */
-  static async removeCachedOperationStatus(id: string): Promise<void> {
-    localStorage.removeItem(OperationStatus.STORAGE_PREFIX + id);
-  }
-}
+export const bookmarkStorage = new BookmarkStorage();
+export default BookmarkStorage;

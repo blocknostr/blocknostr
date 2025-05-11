@@ -8,7 +8,7 @@ import { NostrEvent, Relay } from './types';
 export class NostrAdapter {
   private pool: SimplePool;
   private publicKey: string | null = null;
-  private relays: string[] = [];
+  private _relays: Relay[] = [];
   
   constructor() {
     this.pool = new SimplePool();
@@ -116,26 +116,52 @@ export class NostrAdapter {
   
   // Relay management
   addRelay = async (url: string): Promise<boolean> => {
-    this.relays.push(url);
+    this._relays.push({
+      url,
+      read: true,
+      write: true,
+      status: 'connecting'
+    });
     console.log(`Added relay ${url}`);
     return true;
   }
   
   removeRelay = async (url: string): Promise<boolean> => {
-    this.relays = this.relays.filter(r => r !== url);
+    this._relays = this._relays.filter(r => r.url !== url);
     console.log(`Removed relay ${url}`);
     return true;
   }
   
   getRelaysForUser = async (pubkey: string): Promise<Relay[]> => {
     return [
-      { url: "wss://relay.damus.io", read: true, write: true },
-      { url: "wss://nos.lol", read: true, write: true }
+      { url: "wss://relay.damus.io", read: true, write: true, status: 'connected' },
+      { url: "wss://nos.lol", read: true, write: true, status: 'connected' }
     ];
   }
   
   // Access properties
   get following(): string[] {
     return [];
+  }
+  
+  get relays(): Relay[] {
+    return this._relays;
+  }
+  
+  // Add missing subscribeToEvents method
+  subscribeToEvents = (filters: any[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
+    const sub = 'subscription-' + Math.random().toString(36).substring(2, 10);
+    console.log(`Subscribing to events with filters:`, filters);
+    setTimeout(() => {
+      callbacks.onclose();
+    }, 5000);
+    return {
+      sub,
+      unsubscribe: () => console.log(`Unsubscribing from ${sub}`)
+    };
+  }
+  
+  unsubscribe = (subId: string) => {
+    console.log(`Unsubscribing from ${subId}`);
   }
 }

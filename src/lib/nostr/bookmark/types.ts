@@ -1,66 +1,51 @@
 
-export type BookmarkOperationType = 'add' | 'remove' | 'addCollection';
+export type BookmarkOperationType = 'add' | 'remove' | 'update' | 'collection-add' | 'collection-update' | 'collection-remove';
 
-export interface RelayConnectionOptions {
-  maxAttempts?: number; 
-  timeout?: number;
-  onProgress?: (message: string) => void;
+export interface QueuedOperation {
+  id: string;
+  timestamp: number;
+  type: BookmarkOperationType;
+  status: 'pending' | 'processing' | 'failed' | 'completed';
+  retryCount: number;
+  data: any;
 }
 
 export interface BookmarkCollection {
   id: string;
   name: string;
-  color?: string;
   description?: string;
+  color?: string;
   createdAt: number;
   updatedAt?: number;
-  totalItems?: number; // Add this to fix errors
+  totalItems: number;
 }
 
 export interface BookmarkWithMetadata {
   eventId: string;
-  metadataId?: string;
-  collectionId?: string;
-  tags?: string[];
   note?: string;
-  createdAt?: number;
+  tags?: string[];
+  createdAt: number;
+  collectionId?: string;
 }
 
-export type BookmarkStatus = 'bookmarked' | 'not_bookmarked';
+export type BookmarkStatus = 'bookmarked' | 'unbookmarked' | 'pending' | 'processing' | 'failed' | 'completed';
 
 export interface BookmarkFilters {
-  limit?: number;
-  since?: number;
-  until?: number;
-  collectionId?: string;
   searchTerm?: string;
+  tags?: string[];
+  collections?: string[];
+  before?: Date;
+  after?: Date;
 }
 
-export interface PendingOperation {
-  id: string;
-  type: BookmarkOperationType;
-  data: any;
-  status: 'pending' | 'processing' | 'failed' | 'completed';
-  attempts: number;
-  timestamp: number;
-}
-
-// Define QueuedOperation
-export interface QueuedOperation {
-  type: "add" | "remove" | "addCollection";
-  data: any;
-  timestamp: number;
-}
-
-// Add missing BookmarkManagerDependencies interface
-export interface BookmarkManagerDependencies {
-  publishEvent: (pool: any, publicKey: string | null, privateKey: string | null | undefined, event: any, relays: string[]) => Promise<string | null>;
-}
-
-// Add BookmarkEventKinds enum
 export enum BookmarkEventKinds {
   BOOKMARKS = 30001,
-  BOOKMARK_COLLECTIONS = 30003,
-  BOOKMARK_METADATA = 30004,
-  DELETE = 5 // Add DELETE event kind
+  COLLECTIONS = 30003,
+  METADATA = 30004,
+  DELETE = 5,
+}
+
+export interface BookmarkManagerDependencies {
+  publishEvent: (event: any) => Promise<string>;
+  getEvents: (filters: any[], relays?: string[]) => Promise<any[]>;
 }

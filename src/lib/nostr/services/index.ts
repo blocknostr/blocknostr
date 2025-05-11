@@ -1,6 +1,9 @@
 
-import { SimplePool, Filter, SubCloser } from 'nostr-tools';
-import { eventManager } from '../event';
+import { SimplePool, Filter } from 'nostr-tools';
+import { EventManager } from '../event';
+
+// Create a singleton instance of EventManager
+const eventManager = new EventManager();
 
 /**
  * Create a subscription to events matching the given filters
@@ -18,19 +21,19 @@ export function subscribeToEvents(
     // Create a unique subscription ID
     const subId = 'subscription-' + Math.random().toString(36).substring(2, 10);
     
-    // Subscribe to events
-    const sub = pool.sub(relays, filters);
+    // Subscribe to events using the new API format
+    const subCloser = pool.sub(relays, filters);
     
     // Set up event handlers
-    sub.on('event', callbacks.onevent);
-    sub.on('eose', () => {
+    subCloser.on('event', callbacks.onevent);
+    subCloser.on('eose', () => {
       console.log('End of stored events for subscription', subId);
     });
     
     // Return the subscription ID and unsubscribe function
     return {
       sub: subId,
-      unsubscribe: () => sub.unsub()
+      unsubscribe: () => subCloser.unsub()
     };
   } catch (error) {
     console.error('Error subscribing to events:', error);

@@ -2,6 +2,7 @@
 import React from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
+import { Note } from '@/components/notebin/hooks/types';
 
 export interface UseActionProps {
   eventId: string;
@@ -9,9 +10,14 @@ export interface UseActionProps {
   event: any; // Full event object
 }
 
-export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
+export function useAction(note: Note | UseActionProps) {
   const [isLiking, setIsLiking] = React.useState(false);
   const [isReposting, setIsReposting] = React.useState(false);
+
+  // Extract properties based on the input type
+  const eventId = 'eventId' in note ? note.eventId : note.id;
+  const authorPubkey = 'authorPubkey' in note ? note.authorPubkey : note.pubkey;
+  const event = 'event' in note ? note.event : note;
 
   const handleLike = async () => {
     if (isLiking) return;
