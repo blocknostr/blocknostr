@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 import { BookmarkManagerDependencies } from './types';
@@ -202,10 +201,6 @@ export class BookmarkManager {
               .map(tag => tag[1]);
             
             bookmarkedIds = bookmarks;
-          },
-          onerror: (err) => {
-            console.error("Error in bookmark subscription:", err);
-            // Don't reject, as we want to try all relays before giving up
           }
         });
         

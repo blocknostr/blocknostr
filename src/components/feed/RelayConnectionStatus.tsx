@@ -39,12 +39,12 @@ export function RelayConnectionStatus() {
     };
   }, []);
 
-  // Get status color
+  // Get status color - Using valid badge variants
   const getStatusColor = () => {
     if (!isOnline) return "destructive";
     if (connectedCount === 0) return "destructive";
-    if (connectedCount < totalCount / 2) return "warning";
-    return "success";
+    if (connectedCount < totalCount / 2) return "secondary"; // Changed from "warning" to "secondary"
+    return "default"; // Changed from "success" to "default"
   };
 
   // Get status message
@@ -59,7 +59,7 @@ export function RelayConnectionStatus() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant={getStatusColor()} className="flex items-center gap-1 cursor-help">
+          <Badge variant={getStatusColor()} className={`flex items-center gap-1 cursor-help ${connectedCount > totalCount / 2 ? "bg-green-500" : ""}`}>
             {isOnline && connectedCount > 0 ? 
               <Wifi className="h-3 w-3" /> : 
               <WifiOff className="h-3 w-3" />

@@ -27,8 +27,9 @@ export class BookmarkService {
       
       // This references the NostrService instance that created this service
       await import("../service").then(async module => {
-        const nostrService = module.nostrService;
-        await nostrService.connectToUserRelays();
+        // Fix: Use NostrService singleton exported from module instead of nostrService
+        const nostrServiceInstance = module.nostrService;
+        await nostrServiceInstance.connectToUserRelays();
       });
       
       // Check if we have connections now
