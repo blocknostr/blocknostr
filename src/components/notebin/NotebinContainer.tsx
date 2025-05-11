@@ -4,6 +4,9 @@ import NoteEditor from "@/components/notebin/NoteEditor";
 import NotesList from "@/components/notebin/NotesList";
 import { TagFilter } from "@/components/notebin/TagFilter";
 import DeleteDialog from "@/components/notebin/DeleteDialog";
+import { ViewToggle } from "@/components/notebin/ViewToggle";
+import { SortOptions } from "@/components/notebin/SortOptions";
+import { SearchBar } from "@/components/notebin/SearchBar";
 import { useNotebin } from "./hooks/useNotebin";
 
 const NotebinContainer: React.FC = () => {
@@ -15,7 +18,12 @@ const NotebinContainer: React.FC = () => {
     noteToDelete,
     isDeleting,
     isLoggedIn,
+    view,
+    sortOption,
     handleTagToggle,
+    handleViewToggle,
+    handleSortChange,
+    handleSearch,
     handleDelete,
     handleNoteSaved,
     viewNote,
@@ -28,13 +36,25 @@ const NotebinContainer: React.FC = () => {
         {/* Note Editor Component */}
         <NoteEditor onNoteSaved={handleNoteSaved} />
         
+        {/* Search, Filter and View Controls */}
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start my-6">
+          <div className="w-full md:w-1/2">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+          
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <SortOptions currentSort={sortOption} onSortChange={handleSortChange} />
+            <ViewToggle currentView={view} onViewChange={handleViewToggle} />
+          </div>
+        </div>
+        
         {/* Tag Filter Component */}
         {availableTags.length > 0 && (
           <TagFilter
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagToggle={handleTagToggle}
-            className="mb-6 mt-4 p-4 border rounded-md bg-card"
+            className="mb-6 p-4 border rounded-md bg-card shadow-sm"
           />
         )}
         
@@ -45,6 +65,7 @@ const NotebinContainer: React.FC = () => {
           onNoteClick={viewNote}
           onDeleteClick={(noteId) => setNoteToDelete(noteId)}
           isLoggedIn={isLoggedIn}
+          view={view}
         />
       </div>
       

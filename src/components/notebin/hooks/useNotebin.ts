@@ -1,9 +1,10 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
 import { useNotebinFilter } from "@/hooks/useNotebinFilter";
 import { Note } from "./types";
+import { SortOption } from "../SortOptions";
 
 export function useNotebin() {
   const [title, setTitle] = useState("");
@@ -12,38 +13,97 @@ export function useNotebin() {
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [savedNotes, setSavedNotes] = useState<Note[]>([]);
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Use our hooks for different functionalities
   const noteFetcher = useNoteFetcher();
   const { noteToDelete, isDeleting, handleDelete, isLoggedIn, setNoteToDelete, canDeleteNote } = useNoteOperations();
   
   // Use our custom hook for filtering
-  const { availableTags, filteredNotes } = useNotebinFilter(savedNotes, selectedTags);
+  const { availableTags, filteredNotes: tagFilteredNotes } = useNotebinFilter(savedNotes, selectedTags);
+
+  // Search filtering
+  const searchFilteredNotes = searchQuery
+    ? tagFilteredNotes.filter(note => 
+        note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (note.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+      )
+    : tagFilteredNotes;
+
+  // Sort notes based on selected option
+  const sortedNotes = [...searchFilteredNotes].sort((a, b) => {
+    switch (sortOption) {
+      case "newest":
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      case "oldest":
+        return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
+      case "az":
+        return a.title.localeCompare(b.title);
+      case "za":
+        return b.title.localeCompare(a.title);
+      case "language":
+        return a.language.localeCompare(b.language);
+      default:
+        return 0;
+    }
+  });
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem("notebin_view");
+    if (savedView === "grid" || savedView === "list") {
+      setView(savedView);
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  useEffect(() => {
+    localStorage.setItem("notebin_view", view);
+  }, [view]);
 
   // Handle tag toggling for filtering
-  const handleTagToggle = (tag: string) => {
+  const handleTagToggle = useCallback((tag: string) => {
     setSelectedTags(prev => 
       prev.includes(tag) 
         ? prev.filter(t => t !== tag) 
         : [...prev, tag]
     );
-  };
+  }, []);
+
+  // Handle view toggling
+  const handleViewToggle = useCallback((newView: "grid" | "list") => {
+    setView(newView);
+  }, []);
+
+  // Handle sort change
+  const handleSortChange = useCallback((newSort: SortOption) => {
+    setSortOption(newSort);
+  }, []);
+
+  // Handle search change
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   // Handle successful note save
-  const handleNoteSaved = (note: Note) => {
+  const handleNoteSaved = useCallback((note: Note) => {
     setSavedNotes(prev => [note, ...prev]);
-  };
+  }, []);
 
-  const viewNote = (note: Note) => {
+  // View a note (load into editor)
+  const viewNote = useCallback((note: Note) => {
     setTitle(note.title);
     setContent(note.content);
     setLanguage(note.language || "text");
     setTags(note.tags || []);
-  };
+  }, []);
 
   return {
     savedNotes,
-    filteredNotes,
+    filteredNotes: sortedNotes,
     isLoading: noteFetcher.isLoading,
     title,
     content,
@@ -54,7 +114,13 @@ export function useNotebin() {
     noteToDelete,
     isDeleting,
     isLoggedIn,
+    view,
+    sortOption,
+    searchQuery,
     handleTagToggle,
+    handleViewToggle,
+    handleSortChange,
+    handleSearch,
     handleDelete,
     handleNoteSaved,
     viewNote,
