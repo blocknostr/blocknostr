@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import NoteCardHeader from './NoteCardHeader';
@@ -7,9 +8,11 @@ import NoteCardActions from './NoteCardActions';
 import NoteCardComments from './NoteCardComments';
 import NoteCardRepostHeader from './NoteCardRepostHeader';
 import NoteCardDeleteDialog from './NoteCardDeleteDialog';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { useNoteCardReplies } from './hooks/useNoteCardReplies';
+import { ArrowUpRight } from 'lucide-react';
+import { Button } from "../ui/button";
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -22,8 +25,15 @@ interface NoteCardProps {
 }
 
 const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) => {
+  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const [reachCount, setReachCount] = useState(0);
+  const [clickStartTime, setClickStartTime] = useState<number | null>(null);
+  const [isInteractingWithContent, setIsInteractingWithContent] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Click delay in milliseconds to distinguish between clicks and interactions
+  const CLICK_DELAY = 200;
   
   // Use the replies hook instead of local state
   const { replyCount, setReplyCount } = useNoteCardReplies({ eventId: event.id || '' });
@@ -57,6 +67,58 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setReachCount(calculateReachCount());
   }, [event.id, event.created_at]);
   
+  // Handle mouse down to start tracking potential click
+  const handleMouseDown = () => {
+    if (!isInteractingWithContent) {
+      setClickStartTime(Date.now());
+    }
+  };
+  
+  // Handle mouse up to determine if navigation should occur
+  const handleMouseUp = () => {
+    if (clickStartTime && !isInteractingWithContent) {
+      const clickDuration = Date.now() - clickStartTime;
+      if (clickDuration < CLICK_DELAY && event.id) {
+        navigate(`/post/${event.id}`);
+      }
+      setClickStartTime(null);
+    }
+  };
+  
+  // Cancel navigation if mouse moves significantly (for drag operations)
+  const handleMouseMove = () => {
+    if (clickStartTime) {
+      setClickStartTime(null);
+    }
+  };
+  
+  // Handle touch start for mobile devices
+  const handleTouchStart = () => {
+    if (!isInteractingWithContent) {
+      setClickStartTime(Date.now());
+    }
+  };
+  
+  // Handle touch end for mobile devices
+  const handleTouchEnd = () => {
+    if (clickStartTime && !isInteractingWithContent) {
+      const clickDuration = Date.now() - clickStartTime;
+      if (clickDuration < CLICK_DELAY && event.id) {
+        navigate(`/post/${event.id}`);
+      }
+      setClickStartTime(null);
+    }
+  };
+  
+  // Set interaction state when interacting with interactive elements
+  const handleInteractionStart = () => {
+    setIsInteractingWithContent(true);
+  };
+  
+  const handleInteractionEnd = () => {
+    setIsInteractingWithContent(false);
+  };
+  
   const handleCommentClick = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setShowComments(!showComments);
@@ -65,28 +127,81 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const handleReplyAdded = () => {
     setReplyCount(prev => prev + 1);
   };
+  
+  // Handle keyboard navigation for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.key === 'Enter' || e.key === ' ') && event.id) {
+      e.preventDefault();
+      navigate(`/post/${event.id}`);
+    }
+  };
+
+  // Handle explicit open click
+  const handleViewDetailsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (event.id) {
+      navigate(`/post/${event.id}`);
+    }
+  };
 
   return (
     <>
-      <Card className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden">
-        <Link to={`/post/${event.id}`} className="block cursor-pointer">
-          {repostData && <NoteCardRepostHeader repostData={repostData} />}
-          
-          <CardContent className="pt-5 px-5 pb-3">
+      <Card 
+        className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden relative"
+        ref={cardRef}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseEnter={handleInteractionEnd}
+        onMouseLeave={handleInteractionEnd}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        role="article"
+        aria-label="Post"
+        data-event-id={event.id}
+        style={{ cursor: "default" }}
+      >
+        <div className="absolute top-2 right-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-1 h-auto opacity-70 hover:opacity-100"
+            onClick={handleViewDetailsClick}
+            onMouseEnter={handleInteractionStart}
+            onMouseLeave={handleInteractionEnd}
+            aria-label="View post details"
+            title="View post details"
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </div>
+        
+        {repostData && <NoteCardRepostHeader repostData={repostData} />}
+        
+        <CardContent 
+          className="pt-5 px-5 pb-3"
+        >
+          <div onMouseEnter={handleInteractionStart} onMouseLeave={handleInteractionEnd}>
             <NoteCardHeader 
               pubkey={event.pubkey || ''} 
               createdAt={event.created_at} 
               profileData={profileData} 
             />
-            <NoteCardContent 
-              content={event.content} 
-              reachCount={reachCount}
-              tags={event.tags} // Pass tags to support NIP-10 hashtags
-            />
-          </CardContent>
-        </Link>
+          </div>
+          <NoteCardContent 
+            content={event.content} 
+            reachCount={reachCount}
+            tags={event.tags} 
+          />
+        </CardContent>
         
-        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+        <CardFooter 
+          className="pt-0 px-5 pb-3 flex-wrap gap-1" 
+          onMouseEnter={handleInteractionStart} 
+          onMouseLeave={handleInteractionEnd}
+        >
           <NoteCardActions 
             eventId={event.id || ''} 
             pubkey={event.pubkey || ''}
@@ -98,7 +213,11 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         </CardFooter>
         
         {showComments && (
-          <div className="bg-muted/30 animate-fade-in">
+          <div 
+            className="bg-muted/30 animate-fade-in" 
+            onMouseEnter={handleInteractionStart} 
+            onMouseLeave={handleInteractionEnd}
+          >
             <NoteCardComments
               eventId={event.id || ''}
               pubkey={event.pubkey || ''}
