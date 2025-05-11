@@ -1,16 +1,12 @@
+
 import { NostrEvent } from "../types";
-
-// Cache expiration time in milliseconds (10 minutes)
-const CACHE_EXPIRY = 10 * 60 * 1000;
-
-// Cache expiration time for offline mode (1 week)
-const OFFLINE_CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000;
-
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  important?: boolean; // Flag for content that should be kept longer
-}
+import { CACHE_EXPIRY, OFFLINE_CACHE_EXPIRY, STORAGE_KEYS } from "./config";
+import { EventCache } from "./event-cache";
+import { ProfileCache } from "./profile-cache";
+import { ThreadCache } from "./thread-cache";
+import { FeedCache } from "./feed-cache";
+import { ListCache } from "./list-cache";
+import { CacheConfig } from "./types";
 
 /**
  * Content cache service for Nostr events
@@ -18,400 +14,136 @@ interface CacheEntry<T> {
  * Supports offline functionality through persistence
  */
 export class ContentCache {
-  private eventCache: Map<string, CacheEntry<NostrEvent>> = new Map();
-  private profileCache: Map<string, CacheEntry<any>> = new Map();
-  private threadCache: Map<string, CacheEntry<NostrEvent[]>> = new Map();
-  private feedCache: Map<string, CacheEntry<string[]>> = new Map();
+  private eventCache: EventCache;
+  private profileCache: ProfileCache;
+  private threadCache: ThreadCache;
+  private feedCache: FeedCache;
+  private muteListCache: ListCache;
+  private blockListCache: ListCache;
   private offlineMode: boolean = false;
   
-  // Mute list cache
-  private _muteList: string[] | null = null;
-  
-  // Block list cache
-  private _blockList: string[] | null = null;
-  
   constructor() {
-    // Load cache from IndexedDB on initialization
-    this.loadFromStorage();
+    const config: CacheConfig = {
+      standardExpiry: CACHE_EXPIRY,
+      offlineExpiry: OFFLINE_CACHE_EXPIRY
+    };
+    
+    // Initialize cache modules
+    this.eventCache = new EventCache(config);
+    this.profileCache = new ProfileCache(config);
+    this.threadCache = new ThreadCache(config);
+    this.feedCache = new FeedCache(config);
+    this.muteListCache = new ListCache(STORAGE_KEYS.MUTE_LIST);
+    this.blockListCache = new ListCache(STORAGE_KEYS.BLOCK_LIST);
     
     // Listen for online/offline events
     window.addEventListener('online', () => {
       this.offlineMode = false;
+      this.updateOfflineMode();
       console.log('App is online - using standard caching policy');
     });
     
     window.addEventListener('offline', () => {
       this.offlineMode = true;
+      this.updateOfflineMode();
       console.log('App is offline - using extended caching policy');
     });
     
     // Set initial offline status
     this.offlineMode = !navigator.onLine;
+    this.updateOfflineMode();
   }
   
-  // Cache an event
+  // Update offline mode status across all caches
+  private updateOfflineMode(): void {
+    this.eventCache.setOfflineMode(this.offlineMode);
+    this.profileCache.setOfflineMode(this.offlineMode);
+    this.threadCache.setOfflineMode(this.offlineMode);
+    this.feedCache.setOfflineMode(this.offlineMode);
+  }
+  
+  // Event cache methods
   cacheEvent(event: NostrEvent, important: boolean = false): void {
     if (!event.id) return;
-    
-    this.eventCache.set(event.id, {
-      data: event,
-      timestamp: Date.now(),
-      important
-    });
-    
-    // If it's an important event (like a post from the user), store it persistently
-    if (important) {
-      this.persistToStorage();
-    }
+    this.eventCache.cacheItem(event.id, event, important);
   }
   
-  // Retrieve an event from cache
   getEvent(eventId: string): NostrEvent | null {
-    const entry = this.eventCache.get(eventId);
-    
-    if (!entry) return null;
-    
-    // In offline mode, we keep entries longer
-    const expiry = this.offlineMode || entry.important ? 
-      OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
-    
-    // Check if cache entry is expired
-    if (Date.now() - entry.timestamp > expiry) {
-      if (!this.offlineMode && !entry.important) {
-        this.eventCache.delete(eventId);
-      }
-      return this.offlineMode ? entry.data : null;
-    }
-    
-    return entry.data;
+    return this.eventCache.getItem(eventId);
   }
   
-  // Cache multiple events at once
   cacheEvents(events: NostrEvent[], important: boolean = false): void {
-    events.forEach(event => {
-      if (event.id) {
-        this.cacheEvent(event, important);
-      }
-    });
+    this.eventCache.cacheEvents(events, important);
   }
   
-  // Cache profile data
-  cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
-    this.profileCache.set(pubkey, {
-      data: profileData,
-      timestamp: Date.now(),
-      important
-    });
-    
-    // If it's an important profile (like the user's own profile), store it persistently
-    if (important) {
-      this.persistToStorage();
-    }
-  }
-  
-  // Retrieve profile data from cache
-  getProfile(pubkey: string): any | null {
-    const entry = this.profileCache.get(pubkey);
-    
-    if (!entry) return null;
-    
-    // In offline mode, we keep entries longer
-    const expiry = this.offlineMode || entry.important ? 
-      OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
-    
-    // Check if cache entry is expired
-    if (Date.now() - entry.timestamp > expiry) {
-      if (!this.offlineMode && !entry.important) {
-        this.profileCache.delete(pubkey);
-      }
-      return this.offlineMode ? entry.data : null;
-    }
-    
-    return entry.data;
-  }
-  
-  // Cache thread data (for NIP-10 support)
-  cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
-    this.threadCache.set(rootId, {
-      data: events,
-      timestamp: Date.now(),
-      important
-    });
-  }
-  
-  // Retrieve thread data from cache
-  getThread(rootId: string): NostrEvent[] | null {
-    const entry = this.threadCache.get(rootId);
-    
-    if (!entry) return null;
-    
-    // In offline mode, we keep entries longer
-    const expiry = this.offlineMode || entry.important ? 
-      OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
-    
-    // Check if cache entry is expired
-    if (Date.now() - entry.timestamp > expiry) {
-      if (!this.offlineMode && !entry.important) {
-        this.threadCache.delete(rootId);
-      }
-      return this.offlineMode ? entry.data : null;
-    }
-    
-    return entry.data;
-  }
-  
-  // Cache feed event IDs for specific feed types
-  cacheFeed(feedType: string, eventIds: string[], important: boolean = false): void {
-    this.feedCache.set(feedType, {
-      data: eventIds,
-      timestamp: Date.now(),
-      important
-    });
-    
-    // If it's an important feed (like following feed), store it persistently
-    if (important) {
-      this.persistToStorage();
-    }
-  }
-  
-  // Get cached feed event IDs
-  getFeed(feedType: string): string[] | null {
-    const entry = this.feedCache.get(feedType);
-    
-    if (!entry) return null;
-    
-    // In offline mode, we keep entries longer
-    const expiry = this.offlineMode || entry.important ? 
-      OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
-    
-    // Check if cache entry is expired
-    if (Date.now() - entry.timestamp > expiry) {
-      if (!this.offlineMode && !entry.important) {
-        this.feedCache.delete(feedType);
-      }
-      return this.offlineMode ? entry.data : null;
-    }
-    
-    return entry.data;
-  }
-  
-  // Get events by authors (for following feed)
   getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
-    if (!authorPubkeys || authorPubkeys.length === 0) {
-      return [];
-    }
-    
-    const result: NostrEvent[] = [];
-    const now = Date.now();
-    const expiry = this.offlineMode ? OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
-    
-    // Loop through all cached events and filter by authors
-    this.eventCache.forEach((entry, id) => {
-      // Skip expired entries (unless in offline mode)
-      if (now - entry.timestamp > expiry && !this.offlineMode && !entry.important) {
-        return;
-      }
-      
-      // Check if the event author is in the list of authors we're looking for
-      if (entry.data.pubkey && authorPubkeys.includes(entry.data.pubkey)) {
-        result.push(entry.data);
-      }
-    });
-    
-    // Sort by creation time (newest first)
-    result.sort((a, b) => b.created_at - a.created_at);
-    
-    return result;
+    return this.eventCache.getEventsByAuthors(authorPubkeys);
   }
   
-  // Persist important cache items to IndexedDB for offline access
-  private persistToStorage(): void {
-    try {
-      // Store events
-      const importantEvents = Array.from(this.eventCache.entries())
-        .filter(([_, entry]) => entry.important)
-        .reduce((obj, [key, entry]) => {
-          obj[key] = entry;
-          return obj;
-        }, {} as Record<string, CacheEntry<NostrEvent>>);
-      
-      if (Object.keys(importantEvents).length > 0) {
-        localStorage.setItem('nostr_cached_events', JSON.stringify(importantEvents));
-      }
-      
-      // Store profiles
-      const importantProfiles = Array.from(this.profileCache.entries())
-        .filter(([_, entry]) => entry.important)
-        .reduce((obj, [key, entry]) => {
-          obj[key] = entry;
-          return obj;
-        }, {} as Record<string, CacheEntry<any>>);
-      
-      if (Object.keys(importantProfiles).length > 0) {
-        localStorage.setItem('nostr_cached_profiles', JSON.stringify(importantProfiles));
-      }
-      
-      // Store feeds
-      const importantFeeds = Array.from(this.feedCache.entries())
-        .filter(([_, entry]) => entry.important)
-        .reduce((obj, [key, entry]) => {
-          obj[key] = entry;
-          return obj;
-        }, {} as Record<string, CacheEntry<string[]>>);
-      
-      if (Object.keys(importantFeeds).length > 0) {
-        localStorage.setItem('nostr_cached_feeds', JSON.stringify(importantFeeds));
-      }
-    } catch (error) {
-      console.error('Failed to persist cache to storage:', error);
-    }
+  // Profile cache methods
+  cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
+    this.profileCache.cacheItem(pubkey, profileData, important);
   }
   
-  // Load cache from storage on initialization
-  private loadFromStorage(): void {
-    try {
-      // Load events
-      const cachedEvents = localStorage.getItem('nostr_cached_events');
-      if (cachedEvents) {
-        const parsedEvents = JSON.parse(cachedEvents) as Record<string, CacheEntry<NostrEvent>>;
-        Object.entries(parsedEvents).forEach(([key, entry]) => {
-          this.eventCache.set(key, entry);
-        });
-      }
-      
-      // Load profiles
-      const cachedProfiles = localStorage.getItem('nostr_cached_profiles');
-      if (cachedProfiles) {
-        const parsedProfiles = JSON.parse(cachedProfiles) as Record<string, CacheEntry<any>>;
-        Object.entries(parsedProfiles).forEach(([key, entry]) => {
-          this.profileCache.set(key, entry);
-        });
-      }
-      
-      // Load feeds
-      const cachedFeeds = localStorage.getItem('nostr_cached_feeds');
-      if (cachedFeeds) {
-        const parsedFeeds = JSON.parse(cachedFeeds) as Record<string, CacheEntry<string[]>>;
-        Object.entries(parsedFeeds).forEach(([key, entry]) => {
-          this.feedCache.set(key, entry);
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load cache from storage:', error);
-    }
+  getProfile(pubkey: string): any | null {
+    return this.profileCache.getItem(pubkey);
   }
   
-  // Clear expired cache entries
+  // Thread cache methods
+  cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
+    this.threadCache.cacheItem(rootId, events, important);
+  }
+  
+  getThread(rootId: string): NostrEvent[] | null {
+    return this.threadCache.getItem(rootId);
+  }
+  
+  // Feed cache methods
+  cacheFeed(feedType: string, eventIds: string[], important: boolean = false): void {
+    this.feedCache.cacheItem(feedType, eventIds, important);
+  }
+  
+  getFeed(feedType: string): string[] | null {
+    return this.feedCache.getItem(feedType);
+  }
+  
+  // Mute list methods
+  cacheMuteList(pubkeys: string[]): void {
+    this.muteListCache.cacheList(pubkeys);
+  }
+
+  getMuteList(): string[] | null {
+    return this.muteListCache.getList();
+  }
+
+  // Block list methods
+  cacheBlockList(pubkeys: string[]): void {
+    this.blockListCache.cacheList(pubkeys);
+  }
+
+  getBlockList(): string[] | null {
+    return this.blockListCache.getList();
+  }
+  
+  // Cleanup methods
   cleanupExpiredEntries(): void {
-    const now = Date.now();
-    const standardExpiry = CACHE_EXPIRY;
-    const offlineExpiry = OFFLINE_CACHE_EXPIRY;
-    
-    // Cleanup events
-    this.eventCache.forEach((entry, key) => {
-      const expiry = this.offlineMode || entry.important ? offlineExpiry : standardExpiry;
-      if (now - entry.timestamp > expiry && !this.offlineMode) {
-        this.eventCache.delete(key);
-      }
-    });
-    
-    // Cleanup profiles
-    this.profileCache.forEach((entry, key) => {
-      const expiry = this.offlineMode || entry.important ? offlineExpiry : standardExpiry;
-      if (now - entry.timestamp > expiry && !this.offlineMode) {
-        this.profileCache.delete(key);
-      }
-    });
-    
-    // Cleanup threads
-    this.threadCache.forEach((entry, key) => {
-      const expiry = this.offlineMode || entry.important ? offlineExpiry : standardExpiry;
-      if (now - entry.timestamp > expiry && !this.offlineMode) {
-        this.threadCache.delete(key);
-      }
-    });
-    
-    // Cleanup feeds
-    this.feedCache.forEach((entry, key) => {
-      const expiry = this.offlineMode || entry.important ? offlineExpiry : standardExpiry;
-      if (now - entry.timestamp > expiry && !this.offlineMode) {
-        this.feedCache.delete(key);
-      }
-    });
+    this.eventCache.cleanupExpiredEntries();
+    this.profileCache.cleanupExpiredEntries();
+    this.threadCache.cleanupExpiredEntries();
+    this.feedCache.cleanupExpiredEntries();
   }
   
-  // Clear all caches
   clearAll(): void {
     this.eventCache.clear();
     this.profileCache.clear();
     this.threadCache.clear();
     this.feedCache.clear();
-    
-    // Clear persistent storage
-    localStorage.removeItem('nostr_cached_events');
-    localStorage.removeItem('nostr_cached_profiles');
-    localStorage.removeItem('nostr_cached_feeds');
+    this.muteListCache.clear();
+    this.blockListCache.clear();
   }
   
-  // Check if we're in offline mode
   isOffline(): boolean {
     return this.offlineMode;
-  }
-
-  // Methods for mute list
-  cacheMuteList(pubkeys: string[]): void {
-    this._muteList = pubkeys;
-    // Store in local storage for persistence
-    localStorage.setItem('nostr_mute_list', JSON.stringify(pubkeys));
-  }
-
-  getMuteList(): string[] | null {
-    // If we have it in memory, return it
-    if (this._muteList) {
-      return this._muteList;
-    }
-
-    // Try to load from local storage
-    const storedList = localStorage.getItem('nostr_mute_list');
-    if (storedList) {
-      try {
-        const parsedList = JSON.parse(storedList);
-        this._muteList = parsedList;
-        return parsedList;
-      } catch (e) {
-        console.error('Error parsing mute list from storage:', e);
-      }
-    }
-
-    return null;
-  }
-
-  // Methods for block list
-  cacheBlockList(pubkeys: string[]): void {
-    this._blockList = pubkeys;
-    // Store in local storage for persistence
-    localStorage.setItem('nostr_block_list', JSON.stringify(pubkeys));
-  }
-
-  getBlockList(): string[] | null {
-    // If we have it in memory, return it
-    if (this._blockList) {
-      return this._blockList;
-    }
-
-    // Try to load from local storage
-    const storedList = localStorage.getItem('nostr_block_list');
-    if (storedList) {
-      try {
-        const parsedList = JSON.parse(storedList);
-        this._blockList = parsedList;
-        return parsedList;
-      } catch (e) {
-        console.error('Error parsing block list from storage:', e);
-      }
-    }
-
-    return null;
   }
 }
 
