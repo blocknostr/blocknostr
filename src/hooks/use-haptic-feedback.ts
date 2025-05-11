@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 
-type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
 export function useHapticFeedback() {
   const [isHapticSupported, setIsHapticSupported] = useState(false);
@@ -43,6 +43,9 @@ export function useHapticFeedback() {
           break;
         case 'error':
           navigator.vibrate([50, 30, 50, 30, 50]);
+          break;
+        case 'selection':
+          navigator.vibrate([8]);
           break;
         default:
           navigator.vibrate(10);

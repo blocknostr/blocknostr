@@ -86,3 +86,46 @@ button {
     color: rgba(255, 255, 255, 0.8);
   }
 }
+
+/* Grid pattern for dialog backgrounds */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Animated gradient backgrounds */
+.animated-gradient {
+  background: linear-gradient(-45deg, #9b87f5, #7E69AB, #1A1F2C, #D6BCFA);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* iOS-style blur backgrounds */
+.ios-blur {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* iOS-style button interactions */
+.ios-button {
+  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transform: translateZ(0);
+}
+
+.ios-button:active {
+  transform: scale(0.97);
+}
