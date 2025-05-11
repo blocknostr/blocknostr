@@ -6,15 +6,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import FilterOptionItem from "./FilterOptionItem";
 import TimeOptionItem from "./TimeOptionItem";
-import { FilterOption, TimeOption } from "./types";
+import { FilterOption, FilterType, TimeOption, TimeRange } from "./types";
 
 interface TrendingFilterMenuProps {
   filterOptions: FilterOption[];
   timeOptions: TimeOption[];
-  activeFilter: string;
-  timeRange: string;
-  setActiveFilter: (filter: string) => void;
-  setTimeRange: (time: string) => void;
+  activeFilter: FilterType;
+  timeRange: TimeRange;
+  setActiveFilter: (filter: FilterType) => void;
+  setTimeRange: (time: TimeRange) => void;
 }
 
 const TrendingFilterMenu: React.FC<TrendingFilterMenuProps> = ({
