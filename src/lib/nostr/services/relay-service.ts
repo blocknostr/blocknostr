@@ -142,10 +142,9 @@ export class RelayService {
       let status: 'connected' | 'connecting' | 'disconnected' | 'error' = 'disconnected';
       
       try {
-        // This is a simplified check - in a real implementation we would
-        // need to check the actual connection status from the pool
-        const relay = this.pool.getRelay(url);
-        status = relay ? 'connected' : 'connecting';
+        // This is a simplified check since SimplePool doesn't have getRelay method
+        // We'll just assume it's connected if we have it in our relays list
+        status = this.userRelays.has(url) ? 'connected' : 'disconnected';
       } catch (e) {
         status = 'error';
       }

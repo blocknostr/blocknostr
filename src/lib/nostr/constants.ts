@@ -13,6 +13,11 @@ export const EVENT_KINDS = {
   REACTION: 7,          // NIP-25: Reaction
   BADGE_AWARD: 8,       // NIP-58: Badge award
   MUTE_LIST: 10000,     // NIP-51: Mute list
+  BLOCK_LIST: 16462,    // Custom: Block list
+  BOOKMARK_LIST: 30001, // Custom: Bookmark list
+  BOOKMARK_COLLECTIONS: 30002, // Custom: Bookmark collections
+  BOOKMARK_METADATA: 30003, // Custom: Bookmark metadata
+  ENCRYPTED_DM: 4,      // Same as DIRECT_MESSAGE, alias for clarity
   COMMUNITY: 34550,     // NIP-172: Community definition
   SUBSCRIBE: 31337,     // Subscribe to community
   UNSUBSCRIBE: 31338,   // Unsubscribe from community

@@ -92,9 +92,9 @@ export class EventService {
     if (relayUrls.length === 0 || ids.length === 0) return [];
     
     try {
-      const events = await this.pool.list(relayUrls, [{
+      const events = await this.pool.querySync(relayUrls, {
         ids: ids
-      }]);
+      });
       
       return events || [];
     } catch (error) {

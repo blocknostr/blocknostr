@@ -77,10 +77,10 @@ export class ProfileService {
     }
     
     try {
-      const events = await this.pool.list(relays, [{
+      const events = await this.pool.querySync(relays, {
         kinds: [EVENT_KINDS.META],
         authors: remainingPubkeys
-      }]);
+      });
       
       events.forEach(event => {
         try {

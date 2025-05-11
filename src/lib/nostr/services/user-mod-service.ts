@@ -98,12 +98,12 @@ export class UserModService {
     
     try {
       // Get the most recent mute list event
-      const events = await this.pool.list(relays, [{
+      const events = await this.pool.querySync(relays, {
         kinds: [EVENT_KINDS.MUTE_LIST],
         authors: [currentPubkey],
         '#d': ['mute-list'],
         limit: 1
-      }]);
+      });
       
       if (events.length === 0) {
         return [];
@@ -136,7 +136,7 @@ export class UserModService {
       
       // Create new block list event
       const eventId = await this.eventService.publishEvent({
-        kind: EVENT_KINDS.MUTE_LIST,
+        kind: EVENT_KINDS.BLOCK_LIST,
         content: '',
         tags: [
           ['d', 'block-list'],
@@ -169,7 +169,7 @@ export class UserModService {
       const updatedList = blockedUsers.filter(pk => pk !== pubkey);
       
       const eventId = await this.eventService.publishEvent({
-        kind: EVENT_KINDS.MUTE_LIST,
+        kind: EVENT_KINDS.BLOCK_LIST,
         content: '',
         tags: [
           ['d', 'block-list'],
@@ -204,12 +204,12 @@ export class UserModService {
     
     try {
       // Get the most recent block list event
-      const events = await this.pool.list(relays, [{
-        kinds: [EVENT_KINDS.MUTE_LIST],
+      const events = await this.pool.querySync(relays, {
+        kinds: [EVENT_KINDS.BLOCK_LIST],
         authors: [currentPubkey],
         '#d': ['block-list'],
         limit: 1
-      }]);
+      });
       
       if (events.length === 0) {
         return [];

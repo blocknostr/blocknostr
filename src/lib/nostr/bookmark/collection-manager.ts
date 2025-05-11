@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 import { BookmarkCollection, BookmarkManagerDependencies, BookmarkWithMetadata } from './types';

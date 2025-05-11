@@ -8,6 +8,7 @@ import { SubscriptionManager } from './subscription';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { BookmarkManagerFacade } from './bookmark';
+import { BookmarkCollection, BookmarkWithMetadata } from './bookmark'; // Add this import
 import { toast } from 'sonner';
 import { NostrServiceAdapter } from './service-adapter';
 

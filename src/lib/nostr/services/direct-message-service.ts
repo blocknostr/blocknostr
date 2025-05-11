@@ -52,18 +52,18 @@ export class DirectMessageService {
     
     try {
       // Get messages sent to the current user
-      const receivedEvents = await this.pool.list(relays, [{
+      const receivedEvents = await this.pool.querySync(relays, {
         kinds: [EVENT_KINDS.DIRECT_MESSAGE],
         authors: [otherPubkey],
         '#p': [currentPubkey]
-      }]);
+      });
       
       // Get messages sent by the current user
-      const sentEvents = await this.pool.list(relays, [{
+      const sentEvents = await this.pool.querySync(relays, {
         kinds: [EVENT_KINDS.DIRECT_MESSAGE],
         authors: [currentPubkey],
         '#p': [otherPubkey]
-      }]);
+      });
       
       // Combine and sort by timestamp
       const allEvents = [...receivedEvents, ...sentEvents].sort((a, b) => a.created_at - b.created_at);
