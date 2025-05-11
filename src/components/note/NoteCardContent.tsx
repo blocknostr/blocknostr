@@ -24,34 +24,62 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
   const displayContent = isExpanded ? content : shouldTruncate ? content.slice(0, CHARACTER_LIMIT) : content;
   
   useEffect(() => {
-    // Extract URLs from content - look for media file extensions
-    const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov))/gi;
-    const urls = content.match(urlRegex) || [];
-    setMediaUrls(urls);
+    // Extract media URLs from content more effectively - support more formats
+    const extractMediaUrls = () => {
+      // Look for standard image and video file extensions
+      const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov))/gi;
+      const urls = content.match(mediaRegex) || [];
+      
+      // Also check for common image hosting services that might not have explicit extensions
+      const hostingServiceRegex = /(https?:\/\/(?:i\.imgur\.com|i\.redd\.it|pbs\.twimg\.com|media\.tenor\.com|gfycat\.com|imgur\.com|giphy\.com|tenor\.com)[^\s]+)/gi;
+      const serviceUrls = content.match(hostingServiceRegex) || [];
+      
+      // Combine and remove duplicates
+      const allUrls = Array.from(new Set([...urls, ...serviceUrls]));
+      
+      // Also look in the tags for tagged media (Nostr nip-10)
+      if (Array.isArray(tags)) {
+        tags.forEach(tag => {
+          if (Array.isArray(tag) && (tag[0] === 'image' || tag[0] === 'media') && tag.length > 1) {
+            // Check if it's a valid URL
+            try {
+              new URL(tag[1]);
+              allUrls.push(tag[1]);
+            } catch {}
+          }
+        });
+      }
+      
+      return allUrls;
+    };
 
     // Extract hashtags from content and tags
-    const hashtagRegex = /#(\w+)/g;
-    const contentTags: string[] = [];
-    let match;
-    
-    while ((match = hashtagRegex.exec(content)) !== null) {
-      contentTags.push(match[1]);
-    }
-    
-    // Also extract hashtags from 't' tags (NIP-10)
-    const tagTags = Array.isArray(tags) 
-      ? tags.filter(tag => Array.isArray(tag) && tag[0] === 't' && tag.length >= 2)
-          .map(tag => tag[1])
-      : [];
+    const extractHashtags = () => {
+      const hashtagRegex = /#(\w+)/g;
+      const contentTags: string[] = [];
+      let match;
       
-    // Combine both sources and remove duplicates
-    setHashtags(Array.from(new Set([...contentTags, ...tagTags])));
+      while ((match = hashtagRegex.exec(content)) !== null) {
+        contentTags.push(match[1]);
+      }
+      
+      // Also extract hashtags from 't' tags (NIP-10)
+      const tagTags = Array.isArray(tags) 
+        ? tags.filter(tag => Array.isArray(tag) && tag[0] === 't' && tag.length >= 2)
+            .map(tag => tag[1])
+        : [];
+        
+      // Combine both sources and remove duplicates
+      return Array.from(new Set([...contentTags, ...tagTags]));
+    };
+    
+    setMediaUrls(extractMediaUrls());
+    setHashtags(extractHashtags());
   }, [content, tags]);
 
   return (
     <div className="mt-3">
       <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
-        {/* Use the content formatter for NIP-27 support */}
         {contentFormatter.formatContent(displayContent)}
       </div>
       
@@ -77,8 +105,8 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
         </Button>
       )}
       
-      {/* Display hashtags as badges if more than 1 */}
-      {hashtags.length > 1 && (
+      {/* Display hashtags as badges if any exist */}
+      {hashtags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {hashtags.map((tag, index) => (
             <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary hover:bg-primary/20">
@@ -88,7 +116,7 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
         </div>
       )}
       
-      {/* Display media content */}
+      {/* Display media content with our improved carousel */}
       {mediaUrls.length > 0 && (
         <div className="space-y-2 mt-3">
           <MediaPreview url={mediaUrls} alt="Media attachments" />
