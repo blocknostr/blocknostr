@@ -2,13 +2,13 @@
 import { useState, useCallback, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
-import { toast } from "sonner";
+import { NostrFilter } from "@/lib/nostr/types";
 
+// Tag for emoji reactions
 const WORLD_CHAT_TAG = "world-chat";
 
 /**
- * Hook to manage emoji reactions to messages
+ * Hook to handle emoji reactions for messages
  */
 export const useReactionHandler = (
   connectionStatus: 'connected' | 'connecting' | 'disconnected'
@@ -16,36 +16,7 @@ export const useReactionHandler = (
   const [emojiReactions, setEmojiReactions] = useState<Record<string, string[]>>({});
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   
-  const isLoggedIn = !!nostrService.publicKey;
-  
-  // Handle reactions with improved error handling
-  const handleReaction = useCallback((event: NostrEvent) => {
-    try {
-      if (!event.content) return;
-      
-      // Find which message this reaction is for
-      const eventTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e');
-      if (!eventTag) return;
-      
-      const targetId = eventTag[1];
-      
-      setEmojiReactions(prev => {
-        const existingReactions = prev[targetId] || [];
-        // Avoid duplicate emojis
-        if (!existingReactions.includes(event.content)) {
-          return {
-            ...prev,
-            [targetId]: [...existingReactions, event.content]
-          };
-        }
-        return prev;
-      });
-    } catch (error) {
-      console.error("Error processing reaction:", error);
-    }
-  }, []);
-
-  // Setup reaction subscription
+  // Subscribe to reactions
   useEffect(() => {
     // Only attempt to subscribe if we are connected
     if (connectionStatus !== 'connected') {
@@ -57,52 +28,57 @@ export const useReactionHandler = (
       if (subId) nostrService.unsubscribe(subId);
     });
     
-    // Subscribe to reactions (NIP-25)
+    // Subscribe to emoji reactions
     const reactionsSub = nostrService.subscribe(
       [
         {
           kinds: [EVENT_KINDS.REACTION],
-          '#t': [WORLD_CHAT_TAG],
-          limit: 50
+          '#t': [WORLD_CHAT_TAG]
         } as NostrFilter
       ],
-      handleReaction
+      (event) => {
+        try {
+          // Extract the message ID being reacted to
+          const messageIdTag = event.tags.find(tag => tag[0] === 'e');
+          if (!messageIdTag || !messageIdTag[1]) return;
+          
+          const messageId = messageIdTag[1];
+          const emoji = event.content;
+          
+          // Add emoji to reactions list
+          setEmojiReactions(prev => {
+            const currentReactions = prev[messageId] || [];
+            if (currentReactions.includes(emoji)) return prev;
+            
+            return {
+              ...prev,
+              [messageId]: [...currentReactions, emoji]
+            };
+          });
+        } catch (error) {
+          console.error('Error processing reaction:', error);
+        }
+      }
     );
     
+    // Update subscriptions state
     setSubscriptions([reactionsSub]);
     
     // Cleanup function
     return () => {
       if (reactionsSub) nostrService.unsubscribe(reactionsSub);
     };
-  }, [connectionStatus, handleReaction]);
-
-  // Add reaction with improved error handling (NIP-25 compliant)
-  const addReaction = async (emoji: string, messageId: string) => {
-    if (!isLoggedIn) {
-      toast.error("You must be logged in to react");
-      return;
-    }
-    
-    if (connectionStatus !== 'connected') {
-      toast.error("You're offline. Can't send reactions.");
-      return;
-    }
-    
+  }, [connectionStatus]);
+  
+  // Function to add a reaction to a message
+  const addReaction = useCallback(async (emoji: string, messageId: string) => {
     try {
-      // Optimistically update UI
-      setEmojiReactions(prev => {
-        const existingReactions = prev[messageId] || [];
-        if (!existingReactions.includes(emoji)) {
-          return {
-            ...prev,
-            [messageId]: [...existingReactions, emoji]
-          };
-        }
-        return prev;
-      });
+      if (!nostrService.publicKey) {
+        console.log('User not logged in');
+        return;
+      }
       
-      // Send reaction to Nostr relays per NIP-25
+      // Publish reaction event
       await nostrService.publishEvent({
         kind: EVENT_KINDS.REACTION,
         content: emoji,
@@ -111,12 +87,22 @@ export const useReactionHandler = (
           ['t', WORLD_CHAT_TAG]
         ]
       });
+      
+      // Optimistically update UI
+      setEmojiReactions(prev => {
+        const currentReactions = prev[messageId] || [];
+        if (currentReactions.includes(emoji)) return prev;
+        
+        return {
+          ...prev,
+          [messageId]: [...currentReactions, emoji]
+        };
+      });
     } catch (error) {
-      console.error("Failed to add reaction:", error);
-      toast.error("Failed to add reaction");
+      console.error('Error adding reaction:', error);
     }
-  };
-
+  }, []);
+  
   return {
     emojiReactions,
     addReaction

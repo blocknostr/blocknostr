@@ -1,104 +1,100 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
-import { retry } from "@/lib/utils/retry";
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-const RETRY_INTERVAL = 5000; // 5 seconds for retry
-const RECONNECT_ATTEMPTS = 3;
-
 /**
- * Hook to manage relay connection status and reconnection logic
+ * Hook to manage relay connection state
  */
 export const useRelayConnection = () => {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
-
-  // Function to get relay connection status
-  const updateConnectionStatus = useCallback(() => {
-    const relays = nostrService.getRelayStatus();
-    const connected = relays.filter(r => r.status === 'connected').length;
-    
-    if (connected > 0) {
-      setConnectionStatus('connected');
-      setError(null);
-    } else if (relays.length === 0 || !navigator.onLine) {
-      setConnectionStatus('disconnected');
-    } else {
-      setConnectionStatus('connecting');
-    }
-  }, []);
-
-  // Connect to relays with retry logic
-  const connectToRelays = useCallback(async () => {
-    try {
-      await retry(
-        async () => {
+  
+  // Monitor connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        setConnectionStatus('connecting');
+        
+        // Check if connected to at least one relay
+        const relays = await nostrService.getRelays();
+        const connectedRelay = relays.some(relay => relay.status === 1);
+        
+        if (connectedRelay) {
+          setConnectionStatus('connected');
+          setError(null);
+        } else {
+          setConnectionStatus('disconnected');
+          setError('No connected relays');
+          
+          // Try to connect
           await nostrService.connectToUserRelays();
-          const relays = nostrService.getRelayStatus();
-          const connected = relays.filter(r => r.status === 'connected').length;
-          if (connected === 0) throw new Error("No relays connected");
-          return connected;
-        },
-        {
-          maxAttempts: RECONNECT_ATTEMPTS,
-          baseDelay: 1000,
-          onRetry: (attempt) => {
-            console.log(`Retry #${attempt} connecting to relays...`);
-            setConnectionStatus('connecting');
+          
+          // Check again after connection attempt
+          const relaysAfterConnect = await nostrService.getRelays();
+          const connectedRelayAfterConnect = relaysAfterConnect.some(relay => relay.status === 1);
+          
+          if (connectedRelayAfterConnect) {
+            setConnectionStatus('connected');
+            setError(null);
+          } else {
+            setConnectionStatus('disconnected');
+            setError('Could not connect to relays');
           }
         }
-      );
-      
-      updateConnectionStatus();
-      return true;
-    } catch (error) {
-      console.error("Failed to connect to any relays:", error);
-      setConnectionStatus('disconnected');
-      setError("Unable to connect to relays. Please try again later.");
-      return false;
-    }
-  }, [updateConnectionStatus]);
-
-  // Manual reconnect function for user-initiated reconnection
-  const reconnect = async () => {
-    if (isReconnecting) return;
+      } catch (err) {
+        console.error('Error checking connection:', err);
+        setConnectionStatus('disconnected');
+        setError('Connection error');
+      }
+    };
     
+    // Initial check
+    checkConnection();
+    
+    // Setup periodic check
+    const interval = setInterval(checkConnection, 30000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+  
+  // Function to manually reconnect
+  const reconnect = useCallback(async () => {
     try {
       setIsReconnecting(true);
-      toast.loading("Reconnecting to relays...");
+      setConnectionStatus('connecting');
+      
+      // Try to connect to relays
       await nostrService.connectToUserRelays();
-      updateConnectionStatus();
-      toast.success("Reconnection attempt completed");
+      
+      // Check if connected
+      const relays = await nostrService.getRelays();
+      const connectedRelay = relays.some(relay => relay.status === 1);
+      
+      if (connectedRelay) {
+        setConnectionStatus('connected');
+        setError(null);
+      } else {
+        setConnectionStatus('disconnected');
+        setError('Could not connect to relays');
+      }
     } catch (err) {
-      toast.error("Failed to reconnect");
-      console.error("Reconnection error:", err);
+      console.error('Error reconnecting:', err);
+      setConnectionStatus('disconnected');
+      setError('Reconnection failed');
     } finally {
       setIsReconnecting(false);
     }
-  };
-
-  // Setup connection status check interval
-  useEffect(() => {
-    connectToRelays();
-    
-    // Set up connection status check interval
-    const statusInterval = setInterval(updateConnectionStatus, RETRY_INTERVAL);
-    
-    // Cleanup function
-    return () => {
-      clearInterval(statusInterval);
-    };
-  }, [connectToRelays, updateConnectionStatus]);
-
+  }, []);
+  
   return {
     connectionStatus,
     error,
     isReconnecting,
-    reconnect,
-    updateConnectionStatus
+    reconnect
   };
 };
