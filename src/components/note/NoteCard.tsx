@@ -1,25 +1,19 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
+import NoteCardContainer from './NoteCardContainer';
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
 import NoteCardComments from './NoteCardComments';
 import NoteCardRepostHeader from './NoteCardRepostHeader';
 import NoteCardDeleteDialog from './NoteCardDeleteDialog';
-import { useNavigate } from 'react-router-dom';
+import NoteCardDropdownMenu from './NoteCardDropdownMenu';
+import NoteCardMainContent from './NoteCardMainContent';
+import NoteCardFooter from './NoteCardFooter';
+import NoteCardCommentsSection from './NoteCardCommentsSection';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { useNoteCardReplies } from './hooks/useNoteCardReplies';
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from "../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -32,7 +26,6 @@ interface NoteCardProps {
 }
 
 const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) => {
-  const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const [reachCount, setReachCount] = useState(0);
   const [isInteractingWithContent, setIsInteractingWithContent] = useState(false);
@@ -87,92 +80,39 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const handleReplyAdded = () => {
     setReplyCount(prev => prev + 1);
   };
-  
-  // Navigation functions moved to dropdown menu actions
-  const handleViewDetails = () => {
-    if (event.id) {
-      navigate(`/post/${event.id}`);
-    }
-  };
-  
-  const handleCopyLink = () => {
-    if (event.id) {
-      // Create a full URL to the post
-      const url = `${window.location.origin}/post/${event.id}`;
-      navigator.clipboard.writeText(url)
-        .then(() => {
-          // Show success notification (you might want to use a toast here)
-          console.log('Link copied to clipboard');
-        })
-        .catch(err => {
-          console.error('Failed to copy link:', err);
-        });
-    }
-  };
 
   return (
     <>
-      <Card 
-        className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden relative"
-        ref={cardRef}
-        role="article"
-        aria-label="Post"
-        data-event-id={event.id}
-      >
-        <div className="absolute top-2 right-2 z-10">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="p-1 h-auto rounded-full hover:bg-accent/50"
-                onMouseEnter={handleInteractionStart}
-                onMouseLeave={handleInteractionEnd}
-                aria-label="Post options"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleViewDetails}>
-                View details
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyLink}>
-                Copy link
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {event.pubkey === nostrService.publicKey && (
-                <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive">
-                  Delete post
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <NoteCardContainer ref={cardRef} eventId={event.id}>
+        <NoteCardDropdownMenu 
+          eventId={event.id || ''} 
+          pubkey={event.pubkey || ''} 
+          onDeleteClick={handleDeleteClick}
+          onInteractionStart={handleInteractionStart}
+          onInteractionEnd={handleInteractionEnd}
+        />
         
         {repostData && <NoteCardRepostHeader repostData={repostData} />}
         
-        <CardContent 
-          className="pt-5 px-5 pb-3"
+        <NoteCardMainContent 
+          onInteractionStart={handleInteractionStart} 
+          onInteractionEnd={handleInteractionEnd}
         >
-          <div onMouseEnter={handleInteractionStart} onMouseLeave={handleInteractionEnd}>
-            <NoteCardHeader 
-              pubkey={event.pubkey || ''} 
-              createdAt={event.created_at} 
-              profileData={profileData} 
-            />
-          </div>
+          <NoteCardHeader 
+            pubkey={event.pubkey || ''} 
+            createdAt={event.created_at} 
+            profileData={profileData} 
+          />
           <NoteCardContent 
             content={event.content} 
             reachCount={reachCount}
             tags={event.tags} 
           />
-        </CardContent>
+        </NoteCardMainContent>
         
-        <CardFooter 
-          className="pt-0 px-5 pb-3 flex-wrap gap-1" 
-          onMouseEnter={handleInteractionStart} 
-          onMouseLeave={handleInteractionEnd}
+        <NoteCardFooter 
+          onInteractionStart={handleInteractionStart} 
+          onInteractionEnd={handleInteractionEnd}
         >
           <NoteCardActions 
             eventId={event.id || ''} 
@@ -182,22 +122,20 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             isAuthor={event.pubkey === nostrService.publicKey}
             onDelete={handleDeleteClick}
           />
-        </CardFooter>
+        </NoteCardFooter>
         
-        {showComments && (
-          <div 
-            className="bg-muted/30 animate-fade-in" 
-            onMouseEnter={handleInteractionStart} 
-            onMouseLeave={handleInteractionEnd}
-          >
-            <NoteCardComments
-              eventId={event.id || ''}
-              pubkey={event.pubkey || ''}
-              onReplyAdded={handleReplyAdded}
-            />
-          </div>
-        )}
-      </Card>
+        <NoteCardCommentsSection 
+          showComments={showComments}
+          onInteractionStart={handleInteractionStart}
+          onInteractionEnd={handleInteractionEnd}
+        >
+          <NoteCardComments
+            eventId={event.id || ''}
+            pubkey={event.pubkey || ''}
+            onReplyAdded={handleReplyAdded}
+          />
+        </NoteCardCommentsSection>
+      </NoteCardContainer>
       
       <NoteCardDeleteDialog 
         open={isDeleteDialogOpen} 
