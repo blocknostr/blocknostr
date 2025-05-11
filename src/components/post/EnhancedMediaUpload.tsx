@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Image, Upload, X, Loader2, Check } from "lucide-react";
+import { Image } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -9,10 +9,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import UploadArea from './media/UploadArea';
+import ImageUrlForm from './media/ImageUrlForm';
 
 interface EnhancedMediaUploadProps {
   onMediaAdded: (url: string) => void;
@@ -21,13 +21,21 @@ interface EnhancedMediaUploadProps {
 const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const handleClick = () => {
     setIsDialogOpen(true);
+    // Reset state when opening dialog
+    setUploadStatus('idle');
+    setUploadProgress(0);
+    setErrorMessage(undefined);
+  };
+  
+  const handleFileInputClick = () => {
+    fileInputRef.current?.click();
   };
   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +58,7 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
     
     setIsUploading(true);
     setUploadStatus('uploading');
+    setErrorMessage(undefined);
     
     try {
       // Simulate upload progress
@@ -59,10 +68,6 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
       }
       
       // This is a placeholder for an actual upload service
-      // In a real app, you would upload to a service like:
-      // - Supabase Storage
-      // - Nostr-specific media services
-      // - Other image hosting services
       const imageUrl = URL.createObjectURL(file);
       setUploadStatus('success');
       
@@ -84,20 +89,14 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
     } catch (error) {
       console.error("Failed to upload media:", error);
       setUploadStatus('error');
+      setErrorMessage("Failed to upload. Please try again.");
       toast.error("Failed to upload media");
     } finally {
       setIsUploading(false);
     }
   };
   
-  const handleUrlSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!imageUrl) {
-      toast.error("Please enter an image URL");
-      return;
-    }
-    
+  const handleUrlSubmit = (imageUrl: string) => {
     try {
       // Basic URL validation
       new URL(imageUrl);
@@ -107,7 +106,6 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
       
       // Close dialog and reset
       setIsDialogOpen(false);
-      setImageUrl('');
       toast.success("Image added successfully");
       
     } catch (error) {
@@ -154,61 +152,17 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
                   accept="image/jpeg,image/png,image/gif,image/webp"
                 />
                 
-                {uploadStatus === 'uploading' ? (
-                  <div className="flex flex-col items-center space-y-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <div>Uploading... {uploadProgress}%</div>
-                    <div className="w-full bg-muted h-2 rounded-full">
-                      <div 
-                        className="bg-primary h-2 rounded-full" 
-                        style={{ width: `${uploadProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ) : uploadStatus === 'success' ? (
-                  <div className="flex flex-col items-center space-y-2 text-green-500">
-                    <Check className="h-8 w-8" />
-                    <div>Upload complete!</div>
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center space-y-2 cursor-pointer"
-                  >
-                    <Upload className="h-8 w-8 text-muted-foreground" />
-                    <div className="text-muted-foreground">
-                      Click to upload or drag & drop
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      JPEG, PNG, GIF or WEBP (max 5MB)
-                    </div>
-                  </div>
-                )}
+                <UploadArea
+                  uploadStatus={uploadStatus}
+                  uploadProgress={uploadProgress}
+                  onAreaClick={handleFileInputClick}
+                  errorMessage={errorMessage}
+                />
               </div>
-              
-              {uploadStatus === 'error' && (
-                <div className="mt-2 text-center text-destructive text-sm">
-                  Failed to upload. Please try again.
-                </div>
-              )}
             </TabsContent>
             
             <TabsContent value="url" className="mt-4">
-              <form onSubmit={handleUrlSubmit}>
-                <div className="flex items-center space-x-2">
-                  <Input
-                    type="text"
-                    placeholder="https://example.com/image.jpg"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                  />
-                  <Button type="submit">Add</Button>
-                </div>
-                
-                <div className="mt-4 text-sm text-muted-foreground">
-                  Enter the URL of an image from the web
-                </div>
-              </form>
+              <ImageUrlForm onUrlSubmit={handleUrlSubmit} />
             </TabsContent>
           </Tabs>
         </DialogContent>
