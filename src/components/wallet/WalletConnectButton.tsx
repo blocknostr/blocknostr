@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Wallet, ExternalLink, AlertCircle, CheckCircle2, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,9 +66,8 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     } catch (error) {
       console.error("Connect error:", error);
       triggerHaptic('error');
-      toast("Connection failed", {
+      toast.error("Connection failed", {
         description: "Could not connect to your Nostr extension",
-        variant: "destructive",
         duration: 3000,
       });
     } finally {
