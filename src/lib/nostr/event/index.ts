@@ -54,6 +54,7 @@ export class EventManager {
           try {
             await Promise.race([
               new Promise((resolve) => {
+                // Use callback style for pub which is likely an EventEmitter
                 pub.on('ok', () => resolve(true));
               }),
               new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
@@ -116,12 +117,12 @@ export class EventManager {
       
       subscription.on('event', (e) => {
         event = e;
-        pool.close([subscription.sub]);
+        subscription.close(); // Close the subscription once we have the event
         resolve(event);
       });
       
       setTimeout(() => {
-        pool.close([subscription.sub]);
+        subscription.close(); // Close after timeout
         resolve(event);
       }, 5000);
     });
@@ -146,7 +147,7 @@ export class EventManager {
       });
       
       setTimeout(() => {
-        pool.close([subscription.sub]);
+        subscription.close(); // Close after timeout
         resolve(events);
       }, 5000);
     });
@@ -178,7 +179,7 @@ export class EventManager {
       });
       
       setTimeout(() => {
-        pool.close([subscription.sub]);
+        subscription.close(); // Close after timeout
         resolve(profiles);
       }, 5000);
     });

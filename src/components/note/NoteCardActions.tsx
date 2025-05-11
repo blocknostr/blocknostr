@@ -1,203 +1,127 @@
-import { useState, useEffect } from 'react';
-import { nostrService } from "@/lib/nostr";
-import { SimplePool } from 'nostr-tools';
-import ZapButton from '../post/ZapButton';
-import { 
-  LikeButton, 
-  RepostButton, 
-  CommentButton, 
-  BookmarkButton,
-  DeleteButton,
-  StatsButton,
-  StatsDisplay
-} from './actions';
+import React, { useState, useCallback } from 'react';
+import { toast } from 'sonner';
+import { Copy, MessageSquare, Share2, Loader2, Heart, Repeat, Bookmark, MoreHorizontal } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAction } from './hooks/use-action';
+import { Note } from '@/components/notebin/hooks/types';
+import { useNavigate } from 'react-router-dom';
+import { nostrService } from '@/lib/nostr';
 
 interface NoteCardActionsProps {
-  eventId: string;
-  pubkey: string;
-  onCommentClick?: () => void;
-  replyCount?: number;
-  isAuthor?: boolean;
-  onDelete?: () => void;
-  reposterPubkey?: string | null;
-  showRepostHeader?: boolean;
+  note: Note;
+  setActiveReply: (note: Note | null) => void;
+  isBookmarked: boolean;
+  onBookmarkToggle: () => void;
 }
 
-const NoteCardActions = ({ 
-  eventId, 
-  pubkey,
-  onCommentClick,
-  replyCount = 0,
-  isAuthor = false,
-  onDelete,
-  reposterPubkey, 
-  showRepostHeader
-}: NoteCardActionsProps) => {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isReposted, setIsReposted] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [repostCount, setRepostCount] = useState(0);
-  const [zapCount, setZapCount] = useState(0);
-  const [zapAmount, setZapAmount] = useState(0);
-  const [isZapped, setIsZapped] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const isLoggedIn = !!nostrService.publicKey;
+const NoteCardActions: React.FC<NoteCardActionsProps> = ({
+  note,
+  setActiveReply,
+  isBookmarked,
+  onBookmarkToggle
+}) => {
+  const [isActionLoading, setIsActionLoading] = useState<
+    "reply" | "like" | "repost" | "bookmark" | null
+  >(null);
+  const { handleLike, handleRepost } = useAction(note, setIsActionLoading);
+  const navigate = useNavigate();
   
-  // Check bookmarked status and fetch reaction counts on mount
-  useEffect(() => {
-    const checkBookmarkStatus = async () => {
-      if (isLoggedIn) {
-        const bookmarked = await nostrService.isBookmarked(eventId);
-        setIsBookmarked(bookmarked);
-      }
-    };
-    
-    // Fetch reaction and repost counts using our new implementation
-    const fetchReactionCounts = async () => {
-      try {
-        // Get all connected relays
-        const relays = nostrService.getRelayStatus()
-          .filter(relay => relay.status === 'connected')
-          .map(relay => relay.url);
-          
-        if (relays.length === 0) {
-          await nostrService.connectToDefaultRelays();
-        }
-        
-        // Create a new SimplePool instance rather than accessing the private one
-        const pool = new SimplePool();
-        const counts = await nostrService.socialManager.getReactionCounts(
-          pool,
-          eventId,
-          relays
-        );
-        
-        // Update state with accurate counts
-        setLikeCount(counts.likes);
-        setRepostCount(counts.reposts);
-        setIsLiked(counts.userHasLiked);
-        setIsReposted(counts.userHasReposted);
-        setZapCount(counts.zaps || 0);
-        setZapAmount(counts.zapAmount || 0);
-        setIsZapped(counts.userHasZapped || false);
-        
-      } catch (error) {
-        console.error("Error fetching reaction counts:", error);
-      }
-    };
-    
-    checkBookmarkStatus();
-    fetchReactionCounts();
-  }, [eventId, isLoggedIn]);
-  
-  const handleLike = (liked: boolean) => {
-    setIsLiked(liked);
-    setLikeCount(prev => liked ? prev + 1 : Math.max(0, prev - 1));
-  };
-  
-  const handleRepost = (reposted: boolean) => {
-    setIsReposted(reposted);
-    setRepostCount(prev => reposted ? prev + 1 : Math.max(0, prev - 1));
-  };
-  
-  // Handle zap
-  const handleZap = (amount: number) => {
-    // Update UI optimistically
-    setIsZapped(true);
-    setZapCount(prev => prev + 1);
-    setZapAmount(prev => prev + amount);
-    
-    // In a real implementation, this would connect to a Lightning wallet
-    console.log(`Zapping ${amount} sats to ${pubkey} for event ${eventId}`);
-  };
-  
-  // Handle comment click with event stopping
-  const handleCommentButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onCommentClick) {
-      onCommentClick();
+  // Handler for preparing a reply
+  const handleReply = useCallback(async () => {
+    try {
+      setIsActionLoading("reply");
+      
+      // Use the correct method name
+      await nostrService.connectToUserRelays();
+      
+      setActiveReply(note);
+    } catch (error) {
+      console.error("Error preparing reply:", error);
+      toast.error("Failed to prepare reply");
+    } finally {
+      setIsActionLoading(null);
     }
-  };
+  }, [note, setActiveReply]);
   
-  // Handle delete click with event stopping
-  const handleDeleteButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete();
-    }
-  };
-  
-  // Toggle detailed stats
-  const toggleStats = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowStats(!showStats);
-  };
+  // Handler for navigating to the post page
+  const handleGoToPost = useCallback(() => {
+    navigate(`/post/${note.id}`);
+  }, [note, navigate]);
   
   return (
-    <div className="pt-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-5">
-          <LikeButton 
-            eventId={eventId}
-            pubkey={pubkey}
-            likeCount={likeCount}
-            isLiked={isLiked}
-            onLike={handleLike}
-          />
-          
-          <RepostButton 
-            eventId={eventId}
-            pubkey={pubkey}
-            repostCount={repostCount}
-            isReposted={isReposted}
-            reposterPubkey={reposterPubkey}
-            showRepostHeader={showRepostHeader}
-            onRepost={handleRepost}
-          />
-          
-          <CommentButton 
-            replyCount={replyCount}
-            onClick={handleCommentButtonClick}
-          />
-          
-          <ZapButton
-            eventId={eventId}
-            pubkey={pubkey}
-            zapCount={zapCount}
-            zapAmount={zapAmount}
-            userHasZapped={isZapped}
-            onZap={handleZap}
-          />
-          
-          <BookmarkButton 
-            eventId={eventId}
-            isBookmarked={isBookmarked}
-            setIsBookmarked={setIsBookmarked}
-          />
-          
-          {isAuthor && (
-            <DeleteButton onClick={handleDeleteButtonClick} />
+    <div className="flex items-center justify-between px-2 py-1 text-sm text-muted-foreground">
+      <div className="flex items-center space-x-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleReply}
+          disabled={isActionLoading === "reply"}
+        >
+          {isActionLoading === "reply" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MessageSquare className="h-4 w-4" />
           )}
-        </div>
-        
-        <div className="flex items-center">
-          <StatsButton 
-            showStats={showStats}
-            onClick={toggleStats}
-          />
-        </div>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleLike}
+          disabled={isActionLoading === "like"}
+        >
+          {isActionLoading === "like" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Heart className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRepost}
+          disabled={isActionLoading === "repost"}
+        >
+          {isActionLoading === "repost" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Repeat className="h-4 w-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBookmarkToggle}
+          disabled={isActionLoading === "bookmark"}
+        >
+          {isActionLoading === "bookmark" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Bookmark className="h-4 w-4" />
+          )}
+        </Button>
       </div>
-      
-      {showStats && (
-        <StatsDisplay
-          likeCount={likeCount}
-          repostCount={repostCount}
-          replyCount={replyCount}
-          zapCount={zapCount}
-          zapAmount={zapAmount}
-        />
-      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleGoToPost}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Go to Post
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy content
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };

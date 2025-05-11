@@ -92,15 +92,33 @@ export class NostrService {
 
   // Relay management
   public async connectToRelays(relayUrls: string[]): Promise<void> {
-    return this.relayManager.connectToRelay(relayUrls);
+    await this.relayManager.connectToRelays(relayUrls);
   }
   
   public async connectToUserRelays(): Promise<string[]> {
-    return this.relayManager.connectToUserRelays();
+    await this.relayManager.connectToUserRelays();
+    return this.getRelayUrls();
+  }
+
+  // Added for compatibility with code expecting connectToDefaultRelays
+  public async connectToDefaultRelays(): Promise<string[]> {
+    return this.connectToUserRelays();
+  }
+  
+  // Helper to get relay URLs
+  public getRelayUrls(): string[] {
+    return this.getRelayStatus()
+      .filter(relay => relay.status === 'connected')
+      .map(relay => relay.url);
   }
   
   public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     return this.relayManager.addRelay(relayUrl, readWrite);
+  }
+
+  // Add method for adding multiple relays
+  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    return this.relayManager.addMultipleRelays(relayUrls);
   }
   
   public removeRelay(relayUrl: string): void {
@@ -113,8 +131,14 @@ export class NostrService {
   
   // Method to get relays for a user
   public async getRelaysForUser(pubkey: string): Promise<string[]> {
-    // Implement this method as it's missing in RelayManager
-    return ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
+    // This will be implemented in RelayManager in the future
+    try {
+      // For now we return some default relays
+      return ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
+    } catch (error) {
+      console.error("Error getting relays for user:", error);
+      return [];
+    }
   }
 
   // Event publication
@@ -143,9 +167,10 @@ export class NostrService {
   // Subscription management
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
-    onEvent: (event: NostrEvent) => void
+    onEvent: (event: NostrEvent) => void,
+    relays?: string[]
   ): string {
-    const connectedRelays = this.getConnectedRelayUrls();
+    const connectedRelays = relays || this.getConnectedRelayUrls();
     return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
   }
   
@@ -254,13 +279,13 @@ export class NostrService {
   // Community methods
   public async fetchCommunity(communityId: string): Promise<any> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement fetchCommunity in CommunityManager
+    // Just return empty object since this is not implemented yet
     return {};
   }
   
   public async createCommunity(name: string, description: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement createCommunity in CommunityManager
+    // Return null since this is not implemented yet
     return null;
   }
   
@@ -269,16 +294,18 @@ export class NostrService {
     title: string,
     description: string,
     options: string[],
-    category: string
+    category: ProposalCategory,
+    minQuorum?: number,
+    endsAt?: number
   ): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement createProposal in CommunityManager
+    // Return null since this is not implemented yet
     return null;
   }
   
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement voteOnProposal in CommunityManager
+    // Return null since this is not implemented yet
     return null;
   }
   
@@ -374,32 +401,27 @@ export class NostrService {
   // Additional methods needed for other components
   public async getEvents(ids: string[]): Promise<any[]> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement getEvents in EventManager or use the subscriptionManager
-    return [];
+    return this.eventManager.getEvents(this.pool, ids, connectedRelays);
   }
   
   public async getEventById(id: string): Promise<any> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement getEventById in EventManager or use the subscriptionManager
-    return null;
+    return this.eventManager.getEventById(this.pool, id, connectedRelays);
   }
   
   public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement getProfilesByPubkeys in EventManager or use the subscriptionManager
-    return {};
+    return this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, connectedRelays);
   }
   
   // Profile methods
   public async getUserProfile(pubkey: string): Promise<any> {
     const connectedRelays = this.getConnectedRelayUrls();
-    // Implement getUserProfile in EventManager
-    return {};
+    return this.eventManager.getUserProfile(this.pool, pubkey, connectedRelays);
   }
   
   public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    // Implement verifyNip05 in EventManager
-    return false;
+    return this.eventManager.verifyNip05(identifier, expectedPubkey);
   }
   
   private async fetchFollowingList(): Promise<void> {
@@ -501,14 +523,12 @@ export class NostrService {
       return new Promise((resolve) => {
         const mutedUsers: string[] = [];
         
-        // Subscribe to mute list events with properly formed filter
-        const filters = [
-          {
-            kinds: [10000],
-            authors: [this.publicKey],
-            "#d": ["mute-list"]
-          }
-        ] as any; // Type assertion to bypass strict checking
+        // Subscribe to mute list events with proper filter format
+        const filters = [{
+          kinds: [10000],
+          authors: [this.publicKey],
+          "#d": ["mute-list"]
+        }];
         
         const subId = this.subscribe(
           filters,
@@ -590,14 +610,12 @@ export class NostrService {
       return new Promise((resolve) => {
         const blockedUsers: string[] = [];
         
-        // Subscribe to block list events with properly formed filter
-        const filters = [
-          {
-            kinds: [10000],
-            authors: [this.publicKey],
-            "#d": ["block-list"]
-          }
-        ] as any; // Type assertion to bypass strict checking
+        // Subscribe to block list events with proper filter format
+        const filters = [{
+          kinds: [10000],
+          authors: [this.publicKey],
+          "#d": ["block-list"]
+        }];
         
         const subId = this.subscribe(
           filters,

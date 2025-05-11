@@ -19,7 +19,7 @@ export function useSidebarProfile() {
         try {
           setIsLoading(true);
           // Make sure we're connected to relays
-          await nostrService.connectToDefaultRelays();
+          await nostrService.connectToUserRelays();
           
           const profile = await nostrService.getUserProfile(nostrService.publicKey);
           if (profile) {

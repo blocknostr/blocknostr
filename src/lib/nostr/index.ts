@@ -6,6 +6,7 @@ import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
 import { NostrService, nostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { BookmarkService } from './services/bookmark-service';
 
 // Re-export types from internal modules
 export type { NostrEvent, Relay } from './types';
@@ -20,7 +21,13 @@ export type { ReactionCounts, ContactList } from './social/types';
 export type { ProposalCategory } from '@/types/community';
 
 // Re-export from bookmark module
-export type { BookmarkCollection, BookmarkWithMetadata, BookmarkStatus } from './bookmark';
+export type { 
+  BookmarkCollection, 
+  BookmarkWithMetadata, 
+  BookmarkStatus,
+  BookmarkFilters,
+  BookmarkOperationType
+} from './bookmark/types';
 
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
@@ -35,5 +42,5 @@ export { contentCache };
 // Export formatter
 export { contentFormatter };
 
-// Export service-related types from services folder
-export type { BookmarkService } from './services/bookmark-service';
+// Export service-related types
+export type { BookmarkService };

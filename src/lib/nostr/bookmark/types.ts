@@ -41,18 +41,14 @@ export type BookmarkStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export interface PendingOperation {
   id: string;
   type: 'add' | 'remove' | 'create_collection' | 'addCollection';
+  status: BookmarkStatus;
+  attempts: number;
+  // Operation-specific data fields
   eventId?: string;
   collectionId?: string;
   name?: string;
   color?: string;
   description?: string;
-  tags?: string[];
-  note?: string;
-  status: BookmarkStatus;
-  attempts: number;
-  // Field to store operation-specific data
-  eventId?: string;
-  collectionId?: string;
   tags?: string[];
   note?: string;
 }
@@ -64,6 +60,7 @@ export enum BookmarkEventKinds {
   BOOKMARK_LIST = 30001,
   BOOKMARK_COLLECTIONS = 30002,
   BOOKMARK_METADATA = 30003,
+  BOOKMARKS = 30001, // Alias for BOOKMARK_LIST for compatibility
   DELETE = 5
 }
 

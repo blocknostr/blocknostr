@@ -122,6 +122,9 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
           eventId,
           tags: [],
           note: '',
+          status: 'pending',
+          attempts: 0,
+          id: `${newBookmarkState ? 'add' : 'remove'}_${eventId}_${Date.now()}`
         });
         
         toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
@@ -137,6 +140,9 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
           eventId,
           tags: [],
           note: '',
+          status: 'pending',
+          attempts: 0,
+          id: `${newBookmarkState ? 'add' : 'remove'}_${eventId}_${Date.now()}`
         });
         return;
       }

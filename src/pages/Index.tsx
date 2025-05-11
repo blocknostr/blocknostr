@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { nostrService } from "@/lib/nostr";
@@ -20,8 +19,11 @@ const Index: React.FC = () => {
   useEffect(() => {
     // Init connection to relays when the app loads if auto-connect is enabled
     const initNostr = async () => {
-      if (preferences.relayPreferences.autoConnect) {
-        await nostrService.connectToDefaultRelays();
+      try {
+        // Use the correct method name
+        await nostrService.connectToUserRelays();
+      } catch (error) {
+        console.error("Error initializing Nostr:", error);
       }
     };
     

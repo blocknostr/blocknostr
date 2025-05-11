@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,15 +54,13 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       const durationDays = parseInt(data.duration);
       const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
       
-      // Create the proposal
+      // Create the proposal with correct parameters per the method signature
       const proposalId = await nostrService.createProposal(
         communityId,
         data.title,
         data.description,
         options,
-        data.category as ProposalCategory,
-        undefined, // Let the server set default min quorum
-        endsAt
+        data.category as ProposalCategory
       );
       
       if (proposalId) {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService, NostrEvent } from '@/lib/nostr';
@@ -37,41 +36,45 @@ const PostPage = () => {
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-
-      // Connect to relays
-      await nostrService.connectToDefaultRelays();
-      
-      // Subscribe to get the event by ID
-      const subId = nostrService.subscribe(
-        [
-          {
-            ids: [id],
-            kinds: [1], // text notes
-          }
-        ],
-        (fetchedEvent) => {
-          setEvent(fetchedEvent);
-          setLoading(false);
+    const fetchPost = async () => {
+      if (id) {
+        try {
+          // Use the correct method name
+          await nostrService.connectToUserRelays();
           
-          // Fetch profile data for this pubkey
-          if (fetchedEvent.pubkey) {
-            fetchProfileData(fetchedEvent.pubkey);
-          }
+          // Connect to relays
+          await nostrService.connectToDefaultRelays();
           
-          // Fetch stats
-          fetchPostStats(fetchedEvent.id);
+          // Subscribe to get the event by ID
+          const subId = nostrService.subscribe(
+            [
+              {
+                ids: [id],
+                kinds: [1], // text notes
+              }
+            ],
+            (fetchedEvent) => {
+              setEvent(fetchedEvent);
+              setLoading(false);
+              
+              // Fetch profile data for this pubkey
+              if (fetchedEvent.pubkey) {
+                fetchProfileData(fetchedEvent.pubkey);
+              }
+              
+              // Fetch stats
+              fetchPostStats(fetchedEvent.id);
+            }
+          );
+          
+          // Cleanup
+          return () => {
+            nostrService.unsubscribe(subId);
+          };
+        } catch (error) {
+          console.error("Error fetching post:", error);
         }
-      );
-      
-      // Cleanup
-      return () => {
-        nostrService.unsubscribe(subId);
-      };
+      }
     };
     
     const fetchProfileData = (pubkey: string) => {
@@ -135,7 +138,7 @@ const PostPage = () => {
       }
     };
     
-    fetchEvent();
+    fetchPost();
   }, [id]);
 
   return (
