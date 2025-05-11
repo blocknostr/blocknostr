@@ -49,29 +49,29 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
   }, [content, tags]);
 
   return (
-    <div className="mt-1">
-      <div className="whitespace-pre-wrap break-words text-sm leading-snug">
-        {/* Use the content formatter for NIP-27 support */}
+    <div className="mt-3">
+      <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
+        {/* Use the new content formatter for NIP-27 support */}
         {contentFormatter.formatContent(displayContent)}
       </div>
       
       {shouldTruncate && (
         <Button 
-          variant="ghost" 
+          variant="link" 
           size="sm" 
           onClick={(e) => {
             e.preventDefault(); 
             setIsExpanded(!isExpanded);
           }} 
-          className="text-[#0EA5E9] hover:text-[#0EA5E9]/80 p-0 h-auto mt-0.5 text-xs font-medium flex items-center gap-1"
+          className="text-[#0EA5E9] hover:text-[#0EA5E9]/80 p-0 h-auto mt-1 font-medium flex items-center gap-1"
         >
           {isExpanded ? (
             <>
-              <ArrowUp size={14} /> Show less
+              <ArrowUp size={16} /> Show less
             </>
           ) : (
             <>
-              <ArrowDown size={14} /> Show more
+              <ArrowDown size={16} /> Show more
             </>
           )}
         </Button>
@@ -79,9 +79,9 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
       
       {/* Display hashtags as badges if more than 1 */}
       {hashtags.length > 1 && (
-        <div className="flex flex-wrap gap-1 mt-1">
+        <div className="flex flex-wrap gap-1 mt-2">
           {hashtags.map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-[10px] py-0 px-1.5 bg-primary/10 text-primary hover:bg-primary/20">
+            <Badge key={index} variant="secondary" className="text-xs bg-primary/10 text-primary hover:bg-primary/20">
               #{tag}
             </Badge>
           ))}
@@ -90,7 +90,7 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
       
       {/* Display media content */}
       {mediaUrls.length > 0 && (
-        <div className="space-y-1 mt-2 rounded-md overflow-hidden">
+        <div className="space-y-2 mt-3 rounded-md overflow-hidden">
           {mediaUrls.map((url, index) => (
             <MediaPreview 
               key={index} 
@@ -103,7 +103,7 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
       
       {/* Post Reach information - Moved below media */}
       {reachCount > 0 && (
-        <div className="flex items-center mt-1 text-[10px] text-muted-foreground">
+        <div className="flex items-center mt-2 text-xs text-muted-foreground">
           <span>{reachCount.toLocaleString()} views</span>
         </div>
       )}

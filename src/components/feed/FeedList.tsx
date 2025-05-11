@@ -19,26 +19,25 @@ const FeedList: React.FC<FeedListProps> = ({
   loading
 }) => {
   return (
-    <div className="space-y-2">
-      {/* Standard list rendering with reduced spacing */}
-      <div>
+    <div className="space-y-4">
+      {/* Standard list rendering */}
+      <div className="space-y-4">
         {events.map(event => (
-          <div key={event.id} className="border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors">
-            <NoteCard 
-              event={event} 
-              profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-              repostData={event.id && repostData[event.id] ? {
-                reposterPubkey: repostData[event.id].pubkey,
-                reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-              } : undefined}
-            />
-          </div>
+          <NoteCard 
+            key={event.id} 
+            event={event} 
+            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+            repostData={event.id && repostData[event.id] ? {
+              reposterPubkey: repostData[event.id].pubkey,
+              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+            } : undefined}
+          />
         ))}
         
         {/* Loading indicator at the bottom */}
-        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-3 text-center">
+        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-4 text-center">
           {loading && events.length > 0 && (
-            <div className="text-muted-foreground text-xs">
+            <div className="text-muted-foreground text-sm">
               Loading more posts...
             </div>
           )}

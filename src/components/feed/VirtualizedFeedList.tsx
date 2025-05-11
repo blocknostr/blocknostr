@@ -21,11 +21,11 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
 }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   
-  // Use TanStack Virtual for efficient list rendering with more compact sizing
+  // Use TanStack Virtual for efficient list rendering
   const rowVirtualizer = useVirtualizer({
     count: events.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 180, // Reduced estimated height for more compact tweets
+    estimateSize: () => 250, // Estimated height of each post
     overscan: 5, // Number of items to render beyond visible area
   });
   
@@ -36,11 +36,11 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
   const virtualItems = rowVirtualizer.getVirtualItems();
   
   return (
-    <div className="relative">
+    <div className="space-y-4 relative">
       <div 
         ref={parentRef} 
         className="overflow-auto" 
-        style={{ height: "calc(100vh - 180px)" }}
+        style={{ height: "calc(100vh - 200px)" }}
       >
         {/* Total height spacer */}
         <div style={{ height: totalHeight }}>
@@ -50,7 +50,7 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
             return (
               <div
                 key={event.id}
-                className="absolute w-full border-b border-border/40"
+                className="absolute w-full"
                 style={{
                   top: virtualRow.start,
                   height: virtualRow.size,
@@ -72,9 +72,9 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
       </div>
       
       {/* Loading indicator at the bottom */}
-      <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-2 text-center">
+      <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-4 text-center">
         {loading && events.length > 0 && (
-          <div className="text-muted-foreground text-xs">
+          <div className="text-muted-foreground text-sm">
             Loading more posts...
           </div>
         )}

@@ -12,11 +12,11 @@ const CommentButton = ({ replyCount, onClick }: CommentButtonProps) => {
     <Button 
       variant="ghost" 
       size="icon" 
-      className="rounded-full h-8 w-8 hover:text-blue-500 hover:bg-blue-500/10"
+      className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
       onClick={onClick}
       title="Reply"
     >
-      <MessageSquare className="h-[16px] w-[16px]" />
+      <MessageSquare className="h-[18px] w-[18px]" />
       {replyCount > 0 && (
         <span className="ml-1 text-xs">{replyCount}</span>
       )}

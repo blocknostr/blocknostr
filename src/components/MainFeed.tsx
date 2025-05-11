@@ -66,27 +66,27 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   };
 
   return (
-    <div className={cn("max-w-xl mx-auto", fontSizeClass)}>
+    <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
       {isOffline && (
-        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-3 py-1 mb-2 rounded-md flex items-center justify-between text-xs">
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
           <span>You're currently offline. Viewing cached content.</span>
         </div>
       )}
       
-      <div className="border-b pb-2 mb-2">
+      <div className="border-b pb-4 mb-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold">Home</h1>
+          <h1 className="text-xl font-bold">Home</h1>
           <div className="flex items-center gap-2">
             {activeHashtag && (
               <div className="flex items-center">
-                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-md flex items-center gap-1 text-xs">
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
                   #{activeHashtag}
                   <button 
                     onClick={onClearHashtag} 
-                    className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
+                    className="rounded-full hover:bg-primary/20 p-1 transition-colors"
                     title="Clear filter"
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </button>
                 </span>
               </div>
@@ -96,52 +96,43 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
               size="icon"
               onClick={() => setIsCustomizationDialogOpen(true)}
               title="Customize feed"
-              className="h-7 w-7"
             >
-              <Settings size={16} />
+              <Settings size={18} />
             </Button>
           </div>
         </div>
       </div>
       
       {/* User's saved hashtags for quick access */}
-      {preferences.uiPreferences.showTrending && (
-        <div className="mb-2 overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-          <SavedHashtags onTopicClick={handleTopicClick} />
-        </div>
-      )}
+      {preferences.uiPreferences.showTrending && <SavedHashtags onTopicClick={handleTopicClick} />}
       
       {/* Trending topics at the top */}
-      {preferences.uiPreferences.showTrending && (
-        <div className="mb-3">
-          <TrendingTopics onTopicClick={handleTopicClick} />
-        </div>
-      )}
+      {preferences.uiPreferences.showTrending && <TrendingTopics onTopicClick={handleTopicClick} />}
       
       <CreateNoteForm />
       
       <Tabs 
         value={activeTab} 
         onValueChange={handleTabChange}
-        className="mt-2"
+        className="mt-4"
       >
         <TabsList className={cn(
-          "w-full mb-2 p-0 h-9 bg-transparent",
+          "w-full mb-4",
           isMobile ? "grid grid-cols-4" : ""
         )}>
-          <TabsTrigger value="global" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">Global</TabsTrigger>
+          <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
           <TabsTrigger 
             value="following" 
-            className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none" 
+            className="flex-1" 
             disabled={!isLoggedIn}
           >
             Following
           </TabsTrigger>
-          <TabsTrigger value="for-you" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="for-you" className="flex-1">
             For You
           </TabsTrigger>
-          <TabsTrigger value="media" className="flex-1 text-xs rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
-            <Image className="h-3 w-3 mr-1" />
+          <TabsTrigger value="media" className="flex-1">
+            <Image className="h-4 w-4 mr-1" />
             Media
           </TabsTrigger>
         </TabsList>
@@ -152,7 +143,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         
         <TabsContent value="following">
           {!isLoggedIn ? (
-            <div className="py-4 text-center text-muted-foreground text-sm">
+            <div className="py-8 text-center text-muted-foreground">
               You need to log in to see posts from people you follow.
             </div>
           ) : (
