@@ -68,16 +68,39 @@ export function useUserPreferences() {
     const storedPrefs = localStorage.getItem('blocknoster_preferences');
     if (storedPrefs) {
       try {
-        // Parse stored preferences and ensure it's treated as an object
+        // Parse stored preferences
         const parsedPrefs = JSON.parse(storedPrefs);
         
-        // Verify that parsedPrefs is an object before spreading
+        // Type check: ensure parsedPrefs is a valid object
         if (parsedPrefs && typeof parsedPrefs === 'object' && !Array.isArray(parsedPrefs)) {
           // Merge with defaults to ensure any new preferences are included
-          setPreferences({
+          // Fix: explicitly create a new preferences object without using spread on parsedPrefs
+          const mergedPreferences: UserPreferences = {
             ...defaultPreferences,
-            ...parsedPrefs as Partial<UserPreferences>
-          });
+            defaultFeed: parsedPrefs.defaultFeed || defaultPreferences.defaultFeed,
+            feedFilters: {
+              ...defaultPreferences.feedFilters,
+              ...(parsedPrefs.feedFilters || {}),
+            },
+            contentPreferences: {
+              ...defaultPreferences.contentPreferences,
+              ...(parsedPrefs.contentPreferences || {}),
+            },
+            notificationPreferences: {
+              ...defaultPreferences.notificationPreferences,
+              ...(parsedPrefs.notificationPreferences || {}),
+            },
+            relayPreferences: {
+              ...defaultPreferences.relayPreferences,
+              ...(parsedPrefs.relayPreferences || {}),
+            },
+            uiPreferences: {
+              ...defaultPreferences.uiPreferences,
+              ...(parsedPrefs.uiPreferences || {}),
+            },
+          };
+          
+          setPreferences(mergedPreferences);
         } else {
           console.error('Stored preferences is not a valid object:', parsedPrefs);
           // Use default preferences if stored data is invalid
