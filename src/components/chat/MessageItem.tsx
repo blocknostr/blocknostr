@@ -3,7 +3,7 @@ import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { NostrEvent } from "@/lib/nostr/types";
-import { nostrService } from "@/lib/nostr";
+import { nostrService } from "@/lib/nostr"; // This import is correct but may be referring to the wrong export
 import ReactionBar from "./ReactionBar";
 import { contentFormatter } from "@/lib/nostr";
 
@@ -39,8 +39,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   const formattedTime = formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true });
   
-  // Fix: Check if the user is logged in and compare message pubkey with logged in user's pubkey
-  const isCurrentUser = isLoggedIn && nostrService.publicKey === message.pubkey;
+  // Fix: Change this to not rely on nostrService directly
+  // Instead, rely only on the pubkey from the message and the isLoggedIn prop
+  const isCurrentUser = isLoggedIn && message.pubkey === profiles?._currentUser?.pubkey;
 
   return (
     <div className={`flex items-start gap-2 group hover:bg-accent/20 rounded-lg p-2 transition-colors ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>

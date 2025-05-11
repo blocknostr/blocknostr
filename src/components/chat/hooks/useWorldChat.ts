@@ -5,6 +5,7 @@ import { useProfileFetcher } from "./useProfileFetcher";
 import { useMessageSubscription } from "./useMessageSubscription";
 import { useReactionHandler } from "./useReactionHandler";
 import { useMessageSender } from "./useMessageSender";
+import { nostrService } from "@/lib/nostr";
 
 export type { ConnectionStatus } from "./useRelayConnection";
 
@@ -24,6 +25,11 @@ export const useWorldChat = () => {
   
   // Profile management
   const { profiles, fetchProfile } = useProfileFetcher();
+  
+  // Add current user's public key to profiles if available
+  if (nostrService.publicKey && !profiles._currentUser) {
+    profiles._currentUser = { pubkey: nostrService.publicKey };
+  }
   
   // Message subscription management
   const { 
