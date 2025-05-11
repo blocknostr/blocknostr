@@ -4,12 +4,12 @@ import { EVENT_KINDS } from '../constants';
 
 // EventManager interface 
 export interface EventManager {
-  getEvents: (filters: Filter[], relays: string[]) => Promise<any[]>;
-  getEventById: (id: string, relays: string[]) => Promise<any | null>;
-  getProfilesByPubkeys: (pubkeys: string[], relays: string[]) => Promise<Record<string, any>>;
-  getUserProfile: (pubkey: string, relays?: string[]) => Promise<Record<string, any> | null>;
-  verifyNip05: (pubkey: string, nip05Identifier: string) => Promise<boolean>;
-  publishEvent: (event: any) => Promise<string>;
+  getEvents(filters: Filter[], relays: string[]): Promise<any[]>;
+  getEventById(id: string, relays: string[]): Promise<any | null>;
+  getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
+  getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null>;
+  verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean>;
+  publishEvent(event: any): Promise<string>;
 }
 
 /**

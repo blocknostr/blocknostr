@@ -38,8 +38,8 @@ export class BookmarkManagerFacade {
     // Create the dependencies object with proper methods
     const dependencies: BookmarkManagerDependencies = {
       publishEvent: async (event: any) => eventManager.publishEvent(event),
-      getEvents: async (filters: any[], relays?: string[]) => {
-        return eventManager.getEvents(filters, relays || []);
+      getEvents: async (filters: any[], relays: string[]) => {
+        return eventManager.getEvents(filters, relays);
       }
     };
     
