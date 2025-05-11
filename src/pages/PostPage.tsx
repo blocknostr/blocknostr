@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import NoteCard from '@/components/NoteCard';
 import Sidebar from '@/components/Sidebar';
-import TrendingSection from '@/components/TrendingSection';
+import { TrendingSection } from '@/components/trending';
 import WhoToFollow from '@/components/WhoToFollow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from "@/hooks/use-mobile";

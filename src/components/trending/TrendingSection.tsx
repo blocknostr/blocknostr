@@ -1,11 +1,11 @@
 
 import React from "react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
-import TrendingFilterButton from "./TrendingFilterButton";
-import TrendingFilterMenu from "./TrendingFilterMenu";
 import TrendingFilters from "./TrendingFilters";
 import TrendingTopicsList from "./TrendingTopicsList";
+import TrendingFilterButton from "./TrendingFilterButton";
+import TrendingFilterMenu from "./TrendingFilterMenu";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import { useTrendingTopicsData } from "./hooks/useTrendingTopicsData";
 
 interface TrendingSectionProps {
@@ -31,11 +31,10 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({ onTopicClick = () => 
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Trending</CardTitle>
-          
+          <CardTitle className="text-lg">Trending</CardTitle>
           <DropdownMenu open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <TrendingFilterButton />
-            <TrendingFilterMenu
+            <TrendingFilterMenu 
               filterOptions={filterOptions}
               timeOptions={timeOptions}
               activeFilter={activeFilter}
@@ -48,7 +47,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({ onTopicClick = () => 
       </CardHeader>
       
       <TrendingFilters 
-        currentFilter={currentFilter}
+        currentFilter={currentFilter} 
         currentTime={currentTime}
       />
       

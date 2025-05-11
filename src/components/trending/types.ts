@@ -1,4 +1,6 @@
 
+import React from "react";
+
 export type FilterType = "popular" | "zapped" | "liked";
 export type TimeRange = "all" | "24h" | "7d";
 
