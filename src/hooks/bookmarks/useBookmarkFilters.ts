@@ -1,154 +1,118 @@
 
-import { useState, useMemo, useCallback } from 'react';
-import { BookmarkCollection, BookmarkWithMetadata } from '@/lib/nostr/bookmark';
-
-export type SortOption = 'newest' | 'oldest' | 'popular';
+import { useState, useMemo } from 'react';
+import { NostrEvent } from '@/lib/nostr';
+import { BookmarkWithMetadata } from '@/lib/nostr/bookmark/types';
+import { extractTagsFromEvent } from '@/lib/nostr/bookmark/utils/bookmark-utils';
 
 interface UseBookmarkFiltersProps {
-  bookmarkedEvents: any[];
-  profiles: Record<string, any>;
-  bookmarkMetadata: BookmarkWithMetadata[];
-}
-
-interface UseBookmarkFiltersResult {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  selectedCollection: string | null;
-  setSelectedCollection: (collection: string | null) => void;
-  selectedTags: string[];
-  setSelectedTags: (tags: string[]) => void;
-  viewMode: 'list' | 'grid';
-  setViewMode: (mode: 'list' | 'grid') => void;
-  sortBy: SortOption;
-  setSortBy: (sort: SortOption) => void;
-  page: number;
-  setPage: (page: number) => void;
-  paginatedEvents: any[];
-  filteredAndSortedEvents: any[];
-  totalPages: number;
-  handleRemoveTag: (tag: string) => void;
-  handleResetFilters: () => void;
+  events: NostrEvent[];
+  collections: any[];
+  metadata: BookmarkWithMetadata[];
+  perPage?: number;
 }
 
 export function useBookmarkFilters({
-  bookmarkedEvents,
-  profiles,
-  bookmarkMetadata
-}: UseBookmarkFiltersProps): UseBookmarkFiltersResult {
-  // Filter state
+  events,
+  collections,
+  metadata,
+  perPage = 10
+}: UseBookmarkFiltersProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  
-  // View state
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
-
-  // Reset filters
-  const handleResetFilters = useCallback(() => {
-    setSearchTerm('');
-    setSelectedCollection(null);
-    setSelectedTags([]);
-  }, []);
-
-  // Remove a tag from selected tags
-  const handleRemoveTag = useCallback((tag: string) => {
-    setSelectedTags(prev => prev.filter(t => t !== tag));
-  }, []);
-
-  // Filter events by search term, collection, and tags
+  const [sortMethod, setSortMethod] = useState<'newest' | 'oldest'>('newest');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  
+  // Get all unique tags across events
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    
+    // Collect tags from metadata
+    metadata.forEach(meta => {
+      if (meta.tags && Array.isArray(meta.tags)) {
+        meta.tags.forEach(tag => tags.add(tag));
+      }
+    });
+    
+    // Collect tags from events too
+    events.forEach(event => {
+      const eventTags = extractTagsFromEvent(event);
+      eventTags.forEach(tag => tags.add(tag));
+    });
+    
+    return Array.from(tags).sort();
+  }, [events, metadata]);
+  
+  // Filter events based on search, collection and tags
   const filteredAndSortedEvents = useMemo(() => {
-    // First filter events
-    let filtered = bookmarkedEvents;
+    let filtered = [...events];
     
     // Filter by collection
     if (selectedCollection) {
-      const eventsInCollection = bookmarkMetadata
+      // First get all event IDs in the collection
+      const eventIdsInCollection = metadata
         .filter(meta => meta.collectionId === selectedCollection)
         .map(meta => meta.eventId);
       
-      filtered = filtered.filter(event => eventsInCollection.includes(event.id));
+      // Then filter events by those IDs
+      filtered = filtered.filter(event => eventIdsInCollection.includes(event.id || ''));
     }
     
     // Filter by tags
     if (selectedTags.length > 0) {
-      const eventIdsWithTags = bookmarkMetadata
-        .filter(meta => {
-          const metaTags = meta.tags || [];
-          return selectedTags.every(tag => metaTags.includes(tag));
-        })
-        .map(meta => meta.eventId);
-      
-      filtered = filtered.filter(event => eventIdsWithTags.includes(event.id));
+      // Get events that have any of the selected tags
+      filtered = filtered.filter(event => {
+        // Get this event's metadata
+        const meta = metadata.find(m => m.eventId === event.id);
+        
+        if (!meta || !meta.tags) return false;
+        
+        // Check if any selected tag is in this event's tags
+        return selectedTags.some(tag => meta.tags.includes(tag));
+      });
     }
     
     // Filter by search term
     if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      
-      filtered = filtered.filter(event => {
-        // Check content
-        if (event.content && event.content.toLowerCase().includes(lowerSearchTerm)) {
-          return true;
-        }
-        
-        // Check profile name/username if available
-        const profile = profiles[event.pubkey];
-        if (profile) {
-          const name = profile.name?.toLowerCase();
-          const displayName = profile.display_name?.toLowerCase();
-          const about = profile.about?.toLowerCase();
-          
-          if (
-            (name && name.includes(lowerSearchTerm)) ||
-            (displayName && displayName.includes(lowerSearchTerm)) ||
-            (about && about.includes(lowerSearchTerm))
-          ) {
-            return true;
-          }
-        }
-        
-        return false;
-      });
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(event => 
+        event.content.toLowerCase().includes(lowerSearch)
+      );
     }
     
-    // Sort events
-    return [...filtered].sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return b.created_at - a.created_at;
-        case 'oldest':
-          return a.created_at - b.created_at;
-        case 'popular':
-          // For now, we'll use created_at as a proxy for popularity
-          // In a real app, this would be based on reactions, replies, etc.
-          return b.created_at - a.created_at;
-        default:
-          return 0;
+    // Sort by date
+    filtered.sort((a, b) => {
+      if (sortMethod === 'newest') {
+        return b.created_at - a.created_at;
+      } else {
+        return a.created_at - b.created_at;
       }
     });
-  }, [
-    bookmarkedEvents,
-    bookmarkMetadata,
-    profiles,
-    searchTerm,
-    selectedCollection,
-    selectedTags,
-    sortBy
-  ]);
+    
+    return filtered;
+  }, [events, searchTerm, selectedCollection, selectedTags, sortMethod, metadata]);
   
   // Paginate events
   const paginatedEvents = useMemo(() => {
-    const startIndex = (page - 1) * itemsPerPage;
-    return filteredAndSortedEvents.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredAndSortedEvents, page, itemsPerPage]);
+    const startIndex = (page - 1) * perPage;
+    const endIndex = startIndex + perPage;
+    return filteredAndSortedEvents.slice(startIndex, endIndex);
+  }, [filteredAndSortedEvents, page, perPage]);
   
-  // Calculate total pages
   const totalPages = useMemo(() => {
-    return Math.ceil(filteredAndSortedEvents.length / itemsPerPage);
-  }, [filteredAndSortedEvents.length, itemsPerPage]);
+    return Math.max(1, Math.ceil(filteredAndSortedEvents.length / perPage));
+  }, [filteredAndSortedEvents, perPage]);
+  
+  // Reset page when filters change
+  const resetPage = () => setPage(1);
+  
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setSelectedCollection(null);
+    setSelectedTags([]);
+    resetPage();
+  };
   
   return {
     searchTerm,
@@ -157,16 +121,17 @@ export function useBookmarkFilters({
     setSelectedCollection,
     selectedTags,
     setSelectedTags,
-    viewMode,
-    setViewMode,
-    sortBy,
-    setSortBy,
     page,
     setPage,
+    sortMethod,
+    setSortMethod,
+    viewMode,
+    setViewMode,
     paginatedEvents,
-    filteredAndSortedEvents,
     totalPages,
-    handleRemoveTag,
+    filteredAndSortedEvents,
+    allTags,
+    resetPage,
     handleResetFilters
   };
 }

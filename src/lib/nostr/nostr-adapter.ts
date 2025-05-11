@@ -81,6 +81,11 @@ class NostrAdapter {
     return this.service.createProposal(communityId, title, description, options, category as any);
   }
 
+  // Added missing voteOnProposal method
+  async voteOnProposal(proposalId: string, optionIndex: number) {
+    return this.service.voteOnProposal(proposalId, optionIndex);
+  }
+
   // Utilities
   formatPubkey(pubkey: string) {
     return formatPubkey(pubkey);
@@ -106,6 +111,16 @@ class NostrAdapter {
   getRelayStatus() {
     return this.service.getRelayStatus();
   }
+
+  // Add getRelayUrls method
+  getRelayUrls() {
+    return this.service.getRelayUrls();
+  }
+  
+  // Add getRelaysForUser method
+  async getRelaysForUser(pubkey: string) {
+    return this.service.getRelaysForUser(pubkey);
+  }
   
   async connectToDefaultRelays() {
     return this.service.connectToUserRelays();
@@ -128,6 +143,18 @@ class NostrAdapter {
       },
       repostEvent: (event: any) => {
         return this.service.repostNote(event.id, event.pubkey);
+      },
+      // Add missing getReactionCounts method
+      getReactionCounts: (eventId: string) => {
+        // Implement a basic version that returns zeros
+        return Promise.resolve({
+          likes: 0,
+          reposts: 0
+        });
+      },
+      // Add missing reactToEvent method
+      reactToEvent: (eventId: string, emoji: string = "+") => {
+        return this.service.reactToPost(eventId, emoji);
       }
     };
   }

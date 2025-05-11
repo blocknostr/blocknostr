@@ -1,72 +1,52 @@
 
-import { useState, useCallback } from 'react';
-import { toast } from 'sonner';
-import { nostrService } from '@/lib/nostr';
-import { Note } from '@/components/notebin/hooks/types';
+import React from "react";
+import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
 
-export function useAction(note: Note, setIsActionLoading: (action: "reply" | "like" | "repost" | "bookmark" | null) => void) {
-  const isLoggedIn = !!nostrService.publicKey;
-  
-  // Handle like action
-  const handleLike = useCallback(async () => {
-    if (!isLoggedIn) {
-      toast.error("You must be logged in to like posts");
-      return;
-    }
+export interface UseActionProps {
+  eventId: string;
+  authorPubkey: string;
+  event: any; // Full event object
+}
+
+export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
+  const [isLiking, setIsLiking] = React.useState(false);
+  const [isReposting, setIsReposting] = React.useState(false);
+
+  const handleLike = async () => {
+    if (isLiking) return;
     
-    setIsActionLoading("like");
-    
+    setIsLiking(true);
     try {
-      // Connect to relays
-      await nostrService.connectToUserRelays();
-      
-      // Send like event
-      const success = await nostrService.socialManager.likeEvent(note.event);
-      
-      if (success) {
-        toast.success("Post liked");
-      } else {
-        toast.error("Failed to like post");
-      }
+      await nostrService.socialManager.likeEvent(event);
+      toast.success("Post liked");
     } catch (error) {
       console.error("Error liking post:", error);
       toast.error("Failed to like post");
     } finally {
-      setIsActionLoading(null);
+      setIsLiking(false);
     }
-  }, [note, isLoggedIn, setIsActionLoading]);
-  
-  // Handle repost action
-  const handleRepost = useCallback(async () => {
-    if (!isLoggedIn) {
-      toast.error("You must be logged in to repost");
-      return;
-    }
+  };
+
+  const handleRepost = async () => {
+    if (isReposting) return;
     
-    setIsActionLoading("repost");
-    
+    setIsReposting(true);
     try {
-      // Connect to relays
-      await nostrService.connectToUserRelays();
-      
-      // Send repost event
-      const success = await nostrService.socialManager.repostEvent(note.event);
-      
-      if (success) {
-        toast.success("Post reposted");
-      } else {
-        toast.error("Failed to repost");
-      }
+      await nostrService.socialManager.repostEvent(event);
+      toast.success("Post reposted");
     } catch (error) {
       console.error("Error reposting:", error);
       toast.error("Failed to repost");
     } finally {
-      setIsActionLoading(null);
+      setIsReposting(false);
     }
-  }, [note, isLoggedIn, setIsActionLoading]);
+  };
 
   return {
     handleLike,
-    handleRepost
+    handleRepost,
+    isLiking,
+    isReposting
   };
 }

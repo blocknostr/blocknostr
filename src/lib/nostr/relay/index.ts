@@ -9,13 +9,13 @@ export { RelayManager } from './relay-manager';
 // Import SimplePool - we need this for certain methods
 import { SimplePool } from 'nostr-tools';
 
-// Extend the RelayManager interface with methods needed elsewhere
+// Extend the RelayManager interface
 declare module './relay-manager' {
   interface RelayManager {
-    connectToRelays: (relayUrls: string[]) => Promise<void>;
-    connectToRelay: (relayUrl: string) => Promise<boolean>;
-    addRelay: (relayUrl: string, readWrite?: boolean) => Promise<boolean>;
-    removeRelay: (relayUrl: string) => void;
-    addMultipleRelays: (relayUrls: string[]) => Promise<number>;
+    connectToRelays(relayUrls: string[]): Promise<void>;
+    connectToRelay(relayUrl: string, retryCount?: number): Promise<boolean>;
+    addRelay(relayUrl: string, readWrite?: boolean): Promise<boolean>;
+    removeRelay(relayUrl: string): void;
+    addMultipleRelays(relayUrls: string[]): Promise<number>;
   }
 }

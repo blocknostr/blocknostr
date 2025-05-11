@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -401,27 +400,88 @@ export class NostrService {
   // Additional methods needed for other components
   public async getEvents(ids: string[]): Promise<any[]> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.getEvents(this.pool, ids, connectedRelays);
+    try {
+      // Fix by accessing methods directly from eventManager
+      return await Promise.all(ids.map(id => this.getEventById(id)));
+    } catch (e) {
+      console.error("Error getting events:", e);
+      return [];
+    }
   }
   
   public async getEventById(id: string): Promise<any> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.getEventById(this.pool, id, connectedRelays);
+    try {
+      // Implement our own temporary version
+      return new Promise((resolve, reject) => {
+        const sub = this.subscribe([{kinds: [1], ids: [id]}], (event) => {
+          resolve(event);
+          this.unsubscribe(sub);
+        }, connectedRelays);
+        
+        // Set timeout
+        setTimeout(() => {
+          this.unsubscribe(sub);
+          reject(new Error(`Timeout fetching event ${id}`));
+        }, 5000);
+      });
+    } catch (e) {
+      console.error(`Error getting event ${id}:`, e);
+      return null;
+    }
   }
   
   public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, connectedRelays);
+    try {
+      // Implement our own temporary version
+      return new Promise((resolve) => {
+        const profiles: Record<string, any> = {};
+        const sub = this.subscribe([{kinds: [0], authors: pubkeys}], (event) => {
+          if (event.kind === 0 && event.pubkey) {
+            try {
+              profiles[event.pubkey] = JSON.parse(event.content);
+            } catch (e) {
+              console.error("Error parsing profile:", e);
+            }
+          }
+        }, connectedRelays);
+        
+        // Set timeout
+        setTimeout(() => {
+          this.unsubscribe(sub);
+          resolve(profiles);
+        }, 3000);
+      });
+    } catch (e) {
+      console.error("Error getting profiles:", e);
+      return {};
+    }
   }
   
-  // Profile methods
   public async getUserProfile(pubkey: string): Promise<any> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.getUserProfile(this.pool, pubkey, connectedRelays);
+    const profiles = await this.getProfilesByPubkeys([pubkey]);
+    return profiles[pubkey] || null;
   }
   
   public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    return this.eventManager.verifyNip05(identifier, expectedPubkey);
+    try {
+      const [name, domain] = identifier.split('@');
+      if (!name || !domain) return false;
+      
+      const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data && data.names && data.names[name] === expectedPubkey) {
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      console.error("Error verifying NIP-05:", e);
+      return false;
+    }
   }
   
   private async fetchFollowingList(): Promise<void> {

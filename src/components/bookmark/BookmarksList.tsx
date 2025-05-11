@@ -1,4 +1,3 @@
-
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
 import { BookmarkCollection, BookmarkWithMetadata } from "@/lib/nostr/bookmark";
@@ -162,8 +161,10 @@ export function BookmarksList({
         {paginatedEvents.map(event => {
           // Find metadata for this event
           const metadata = bookmarkMetadata.find(meta => meta.eventId === event.id);
-          const collection = metadata?.collectionId 
-            ? collections.find(c => c.id === metadata.collectionId)
+          // Fixed code to handle optional collectionId
+          const collectionId = metadata?.collectionId;
+          const collection = collectionId 
+            ? collections.find(c => c.id === collectionId)
             : null;
             
           return (

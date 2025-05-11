@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { BookmarkManagerFacade } from '../bookmark';
 import { BookmarkService } from './bookmark-service';
@@ -72,13 +72,15 @@ export class NostrService {
     return relayStatus.map(relay => relay.url);
   }
 
-  getRelayStatus(): { url: string; status: string }[] {
+  getRelayStatus(): { url: string; status: string; read?: boolean; write?: boolean }[] {
     try {
       // Access pool.relays safely using Object.entries
       const relayEntries = Object.entries((this.pool as any).relays || {});
       return relayEntries.map(([url, relay]) => ({
         url,
-        status: (relay as any).status || 'unknown'
+        status: (relay as any).status || 'unknown',
+        read: true,
+        write: true
       }));
     } catch (e) {
       console.error("Error getting relay status:", e);
@@ -109,13 +111,13 @@ export class NostrService {
     return defaultRelays;
   }
 
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+  subscribe(filters: Filter[], onEvent: (event: any) => void, relays?: string[]): string {
     const relayUrls = relays || this.getRelayUrls();
     // Use pool directly for subscription
     try {
-      const subscription = this.pool.subscribe(relayUrls, filters);
-      subscription.on('event', onEvent);
-      return subscription.sub;
+      const sub = this.pool.sub(relayUrls, filters);
+      sub.on('event', onEvent);
+      return sub.sub;
     } catch (e) {
       console.error("Error creating subscription:", e);
       return "";
@@ -127,10 +129,28 @@ export class NostrService {
     this.pool.close([subId]);
   }
 
+  // Implement event methods by delegating to EventManager when possible
+  // or implementing temporarily ourselves
+  
   async getEventById(id: string): Promise<any | null> {
     const relays = this.getRelayUrls();
     try {
-      return await this.eventManager.getEventById(this.pool, id, relays);
+      return new Promise((resolve, reject) => {
+        const sub = this.pool.sub(relays, [{ids: [id]}]);
+        
+        sub.on('event', (event) => {
+          if (event.id === id) {
+            sub.unsub();
+            resolve(event);
+          }
+        });
+        
+        // Set timeout to reject after 5 seconds
+        setTimeout(() => {
+          sub.unsub();
+          reject(new Error(`Timeout fetching event ${id}`));
+        }, 5000);
+      });
     } catch (e) {
       console.error(`Error getting event ${id}:`, e);
       return null;
@@ -140,7 +160,20 @@ export class NostrService {
   async getEvents(ids: string[]): Promise<any[]> {
     const relays = this.getRelayUrls();
     try {
-      return await this.eventManager.getEvents(this.pool, ids, relays);
+      return new Promise((resolve) => {
+        const events: any[] = [];
+        const sub = this.pool.sub(relays, [{ids}]);
+        
+        sub.on('event', (event) => {
+          events.push(event);
+        });
+        
+        // Set timeout to resolve after 3 seconds
+        setTimeout(() => {
+          sub.unsub();
+          resolve(events);
+        }, 3000);
+      });
     } catch (e) {
       console.error("Error getting events:", e);
       return [];
@@ -150,7 +183,26 @@ export class NostrService {
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const relays = this.getRelayUrls();
     try {
-      return await this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, relays);
+      return new Promise((resolve) => {
+        const profiles: Record<string, any> = {};
+        const sub = this.pool.sub(relays, [{kinds: [0], authors: pubkeys}]);
+        
+        sub.on('event', (event) => {
+          try {
+            if (event.kind === 0) {
+              profiles[event.pubkey] = JSON.parse(event.content);
+            }
+          } catch (error) {
+            console.error('Error parsing profile:', error);
+          }
+        });
+        
+        // Set timeout to resolve after 3 seconds
+        setTimeout(() => {
+          sub.unsub();
+          resolve(profiles);
+        }, 3000);
+      });
     } catch (e) {
       console.error("Error getting profiles:", e);
       return {};
@@ -159,19 +211,25 @@ export class NostrService {
 
   // Get a single user profile
   async getUserProfile(pubkey: string): Promise<any> {
-    const relays = this.getRelayUrls();
-    try {
-      return await this.eventManager.getUserProfile(this.pool, pubkey, relays);
-    } catch (e) {
-      console.error(`Error getting profile for ${pubkey}:`, e);
-      return null;
-    }
+    const profiles = await this.getProfilesByPubkeys([pubkey]);
+    return profiles[pubkey] || null;
   }
 
   // Verify NIP-05 identifier
   async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
     try {
-      return await this.eventManager.verifyNip05(identifier, pubkey);
+      const [name, domain] = identifier.split('@');
+      if (!name || !domain) return false;
+      
+      const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data && data.names && data.names[name] === pubkey) {
+        return true;
+      }
+      
+      return false;
     } catch (e) {
       console.error("Error verifying NIP-05:", e);
       return false;
@@ -229,9 +287,3 @@ export class NostrService {
     }
   }
 }
-
-// Export the types needed by the service
-export type { BookmarkService };
-
-// Create a singleton instance
-export const nostrService = new NostrService();

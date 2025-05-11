@@ -40,7 +40,7 @@ const ProfileRelaysDialog = ({
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
         if (onRelaysChange) {
-          onRelaysChange(relayStatus);
+          onRelaysChange(relayStatus as Relay[]);
         }
       } else {
         toast.error(`Failed to add relay: ${newRelayUrl}`);
@@ -58,7 +58,7 @@ const ProfileRelaysDialog = ({
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
     if (onRelaysChange) {
-      onRelaysChange(relayStatus);
+      onRelaysChange(relayStatus as Relay[]);
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
@@ -80,15 +80,15 @@ const ProfileRelaysDialog = ({
       }
       
       // Add all found relays
-      const success = await nostrService.addMultipleRelays(userRelays);
+      const successCount = await nostrService.addMultipleRelays(userRelays);
       
-      // Fix the boolean to number comparison
-      if (success) {
-        toast.success(`Added relays from ${userNpub}`);
+      // Check if any relays were added successfully
+      if (successCount > 0) {
+        toast.success(`Added ${successCount} relays from ${userNpub}`);
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
         if (onRelaysChange) {
-          onRelaysChange(relayStatus);
+          onRelaysChange(relayStatus as Relay[]);
         }
       } else {
         toast.error("Failed to add any relays");

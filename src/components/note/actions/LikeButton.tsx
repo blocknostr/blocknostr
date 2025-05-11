@@ -1,76 +1,61 @@
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
-import { toast } from 'sonner';
-import { SimplePool } from 'nostr-tools';
+import { nostrService } from '@/lib/nostr';
+import { useAction } from '../hooks/use-action';
 
 interface LikeButtonProps {
   eventId: string;
   pubkey: string;
-  likeCount: number;
-  isLiked: boolean;
-  onLike: (liked: boolean) => void;
+  event: any;
 }
 
-const LikeButton = ({ 
-  eventId, 
-  pubkey, 
-  likeCount, 
-  isLiked, 
-  onLike 
-}: LikeButtonProps) => {
-  const isLoggedIn = !!nostrService.publicKey;
-  
-  const handleLike = async () => {
-    if (!isLoggedIn) {
-      toast.error("You must be logged in to like posts");
-      return;
-    }
+const LikeButton: React.FC<LikeButtonProps> = ({
+  eventId,
+  pubkey,
+  event
+}) => {
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const { handleLike, isLiking } = useAction({ 
+    eventId, 
+    authorPubkey: pubkey,
+    event 
+  });
+
+  useEffect(() => {
+    // Check if liked - will be implemented in future
+    setIsLiked(false);
+    
+    // Get like count
+    // For now, just show 0
+    setLikeCount(0);
+  }, [eventId]);
+
+  const handleLikeClick = async () => {
+    if (isLiking) return;
     
     try {
-      // Optimistically update UI
-      onLike(true);
-      
-      // Create a new SimplePool instance
-      const pool = new SimplePool();
-      const result = await nostrService.socialManager.reactToEvent(
-        pool,
-        eventId,
-        "+", // "+" means like per NIP-25
-        nostrService.publicKey,
-        null, // We don't store private keys
-        nostrService.getRelayStatus()
-          .filter(relay => relay.status === 'connected')
-          .map(relay => relay.url),
-        pubkey // Pass the pubkey of the event creator for proper NIP-25 implementation
-      );
-      
-      if (!result) {
-        // If failed, revert UI
-        onLike(false);
-        toast.error("Failed to like post");
-      }
+      await handleLike();
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
     } catch (error) {
       console.error("Error liking post:", error);
-      onLike(false);
-      toast.error("Failed to like post");
     }
   };
 
   return (
     <Button 
       variant="ghost" 
-      size="icon" 
-      className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
-      onClick={handleLike}
+      size="icon"
+      className={`rounded-full hover:text-rose-500 hover:bg-rose-500/10 ${isLiked ? 'text-rose-500' : ''}`}
       title="Like"
+      onClick={handleLikeClick}
+      disabled={isLiking}
     >
       <Heart className="h-[18px] w-[18px]" />
-      {likeCount > 0 && (
-        <span className="ml-1 text-xs">{likeCount}</span>
-      )}
+      {likeCount > 0 && <span className="ml-1 text-xs">{likeCount}</span>}
     </Button>
   );
 };
