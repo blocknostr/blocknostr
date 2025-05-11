@@ -24,23 +24,25 @@ function App() {
       <NavigationProvider>
         <RightSidebarProvider>
           <div className="flex flex-col min-h-screen">
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/profile/:pubkey" element={<ProfilePage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/communities" element={<CommunitiesPage />} />
-                <Route path="/communities/:id" element={<CommunityPage />} />
-                <Route path="/messages" element={<MessagesPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/post/:id" element={<PostPage />} />
-                <Route path="/notebin" element={<NotebinPage />} />
-                <Route path="/wallets" element={<WalletsPage />} />
-                <Route path="/premium" element={<PremiumPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AppLayout>
+            <main className="flex-1">
+              <AppLayout>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/:pubkey" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/communities" element={<CommunitiesPage />} />
+                  <Route path="/communities/:id" element={<CommunityPage />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/post/:id" element={<PostPage />} />
+                  <Route path="/notebin" element={<NotebinPage />} />
+                  <Route path="/wallets" element={<WalletsPage />} />
+                  <Route path="/premium" element={<PremiumPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AppLayout>
+            </main>
             <Toaster position="bottom-right" closeButton />
           </div>
         </RightSidebarProvider>

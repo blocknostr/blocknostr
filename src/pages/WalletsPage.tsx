@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import PageHeader from "@/components/navigation/PageHeader";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
-import WalletInfo from "@/components/wallet/WalletInfo";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 import { Card } from "@/components/ui/card";
 import { nostrService } from "@/lib/nostr";
@@ -47,9 +45,7 @@ const WalletsPage = () => {
   };
 
   return (
-    <>
-      <PageHeader title="Wallet" showBackButton={true} />
-      
+    <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
           <div className="relative">
@@ -74,7 +70,6 @@ const WalletsPage = () => {
             )}
             
             <WalletConnectButton />
-            <WalletInfo />
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
@@ -140,7 +135,7 @@ const WalletsPage = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
