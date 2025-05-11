@@ -1,11 +1,4 @@
-import { SimplePool, type Event } from 'nostr-tools';
-import { NostrEvent } from '../types';
-import { EVENT_KINDS } from '../constants';
 
-/**
- * Manages event publishing, subscription, and retrieval
- */
-export class EventManager {
   /**
    * Publish an event to specified relays
    */
@@ -23,12 +16,14 @@ export class EventManager {
       }
       
       // Ensure the event has the required fields
-      const signedEvent: NostrEvent = {
+      const signedEvent = {
         kind: event.kind || 1,
         pubkey: publicKey,
         content: event.content || '',
         created_at: Math.floor(Date.now() / 1000),
         tags: event.tags || [],
+        id: '', // Will be filled by the extension
+        sig: '', // Will be filled by the extension
       };
       
       // Sign the event using the window.nostr extension
@@ -39,36 +34,22 @@ export class EventManager {
             return;
           }
           
+          // Use publish method to broadcast to relays
           const pub = pool.publish(relays, signed);
           
-          let completedRelays = 0;
-          let success = false;
-          
-          pub.on('ok', (relay: string) => {
-            console.log(`Event sent to relay ${relay}`);
-            completedRelays++;
-            success = true;
-            if (completedRelays === relays.length) {
-              resolve(signedEvent.id || null);
-            }
-          });
-          
-          pub.on('failed', (relay: string) => {
-            console.log(`Failed to send to ${relay}`);
-            completedRelays++;
-            if (completedRelays === relays.length && !success) {
-              reject(new Error("Failed to publish event to any relay"));
-            }
-          });
-          
-          // Set a timeout to resolve even if some relays fail
-          setTimeout(() => {
-            if (completedRelays < relays.length && success) {
-              resolve(signedEvent.id || null);
-            } else if (completedRelays === relays.length && !success) {
-              reject(new Error("Failed to publish event to any relay"));
-            }
+          // Set timeout to resolve after reasonable time
+          const timeout = setTimeout(() => {
+            resolve(signedEvent.id || null);
           }, 5000);
+          
+          // Clean up timeout when done
+          pub.then(() => {
+            clearTimeout(timeout);
+            resolve(signedEvent.id || null);
+          }).catch(err => {
+            clearTimeout(timeout);
+            reject(err);
+          });
         })
         .catch(err => {
           console.error("Error signing event:", err);
@@ -76,49 +57,14 @@ export class EventManager {
         });
     });
   }
-  
-  /**
-   * Publish profile metadata event (kind 0)
-   */
-  async publishProfileMetadata(
-    pool: SimplePool,
-    publicKey: string | null,
-    privateKey: string | null | undefined,
-    metadata: Record<string, any>,
-    relays: string[]
-  ): Promise<boolean> {
-    if (!publicKey) {
-      console.error("Cannot publish profile: No public key provided");
-      return false;
-    }
-    
-    const event = {
-      kind: EVENT_KINDS.METADATA,
-      content: JSON.stringify(metadata),
-      tags: []
-    };
-    
-    try {
-      await this.publishEvent(pool, publicKey, privateKey, event, relays);
-      return true;
-    } catch (e) {
-      console.error("Error publishing profile:", e);
-      return false;
-    }
-  }
 
-  /**
-   * Subscribe to events using filters
-   * Returns a subscription ID that can be used to unsubscribe
-   */
+  // Fix other subscription methods using proper SimplePool API
   subscribeToEvents(pool: SimplePool, filters: any[], relays: string[]): { sub: string, unsubscribe: () => void } {
     try {
-      // Fix the subscription to use proper SimplePool API
-      const subscription = pool.sub(relays, filters);
-      
+      const sub = pool.subscribe(relays, filters);
       return {
-        sub: subscription.sub,
-        unsubscribe: () => subscription.unsub()
+        sub: 'subscription-' + Math.random().toString(36).substring(2, 10),
+        unsubscribe: () => sub.close()
       };
     } catch (error) {
       console.error('Error subscribing to events:', error);
@@ -129,102 +75,73 @@ export class EventManager {
     }
   }
 
-  /**
-   * Get profile metadata for multiple users
-   */
+  // Fix getProfilesByPubkeys 
   async getProfilesByPubkeys(pool: SimplePool, pubkeys: string[], relays: string[]): Promise<Record<string, any>> {
     return new Promise((resolve) => {
       const profiles: Record<string, any> = {};
-      const sub = pool.sub(relays, [{kinds: [0], authors: pubkeys}]);
       
-      sub.on('event', (event) => {
-        try {
-          if (event.kind === 0) {
-            profiles[event.pubkey] = JSON.parse(event.content);
+      const sub = pool.subscribe(relays, [{kinds: [EVENT_KINDS.METADATA], authors: pubkeys}], {
+        onevent: (event) => {
+          try {
+            if (event.kind === EVENT_KINDS.METADATA) {
+              profiles[event.pubkey] = JSON.parse(event.content);
+            }
+          } catch (error) {
+            console.error('Error parsing profile:', error);
           }
-        } catch (error) {
-          console.error('Error parsing profile:', error);
         }
       });
       
       // Set timeout to resolve after 3 seconds
       setTimeout(() => {
-        sub.unsub();
+        sub.close();
         resolve(profiles);
       }, 3000);
     });
   }
 
-  /**
-   * Get events by IDs
-   */
+  // Fix getEvents
   async getEvents(pool: SimplePool, ids: string[], relays: string[]): Promise<any[]> {
     return new Promise((resolve) => {
       const events: any[] = [];
-      const sub = pool.sub(relays, [{ids}]);
       
-      sub.on('event', (event) => {
-        events.push(event);
+      const sub = pool.subscribe(relays, [{ids}], {
+        onevent: (event) => {
+          events.push(event);
+        }
       });
       
       // Set timeout to resolve after 3 seconds
       setTimeout(() => {
-        sub.unsub();
+        sub.close();
         resolve(events);
       }, 3000);
     });
   }
 
-  /**
-   * Get a single event by ID
-   */
+  // Fix getEventById
   async getEventById(pool: SimplePool, id: string, relays: string[]): Promise<any> {
     return new Promise((resolve, reject) => {
-      const sub = pool.sub(relays, [{ids: [id]}]);
+      let foundEvent: any = null;
       
-      sub.on('event', (event) => {
-        if (event.id === id) {
-          sub.unsub();
-          resolve(event);
+      const sub = pool.subscribe(relays, [{ids: [id]}], {
+        onevent: (event) => {
+          if (event.id === id) {
+            foundEvent = event;
+            sub.close();
+            resolve(event);
+          }
         }
       });
       
       // Set timeout to reject after 5 seconds
       setTimeout(() => {
-        sub.unsub();
-        reject(new Error(`Timeout fetching event ${id}`));
+        sub.close();
+        if (foundEvent) {
+          resolve(foundEvent);
+        } else {
+          reject(new Error(`Timeout fetching event ${id}`));
+        }
       }, 5000);
     });
   }
-
-  /**
-   * Get a user profile
-   */
-  async getUserProfile(pool: SimplePool, pubkey: string, relays: string[]): Promise<any> {
-    const profiles = await this.getProfilesByPubkeys(pool, [pubkey], relays);
-    return profiles[pubkey] || null;
-  }
-
-  /**
-   * Verify a NIP-05 identifier
-   */
-  async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
-    try {
-      const [name, domain] = identifier.split('@');
-      if (!name || !domain) return false;
-      
-      const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data && data.names && data.names[name] === pubkey) {
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Error verifying NIP-05:', error);
-      return false;
-    }
-  }
-}

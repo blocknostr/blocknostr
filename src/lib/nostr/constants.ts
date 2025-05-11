@@ -1,37 +1,31 @@
 
-// Define all standard Nostr event kinds used in the application
 export const EVENT_KINDS = {
-  META: 0,               // Metadata - NIP-01
-  TEXT_NOTE: 1,          // Short text note - NIP-01
-  RECOMMEND_RELAY: 2,    // Recommend relay - NIP-01
-  CONTACTS: 3,           // Contact list - NIP-02
-  ENCRYPTED_DM: 4,       // Encrypted direct message - NIP-04 (deprecated, use 14)
-  DELETE: 5,             // Delete - NIP-09
-  REPOST: 6,             // Repost - NIP-18
-  REACTION: 7,           // Reaction - NIP-25
-  BADGE_AWARD: 8,        // Badge award - NIP-58
-  ENCRYPTED_DM_V2: 14,   // Encrypted direct message - NIP-17 (replaces kind:4)
-  RELAY_LIST: 10002,     // Relay list metadata - NIP-65
-  COMMUNITY: 34550,      // Communities - NIP-172
-  BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51
-  BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST (NIP-51)
-  MUTE_LIST: 10000,      // NIP-51 Mute List
-  BLOCK_LIST: 16462,     // Custom kind for Block List (following NIP-51 pattern)
-  PROPOSAL: 34551,       // Custom kind for proposals
-  VOTE: 34552,           // Custom kind for votes
-  COMMENT: 34553,        // Custom kind for comments
-  KICK_PROPOSAL: 34554,  // Custom kind for kick proposals
-  KICK_VOTE: 34555,      // Custom kind for kick votes
-  COMMUNITY_METADATA: 34556, // Community guidelines, rules, etc
-  COMMUNITY_INVITE: 34557,   // Community invite links
-  COMMUNITY_ROLE: 34558,     // Role assignments within communities
-  COMMUNITY_ACTIVITY: 34559, // Member activity tracking
+  META: 0, // Profile metadata (NIP-01)
+  METADATA: 0, // Alias for META for compatibility
+  TEXT_NOTE: 1, // Text note (NIP-01)
+  RECOMMEND_RELAY: 2, // Recommend relay (NIP-01)
+  CONTACTS: 3, // Contacts/Following list (NIP-02)
+  ENCRYPTED_DM: 4, // Encrypted direct message (NIP-04)
+  DELETE: 5, // Delete event (NIP-09)
+  REPOST: 6, // Repost event (NIP-18)
+  REACTION: 7, // Reaction event (NIP-25)
+  BADGE_AWARD: 8, // Badge award (NIP-58)
+  ENCRYPTED_DM_V2: 14, // Encrypted direct message v2 (NIP-44)
   
-  // Application specific kinds (30000-39999 range)
-  BOOKMARK_COLLECTIONS: 30001, // Bookmark collections (Application specific)
-  BOOKMARK_METADATA: 30002,    // Bookmark metadata with tags, notes (Application specific)
+  // Parameterized replaceable events (NIP-33)
+  EVENT_APP: 30000, // Generic application-specific event
+  BOOKMARKS: 30001, // Bookmarks list (per NIP-51)
+  COMMUNITIES: 30002, // User communities
+  BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
+  BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
   
-  BADGES: 30009,         // Badge definition - NIP-58
-  ZAP_REQUEST: 9734,     // Zap Request - NIP-57
-  ZAP_RECEIPT: 9735      // Zap Receipt - NIP-57
-};
+  // Specialized events (NIP-22, NIP-40)
+  CHANNEL_CREATION: 40, // Channel creation
+  CHANNEL_METADATA: 41, // Channel metadata
+  CHANNEL_MESSAGE: 42, // Channel message
+  
+  LONG_FORM: 30023, // Long-form content (NIP-23)
+  
+  ZAP_REQUEST: 9734, // Zap request (NIP-57)
+  ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
+}

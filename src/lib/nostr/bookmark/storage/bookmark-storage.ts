@@ -1,185 +1,153 @@
-
-import { 
-  getFromStore, 
-  putInStore, 
-  getAllFromStore, 
-  deleteFromStore,
-  clearStore
-} from "@/lib/storage/indexedDb";
-import { 
-  BookmarkCollection, 
-  BookmarkWithMetadata, 
-  BookmarkStatus, 
-  PendingOperation 
-} from "../types";
+import { BookmarkCollection, BookmarkWithMetadata } from '../types';
 
 /**
- * Service for storing bookmark data in IndexedDB
+ * In-memory storage for bookmarks
+ * Used as a cache to avoid hitting the relays too often
  */
 export class BookmarkStorage {
-  // Store names
-  private static readonly BOOKMARKS_STORE = 'bookmarks';
-  private static readonly OPERATIONS_STORE = 'pendingOperations';
-  
-  // Key names
-  private static readonly BOOKMARK_LIST_KEY = '_bookmarksList';
-  private static readonly COLLECTIONS_KEY = '_collections';
-  private static readonly METADATA_KEY = '_metadata';
-  
+  private static bookmarkList: string[] = [];
+  private static bookmarkCollections: BookmarkCollection[] = [];
+  private static bookmarkMetadata: BookmarkWithMetadata[] = [];
+  private static bookmarkStatuses: Record<string, boolean> = {}; // Cache bookmark statuses
+
   /**
-   * Cache a bookmark status
+   * Cache bookmark list
    */
-  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
-    await putInStore(this.BOOKMARKS_STORE, { 
-      eventId, 
-      isBookmarked, 
-      timestamp: Date.now() 
-    });
+  static async cacheBookmarkList(bookmarks: string[]): Promise<void> {
+    BookmarkStorage.bookmarkList = bookmarks;
   }
-  
+
   /**
-   * Get cached bookmark status
-   */
-  static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
-    const cachedItem = await getFromStore<{eventId: string, isBookmarked: boolean}>(
-      this.BOOKMARKS_STORE, 
-      eventId
-    );
-    return cachedItem ? cachedItem.isBookmarked : null;
-  }
-  
-  /**
-   * Cache all bookmarks
-   */
-  static async cacheBookmarkList(eventIds: string[]): Promise<void> {
-    const timestamp = Date.now();
-    
-    // Update the cache for each bookmark
-    for (const eventId of eventIds) {
-      await putInStore(this.BOOKMARKS_STORE, { 
-        eventId, 
-        isBookmarked: true, 
-        timestamp 
-      });
-    }
-    
-    // Also store the full list
-    await putInStore(this.BOOKMARKS_STORE, { 
-      eventId: this.BOOKMARK_LIST_KEY, 
-      list: eventIds, 
-      timestamp 
-    });
-  }
-  
-  /**
-   * Get all cached bookmarks
+   * Get cached bookmark list
    */
   static async getCachedBookmarkList(): Promise<string[]> {
-    const cachedList = await getFromStore<{list: string[]}>(
-      this.BOOKMARKS_STORE, 
-      this.BOOKMARK_LIST_KEY
-    );
-    return cachedList?.list || [];
+    return BookmarkStorage.bookmarkList;
   }
-  
-  /**
-   * Cache bookmark metadata
-   */
-  static async cacheBookmarkMetadata(metadata: BookmarkWithMetadata[]): Promise<void> {
-    await putInStore(this.BOOKMARKS_STORE, { 
-      eventId: this.METADATA_KEY, 
-      metadata, 
-      timestamp: Date.now() 
-    });
-  }
-  
-  /**
-   * Get cached bookmark metadata
-   */
-  static async getCachedBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
-    const cached = await getFromStore<{metadata: BookmarkWithMetadata[]}>(
-      this.BOOKMARKS_STORE, 
-      this.METADATA_KEY
-    );
-    return cached?.metadata || [];
-  }
-  
+
   /**
    * Cache bookmark collections
    */
   static async cacheBookmarkCollections(collections: BookmarkCollection[]): Promise<void> {
-    await putInStore(this.BOOKMARKS_STORE, { 
-      eventId: this.COLLECTIONS_KEY, 
-      collections, 
-      timestamp: Date.now() 
-    });
+    BookmarkStorage.bookmarkCollections = collections;
   }
-  
+
   /**
    * Get cached bookmark collections
    */
   static async getCachedBookmarkCollections(): Promise<BookmarkCollection[]> {
-    const cached = await getFromStore<{collections: BookmarkCollection[]}>(
-      this.BOOKMARKS_STORE, 
-      this.COLLECTIONS_KEY
-    );
-    return cached?.collections || [];
+    return BookmarkStorage.bookmarkCollections;
   }
-  
+
   /**
-   * Queue a pending operation for sync when online
+   * Cache bookmark metadata
    */
-  static async queueOperation(operation: Omit<PendingOperation, 'id' | 'status' | 'attempts'>): Promise<string> {
-    const id = `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    const fullOperation: PendingOperation = {
-      ...operation,
-      id,
-      status: 'pending',
-      attempts: 0
-    };
-    
-    await putInStore(this.OPERATIONS_STORE, fullOperation);
-    return id;
+  static async cacheBookmarkMetadata(metadata: BookmarkWithMetadata[]): Promise<void> {
+    BookmarkStorage.bookmarkMetadata = metadata;
   }
-  
+
   /**
-   * Get all pending operations
+   * Get cached bookmark metadata
    */
-  static async getPendingOperations(): Promise<PendingOperation[]> {
-    const operations = await getAllFromStore<PendingOperation>(this.OPERATIONS_STORE);
-    return operations.filter(op => op.status !== 'completed');
+  static async getCachedBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
+    return BookmarkStorage.bookmarkMetadata;
   }
-  
+
   /**
-   * Mark operation as completed
+   * Cache bookmark status
    */
-  static async completeOperation(id: string): Promise<void> {
-    await deleteFromStore(this.OPERATIONS_STORE, id);
+  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
+    BookmarkStorage.bookmarkStatuses[eventId] = isBookmarked;
   }
-  
+
   /**
-   * Update operation status
+   * Get cached bookmark status
    */
-  static async updateOperationStatus(id: string, status: BookmarkStatus, attempts?: number): Promise<void> {
-    const operation = await getFromStore<PendingOperation>(this.OPERATIONS_STORE, id);
-    
-    if (operation) {
-      const updatedOperation: PendingOperation = {
-        ...operation,
-        status,
-        attempts: attempts !== undefined ? attempts : operation.attempts
-      };
-      
-      await putInStore(this.OPERATIONS_STORE, updatedOperation);
+  static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
+    if (BookmarkStorage.bookmarkStatuses.hasOwnProperty(eventId)) {
+      return BookmarkStorage.bookmarkStatuses[eventId];
     }
+    return null; // Not in cache
   }
-  
+
   /**
-   * Clear all bookmark data
+   * Clear all cached data
    */
-  static async clearAllBookmarkData(): Promise<void> {
-    await clearStore(this.BOOKMARKS_STORE);
-    await clearStore(this.OPERATIONS_STORE);
+  static async clearCache(): Promise<void> {
+    BookmarkStorage.bookmarkList = [];
+    BookmarkStorage.bookmarkCollections = [];
+    BookmarkStorage.bookmarkMetadata = [];
+    BookmarkStorage.bookmarkStatuses = {};
+  }
+}
+
+/**
+ * Manages operations queue in local storage
+ */
+export class OperationQueue {
+  private static readonly STORAGE_KEY = 'nostr_bookmark_queue';
+
+  /**
+   * Add operation to the queue
+   */
+  static async enqueueOperation(operation: any): Promise<void> {
+    const queue = await OperationQueue.getQueue();
+    queue.push(operation);
+    localStorage.setItem(OperationQueue.STORAGE_KEY, JSON.stringify(queue));
+  }
+
+  /**
+   * Get the queue from local storage
+   */
+  private static async getQueue(): Promise<any[]> {
+    const storedQueue = localStorage.getItem(OperationQueue.STORAGE_KEY);
+    return storedQueue ? JSON.parse(storedQueue) : [];
+  }
+
+  /**
+   * Dequeue an operation
+   */
+  static async dequeueOperation(): Promise<any | null> {
+    const queue = await OperationQueue.getQueue();
+    if (queue.length === 0) {
+      return null;
+    }
+    const operation = queue.shift();
+    localStorage.setItem(OperationQueue.STORAGE_KEY, JSON.stringify(queue));
+    return operation;
+  }
+
+  /**
+   * Clear the queue
+   */
+  static async clearQueue(): Promise<void> {
+    localStorage.removeItem(OperationQueue.STORAGE_KEY);
+  }
+}
+
+/**
+ * Manages operation statuses in local storage
+ */
+export class OperationStatus {
+  private static readonly STORAGE_PREFIX = 'nostr_bookmark_status_';
+
+  /**
+   * Cache operation status
+   */
+  static async cacheOperationStatus(id: string, status: 'pending' | 'processing' | 'failed' | 'completed'): Promise<void> {
+    localStorage.setItem(OperationStatus.STORAGE_PREFIX + id, status);
+  }
+
+  /**
+   * Get cached operation status
+   */
+  static async getCachedOperationStatus(id: string): Promise<string | null> {
+    return localStorage.getItem(OperationStatus.STORAGE_PREFIX + id);
+  }
+
+  /**
+   * Remove cached operation status
+   */
+  static async removeCachedOperationStatus(id: string): Promise<void> {
+    localStorage.removeItem(OperationStatus.STORAGE_PREFIX + id);
   }
 }

@@ -33,7 +33,7 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
     }
   }, [eventId, pendingOperations]);
 
-  const addToPendingOperations = useCallback((operation: Omit<QueuedOperation, 'data'> & { data: any }) => {
+  const addToPendingOperations = useCallback((operation: QueuedOperation) => {
     setPendingOperations(prev => {
       // Check if we already have this operation
       const exists = prev.some(
@@ -45,10 +45,7 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
         return prev;
       }
       
-      return [...prev, {
-        ...operation,
-        timestamp: Date.now()
-      }];
+      return [...prev, operation];
     });
   }, [setPendingOperations]);
 
@@ -83,7 +80,8 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
             data: { 
               eventId,
               timestamp: Date.now()
-            }
+            },
+            timestamp: Date.now()
           });
           
           toast.success("Bookmark added (offline mode)");

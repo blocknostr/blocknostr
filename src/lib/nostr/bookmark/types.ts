@@ -19,10 +19,11 @@ export interface BookmarkCollection {
 
 export interface BookmarkWithMetadata {
   eventId: string;
-  metadataId: string;
-  collectionId?: string; // Add this to fix errors
-  tags: string[];
+  metadataId?: string;
+  collectionId?: string;
+  tags?: string[];
   note?: string;
+  createdAt?: number;
 }
 
 export type BookmarkStatus = 'bookmarked' | 'not_bookmarked';
@@ -44,7 +45,7 @@ export interface PendingOperation {
   timestamp: number;
 }
 
-// Fix for QueuedOperation
+// Define QueuedOperation
 export interface QueuedOperation {
   type: "add" | "remove" | "addCollection";
   data: any;
@@ -60,5 +61,6 @@ export interface BookmarkManagerDependencies {
 export enum BookmarkEventKinds {
   BOOKMARKS = 30001,
   BOOKMARK_COLLECTIONS = 30003,
-  BOOKMARK_METADATA = 30004
+  BOOKMARK_METADATA = 30004,
+  DELETE = 5 // Add DELETE event kind
 }

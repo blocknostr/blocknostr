@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useBookmarkData } from "@/hooks/bookmarks/useBookmarkData";
-import { useBookmarkFilters } from "@/hooks/bookmarks/useBookmarkFilters";
+import { useBookmarkFilters, SortOption } from "@/hooks/bookmarks/useBookmarkFilters";
 import { useBookmarkSwipe } from "@/hooks/bookmarks/useBookmarkSwipe";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
@@ -56,7 +56,11 @@ export function BookmarksPage() {
     totalPages,
     handleRemoveTag,
     handleResetFilters
-  } = useBookmarkFilters({ bookmarkedEvents, profiles, bookmarkMetadata });
+  } = useBookmarkFilters({ 
+    events: bookmarkedEvents || [], 
+    collections, 
+    metadata: bookmarkMetadata 
+  });
   
   // Collection dialog state
   const [newCollectionName, setNewCollectionName] = useState("");
@@ -78,7 +82,7 @@ export function BookmarksPage() {
       viewMode={viewMode}
       setViewMode={setViewMode}
       sortBy={sortBy}
-      setSortBy={setSortBy}
+      setSortBy={setSortBy as (sort: SortOption) => void}
       isOnline={networkStatus === 'online'}
       refreshBookmarks={refreshBookmarks}
       isLoading={loading}

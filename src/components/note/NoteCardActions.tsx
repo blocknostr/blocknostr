@@ -25,7 +25,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
   const [isActionLoading, setIsActionLoading] = useState<
     "reply" | "like" | "repost" | "bookmark" | null
   >(null);
-  const { handleLike, handleRepost } = useAction(note, setIsActionLoading);
+  const { handleLike, handleRepost } = useAction(note);
   const navigate = useNavigate();
   
   // Handler for preparing a reply
@@ -98,7 +98,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           {isActionLoading === "bookmark" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Bookmark className="h-4 w-4" />
+            <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`} />
           )}
         </Button>
       </div>

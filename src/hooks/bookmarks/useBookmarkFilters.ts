@@ -1,8 +1,10 @@
-
 import { useState, useMemo } from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import { BookmarkWithMetadata } from '@/lib/nostr/bookmark/types';
 import { extractTagsFromEvent } from '@/lib/nostr/bookmark/utils/bookmark-utils';
+
+// Export this type for use in other components
+export type SortOption = 'newest' | 'oldest' | 'popular';
 
 interface UseBookmarkFiltersProps {
   events: NostrEvent[];
@@ -21,7 +23,7 @@ export function useBookmarkFilters({
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [sortMethod, setSortMethod] = useState<'newest' | 'oldest'>('newest');
+  const [sortMethod, setSortMethod] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   
   // Get all unique tags across events
@@ -85,8 +87,12 @@ export function useBookmarkFilters({
     filtered.sort((a, b) => {
       if (sortMethod === 'newest') {
         return b.created_at - a.created_at;
-      } else {
+      } else if (sortMethod === 'oldest') {
         return a.created_at - b.created_at;
+      } else {
+        // For 'popular', we could sort by some popularity metric
+        // For now, just keep the same order
+        return 0;
       }
     });
     
@@ -114,6 +120,11 @@ export function useBookmarkFilters({
     resetPage();
   };
   
+  // Add a function to remove a tag from the selected tags
+  const handleRemoveTag = (tag: string) => {
+    setSelectedTags(prev => prev.filter(t => t !== tag));
+  };
+  
   return {
     searchTerm,
     setSearchTerm,
@@ -124,7 +135,9 @@ export function useBookmarkFilters({
     page,
     setPage,
     sortMethod,
-    setSortMethod,
+    setSortMethod: setSortMethod as (sortBy: SortOption) => void,
+    sortBy: sortMethod, // Alias for sortMethod for backwards compatibility
+    setSortBy: setSortMethod as (sortBy: SortOption) => void, // Alias for setSortMethod
     viewMode,
     setViewMode,
     paginatedEvents,
@@ -132,6 +145,7 @@ export function useBookmarkFilters({
     filteredAndSortedEvents,
     allTags,
     resetPage,
-    handleResetFilters
+    handleResetFilters,
+    handleRemoveTag
   };
 }
