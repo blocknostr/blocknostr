@@ -5,18 +5,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bold, Italic, Smile, Calendar, Image } from "lucide-react";
+import { Bold, Italic, Smile, Calendar, Image, Loader2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import EmojiPicker from './post/EmojiPicker';
 import MediaUpload from './post/MediaUpload';
+import EnhancedMediaUpload from './post/EnhancedMediaUpload';
 import { formatDistanceToNow } from 'date-fns';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import QuickReplies from './post/QuickReplies';
 
 const CreateNoteForm = () => {
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [showFormatting, setShowFormatting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("compose");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const pubkey = nostrService.publicKey;
@@ -48,6 +53,13 @@ const CreateNoteForm = () => {
       mediaUrls.forEach(url => {
         tags.push(['r', url]);
       });
+      
+      // Extract and add hashtags from content
+      const hashtagRegex = /#(\w+)/g;
+      let match;
+      while ((match = hashtagRegex.exec(content)) !== null) {
+        tags.push(['t', match[1]]);
+      }
       
       // If scheduled, add a p tag with the timestamp
       if (scheduledDate && scheduledDate > new Date()) {
@@ -159,6 +171,10 @@ const CreateNoteForm = () => {
     setMediaUrls(prev => prev.filter(url => url !== urlToRemove));
   };
   
+  const handleQuickReply = (text: string) => {
+    setContent(prev => prev + (prev ? ' ' : '') + text);
+  };
+  
   if (!pubkey) {
     return null;
   }
@@ -173,14 +189,27 @@ const CreateNoteForm = () => {
           <AvatarFallback>{avatarFallback}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="What's happening?"
-            className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0"
-            maxLength={MAX_NOTE_LENGTH}
-          />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="mb-2 grid w-full grid-cols-2">
+              <TabsTrigger value="compose">Compose</TabsTrigger>
+              <TabsTrigger value="templates">Quick Replies</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="compose">
+              <Textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="What's happening?"
+                className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0"
+                maxLength={MAX_NOTE_LENGTH}
+              />
+            </TabsContent>
+            
+            <TabsContent value="templates">
+              <QuickReplies onReplySelected={handleQuickReply} />
+            </TabsContent>
+          </Tabs>
           
           {mediaUrls.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -206,8 +235,8 @@ const CreateNoteForm = () => {
           
           <div className="flex justify-between items-center mt-4">
             <div className="flex gap-2">
-              {/* Media upload button */}
-              <MediaUpload onMediaAdded={handleMediaAdded} />
+              {/* Enhanced Media upload button */}
+              <EnhancedMediaUpload onMediaAdded={handleMediaAdded} />
               
               {/* Emoji picker button */}
               <Popover>
@@ -227,7 +256,7 @@ const CreateNoteForm = () => {
                 variant="ghost" 
                 size="icon" 
                 type="button" 
-                className="rounded-full"
+                className={`rounded-full ${showFormatting ? 'bg-primary/10 text-primary' : ''}`}
                 onClick={() => insertFormatting('bold')}
               >
                 <Bold className="h-5 w-5" />
@@ -299,8 +328,9 @@ const CreateNoteForm = () => {
               <Button 
                 type="submit" 
                 disabled={isSubmitting || content.length === 0 || content.length > MAX_NOTE_LENGTH}
-                className="rounded-full"
+                className="rounded-full flex gap-2"
               >
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {scheduledDate && scheduledDate > new Date() ? 'Schedule' : 'Post'}
               </Button>
             </div>

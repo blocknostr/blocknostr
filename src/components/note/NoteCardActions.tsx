@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2 } from 'lucide-react';
+import { Heart, Repeat, MessageSquare, Share, Bookmark, Trash2, Zap } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import ZapButton from '../post/ZapButton';
 
 interface NoteCardActionsProps {
   eventId: string;
@@ -39,6 +40,10 @@ const NoteCardActions = ({
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [repostCount, setRepostCount] = useState(0);
+  const [zapCount, setZapCount] = useState(0);
+  const [zapAmount, setZapAmount] = useState(0);
+  const [isZapped, setIsZapped] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
   // Check bookmarked status and fetch reaction counts on mount
@@ -75,6 +80,9 @@ const NoteCardActions = ({
         setRepostCount(counts.reposts);
         setIsLiked(counts.userHasLiked);
         setIsReposted(counts.userHasReposted);
+        setZapCount(counts.zaps || 0);
+        setZapAmount(counts.zapAmount || 0);
+        setIsZapped(counts.userHasZapped || false);
         
       } catch (error) {
         console.error("Error fetching reaction counts:", error);
@@ -170,6 +178,17 @@ const NoteCardActions = ({
     }
   };
   
+  // Handle zap
+  const handleZap = (amount: number) => {
+    // Update UI optimistically
+    setIsZapped(true);
+    setZapCount(prev => prev + 1);
+    setZapAmount(prev => prev + amount);
+    
+    // In a real implementation, this would connect to a Lightning wallet
+    console.log(`Zapping ${amount} sats to ${pubkey} for event ${eventId}`);
+  };
+  
   // Use useCallback to prevent unnecessary recreations of the function
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
@@ -234,93 +253,146 @@ const NoteCardActions = ({
     }
   };
   
+  // Toggle detailed stats
+  const toggleStats = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowStats(!showStats);
+  };
+  
   return (
-    <div className="flex items-center justify-between pt-2">
-      <div className="flex items-center space-x-5">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
-          onClick={handleLike}
-          title="Like"
-        >
-          <Heart className="h-[18px] w-[18px]" />
-          {likeCount > 0 && (
-            <span className="ml-1 text-xs">{likeCount}</span>
-          )}
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
-          onClick={handleRepost}
-          title="Repost"
-          disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
-        >
-          <Repeat className="h-[18px] w-[18px]" />
-          {repostCount > 0 && (
-            <span className="ml-1 text-xs">{repostCount}</span>
-          )}
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
-          onClick={handleCommentButtonClick}
-          title="Reply"
-        >
-          <MessageSquare className="h-[18px] w-[18px]" />
-          {replyCount > 0 && (
-            <span className="ml-1 text-xs">{replyCount}</span>
-          )}
-        </Button>
-        
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
-              title="Bookmark"
-              onClick={handleBookmark}
-              disabled={isBookmarkPending}
-            >
-              <Bookmark className="h-[18px] w-[18px]" />
-            </Button>
-          </ContextMenuTrigger>
-          <ContextMenuContent onClick={(e) => e.stopPropagation()}>
-            <ContextMenuItem onClick={(e) => {
-              e.preventDefault();
-              handleBookmark(e as unknown as React.MouseEvent);
-            }}>
-              {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-        
-        {isAuthor && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full hover:text-red-500 hover:bg-red-500/10"
-            onClick={handleDeleteButtonClick}
-            title="Delete"
+    <div className="pt-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-5">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`rounded-full hover:text-primary hover:bg-primary/10 ${isLiked ? 'text-primary' : ''}`}
+            onClick={handleLike}
+            title="Like"
           >
-            <Trash2 className="h-[18px] w-[18px]" />
+            <Heart className="h-[18px] w-[18px]" />
+            {likeCount > 0 && (
+              <span className="ml-1 text-xs">{likeCount}</span>
+            )}
           </Button>
-        )}
+          
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className={`rounded-full hover:text-green-500 hover:bg-green-500/10 ${isReposted ? 'text-green-500' : ''}`}
+            onClick={handleRepost}
+            title="Repost"
+            disabled={!!reposterPubkey && !showRepostHeader} // Disable if already a repost
+          >
+            <Repeat className="h-[18px] w-[18px]" />
+            {repostCount > 0 && (
+              <span className="ml-1 text-xs">{repostCount}</span>
+            )}
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full hover:text-blue-500 hover:bg-blue-500/10"
+            onClick={handleCommentButtonClick}
+            title="Reply"
+          >
+            <MessageSquare className="h-[18px] w-[18px]" />
+            {replyCount > 0 && (
+              <span className="ml-1 text-xs">{replyCount}</span>
+            )}
+          </Button>
+          
+          <ZapButton
+            eventId={eventId}
+            pubkey={pubkey}
+            zapCount={zapCount}
+            zapAmount={zapAmount}
+            userHasZapped={isZapped}
+            onZap={handleZap}
+          />
+          
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
+                title="Bookmark"
+                onClick={handleBookmark}
+                disabled={isBookmarkPending}
+              >
+                <Bookmark className="h-[18px] w-[18px]" />
+              </Button>
+            </ContextMenuTrigger>
+            <ContextMenuContent onClick={(e) => e.stopPropagation()}>
+              <ContextMenuItem onClick={(e) => {
+                e.preventDefault();
+                handleBookmark(e as unknown as React.MouseEvent);
+              }}>
+                {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+          
+          {isAuthor && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:text-red-500 hover:bg-red-500/10"
+              onClick={handleDeleteButtonClick}
+              title="Delete"
+            >
+              <Trash2 className="h-[18px] w-[18px]" />
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-xs text-muted-foreground"
+            onClick={toggleStats}
+          >
+            {showStats ? 'Hide Stats' : 'Stats'}
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full hover:text-primary hover:bg-primary/10"
+            title="Share"
+          >
+            <Share className="h-[18px] w-[18px]" />
+          </Button>
+        </div>
       </div>
       
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="rounded-full hover:text-primary hover:bg-primary/10"
-        title="Share"
-      >
-        <Share className="h-[18px] w-[18px]" />
-      </Button>
+      {showStats && (
+        <div className="mt-2 p-3 bg-muted/30 rounded-md text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-xs text-muted-foreground">Likes</div>
+              <div className="font-medium">{likeCount}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Reposts</div>
+              <div className="font-medium">{repostCount}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Replies</div>
+              <div className="font-medium">{replyCount}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Zaps</div>
+              <div className="font-medium">
+                {zapCount} {zapAmount > 0 && `(${zapAmount.toLocaleString()} sats)`}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
