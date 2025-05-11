@@ -4,26 +4,33 @@ import { useEffect, useRef, useState, useCallback } from "react";
 type UseInfiniteScrollOptions = {
   threshold?: number;
   initialLoad?: boolean;
+  maintainScrollPosition?: boolean;
 };
 
 export const useInfiniteScroll = (
   onLoadMore: () => void,
-  { threshold = 200, initialLoad = true }: UseInfiniteScrollOptions = {}
+  { threshold = 200, initialLoad = true, maintainScrollPosition = true }: UseInfiniteScrollOptions = {}
 ) => {
   const [loading, setLoading] = useState(initialLoad);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
       if (target.isIntersecting && hasMore && !loading) {
+        // Store current scroll position before loading more
+        if (maintainScrollPosition) {
+          scrollPositionRef.current = window.scrollY;
+        }
+        
         setLoading(true);
         onLoadMore();
       }
     },
-    [onLoadMore, hasMore, loading]
+    [onLoadMore, hasMore, loading, maintainScrollPosition]
   );
 
   useEffect(() => {
@@ -46,6 +53,16 @@ export const useInfiniteScroll = (
     };
   }, [handleObserver, threshold]);
 
+  // This effect restores scroll position after loading new content
+  useEffect(() => {
+    if (!loading && maintainScrollPosition && scrollPositionRef.current > 0) {
+      window.scrollTo({
+        top: scrollPositionRef.current,
+        behavior: 'auto'
+      });
+    }
+  }, [loading, maintainScrollPosition]);
+
   // This is the function we're returning, which should match FeedList's prop type
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
     loadMoreRef.current = node;
@@ -60,5 +77,6 @@ export const useInfiniteScroll = (
     setLoading,
     hasMore,
     setHasMore,
+    scrollPosition: scrollPositionRef.current,
   };
 };

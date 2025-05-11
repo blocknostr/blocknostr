@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
@@ -17,6 +17,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loadingFromCache, setLoadingFromCache] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
+  const prevScrollPosition = useRef(0);
   
   const { 
     events, 
@@ -35,6 +36,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   
   const loadMoreEvents = () => {
     if (!subId || following.length === 0) return;
+    
+    // Remember scroll position before loading more
+    prevScrollPosition.current = window.scrollY;
     
     // Close previous subscription
     if (subId) {
@@ -83,7 +87,10 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setLoading,
     hasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    maintainScrollPosition: true 
+  });
 
   // Helper function to load data from cache
   const loadFromCache = (feedType: string, cacheSince?: number, cacheUntil?: number) => {
@@ -113,7 +120,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setEvents(cachedEvents);
         setLoading(false);
       } else {
-        // Otherwise, append unique events
+        // Otherwise, append unique events while preserving scroll position
+        const currentScrollPosition = window.scrollY;
+        
         setEvents(prevEvents => {
           const existingIds = new Set(prevEvents.map(e => e.id));
           const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
@@ -122,6 +131,11 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
           return [...prevEvents, ...newEvents]
             .sort((a, b) => b.created_at - a.created_at);
         });
+        
+        // Restore scroll position after state update
+        setTimeout(() => {
+          window.scrollTo(0, currentScrollPosition);
+        }, 0);
       }
       
       return true;

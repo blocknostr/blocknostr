@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "../NoteCard";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,27 @@ const FeedList: React.FC<FeedListProps> = ({
   loading,
   onRefresh
 }) => {
+  // Use a ref to track if this is the initial render
+  const isInitialRender = useRef(true);
+  const prevEventsLength = useRef(events.length);
+  
+  // This effect prevents scrolling on initial render or when events are refreshed
+  useEffect(() => {
+    if (isInitialRender.current) {
+      // First render - scroll to top
+      window.scrollTo(0, 0);
+      isInitialRender.current = false;
+      return;
+    }
+    
+    // If the number of events decreased (indicating a refresh), scroll to top
+    if (events.length < prevEventsLength.current) {
+      window.scrollTo(0, 0);
+    }
+    
+    prevEventsLength.current = events.length;
+  }, [events]);
+
   return (
     <div className="space-y-4">
       {/* Optional refresh button */}
