@@ -19,8 +19,8 @@ export const useRelayConnection = () => {
         setConnectionStatus('connecting');
         
         // Check if connected to at least one relay
-        const relays = await nostrService.getRelays();
-        const connectedRelay = relays.some(relay => relay.status === 1);
+        const relayStatus = nostrService.getRelayStatus();
+        const connectedRelay = relayStatus.some(relay => relay.status === 'connected');
         
         if (connectedRelay) {
           setConnectionStatus('connected');
@@ -33,8 +33,8 @@ export const useRelayConnection = () => {
           await nostrService.connectToUserRelays();
           
           // Check again after connection attempt
-          const relaysAfterConnect = await nostrService.getRelays();
-          const connectedRelayAfterConnect = relaysAfterConnect.some(relay => relay.status === 1);
+          const relaysAfterConnect = nostrService.getRelayStatus();
+          const connectedRelayAfterConnect = relaysAfterConnect.some(relay => relay.status === 'connected');
           
           if (connectedRelayAfterConnect) {
             setConnectionStatus('connected');
@@ -72,8 +72,8 @@ export const useRelayConnection = () => {
       await nostrService.connectToUserRelays();
       
       // Check if connected
-      const relays = await nostrService.getRelays();
-      const connectedRelay = relays.some(relay => relay.status === 1);
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedRelay = relayStatus.some(relay => relay.status === 'connected');
       
       if (connectedRelay) {
         setConnectionStatus('connected');

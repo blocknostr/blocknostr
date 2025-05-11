@@ -53,7 +53,7 @@ export const useMessageSender = (
       }
       
       // Get full event details
-      const fullEvent = await nostrService.getEvent(messageId);
+      const fullEvent = await nostrService.getEventById(messageId);
       if (fullEvent) {
         // Optimistically add to messages
         setMessages(prev => {
