@@ -195,6 +195,35 @@ export class ContentCache {
     return entry.data;
   }
   
+  // Get events by authors (for following feed)
+  getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
+    if (!authorPubkeys || authorPubkeys.length === 0) {
+      return [];
+    }
+    
+    const result: NostrEvent[] = [];
+    const now = Date.now();
+    const expiry = this.offlineMode ? OFFLINE_CACHE_EXPIRY : CACHE_EXPIRY;
+    
+    // Loop through all cached events and filter by authors
+    this.eventCache.forEach((entry, id) => {
+      // Skip expired entries (unless in offline mode)
+      if (now - entry.timestamp > expiry && !this.offlineMode && !entry.important) {
+        return;
+      }
+      
+      // Check if the event author is in the list of authors we're looking for
+      if (entry.data.pubkey && authorPubkeys.includes(entry.data.pubkey)) {
+        result.push(entry.data);
+      }
+    });
+    
+    // Sort by creation time (newest first)
+    result.sort((a, b) => b.created_at - a.created_at);
+    
+    return result;
+  }
+  
   // Persist important cache items to IndexedDB for offline access
   private persistToStorage(): void {
     try {
