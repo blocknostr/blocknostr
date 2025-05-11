@@ -5,6 +5,7 @@ import MediaPreviewList from './MediaPreviewList';
 import ScheduledIndicator from './ScheduledIndicator';
 import SmartComposeToolbar from './SmartComposeToolbar';
 import NoteFormFooter from './NoteFormFooter';
+import { cn } from '@/lib/utils';
 
 interface NoteFormContentProps {
   content: string;
@@ -56,9 +57,15 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         />
         
         {detectedHashtags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {detectedHashtags.map(tag => (
-              <span key={tag} className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10">
+              <span 
+                key={tag} 
+                className={cn(
+                  "text-xs text-primary px-2 py-1 rounded-full bg-primary/10",
+                  "transition-all hover:bg-primary/15"
+                )}
+              >
                 #{tag}
               </span>
             ))}
@@ -68,18 +75,20 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       
       <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
       
-      <NoteFormFooter
-        textareaRef={textareaRef}
-        content={content}
-        setContent={setContent}
-        onMediaAdded={handleMediaAdded}
-        scheduledDate={scheduledDate}
-        setScheduledDate={setScheduledDate}
-        charsLeft={charsLeft}
-        isNearLimit={isNearLimit}
-        isOverLimit={isOverLimit}
-        isSubmitting={isSubmitting}
-      />
+      <div className="border-t mt-3 pt-3 border-border/50">
+        <NoteFormFooter
+          textareaRef={textareaRef}
+          content={content}
+          setContent={setContent}
+          onMediaAdded={handleMediaAdded}
+          scheduledDate={scheduledDate}
+          setScheduledDate={setScheduledDate}
+          charsLeft={charsLeft}
+          isNearLimit={isNearLimit}
+          isOverLimit={isOverLimit}
+          isSubmitting={isSubmitting}
+        />
+      </div>
       
       <ScheduledIndicator scheduledDate={scheduledDate} />
     </div>

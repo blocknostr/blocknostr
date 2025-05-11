@@ -4,6 +4,7 @@ import { useNoteFormState } from '@/hooks/useNoteFormState';
 import { useNoteSubmission } from '@/hooks/useNoteSubmission';
 import NoteFormAvatar from './NoteFormAvatar';
 import NoteFormContent from './NoteFormContent';
+import { cn } from '@/lib/utils';
 
 const CreateNoteFormContainer = () => {
   const {
@@ -74,8 +75,11 @@ const CreateNoteFormContainer = () => {
   }
   
   return (
-    <form onSubmit={handleSubmit} className="mb-6">
-      <div className="flex gap-3 px-2">
+    <form 
+      onSubmit={handleSubmit} 
+      className="mb-6 rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
+    >
+      <div className="flex gap-3 p-4">
         <NoteFormAvatar pubkey={pubkey} />
         <NoteFormContent
           content={content}

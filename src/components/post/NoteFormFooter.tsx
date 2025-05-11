@@ -31,7 +31,7 @@ const NoteFormFooter: React.FC<NoteFormFooterProps> = ({
   isSubmitting
 }) => {
   return (
-    <div className="flex justify-between items-center mt-4 border-t pt-3">
+    <div className="flex justify-between items-center">
       <div className="flex items-center">
         <FormattingToolbar 
           textareaRef={textareaRef}
@@ -43,7 +43,7 @@ const NoteFormFooter: React.FC<NoteFormFooterProps> = ({
         />
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <CharacterCounter 
           charsLeft={charsLeft} 
           isNearLimit={isNearLimit} 

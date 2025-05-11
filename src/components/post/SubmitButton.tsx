@@ -22,8 +22,9 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
       disabled={disabled || isSubmitting}
       size="sm"
       className={cn(
-        "rounded-full transition-all",
-        isSubmitting ? "w-24" : "w-20"
+        "rounded-full transition-all duration-300",
+        isSubmitting ? "w-24" : "w-20",
+        !disabled && "bg-primary hover:bg-primary/90 hover:scale-105",
       )}
     >
       {isSubmitting ? (

@@ -94,13 +94,13 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1.5">
       {/* Bold button directly visible */}
       <Button 
         variant="ghost" 
         size="icon" 
         type="button" 
-        className="rounded-full h-8 w-8" 
+        className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10" 
         onClick={() => insertFormatting('bold')} 
         aria-label="Bold text"
       >
@@ -112,7 +112,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         variant="ghost" 
         size="icon" 
         type="button" 
-        className="rounded-full h-8 w-8" 
+        className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10" 
         onClick={() => insertFormatting('italic')} 
         aria-label="Italic text"
       >
@@ -125,7 +125,12 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       {/* Emoji picker button */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" type="button" className="rounded-full h-8 w-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            type="button" 
+            className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10"
+          >
             <Smile className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
@@ -142,8 +147,8 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             size="icon" 
             type="button" 
             className={cn(
-              "rounded-full h-8 w-8", 
-              scheduledDate ? "text-primary bg-primary/10" : ""
+              "rounded-full h-8 w-8 transition-colors", 
+              scheduledDate ? "text-primary bg-primary/10 hover:bg-primary/20" : "hover:bg-primary/10"
             )}
           >
             <Calendar className="h-4 w-4" />
@@ -169,6 +174,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setScheduledDate(null)}
+                  className="hover:bg-destructive/10 hover:text-destructive transition-colors"
                 >
                   Clear
                 </Button>

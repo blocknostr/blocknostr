@@ -1,6 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface NoteComposerProps {
   content: string;
@@ -28,7 +29,12 @@ const NoteComposer: React.FC<NoteComposerProps> = ({
       value={content}
       onChange={(e) => setContent(e.target.value)}
       placeholder="What's happening?"
-      className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0 bg-transparent"
+      className={cn(
+        "resize-none border-none h-24 focus-visible:ring-1 text-lg p-0 bg-transparent",
+        "transition-all duration-200",
+        "placeholder:text-muted-foreground/60 focus:placeholder:text-muted-foreground/40",
+        "focus:bg-background/40 rounded-lg"
+      )}
       maxLength={maxLength * 2} // Allow typing past limit but show warning
       aria-label="Post content"
     />

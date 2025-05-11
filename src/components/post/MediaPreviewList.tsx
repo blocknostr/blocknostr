@@ -15,18 +15,21 @@ const MediaPreviewList: React.FC<MediaPreviewListProps> = ({
   }
   
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-4 flex flex-wrap gap-2">
       {mediaUrls.map((url, index) => (
-        <div key={`${url}-${index}`} className="relative group rounded-md overflow-hidden">
+        <div 
+          key={`${url}-${index}`} 
+          className="relative group rounded-md overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+        >
           <img 
             src={url} 
             alt="Media preview" 
-            className="h-20 w-20 object-cover"
+            className="h-24 w-24 object-cover rounded-md"
           />
           <button
             type="button"
             onClick={() => removeMedia(url)}
-            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm"
             aria-label="Remove media"
           >
             Remove
