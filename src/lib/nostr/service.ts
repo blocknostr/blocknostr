@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -12,11 +13,7 @@ import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
-import { ProfileService } from './services/profile-service';
-import { CommunityService } from './services/community-service';
-import { BookmarkService } from './services/bookmark-service';
-import { ThreadService } from './services/thread/thread-service';
-import { SocialInteractionService } from './services/social-interaction-service';
+import { NostrServiceAdapter } from './service-adapter';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -27,15 +24,11 @@ class NostrService {
   public relayManager: RelayManager;
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
-  public socialManager: SocialManager;
+  private socialManagerInstance: SocialManager;
   public communityManager: CommunityManager;
   public bookmarkManager: BookmarkManagerFacade;
   private pool: SimplePool;
-  private profileService: ProfileService;
-  private communityService: CommunityService;
-  private bookmarkService: BookmarkService;
-  private threadService: ThreadService;
-  private socialInteractionService: SocialInteractionService;
+  private adapter: NostrServiceAdapter;
   
   constructor() {
     // Initialize SimplePool first
@@ -46,37 +39,12 @@ class NostrService {
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
     this.eventManager = new EventManager();
-    this.socialManager = new SocialManager(this.eventManager, this.userManager);
+    this.socialManagerInstance = new SocialManager(this.eventManager, this.userManager);
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManagerFacade(this.eventManager);
     
-    // Initialize services
-    this.profileService = new ProfileService(
-      this.pool,
-      this.getConnectedRelayUrls.bind(this)
-    );
-    
-    this.communityService = new CommunityService(
-      this.communityManager,
-      this.getConnectedRelayUrls.bind(this),
-      this.pool,
-      this.userManager.publicKey
-    );
-    
-    this.initBookmarkService();
-    
-    // Initialize the thread service
-    this.threadService = new ThreadService(
-      this.pool,
-      this.getConnectedRelayUrls.bind(this)
-    );
-    
-    // Initialize the social interaction service
-    this.socialInteractionService = new SocialInteractionService(
-      this.pool,
-      () => this.userManager.publicKey,
-      this.getConnectedRelayUrls.bind(this)
-    );
+    // Initialize adapter
+    this.adapter = new NostrServiceAdapter(this);
     
     // Load user data
     this.userManager.loadUserKeys();
@@ -88,22 +56,12 @@ class NostrService {
     // Fetch following list and relay list if user is logged in
     if (this.publicKey) {
       this.fetchFollowingList();
-      this.fetchRelayList(); // Add relay list fetching for NIP-65
     }
   }
-
-  private initBookmarkService() {
-    // Create the bookmark manager using the event manager
-    const bookmarkManager = new BookmarkManagerFacade(this.eventManager);
-    
-    // Initialize the bookmark service with the manager
-    this.bookmarkService = new BookmarkService(
-      bookmarkManager,
-      this.pool,
-      this.publicKey,
-      this.getConnectedRelayUrls.bind(this),
-      this.connectToUserRelays.bind(this)
-    );
+  
+  // Expose the adapter as getter
+  get socialManager() {
+    return this.socialManagerInstance;
   }
 
   // Public API for user management
@@ -133,69 +91,29 @@ class NostrService {
   }
 
   // Relay management
-  public async connectToDefaultRelays(): Promise<void> {
-    await this.relayManager.connectToDefaultRelays();
+  public async connectToRelays(relayUrls: string[]): Promise<void> {
+    return this.relayManager.connectToRelays(relayUrls);
   }
   
   public async connectToUserRelays(): Promise<void> {
-    await this.relayManager.connectToUserRelays();
+    return this.relayManager.connectToUserRelays();
   }
   
   public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
-    const success = await this.relayManager.addRelay(relayUrl, readWrite);
-    if (success) {
-      // Publish relay list to network
-      await this.publishRelayList();
-    }
-    return success;
+    return this.relayManager.addRelay(relayUrl, readWrite);
   }
   
   public removeRelay(relayUrl: string): void {
     this.relayManager.removeRelay(relayUrl);
-    // Publish updated relay list
-    this.publishRelayList();
   }
   
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
   
-  // Method to add multiple relays at once
-  public async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    return this.relayManager.addMultipleRelays(relayUrls);
-  }
-  
   // Method to get relays for a user
   public async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const relays: string[] = [];
-      
-      // Subscribe to relay list event
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST],
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract relay URLs from r tags
-          const relayTags = event.tags.filter(tag => tag[0] === 'r' && tag.length >= 2);
-          relayTags.forEach(tag => {
-            if (tag[1] && typeof tag[1] === 'string') {
-              relays.push(tag[1]);
-            }
-          });
-        }
-      );
-      
-      // Set a timeout to resolve with found relays
-      setTimeout(() => {
-        this.unsubscribe(subId);
-        resolve(relays);
-      }, 3000);
-    });
+    return this.relayManager.getRelaysForUser(pubkey);
   }
 
   // Event publication
@@ -241,7 +159,7 @@ class NostrService {
   
   public async followUser(pubkey: string): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManager.followUser(
+    return this.socialManagerInstance.followUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
@@ -251,7 +169,7 @@ class NostrService {
   
   public async unfollowUser(pubkey: string): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManager.unfollowUser(
+    return this.socialManagerInstance.unfollowUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
@@ -262,7 +180,7 @@ class NostrService {
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
     
-    // Try to find recipient's preferred relays via NIP-05 or kind:10050 event
+    // Try to find recipient's preferred relays
     let recipientRelays: string[] = [];
     
     try {
@@ -275,7 +193,7 @@ class NostrService {
     // Combine connected relays with recipient's relays
     const publishToRelays = Array.from(new Set([...connectedRelays, ...recipientRelays]));
     
-    return this.socialManager.sendDirectMessage(
+    return this.socialManagerInstance.sendDirectMessage(
       this.pool,
       recipientPubkey,
       content,
@@ -290,7 +208,7 @@ class NostrService {
    */
   public async reactToPost(eventId: string, emoji: string = "+"): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManager.reactToEvent(
+    return this.socialManagerInstance.reactToEvent(
       this.pool,
       eventId,
       emoji,
@@ -308,31 +226,13 @@ class NostrService {
     // Use first relay as hint
     const relayHint = connectedRelays.length > 0 ? connectedRelays[0] : null;
     
-    return this.socialManager.repostEvent(
+    return this.socialManagerInstance.repostEvent(
       this.pool,
       eventId,
       authorPubkey,
       relayHint,
       this.publicKey,
       null, // We're not storing private keys
-      connectedRelays
-    );
-  }
-  
-  /**
-   * Get reaction counts for an event (NIP-25)
-   */
-  public async getReactionCounts(eventId: string): Promise<{
-    likes: number,
-    reposts: number,
-    userHasLiked: boolean,
-    userHasReposted: boolean,
-    likers: string[]
-  }> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManager.getReactionCounts(
-      this.pool,
-      eventId,
       connectedRelays
     );
   }
@@ -352,11 +252,18 @@ class NostrService {
   
   // Community methods
   public async fetchCommunity(communityId: string): Promise<any> {
-    return this.communityService.fetchCommunity(communityId);
+    return this.communityManager.fetchCommunity(this.pool, communityId, this.getConnectedRelayUrls());
   }
   
   public async createCommunity(name: string, description: string): Promise<string | null> {
-    return this.communityService.createCommunity(name, description);
+    return this.communityManager.createCommunity(
+      this.pool,
+      name,
+      description,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async createProposal(
@@ -364,86 +271,151 @@ class NostrService {
     title: string,
     description: string,
     options: string[],
-    category: string,
+    category: ProposalCategory | string,
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    return this.communityService.createProposal(
+    return this.communityManager.createProposal(
+      this.pool,
       communityId,
       title,
       description,
       options,
       category as ProposalCategory,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls(),
       minQuorum,
       endsAt
     );
   }
   
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    return this.communityService.voteOnProposal(proposalId, optionIndex);
+    return this.communityManager.voteOnProposal(
+      this.pool,
+      proposalId,
+      optionIndex,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls()
+    );
   }
   
   // Bookmark methods
   public async isBookmarked(eventId: string): Promise<boolean> {
-    return this.bookmarkService.isBookmarked(eventId);
+    return this.bookmarkManager.isBookmarked(eventId);
   }
   
   public async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
-    return this.bookmarkService.addBookmark(eventId, collectionId, tags, note);
+    return this.bookmarkManager.addBookmark(
+      this.pool,
+      eventId,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls(),
+      collectionId,
+      tags,
+      note
+    );
   }
   
   public async removeBookmark(eventId: string): Promise<boolean> {
-    return this.bookmarkService.removeBookmark(eventId);
+    return this.bookmarkManager.removeBookmark(
+      this.pool,
+      eventId,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async getBookmarks(): Promise<string[]> {
-    return this.bookmarkService.getBookmarks();
+    return this.bookmarkManager.getBookmarks(
+      this.pool,
+      this.publicKey,
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async getBookmarkCollections(): Promise<BookmarkCollection[]> {
-    return this.bookmarkService.getBookmarkCollections();
+    return this.bookmarkManager.getBookmarkCollections(
+      this.pool,
+      this.publicKey,
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
-    return this.bookmarkService.getBookmarkMetadata();
+    return this.bookmarkManager.getBookmarkMetadata(
+      this.pool,
+      this.publicKey,
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
-    return this.bookmarkService.createBookmarkCollection(name, color, description);
+    return this.bookmarkManager.createBookmarkCollection(
+      this.pool,
+      name,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls(),
+      color,
+      description
+    );
   }
   
   public async processPendingOperations(): Promise<void> {
-    return this.bookmarkService.processPendingOperations();
+    return this.bookmarkManager.processPendingOperations(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async getEvents(ids: string[]): Promise<any[]> {
-    const relays = this.getConnectedRelayUrls();
-    return this.eventManager.getEvents(ids, relays);
+    return this.eventManager.getEvents(
+      this.pool,
+      ids,
+      this.getConnectedRelayUrls()
+    );
+  }
+  
+  public async getEventById(id: string): Promise<any> {
+    return this.eventManager.getEventById(
+      this.pool,
+      id,
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
-    const relays = this.getConnectedRelayUrls();
-    return this.profileService.getProfilesByPubkeys(pubkeys, this.pool, relays);
+    return this.eventManager.getProfilesByPubkeys(
+      this.pool,
+      pubkeys,
+      this.getConnectedRelayUrls()
+    );
   }
   
   // Profile methods
   public async getUserProfile(pubkey: string): Promise<any> {
-    return this.profileService.getUserProfile(pubkey);
+    return this.eventManager.getUserProfile(
+      this.pool,
+      pubkey,
+      this.getConnectedRelayUrls()
+    );
   }
   
   public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    return this.profileService.verifyNip05(identifier, expectedPubkey);
-  }
-  
-  public async fetchNip05Data(identifier: string): Promise<any> {
-    return this.profileService.fetchNip05Data(identifier);
+    return this.eventManager.verifyNip05(identifier, expectedPubkey);
   }
   
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
     
     try {
-      await this.connectToDefaultRelays();
+      await this.connectToRelays(["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"]);
       
       const subId = this.subscribe(
         [
@@ -472,169 +444,186 @@ class NostrService {
     }
   }
   
-  /**
-   * Publish user's relay list to the network (NIP-65)
-   */
-  private async publishRelayList(): Promise<string | null> {
-    if (!this.publicKey) return null;
-    
-    // Prepare relay tags with read/write permissions per NIP-65
-    const relayList = Array.from(this.userRelays.entries()).map(
-      ([url, readWrite]) => {
-        // Format: ["r", <relay-url>, <relay-mode>]
-        // Where relay-mode is: "read", "write", or undefined for both read+write
-        let mode: string | undefined;
-        if (readWrite) {
-          // Both read and write, use undefined (cleaner JSON)
-          mode = undefined;
-        } else {
-          // Read-only relay
-          mode = "read";
-        }
-        
-        return mode ? ['r', url, mode] : ['r', url];
-      }
-    );
-    
-    const event = {
-      kind: EVENT_KINDS.RELAY_LIST,
-      content: '',
-      tags: relayList
-    };
-    
-    return await this.publishEvent(event);
-  }
-  
-  private async fetchRelayList(): Promise<void> {
-    if (!this.publicKey) return;
-    
-    try {
-      await this.connectToDefaultRelays();
-      
-      const subId = this.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.RELAY_LIST],
-            authors: [this.publicKey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Process NIP-65 relay list
-          const relayMap = new Map<string, boolean>();
-          
-          // Extract relay URLs and read/write settings from r tags
-          event.tags.forEach(tag => {
-            if (Array.isArray(tag) && tag[0] === 'r' && tag.length >= 2) {
-              const relayUrl = tag[1];
-              // Check the relay permission mode
-              // If tag[2] is missing or not "read", it's considered read+write
-              const isReadWrite = tag.length < 3 || tag[2] !== "read";
-              relayMap.set(relayUrl, isReadWrite);
-            }
-          });
-          
-          // Update relay manager with fetched relays
-          if (relayMap.size > 0) {
-            this.relayManager.setUserRelays(relayMap);
-          }
-        }
-      );
-      
-      // Cleanup subscription after a short time
-      setTimeout(() => {
-        this.unsubscribe(subId);
-      }, 5000);
-    } catch (error) {
-      console.error("Error fetching relay list:", error);
-    }
-  }
-  
   private getConnectedRelayUrls(): string[] {
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
   }
   
-  // Thread methods for NIP-10 support
-  public async fetchThread(eventId: string): Promise<{
-    rootEvent: NostrEvent | null;
-    parentEvent: NostrEvent | null;
-    replies: NostrEvent[];
-  }> {
-    return this.threadService.fetchThread(eventId);
-  }
-  
-  public getThreadRootId(event: NostrEvent): string | null {
-    return this.threadService.getThreadRootId(event);
-  }
-  
-  public getParentId(event: NostrEvent): string | null {
-    return this.threadService.getParentId(event);
-  }
-  
-  // New social interaction methods
+  // User Moderation (NIP-51)
   public async muteUser(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.muteUser(pubkey);
+    // Implementation for muting a user
+    try {
+      const event = {
+        kind: 10000,
+        content: "",
+        tags: [
+          ["d", "mute-list"],
+          ["p", pubkey]
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error muting user:", error);
+      return false;
+    }
   }
 
   public async unmuteUser(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.unmuteUser(pubkey);
+    // Implementation for unmuting a user - publish updated list without the user
+    try {
+      // Get current mute list
+      const mutedUsers = await this.getMutedUsers();
+      const updatedList = mutedUsers.filter(p => p !== pubkey);
+      
+      // Create new replacement event
+      const event = {
+        kind: 10000,
+        content: "",
+        tags: [
+          ["d", "mute-list"],
+          ...updatedList.map(p => ["p", p])
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error unmuting user:", error);
+      return false;
+    }
   }
 
   public async isUserMuted(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.isUserMuted(pubkey);
+    const mutedUsers = await this.getMutedUsers();
+    return mutedUsers.includes(pubkey);
   }
-
+  
+  private async getMutedUsers(): Promise<string[]> {
+    if (!this.publicKey) return [];
+    
+    try {
+      return new Promise((resolve) => {
+        const mutedUsers: string[] = [];
+        
+        // Subscribe to mute list events
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [10000],
+              authors: [this.publicKey],
+              "#d": ["mute-list"]
+            }
+          ],
+          (event) => {
+            // Extract pubkeys from p tags
+            const pubkeys = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'p')
+              .map(tag => tag[1]);
+            
+            mutedUsers.push(...pubkeys);
+          }
+        );
+        
+        // Resolve after short timeout
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve([...new Set(mutedUsers)]);
+        }, 2000);
+      });
+    } catch (error) {
+      console.error("Error getting muted users:", error);
+      return [];
+    }
+  }
+  
   public async blockUser(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.blockUser(pubkey);
+    // Implementation for blocking a user
+    try {
+      const event = {
+        kind: 10000,
+        content: "",
+        tags: [
+          ["d", "block-list"],
+          ["p", pubkey]
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error blocking user:", error);
+      return false;
+    }
   }
 
   public async unblockUser(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.unblockUser(pubkey);
+    try {
+      // Get current block list
+      const blockedUsers = await this.getBlockedUsers();
+      const updatedList = blockedUsers.filter(p => p !== pubkey);
+      
+      // Create new replacement event
+      const event = {
+        kind: 10000,
+        content: "",
+        tags: [
+          ["d", "block-list"],
+          ...updatedList.map(p => ["p", p])
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error unblocking user:", error);
+      return false;
+    }
   }
 
   public async isUserBlocked(pubkey: string): Promise<boolean> {
-    return this.socialInteractionService.isUserBlocked(pubkey);
+    const blockedUsers = await this.getBlockedUsers();
+    return blockedUsers.includes(pubkey);
   }
   
-  /**
-   * Get relay information document using NIP-11
-   * @param relayUrl URL of the relay
-   * @returns Promise resolving to relay information or null
-   */
-  public async getRelayInformation(relayUrl: string): Promise<any> {
-    // Use the relay info service from the RelayManager
-    return this.relayManager.getRelayInformation(relayUrl);
-  }
-  
-  /**
-   * Check if a relay supports a specific NIP
-   * @param relayUrl URL of the relay
-   * @param nipNumber NIP number to check
-   * @returns Promise resolving to boolean indicating support
-   */
-  public async doesRelaySupport(relayUrl: string, nipNumber: number): Promise<boolean> {
-    return this.relayManager.doesRelaySupport(relayUrl, nipNumber);
-  }
-  
-  /**
-   * Get all relays that support a specific NIP
-   * @param nipNumber NIP number to check
-   * @returns Promise resolving to array of relay URLs
-   */
-  public async getRelaysSupportingNIP(nipNumber: number): Promise<string[]> {
-    const relayStatus = this.getRelayStatus();
-    const results = await Promise.all(
-      relayStatus
-        .filter(r => r.status === 'connected')
-        .map(async relay => {
-          const supports = await this.doesRelaySupport(relay.url, nipNumber);
-          return { url: relay.url, supports };
-        })
-    );
+  private async getBlockedUsers(): Promise<string[]> {
+    if (!this.publicKey) return [];
     
-    return results.filter(r => r.supports).map(r => r.url);
+    try {
+      return new Promise((resolve) => {
+        const blockedUsers: string[] = [];
+        
+        // Subscribe to block list events
+        const subId = this.subscribe(
+          [
+            {
+              kinds: [10000],
+              authors: [this.publicKey],
+              "#d": ["block-list"]
+            }
+          ],
+          (event) => {
+            // Extract pubkeys from p tags
+            const pubkeys = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'p')
+              .map(tag => tag[1]);
+            
+            blockedUsers.push(...pubkeys);
+          }
+        );
+        
+        // Resolve after short timeout
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve([...new Set(blockedUsers)]);
+        }, 2000);
+      });
+    } catch (error) {
+      console.error("Error getting blocked users:", error);
+      return [];
+    }
   }
 }
 

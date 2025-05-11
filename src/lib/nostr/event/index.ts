@@ -1,0 +1,203 @@
+
+import { SimplePool } from 'nostr-tools';
+import { nip05 } from 'nostr-tools';
+
+/**
+ * Manages Nostr events
+ */
+export class EventManager {
+  /**
+   * Publishes an event to relays
+   */
+  async publishEvent(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    event: any,
+    relays: string[]
+  ): Promise<string | null> {
+    if (!publicKey) {
+      throw new Error("Cannot publish event: No public key provided");
+    }
+    
+    // Ensure we have at least one relay to publish to
+    if (relays.length === 0) {
+      throw new Error("No relays available to publish to");
+    }
+    
+    try {
+      // If no private key provided (browser extension handles signing)
+      if (!privateKey || privateKey === undefined) {
+        // Check if window.nostr is available
+        if (!window.nostr) {
+          throw new Error("No private key and no Nostr extension available for signing");
+        }
+        
+        // Prepare the event
+        const unsignedEvent = {
+          kind: event.kind,
+          content: event.content || '',
+          tags: event.tags || [],
+          created_at: event.created_at || Math.floor(Date.now() / 1000),
+          pubkey: publicKey
+        };
+        
+        // Sign with extension
+        const signedEvent = await window.nostr.signEvent(unsignedEvent);
+        
+        // Publish to relays
+        const pubs = pool.publish(relays, signedEvent);
+        
+        // Wait for at least one OK response
+        for (const pub of pubs) {
+          try {
+            await Promise.race([
+              pub.onOk,
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+            ]);
+            return signedEvent.id;
+          } catch (e) {
+            console.error("Error publishing to relay:", e);
+          }
+        }
+        
+        return null;
+      } else {
+        // Private key is provided, but we don't handle this case in the browser
+        throw new Error("Direct private key signing not implemented for security reasons");
+      }
+    } catch (error) {
+      console.error("Error publishing event:", error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Publishes profile metadata
+   */
+  async publishProfileMetadata(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    metadata: Record<string, any>,
+    relays: string[]
+  ): Promise<boolean> {
+    try {
+      const event = {
+        kind: 0,
+        content: JSON.stringify(metadata),
+        tags: []
+      };
+      
+      const result = await this.publishEvent(pool, publicKey, privateKey, event, relays);
+      return !!result;
+    } catch (error) {
+      console.error("Error publishing profile metadata:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Gets an event by ID
+   */
+  async getEventById(
+    pool: SimplePool,
+    id: string,
+    relays: string[]
+  ): Promise<any | null> {
+    return new Promise((resolve) => {
+      let event = null;
+      const sub = pool.sub(relays, [{ ids: [id] }]);
+      
+      sub.on('event', (e) => {
+        event = e;
+        pool.close([sub.sub]);
+        resolve(event);
+      });
+      
+      setTimeout(() => {
+        pool.close([sub.sub]);
+        resolve(event);
+      }, 5000);
+    });
+  }
+
+  /**
+   * Gets multiple events by IDs
+   */
+  async getEvents(
+    pool: SimplePool,
+    ids: string[],
+    relays: string[]
+  ): Promise<any[]> {
+    return new Promise((resolve) => {
+      const events: any[] = [];
+      const sub = pool.sub(relays, [{ ids }]);
+      
+      sub.on('event', (e) => {
+        events.push(e);
+      });
+      
+      setTimeout(() => {
+        pool.close([sub.sub]);
+        resolve(events);
+      }, 5000);
+    });
+  }
+
+  /**
+   * Gets profiles for a list of pubkeys
+   */
+  async getProfilesByPubkeys(
+    pool: SimplePool,
+    pubkeys: string[],
+    relays: string[]
+  ): Promise<Record<string, any>> {
+    return new Promise((resolve) => {
+      const profiles: Record<string, any> = {};
+      
+      const sub = pool.sub(relays, [
+        { kinds: [0], authors: pubkeys }
+      ]);
+      
+      sub.on('event', (event) => {
+        try {
+          const profile = JSON.parse(event.content);
+          profiles[event.pubkey] = profile;
+        } catch (e) {
+          console.error("Failed to parse profile:", e);
+        }
+      });
+      
+      setTimeout(() => {
+        pool.close([sub.sub]);
+        resolve(profiles);
+      }, 5000);
+    });
+  }
+
+  /**
+   * Gets profile data for a specific pubkey
+   */
+  async getUserProfile(
+    pool: SimplePool,
+    pubkey: string,
+    relays: string[]
+  ): Promise<any> {
+    const profiles = await this.getProfilesByPubkeys(pool, [pubkey], relays);
+    return profiles[pubkey] || null;
+  }
+
+  /**
+   * Verifies a NIP-05 identifier against an expected pubkey
+   */
+  async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
+    try {
+      const result = await nip05.queryProfile(identifier);
+      return result?.pubkey === expectedPubkey;
+    } catch (error) {
+      console.error("Error verifying NIP-05:", error);
+      return false;
+    }
+  }
+}

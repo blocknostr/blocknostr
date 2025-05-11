@@ -4,7 +4,7 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { NostrService, nostrService } from './services';
+import { NostrService, nostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
@@ -21,12 +21,14 @@ export type { ProposalCategory } from '@/types/community';
 
 // Re-export from bookmark module
 export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
+export type { BookmarkStatus } from './bookmark/types';
 
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance
 export { nostrService };
+export type { NostrService };
 
 // Export cache modules
 export { contentCache };

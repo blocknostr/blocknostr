@@ -1,78 +1,50 @@
 
-import { SimplePool } from 'nostr-tools';
-import { EVENT_KINDS } from '../constants';
-
 /**
- * Types for bookmark functionality
+ * Type for bookmark collection
  */
-
-export type BookmarkOperationType = 'add' | 'remove' | 'update' | 'addCollection';
-
-export type BookmarkStatus = 'pending' | 'completed' | 'failed';
-
 export interface BookmarkCollection {
   id: string;
   name: string;
   color?: string;
   description?: string;
-  totalItems: number;
-  createdAt: number;
-  updatedAt?: number;
+  eventCount?: number;
 }
 
+/**
+ * Type for bookmark with metadata
+ */
 export interface BookmarkWithMetadata {
   eventId: string;
-  collectionId?: string;
+  title?: string;
+  summary?: string;
+  author?: string;
+  authorName?: string;
+  profileImage?: string;
+  createdAt?: number;
   tags?: string[];
+  collectionId?: string;
   note?: string;
-  createdAt: number;
+  content?: string;
 }
 
+/**
+ * Status of a bookmark operation
+ */
+export type BookmarkStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+/**
+ * Type for pending bookmark operations that will be processed when online
+ */
 export interface PendingOperation {
   id: string;
-  type: BookmarkOperationType;
-  data: Record<string, any>;
-  timestamp: number;
+  type: 'add' | 'remove' | 'create_collection';
+  eventId?: string;
+  collectionId?: string;
+  name?: string;
+  color?: string;
+  description?: string;
+  tags?: string[];
+  note?: string;
   status: BookmarkStatus;
   attempts: number;
 }
-
-export interface BookmarkManagerDependencies {
-  publishEvent: (
-    pool: SimplePool,
-    publicKey: string | null,
-    privateKey: string | null | undefined,
-    event: any,
-    relays: string[]
-  ) => Promise<string | null>;
-}
-
-export interface RelayConnectionOptions {
-  timeout?: number;
-  maxRetries?: number;
-  onProgress?: (message: string) => void;
-}
-
-export interface BookmarkFilters {
-  searchTerm?: string;
-  collectionId?: string | null;
-  tags?: string[];
-}
-
-export interface BookmarkEvent {
-  id: string;
-  pubkey: string;
-  created_at: number;
-  kind: number;
-  tags: string[][];
-  content: string;
-  sig: string;
-}
-
-// Common event types used in bookmark operations
-export const BookmarkEventKinds = {
-  BOOKMARKS: EVENT_KINDS.BOOKMARKS,
-  BOOKMARK_METADATA: EVENT_KINDS.BOOKMARK_METADATA,
-  BOOKMARK_COLLECTIONS: EVENT_KINDS.BOOKMARK_COLLECTIONS,
-  DELETE: EVENT_KINDS.DELETE
-};

@@ -3,6 +3,7 @@ import { SimplePool } from 'nostr-tools';
 import { EventManager } from '../event';
 import { BookmarkManagerFacade } from '../bookmark';
 import { BookmarkService } from './bookmark-service';
+import { SocialManager } from '../social';
 
 /**
  * Composer service that provides access to all Nostr services
@@ -10,6 +11,7 @@ import { BookmarkService } from './bookmark-service';
 export class NostrService {
   private pool: SimplePool;
   private eventManager: EventManager;
+  private socialManagerInstance: SocialManager;
   
   public publicKey: string | null = null;
   private privateKey: string | null | undefined = undefined;
@@ -20,6 +22,7 @@ export class NostrService {
   constructor() {
     this.pool = new SimplePool();
     this.eventManager = new EventManager();
+    this.socialManagerInstance = new SocialManager(this.eventManager);
     
     // Initialize the BookmarkManagerFacade
     this.bookmarkManager = new BookmarkManagerFacade(this.eventManager);
@@ -28,16 +31,17 @@ export class NostrService {
     this.bookmarkService = new BookmarkService(
       this.bookmarkManager,
       this.pool,
-      null, // Will be set when user logs in
+      () => this.publicKey,
       () => this.getRelayStatus().map(relay => relay.url)
     );
   }
 
+  get socialManager() {
+    return this.socialManagerInstance;
+  }
+
   setPublicKey(publicKey: string | null) {
     this.publicKey = publicKey;
-    
-    // Update public key in bookmark service
-    (this.bookmarkService as any).publicKey = publicKey;
   }
   
   setPrivateKey(privateKey: string | null | undefined) {
@@ -54,7 +58,13 @@ export class NostrService {
     }
     
     const relays = this.getRelayUrls();
-    return this.eventManager.publishEvent(this.pool, this.publicKey, this.privateKey, event, relays);
+    return this.eventManager.publishEvent(
+      this.pool, 
+      this.publicKey, 
+      this.privateKey, 
+      event, 
+      relays
+    );
   }
 
   getRelayUrls(): string[] {
@@ -63,12 +73,13 @@ export class NostrService {
   }
 
   getRelayStatus(): { url: string; status: string }[] {
-    // Access pool.relays safely with type assertion
-    const relays = Object.values((this.pool as any).relays || {});
-    return relays.map(relay => ({
-      url: relay.url,
-      status: relay.status
+    // Access pool.relays safely
+    const relays = Object.entries((this.pool as any).relays || {}).map(([url, relay]) => ({
+      url,
+      status: (relay as any).status || 'unknown'
     }));
+    
+    return relays;
   }
 
   async connectToRelays(relays: string[]): Promise<void> {
@@ -103,57 +114,17 @@ export class NostrService {
 
   async getEventById(id: string): Promise<any | null> {
     const relays = this.getRelayUrls();
-    return new Promise((resolve) => {
-      let event = null;
-      const sub = this.subscribe([{ ids: [id] }], (e) => {
-        event = e;
-        this.unsubscribe(sub);
-        resolve(event);
-      }, relays);
-      
-      setTimeout(() => {
-        this.unsubscribe(sub);
-        resolve(event);
-      }, 5000);
-    });
+    return this.eventManager.getEventById(this.pool, id, relays);
   }
 
   async getEvents(ids: string[]): Promise<any[]> {
     const relays = this.getRelayUrls();
-    return new Promise((resolve) => {
-      const events: any[] = [];
-      const sub = this.subscribe([{ ids }], (e) => {
-        events.push(e);
-      }, relays);
-      
-      setTimeout(() => {
-        this.unsubscribe(sub);
-        resolve(events);
-      }, 5000);
-    });
+    return this.eventManager.getEvents(this.pool, ids, relays);
   }
 
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const relays = this.getRelayUrls();
-    return new Promise((resolve) => {
-      const profiles: Record<string, any> = {};
-      
-      const sub = this.subscribe([
-        { kinds: [0], authors: pubkeys }
-      ], (event) => {
-        try {
-          const profile = JSON.parse(event.content);
-          profiles[event.pubkey] = profile;
-        } catch (e) {
-          console.error("Failed to parse profile:", e);
-        }
-      }, relays);
-      
-      setTimeout(() => {
-        this.unsubscribe(sub);
-        resolve(profiles);
-      }, 5000);
-    });
+    return this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, relays);
   }
 
   // Re-expose methods from BookmarkService as top-level methods
@@ -191,3 +162,6 @@ export class NostrService {
 }
 
 export const nostrService = new NostrService();
+
+// Export the types needed by the service
+export type { BookmarkService };
