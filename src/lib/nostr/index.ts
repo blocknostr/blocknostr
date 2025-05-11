@@ -20,6 +20,9 @@ export type { ReactionCounts, ContactList } from './social/types';
 // Re-export from community module
 export type { ProposalCategory } from '@/types/community';
 
+// Export bookmark types for backward compatibility
+export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
+
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 

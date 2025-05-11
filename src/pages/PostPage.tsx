@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +12,6 @@ import { nostrService } from '@/lib/nostr';
 import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
 
-// This needs to be properly exported as default
 const PostPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -224,5 +222,4 @@ const PostPage = () => {
   );
 };
 
-// Add default export
 export default PostPage;
