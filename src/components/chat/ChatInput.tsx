@@ -14,7 +14,7 @@ import { nostrService } from "@/lib/nostr";
 interface ChatInputProps {
   isLoggedIn: boolean;
   maxChars: number;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => Promise<string | null>;
   disabled?: boolean;
 }
 
@@ -66,7 +66,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
       console.log("ChatInput: Sending message:", newMessage);
       const result = await onSendMessage(newMessage);
       
-      if (result) {
+      // Fix: Check if result exists instead of treating it as boolean
+      if (result !== null) {
         console.log("ChatInput: Message sent successfully with ID:", result);
         setNewMessage("");
         setIsTyping(false);

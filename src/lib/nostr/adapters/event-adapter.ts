@@ -19,9 +19,9 @@ export class EventAdapter {
   /**
    * Publish event with retry logic
    */
-  async publishEvent(event: any, relays?: string[], options?: { noRetry?: boolean }): Promise<string | null> {
+  async publishEvent(event: any, relays?: string[]): Promise<string | null> {
     // Don't retry if explicitly disabled
-    const shouldRetry = !options?.noRetry;
+    const shouldRetry = true;
     
     try {
       console.log("Publishing event:", JSON.stringify(event, null, 2));
@@ -48,8 +48,8 @@ export class EventAdapter {
         }
       }
       
-      // Attempt to publish the event
-      const result = await this.service.publishEvent(event, relays);
+      // Attempt to publish the event - Fix: Don't pass second parameter
+      const result = await this.service.publishEvent(event);
       
       if (result) {
         console.log(`Event published successfully with ID: ${result}`);
@@ -86,8 +86,8 @@ export class EventAdapter {
         // Try connecting to relays again
         await this.service.connectToUserRelays();
         
-        // Attempt to publish
-        const result = await this.service.publishEvent(event, relays);
+        // Attempt to publish - Fix: Don't pass second parameter
+        const result = await this.service.publishEvent(event);
         
         if (result) {
           console.log(`Event published successfully on retry ${retries} with ID: ${result}`);

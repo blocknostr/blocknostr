@@ -56,8 +56,10 @@ export class AuthAdapter {
         }
       }
       
+      // Fix: Store the result and check it separately
       const result = await this.service.login();
       
+      // Check the result
       if (result) {
         if (this.publicKey) {
           console.log(`Login successful with public key: ${this.publicKey}`);
@@ -85,6 +87,7 @@ export class AuthAdapter {
   signOut() {
     try {
       console.log("Signing out...");
+      // Fix: Store the result
       const result = this.service.signOut();
       
       if (result) {
