@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import MainFeed from "@/components/MainFeed";
 import Sidebar from "@/components/Sidebar";
-import TrendingSection from "@/components/TrendingSection";
+import { TrendingSection } from "@/components/trending";
 import WhoToFollow from "@/components/WhoToFollow";
 import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
