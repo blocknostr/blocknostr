@@ -11,8 +11,15 @@ import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { useNavigate } from 'react-router-dom';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { useNoteCardReplies } from './hooks/useNoteCardReplies';
-import { ArrowUpRight } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -28,12 +35,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
   const [reachCount, setReachCount] = useState(0);
-  const [clickStartTime, setClickStartTime] = useState<number | null>(null);
   const [isInteractingWithContent, setIsInteractingWithContent] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  
-  // Click delay in milliseconds to distinguish between clicks and interactions
-  const CLICK_DELAY = 200;
   
   // Use the replies hook instead of local state
   const { replyCount, setReplyCount } = useNoteCardReplies({ eventId: event.id || '' });
@@ -46,7 +49,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     handleConfirmDelete 
   } = useNoteCardDeleteDialog({ event, onDelete });
   
-  // Calculate reach count and fetch reply count when component mounts
+  // Calculate reach count when component mounts
   useEffect(() => {
     if (!event.id) return;
     
@@ -67,49 +70,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setReachCount(calculateReachCount());
   }, [event.id, event.created_at]);
   
-  // Handle mouse down to start tracking potential click
-  const handleMouseDown = () => {
-    if (!isInteractingWithContent) {
-      setClickStartTime(Date.now());
-    }
-  };
-  
-  // Handle mouse up to determine if navigation should occur
-  const handleMouseUp = () => {
-    if (clickStartTime && !isInteractingWithContent) {
-      const clickDuration = Date.now() - clickStartTime;
-      if (clickDuration < CLICK_DELAY && event.id) {
-        navigate(`/post/${event.id}`);
-      }
-      setClickStartTime(null);
-    }
-  };
-  
-  // Cancel navigation if mouse moves significantly (for drag operations)
-  const handleMouseMove = () => {
-    if (clickStartTime) {
-      setClickStartTime(null);
-    }
-  };
-  
-  // Handle touch start for mobile devices
-  const handleTouchStart = () => {
-    if (!isInteractingWithContent) {
-      setClickStartTime(Date.now());
-    }
-  };
-  
-  // Handle touch end for mobile devices
-  const handleTouchEnd = () => {
-    if (clickStartTime && !isInteractingWithContent) {
-      const clickDuration = Date.now() - clickStartTime;
-      if (clickDuration < CLICK_DELAY && event.id) {
-        navigate(`/post/${event.id}`);
-      }
-      setClickStartTime(null);
-    }
-  };
-  
   // Set interaction state when interacting with interactive elements
   const handleInteractionStart = () => {
     setIsInteractingWithContent(true);
@@ -128,19 +88,25 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setReplyCount(prev => prev + 1);
   };
   
-  // Handle keyboard navigation for accessibility
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.key === 'Enter' || e.key === ' ') && event.id) {
-      e.preventDefault();
+  // Navigation functions moved to dropdown menu actions
+  const handleViewDetails = () => {
+    if (event.id) {
       navigate(`/post/${event.id}`);
     }
   };
-
-  // Handle explicit open click
-  const handleViewDetailsClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  
+  const handleCopyLink = () => {
     if (event.id) {
-      navigate(`/post/${event.id}`);
+      // Create a full URL to the post
+      const url = `${window.location.origin}/post/${event.id}`;
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          // Show success notification (you might want to use a toast here)
+          console.log('Link copied to clipboard');
+        })
+        .catch(err => {
+          console.error('Failed to copy link:', err);
+        });
     }
   };
 
@@ -149,33 +115,39 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
       <Card 
         className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden relative"
         ref={cardRef}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseMove={handleMouseMove}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onMouseEnter={handleInteractionEnd}
-        onMouseLeave={handleInteractionEnd}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
         role="article"
         aria-label="Post"
         data-event-id={event.id}
-        style={{ cursor: "default" }}
       >
-        <div className="absolute top-2 right-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="p-1 h-auto opacity-70 hover:opacity-100"
-            onClick={handleViewDetailsClick}
-            onMouseEnter={handleInteractionStart}
-            onMouseLeave={handleInteractionEnd}
-            aria-label="View post details"
-            title="View post details"
-          >
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
+        <div className="absolute top-2 right-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1 h-auto rounded-full hover:bg-accent/50"
+                onMouseEnter={handleInteractionStart}
+                onMouseLeave={handleInteractionEnd}
+                aria-label="Post options"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleViewDetails}>
+                View details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyLink}>
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {event.pubkey === nostrService.publicKey && (
+                <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive">
+                  Delete post
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         
         {repostData && <NoteCardRepostHeader repostData={repostData} />}
