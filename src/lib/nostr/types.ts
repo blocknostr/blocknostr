@@ -31,6 +31,19 @@ export interface NostrProfileMetadata {
   [key: string]: any; // For any other custom fields
 }
 
+// Add a new interface for our extended filter
+export interface NostrFilter {
+  kinds?: number[];
+  authors?: string[];
+  since?: number;
+  limit?: number;
+  ids?: string[];
+  '#p'?: string[];
+  '#e'?: string[];
+  '#t'?: string[];
+  [key: string]: any; // Allow any tag-based filters
+}
+
 // Add typings for the NIP-07 window extension
 declare global {
   interface Window {

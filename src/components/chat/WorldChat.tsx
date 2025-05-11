@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,12 +36,12 @@ const WorldChat = () => {
       try {
         setLoading(true);
         
-        // Subscribe to world chat messages
+        // Subscribe to world chat messages - using proper tag format for TypeScript
         const messagesSub = nostrService.subscribe(
           [
             {
               kinds: [EVENT_KINDS.TEXT_NOTE],
-              '#t': [WORLD_CHAT_TAG], // Filter by the world-chat tag
+              "#t": [WORLD_CHAT_TAG], // Using "#t" (with quotes) for tag filtering
               limit: 25
             }
           ],
@@ -64,12 +65,12 @@ const WorldChat = () => {
           }
         );
         
-        // Subscribe to reactions
+        // Subscribe to reactions - using proper tag format for TypeScript
         const reactionsSub = nostrService.subscribe(
           [
             {
               kinds: [EVENT_KINDS.REACTION],
-              '#t': [WORLD_CHAT_TAG],
+              "#t": [WORLD_CHAT_TAG],
               limit: 50
             }
           ],
