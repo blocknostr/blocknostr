@@ -1,3 +1,4 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -68,7 +69,16 @@ export class ThreadService {
     if (cachedThread) {
       // Find root, parent and replies in the cached thread
       const rootEvent = cachedThread.find(e => !this.getParentId(e));
-      const parentEvent = cachedThread.find(e => e.id === this.getParentId({ id: eventId, tags: [], content: '', pubkey: '', created_at: 0, sig: '' }));
+      const parentEvent = cachedThread.find(e => e.id === this.getParentId({ 
+        id: eventId, 
+        tags: [], 
+        content: '', 
+        pubkey: '', 
+        created_at: 0, 
+        sig: '',
+        kind: EVENT_KINDS.TEXT_NOTE // Fix: Added missing kind property
+      }));
+      
       const replies = cachedThread.filter(e => this.getParentId(e) === eventId);
       
       return {
@@ -100,8 +110,9 @@ export class ThreadService {
       }
       
       // Find root, parent and replies
-      const rootEvent = events.find(e => e.id === rootId) || null;
-      const parentId = this.getParentId(mainEvent || { id: eventId, tags: [], content: '', pubkey: '', created_at: 0, sig: '' });
+      const rootEventId = mainEvent ? (this.getThreadRootId(mainEvent) || eventId) : eventId; // Fix: Use a variable for rootId
+      const rootEvent = events.find(e => e.id === rootEventId) || null;
+      const parentId = mainEvent ? this.getParentId(mainEvent) : null;
       const parentEvent = parentId ? events.find(e => e.id === parentId) : null;
       const replies = events.filter(e => {
         const parent = this.getParentId(e);
