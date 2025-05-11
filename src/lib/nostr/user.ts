@@ -72,6 +72,7 @@ export class UserManager {
             
             // Try to get relays from extension if supported (NIP-07 extension)
             try {
+              // Ensure getRelays method exists before calling it
               if (window.nostr.getRelays) {
                 const relays = await window.nostr.getRelays();
                 if (relays) {
