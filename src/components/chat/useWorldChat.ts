@@ -5,10 +5,12 @@ import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import { toast } from "sonner";
 import { contentFormatter } from "@/lib/nostr";
+import { retry } from "@/lib/utils/retry";
 
 const WORLD_CHAT_TAG = "world-chat";
 const MAX_MESSAGES = 15;
 const RETRY_INTERVAL = 5000; // 5 seconds for retry
+const RECONNECT_ATTEMPTS = 3;
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -90,13 +92,45 @@ export const useWorldChat = () => {
         setError(null);
         
         // Ensure we're connected to relays
-        await nostrService.connectToUserRelays();
+        try {
+          await retry(
+            async () => {
+              await nostrService.connectToUserRelays();
+              const relays = nostrService.getRelayStatus();
+              const connected = relays.filter(r => r.status === 'connected').length;
+              if (connected === 0) throw new Error("No relays connected");
+              return connected;
+            },
+            {
+              maxAttempts: RECONNECT_ATTEMPTS,
+              baseDelay: 1000,
+              onRetry: (attempt) => {
+                console.log(`Retry #${attempt} connecting to relays...`);
+                setConnectionStatus('connecting');
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Failed to connect to any relays:", error);
+          setConnectionStatus('disconnected');
+        }
+        
         updateConnectionStatus();
         
         // Clean up any existing subscriptions
         subscriptions.forEach(subId => {
           if (subId) nostrService.unsubscribe(subId);
         });
+        
+        // Only attempt to subscribe if we have connected relays
+        const relayStatus = nostrService.getRelayStatus();
+        const connectedRelays = relayStatus.filter(r => r.status === 'connected');
+        
+        if (connectedRelays.length === 0) {
+          setError("No relays connected. Please check your connection.");
+          setLoading(false);
+          return;
+        }
         
         // Subscribe to world chat messages
         const messagesSub = nostrService.subscribe(
@@ -154,15 +188,21 @@ export const useWorldChat = () => {
         console.error("Error setting up world chat subscriptions:", error);
         setError("Unable to connect to chat relays. Please try again later.");
         setLoading(false);
+        setConnectionStatus('disconnected');
       }
     };
     
     setupSubscriptions();
   }, [fetchProfile, handleReaction, updateConnectionStatus]);
 
-  // Send message with improved error handling and NIP-01 compliance
+  // Send message with improved error handling
   const sendMessage = async (messageContent: string) => {
     if (!messageContent.trim() || !isLoggedIn) {
+      return;
+    }
+    
+    if (connectionStatus !== 'connected') {
+      toast.error("You're offline. Can't send messages right now.");
       return;
     }
 
@@ -199,6 +239,7 @@ export const useWorldChat = () => {
     } catch (error) {
       console.error("Error sending message:", error);
       setError("Failed to send message. Please try again.");
+      toast.error("Failed to send message");
     }
   };
   

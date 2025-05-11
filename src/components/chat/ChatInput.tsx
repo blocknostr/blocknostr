@@ -9,13 +9,14 @@ interface ChatInputProps {
   isLoggedIn: boolean;
   maxChars: number;
   onSendMessage: (message: string) => void;
+  disabled?: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage, disabled = false }) => {
   const [newMessage, setNewMessage] = useState("");
 
   const handleSend = () => {
-    if (!newMessage.trim() || !isLoggedIn) {
+    if (!newMessage.trim() || !isLoggedIn || disabled) {
       return;
     }
     
@@ -42,12 +43,13 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
     <div className="border-t p-2">
       <div className="flex items-center gap-1">
         <Input
-          placeholder="Send a message..."
+          placeholder={disabled ? "Disconnected from relays..." : "Send a message..."}
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           maxLength={maxChars * 2} // Allow typing past limit but show warning
           className="text-xs h-8"
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+          disabled={disabled}
         />
         <div className="flex items-center gap-1">
           <span className={`text-[10px] ${newMessage.length > maxChars ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
@@ -55,14 +57,20 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
           </span>
           <Button 
             onClick={handleSend} 
-            disabled={!newMessage.trim() || newMessage.length > maxChars}
+            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
             size="sm"
             className="h-8 w-8 p-0"
+            variant={disabled ? "outline" : "default"}
           >
             <SendHorizontal className="h-4 w-4" />
           </Button>
         </div>
       </div>
+      {disabled && (
+        <p className="text-[10px] text-muted-foreground text-center mt-1">
+          Reconnect to relays to send messages
+        </p>
+      )}
     </div>
   );
 };

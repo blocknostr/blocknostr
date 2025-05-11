@@ -4,13 +4,15 @@ import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function ConnectionStatusBanner() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [connectedRelays, setConnectedRelays] = useState(0);
   const [totalRelays, setTotalRelays] = useState(0);
   const [showBanner, setShowBanner] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   
   useEffect(() => {
     const updateConnectionStatus = () => {
@@ -47,16 +49,33 @@ export function ConnectionStatusBanner() {
   if (!showBanner) return null;
   
   const handleReconnect = async () => {
-    if (isOffline) {
-      // Can't really do much if browser is offline
-      return;
-    }
+    if (isReconnecting || isOffline) return;
     
-    await nostrService.connectToUserRelays();
+    try {
+      setIsReconnecting(true);
+      toast.loading("Reconnecting to relays...");
+      await nostrService.connectToUserRelays();
+      
+      // Check if connected after attempt
+      const relays = nostrService.getRelayStatus();
+      const connected = relays.filter(r => r.status === 'connected').length;
+      
+      if (connected > 0) {
+        toast.success(`Connected to ${connected} relays`);
+        setShowBanner(false);
+      } else {
+        toast.error("Couldn't connect to any relays");
+      }
+    } catch (error) {
+      console.error("Reconnection error:", error);
+      toast.error("Failed to reconnect to relays");
+    } finally {
+      setIsReconnecting(false);
+    }
   };
   
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isOffline ? (
@@ -73,9 +92,17 @@ export function ConnectionStatusBanner() {
         <Button 
           size="sm" 
           onClick={handleReconnect}
-          disabled={isOffline}
+          disabled={isOffline || isReconnecting}
+          variant={isOffline ? "outline" : "secondary"}
         >
-          Reconnect
+          {isReconnecting ? (
+            <>
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Reconnecting
+            </>
+          ) : (
+            "Reconnect"
+          )}
         </Button>
       </div>
     </Alert>
