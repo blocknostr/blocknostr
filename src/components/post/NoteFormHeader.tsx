@@ -12,20 +12,22 @@ const NoteFormHeader: React.FC<NoteFormHeaderProps> = ({
   setActiveTab 
 }) => {
   return (
-    <TabsList className="mb-2 w-full bg-transparent border-b p-0 h-auto">
-      <TabsTrigger 
-        value="compose" 
-        className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-2 py-1 text-sm"
-      >
-        Compose
-      </TabsTrigger>
-      <TabsTrigger 
-        value="templates" 
-        className="flex-1 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-2 py-1 text-sm"
-      >
-        Quick Replies
-      </TabsTrigger>
-    </TabsList>
+    <div className="mb-2 border-b">
+      <div className="flex">
+        <button 
+          onClick={() => setActiveTab("compose")}
+          className={`flex-1 text-sm px-2 py-1 ${activeTab === 'compose' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+        >
+          Compose
+        </button>
+        <button 
+          onClick={() => setActiveTab("templates")}
+          className={`flex-1 text-sm px-2 py-1 ${activeTab === 'templates' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
+        >
+          Quick Replies
+        </button>
+      </div>
+    </div>
   );
 };
 

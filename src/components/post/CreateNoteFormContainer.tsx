@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
@@ -164,7 +163,7 @@ const CreateNoteFormContainer = () => {
           />
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="compose" className="mt-3">
+            <TabsContent value="compose" className="mt-3 p-0 border-0">
               <NoteComposer 
                 content={content}
                 setContent={setContent}
@@ -188,7 +187,7 @@ const CreateNoteFormContainer = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="templates" className="mt-3">
+            <TabsContent value="templates" className="mt-3 p-0 border-0">
               <QuickReplies onReplySelected={handleQuickReply} />
             </TabsContent>
           </Tabs>
