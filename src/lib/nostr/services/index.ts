@@ -2,5 +2,5 @@
 export { CommunityService } from './community-service';
 export { ProfileService } from './profile-service';
 export { BookmarkService } from './bookmark-service';
-export { ThreadService } from './thread-service';
+export { ThreadService } from './thread/thread-service';
 export type { BaseServiceConfig, SubscriptionResult, EventSubscription } from './types';
