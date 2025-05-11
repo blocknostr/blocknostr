@@ -1,6 +1,8 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import './styles/ios-optimizations.css';
 
 @layer base {
   :root {
@@ -56,18 +58,18 @@
   }
 
   .dark {
-    /* Updated dark mode theme with black, gray, and white tones */
-    --background: 0 0% 7%; /* Near black */
+    /* Updated dark mode theme with black, gray, and white tones optimized for OLED */
+    --background: 0 0% 0%; /* True black for OLED */
     --foreground: 0 0% 95%; /* Off-white */
 
-    --card: 0 0% 10%; /* Dark gray */
+    --card: 0 0% 7%; /* Near black */
     --card-foreground: 0 0% 95%; /* Off-white */
 
-    --popover: 0 0% 10%; /* Dark gray */
+    --popover: 0 0% 7%; /* Near black */
     --popover-foreground: 0 0% 95%; /* Off-white */
 
     --primary: 0 0% 95%; /* Off-white */
-    --primary-foreground: 0 0% 10%; /* Dark gray */
+    --primary-foreground: 0 0% 7%; /* Near black */
 
     --secondary: 0 0% 15%; /* Gray */
     --secondary-foreground: 0 0% 95%; /* Off-white */
@@ -86,10 +88,10 @@
     --ring: 0 0% 70%; /* Light gray */
     
     /* Sidebar related colors */
-    --sidebar-background: 0 0% 10%; /* Dark gray */
+    --sidebar-background: 0 0% 0%; /* True black for OLED */
     --sidebar-foreground: 0 0% 90%; /* Light gray */
     --sidebar-primary: 0 0% 95%; /* Off-white */
-    --sidebar-primary-foreground: 0 0% 7%; /* Near black */
+    --sidebar-primary-foreground: 0 0% 0%; /* True black */
     --sidebar-accent: 0 0% 15%; /* Gray */
     --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
     --sidebar-border: 0 0% 20%; /* Medium gray */
@@ -107,12 +109,12 @@
   }
 }
 
-/* Theme transition classes - updated with shorter duration */
+/* Theme transition classes - updated with shorter duration and iOS-friendly curves */
 .color-theme-in-transition,
 .color-theme-in-transition *,
 .color-theme-in-transition *:before,
 .color-theme-in-transition *:after {
-  transition: all 1s ease-out !important;
+  transition: all 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
   transition-delay: 0 !important;
 }
 
@@ -127,7 +129,7 @@ html.color-theme-in-transition {
   background-position: center;
   background-size: 300% 300%;
   background-repeat: no-repeat;
-  animation: theme-ripple 1s ease-out forwards;
+  animation: theme-ripple 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 @keyframes theme-ripple {
@@ -143,6 +145,40 @@ html.color-theme-in-transition {
 @layer utilities {
   .touch-action-none {
     touch-action: none;
+  }
+  
+  /* iOS-specific animation curves */
+  .ios-spring {
+    transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  
+  /* Safari overflow fix */
+  .overflow-fix {
+    -webkit-transform: translateZ(0);
+  }
+  
+  /* iOS touch callout disable */
+  .no-callout {
+    -webkit-touch-callout: none;
+  }
+  
+  /* iOS rubber band scroll effect */
+  .rubber-scroll {
+    overscroll-behavior: auto;
+  }
+  
+  /* Safe area paddings */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Haptic feedback effect */
+  .haptic {
+    @apply active:scale-95 transition-transform;
   }
 }
 

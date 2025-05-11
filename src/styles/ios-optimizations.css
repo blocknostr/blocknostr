@@ -1,0 +1,88 @@
+
+/* iOS Optimizations */
+
+/* Fix notch and safe areas */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  touch-action: manipulation;
+}
+
+/* Disable tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Enable momentum scrolling */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
+}
+
+/* Improve form inputs on iOS */
+input, 
+textarea,
+select {
+  -webkit-appearance: none;
+  border-radius: 0.5rem;
+  font-size: 16px; /* Prevents iOS zoom on input focus */
+}
+
+/* Fix button styles */
+button {
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+
+/* Add haptic feedback (requires JavaScript interaction) */
+.haptic-feedback {
+  transition: transform 0.05s ease;
+}
+
+.haptic-feedback:active {
+  transform: scale(0.98);
+}
+
+/* Smooth animations that respect reduced motion preferences */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-ios {
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+}
+
+/* Fixed header that respects notch */
+.ios-header {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Bottom navigation bar that respects home indicator */
+.ios-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Making native-like iOS switches */
+.ios-switch {
+  background: #e9e9ea;
+  transition: background 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.ios-switch[data-state="checked"] {
+  background: #34c759;
+}
+
+/* OLED Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .ios-dark-optimize {
+    background-color: #000;
+  }
+  
+  .ios-dark-text {
+    color: #fff;
+  }
+  
+  .ios-dark-secondary {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
