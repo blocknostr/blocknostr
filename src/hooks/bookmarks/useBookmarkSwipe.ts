@@ -1,6 +1,15 @@
 
-import { SwipeableHandlers } from "@/hooks/use-swipeable";
 import { useSwipeable } from "@/hooks/use-swipeable";
+
+// Define the SwipeableHandlers interface locally since it's not exported from use-swipeable.tsx
+interface SwipeableHandlers {
+  onTouchStart: React.TouchEventHandler;
+  onTouchMove: React.TouchEventHandler;
+  onTouchEnd: React.TouchEventHandler;
+  onMouseDown?: React.MouseEventHandler;
+  onMouseMove?: React.MouseEventHandler;
+  onMouseUp?: React.MouseEventHandler;
+}
 
 interface UseBookmarkSwipeProps {
   isMobile: boolean;
