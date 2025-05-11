@@ -20,6 +20,7 @@ export interface BookmarkCollection {
   color?: string;
   description?: string;
   createdAt: number;
+  updatedAt?: number;  // Add updatedAt as optional property
   totalItems?: number;
 }
 

@@ -9,7 +9,6 @@ export interface EventManager {
   getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
   getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null>;
   verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean>;
-  publishEvent(event: any): Promise<string>;
 }
 
 /**
@@ -119,15 +118,6 @@ export class NostrEventManager implements EventManager {
       console.error("Error verifying NIP-05:", error);
       return false;
     }
-  }
-  
-  /**
-   * Publish an event
-   */
-  async publishEvent(event: any): Promise<string> {
-    // This is a placeholder - actual implementation would sign and publish the event
-    console.log("Publishing event:", event);
-    return "event_id_" + Math.random().toString(36).substring(2, 10);
   }
 }
 

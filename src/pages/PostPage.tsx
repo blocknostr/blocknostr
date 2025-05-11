@@ -44,10 +44,11 @@ const PostPage = () => {
         // Connect to relays
         await nostrService.connectToUserRelays();
         
-        // Get relay URLs to use - make sure we handle function return type properly
-        const relayUrls = typeof nostrService.getRelayUrls === 'function' 
-          ? nostrService.getRelayUrls() 
-          : defaultRelays;
+        // Get relay URLs to use - ensure we convert function to string if necessary
+        let relayUrls = defaultRelays;
+        if (typeof nostrService.getRelayUrls === 'function') {
+          relayUrls = nostrService.getRelayUrls();
+        }
         
         // Subscribe to the specific note using the ID
         const filters = [{ ids: [id] }];
