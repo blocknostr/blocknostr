@@ -6,6 +6,7 @@ import EditorHeader from "./editor/EditorHeader";
 import EditorContent from "./editor/EditorContent";
 import EditorActions from "./editor/EditorActions";
 import EditorFooter from "./editor/EditorFooter";
+import { TagInput } from "./TagInput";
 
 interface NoteEditorProps {
   onNoteSaved: (note: any) => void;
@@ -41,8 +42,6 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             setTitle={setTitle}
             language={language}
             setLanguage={setLanguage}
-            tags={tags}
-            setTags={setTags}
           />
           
           <EditorContent
@@ -50,6 +49,13 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             setContent={setContent}
             language={language}
             previewMode={previewMode}
+          />
+          
+          <TagInput 
+            value={tags}
+            onChange={setTags}
+            placeholder="Add tags..."
+            maxTags={5}
           />
           
           <EditorActions
