@@ -26,6 +26,21 @@ export function useEventSubscription({
   const [subId, setSubId] = useState<string | null>(null);
   
   const setupSubscription = (sinceFetch: number, untilFetch?: number) => {
+    // Check if we're online before setting up subscription
+    if (!navigator.onLine) {
+      console.log("Browser is offline, skipping subscription setup");
+      return null;
+    }
+    
+    // Check if we have connected relays
+    const relayStatus = nostrService.getRelayStatus();
+    const connectedRelays = relayStatus.filter(r => r.status === 'connected');
+    
+    if (connectedRelays.length === 0) {
+      console.log("No connected relays, skipping subscription setup");
+      return null;
+    }
+    
     // Create filters based on whether this is a following feed or global feed
     let filters: any[] = [];
     

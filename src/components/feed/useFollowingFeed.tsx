@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
+import { toast } from "sonner";
+import { contentCache } from "@/lib/nostr/cache/content-cache";
 
 interface UseFollowingFeedProps {
   activeHashtag?: string;
@@ -12,6 +14,8 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const following = nostrService.following;
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [connectionAttempted, setConnectionAttempted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   const { 
     events, 
@@ -74,15 +78,23 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
-  useEffect(() => {
-    const initFeed = async () => {
-      // Connect to relays
-      await nostrService.connectToUserRelays();
+  const initFeed = async (forceReconnect = false) => {
+    setLoading(true);
+    
+    try {
+      // If force reconnect or no relays connected, connect to relays
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedRelays = relayStatus.filter(r => r.status === 'connected');
+      
+      if (forceReconnect || connectedRelays.length === 0) {
+        // Connect to relays
+        await nostrService.connectToUserRelays();
+        setConnectionAttempted(true);
+      }
       
       // Reset state when filter changes
       setEvents([]);
       setHasMore(true);
-      setLoading(true);
       
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
@@ -94,6 +106,14 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         nostrService.unsubscribe(subId);
       }
       
+      // Load from cache first if offline
+      if (!navigator.onLine) {
+        const cachedEvents = contentCache.getEventsByAuthors(following);
+        if (cachedEvents.length > 0) {
+          setEvents(cachedEvents);
+        }
+      }
+      
       // Start a new subscription
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
       setSubId(newSubId);
@@ -101,8 +121,27 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       if (following.length === 0) {
         setLoading(false);
       }
-    };
-    
+    } catch (error) {
+      console.error("Error initializing feed:", error);
+      setLoading(false);
+      
+      // Retry up to 3 times
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => initFeed(true), 2000); // Retry after 2 seconds
+      } else {
+        toast.error("Failed to connect to relays. Check your connection or try again later.");
+      }
+    }
+  };
+  
+  // Refresh feed function for manual refresh
+  const refreshFeed = () => {
+    setRetryCount(0);
+    initFeed(true);
+  };
+  
+  useEffect(() => {
     initFeed();
     
     return () => {
@@ -131,6 +170,8 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     loadMoreRef,
     loading,
     following,
-    hasMore
+    hasMore,
+    refreshFeed,
+    connectionAttempted
   };
 }

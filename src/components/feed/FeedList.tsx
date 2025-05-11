@@ -2,6 +2,8 @@
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "../NoteCard";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface FeedListProps {
   events: NostrEvent[];
@@ -9,6 +11,7 @@ interface FeedListProps {
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
   loadMoreRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void);
   loading: boolean;
+  onRefresh?: () => void;
 }
 
 const FeedList: React.FC<FeedListProps> = ({
@@ -16,10 +19,27 @@ const FeedList: React.FC<FeedListProps> = ({
   profiles,
   repostData,
   loadMoreRef,
-  loading
+  loading,
+  onRefresh
 }) => {
   return (
     <div className="space-y-4">
+      {/* Optional refresh button */}
+      {onRefresh && (
+        <div className="flex justify-center mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Refresh Feed
+          </Button>
+        </div>
+      )}
+      
       {/* Standard list rendering */}
       <div className="space-y-4">
         {events.map(event => (
