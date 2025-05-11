@@ -87,17 +87,18 @@ export class AuthAdapter {
   signOut() {
     try {
       console.log("Signing out...");
-      // Fix: Store the result
-      const result = this.service.signOut();
+      // Fix: Call the service method without checking its return value
+      this.service.signOut();
       
-      if (result) {
+      // Check authentication status after sign out
+      if (!this.publicKey) {
         console.log("Sign out successful");
         toast.success("Signed out successfully");
+        return true;
       } else {
-        console.error("Sign out failed");
+        console.error("Sign out failed: public key still available");
+        return false;
       }
-      
-      return result;
     } catch (error) {
       console.error("Error during sign out:", error);
       return false;
