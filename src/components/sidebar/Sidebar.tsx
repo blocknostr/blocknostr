@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import SidebarNav from "./SidebarNav";
 import SidebarUserProfile from "./SidebarUserProfile";
 import { useSidebarProfile } from "./useSidebarProfile";
+import { motion } from "framer-motion";
 
 const Sidebar = () => {
   const isMobile = useIsMobile();
@@ -13,15 +14,21 @@ const Sidebar = () => {
   
   return (
     <aside className={cn(
-      "border-r h-full py-4 bg-background",
+      "border-r h-full py-6 bg-background",
       isMobile ? "w-full" : "w-64 fixed left-0 top-0 hidden md:block"
     )}>
       <div className="flex flex-col h-full px-4">
-        <div className="mb-6">
-          <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
-            BlockNostr
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="mb-8"
+        >
+          <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity tracking-tight">
+            BlockNoster
           </Link>
-        </div>
+          <div className="text-xs text-muted-foreground mt-1">Decentralized social on Alephium</div>
+        </motion.div>
         
         <SidebarNav isLoggedIn={isLoggedIn} />
         

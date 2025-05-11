@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
@@ -68,7 +69,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
 
   return (
     <>
-      <Card className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden">
+      <Card className="mb-4 hover:bg-accent/5 transition-all duration-200 border-border/30 shadow-none overflow-hidden">
         <Link to={`/post/${event.id}`} className="block cursor-pointer">
           {repostData && <NoteCardRepostHeader repostData={repostData} />}
           
@@ -81,7 +82,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             <NoteCardContent 
               content={event.content} 
               reachCount={reachCount}
-              tags={event.tags} // Pass tags to support NIP-10 hashtags
+              tags={event.tags} 
             />
           </CardContent>
         </Link>
@@ -98,7 +99,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         </CardFooter>
         
         {showComments && (
-          <div className="bg-muted/30 animate-fade-in">
+          <div className="bg-muted/20 animate-fade-in border-t border-border/10">
             <NoteCardComments
               eventId={event.id || ''}
               pubkey={event.pubkey || ''}

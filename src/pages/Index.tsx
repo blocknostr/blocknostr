@@ -16,6 +16,7 @@ import { useSwipeable } from "@/hooks/use-swipeable";
 import { useTheme } from "@/hooks/use-theme";
 import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { motion } from "framer-motion";
 
 const Index: React.FC = () => {
   const { darkMode, toggleDarkMode } = useTheme();
@@ -96,7 +97,7 @@ const Index: React.FC = () => {
       {/* Mobile left panel */}
       {isMobile && (
         <Sheet open={leftPanelOpen} onOpenChange={setLeftPanelOpen}>
-          <SheetContent side="left" className="p-0 w-[80%] max-w-[300px]">
+          <SheetContent side="left" className="p-0 w-[85%] max-w-[300px]">
             <div className="h-full">
               <Sidebar />
             </div>
@@ -114,20 +115,22 @@ const Index: React.FC = () => {
         )}
         {...swipeHandlers}
       >
-        <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex items-center justify-between h-14 px-4">
+        <header className="sticky top-0 bg-background/90 backdrop-blur-sm z-10 py-4">
+          <div className="flex items-center justify-between px-4 max-w-7xl mx-auto">
             {isMobile && (
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="mr-2" 
+                className="mr-2 rounded-full" 
                 onClick={() => setLeftPanelOpen(true)}
               >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             )}
-            <h1 className="font-semibold">Home</h1>
+            <div className="flex-1 max-w-md mx-auto">
+              <GlobalSearch />
+            </div>
             <div className="flex items-center space-x-2">
               <Button 
                 variant="ghost"
@@ -144,6 +147,7 @@ const Index: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="rounded-full"
                   onClick={() => setRightPanelOpen(true)}
                   aria-label="Open trending and who to follow"
                 >
@@ -155,7 +159,7 @@ const Index: React.FC = () => {
         </header>
         
         <div className="flex" onClick={handleMainContentClick}>
-          <main className="flex-1 border-r min-h-screen">
+          <main className="flex-1 min-h-screen">
             <div className="max-w-2xl mx-auto px-4 py-4">
               <ConnectionStatusBanner />
               <MainFeed 
@@ -167,15 +171,17 @@ const Index: React.FC = () => {
           
           {/* Desktop right sidebar - only visible on non-mobile screens */}
           {!isMobile && preferences.uiPreferences.showTrending && (
-            <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
-              <div className="space-y-6">
-                <div className="mb-4">
-                  <GlobalSearch />
-                </div>
+            <motion.aside 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-80 p-6 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] space-y-8"
+            >
+              <div className="space-y-8">
                 <TrendingSection onTopicClick={handleTopicClick} />
                 <WhoToFollow />
               </div>
-            </aside>
+            </motion.aside>
           )}
         </div>
       </div>
@@ -183,11 +189,8 @@ const Index: React.FC = () => {
       {/* Mobile right panel */}
       {isMobile && (
         <Sheet open={rightPanelOpen} onOpenChange={setRightPanelOpen}>
-          <SheetContent side="right" className="p-4 w-[80%] max-w-[300px] overflow-y-auto">
+          <SheetContent side="right" className="p-4 w-[85%] max-w-[300px] overflow-y-auto">
             <div className="space-y-6">
-              <div className="mb-4">
-                <GlobalSearch />
-              </div>
               <TrendingSection onTopicClick={handleTopicClick} />
               <WhoToFollow />
             </div>
