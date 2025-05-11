@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { BookmarkCollection, BookmarkWithMetadata, BookmarkManagerFacade } from '../bookmark';
 
@@ -25,12 +24,9 @@ export class BookmarkService {
     if (connectedRelays.length === 0) {
       console.log("No connected relays found. Attempting to connect to user relays...");
       
-      // This references the NostrService instance that created this service
-      await import("../service").then(async module => {
-        // Fix: Use NostrService singleton exported from module instead of nostrService
-        const nostrServiceInstance = module.nostrService;
-        await nostrServiceInstance.connectToUserRelays();
-      });
+      // Import the nostrService from the index file where it's correctly exported
+      const { nostrService } = await import("../index");
+      await nostrService.connectToUserRelays();
       
       // Check if we have connections now
       connectedRelays = this.getConnectedRelayUrls();
