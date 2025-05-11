@@ -1,0 +1,263 @@
+
+import { SimplePool, type Filter } from 'nostr-tools';
+import { EVENT_KINDS } from '../../constants';
+import { BookmarkManagerDependencies } from '../types';
+import { validateRelays } from '../utils/bookmark-utils';
+
+/**
+ * Handles core bookmark operations (add, remove, list, check)
+ */
+export class BookmarkOperations {
+  constructor(private dependencies: BookmarkManagerDependencies) {}
+  
+  /**
+   * Add a bookmark for an event
+   */
+  async addBookmark(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    eventId: string,
+    relays: string[],
+    collectionId?: string,
+    tags?: string[],
+    note?: string
+  ): Promise<boolean> {
+    if (!publicKey) {
+      throw new Error("Cannot add bookmark: No public key provided");
+    }
+    
+    if (!eventId) {
+      throw new Error("Cannot add bookmark: No event ID provided");
+    }
+    
+    // Validate relays
+    validateRelays(relays);
+    
+    try {
+      console.log(`Adding bookmark for event ${eventId} to relays:`, relays);
+      
+      // First get existing bookmarks
+      const bookmarks = await this.getBookmarkList(
+        pool,
+        publicKey,
+        relays
+      );
+      
+      // Check if already bookmarked
+      if (bookmarks.includes(eventId)) {
+        console.log(`Event ${eventId} is already bookmarked`);
+        // If already bookmarked, just update metadata if provided
+        if (collectionId || tags?.length || note) {
+          return this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
+        }
+        return true; // Already bookmarked
+      }
+      
+      // Create bookmarks list event (NIP-51 compliant replaceable event)
+      const event = {
+        kind: EVENT_KINDS.BOOKMARKS,
+        content: "",
+        tags: [
+          // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
+          ["d", "bookmarks"],
+          ...bookmarks.map(id => ["e", id]), // Include all existing bookmarks
+          ["e", eventId] // Add new bookmark
+        ]
+      };
+      
+      console.log("Publishing bookmark event:", event);
+      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark publish result:", publishResult);
+      
+      if (!publishResult) {
+        throw new Error("Failed to publish bookmark event");
+      }
+      
+      // Also create bookmark metadata if provided
+      if (publishResult && (collectionId || tags?.length || note)) {
+        await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
+      }
+      
+      return !!publishResult;
+    } catch (error) {
+      console.error("Error adding bookmark:", error);
+      throw error; // Re-throw for better error handling upstream
+    }
+  }
+  
+  /**
+   * Remove a bookmark
+   */
+  async removeBookmark(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    eventId: string,
+    relays: string[]
+  ): Promise<boolean> {
+    if (!publicKey) {
+      throw new Error("Cannot remove bookmark: No public key provided");
+    }
+    
+    if (!eventId) {
+      throw new Error("Cannot remove bookmark: No event ID provided");
+    }
+    
+    // Validate relays
+    validateRelays(relays);
+    
+    try {
+      console.log(`Removing bookmark for event ${eventId} from relays:`, relays);
+      
+      // First get existing bookmarks
+      const bookmarks = await this.getBookmarkList(
+        pool,
+        publicKey,
+        relays
+      );
+      
+      // Check if it's actually bookmarked
+      if (!bookmarks.includes(eventId)) {
+        console.log(`Event ${eventId} is not bookmarked, nothing to remove`);
+        return true; // Not bookmarked, nothing to do
+      }
+      
+      // Create updated bookmarks list event without the removed bookmark (NIP-51 compliant)
+      const event = {
+        kind: EVENT_KINDS.BOOKMARKS,
+        content: "",
+        tags: [
+          // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
+          ["d", "bookmarks"],
+          ...bookmarks
+            .filter(id => id !== eventId)
+            .map(id => ["e", id])
+        ]
+      };
+      
+      console.log("Publishing bookmark removal event:", event);
+      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark removal result:", publishResult);
+      
+      if (!publishResult) {
+        throw new Error("Failed to publish bookmark removal event");
+      }
+      
+      // Also remove any bookmark metadata
+      if (publishResult) {
+        await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
+      }
+      
+      return !!publishResult;
+    } catch (error) {
+      console.error("Error removing bookmark:", error);
+      throw error; // Re-throw for better error handling upstream
+    }
+  }
+  
+  /**
+   * Get list of bookmarked event IDs
+   */
+  async getBookmarkList(
+    pool: SimplePool,
+    pubkey: string,
+    relays: string[]
+  ): Promise<string[]> {
+    // Validate relays
+    validateRelays(relays);
+    
+    return new Promise<string[]>((resolve, reject) => {
+      let bookmarkedIds: string[] = [];
+      
+      // Subscribe to bookmark list events (NIP-51 compliant)
+      const filter: Filter = {
+        kinds: [EVENT_KINDS.BOOKMARKS],
+        authors: [pubkey],
+        "#d": ["bookmarks"], // NIP-33: Filter by "d" tag to get only bookmark lists
+        limit: 1
+      };
+      
+      try {
+        const sub = pool.subscribe(relays, filter, {
+          onevent: (event) => {
+            // Extract e tags (bookmarked event IDs)
+            const bookmarks = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'e')
+              .map(tag => tag[1]);
+            
+            bookmarkedIds = bookmarks;
+          }
+        });
+        
+        // Set a configurable timeout to resolve with found bookmarks
+        const timeout = 5000; // Increased from 3000 for better reliability
+        setTimeout(() => {
+          sub.close();
+          
+          // Even if we didn't receive anything, resolve with empty array rather than rejecting
+          console.log(`Bookmark list query timeout after ${timeout}ms, found ${bookmarkedIds.length} bookmarks`);
+          resolve(bookmarkedIds);
+        }, timeout);
+      } catch (error) {
+        console.error("Error getting bookmark list:", error);
+        reject(error);
+      }
+    });
+  }
+  
+  /**
+   * Check if an event is bookmarked
+   */
+  async isBookmarked(
+    pool: SimplePool,
+    pubkey: string,
+    eventId: string,
+    relays: string[]
+  ): Promise<boolean> {
+    try {
+      const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
+      return bookmarks.includes(eventId);
+    } catch (error) {
+      console.error("Error checking if event is bookmarked:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Update bookmark metadata
+   */
+  async updateBookmarkMetadata(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    eventId: string,
+    relays: string[],
+    collectionId?: string,
+    tags?: string[],
+    note?: string
+  ): Promise<boolean> {
+    // Import from metadata operations and delegate
+    const { BookmarkMetadataOperations } = await import('../operations/bookmark-metadata-operations');
+    const metadataOps = new BookmarkMetadataOperations(this.dependencies);
+    return metadataOps.updateBookmarkMetadata(
+      pool, publicKey, privateKey, eventId, relays, collectionId, tags, note
+    );
+  }
+  
+  /**
+   * Remove bookmark metadata
+   */
+  async removeBookmarkMetadata(
+    pool: SimplePool,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    eventId: string,
+    relays: string[]
+  ): Promise<boolean> {
+    // Import from metadata operations and delegate
+    const { BookmarkMetadataOperations } = await import('../operations/bookmark-metadata-operations');
+    const metadataOps = new BookmarkMetadataOperations(this.dependencies);
+    return metadataOps.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
+  }
+}
