@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, FileText, Trash2, Tag, Clock, Image as ImageIcon } from "lucide-react";
+import { Copy, FileText, Trash2, Tag, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
@@ -89,32 +89,6 @@ const NotesList = ({
     return gradients[language.toLowerCase()] || gradients.text;
   };
 
-  // Get summary from note
-  const getNoteSummary = (note: Note): string | undefined => {
-    if (note.summary) return note.summary;
-    
-    // Try to extract summary from event
-    if (note.event && Array.isArray(note.event.tags)) {
-      const summaryTag = note.event.tags.find(tag => tag[0] === 'summary' && tag.length >= 2);
-      return summaryTag ? summaryTag[1] : undefined;
-    }
-    
-    return undefined;
-  };
-
-  // Get image from note
-  const getNoteImage = (note: Note): string | undefined => {
-    if (note.image) return note.image;
-    
-    // Try to extract image from event
-    if (note.event && Array.isArray(note.event.tags)) {
-      const imageTag = note.event.tags.find(tag => tag[0] === 'image' && tag.length >= 2);
-      return imageTag ? imageTag[1] : undefined;
-    }
-    
-    return undefined;
-  };
-
   if (!isLoggedIn) {
     return (
       <div className="space-y-4">
@@ -157,8 +131,6 @@ const NotesList = ({
             const timeAgo = getTimeAgo(note.publishedAt);
             const isRecent = isRecentNote(note.publishedAt);
             const cardGradient = getCardGradient(note.language);
-            const summary = getNoteSummary(note);
-            const image = getNoteImage(note);
             
             return (
               <Card 
@@ -166,19 +138,6 @@ const NotesList = ({
                 className={`hover:shadow-md transition-all duration-200 cursor-pointer group overflow-hidden ${cardGradient}`}
                 onClick={() => onNoteClick(note)}
               >
-                {image && (
-                  <div className="h-32 w-full overflow-hidden border-b">
-                    <img 
-                      src={image} 
-                      alt={note.title} 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
-                
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <h3 className="font-medium truncate">{note.title}</h3>
@@ -209,12 +168,6 @@ const NotesList = ({
                       </Button>
                     </div>
                   </div>
-                  
-                  {summary && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {summary}
-                    </p>
-                  )}
                   
                   <div className="flex items-center mt-2 text-xs text-muted-foreground">
                     <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded-md">

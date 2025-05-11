@@ -13,8 +13,6 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [previewMode, setPreviewMode] = useState<boolean>(false);
-  const [summary, setSummary] = useState<string>("");
-  const [image, setImage] = useState<string>("");
   
   // Register keyboard shortcuts
   useHotkeys('ctrl+s', (e) => {
@@ -71,16 +69,6 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
         ]
       };
       
-      // Add summary tag if provided (NIP-23)
-      if (summary.trim()) {
-        event.tags.push(["summary", summary]);
-      }
-      
-      // Add image tag if provided (NIP-23)
-      if (image.trim()) {
-        event.tags.push(["image", image]);
-      }
-      
       // Add slug tag for better content addressing (NIP-23)
       event.tags.push(["slug", slug]);
       
@@ -113,8 +101,6 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
         publishedAt,
         author: nostrService.publicKey || 'local-user',
         event,
-        summary: summary || undefined,
-        image: image || undefined,
         slug
       };
       
@@ -175,8 +161,6 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setNoteId(null);
     setTags([]);
     setPreviewMode(false);
-    setSummary("");
-    setImage("");
   };
 
   return {
@@ -197,10 +181,6 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     copyToClipboard,
     shareNote,
     clearEditor,
-    isLoggedIn: !!nostrService.publicKey,
-    summary,
-    setSummary,
-    image,
-    setImage
+    isLoggedIn: !!nostrService.publicKey
   };
 }

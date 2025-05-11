@@ -17,8 +17,8 @@ export interface Note {
 // NIP-23 specific types
 export interface Nip23Note extends Note {
   summary: string;
-  image?: string;
   slug: string;
+  image?: string;
 }
 
 // NIP-33 versioning support
