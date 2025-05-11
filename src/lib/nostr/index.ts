@@ -11,6 +11,7 @@ import { BookmarkManager } from './bookmark';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
+import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 
 class NostrService {
   private userManager: UserManager;
@@ -536,14 +537,22 @@ class NostrService {
   }
   
   // Bookmark methods
-  async addBookmark(eventId: string): Promise<boolean> {
+  async addBookmark(
+    eventId: string, 
+    collectionId?: string,
+    tags?: string[],
+    note?: string
+  ): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
     return this.bookmarkManager.addBookmark(
       this.pool,
       this.publicKey,
       null, // We're not storing private keys
       eventId,
-      connectedRelays
+      connectedRelays,
+      collectionId,
+      tags,
+      note
     );
   }
   
@@ -578,7 +587,91 @@ class NostrService {
       connectedRelays
     );
   }
-  
+
+  // New collection methods
+  async createBookmarkCollection(
+    name: string,
+    color?: string,
+    description?: string
+  ): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.createCollection(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      name,
+      connectedRelays,
+      color,
+      description
+    );
+  }
+
+  async updateBookmarkCollection(
+    collectionId: string,
+    updates: Partial<BookmarkCollection>
+  ): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.updateCollection(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      collectionId,
+      updates,
+      connectedRelays
+    );
+  }
+
+  async deleteBookmarkCollection(collectionId: string): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.deleteCollection(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      collectionId,
+      connectedRelays
+    );
+  }
+
+  async getBookmarkCollections(): Promise<BookmarkCollection[]> {
+    if (!this.publicKey) return [];
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.getCollections(
+      this.pool,
+      this.publicKey,
+      connectedRelays
+    );
+  }
+
+  // Metadata methods
+  async updateBookmarkMetadata(
+    eventId: string,
+    collectionId?: string,
+    tags?: string[],
+    note?: string
+  ): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.updateBookmarkMetadata(
+      this.pool,
+      this.publicKey,
+      null, // We're not storing private keys
+      eventId,
+      connectedRelays,
+      collectionId,
+      tags,
+      note
+    );
+  }
+
+  async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
+    if (!this.publicKey) return [];
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.getBookmarkMetadata(
+      this.pool,
+      this.publicKey,
+      connectedRelays
+    );
+  }
+
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
     
@@ -651,3 +744,6 @@ export type { ReactionCounts, ContactList } from './social/types';
 
 // Re-export from community module
 export type { ProposalCategory } from '@/types/community';
+
+// Re-export from bookmark module
+export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';

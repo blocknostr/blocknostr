@@ -15,6 +15,8 @@ export const EVENT_KINDS = {
   COMMUNITY: 34550,      // Communities - NIP-172
   BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51 (was missing)
   BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST
+  BOOKMARK_COLLECTIONS: 30001, // Custom kind for bookmark collections
+  BOOKMARK_METADATA: 30002,    // Custom kind for bookmark metadata (tags, notes)
   PROPOSAL: 34551,       // Custom kind for proposals
   VOTE: 34552,           // Custom kind for votes
   COMMENT: 34553,        // Custom kind for comments
