@@ -24,16 +24,23 @@ export class BookmarkService {
     if (!this.publicKey) return false;
     const connectedRelays = this.getConnectedRelayUrls();
     
-    return this.bookmarkManager.addBookmark(
-      this.pool,
-      this.publicKey, 
-      null, // We're not storing private keys
-      eventId,
-      connectedRelays,
-      collectionId, 
-      tags, 
-      note
-    );
+    try {
+      const result = await this.bookmarkManager.addBookmark(
+        this.pool,
+        this.publicKey, 
+        null, // We're not storing private keys
+        eventId,
+        connectedRelays,
+        collectionId, 
+        tags, 
+        note
+      );
+      
+      return !!result;
+    } catch (error) {
+      console.error("Error in BookmarkService.addBookmark:", error);
+      return false;
+    }
   }
   
   /**
@@ -43,13 +50,20 @@ export class BookmarkService {
     if (!this.publicKey) return false;
     const connectedRelays = this.getConnectedRelayUrls();
     
-    return this.bookmarkManager.removeBookmark(
-      this.pool,
-      this.publicKey, 
-      null, // We're not storing private keys
-      eventId, 
-      connectedRelays
-    );
+    try {
+      const result = await this.bookmarkManager.removeBookmark(
+        this.pool,
+        this.publicKey, 
+        null, // We're not storing private keys
+        eventId, 
+        connectedRelays
+      );
+      
+      return !!result;
+    } catch (error) {
+      console.error("Error in BookmarkService.removeBookmark:", error);
+      return false;
+    }
   }
   
   /**

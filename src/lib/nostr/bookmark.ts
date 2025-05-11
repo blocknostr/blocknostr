@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
@@ -38,14 +37,30 @@ export class BookmarkManager {
     tags?: string[],
     note?: string
   ): Promise<boolean> {
-    if (!publicKey) return false;
+    if (!publicKey) {
+      console.error("Cannot add bookmark: No public key provided");
+      return false;
+    }
+    
+    if (!eventId) {
+      console.error("Cannot add bookmark: No event ID provided");
+      return false;
+    }
+    
+    if (relays.length === 0) {
+      console.error("Cannot add bookmark: No relays provided");
+      return false;
+    }
     
     try {
+      console.log(`Adding bookmark for event ${eventId} to relays:`, relays);
+      
       // First get existing bookmarks
-      const bookmarks = await this.getBookmarkList(pool, publicKey, relays);
+      const bookmarks = await this.getBookmarkList(publicKey, relays, pool);
       
       // Check if already bookmarked
       if (bookmarks.includes(eventId)) {
+        console.log(`Event ${eventId} is already bookmarked`);
         // If already bookmarked, just update metadata if provided
         if (collectionId || tags?.length || note) {
           return this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
@@ -63,7 +78,9 @@ export class BookmarkManager {
         ]
       };
       
+      console.log("Publishing bookmark event:", event);
       const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark publish result:", publishResult);
       
       // Also create bookmark metadata if provided
       if (publishResult && (collectionId || tags?.length || note)) {
@@ -87,14 +104,30 @@ export class BookmarkManager {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) return false;
+    if (!publicKey) {
+      console.error("Cannot remove bookmark: No public key provided");
+      return false;
+    }
+    
+    if (!eventId) {
+      console.error("Cannot remove bookmark: No event ID provided");
+      return false;
+    }
+    
+    if (relays.length === 0) {
+      console.error("Cannot remove bookmark: No relays provided");
+      return false;
+    }
     
     try {
+      console.log(`Removing bookmark for event ${eventId} from relays:`, relays);
+      
       // First get existing bookmarks
-      const bookmarks = await this.getBookmarkList(pool, publicKey, relays);
+      const bookmarks = await this.getBookmarkList(publicKey, relays, pool);
       
       // Check if it's actually bookmarked
       if (!bookmarks.includes(eventId)) {
+        console.log(`Event ${eventId} is not bookmarked, nothing to remove`);
         return true; // Not bookmarked, nothing to do
       }
       
@@ -107,7 +140,9 @@ export class BookmarkManager {
           .map(id => ["e", id])
       };
       
+      console.log("Publishing bookmark removal event:", event);
       const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark removal result:", publishResult);
       
       // Also remove any bookmark metadata
       if (publishResult) {
