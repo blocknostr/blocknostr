@@ -1,61 +1,37 @@
 
 import React from "react";
-import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import LoginButton from "@/components/LoginButton";
-import { useTheme } from "@/hooks/use-theme";
+import { Menu, MessageSquare } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import MobileMenu from "./MobileMenu";
+import { useRightSidebar } from "@/contexts/RightSidebarContext";
 
 interface PageHeaderProps {
-  leftPanelOpen: boolean;
-  setLeftPanelOpen: (open: boolean) => void;
-  rightPanelOpen: boolean;
-  setRightPanelOpen: (open: boolean) => void;
+  title?: string;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({
-  leftPanelOpen,
-  setLeftPanelOpen,
-  rightPanelOpen,
-  setRightPanelOpen
-}) => {
-  const { darkMode, toggleDarkMode } = useTheme();
+const PageHeader: React.FC<PageHeaderProps> = ({ title = "Home" }) => {
   const isMobile = useIsMobile();
-
+  const { rightPanelOpen, setRightPanelOpen } = useRightSidebar();
+  
   return (
-    <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-      <div className="flex items-center justify-between h-14 px-4">
-        {isMobile && (
-          <MobileMenu 
-            leftPanelOpen={leftPanelOpen}
-            setLeftPanelOpen={setLeftPanelOpen}
-            rightPanelOpen={rightPanelOpen}
-            setRightPanelOpen={setRightPanelOpen}
-          />
-        )}
-        
-        {isMobile && (
-          <h1 className="font-semibold">BlockNostr</h1>
-        )}
-        {!isMobile && (
-          <h1 className="font-semibold">Home</h1>
-        )}
-        
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="ghost"
-            size="icon"
-            className="rounded-full theme-toggle-button"
-            onClick={(e) => toggleDarkMode(e)}
-            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
-          </Button>
-          <LoginButton />
-        </div>
-      </div>
+    <header className="sticky top-0 z-30 flex items-center justify-between bg-background/80 backdrop-blur-sm border-b h-14 px-4">
+      {isMobile && (
+        <Button variant="ghost" size="icon">
+          <Menu className="h-[1.2rem] w-[1.2rem]" />
+        </Button>
+      )}
+      
+      <h1 className="font-semibold text-lg">{title}</h1>
+      
+      {isMobile && (
+        <Button 
+          variant={rightPanelOpen ? "secondary" : "ghost"} 
+          size="icon"
+          onClick={() => setRightPanelOpen(!rightPanelOpen)}
+        >
+          <MessageSquare className="h-[1.2rem] w-[1.2rem]" />
+        </Button>
+      )}
     </header>
   );
 };

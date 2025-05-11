@@ -28,8 +28,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   // Desktop right sidebar
   if (!isMobile && preferences.uiPreferences.showTrending) {
     return (
-      <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
-        <div className="flex flex-col h-full space-y-2">
+      <aside className="w-80 p-4 hidden lg:block sticky top-0 h-screen overflow-y-auto">
+        <div className="flex flex-col h-full space-y-2 pt-2">
           <div>
             <GlobalSearch />
           </div>
@@ -53,7 +53,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
     return (
       <Sheet open={rightPanelOpen} onOpenChange={setRightPanelOpen}>
         <SheetContent side="right" className="p-4 w-[80%] max-w-[300px] overflow-y-auto">
-          <div className="flex flex-col h-full space-y-2">
+          <div className="flex flex-col h-full space-y-2 pt-10">
             <div>
               <GlobalSearch />
             </div>

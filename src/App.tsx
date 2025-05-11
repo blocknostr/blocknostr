@@ -15,31 +15,37 @@ import { Toaster } from "sonner";
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
 import { NavigationProvider } from './contexts/NavigationContext';
+import { RightSidebarProvider } from './contexts/RightSidebarContext';
+import AppLayout from './components/layout/AppLayout';
 
 function App() {
   return (
     <BrowserRouter>
       <NavigationProvider>
-        <div className="flex flex-col min-h-screen">
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/:pubkey" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/communities" element={<CommunitiesPage />} />
-              <Route path="/communities/:id" element={<CommunityPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/post/:id" element={<PostPage />} />
-              <Route path="/notebin" element={<NotebinPage />} />
-              <Route path="/wallets" element={<WalletsPage />} />
-              <Route path="/premium" element={<PremiumPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Toaster position="bottom-right" closeButton />
-        </div>
+        <RightSidebarProvider>
+          <div className="flex flex-col min-h-screen">
+            <main className="flex-1">
+              <AppLayout>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/:pubkey" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/communities" element={<CommunitiesPage />} />
+                  <Route path="/communities/:id" element={<CommunityPage />} />
+                  <Route path="/messages" element={<MessagesPage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/post/:id" element={<PostPage />} />
+                  <Route path="/notebin" element={<NotebinPage />} />
+                  <Route path="/wallets" element={<WalletsPage />} />
+                  <Route path="/premium" element={<PremiumPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AppLayout>
+            </main>
+            <Toaster position="bottom-right" closeButton />
+          </div>
+        </RightSidebarProvider>
       </NavigationProvider>
     </BrowserRouter>
   );
