@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { Relay } from './types';
 import { relayInfoService, RelayInfoService, RelayInfo } from './services/relay-info-service';
@@ -5,7 +6,7 @@ import { relayInfoService, RelayInfoService, RelayInfo } from './services/relay-
 export class RelayManager {
   private pool: SimplePool;
   private relays: Map<string, WebSocket> = new Map();
-  userRelays: Map<string, boolean> = new Map(); // Map<relayURL, readWrite>
+  private _userRelays: Map<string, boolean> = new Map(); // Map<relayURL, readWrite>
   private defaultRelays: string[] = [
     'wss://relay.damus.io',
     'wss://nos.lol',
@@ -13,15 +14,19 @@ export class RelayManager {
     'wss://relay.nostr.band'
   ];
   private relayInfoService: RelayInfoService;
+  private connectionStatus: Map<string, { connected: boolean, lastAttempt: number, failures: number }> = new Map();
+  private reconnectTimers: Map<string, number> = new Map();
+  private healthCheckInterval: number | null = null;
   
   constructor(pool: SimplePool) {
     this.pool = pool;
     this.relayInfoService = relayInfoService(pool);
     this.loadUserRelays();
+    this.startHealthCheck();
   }
   
   get userRelays(): Map<string, boolean> {
-    return new Map(this.userRelays);
+    return new Map(this._userRelays);
   }
   
   loadUserRelays(): void {
@@ -29,20 +34,20 @@ export class RelayManager {
     if (savedRelays) {
       try {
         const relaysObject = JSON.parse(savedRelays);
-        this.userRelays = new Map(Object.entries(relaysObject));
+        this._userRelays = new Map(Object.entries(relaysObject));
       } catch (e) {
         console.error('Error loading user relays:', e);
       }
     } else {
       // Default to the app's default relays
       this.defaultRelays.forEach(relay => {
-        this.userRelays.set(relay, true); // Read/write by default
+        this._userRelays.set(relay, true); // Read/write by default
       });
     }
   }
   
   saveUserRelays(): void {
-    const relaysObject = Object.fromEntries(this.userRelays);
+    const relaysObject = Object.fromEntries(this._userRelays);
     localStorage.setItem('nostr_user_relays', JSON.stringify(relaysObject));
   }
   
@@ -86,7 +91,7 @@ export class RelayManager {
           this.relays.delete(relayUrl);
           
           // Exponential backoff for reconnection (max ~1 minute)
-          if (retryCount < 6 && this.userRelays.has(relayUrl)) {
+          if (retryCount < 6 && this._userRelays.has(relayUrl)) {
             const delay = Math.min(1000 * Math.pow(2, retryCount), 60000);
             const timerId = window.setTimeout(() => {
               this.connectToRelay(relayUrl, retryCount + 1);
@@ -132,7 +137,7 @@ export class RelayManager {
   }
   
   async connectToUserRelays(): Promise<void> {
-    const promises = Array.from(this.userRelays.keys()).map(url => this.connectToRelay(url));
+    const promises = Array.from(this._userRelays.keys()).map(url => this.connectToRelay(url));
     await Promise.all(promises);
   }
   
@@ -145,7 +150,7 @@ export class RelayManager {
     }
     
     // Add to user relays
-    this.userRelays.set(relayUrl, readWrite);
+    this._userRelays.set(relayUrl, readWrite);
     this.saveUserRelays();
     
     // Try to connect
@@ -154,7 +159,7 @@ export class RelayManager {
   }
   
   removeRelay(relayUrl: string): void {
-    this.userRelays.delete(relayUrl);
+    this._userRelays.delete(relayUrl);
     this.saveUserRelays();
     
     // Close connection if exists
@@ -170,7 +175,7 @@ export class RelayManager {
     const relayMap = new Map<string, Relay>();
     
     // Add all user relays first (even if not connected)
-    Array.from(this.userRelays.keys()).forEach(url => {
+    Array.from(this._userRelays.keys()).forEach(url => {
       const isConnected = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.OPEN;
       const isConnecting = this.relays.has(url) && this.relays.get(url)?.readyState === WebSocket.CONNECTING;
       
@@ -178,7 +183,7 @@ export class RelayManager {
         url,
         status: isConnected ? 'connected' : (isConnecting ? 'connecting' : 'disconnected'),
         read: true,
-        write: !!this.userRelays.get(url)
+        write: !!this._userRelays.get(url)
       });
     });
     
@@ -241,7 +246,7 @@ export class RelayManager {
   
   private async performHealthCheck(): Promise<void> {
     // Check all user relays
-    for (const relayUrl of this.userRelays.keys()) {
+    for (const relayUrl of this._userRelays.keys()) {
       const socket = this.relays.get(relayUrl);
       
       // If not connected or socket is closing/closed, try to reconnect
@@ -292,7 +297,7 @@ export class RelayManager {
    * Set user relays map (used when loading from NIP-65)
    */
   setUserRelays(relays: Map<string, boolean>): void {
-    this.userRelays = relays;
+    this._userRelays = relays;
     this.saveUserRelays();
     
     // Connect to these relays
