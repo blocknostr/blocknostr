@@ -32,13 +32,16 @@ export class ProfileService {
       
       return new Promise((resolve) => {
         const subscribe = (filters: any, onEvent: (event: NostrEvent) => void): string => {
-          return this.pool.subscribe(connectedRelays, filters, {
+          const subscription = this.pool.subscribe(connectedRelays, filters, {
             onevent: onEvent
-          }).sub;
+          });
+          return subscription.id || ''; // Ensure we have a string ID
         };
         
         const unsubscribe = (subId: string): void => {
-          const sub = this.pool.subscriptions.get(subId);
+          // Find the subscription by ID and close it
+          const subscriptions = Array.from(this.pool.relays.values()).map(r => Array.from(r.subs.values())).flat();
+          const sub = subscriptions.find(s => s.id === subId);
           if (sub) sub.close();
         };
         

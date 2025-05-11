@@ -6,6 +6,7 @@ import { NostrService } from './service';
 import { CommunityService } from './services/community-service';
 import { ProfileService } from './services/profile-service';
 import { BookmarkService } from './services/bookmark-service';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Initialize the NostrService instance
 const nostrService = new NostrService();
@@ -30,8 +31,9 @@ const bookmarkService = new BookmarkService(
   () => nostrService.getRelayStatus().filter(relay => relay.status === 'connected').map(relay => relay.url)
 );
 
-// Extend the nostrService with the new services
+// Extend the nostrService with key utility methods
 Object.defineProperties(nostrService, {
+  // Profile utility methods
   getUserProfile: {
     value: async (pubkey: string) => {
       return profileService.getUserProfile(pubkey);
@@ -47,9 +49,114 @@ Object.defineProperties(nostrService, {
       return profileService.fetchNip05Data(identifier);
     }
   },
+  
+  // Pubkey formatting utilities
+  formatPubkey: {
+    value: (pubkey: string) => formatPubkey(pubkey)
+  },
+  getNpubFromHex: {
+    value: (hexPubkey: string) => getNpubFromHex(hexPubkey)
+  },
+  getHexFromNpub: {
+    value: (npub: string) => getHexFromNpub(npub)
+  },
+  
+  // Community methods
   fetchCommunity: {
     value: async (communityId: string) => {
       return communityService.fetchCommunity(communityId);
+    }
+  },
+  createCommunity: {
+    value: async (name: string, description: string) => {
+      const connectedRelays = nostrService.getRelayStatus()
+        .filter(relay => relay.status === 'connected')
+        .map(relay => relay.url);
+      
+      return communityService.createCommunity(
+        name,
+        description,
+        nostrService.publicKey,
+        connectedRelays
+      );
+    }
+  },
+  createProposal: {
+    value: async (
+      communityId: string,
+      title: string,
+      description: string,
+      options: string[],
+      category: string,
+      minQuorum?: number,
+      endsAt?: number
+    ) => {
+      const connectedRelays = nostrService.getRelayStatus()
+        .filter(relay => relay.status === 'connected')
+        .map(relay => relay.url);
+      
+      return communityService.createProposal(
+        communityId,
+        title,
+        description,
+        options,
+        nostrService.publicKey,
+        connectedRelays,
+        category,
+        minQuorum,
+        endsAt
+      );
+    }
+  },
+  voteOnProposal: {
+    value: async (proposalId: string, optionIndex: number) => {
+      const connectedRelays = nostrService.getRelayStatus()
+        .filter(relay => relay.status === 'connected')
+        .map(relay => relay.url);
+      
+      return communityService.voteOnProposal(
+        proposalId,
+        optionIndex,
+        nostrService.publicKey,
+        connectedRelays
+      );
+    }
+  },
+  
+  // Bookmark methods
+  isBookmarked: {
+    value: async (eventId: string) => {
+      return bookmarkService.isBookmarked(eventId);
+    }
+  },
+  addBookmark: {
+    value: async (eventId: string, collectionId?: string, tags?: string[], note?: string) => {
+      return bookmarkService.addBookmark(eventId, collectionId, tags, note);
+    }
+  },
+  removeBookmark: {
+    value: async (eventId: string) => {
+      return bookmarkService.removeBookmark(eventId);
+    }
+  },
+  getBookmarks: {
+    value: async () => {
+      return bookmarkService.getBookmarks();
+    }
+  },
+  getBookmarkCollections: {
+    value: async () => {
+      return bookmarkService.getBookmarkCollections();
+    }
+  },
+  getBookmarkMetadata: {
+    value: async () => {
+      return bookmarkService.getBookmarkMetadata();
+    }
+  },
+  createBookmarkCollection: {
+    value: async (name: string, color?: string, description?: string) => {
+      return bookmarkService.createBookmarkCollection(name, color, description);
     }
   }
 });

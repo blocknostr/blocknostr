@@ -9,7 +9,6 @@ import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { BookmarkManager } from './bookmark';
-import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
@@ -24,8 +23,8 @@ class NostrService {
   private subscriptionManager: SubscriptionManager;
   private eventManager: EventManager;
   public socialManager: SocialManager;
-  private communityManager: CommunityManager;
-  private bookmarkManager: BookmarkManager;
+  public communityManager: CommunityManager;
+  public bookmarkManager: BookmarkManager;
   private pool: SimplePool;
   
   constructor() {
@@ -214,21 +213,8 @@ class NostrService {
     let recipientRelays: string[] = [];
     
     try {
-      // First try to get profile for potential NIP-05 identifier
-      const profile = await this.getUserProfile(recipientPubkey);
-      
-      if (profile?.nip05) {
-        // If recipient has NIP-05, try to fetch relay preferences from it
-        const nip05Data = await this.fetchNip05Data(profile.nip05);
-        if (nip05Data?.relays) {
-          recipientRelays = Object.keys(nip05Data.relays);
-        }
-      }
-      
-      // If no relays found yet, try to find a kind:10050 relay list event
-      if (recipientRelays.length === 0) {
-        recipientRelays = await this.getRelaysForUser(recipientPubkey);
-      }
+      // Try to fetch relay preferences from relay list event
+      recipientRelays = await this.getRelaysForUser(recipientPubkey);
     } catch (error) {
       console.error("Error finding recipient's relays:", error);
     }

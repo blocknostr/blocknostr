@@ -5,27 +5,21 @@ import { EVENT_KINDS } from '../constants';
 import type { ProposalCategory } from '@/types/community';
 
 /**
- * Community service that handles community-related methods
+ * Community service to handle community-related operations 
+ * Implements NIP-172 compatible methods
  */
 export class CommunityService {
-  constructor(private eventManager: any, private getConnectedRelayUrls: () => string[], 
-              private pool: SimplePool, private publicKey: string | null) {}
+  constructor(
+    private communityManager: any, 
+    private getConnectedRelayUrls: () => string[],
+    private pool: SimplePool,
+    private publicKey: string | null
+  ) {}
 
   /**
-   * Fetch a community by its ID
-   * @param communityId - The ID of the community to fetch
-   * @returns Promise resolving to community data or null if not found
+   * Fetch a community by ID
    */
-  async fetchCommunity(communityId: string): Promise<{
-    id: string;
-    name: string;
-    description: string;
-    image: string;
-    creator: string;
-    createdAt: number;
-    members: string[];
-    uniqueId: string;
-  } | null> {
+  async fetchCommunity(communityId: string): Promise<any> {
     if (!communityId) return null;
     
     try {
@@ -33,47 +27,44 @@ export class CommunityService {
       
       return new Promise((resolve) => {
         const subscribe = (filters: any, onEvent: (event: NostrEvent) => void): string => {
-          return this.pool.subscribe(connectedRelays, filters, {
+          const subcloser = this.pool.subscribe(connectedRelays, filters, {
             onevent: onEvent
-          }).sub;
+          });
+          return subcloser.id || ''; // Make sure we have an ID
         };
         
         const unsubscribe = (subId: string): void => {
-          const sub = this.pool.subscriptions.get(subId);
-          if (sub) sub.close();
+          if (this.pool.subscriptions && this.pool.subscriptions.has(subId)) {
+            const sub = this.pool.subscriptions.get(subId);
+            if (sub) sub.close();
+          }
         };
         
         const subId = subscribe(
           {
             kinds: [EVENT_KINDS.COMMUNITY],
-            ids: [communityId],
+            '#d': [communityId],
             limit: 1
           },
           (event) => {
             try {
-              // Parse content and extract community data
-              const content = JSON.parse(event.content);
+              const community = JSON.parse(event.content);
+              community.id = event.id;
+              community.uniqueId = communityId;
               
-              // Get members from p tags
+              // Process members from the tags
               const members = event.tags
                 .filter(tag => tag.length >= 2 && tag[0] === 'p')
                 .map(tag => tag[1]);
+                
+              community.members = members;
               
-              // Extract unique identifier from d tag
-              const dTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'd');
-              const uniqueId = dTag ? dTag[1] : '';
-              
-              // Construct community object
-              const community = {
-                id: event.id,
-                name: content.name || '',
-                description: content.description || '',
-                image: content.image || '',
-                creator: content.creator || event.pubkey,
-                createdAt: content.createdAt || event.created_at,
-                members,
-                uniqueId
-              };
+              // Process moderators from the tags
+              const moderators = event.tags
+                .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
+                .map(tag => tag[1]);
+                
+              community.moderators = moderators;
               
               resolve(community);
               
@@ -99,67 +90,145 @@ export class CommunityService {
       return null;
     }
   }
-  
+
   /**
    * Create a new community
    */
-  async createCommunity(name: string, description: string): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    if (!this.eventManager) {
-      console.error("Event manager not initialized");
-      return null;
-    }
+  async createCommunity(
+    name: string,
+    description: string,
+    publicKey: string | null,
+    relays: string[]
+  ): Promise<string | null> {
+    if (!publicKey) return null;
     
-    return this.eventManager.communityManager.createCommunity(
-      this.pool,
+    const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Create community metadata
+    const communityData = {
       name,
       description,
-      this.publicKey,
-      null, // We're not storing private keys
-      connectedRelays
-    );
+      creator: publicKey,
+      createdAt: Math.floor(Date.now() / 1000),
+      image: "" // Optional image URL
+    };
+    
+    // Create NIP-172 compatible event
+    const event = {
+      kind: EVENT_KINDS.COMMUNITY,
+      content: JSON.stringify(communityData),
+      tags: [
+        ["d", uniqueId], // Unique identifier for this community
+        ["p", publicKey] // Creator is the first member
+      ]
+    };
+    
+    try {
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        publicKey,
+        null, // No private key
+        event,
+        relays
+      );
+      return uniqueId; // Return the community ID on success
+    } catch (error) {
+      console.error("Error creating community:", error);
+      return null;
+    }
   }
   
   /**
    * Create a proposal for a community
    */
   async createProposal(
-    communityId: string, 
-    title: string, 
-    description: string, 
+    communityId: string,
+    title: string,
+    description: string,
     options: string[],
-    category?: ProposalCategory,
+    publicKey: string | null,
+    relays: string[],
+    category: string = 'other',
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.communityManager.createProposal(
-      this.pool,
-      communityId,
+    if (!publicKey || !communityId) return null;
+    
+    // Default end time is 7 days from now if not specified
+    const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    
+    // Create proposal data
+    const proposalData = {
       title,
       description,
       options,
-      this.publicKey,
-      null, // We're not storing private keys
-      connectedRelays,
-      category || 'other',
-      minQuorum,
-      endsAt
-    );
+      category,
+      createdAt: Math.floor(Date.now() / 1000),
+      endsAt: endTime,
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
+    };
+    
+    const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Create proposal event
+    const event = {
+      kind: EVENT_KINDS.PROPOSAL,
+      content: JSON.stringify(proposalData),
+      tags: [
+        ["e", communityId], // Reference to community event
+        ["d", proposalId] // Unique identifier
+      ]
+    };
+    
+    try {
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        publicKey,
+        null, // No private key
+        event,
+        relays
+      );
+      return proposalId; // Return the proposal ID on success
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      return null;
+    }
   }
   
   /**
    * Vote on a proposal
+   * @param proposalId ID of the proposal event
+   * @param optionIndex Index of the selected option (0-based)
    */
-  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.eventManager.communityManager.voteOnProposal(
-      this.pool,
-      proposalId,
-      optionIndex,
-      this.publicKey,
-      null, // We're not storing private keys
-      connectedRelays
-    );
+  async voteOnProposal(
+    proposalId: string,
+    optionIndex: number,
+    publicKey: string | null,
+    relays: string[]
+  ): Promise<string | null> {
+    if (!publicKey || !proposalId) return null;
+    
+    // Create vote event
+    const event = {
+      kind: EVENT_KINDS.VOTE,
+      content: JSON.stringify({ optionIndex }),
+      tags: [
+        ["e", proposalId] // Reference to proposal event
+      ]
+    };
+    
+    try {
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        publicKey,
+        null, // No private key
+        event,
+        relays
+      );
+      return eventId;
+    } catch (error) {
+      console.error("Error voting on proposal:", error);
+      return null;
+    }
   }
 }
