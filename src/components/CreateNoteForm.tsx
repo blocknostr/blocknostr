@@ -1,18 +1,17 @@
 
 import { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bold, Italic, Smile, Calendar, Image, Loader2, ChevronDown } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import EmojiPicker from './post/EmojiPicker';
-import EnhancedMediaUpload from './post/EnhancedMediaUpload';
-import { formatDistanceToNow } from 'date-fns';
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import QuickReplies from './post/QuickReplies';
+import NoteComposer from './post/NoteComposer';
+import FormattingToolbar from './post/FormattingToolbar';
+import MediaPreviewList from './post/MediaPreviewList';
+import CharacterCounter from './post/CharacterCounter';
+import SubmitButton from './post/SubmitButton';
+import ScheduledIndicator from './post/ScheduledIndicator';
 import { cn } from "@/lib/utils";
 
 const CreateNoteForm = () => {
@@ -20,7 +19,6 @@ const CreateNoteForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
-  const [showFormatting, setShowFormatting] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("compose");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -103,73 +101,6 @@ const CreateNoteForm = () => {
     }
   };
   
-  const insertFormatting = (format: 'bold' | 'italic') => {
-    if (!textareaRef.current) return;
-    
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-    
-    let newContent = content;
-    let newCursorPos = end;
-    
-    if (selectedText) {
-      // Format the selected text
-      const formatMarker = format === 'bold' ? '**' : '_';
-      const formattedText = `${formatMarker}${selectedText}${formatMarker}`;
-      
-      newContent = 
-        content.substring(0, start) + 
-        formattedText + 
-        content.substring(end);
-        
-      newCursorPos = start + formattedText.length;
-    } else {
-      // Insert empty formatting tags and position cursor between them
-      const formatMarker = format === 'bold' ? '**' : '_';
-      newContent = 
-        content.substring(0, start) + 
-        `${formatMarker}${formatMarker}` + 
-        content.substring(end);
-        
-      newCursorPos = start + formatMarker.length;
-    }
-    
-    setContent(newContent);
-    
-    // Need to wait for React to update the textarea
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  };
-  
-  const insertEmoji = (emoji: string) => {
-    if (!textareaRef.current) return;
-    
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    
-    setContent(
-      content.substring(0, start) + 
-      emoji + 
-      content.substring(start)
-    );
-    
-    const newCursorPos = start + emoji.length;
-    
-    // Need to wait for React to update the textarea
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
-  };
-  
   const handleMediaAdded = (url: string) => {
     setMediaUrls(prev => [...prev, url]);
   };
@@ -214,14 +145,11 @@ const CreateNoteForm = () => {
             </TabsList>
             
             <TabsContent value="compose" className="mt-3">
-              <Textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="What's happening?"
-                className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0 bg-transparent"
-                maxLength={MAX_NOTE_LENGTH * 2} // Allow typing past limit but show warning
-                aria-label="Post content"
+              <NoteComposer 
+                content={content}
+                setContent={setContent}
+                maxLength={MAX_NOTE_LENGTH}
+                textareaRef={textareaRef}
               />
             </TabsContent>
             
@@ -230,155 +158,39 @@ const CreateNoteForm = () => {
             </TabsContent>
           </Tabs>
           
-          {/* Media preview with improved layout */}
-          {mediaUrls.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {mediaUrls.map((url, index) => (
-                <div key={`${url}-${index}`} className="relative group rounded-md overflow-hidden">
-                  <img 
-                    src={url} 
-                    alt="Media preview" 
-                    className="h-20 w-20 object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeMedia(url)}
-                    className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                    aria-label="Remove media"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Media preview */}
+          <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
           
           <div className="flex justify-between items-center mt-4 border-t pt-3">
-            <div className="flex gap-1">
-              {/* Formatting options in a popover */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" type="button" className="rounded-full h-8 w-8" aria-label="Formatting options">
-                    <Bold className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-2" align="start">
-                  <div className="flex gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => insertFormatting('bold')}
-                      className="text-xs"
-                    >
-                      <Bold className="h-3.5 w-3.5 mr-1" /> Bold
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => insertFormatting('italic')}
-                      className="text-xs"
-                    >
-                      <Italic className="h-3.5 w-3.5 mr-1" /> Italic
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              
-              {/* Enhanced Media upload button */}
-              <EnhancedMediaUpload onMediaAdded={handleMediaAdded} />
-              
-              {/* Emoji picker button */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" type="button" className="rounded-full h-8 w-8">
-                    <Smile className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <EmojiPicker onEmojiSelect={insertEmoji} />
-                </PopoverContent>
-              </Popover>
-              
-              {/* Schedule post button */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    type="button" 
-                    className={cn(
-                      "rounded-full h-8 w-8", 
-                      scheduledDate ? "text-primary bg-primary/10" : ""
-                    )}
-                  >
-                    <Calendar className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-3">
-                    <p className="text-sm font-medium mb-2">Schedule post</p>
-                    <CalendarComponent
-                      mode="single"
-                      selected={scheduledDate}
-                      onSelect={setScheduledDate}
-                      initialFocus
-                      disabled={{ before: new Date() }}
-                    />
-                    
-                    {scheduledDate && (
-                      <div className="flex justify-between items-center mt-2">
-                        <span className="text-xs">
-                          {formatDistanceToNow(scheduledDate, { addSuffix: true })}
-                        </span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setScheduledDate(null)}
-                        >
-                          Clear
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
+            {/* Formatting toolbar */}
+            <FormattingToolbar 
+              textareaRef={textareaRef}
+              content={content}
+              setContent={setContent}
+              onMediaAdded={handleMediaAdded}
+              scheduledDate={scheduledDate}
+              setScheduledDate={setScheduledDate}
+            />
             
             <div className="flex items-center gap-2">
-              <div className={cn(
-                "text-xs transition-colors",
-                isNearLimit ? "text-amber-500" : isOverLimit ? "text-red-500" : "text-muted-foreground opacity-70",
-                !isNearLimit && "hidden sm:block" // Hide on mobile unless near limit
-              )}>
-                {charsLeft} left
-              </div>
+              {/* Character counter */}
+              <CharacterCounter 
+                charsLeft={charsLeft} 
+                isNearLimit={isNearLimit} 
+                isOverLimit={isOverLimit} 
+              />
               
-              <Button 
-                type="submit" 
-                disabled={isSubmitting || content.length === 0 || isOverLimit}
-                size="sm"
-                className={cn(
-                  "rounded-full transition-all",
-                  isSubmitting ? "w-24" : "w-20"
-                )}
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span>Posting</span>
-                  </div>
-                ) : scheduledDate && scheduledDate > new Date() ? 'Schedule' : 'Post'}
-              </Button>
+              {/* Submit button */}
+              <SubmitButton 
+                isSubmitting={isSubmitting}
+                disabled={content.length === 0 || isOverLimit}
+                scheduledDate={scheduledDate}
+              />
             </div>
           </div>
           
           {/* Scheduled post indicator */}
-          {scheduledDate && scheduledDate > new Date() && (
-            <div className="mt-2 py-1.5 px-2.5 bg-primary/5 rounded-md text-xs flex items-center gap-1.5 text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              Scheduled for {scheduledDate.toLocaleDateString()} at {scheduledDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </div>
-          )}
+          <ScheduledIndicator scheduledDate={scheduledDate} />
         </div>
       </div>
     </form>
