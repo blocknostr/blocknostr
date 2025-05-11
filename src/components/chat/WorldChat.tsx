@@ -28,7 +28,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] mb-20"> {/* Increased bottom margin to 20 (5rem) */}
+    <Card className="flex-grow flex flex-col h-[550px] mb-14"> {/* Added bottom margin of 14 (3.5rem) */}
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
