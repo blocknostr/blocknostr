@@ -1,26 +1,58 @@
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
-import { nostrService, NostrEvent, BookmarkWithMetadata, BookmarkCollection } from "@/lib/nostr";
-import { retry } from "@/lib/utils/retry";
-import { BookmarkCacheService } from "@/lib/nostr/bookmark/cache/bookmark-cache-service";
+import { BookmarkCollection, BookmarkWithMetadata } from "@/lib/nostr/bookmark";
+import { extractTagsFromEvent } from "@/lib/nostr/bookmark/utils/bookmark-utils";
 
-export const useBookmarkData = () => {
-  // Main state
-  const [bookmarks, setBookmarks] = useState<string[]>([]);
-  const [bookmarkedEvents, setBookmarkedEvents] = useState<NostrEvent[]>([]);
+type NetworkStatus = 'online' | 'offline' | 'limited';
+
+interface UseBookmarkDataResult {
+  bookmarkedEvents: any[];
+  bookmarkMetadata: BookmarkWithMetadata[];
+  collections: BookmarkCollection[];
+  profiles: Record<string, any>;
+  loading: boolean;
+  error: string | null;
+  isLoggedIn: boolean;
+  allTags: string[];
+  networkStatus: NetworkStatus;
+  createCollection: (name: string, color: string, description: string) => Promise<string | null>;
+  refreshBookmarks: () => Promise<void>;
+}
+
+export function useBookmarkData(): UseBookmarkDataResult {
+  const [bookmarkedEvents, setBookmarkedEvents] = useState<any[]>([]);
   const [bookmarkMetadata, setBookmarkMetadata] = useState<BookmarkWithMetadata[]>([]);
   const [collections, setCollections] = useState<BookmarkCollection[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [networkStatus, setNetworkStatus] = useState<'online' | 'offline' | 'limited'>(
-    navigator.onLine ? 'online' : 'offline'
-  );
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [networkStatus, setNetworkStatus] = useState<NetworkStatus>(navigator.onLine ? 'online' : 'offline');
   
   const isLoggedIn = !!nostrService.publicKey;
 
-  // Handle online/offline status
+  // Function to create a new collection
+  const createCollection = useCallback(async (
+    name: string,
+    color: string,
+    description: string
+  ): Promise<string | null> => {
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to create collections");
+      return null;
+    }
+    
+    try {
+      return await nostrService.createBookmarkCollection(name, color, description);
+    } catch (error) {
+      console.error("Error creating collection:", error);
+      throw error;
+    }
+  }, [isLoggedIn]);
+
+  // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => setNetworkStatus('online');
     const handleOffline = () => setNetworkStatus('offline');
@@ -34,313 +66,122 @@ export const useBookmarkData = () => {
     };
   }, []);
 
-  // Fetch bookmarks, collections, and metadata on mount
-  useEffect(() => {
+  // Load bookmarks and related data
+  const loadBookmarkData = useCallback(async () => {
     if (!isLoggedIn) {
       setLoading(false);
       return;
     }
     
-    const fetchBookmarkData = async () => {
-      setError(null);
-      setLoading(true);
-      
-      try {
-        // Try to load from cache first
-        const cachedBookmarks = await BookmarkCacheService.getCachedBookmarkList();
-        const cachedMetadata = await BookmarkCacheService.getCachedBookmarkMetadata();
-        const cachedCollections = await BookmarkCacheService.getCachedBookmarkCollections();
-        
-        // If we have cached data, show it immediately while we fetch fresh data
-        if (cachedBookmarks.length > 0) {
-          setBookmarks(cachedBookmarks);
-        }
-        
-        if (cachedMetadata.length > 0) {
-          setBookmarkMetadata(cachedMetadata);
-        }
-        
-        if (cachedCollections.length > 0) {
-          setCollections(cachedCollections);
-        }
-        
-        // If we're offline and have cache, don't try to fetch from network
-        if (!navigator.onLine && (cachedBookmarks.length > 0 || cachedMetadata.length > 0 || cachedCollections.length > 0)) {
-          console.log("Using cached bookmark data (offline mode)");
-          setNetworkStatus('offline');
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch from network if online
-        if (navigator.onLine) {
-          try {
-            // Fetch bookmarks with retry logic
-            const bookmarkIds = await retry(
-              () => nostrService.getBookmarks(),
-              {
-                maxAttempts: 3,
-                baseDelay: 1000,
-                onRetry: (attempt) => console.log(`Retrying getBookmarks (${attempt}/3)...`)
-              }
-            );
-            setBookmarks(bookmarkIds);
-            
-            // Cache the results
-            await BookmarkCacheService.cacheBookmarkList(bookmarkIds);
-            
-            // Fetch collections with retry logic
-            const collectionsList = await retry(
-              () => nostrService.getBookmarkCollections(),
-              {
-                maxAttempts: 3,
-                baseDelay: 1000,
-                onRetry: (attempt) => console.log(`Retrying getBookmarkCollections (${attempt}/3)...`)
-              }
-            );
-            setCollections(collectionsList);
-            
-            // Cache the collections
-            await BookmarkCacheService.cacheBookmarkCollections(collectionsList);
-            
-            // Fetch bookmark metadata with retry logic
-            const metadata = await retry(
-              () => nostrService.getBookmarkMetadata(),
-              {
-                maxAttempts: 3,
-                baseDelay: 1000,
-                onRetry: (attempt) => console.log(`Retrying getBookmarkMetadata (${attempt}/3)...`)
-              }
-            );
-            setBookmarkMetadata(metadata);
-            
-            // Cache the metadata
-            await BookmarkCacheService.cacheBookmarkMetadata(metadata);
-          } catch (e) {
-            console.error("Error fetching from network:", e);
-            
-            // If network fetch failed but we have cache, we're in limited connectivity mode
-            if (cachedBookmarks.length > 0 || cachedMetadata.length > 0 || cachedCollections.length > 0) {
-              setNetworkStatus('limited');
-              toast.warning("Using cached bookmark data due to connection issues");
-            } else {
-              setError("Failed to load bookmarks. Please check your connection.");
-              toast.error("Failed to load bookmarks");
-            }
-          }
-        }
-        
-        if (bookmarks.length === 0) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Error in fetchBookmarkData:", error);
-        setError("An error occurred while loading bookmarks");
-        toast.error("Failed to load bookmarks");
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    setError(null);
     
-    fetchBookmarkData();
+    try {
+      // Check relay connection status before proceeding
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
+      
+      // Try to connect if not connected yet
+      if (connectedCount === 0 && navigator.onLine) {
+        try {
+          await nostrService.connectToUserRelays();
+          const updatedStatus = nostrService.getRelayStatus();
+          const newConnectedCount = updatedStatus.filter(r => r.status === 'connected').length;
+          
+          if (newConnectedCount === 0) {
+            setNetworkStatus('limited');
+          }
+        } catch (error) {
+          console.error("Failed to connect to relays:", error);
+          setNetworkStatus('limited');
+        }
+      }
+      
+      // Get bookmark IDs
+      const bookmarkIds = await nostrService.getBookmarks(true);
+      
+      if (bookmarkIds.length === 0) {
+        setBookmarkedEvents([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Get bookmark metadata
+      const metadata = await nostrService.getBookmarkMetadata(true);
+      setBookmarkMetadata(metadata);
+      
+      // Get bookmark collections
+      const bookmarkCollections = await nostrService.getBookmarkCollections(true);
+      setCollections(bookmarkCollections);
+      
+      // Load the actual events
+      if (bookmarkIds.length > 0) {
+        // Get events for all bookmarked IDs
+        const events = await nostrService.getEvents(bookmarkIds);
+        setBookmarkedEvents(events.filter(Boolean));
+        
+        // Extract unique pubkeys for profile data
+        const pubkeys = Array.from(new Set(events.map(event => event?.pubkey).filter(Boolean)));
+        
+        if (pubkeys.length > 0) {
+          // Get profile data for all authors
+          const profileData = await nostrService.getProfilesByPubkeys(pubkeys);
+          setProfiles(profileData);
+        }
+        
+        // Extract all unique tags from events and metadata
+        const eventTags = events.flatMap(event => extractTagsFromEvent(event));
+        const metadataTags = metadata.flatMap(meta => meta.tags || []);
+        setAllTags(Array.from(new Set([...eventTags, ...metadataTags])));
+      }
+    } catch (err) {
+      console.error("Error loading bookmarks:", err);
+      setError("Failed to load bookmarks. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
   }, [isLoggedIn]);
-  
-  // Fetch bookmarked events
-  useEffect(() => {
-    if (bookmarks.length === 0) return;
-    
-    const fetchEvents = async () => {
-      try {
-        // Connect to relays with retry mechanism
-        await retry(
-          () => nostrService.connectToUserRelays(),
-          { 
-            maxAttempts: 3,
-            baseDelay: 1000,
-            onRetry: (attempt) => console.log(`Retrying relay connection (${attempt}/3)...`)
-          }
-        );
-        
-        const subId = nostrService.subscribe(
-          [
-            {
-              ids: bookmarks,
-              kinds: [1], // Regular notes
-            }
-          ],
-          (event) => {
-            setBookmarkedEvents(prev => {
-              if (prev.some(e => e.id === event.id)) {
-                return prev;
-              }
-              return [...prev, event];
-            });
-            
-            // Fetch profile data for this event
-            if (event.pubkey && !profiles[event.pubkey]) {
-              fetchProfileData(event.pubkey);
-            }
-          }
-        );
-        
-        // Set a timeout to close the subscription
-        setTimeout(() => {
-          nostrService.unsubscribe(subId);
-          setLoading(false);
-        }, 10000); // Increased from 5000 for better reliability
-        
-        return () => {
-          nostrService.unsubscribe(subId);
-        };
-      } catch (error) {
-        console.error("Error fetching bookmarked events:", error);
-        setLoading(false);
-        
-        // Show error message if we don't have any events yet
-        if (bookmarkedEvents.length === 0) {
-          toast.error("Failed to fetch bookmarked posts");
-          setError("Failed to fetch bookmarked posts");
-        }
-      }
-    };
-    
-    fetchEvents();
-  }, [bookmarks]);
 
-  // Function to fetch profile data with retry logic
-  const fetchProfileData = async (pubkey: string) => {
-    try {
-      const metadataSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [0],
-            authors: [pubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          try {
-            const metadata = JSON.parse(event.content);
-            setProfiles(prev => ({
-              ...prev,
-              [pubkey]: metadata
-            }));
-          } catch (e) {
-            console.error('Failed to parse profile metadata:', e);
-          }
-        }
-      );
-      
-      // Cleanup subscription after a short time
-      setTimeout(() => {
-        nostrService.unsubscribe(metadataSubId);
-      }, 5000);
-    } catch (e) {
-      console.error(`Error fetching profile for ${pubkey}:`, e);
-    }
-  };
-
-  // Get all unique tags from bookmarks
-  const allTags = useMemo(() => {
-    const tagsSet = new Set<string>();
-    bookmarkMetadata.forEach(meta => {
-      if (meta.tags?.length) {
-        meta.tags.forEach(tag => tagsSet.add(tag));
-      }
-    });
-    return Array.from(tagsSet);
-  }, [bookmarkMetadata]);
-
-  // Handle creating a new collection with retry logic
-  const createCollection = async (
-    name: string,
-    color: string,
-    description: string
-  ): Promise<string | null> => {
-    if (!name.trim()) {
-      return null;
-    }
-    
-    try {
-      const collectionId = await retry(
-        () => nostrService.createBookmarkCollection(
-          name.trim(),
-          color,
-          description.trim() || undefined
-        ),
-        {
-          maxAttempts: 3,
-          onRetry: (attempt) => console.log(`Retrying createBookmarkCollection (${attempt}/3)...`)
-        }
-      );
-      
-      if (collectionId) {
-        // Refresh collections with retry logic
-        const updatedCollections = await retry(
-          () => nostrService.getBookmarkCollections(),
-          {
-            maxAttempts: 2,
-            onRetry: (attempt) => console.log(`Retrying getBookmarkCollections after creation (${attempt}/2)...`)
-          }
-        );
-        
-        setCollections(updatedCollections);
-        
-        // Update cache
-        await BookmarkCacheService.cacheBookmarkCollections(updatedCollections);
-        
-        return collectionId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error creating collection:", error);
-      toast.error("Failed to create collection. Please try again.");
-      return null;
-    }
-  };
-  
-  // Function to manually refresh bookmarks
-  const refreshBookmarks = async () => {
+  // Refresh bookmarks data
+  const refreshBookmarks = useCallback(async () => {
     if (!isLoggedIn) return;
     
     setLoading(true);
-    toast.loading("Refreshing bookmarks...");
     
     try {
-      // Fetch bookmarks with fresh data
-      const bookmarkIds = await nostrService.getBookmarks();
-      setBookmarks(bookmarkIds);
+      // Try to connect to relays if not connected
+      if (networkStatus !== 'online') {
+        try {
+          await nostrService.connectToUserRelays();
+          setNetworkStatus('online');
+        } catch (error) {
+          console.error("Failed to connect during refresh:", error);
+        }
+      }
       
-      // Cache the results
-      await BookmarkCacheService.cacheBookmarkList(bookmarkIds);
+      // Reload all data
+      await loadBookmarkData();
       
-      // Reset bookmarked events to fetch fresh data
-      setBookmarkedEvents([]);
-      
-      // Fetch fresh collections and metadata
-      const collectionsList = await nostrService.getBookmarkCollections();
-      const metadata = await nostrService.getBookmarkMetadata();
-      
-      setCollections(collectionsList);
-      setBookmarkMetadata(metadata);
-      
-      // Update caches
-      await BookmarkCacheService.cacheBookmarkCollections(collectionsList);
-      await BookmarkCacheService.cacheBookmarkMetadata(metadata);
-      
-      toast.success("Bookmarks refreshed");
-      setNetworkStatus('online');
-      setError(null);
+      // Process any pending operations
+      await nostrService.processPendingOperations();
     } catch (error) {
       console.error("Error refreshing bookmarks:", error);
-      toast.error("Failed to refresh bookmarks");
       setError("Failed to refresh bookmarks");
     } finally {
       setLoading(false);
     }
-  };
+  }, [isLoggedIn, networkStatus, loadBookmarkData]);
+
+  // Initial data load
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadBookmarkData();
+    } else {
+      setLoading(false);
+    }
+  }, [isLoggedIn, loadBookmarkData]);
 
   return {
-    bookmarks,
     bookmarkedEvents,
     bookmarkMetadata,
     collections,
@@ -353,4 +194,4 @@ export const useBookmarkData = () => {
     createCollection,
     refreshBookmarks
   };
-};
+}

@@ -1,7 +1,6 @@
 
 import { SimplePool, type Filter } from 'nostr-tools';
-import { EVENT_KINDS } from '../../constants';
-import { BookmarkManagerDependencies } from '../types';
+import { BookmarkEventKinds, BookmarkManagerDependencies } from '../types';
 import { validateRelays } from '../utils/bookmark-utils';
 
 /**
@@ -49,14 +48,23 @@ export class BookmarkOperations {
         console.log(`Event ${eventId} is already bookmarked`);
         // If already bookmarked, just update metadata if provided
         if (collectionId || tags?.length || note) {
-          return this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
+          return this.updateBookmarkMetadata(
+            pool, 
+            publicKey, 
+            privateKey, 
+            eventId, 
+            relays, 
+            collectionId, 
+            tags, 
+            note
+          );
         }
         return true; // Already bookmarked
       }
       
       // Create bookmarks list event (NIP-51 compliant replaceable event)
       const event = {
-        kind: EVENT_KINDS.BOOKMARKS,
+        kind: BookmarkEventKinds.BOOKMARKS,
         content: "",
         tags: [
           // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
@@ -76,13 +84,22 @@ export class BookmarkOperations {
       
       // Also create bookmark metadata if provided
       if (publishResult && (collectionId || tags?.length || note)) {
-        await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
+        await this.updateBookmarkMetadata(
+          pool, 
+          publicKey, 
+          privateKey, 
+          eventId, 
+          relays, 
+          collectionId, 
+          tags, 
+          note
+        );
       }
       
       return !!publishResult;
     } catch (error) {
       console.error("Error adding bookmark:", error);
-      throw error; // Re-throw for better error handling upstream
+      throw error;
     }
   }
   
@@ -125,7 +142,7 @@ export class BookmarkOperations {
       
       // Create updated bookmarks list event without the removed bookmark (NIP-51 compliant)
       const event = {
-        kind: EVENT_KINDS.BOOKMARKS,
+        kind: BookmarkEventKinds.BOOKMARKS,
         content: "",
         tags: [
           // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
@@ -152,7 +169,7 @@ export class BookmarkOperations {
       return !!publishResult;
     } catch (error) {
       console.error("Error removing bookmark:", error);
-      throw error; // Re-throw for better error handling upstream
+      throw error;
     }
   }
   
@@ -172,7 +189,7 @@ export class BookmarkOperations {
       
       // Subscribe to bookmark list events (NIP-51 compliant)
       const filter: Filter = {
-        kinds: [EVENT_KINDS.BOOKMARKS],
+        kinds: [BookmarkEventKinds.BOOKMARKS],
         authors: [pubkey],
         "#d": ["bookmarks"], // NIP-33: Filter by "d" tag to get only bookmark lists
         limit: 1
@@ -190,18 +207,15 @@ export class BookmarkOperations {
           }
         });
         
-        // Set a configurable timeout to resolve with found bookmarks
-        const timeout = 5000; // Increased from 3000 for better reliability
+        // Set a timeout to resolve with found bookmarks
+        const timeout = 5000;
         setTimeout(() => {
           sub.close();
-          
-          // Even if we didn't receive anything, resolve with empty array rather than rejecting
-          console.log(`Bookmark list query timeout after ${timeout}ms, found ${bookmarkedIds.length} bookmarks`);
           resolve(bookmarkedIds);
         }, timeout);
       } catch (error) {
         console.error("Error getting bookmark list:", error);
-        reject(error);
+        resolve([]); // Resolve with empty array instead of rejecting
       }
     });
   }
@@ -215,15 +229,10 @@ export class BookmarkOperations {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    try {
-      const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
-      return bookmarks.includes(eventId);
-    } catch (error) {
-      console.error("Error checking if event is bookmarked:", error);
-      return false;
-    }
+    const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
+    return bookmarks.includes(eventId);
   }
-
+  
   /**
    * Update bookmark metadata
    */
@@ -237,12 +246,49 @@ export class BookmarkOperations {
     tags?: string[],
     note?: string
   ): Promise<boolean> {
-    // Import from metadata operations and delegate
-    const { BookmarkMetadataOperations } = await import('../operations/bookmark-metadata-operations');
-    const metadataOps = new BookmarkMetadataOperations(this.dependencies);
-    return metadataOps.updateBookmarkMetadata(
-      pool, publicKey, privateKey, eventId, relays, collectionId, tags, note
-    );
+    if (!publicKey) return false;
+    
+    // Validate relays
+    validateRelays(relays);
+    
+    try {
+      // Generate a stable identifier for this bookmark's metadata
+      const stableId = this.generateStableMetadataId(eventId);
+      
+      // Create metadata object
+      const metadata: Record<string, any> = {};
+      if (collectionId) metadata.collectionId = collectionId;
+      if (note) metadata.note = note;
+      
+      // Add creation timestamp if this is the first time
+      metadata.createdAt = Math.floor(Date.now() / 1000);
+      
+      // Create metadata event (NIP-33 compliant parameterized replaceable event)
+      const event = {
+        kind: BookmarkEventKinds.BOOKMARK_METADATA,
+        content: JSON.stringify(metadata),
+        tags: [
+          ["e", eventId], // Reference to bookmarked event
+          ["d", stableId] // Stable identifier for this specific bookmark's metadata
+        ]
+      };
+      
+      // Add tags if provided (using proper "t" tag per NIP-standardization)
+      if (tags && tags.length > 0) {
+        tags.forEach(tag => {
+          event.tags.push(["t", tag]);
+        });
+      }
+      
+      console.log("Publishing bookmark metadata:", event);
+      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark metadata publish result:", publishResult);
+      
+      return !!publishResult;
+    } catch (error) {
+      console.error("Error updating bookmark metadata:", error);
+      return false;
+    }
   }
   
   /**
@@ -255,9 +301,40 @@ export class BookmarkOperations {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    // Import from metadata operations and delegate
-    const { BookmarkMetadataOperations } = await import('../operations/bookmark-metadata-operations');
-    const metadataOps = new BookmarkMetadataOperations(this.dependencies);
-    return metadataOps.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
+    if (!publicKey) return false;
+    
+    // Validate relays
+    validateRelays(relays);
+    
+    try {
+      // Generate the same stable identifier for the bookmark's metadata
+      const stableId = this.generateStableMetadataId(eventId);
+      
+      // Create deletion event (NIP-09 compliant)
+      const event = {
+        kind: BookmarkEventKinds.DELETE,
+        content: "Deleted bookmark metadata",
+        tags: [
+          // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
+          ["a", `${BookmarkEventKinds.BOOKMARK_METADATA}:${publicKey}:${stableId}`]
+        ]
+      };
+      
+      console.log("Publishing bookmark metadata deletion:", event);
+      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark metadata deletion result:", result);
+      
+      return !!result;
+    } catch (error) {
+      console.error("Error removing bookmark metadata:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Generate a stable identifier for bookmark metadata
+   */
+  private generateStableMetadataId(eventId: string): string {
+    return `meta_${eventId.substring(0, 8)}`;
   }
 }

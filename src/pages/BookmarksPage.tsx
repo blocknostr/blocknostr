@@ -1,24 +1,21 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useBookmarkData } from "@/hooks/bookmarks/useBookmarkData";
-import { useBookmarkFilters, SortOption } from "@/hooks/bookmarks/useBookmarkFilters";
-import { useSwipeable } from "@/hooks/use-swipeable";
-import { cn } from "@/lib/utils";
+import { useBookmarkFilters } from "@/hooks/bookmarks/useBookmarkFilters";
+import { useBookmarkSwipe } from "@/hooks/bookmarks/useBookmarkSwipe";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 import Sidebar from "@/components/Sidebar";
 import PageHeader from "@/components/navigation/PageHeader";
-import BookmarkFilters from "@/components/bookmarks/BookmarkFilters";
-import BookmarksList from "@/components/bookmarks/BookmarksList";
-import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { BookmarkFilters } from "@/components/bookmark/BookmarkFilters";
+import { BookmarksList } from "@/components/bookmark/BookmarksList";
 import MobileMenu from "@/components/home/MobileMenu";
-import BookmarkHeader from "@/components/bookmarks/BookmarkHeader";
-import BookmarksPageLayout from "@/components/bookmarks/BookmarksPageLayout";
-import BookmarkCollectionDialog from "@/components/bookmarks/BookmarkCollectionDialog";
-import { useBookmarkSwipe } from "@/hooks/bookmarks/useBookmarkSwipe";
+import { BookmarkHeader } from "@/components/bookmark/BookmarkHeader";
+import { BookmarkCollectionDialog } from "@/components/bookmark/BookmarkCollectionDialog";
 import BookmarkSyncManager from "@/components/bookmark/BookmarkSyncManager";
 
-const BookmarksPage = () => {
+export function BookmarksPage() {
   const { preferences } = useUserPreferences();
   const isMobile = useIsMobile();
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
@@ -74,22 +71,6 @@ const BookmarksPage = () => {
     rightPanelOpen,
     setRightPanelOpen
   });
-  
-  // Monitor network connectivity
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // Header right content with bookmarks controls
   const bookmarksHeaderControls = (
@@ -98,7 +79,7 @@ const BookmarksPage = () => {
       setViewMode={setViewMode}
       sortBy={sortBy}
       setSortBy={setSortBy}
-      isOnline={isOnline}
+      isOnline={networkStatus === 'online'}
       refreshBookmarks={refreshBookmarks}
       isLoading={loading}
     />
@@ -109,85 +90,90 @@ const BookmarksPage = () => {
       {/* Include the sync manager for processing pending operations */}
       <BookmarkSyncManager />
       
-      <BookmarksPageLayout
-        preferences={preferences}
-        isMobile={isMobile}
-        swipeHandlers={swipeHandlers}
-        handleMainContentClick={handleMainContentClick}
+      <div 
+        className={`flex min-h-screen bg-background relative ${
+          preferences.uiPreferences.compactMode ? "text-sm" : ""
+        }`}
+        {...swipeHandlers}
       >
         {/* Desktop sidebar - only visible on non-mobile */}
         {!isMobile && <Sidebar />}
         
-        <PageHeader
-          title="Bookmarks"
-          rightContent={bookmarksHeaderControls}
-          showBackButton={true}
+        <div 
+          className={`flex-1 transition-all duration-200 ${!isMobile && "ml-64"}`}
+          onClick={handleMainContentClick}
         >
-          {isMobile && (
-            <MobileMenu
-              leftPanelOpen={leftPanelOpen}
-              setLeftPanelOpen={setLeftPanelOpen}
-              rightPanelOpen={rightPanelOpen}
-              setRightPanelOpen={setRightPanelOpen}
-            />
-          )}
-        </PageHeader>
-        
-        <div className="max-w-5xl mx-auto px-4 pt-4" onClick={handleMainContentClick}>
-          <div className="border-b pb-3 mb-4">
-            <BookmarkFilters
+          <PageHeader
+            title="Bookmarks"
+            rightContent={bookmarksHeaderControls}
+            showBackButton={true}
+          >
+            {isMobile && (
+              <MobileMenu
+                leftPanelOpen={leftPanelOpen}
+                setLeftPanelOpen={setLeftPanelOpen}
+                rightPanelOpen={rightPanelOpen}
+                setRightPanelOpen={setRightPanelOpen}
+              />
+            )}
+          </PageHeader>
+          
+          <div className="max-w-5xl mx-auto px-4 pt-4">
+            <div className="border-b pb-3 mb-4">
+              <BookmarkFilters
+                isLoggedIn={isLoggedIn}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                selectedCollection={selectedCollection}
+                setSelectedCollection={setSelectedCollection}
+                collections={collections}
+                selectedTags={selectedTags}
+                setSelectedTags={setSelectedTags}
+                allTags={allTags}
+                handleResetFilters={handleResetFilters}
+                handleRemoveTag={handleRemoveTag}
+                setIsCollectionDialogOpen={setIsCollectionDialogOpen}
+                networkStatus={networkStatus}
+              />
+            </div>
+            
+            <BookmarksList
+              loading={loading}
               isLoggedIn={isLoggedIn}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              selectedCollection={selectedCollection}
-              setSelectedCollection={setSelectedCollection}
+              paginatedEvents={paginatedEvents}
+              bookmarkMetadata={bookmarkMetadata}
               collections={collections}
+              profiles={profiles}
+              viewMode={viewMode}
+              page={page}
+              setPage={setPage}
+              totalPages={totalPages}
+              searchTerm={searchTerm}
+              selectedCollection={selectedCollection}
               selectedTags={selectedTags}
-              setSelectedTags={setSelectedTags}
-              allTags={allTags}
               handleResetFilters={handleResetFilters}
-              handleRemoveTag={handleRemoveTag}
-              setIsCollectionDialogOpen={setIsCollectionDialogOpen}
+              filteredAndSortedEvents={filteredAndSortedEvents}
+              error={error}
               networkStatus={networkStatus}
+              refreshBookmarks={refreshBookmarks}
             />
           </div>
-          
-          <BookmarksList
-            loading={loading}
-            isLoggedIn={isLoggedIn}
-            paginatedEvents={paginatedEvents}
-            bookmarkMetadata={bookmarkMetadata}
-            collections={collections}
-            profiles={profiles}
-            viewMode={viewMode}
-            page={page}
-            setPage={setPage}
-            totalPages={totalPages}
-            searchTerm={searchTerm}
-            selectedCollection={selectedCollection}
-            selectedTags={selectedTags}
-            handleResetFilters={handleResetFilters}
-            filteredAndSortedEvents={filteredAndSortedEvents}
-            error={error}
-            networkStatus={networkStatus}
-            refreshBookmarks={refreshBookmarks}
+
+          <BookmarkCollectionDialog
+            isOpen={isCollectionDialogOpen}
+            setIsOpen={setIsCollectionDialogOpen}
+            name={newCollectionName}
+            setName={setNewCollectionName}
+            color={newCollectionColor}
+            setColor={setNewCollectionColor}
+            description={newCollectionDescription}
+            setDescription={setNewCollectionDescription}
+            onCreateCollection={createCollection}
           />
         </div>
-
-        <BookmarkCollectionDialog
-          isOpen={isCollectionDialogOpen}
-          setIsOpen={setIsCollectionDialogOpen}
-          name={newCollectionName}
-          setName={setNewCollectionName}
-          color={newCollectionColor}
-          setColor={setNewCollectionColor}
-          description={newCollectionDescription}
-          setDescription={setNewCollectionDescription}
-          onCreateCollection={createCollection}
-        />
-      </BookmarksPageLayout>
+      </div>
     </>
   );
-};
+}
 
 export default BookmarksPage;

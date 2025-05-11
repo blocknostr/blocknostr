@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
-import { BookmarkCacheService } from '@/lib/nostr/bookmark/cache/bookmark-cache-service';
+import { BookmarkStorage } from '@/lib/nostr/bookmark';
 
 /**
  * Component that handles sync of pending bookmark operations when coming online
@@ -28,53 +28,25 @@ export function BookmarkSyncManager() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Get pending operations
-        const pendingOps = await BookmarkCacheService.getPendingOperations();
+        const pendingOps = await BookmarkStorage.getPendingOperations();
         
         if (pendingOps.length === 0) {
+          toast.dismiss();
           toast.success("No pending bookmark operations to sync");
           return;
         }
         
-        // Import the service to use its processing method
-        const { nostrService } = await import('@/lib/nostr');
+        console.log(`Syncing ${pendingOps.length} pending bookmark operations`);
         
-        // Ensure connected to relays
-        await nostrService.connectToUserRelays();
+        // Process pending operations
+        await nostrService.processPendingOperations();
         
-        // Process each pending operation
-        let successCount = 0;
-        let failCount = 0;
+        // Get updated count after processing
+        const remainingOps = await BookmarkStorage.getPendingOperations();
+        const successCount = pendingOps.length - remainingOps.length;
+        const failCount = remainingOps.length;
         
-        for (const op of pendingOps) {
-          try {
-            if (op.type === 'add') {
-              await nostrService.addBookmark(
-                op.data.eventId,
-                op.data.collectionId,
-                op.data.tags,
-                op.data.note
-              );
-              successCount++;
-            } else if (op.type === 'remove') {
-              await nostrService.removeBookmark(op.data.eventId);
-              successCount++;
-            }
-            
-            // Mark as completed
-            await BookmarkCacheService.completeOperation(op.id);
-          } catch (error) {
-            console.error(`Error processing pending operation ${op.id}:`, error);
-            failCount++;
-            
-            // Update operation status
-            await BookmarkCacheService.updateOperationStatus(
-              op.id,
-              'failed',
-              op.attempts + 1
-            );
-          }
-        }
-        
+        toast.dismiss();
         if (successCount > 0) {
           toast.success(`Successfully synced ${successCount} bookmark operations`);
         }
@@ -84,6 +56,7 @@ export function BookmarkSyncManager() {
         }
       } catch (error) {
         console.error("Error in sync process:", error);
+        toast.dismiss();
         toast.error("Failed to sync bookmarks. Please try again later.");
       } finally {
         setIsProcessing(false);

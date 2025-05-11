@@ -1,19 +1,29 @@
 
 import { BookmarkManager } from './bookmark-manager';
-import { BookmarkCollectionManager, BookmarkMetadataManager } from './collection-manager';
 import { EventManager } from '../event';
-import { BookmarkManagerDependencies, BookmarkCollection, BookmarkWithMetadata } from './types';
+import { BookmarkManagerDependencies } from './types';
 
-// Use 'export type' for re-exporting types when isolatedModules is enabled
-export type { BookmarkCollection, BookmarkWithMetadata } from './types';
+// Re-export types
+export type { 
+  BookmarkCollection, 
+  BookmarkWithMetadata,
+  PendingOperation,
+  BookmarkFilters,
+  BookmarkStatus,
+  BookmarkOperationType
+} from './types';
+
+// Re-export storage 
+export { BookmarkStorage } from './storage/bookmark-storage';
+
+// Re-export utils
+export { validateRelays, ensureRelayConnection, generateStableMetadataId } from './utils/bookmark-utils';
 
 /**
  * Main entry point for bookmark functionality
  */
 export class BookmarkManagerFacade {
   private bookmarkManager: BookmarkManager;
-  private collectionManager: BookmarkCollectionManager;
-  private metadataManager: BookmarkMetadataManager;
   
   constructor(eventManager: EventManager) {
     const dependencies: BookmarkManagerDependencies = {
@@ -21,11 +31,9 @@ export class BookmarkManagerFacade {
     };
     
     this.bookmarkManager = new BookmarkManager(dependencies);
-    this.collectionManager = new BookmarkCollectionManager(dependencies);
-    this.metadataManager = new BookmarkMetadataManager(dependencies);
   }
   
-  // Re-expose bookmark methods
+  // Re-expose all methods from the BookmarkManager
   async addBookmark(...args: Parameters<BookmarkManager['addBookmark']>) {
     return this.bookmarkManager.addBookmark(...args);
   }
@@ -42,29 +50,26 @@ export class BookmarkManagerFacade {
     return this.bookmarkManager.isBookmarked(...args);
   }
   
-  // Re-expose collection methods
-  async createCollection(...args: Parameters<BookmarkCollectionManager['createCollection']>) {
-    return this.collectionManager.createCollection(...args);
+  async createCollection(...args: Parameters<BookmarkManager['createCollection']>) {
+    return this.bookmarkManager.createCollection(...args);
   }
   
-  async updateCollection(...args: Parameters<BookmarkCollectionManager['updateCollection']>) {
-    return this.collectionManager.updateCollection(...args);
+  async updateCollection(...args: Parameters<BookmarkManager['updateCollection']>) {
+    return this.bookmarkManager.updateCollection(...args);
   }
   
-  async deleteCollection(...args: Parameters<BookmarkCollectionManager['deleteCollection']>) {
-    return this.collectionManager.deleteCollection(...args);
+  async deleteCollection(...args: Parameters<BookmarkManager['deleteCollection']>) {
+    return this.bookmarkManager.deleteCollection(...args);
   }
   
-  async getCollections(...args: Parameters<BookmarkCollectionManager['getCollections']>) {
-    return this.collectionManager.getCollections(...args);
+  async getCollections(...args: Parameters<BookmarkManager['getCollections']>) {
+    return this.bookmarkManager.getCollections(...args);
   }
   
-  // Re-expose metadata methods
-  async getBookmarkMetadata(...args: Parameters<BookmarkMetadataManager['getBookmarkMetadata']>) {
-    return this.metadataManager.getBookmarkMetadata(...args);
+  async getBookmarkMetadata(...args: Parameters<BookmarkManager['getBookmarkMetadata']>) {
+    return this.bookmarkManager.getBookmarkMetadata(...args);
   }
   
-  // Pass through additional methods
   async updateBookmarkMetadata(...args: Parameters<BookmarkManager['updateBookmarkMetadata']>) {
     return this.bookmarkManager.updateBookmarkMetadata(...args);
   }

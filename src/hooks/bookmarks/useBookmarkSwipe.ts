@@ -1,8 +1,7 @@
 
-import { useSwipeable } from "@/hooks/use-swipeable";
+import { useCallback } from "react";
 
-// Define the SwipeableHandlers interface locally since it's not exported from use-swipeable.tsx
-interface SwipeableHandlers {
+interface SwipeHandlers {
   onTouchStart: React.TouchEventHandler;
   onTouchMove: React.TouchEventHandler;
   onTouchEnd: React.TouchEventHandler;
@@ -11,7 +10,7 @@ interface SwipeableHandlers {
   onMouseUp?: React.MouseEventHandler;
 }
 
-interface UseBookmarkSwipeProps {
+interface UseBookmarkSwipeParams {
   isMobile: boolean;
   leftPanelOpen: boolean;
   setLeftPanelOpen: (open: boolean) => void;
@@ -19,41 +18,72 @@ interface UseBookmarkSwipeProps {
   setRightPanelOpen: (open: boolean) => void;
 }
 
-export const useBookmarkSwipe = ({
+interface UseBookmarkSwipeResult {
+  swipeHandlers: SwipeHandlers;
+  handleMainContentClick: () => void;
+}
+
+export function useBookmarkSwipe({
   isMobile,
   leftPanelOpen,
   setLeftPanelOpen,
   rightPanelOpen,
   setRightPanelOpen
-}: UseBookmarkSwipeProps): {
-  swipeHandlers: SwipeableHandlers;
-  handleMainContentClick: () => void;
-} => {
-  // Setup swipe handlers for mobile gesture navigation
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      if (isMobile && !rightPanelOpen) {
-        setRightPanelOpen(true);
-        setLeftPanelOpen(false);
+}: UseBookmarkSwipeParams): UseBookmarkSwipeResult {
+  // Only enable swipe on mobile
+  const swipeHandlers: SwipeHandlers = isMobile
+    ? {
+        onTouchStart: useCallback((e) => {
+          const touch = e.touches[0];
+          (e.currentTarget as any).touchStartX = touch.clientX;
+        }, []),
+        
+        onTouchMove: useCallback((e) => {
+          if (!(e.currentTarget as any).touchStartX) return;
+          
+          const touch = e.touches[0];
+          const currentX = touch.clientX;
+          const startX = (e.currentTarget as any).touchStartX;
+          const diff = currentX - startX;
+          
+          // Store diff for use in touchEnd
+          (e.currentTarget as any).touchDiffX = diff;
+        }, []),
+        
+        onTouchEnd: useCallback((e) => {
+          const diff = (e.currentTarget as any).touchDiffX;
+          
+          if (diff > 50) {
+            // Swipe right - open left panel
+            setLeftPanelOpen(true);
+            setRightPanelOpen(false);
+          } else if (diff < -50) {
+            // Swipe left - open right panel if implemented
+            setLeftPanelOpen(false);
+            setRightPanelOpen(true);
+          }
+          
+          // Reset values
+          (e.currentTarget as any).touchStartX = null;
+          (e.currentTarget as any).touchDiffX = null;
+        }, [setLeftPanelOpen, setRightPanelOpen])
       }
-    },
-    onSwipedRight: () => {
-      if (isMobile && !leftPanelOpen) {
-        setLeftPanelOpen(true);
-        setRightPanelOpen(false);
-      }
-    },
-    preventDefaultTouchmoveEvent: true,
-    trackMouse: false
-  });
-
-  // Close panels when clicking on main content (mobile only)
-  const handleMainContentClick = () => {
-    if (isMobile) {
+    : {
+        onTouchStart: () => {},
+        onTouchMove: () => {},
+        onTouchEnd: () => {}
+      };
+  
+  // Close panels when clicking on main content
+  const handleMainContentClick = useCallback(() => {
+    if (isMobile && (leftPanelOpen || rightPanelOpen)) {
       setLeftPanelOpen(false);
       setRightPanelOpen(false);
     }
+  }, [isMobile, leftPanelOpen, rightPanelOpen, setLeftPanelOpen, setRightPanelOpen]);
+  
+  return {
+    swipeHandlers,
+    handleMainContentClick
   };
-
-  return { swipeHandlers, handleMainContentClick };
-};
+}
