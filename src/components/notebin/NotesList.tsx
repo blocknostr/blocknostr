@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, FileText, Trash2, Tag, Clock } from "lucide-react";
+import { Copy, FileText, Trash2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
@@ -35,20 +35,6 @@ const NotesList = ({
       .catch(() => {
         toast.error("Failed to copy content");
       });
-  };
-
-  // Extract tags from note event
-  const getNoteTags = (note: Note): string[] => {
-    if (note.tags) return note.tags;
-    
-    // Try to extract tags from event
-    if (note.event && Array.isArray(note.event.tags)) {
-      return note.event.tags
-        .filter(tag => tag[0] === 't' && tag.length >= 2)
-        .map(tag => tag[1]);
-    }
-    
-    return [];
   };
 
   // Calculate time ago for recent notes
@@ -127,7 +113,6 @@ const NotesList = ({
       {savedNotes.length > 0 ? (
         <div className={`grid gap-4 ${view === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
           {savedNotes.map((note) => {
-            const noteTags = getNoteTags(note);
             const timeAgo = getTimeAgo(note.publishedAt);
             const isRecent = isRecentNote(note.publishedAt);
             const cardGradient = getCardGradient(note.language);
@@ -184,17 +169,6 @@ const NotesList = ({
                       )}
                     </div>
                   </div>
-                  
-                  {noteTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      <Tag className="h-3 w-3 text-muted-foreground mr-1" />
-                      {noteTags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs hover:bg-secondary/30">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                   
                   <p className="mt-2 line-clamp-3 text-sm text-muted-foreground border-t pt-2">
                     {note.content}

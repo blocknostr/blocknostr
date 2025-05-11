@@ -2,7 +2,6 @@
 import React from "react";
 import NoteEditor from "@/components/notebin/NoteEditor";
 import NotesList from "@/components/notebin/NotesList";
-import { TagFilter } from "@/components/notebin/TagFilter";
 import DeleteDialog from "@/components/notebin/DeleteDialog";
 import { ViewToggle } from "@/components/notebin/ViewToggle";
 import { SortOptions } from "@/components/notebin/SortOptions";
@@ -13,14 +12,11 @@ const NotebinContainer: React.FC = () => {
   const {
     filteredNotes,
     isLoading,
-    availableTags,
-    selectedTags,
     noteToDelete,
     isDeleting,
     isLoggedIn,
     view,
     sortOption,
-    handleTagToggle,
     handleViewToggle,
     handleSortChange,
     handleSearch,
@@ -49,16 +45,6 @@ const NotebinContainer: React.FC = () => {
             <ViewToggle currentView={view} onViewChange={handleViewToggle} />
           </div>
         </div>
-        
-        {/* Tag Filter Component */}
-        {availableTags.length > 0 && (
-          <TagFilter
-            availableTags={availableTags}
-            selectedTags={selectedTags}
-            onTagToggle={handleTagToggle}
-            className="mb-6 p-4 border rounded-md bg-card shadow-sm"
-          />
-        )}
         
         {/* Notes List Component */}
         <div id="notesListSection">

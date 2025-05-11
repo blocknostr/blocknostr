@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
-import { useNotebinFilter } from "@/hooks/useNotebinFilter";
 import { Note } from "./types";
 import { SortOption } from "../SortOptions";
 import useLocalStorage from "@/hooks/use-local-storage";
@@ -11,7 +10,6 @@ export function useNotebin() {
   const [content, setContent] = useState("");
   const [language, setLanguage] = useState("text");
   const [tags, setTags] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,9 +29,6 @@ export function useNotebin() {
     index === self.findIndex(n => n.id === note.id)
   );
   
-  // Use our custom hook for filtering
-  const { availableTags, filteredNotes: tagFilteredNotes } = useNotebinFilter(uniqueNotes, selectedTags);
-
   // Log the current state of notes for debugging
   useEffect(() => {
     console.log("Current saved notes:", savedNotes);
@@ -55,12 +50,11 @@ export function useNotebin() {
 
   // Search filtering
   const searchFilteredNotes = searchQuery
-    ? tagFilteredNotes.filter(note => 
+    ? uniqueNotes.filter(note => 
         note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (note.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
+        note.content.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : tagFilteredNotes;
+    : uniqueNotes;
 
   // Sort notes based on selected option
   const sortedNotes = [...searchFilteredNotes].sort((a, b) => {
@@ -79,15 +73,6 @@ export function useNotebin() {
         return 0;
     }
   });
-
-  // Handle tag toggling for filtering
-  const handleTagToggle = useCallback((tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag) 
-        : [...prev, tag]
-    );
-  }, []);
 
   // Handle view toggling
   const handleViewToggle = useCallback((newView: "grid" | "list") => {
@@ -158,15 +143,12 @@ export function useNotebin() {
     content,
     language,
     tags,
-    availableTags,
-    selectedTags,
     noteToDelete,
     isDeleting,
     isLoggedIn,
     view,
     sortOption,
     searchQuery,
-    handleTagToggle,
     handleViewToggle,
     handleSortChange,
     handleSearch,

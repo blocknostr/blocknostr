@@ -21,8 +21,22 @@ export const useNoteFetcher = () => {
       console.log("Connecting to relays to fetch notebin notes...");
       await nostrService.connectToUserRelays();
       
-      // Subscribe to notebin events (kind 30023)
-      const filters = [{ kinds: [30023], limit: 20 }];
+      const currentPubkey = nostrService.publicKey;
+      
+      // Only fetch notes if user is logged in
+      if (!currentPubkey) {
+        console.log("User not logged in, not fetching notes from relays");
+        setNotebinNotes([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Subscribe to notebin events (kind 30023) only for current user
+      const filters = [{ 
+        kinds: [30023], 
+        authors: [currentPubkey], // Only fetch notes from current user
+        limit: 20 
+      }];
       
       const notes: Note[] = [];
       
