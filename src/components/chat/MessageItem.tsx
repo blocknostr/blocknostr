@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { NostrEvent } from "@/lib/nostr/types";
 import ReactionBar from "./ReactionBar";
+import { contentFormatter } from "@/lib/nostr";
 
 interface MessageItemProps {
   message: NostrEvent;
@@ -50,7 +51,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </span>
         </div>
         
-        <p className="text-xs break-words whitespace-pre-wrap">{message.content}</p>
+        <div className="text-xs break-words whitespace-pre-wrap">
+          {contentFormatter.formatContent(message.content)}
+        </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (

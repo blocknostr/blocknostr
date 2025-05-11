@@ -208,7 +208,8 @@ export const useWorldChat = () => {
 
     try {
       // Process mentions and links according to NIP-27
-      const processedContent = contentFormatter.parseContent(messageContent);
+      // Use the new processContent method which returns a string
+      const processedContent = contentFormatter.processContent(messageContent);
       
       // Create a message with the world-chat tag
       const eventId = await nostrService.publishEvent({

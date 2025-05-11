@@ -1,19 +1,14 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getNpubFromHex } from '../utils/keys';
-
-interface FormattedSegment {
-  type: 'text' | 'mention' | 'hashtag' | 'url' | 'media-url';
-  content: string;
-  data?: string;
-  shouldRender?: boolean;
-}
+import { FormattedSegment, ContentFormatterInterface } from './types';
 
 /**
  * Content formatter for Nostr posts
  * Implements NIP-27 for mentions, hashtags and URLs
  */
-export class ContentFormatter {
+export class ContentFormatter implements ContentFormatterInterface {
   /**
    * Parse content and split into segments for formatting
    */
@@ -148,6 +143,16 @@ export class ContentFormatter {
     
     // Remove duplicates
     return [...new Set(pubkeys)];
+  }
+
+  /**
+   * Process content and return a formatted string
+   * This is useful for sending messages with proper formatting
+   */
+  processContent(content: string): string {
+    // Currently just returns the content as-is, but can be extended
+    // to handle any preprocessing needed before sending to Nostr network
+    return content;
   }
   
   /**
