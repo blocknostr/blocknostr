@@ -34,7 +34,9 @@ const NotebinContainer: React.FC = () => {
     <div className="p-4 h-[calc(100vh-3.5rem)] overflow-auto">
       <div className="max-w-3xl mx-auto">
         {/* Note Editor Component */}
-        <NoteEditor onNoteSaved={handleNoteSaved} />
+        <div id="noteEditor">
+          <NoteEditor onNoteSaved={handleNoteSaved} />
+        </div>
         
         {/* Search, Filter and View Controls */}
         <div className="flex flex-col md:flex-row gap-4 justify-between items-start my-6">
@@ -59,14 +61,16 @@ const NotebinContainer: React.FC = () => {
         )}
         
         {/* Notes List Component */}
-        <NotesList 
-          isLoading={isLoading}
-          savedNotes={filteredNotes}
-          onNoteClick={viewNote}
-          onDeleteClick={(noteId) => setNoteToDelete(noteId)}
-          isLoggedIn={isLoggedIn}
-          view={view}
-        />
+        <div id="notesListSection">
+          <NotesList 
+            isLoading={isLoading}
+            savedNotes={filteredNotes}
+            onNoteClick={viewNote}
+            onDeleteClick={(noteId) => setNoteToDelete(noteId)}
+            isLoggedIn={isLoggedIn}
+            view={view}
+          />
+        </div>
       </div>
       
       {/* Delete Confirmation Dialog */}

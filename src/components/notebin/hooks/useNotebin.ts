@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
@@ -23,6 +22,27 @@ export function useNotebin() {
   
   // Use our custom hook for filtering
   const { availableTags, filteredNotes: tagFilteredNotes } = useNotebinFilter(savedNotes, selectedTags);
+
+  // Load saved notes from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedNotes = localStorage.getItem('notebin_saved_notes');
+      if (storedNotes) {
+        setSavedNotes(JSON.parse(storedNotes));
+      }
+    } catch (error) {
+      console.error("Failed to load notes from localStorage:", error);
+    }
+  }, []);
+
+  // Save notes to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('notebin_saved_notes', JSON.stringify(savedNotes));
+    } catch (error) {
+      console.error("Failed to save notes to localStorage:", error);
+    }
+  }, [savedNotes]);
 
   // Search filtering
   const searchFilteredNotes = searchQuery
@@ -90,7 +110,22 @@ export function useNotebin() {
 
   // Handle successful note save
   const handleNoteSaved = useCallback((note: Note) => {
-    setSavedNotes(prev => [note, ...prev]);
+    setSavedNotes(prev => {
+      // Check if note already exists (by ID) and update it
+      const noteExists = prev.some(existingNote => existingNote.id === note.id);
+      
+      if (noteExists) {
+        return prev.map(existingNote => 
+          existingNote.id === note.id ? note : existingNote
+        );
+      }
+      
+      // Otherwise add as a new note
+      return [note, ...prev];
+    });
+
+    // Show the note list view after saving
+    document.getElementById('notesListSection')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   // View a note (load into editor)
@@ -99,6 +134,9 @@ export function useNotebin() {
     setContent(note.content);
     setLanguage(note.language || "text");
     setTags(note.tags || []);
+    
+    // Scroll to editor when viewing a note
+    document.getElementById('noteEditor')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
   return {

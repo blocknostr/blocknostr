@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNoteEditorState } from "./editor/useNoteEditorState";
 import EditorHeader from "./editor/EditorHeader";
@@ -32,6 +32,12 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     clearEditor,
     isLoggedIn
   } = useNoteEditorState(onNoteSaved);
+
+  // Log whenever the component renders to help with debugging
+  useEffect(() => {
+    console.log("NoteEditor mounted with onNoteSaved function:", !!onNoteSaved);
+    return () => console.log("NoteEditor unmounted");
+  }, [onNoteSaved]);
 
   return (
     <Card className="mb-6">
