@@ -2,14 +2,13 @@
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { useFeedEvents } from "./hooks";
+import { useFeedEvents } from "./use-feed-events";
 
-interface UseFollowingFeedProps {
+interface UseGlobalFeedProps {
   activeHashtag?: string;
 }
 
-export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
-  const following = nostrService.following;
+export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   
@@ -22,14 +21,13 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setupSubscription, 
     setEvents 
   } = useFeedEvents({
-    following,
     since,
     until,
     activeHashtag
   });
   
   const loadMoreEvents = () => {
-    if (!subId || following.length === 0) return;
+    if (!subId) return;
     
     // Close previous subscription
     if (subId) {
@@ -44,7 +42,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -55,7 +53,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -83,35 +81,33 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       setEvents([]);
       setHasMore(true);
       setLoading(true);
-      
+
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
       setSince(undefined);
       setUntil(currentTime);
-      
+
       // Close previous subscription if exists
       if (subId) {
         nostrService.unsubscribe(subId);
       }
       
       // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      
-      if (following.length === 0) {
-        setLoading(false);
-      }
+      setLoading(false);
     };
     
     initFeed();
     
+    // Cleanup subscription when component unmounts
     return () => {
       if (subId) {
         nostrService.unsubscribe(subId);
       }
     };
-  }, [following, activeHashtag]);
-  
+  }, [activeHashtag]);
+
   // Mark the loading as finished when we get events
   useEffect(() => {
     if (events.length > 0 && loading) {
@@ -130,7 +126,6 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     repostData,
     loadMoreRef,
     loading,
-    following,
     hasMore
   };
 }

@@ -4,7 +4,7 @@ import { NostrEvent } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter, onEvent: (event: NostrEvent) => void, subCloser: any }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: Filter[], subClosers: any[] }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -21,28 +21,26 @@ export class SubscriptionManager {
       return "";
     }
     
+    if (filters.length === 0) {
+      console.error("No filters provided for subscription");
+      return "";
+    }
+    
     const id = `sub_${this.nextId++}`;
     
     try {
-      // Create subscription with proper callback
-      // Note: SimplePool.subscribe now expects a single filter, not an array
-      // We'll apply each filter from the array individually and combine the subscriptions
-      if (filters.length === 0) {
-        console.error("No filters provided for subscription");
-        return "";
-      }
-      
-      // Use the first filter for subscription
-      const filter = filters[0];
-      
-      const subCloser = this.pool.subscribe(relays, filter, {
-        onevent: (event) => {
-          onEvent(event as NostrEvent);
-        }
+      // SimplePool.subscribe expects a single filter
+      // We'll create multiple subscriptions, one for each filter
+      const subClosers = filters.map(filter => {
+        return this.pool.subscribe(relays, filter, {
+          onevent: (event) => {
+            onEvent(event as NostrEvent);
+          }
+        });
       });
       
       // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays, filters: filter, onEvent, subCloser });
+      this.subscriptions.set(id, { relays, filters, subClosers });
       
       return id;
     } catch (error) {
@@ -55,8 +53,12 @@ export class SubscriptionManager {
     const subscription = this.subscriptions.get(subId);
     if (subscription) {
       try {
-        // Use the subCloser's close method to unsubscribe
-        subscription.subCloser.close();
+        // Close all subscriptions
+        subscription.subClosers.forEach(closer => {
+          if (closer && typeof closer.close === 'function') {
+            closer.close();
+          }
+        });
         this.subscriptions.delete(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);

@@ -1,12 +1,12 @@
 
 import { useState } from "react";
-import { NostrEvent } from "@/lib/nostr";
+import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
 
 interface UseFeedEventsProps {
-  following: string[];
+  following?: string[];
   since?: number;
   until?: number;
   activeHashtag?: string;
@@ -28,6 +28,8 @@ export function useFeedEvents({
   const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
     activeHashtag,
+    since,
+    until,
     limit,
     setEvents,
     handleRepost,

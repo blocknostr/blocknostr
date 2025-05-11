@@ -3,8 +3,10 @@ import { useState, useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 
 interface UseEventSubscriptionProps {
-  following: string[];
+  following?: string[];
   activeHashtag?: string;
+  since?: number;
+  until?: number;
   limit: number;
   setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>;
   handleRepost: (event: NostrEvent, setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => void;
@@ -14,6 +16,8 @@ interface UseEventSubscriptionProps {
 export function useEventSubscription({
   following,
   activeHashtag,
+  since,
+  until,
   limit,
   setEvents,
   handleRepost,
@@ -22,39 +26,51 @@ export function useEventSubscription({
   const [subId, setSubId] = useState<string | null>(null);
   
   const setupSubscription = (sinceFetch: number, untilFetch?: number) => {
-    if (following.length === 0) {
-      return null;
-    }
+    // Create filters based on whether this is a following feed or global feed
+    let filters: any[] = [];
     
-    // Create filters for followed users
-    let filters: any[] = [
-      {
-        kinds: [1], // Regular notes
-        authors: following,
-        limit: limit,
-        since: sinceFetch,
-        until: untilFetch
-      },
-      {
-        kinds: [6], // Reposts
-        authors: following,
-        limit: Math.floor(limit * 0.4), // Fewer reposts than original posts
-        since: sinceFetch,
-        until: untilFetch
-      }
-    ];
+    if (following && following.length > 0) {
+      // Following feed - filter by authors
+      filters = [
+        {
+          kinds: [1], // Regular notes
+          authors: following,
+          limit: limit,
+          since: sinceFetch,
+          until: untilFetch
+        },
+        {
+          kinds: [6], // Reposts
+          authors: following,
+          limit: Math.floor(limit * 0.4), // Fewer reposts than original posts
+          since: sinceFetch,
+          until: untilFetch
+        }
+      ];
+    } else {
+      // Global feed - no author filter
+      filters = [
+        {
+          kinds: [1], // Regular notes
+          limit: limit,
+          since: sinceFetch,
+          until: untilFetch
+        },
+        {
+          kinds: [6], // Reposts
+          limit: Math.floor(limit * 0.4), // Fewer reposts than original posts
+          since: sinceFetch,
+          until: untilFetch
+        }
+      ];
+    }
     
     // If we have an active hashtag, filter by it
     if (activeHashtag) {
-      filters = [
-        {
-          ...filters[0],
-          "#t": [activeHashtag.toLowerCase()]
-        },
-        {
-          ...filters[1] // Keep the reposts filter
-        }
-      ];
+      filters = filters.map(filter => ({
+        ...filter,
+        "#t": [activeHashtag.toLowerCase()]
+      }));
     }
     
     // Subscribe to events

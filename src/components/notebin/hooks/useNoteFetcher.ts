@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -30,7 +31,7 @@ export function useNoteFetcher() {
           limit: 20
         };
         
-        // Use subscribe to fetch events
+        // Use subscribe with single filter object, not an array
         const subId = nostrService.subscribe([filter], (event) => {
           console.log("Received event:", event);
           

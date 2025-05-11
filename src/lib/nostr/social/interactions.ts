@@ -110,14 +110,14 @@ export class InteractionsManager {
       let userHasReposted = false;
       const likers: string[] = [];
       
-      // Subscribe to reactions (kind 7)
-      // Note: SimplePool.subscribe now expects a single filter, not an array
+      // Create a filter for reactions (kind 7)
       const reactionsFilter: Filter = {
         kinds: [EVENT_KINDS.REACTION],
         "#e": [eventId],
         limit: 100
       };
       
+      // Use single filter subscription
       const reactionsSub = pool.subscribe(relayUrls, reactionsFilter, {
         onevent: (event) => {
           // Count likes (positive reactions)
@@ -134,14 +134,14 @@ export class InteractionsManager {
         }
       });
       
-      // Subscribe to reposts (kind 6)
-      // Note: SimplePool.subscribe now expects a single filter, not an array
+      // Create a filter for reposts (kind 6)
       const repostsFilter: Filter = {
         kinds: [EVENT_KINDS.REPOST],
         "#e": [eventId],
         limit: 50
       };
       
+      // Use single filter subscription
       const repostsSub = pool.subscribe(relayUrls, repostsFilter, {
         onevent: (event) => {
           reposts++;
