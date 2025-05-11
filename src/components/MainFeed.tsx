@@ -4,8 +4,12 @@ import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
 import GlobalFeed from "./feed/GlobalFeed";
+import ForYouFeed from "./feed/ForYouFeed";
+import MediaFeed from "./feed/MediaFeed";
+import TrendingTopics from "./feed/TrendingTopics";
+import SavedHashtags from "./feed/SavedHashtags";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X } from "lucide-react";
+import { X, Image } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +22,19 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [activeTab, setActiveTab] = useState("global");
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
+
+  const handleTopicClick = (topic: string) => {
+    if (onClearHashtag) {
+      // First clear any existing hashtag
+      onClearHashtag();
+      
+      // Then set the new one - this should be handled by the parent component
+      // which will pass it back down as activeHashtag
+      if (window.location.pathname === "/") {
+        window.dispatchEvent(new CustomEvent('set-hashtag', { detail: topic }));
+      }
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -41,6 +58,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       </div>
       
+      {/* User's saved hashtags for quick access */}
+      <SavedHashtags onTopicClick={handleTopicClick} />
+      
+      {/* Trending topics at the top */}
+      <TrendingTopics onTopicClick={handleTopicClick} />
+      
       <CreateNoteForm />
       
       <Tabs 
@@ -50,7 +73,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       >
         <TabsList className={cn(
           "w-full mb-4",
-          isMobile ? "grid grid-cols-2" : ""
+          isMobile ? "grid grid-cols-4" : ""
         )}>
           <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
           <TabsTrigger 
@@ -59,6 +82,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             disabled={!isLoggedIn}
           >
             Following
+          </TabsTrigger>
+          <TabsTrigger value="for-you" className="flex-1">
+            For You
+          </TabsTrigger>
+          <TabsTrigger value="media" className="flex-1">
+            <Image className="h-4 w-4 mr-1" />
+            Media
           </TabsTrigger>
         </TabsList>
         
@@ -74,6 +104,14 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           ) : (
             <FollowingFeed activeHashtag={activeHashtag} />
           )}
+        </TabsContent>
+        
+        <TabsContent value="for-you">
+          <ForYouFeed activeHashtag={activeHashtag} />
+        </TabsContent>
+        
+        <TabsContent value="media">
+          <MediaFeed activeHashtag={activeHashtag} />
         </TabsContent>
       </Tabs>
     </div>

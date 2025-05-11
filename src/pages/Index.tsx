@@ -31,6 +31,19 @@ const Index: React.FC = () => {
     initNostr();
   }, []);
 
+  useEffect(() => {
+    // Listen for hashtag setting events
+    const handleSetHashtag = (e: CustomEvent) => {
+      setActiveHashtag(e.detail);
+    };
+
+    window.addEventListener('set-hashtag', handleSetHashtag as EventListener);
+    
+    return () => {
+      window.removeEventListener('set-hashtag', handleSetHashtag as EventListener);
+    };
+  }, []);
+
   const handleTopicClick = (topic: string) => {
     setActiveHashtag(topic);
     if (isMobile) {

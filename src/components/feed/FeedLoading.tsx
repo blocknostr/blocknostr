@@ -3,12 +3,13 @@ import React from "react";
 
 interface FeedLoadingProps {
   activeHashtag?: string;
+  mediaOnly?: boolean;
 }
 
-const FeedLoading: React.FC<FeedLoadingProps> = ({ activeHashtag }) => {
+const FeedLoading: React.FC<FeedLoadingProps> = ({ activeHashtag, mediaOnly }) => {
   return (
     <div className="py-8 text-center text-muted-foreground">
-      Loading posts{activeHashtag ? ` with #${activeHashtag}` : ''} from people you follow...
+      Loading {mediaOnly ? 'media ' : ''}posts{activeHashtag ? ` with #${activeHashtag}` : ''}...
     </div>
   );
 };
