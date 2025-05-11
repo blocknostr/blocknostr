@@ -90,7 +90,8 @@ export function useFollowingFeedInit({
   
   // Refresh feed function for manual refresh
   const refreshFeed = () => {
-    setRetryCount(0);
+    // Fix: Changed from passing direct number to using a callback function
+    setRetryCount(prev => 0);
     setCacheHit(false);
     initFeed(true);
   };
