@@ -4,12 +4,10 @@ import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
-import { useWorldChat } from "./useWorldChat";
+import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -24,26 +22,10 @@ const WorldChat = () => {
     sendMessage,
     addReaction,
     error,
-    connectionStatus
+    connectionStatus,
+    reconnect,
+    isReconnecting
   } = useWorldChat();
-
-  const [isReconnecting, setIsReconnecting] = useState(false);
-
-  const handleReconnect = async () => {
-    if (isReconnecting) return;
-    
-    try {
-      setIsReconnecting(true);
-      toast.loading("Reconnecting to relays...");
-      await nostrService.connectToUserRelays();
-      toast.success("Reconnection attempt completed");
-    } catch (err) {
-      toast.error("Failed to reconnect");
-      console.error("Reconnection error:", err);
-    } finally {
-      setIsReconnecting(false);
-    }
-  };
 
   return (
     <Card className="flex-grow flex flex-col h-[550px]">
@@ -67,7 +49,7 @@ const WorldChat = () => {
               variant="outline" 
               size="sm" 
               className="h-6 text-xs py-0" 
-              onClick={handleReconnect}
+              onClick={reconnect}
               disabled={isReconnecting}
             >
               {isReconnecting ? (
