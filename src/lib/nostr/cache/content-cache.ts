@@ -24,7 +24,10 @@ export class ContentCache {
   private feedCache: Map<string, CacheEntry<string[]>> = new Map();
   private offlineMode: boolean = false;
   
+  // Mute list cache
   private _muteList: string[] | null = null;
+  
+  // Block list cache
   private _blockList: string[] | null = null;
   
   constructor() {
@@ -325,12 +328,6 @@ export class ContentCache {
   isOffline(): boolean {
     return this.offlineMode;
   }
-
-  // Mute list cache
-  private _muteList: string[] | null = null;
-  
-  // Block list cache
-  private _blockList: string[] | null = null;
 
   // Methods for mute list
   cacheMuteList(pubkeys: string[]): void {

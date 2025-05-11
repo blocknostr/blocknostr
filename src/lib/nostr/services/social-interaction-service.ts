@@ -166,7 +166,8 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      const events = await this.pool.list(relays, [{
+      // Using pool.querySync instead of list which is not available in SimplePool
+      const events = await this.pool.querySync(relays, [{
         kinds: [EVENT_KINDS.MUTE_LIST],
         authors: [currentUserPubkey],
         limit: 1
@@ -358,7 +359,8 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      const events = await this.pool.list(relays, [{
+      // Using pool.querySync instead of list which is not available in SimplePool
+      const events = await this.pool.querySync(relays, [{
         kinds: [EVENT_KINDS.BLOCK_LIST],
         authors: [currentUserPubkey],
         limit: 1
