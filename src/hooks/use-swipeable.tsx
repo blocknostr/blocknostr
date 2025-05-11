@@ -1,5 +1,6 @@
 
 import { useRef, useEffect, useState } from "react";
+import { useNavigation } from "@/contexts/NavigationContext";
 
 interface SwipeableOptions {
   onSwipedLeft?: () => void;
@@ -9,6 +10,7 @@ interface SwipeableOptions {
   preventDefaultTouchmoveEvent?: boolean;
   trackMouse?: boolean;
   swipeThreshold?: number;
+  enableNavigationGestures?: boolean;
 }
 
 interface SwipeableHandlers {
@@ -33,10 +35,12 @@ export function useSwipeable({
   preventDefaultTouchmoveEvent = false,
   trackMouse = false,
   swipeThreshold = 50,
+  enableNavigationGestures = true,
 }: SwipeableOptions): SwipeableHandlers {
   const touchStart = useRef<Position | null>(null);
   const touchEnd = useRef<Position | null>(null);
   const [swiping, setSwiping] = useState(false);
+  const navigation = enableNavigationGestures ? useNavigation() : null;
 
   // Reset touch positions when component unmounts
   useEffect(() => {
@@ -81,6 +85,10 @@ export function useSwipeable({
       if (absDistX > absDistY) {
         // Horizontal swipe
         if (distX > 0) {
+          // Right swipe - can be used for back navigation
+          if (navigation?.canGoBack && enableNavigationGestures) {
+            navigation.goBack();
+          }
           onSwipedRight?.();
         } else {
           onSwipedLeft?.();

@@ -1,8 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { UserPlus, ArrowLeft, Lock } from "lucide-react";
+import { UserPlus, Lock } from "lucide-react";
 import DeleteCommunityButton from "./DeleteCommunityButton";
 import { useNavigate } from "react-router-dom";
+import BackButton from "@/components/navigation/BackButton";
 
 interface CommunityPageHeaderProps {
   name: string;
@@ -29,21 +30,9 @@ const CommunityPageHeader = ({
 }: CommunityPageHeaderProps) => {
   const navigate = useNavigate();
 
-  const handleBack = () => {
-    navigate('/communities');
-  };
-
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur h-16 border-b flex items-center px-6">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={handleBack}
-        className="mr-2"
-        title="Back to Communities"
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </Button>
+      <BackButton fallbackPath="/communities" className="mr-2" />
       
       <div className="flex-1">
         <div className="flex items-center">

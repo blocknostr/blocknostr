@@ -2,6 +2,7 @@
 import React from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import BackButton from "@/components/navigation/BackButton";
 
 interface NotebinHeaderProps {
   toggleSidebar: () => void;
@@ -19,6 +20,7 @@ const NotebinHeader: React.FC<NotebinHeaderProps> = ({ toggleSidebar }) => {
         >
           <Menu className="h-5 w-5" />
         </Button>
+        <BackButton className="mr-2" />
         <h1 className="font-semibold">Notebin</h1>
       </div>
     </header>

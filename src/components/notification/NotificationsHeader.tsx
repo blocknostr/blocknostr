@@ -1,4 +1,5 @@
 
+import BackButton from "@/components/navigation/BackButton";
 import { Button } from "@/components/ui/button";
 import { Lightbulb } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
@@ -9,7 +10,10 @@ const NotificationsHeader = () => {
   return (
     <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
       <div className="flex items-center justify-between h-14 px-4">
-        <h1 className="font-semibold">Notifications</h1>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="font-semibold">Notifications</h1>
+        </div>
         <div className="flex items-center space-x-2">
           <Button 
             variant="ghost"
