@@ -15,7 +15,7 @@ import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { ProfileService } from './services/profile-service';
 import { CommunityService } from './services/community-service';
 import { BookmarkService } from './services/bookmark-service';
-import { ThreadService } from './services/thread-service';
+import { ThreadService } from './services/thread/thread-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
