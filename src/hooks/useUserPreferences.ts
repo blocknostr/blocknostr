@@ -146,14 +146,17 @@ export function useUserPreferences() {
       // Create a safe copy of the nested object with type checking
       const nestedObject = prev[key];
       
-      // Ensure we have a valid object before spreading
+      // Fix: The issue is here - nestedObject might not be typed correctly for spreading
+      // Instead of spreading directly, we'll create a proper typed object
       if (nestedObject && typeof nestedObject === 'object' && !Array.isArray(nestedObject)) {
+        // Create a new object of the appropriate type using type assertion
+        const updatedNested = { ...nestedObject as object } as UserPreferences[K];
+        // Set the new value
+        (updatedNested as any)[nestedKey] = value;
+        
         return {
           ...prev,
-          [key]: {
-            ...nestedObject,
-            [nestedKey]: value,
-          },
+          [key]: updatedNested
         };
       }
       
@@ -163,7 +166,7 @@ export function useUserPreferences() {
         [key]: {
           ...defaultPreferences[key],
           [nestedKey]: value,
-        },
+        } as UserPreferences[K],
       };
     });
   }, []);
