@@ -44,6 +44,7 @@ export class BookmarkManagerFacade {
         return "event_id_" + Math.random().toString(36).substring(2, 10);
       },
       getEvents: async (filters: any[], relays: string[] = []) => {
+        // Use the EventManager's getEvents method
         return eventManager.getEvents(filters, relays);
       }
     };

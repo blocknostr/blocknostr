@@ -38,7 +38,7 @@ export function subscribeToEvents(
   }
 }
 
-// Create a local instance of EventManager to use its methods
+// Create an instance of the EventManager class for service methods
 const localEventManager = new EventManager();
 
 /**
