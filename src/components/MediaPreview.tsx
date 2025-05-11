@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import MediaCarousel from './media/MediaCarousel';
 import MediaLightbox from './media/MediaLightbox';
 
