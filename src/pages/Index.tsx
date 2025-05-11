@@ -1,9 +1,9 @@
 
+import React, { useEffect, useState } from "react";
 import MainFeed from "@/components/MainFeed";
 import Sidebar from "@/components/Sidebar";
 import TrendingSection from "@/components/TrendingSection";
 import WhoToFollow from "@/components/WhoToFollow";
-import { useEffect, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import LoginButton from "@/components/LoginButton";
 import { Lightbulb, Menu, ArrowRight } from "lucide-react";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
 import { useTheme } from "@/hooks/use-theme";
 
-const Index = () => {
+const Index: React.FC = () => {
   const { darkMode, toggleDarkMode } = useTheme();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const isMobile = useIsMobile();

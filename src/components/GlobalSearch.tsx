@@ -1,7 +1,7 @@
 
+import React, { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Command, 
@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 
-const GlobalSearch = () => {
+const GlobalSearch: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
