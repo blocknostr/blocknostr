@@ -3,7 +3,6 @@ import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { NostrEvent } from "@/lib/nostr/types";
-import { nostrService } from "@/lib/nostr"; // This import is correct but may be referring to the wrong export
 import ReactionBar from "./ReactionBar";
 import { contentFormatter } from "@/lib/nostr";
 
@@ -13,6 +12,8 @@ interface MessageItemProps {
   profiles: Record<string, any>;
   isLoggedIn: boolean;
   onAddReaction: (emoji: string) => void;
+  isFirstInGroup: boolean;
+  showAvatar: boolean;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({
@@ -20,7 +21,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
   emojiReactions,
   profiles,
   isLoggedIn,
-  onAddReaction
+  onAddReaction,
+  isFirstInGroup,
+  showAvatar
 }) => {
   const getDisplayName = (pubkey: string) => {
     const profile = profiles[pubkey];
@@ -38,45 +41,54 @@ const MessageItem: React.FC<MessageItemProps> = ({
   };
 
   const formattedTime = formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true });
-  
-  // Fix: Change this to not rely on nostrService directly
-  // Instead, rely only on the pubkey from the message and the isLoggedIn prop
   const isCurrentUser = isLoggedIn && message.pubkey === profiles?._currentUser?.pubkey;
 
   return (
-    <div className={`flex items-start gap-2 group hover:bg-accent/20 rounded-lg p-2 transition-colors ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      <Avatar className="h-7 w-7 mt-0.5">
-        <AvatarImage src={getProfilePicture(message.pubkey)} />
-        <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
-      </Avatar>
+    <div 
+      className={`flex items-end gap-1 group hover:bg-accent/10 rounded-md transition-colors
+        ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}
+    >
+      {/* Avatar is only shown for the last message in a group */}
+      {showAvatar ? (
+        <Avatar className="h-6 w-6 mb-0.5 flex-shrink-0">
+          <AvatarImage src={getProfilePicture(message.pubkey)} />
+          <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
+        </Avatar>
+      ) : (
+        <div className="w-6 flex-shrink-0"></div> // Spacer to keep alignment
+      )}
       
       <div className={`min-w-0 max-w-[85%] ${isCurrentUser ? 'items-end' : 'items-start'}`}>
-        <div className={`flex items-center gap-1.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-          <span className="font-medium text-xs">{getDisplayName(message.pubkey)}</span>
-          <span className="text-[10px] text-muted-foreground">
-            {formattedTime}
-          </span>
-        </div>
+        {/* Show name only for first message in group */}
+        {isFirstInGroup && (
+          <div className={`flex items-center gap-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-0.5`}>
+            <span className="font-medium text-[10px] text-muted-foreground">{getDisplayName(message.pubkey)}</span>
+          </div>
+        )}
         
-        <div className={`text-sm break-words whitespace-pre-wrap p-2 rounded-lg ${
+        <div className={`relative text-xs break-words whitespace-pre-wrap py-1 px-2 rounded-lg ${
           isCurrentUser 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-muted'
+            ? 'bg-primary text-primary-foreground rounded-br-none' 
+            : 'bg-muted rounded-bl-none'
         }`}>
           {contentFormatter.formatContent(message.content)}
+          <span className="text-[8px] ml-1 opacity-70 inline-block align-bottom">
+            {formattedTime.includes('less than a minute') ? 'now' : formattedTime}
+          </span>
         </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
-          <div className={`flex flex-wrap gap-0.5 mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+          <div className={`flex flex-wrap gap-0.5 mt-0.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
             {emojiReactions.map((emoji, idx) => (
-              <span key={idx} className="inline-flex items-center bg-muted px-1.5 py-0.5 rounded-full text-xs">
+              <span key={idx} className="inline-flex items-center bg-muted/70 px-1 py-0.5 rounded-full text-[10px]">
                 {emoji}
               </span>
             ))}
           </div>
         )}
         
+        {/* Reaction button - only shows on hover */}
         <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${isCurrentUser ? 'text-right' : 'text-left'}`}>
           <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
         </div>

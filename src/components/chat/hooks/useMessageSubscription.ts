@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
 const WORLD_CHAT_TAG = "world-chat";
-const MAX_MESSAGES = 15;
+const MAX_MESSAGES = 25; // Increased to show more history
 
 /**
  * Hook to manage message subscriptions and state
@@ -33,13 +34,13 @@ export const useMessageSubscription = (
       if (subId) nostrService.unsubscribe(subId);
     });
     
-    // Subscribe to world chat messages
+    // Subscribe to world chat messages with higher limit
     const messagesSub = nostrService.subscribe(
       [
         {
           kinds: [EVENT_KINDS.TEXT_NOTE],
           '#t': [WORLD_CHAT_TAG], // Using '#t' for tag filtering
-          limit: 25
+          limit: 50 // Increased limit to load more history
         } as NostrFilter
       ],
       (event) => {
@@ -49,6 +50,7 @@ export const useMessageSubscription = (
           if (prev.some(m => m.id === event.id)) return prev;
           
           // Add new message and sort by timestamp (newest first)
+          // This ordering is important for the bottom-up display
           const updated = [...prev, event].sort((a, b) => b.created_at - a.created_at);
           
           // Keep only the most recent MAX_MESSAGES
