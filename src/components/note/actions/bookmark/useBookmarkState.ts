@@ -34,37 +34,37 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
   }, [eventId, pendingOperations]);
 
   const addToPendingOperations = useCallback((operation: { type: BookmarkOperationType, data: any }) => {
-    const updatedOperations: QueuedOperation[] = [...pendingOperations];
+    // Create complete QueuedOperation with required fields
+    const completeOperation: QueuedOperation = {
+      id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      timestamp: Date.now(),
+      type: operation.type,
+      status: 'pending',
+      retryCount: 0,
+      data: operation.data
+    };
     
-    // Check if we already have this operation
-    const exists = updatedOperations.some(
-      op => op.type === operation.type && 
-      (op.type === 'add' && op.data?.eventId === operation.data?.eventId)
-    );
-    
-    if (!exists) {
-      // Create complete QueuedOperation with required fields
-      const completeOperation: QueuedOperation = {
-        id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        timestamp: Date.now(),
-        type: operation.type,
-        status: 'pending',
-        retryCount: 0,
-        data: operation.data
-      };
+    setPendingOperations(prev => {
+      // Check if we already have this operation
+      const exists = prev.some(
+        op => op.type === operation.type && 
+        (op.type === 'add' && op.data?.eventId === operation.data?.eventId)
+      );
       
-      updatedOperations.push(completeOperation);
-    }
-    
-    setPendingOperations(updatedOperations);
-  }, [pendingOperations, setPendingOperations]);
+      if (!exists) {
+        return [...prev, completeOperation];
+      }
+      return prev;
+    });
+  }, [setPendingOperations]);
 
   const removeFromPendingOperations = useCallback((eventId: string) => {
-    const updatedOperations = pendingOperations.filter(
-      op => !(op.type === 'add' && op.data?.eventId === eventId)
-    );
-    setPendingOperations(updatedOperations);
-  }, [pendingOperations, setPendingOperations]);
+    setPendingOperations(prev => {
+      return prev.filter(
+        op => !(op.type === 'add' && op.data?.eventId === eventId)
+      );
+    });
+  }, [setPendingOperations]);
 
   const handleBookmark = useCallback(async () => {
     if (isBookmarkPending) return;

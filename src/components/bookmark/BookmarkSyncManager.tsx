@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
-import { BookmarkStorage } from '@/lib/nostr/bookmark';
+import { bookmarkStorage } from '@/lib/nostr/bookmark';
 
 /**
  * Component that handles sync of pending bookmark operations when coming online
@@ -28,7 +28,7 @@ export function BookmarkSyncManager() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Get pending operations
-        const pendingOps = await BookmarkStorage.getPendingOperations();
+        const pendingOps = await bookmarkStorage.getPendingOperations();
         
         if (pendingOps.length === 0) {
           toast.dismiss();
@@ -42,7 +42,7 @@ export function BookmarkSyncManager() {
         await nostrService.processPendingOperations();
         
         // Get updated count after processing
-        const remainingOps = await BookmarkStorage.getPendingOperations();
+        const remainingOps = await bookmarkStorage.getPendingOperations();
         const successCount = pendingOps.length - remainingOps.length;
         const failCount = remainingOps.length;
         

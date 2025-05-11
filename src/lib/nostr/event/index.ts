@@ -28,7 +28,10 @@ export class NostrEventManager implements EventManager {
   async getEvents(filters: any[], relays: string[]): Promise<any[]> {
     try {
       // Convert array of filters to proper Filter type
-      const properFilters: Filter[] = filters.map(f => f as Filter);
+      const properFilters: Filter = { kinds: [1] }; // Default filter
+      if (filters.length > 0) {
+        Object.assign(properFilters, filters[0]);
+      }
       return await this.pool.querySync(relays, properFilters);
     } catch (error) {
       console.error("Error getting events:", error);
@@ -43,7 +46,7 @@ export class NostrEventManager implements EventManager {
     try {
       // Create a proper filter object
       const filter: Filter = { ids: [id] };
-      const events = await this.pool.querySync(relays, [filter]);
+      const events = await this.pool.querySync(relays, filter);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error(`Error fetching event ${id}:`, error);
@@ -62,7 +65,7 @@ export class NostrEventManager implements EventManager {
         authors: pubkeys 
       };
       
-      const events = await this.pool.querySync(relays, [filter]);
+      const events = await this.pool.querySync(relays, filter);
       const profiles: Record<string, any> = {};
 
       for (const event of events) {
