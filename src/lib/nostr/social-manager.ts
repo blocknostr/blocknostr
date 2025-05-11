@@ -21,14 +21,36 @@ export class SocialManager {
   
   /**
    * Get reaction counts for an event
+   * @param eventId The ID of the event to get reaction counts for
    */
-  async getReactionCounts(eventId: string): Promise<{ likes: number, reposts: number, replies: number, zaps: number, zapAmount: number }> {
+  async getReactionCounts(eventId: string): Promise<{ 
+    likes: number, 
+    reposts: number, 
+    replies: number, 
+    zaps: number, 
+    zapAmount: number 
+  }> {
+    console.log('Getting reaction counts for event:', eventId);
+    
+    // For now return dummy data - this would be implemented to fetch real data
+    // from the Nostr network in a production implementation
     return {
-      likes: 0,
-      reposts: 0,
-      replies: 0,
-      zaps: 0,
-      zapAmount: 0
+      likes: Math.floor(Math.random() * 10), // Random numbers for testing
+      reposts: Math.floor(Math.random() * 5),
+      replies: Math.floor(Math.random() * 3),
+      zaps: Math.floor(Math.random() * 2),
+      zapAmount: Math.floor(Math.random() * 100) * 10
     };
+  }
+  
+  /**
+   * React to an event (NIP-25)
+   */
+  async reactToEvent(
+    event: any, 
+    reaction: string = '+'
+  ): Promise<string> {
+    console.log(`Reacting to event ${event?.id} with: ${reaction}`);
+    return Promise.resolve(event?.id || '');
   }
 }

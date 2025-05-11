@@ -1,18 +1,101 @@
 
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import NoteCardHeader from '@/components/note/NoteCardHeader';
+import NoteCardContent from '@/components/note/NoteCardContent';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { nostrService } from '@/lib/nostr';
+import { SocialManager } from '@/lib/nostr/social-manager';
+import { toast } from 'sonner';
+
+// This needs to be properly exported as default
+const PostPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentNote, setCurrentNote] = useState<any>(null);
+  const [profileData, setProfileData] = useState<Record<string, any> | null>(null);
+  const [reactionCounts, setReactionCounts] = useState({
+    likes: 0,
+    reposts: 0,
+    replies: 0,
+    zaps: 0,
+    zapAmount: 0
+  });
+
+  const socialManager = new SocialManager();
+
+  // Fetch the note data on component mount
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchNote = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Connect to relays
+        await nostrService.connectToUserRelays();
+        
+        // Subscribe to the specific note using the ID
+        const relays = nostrService.relays.map(relay => relay.url);
+        const filters = [{ ids: [id] }];
+        
+        const { sub } = nostrService.subscribeToEvents(filters, relays, {
+          onevent: (event) => {
+            setCurrentNote(event);
+            
+            // If we have the event, fetch the author's profile
+            if (event && event.pubkey) {
+              fetchAuthorProfile(event.pubkey);
+            }
+
+            // Also fetch reaction counts
+            fetchReactionCounts();
+          },
+          onclose: () => {
+            console.log("Subscription closed");
+          },
+        });
+
+        // Cleanup subscription
+        return () => {
+          nostrService.unsubscribe(sub);
+        };
+      } catch (error) {
+        console.error('Error fetching note:', error);
+        toast.error('Failed to load post');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchNote();
+  }, [id]);
+
+  // Fetch the author's profile data
+  const fetchAuthorProfile = async (pubkey: string) => {
+    try {
+      const profile = await nostrService.getUserProfile(pubkey);
+      if (profile) {
+        setProfileData(profile);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
   // Fix the fetchReactionCounts function to handle the correct reaction counts data structure
   const fetchReactionCounts = async () => {
     try {
       if (!currentNote?.id) return;
       
-      // Create expected return structure with all required fields
-      const counts = {
-        likes: 0,
-        reposts: 0,
-        replies: 0, // Added missing properties
-        zaps: 0,
-        zapAmount: 0
-      };
-      
+      // Get reaction counts from the social manager
+      const counts = await socialManager.getReactionCounts(currentNote.id);
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
@@ -43,3 +126,95 @@
       </div>
     );
   };
+
+  // Handle back navigation
+  const handleBack = () => {
+    navigate(-1);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container py-6">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4 mb-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-4 w-[150px]" />
+              </div>
+            </div>
+            
+            <div className="space-y-2 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentNote) {
+    return (
+      <div className="container py-6">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        
+        <Card>
+          <CardContent className="p-6 text-center py-12">
+            <h2 className="text-2xl font-bold mb-2">Post not found</h2>
+            <p className="text-muted-foreground">The note you're looking for doesn't exist or has been deleted.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-6">
+      <div className="mb-6">
+        <Button variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+      </div>
+      
+      <Card className="mb-4">
+        <CardContent className="p-0">
+          <div className="p-4 md:p-6">
+            {/* Note header with author info */}
+            <NoteCardHeader 
+              pubkey={currentNote.pubkey} 
+              createdAt={currentNote.created_at} 
+              profileData={profileData || undefined}
+            />
+            
+            {/* Note content */}
+            <NoteCardContent 
+              content={currentNote.content} 
+              tags={currentNote.tags}
+            />
+          </div>
+
+          {/* Render stats */}
+          {renderStats()}
+        </CardContent>
+      </Card>
+
+      {/* TODO: Add replies section here */}
+    </div>
+  );
+};
+
+// Add default export
+export default PostPage;
