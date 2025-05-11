@@ -21,7 +21,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="h-[400px] flex flex-col">
+    <Card className="flex-grow flex flex-col h-[500px]">
       <WorldChatHeader />
       
       <MessageList

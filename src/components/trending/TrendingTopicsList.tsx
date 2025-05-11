@@ -10,24 +10,27 @@ interface TrendingTopicsListProps {
 }
 
 const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({ topics, onTopicClick }) => {
+  // Limit to only 6 topics
+  const displayTopics = topics.slice(0, 6);
+  
   return (
-    <CardContent className="px-4 pb-3">
-      <div className="space-y-4">
-        {topics.length > 0 ? (
-          topics.map((topic) => (
+    <CardContent className="px-3 py-2">
+      {displayTopics.length > 0 ? (
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2">
+          {displayTopics.map((topic) => (
             <TrendingTopicItem
               key={topic.name}
               name={topic.name}
               posts={topic.posts}
               onClick={() => onTopicClick(topic.name)}
             />
-          ))
-        ) : (
-          <div className="text-center py-2 text-muted-foreground">
-            No topics found
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-2 text-muted-foreground">
+          No topics found
+        </div>
+      )}
     </CardContent>
   );
 };

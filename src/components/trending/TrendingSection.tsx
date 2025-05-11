@@ -37,9 +37,9 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
   
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
+      <CardHeader className="py-2 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-1">
             <Hash className="h-4 w-4 text-primary" />
             Trending
           </CardTitle>
@@ -59,10 +59,10 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
       
       {/* Active Hashtag Display */}
       {activeHashtag && (
-        <div className="px-4 pb-2">
+        <div className="px-3 pb-1">
           <Badge 
             variant="secondary" 
-            className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/15"
+            className="flex items-center gap-1 bg-primary/10 text-primary hover:bg-primary/15"
           >
             <span className="font-medium">#{activeHashtag}</span>
             {onClearHashtag && (
