@@ -32,7 +32,7 @@ export class NostrService {
       this.bookmarkManager,
       this.pool,
       () => this.publicKey,
-      () => this.getRelayStatus().map(relay => relay.url)
+      () => this.getRelayUrls()
     );
   }
 
@@ -73,18 +73,28 @@ export class NostrService {
   }
 
   getRelayStatus(): { url: string; status: string }[] {
-    // Access pool.relays safely
-    const relays = Object.entries((this.pool as any).relays || {}).map(([url, relay]) => ({
-      url,
-      status: (relay as any).status || 'unknown'
-    }));
-    
-    return relays;
+    try {
+      // Access pool.relays safely using Object.entries
+      const relayEntries = Object.entries((this.pool as any).relays || {});
+      return relayEntries.map(([url, relay]) => ({
+        url,
+        status: (relay as any).status || 'unknown'
+      }));
+    } catch (e) {
+      console.error("Error getting relay status:", e);
+      return [];
+    }
   }
 
   async connectToRelays(relays: string[]): Promise<void> {
     // Connect to relays directly using pool
-    relays.forEach(url => this.pool.ensureRelay(url));
+    relays.forEach(url => {
+      try {
+        this.pool.ensureRelay(url);
+      } catch (e) {
+        console.error(`Failed to connect to relay ${url}:`, e);
+      }
+    });
   }
 
   async connectToUserRelays(): Promise<string[]> {
@@ -102,9 +112,14 @@ export class NostrService {
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
     const relayUrls = relays || this.getRelayUrls();
     // Use pool directly for subscription
-    const sub = this.pool.sub(relayUrls, filters);
-    sub.on('event', onEvent);
-    return sub.sub;
+    try {
+      const subscription = this.pool.sub(relayUrls, filters);
+      subscription.on('event', onEvent);
+      return subscription.sub;
+    } catch (e) {
+      console.error("Error creating subscription:", e);
+      return "";
+    }
   }
 
   unsubscribe(subId: string): void {
@@ -114,17 +129,32 @@ export class NostrService {
 
   async getEventById(id: string): Promise<any | null> {
     const relays = this.getRelayUrls();
-    return this.eventManager.getEventById(this.pool, id, relays);
+    try {
+      return await this.eventManager.getEventById(this.pool, id, relays);
+    } catch (e) {
+      console.error(`Error getting event ${id}:`, e);
+      return null;
+    }
   }
 
   async getEvents(ids: string[]): Promise<any[]> {
     const relays = this.getRelayUrls();
-    return this.eventManager.getEvents(this.pool, ids, relays);
+    try {
+      return await this.eventManager.getEvents(this.pool, ids, relays);
+    } catch (e) {
+      console.error("Error getting events:", e);
+      return [];
+    }
   }
 
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const relays = this.getRelayUrls();
-    return this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, relays);
+    try {
+      return await this.eventManager.getProfilesByPubkeys(this.pool, pubkeys, relays);
+    } catch (e) {
+      console.error("Error getting profiles:", e);
+      return {};
+    }
   }
 
   // Re-expose methods from BookmarkService as top-level methods

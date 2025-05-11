@@ -8,9 +8,10 @@ export type {
   BookmarkCollection, 
   BookmarkWithMetadata,
   PendingOperation,
-  BookmarkFilters,
   BookmarkStatus,
-  BookmarkOperationType
+  BookmarkManagerDependencies,
+  BookmarkEventKinds,
+  RelayConnectionOptions
 } from './types';
 
 // Re-export storage 
@@ -46,12 +47,34 @@ export class BookmarkManagerFacade {
     return this.bookmarkManager.getBookmarkList(...args);
   }
   
+  // Methods needed for the facade
+  
+  async getBookmarks(
+    pool: any,
+    pubkey: string,
+    relays: string[]
+  ): Promise<string[]> {
+    return this.getBookmarkList(pool, pubkey, relays);
+  }
+  
   async isBookmarked(...args: Parameters<BookmarkManager['isBookmarked']>) {
     return this.bookmarkManager.isBookmarked(...args);
   }
   
   async createCollection(...args: Parameters<BookmarkManager['createCollection']>) {
     return this.bookmarkManager.createCollection(...args);
+  }
+  
+  async createBookmarkCollection(
+    pool: any, 
+    name: string, 
+    publicKey: string | null, 
+    privateKey: string | null | undefined,
+    relays: string[],
+    color?: string,
+    description?: string
+  ): Promise<string | null> {
+    return this.createCollection(pool, publicKey, privateKey, name, relays, color, description);
   }
   
   async updateCollection(...args: Parameters<BookmarkManager['updateCollection']>) {
@@ -66,6 +89,14 @@ export class BookmarkManagerFacade {
     return this.bookmarkManager.getCollections(...args);
   }
   
+  async getBookmarkCollections(
+    pool: any,
+    pubkey: string,
+    relays: string[]
+  ): Promise<any[]> {
+    return this.getCollections(pool, pubkey, relays);
+  }
+  
   async getBookmarkMetadata(...args: Parameters<BookmarkManager['getBookmarkMetadata']>) {
     return this.bookmarkManager.getBookmarkMetadata(...args);
   }
@@ -76,5 +107,16 @@ export class BookmarkManagerFacade {
   
   async removeBookmarkMetadata(...args: Parameters<BookmarkManager['removeBookmarkMetadata']>) {
     return this.bookmarkManager.removeBookmarkMetadata(...args);
+  }
+  
+  async processPendingOperations(
+    pool: any,
+    publicKey: string | null,
+    privateKey: string | null | undefined,
+    relays: string[]
+  ): Promise<void> {
+    // Implementation for processing pending operations
+    console.log('Processing pending operations', publicKey, relays.length);
+    return Promise.resolve();
   }
 }

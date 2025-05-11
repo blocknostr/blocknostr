@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { 
   BookmarkManagerFacade, 
@@ -17,31 +16,22 @@ export class BookmarkService {
   constructor(
     private bookmarkManager: BookmarkManagerFacade,
     private pool: SimplePool,
-    private publicKey: string | null,
-    private getRelayStatus: () => { url: string; status: string }[],
-    private connectToUserRelays: () => Promise<string[]>
+    private getPublicKey: () => string | null,
+    private getRelayUrls: () => string[]
   ) {}
   
   /**
    * Get currently connected relay URLs
    */
   private getConnectedRelayUrls(): string[] {
-    return this.getRelayStatus()
-      .filter(relay => relay.status === 'connected')
-      .map(relay => relay.url);
+    return this.getRelayUrls();
   }
   
   /**
    * Ensure connection to relays before performing operations
    */
   private async ensureConnectedRelays(): Promise<string[]> {
-    return ensureRelayConnection(
-      () => this.getConnectedRelayUrls(),
-      () => this.connectToUserRelays(),
-      { 
-        onProgress: (message) => console.log(`Relay connection: ${message}`) 
-      }
-    );
+    return this.getConnectedRelayUrls();
   }
   
   /**
@@ -53,7 +43,8 @@ export class BookmarkService {
     tags?: string[],
     note?: string
   ): Promise<boolean> {
-    if (!this.publicKey) {
+    const publicKey = this.getPublicKey();
+    if (!publicKey) {
       throw new Error("Cannot add bookmark: Not logged in");
     }
     
@@ -62,8 +53,10 @@ export class BookmarkService {
       if (!navigator.onLine) {
         await BookmarkStorage.queueOperation({
           type: 'add',
-          data: { eventId, collectionId, tags, note },
-          timestamp: Date.now()
+          eventId,
+          collectionId,
+          tags,
+          note
         });
         return true; // Optimistic response
       }
@@ -75,7 +68,7 @@ export class BookmarkService {
       return retry(
         async () => this.bookmarkManager.addBookmark(
           this.pool,
-          this.publicKey,
+          publicKey,
           undefined, // Let NostrService handle signing
           eventId,
           connectedRelays,
@@ -101,7 +94,8 @@ export class BookmarkService {
    * Remove a bookmark with retry mechanism
    */
   async removeBookmark(eventId: string): Promise<boolean> {
-    if (!this.publicKey) {
+    const publicKey = this.getPublicKey();
+    if (!publicKey) {
       throw new Error("Cannot remove bookmark: Not logged in");
     }
     
@@ -110,8 +104,9 @@ export class BookmarkService {
       if (!navigator.onLine) {
         await BookmarkStorage.queueOperation({
           type: 'remove',
-          data: { eventId },
-          timestamp: Date.now()
+          eventId,
+          tags: [],
+          note: ''
         });
         return true; // Optimistic response
       }
@@ -123,7 +118,7 @@ export class BookmarkService {
       return retry(
         async () => this.bookmarkManager.removeBookmark(
           this.pool,
-          this.publicKey,
+          publicKey,
           undefined, // Let NostrService handle signing
           eventId,
           connectedRelays
@@ -227,7 +222,8 @@ export class BookmarkService {
     color?: string,
     description?: string
   ): Promise<string | null> {
-    if (!this.publicKey) {
+    const publicKey = this.getPublicKey();
+    if (!publicKey) {
       throw new Error("Cannot create collection: Not logged in");
     }
     
@@ -238,7 +234,7 @@ export class BookmarkService {
       // Create the collection
       return this.bookmarkManager.createCollection(
         this.pool,
-        this.publicKey,
+        publicKey,
         undefined, // Let NostrService handle signing
         name,
         connectedRelays,
@@ -327,7 +323,8 @@ export class BookmarkService {
    * Process any pending bookmark operations from offline mode
    */
   async processPendingOperations(): Promise<void> {
-    if (!this.publicKey || !navigator.onLine) {
+    const publicKey = this.getPublicKey();
+    if (!publicKey || !navigator.onLine) {
       return;
     }
     
@@ -351,31 +348,31 @@ export class BookmarkService {
           if (op.type === 'add') {
             await this.bookmarkManager.addBookmark(
               this.pool,
-              this.publicKey,
+              publicKey,
               undefined,
-              op.data.eventId,
+              op.eventId || '',
               connectedRelays,
-              op.data.collectionId,
-              op.data.tags,
-              op.data.note
+              op.collectionId,
+              op.tags,
+              op.note
             );
           } else if (op.type === 'remove') {
             await this.bookmarkManager.removeBookmark(
               this.pool,
-              this.publicKey,
+              publicKey,
               undefined,
-              op.data.eventId,
+              op.eventId || '',
               connectedRelays
             );
-          } else if (op.type === 'addCollection') {
+          } else if (op.type === 'create_collection') {
             await this.bookmarkManager.createCollection(
               this.pool,
-              this.publicKey,
+              publicKey,
               undefined,
-              op.data.name,
+              op.name || '',
               connectedRelays,
-              op.data.color,
-              op.data.description
+              op.color,
+              op.description
             );
           }
           

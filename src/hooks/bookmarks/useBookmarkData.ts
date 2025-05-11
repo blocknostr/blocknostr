@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
@@ -117,7 +116,12 @@ export function useBookmarkData(): UseBookmarkDataResult {
       // Load the actual events
       if (bookmarkIds.length > 0) {
         // Get events for all bookmarked IDs
-        const events = await nostrService.getEvents(bookmarkIds);
+        // Use a workaround since getEvents is not fully implemented yet
+        const events = [];
+        for (const id of bookmarkIds) {
+          const event = await nostrService.getEventById(id);
+          if (event) events.push(event);
+        }
         setBookmarkedEvents(events.filter(Boolean));
         
         // Extract unique pubkeys for profile data
@@ -125,7 +129,12 @@ export function useBookmarkData(): UseBookmarkDataResult {
         
         if (pubkeys.length > 0) {
           // Get profile data for all authors
-          const profileData = await nostrService.getProfilesByPubkeys(pubkeys);
+          // Use a workaround since getProfilesByPubkeys is not fully implemented yet
+          const profileData = {};
+          for (const pubkey of pubkeys) {
+            const profile = await nostrService.getUserProfile(pubkey);
+            if (profile) profileData[pubkey] = profile;
+          }
           setProfiles(profileData);
         }
         

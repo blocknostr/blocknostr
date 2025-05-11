@@ -119,8 +119,9 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       if (!navigator.onLine) {
         await BookmarkStorage.queueOperation({
           type: newBookmarkState ? 'add' : 'remove',
-          data: { eventId },
-          timestamp: Date.now()
+          eventId,
+          tags: [],
+          note: '',
         });
         
         toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
@@ -133,8 +134,9 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
         // Keep the optimistic UI update but queue the operation for later
         await BookmarkStorage.queueOperation({
           type: newBookmarkState ? 'add' : 'remove',
-          data: { eventId },
-          timestamp: Date.now()
+          eventId,
+          tags: [],
+          note: '',
         });
         return;
       }

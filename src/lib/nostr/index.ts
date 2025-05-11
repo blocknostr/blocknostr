@@ -20,8 +20,7 @@ export type { ReactionCounts, ContactList } from './social/types';
 export type { ProposalCategory } from '@/types/community';
 
 // Re-export from bookmark module
-export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
-export type { BookmarkStatus } from './bookmark/types';
+export type { BookmarkCollection, BookmarkWithMetadata, BookmarkStatus } from './bookmark';
 
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
@@ -35,3 +34,6 @@ export { contentCache };
 
 // Export formatter
 export { contentFormatter };
+
+// Export service-related types from services folder
+export type { BookmarkService } from './services/bookmark-service';

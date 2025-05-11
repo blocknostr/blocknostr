@@ -1,9 +1,8 @@
-
 import { NostrService } from './service';
 
 /**
- * This adapter extends the NostrService to provide compatibility with 
- * the methods expected by components throughout the application.
+ * Adapter class to maintain backward compatibility with existing components
+ * This bridges old method names to new implementations
  */
 export class NostrServiceAdapter {
   private service: NostrService;
@@ -12,214 +11,145 @@ export class NostrServiceAdapter {
     this.service = service;
   }
   
-  // === User Management ===
+  // Add adapter methods for backward compatibility
   
-  get publicKey(): string | null {
-    return this.service.publicKey;
-  }
-  
-  get following(): string[] {
-    return this.service.following || [];
-  }
-  
-  async login(): Promise<boolean> {
-    return this.service.login();
-  }
-  
-  signOut(): void {
-    this.service.signOut();
-  }
-  
-  isFollowing(pubkey: string): boolean {
-    return this.service.isFollowing(pubkey);
-  }
-  
-  async followUser(pubkey: string): Promise<boolean> {
-    return this.service.followUser(pubkey);
-  }
-  
-  async unfollowUser(pubkey: string): Promise<boolean> {
-    return this.service.unfollowUser(pubkey);
-  }
-  
-  // === Key Utilities ===
-  
-  formatPubkey(pubkey: string): string {
-    return this.service.formatPubkey(pubkey);
-  }
-  
-  getNpubFromHex(hexPubkey: string): string {
-    return this.service.getNpubFromHex(hexPubkey);
-  }
-  
-  getHexFromNpub(npub: string): string {
-    return this.service.getHexFromNpub(npub);
-  }
-  
-  // === Relay Management ===
-  
-  async connectToRelays(relays: string[]): Promise<void> {
-    return this.service.connectToRelays(relays);
-  }
-  
-  async connectToUserRelays(): Promise<void> {
+  connectToDefaultRelays() {
     return this.service.connectToUserRelays();
   }
   
-  async connectToDefaultRelays(): Promise<void> {
-    // This is a compatibility method for components still expecting this method
-    return this.service.connectToRelays([
-      "wss://relay.damus.io", 
-      "wss://relay.nostr.band", 
-      "wss://nos.lol"
-    ]);
+  getRelayUrls() {
+    return this.service.getRelayUrls();
   }
   
-  getRelayStatus(): { url: string; status: string }[] {
+  getRelayStatus() {
     return this.service.getRelayStatus();
   }
   
-  // === Social Interactions ===
-  
-  get socialManager() {
-    return this.service.socialManager;
-  }
-  
-  async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
-    return this.service.sendDirectMessage(recipientPubkey, content);
-  }
-  
-  async reactToPost(eventId: string, emoji: string = "+"): Promise<string | null> {
-    return this.service.reactToPost(eventId, emoji);
-  }
-  
-  async repostNote(eventId: string, authorPubkey: string): Promise<string | null> {
-    return this.service.repostNote(eventId, authorPubkey);
-  }
-  
-  // === User Profile ===
-  
-  async getUserProfile(pubkey: string): Promise<any> {
+  async fetchUserProfile(pubkey: string) {
     return this.service.getUserProfile(pubkey);
   }
   
-  async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    return this.service.verifyNip05(identifier, expectedPubkey);
-  }
-  
-  // === Event Management ===
-  
-  async publishEvent(event: any): Promise<string | null> {
-    return this.service.publishEvent(event);
-  }
-  
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
-    return this.service.subscribe(filters, onEvent);
-  }
-  
-  unsubscribe(subId: string): void {
-    return this.service.unsubscribe(subId);
-  }
-  
-  async getEventById(id: string): Promise<any | null> {
-    return this.service.getEventById(id);
-  }
-  
-  async getEvents(ids: string[]): Promise<any[]> {
-    return this.service.getEvents(ids);
-  }
-  
-  async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
+  async fetchUserProfiles(pubkeys: string[]) {
     return this.service.getProfilesByPubkeys(pubkeys);
   }
   
-  // === Bookmarks ===
+  async fetchEvent(id: string) {
+    return this.service.getEventById(id);
+  }
   
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
+  async fetchEvents(ids: string[]) {
+    return this.service.getEvents(ids);
+  }
+  
+  async publishNote(content: string, tags: string[][] = []) {
+    return this.service.publishEvent({
+      kind: 1,
+      content,
+      tags
+    });
+  }
+  
+  async likeEvent(eventId: string, authorPubkey: string) {
+    return this.service.reactToPost(eventId, '+');
+  }
+  
+  async repostEvent(eventId: string, authorPubkey: string) {
+    return this.service.repostNote(eventId, authorPubkey);
+  }
+  
+  async followUser(pubkey: string) {
+    return this.service.followUser(pubkey);
+  }
+  
+  async unfollowUser(pubkey: string) {
+    return this.service.unfollowUser(pubkey);
+  }
+  
+  isFollowing(pubkey: string) {
+    return this.service.isFollowing(pubkey);
+  }
+  
+  async sendDirectMessage(recipientPubkey: string, content: string) {
+    return this.service.sendDirectMessage(recipientPubkey, content);
+  }
+  
+  async updateProfile(metadata: Record<string, any>) {
+    return this.service.publishProfileMetadata(metadata);
+  }
+  
+  async bookmarkEvent(eventId: string, collectionId?: string, tags?: string[], note?: string) {
     return this.service.addBookmark(eventId, collectionId, tags, note);
   }
   
-  async removeBookmark(eventId: string): Promise<boolean> {
+  async unbookmarkEvent(eventId: string) {
     return this.service.removeBookmark(eventId);
   }
   
-  async getBookmarks(): Promise<string[]> {
-    return this.service.getBookmarks();
-  }
-  
-  async isBookmarked(eventId: string): Promise<boolean> {
+  async isEventBookmarked(eventId: string) {
     return this.service.isBookmarked(eventId);
   }
   
-  async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
+  async getBookmarkedEvents() {
+    return this.service.getBookmarks();
+  }
+  
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
     return this.service.createBookmarkCollection(name, color, description);
   }
   
-  async getBookmarkCollections(): Promise<any[]> {
+  async getBookmarkCollections() {
     return this.service.getBookmarkCollections();
   }
   
-  async getBookmarkMetadata(): Promise<any[]> {
+  async getBookmarkMetadata() {
     return this.service.getBookmarkMetadata();
   }
   
-  async processPendingOperations(): Promise<void> {
+  async processPendingBookmarkOperations() {
     return this.service.processPendingOperations();
   }
   
-  // === Community ===
-  
-  async createCommunity(name: string, description: string): Promise<string | null> {
-    return this.service.createCommunity(name, description);
-  }
-  
-  async createProposal(
-    communityId: string,
-    title: string,
-    description: string,
-    options: string[],
-    category: string,
-    minQuorum?: number,
-    endsAt?: number
-  ): Promise<string | null> {
-    return this.service.createProposal(
-      communityId, 
-      title, 
-      description, 
-      options, 
-      category,
-      minQuorum,
-      endsAt
-    );
-  }
-  
-  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    return this.service.voteOnProposal(proposalId, optionIndex);
-  }
-  
-  // === User Moderation ===
-  
-  async muteUser(pubkey: string): Promise<boolean> {
+  async muteUser(pubkey: string) {
     return this.service.muteUser(pubkey);
   }
-
-  async unmuteUser(pubkey: string): Promise<boolean> {
+  
+  async unmuteUser(pubkey: string) {
     return this.service.unmuteUser(pubkey);
   }
-
-  async isUserMuted(pubkey: string): Promise<boolean> {
+  
+  async isUserMuted(pubkey: string) {
     return this.service.isUserMuted(pubkey);
   }
-
-  async blockUser(pubkey: string): Promise<boolean> {
+  
+  async blockUser(pubkey: string) {
     return this.service.blockUser(pubkey);
   }
-
-  async unblockUser(pubkey: string): Promise<boolean> {
+  
+  async unblockUser(pubkey: string) {
     return this.service.unblockUser(pubkey);
   }
-
-  async isUserBlocked(pubkey: string): Promise<boolean> {
+  
+  async isUserBlocked(pubkey: string) {
     return this.service.isUserBlocked(pubkey);
+  }
+  
+  formatPubkey(pubkey: string) {
+    return this.service.formatPubkey(pubkey);
+  }
+  
+  getNpubFromHex(hexPubkey: string) {
+    return this.service.getNpubFromHex(hexPubkey);
+  }
+  
+  getHexFromNpub(npub: string) {
+    return this.service.getHexFromNpub(npub);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string) {
+    return this.service.unsubscribe(subId);
   }
 }

@@ -1,6 +1,7 @@
 
 import { SimplePool } from 'nostr-tools';
 import { nip05 } from 'nostr-tools';
+import { NostrEvent } from '../types';
 
 /**
  * Manages Nostr events
@@ -34,7 +35,7 @@ export class EventManager {
         }
         
         // Prepare the event
-        const unsignedEvent = {
+        const unsignedEvent: any = {
           kind: event.kind,
           content: event.content || '',
           tags: event.tags || [],
@@ -52,7 +53,9 @@ export class EventManager {
         for (const pub of pubs) {
           try {
             await Promise.race([
-              pub.onOk,
+              new Promise((resolve) => {
+                pub.on('ok', () => resolve(true));
+              }),
               new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
             ]);
             return signedEvent.id;
@@ -107,16 +110,18 @@ export class EventManager {
   ): Promise<any | null> {
     return new Promise((resolve) => {
       let event = null;
-      const sub = pool.sub(relays, [{ ids: [id] }]);
       
-      sub.on('event', (e) => {
+      // Create a subscription for this event
+      const subscription = pool.sub(relays, [{ ids: [id] }]);
+      
+      subscription.on('event', (e) => {
         event = e;
-        pool.close([sub.sub]);
+        pool.close([subscription.sub]);
         resolve(event);
       });
       
       setTimeout(() => {
-        pool.close([sub.sub]);
+        pool.close([subscription.sub]);
         resolve(event);
       }, 5000);
     });
@@ -132,14 +137,16 @@ export class EventManager {
   ): Promise<any[]> {
     return new Promise((resolve) => {
       const events: any[] = [];
-      const sub = pool.sub(relays, [{ ids }]);
       
-      sub.on('event', (e) => {
+      // Create a subscription for these events
+      const subscription = pool.sub(relays, [{ ids }]);
+      
+      subscription.on('event', (e) => {
         events.push(e);
       });
       
       setTimeout(() => {
-        pool.close([sub.sub]);
+        pool.close([subscription.sub]);
         resolve(events);
       }, 5000);
     });
@@ -156,11 +163,12 @@ export class EventManager {
     return new Promise((resolve) => {
       const profiles: Record<string, any> = {};
       
-      const sub = pool.sub(relays, [
+      // Create a subscription for these profiles
+      const subscription = pool.sub(relays, [
         { kinds: [0], authors: pubkeys }
       ]);
       
-      sub.on('event', (event) => {
+      subscription.on('event', (event) => {
         try {
           const profile = JSON.parse(event.content);
           profiles[event.pubkey] = profile;
@@ -170,7 +178,7 @@ export class EventManager {
       });
       
       setTimeout(() => {
-        pool.close([sub.sub]);
+        pool.close([subscription.sub]);
         resolve(profiles);
       }, 5000);
     });
