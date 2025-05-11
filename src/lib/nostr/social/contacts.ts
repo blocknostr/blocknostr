@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
 import { EVENT_KINDS } from '../constants';
@@ -112,30 +112,32 @@ export class ContactsManager {
         content: ''
       };
       
-      // Subscribe to contact list events
-      const subId = pool.sub(relayUrls, [
+      // Subscribe to contact list events - updated for SimplePool API
+      const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.CONTACTS],
           authors: [pubkey],
           limit: 1
         }
-      ], {
-        cb: (event) => {
-          // Extract p tags (pubkeys) and other tags
-          const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
-          const pubkeys = pTags.map(tag => tag[1]);
-          
-          resolve({
-            pubkeys,
-            tags: event.tags,
-            content: event.content
-          });
-        }
+      ];
+      
+      const sub = pool.sub(relayUrls, filters);
+      
+      sub.on('event', (event) => {
+        // Extract p tags (pubkeys) and other tags
+        const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
+        const pubkeys = pTags.map(tag => tag[1]);
+        
+        resolve({
+          pubkeys,
+          tags: event.tags,
+          content: event.content
+        });
       });
       
       // Set a timeout to ensure we resolve even if no contact list is found
       setTimeout(() => {
-        pool.unsub(subId);
+        pool.close([sub.id]);
         resolve(defaultResult);
       }, 5000);
     });

@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter, type Sub } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
 
@@ -63,14 +63,14 @@ export class BookmarkManager {
         ]
       };
       
-      const bookmarkEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      const resultId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
       
       // Also create bookmark metadata if provided
-      if (bookmarkEventId && (collectionId || tags?.length || note)) {
+      if (resultId && (collectionId || tags?.length || note)) {
         await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
       }
       
-      return !!bookmarkEventId;
+      return !!resultId;
     } catch (error) {
       console.error("Error adding bookmark:", error);
       return false;
@@ -107,14 +107,14 @@ export class BookmarkManager {
           .map(id => ["e", id])
       };
       
-      const bookmarkEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      const resultId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
       
       // Also remove any bookmark metadata
-      if (bookmarkEventId) {
+      if (resultId) {
         await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
       }
       
-      return !!bookmarkEventId;
+      return !!resultId;
     } catch (error) {
       console.error("Error removing bookmark:", error);
       return false;
@@ -132,27 +132,29 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       let bookmarkedIds: string[] = [];
       
-      // Subscribe to bookmark list events
-      const subId = pool.sub(relays, [
+      // Subscribe to bookmark list events - updated for SimplePool API
+      const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARKS],
           authors: [pubkey],
           limit: 1
         }
-      ], {
-        cb: (event) => {
-          // Extract e tags (bookmarked event IDs)
-          const bookmarks = event.tags
-            .filter(tag => tag.length >= 2 && tag[0] === 'e')
-            .map(tag => tag[1]);
-          
-          bookmarkedIds = bookmarks;
-        }
+      ];
+      
+      const sub = pool.sub(relays, filters);
+      
+      sub.on('event', (event) => {
+        // Extract e tags (bookmarked event IDs)
+        const bookmarks = event.tags
+          .filter(tag => tag.length >= 2 && tag[0] === 'e')
+          .map(tag => tag[1]);
+        
+        bookmarkedIds = bookmarks;
       });
       
       // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        pool.unsub(subId);
+        pool.close([sub.id]);
         resolve(bookmarkedIds);
       }, 3000);
     });
@@ -246,8 +248,9 @@ export class BookmarkManager {
       ]
     };
     
-    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!eventId;
+      // Use a different variable name to avoid duplication
+      const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      return !!publishResult;
   }
   
   /**
@@ -271,8 +274,9 @@ export class BookmarkManager {
       ]
     };
     
-    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!eventId;
+    // Fix: Use a different variable name
+    const result = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!result;
   }
   
   /**
@@ -295,39 +299,41 @@ export class BookmarkManager {
         }
       });
       
-      // Subscribe to bookmark collections
-      const subId = pool.sub(relays, [
+      // Subscribe to bookmark collections - updated for SimplePool API
+      const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
           authors: [pubkey],
         }
-      ], {
-        cb: (event) => {
-          try {
-            const data = JSON.parse(event.content);
-            
-            // Extract collection ID from d tag
-            const dTag = event.tags.find(tag => tag[0] === 'd');
-            if (!dTag || !dTag[1]) return;
-            
-            const collectionId = dTag[1];
-            
-            collections.push({
-              id: collectionId,
-              name: data.name || "Unnamed Collection",
-              color: data.color,
-              description: data.description,
-              totalItems: collectionCounts[collectionId] || 0
-            });
-          } catch (e) {
-            console.error("Error parsing collection data:", e);
-          }
+      ];
+      
+      const sub = pool.sub(relays, filters);
+      
+      sub.on('event', (event) => {
+        try {
+          const data = JSON.parse(event.content);
+          
+          // Extract collection ID from d tag
+          const dTag = event.tags.find(tag => tag[0] === 'd');
+          if (!dTag || !dTag[1]) return;
+          
+          const collectionId = dTag[1];
+          
+          collections.push({
+            id: collectionId,
+            name: data.name || "Unnamed Collection",
+            color: data.color,
+            description: data.description,
+            totalItems: collectionCounts[collectionId] || 0
+          });
+        } catch (e) {
+          console.error("Error parsing collection data:", e);
         }
       });
       
       // Set a timeout to resolve with found collections
       setTimeout(() => {
-        pool.unsub(subId);
+        pool.close([sub.id]);
         resolve(collections);
       }, 3000);
     });
@@ -370,8 +376,9 @@ export class BookmarkManager {
       });
     }
     
-    const metaEventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!metaEventId;
+    // Fix: Use a different variable name
+    const metaResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!metaResult;
   }
   
   /**
@@ -395,8 +402,9 @@ export class BookmarkManager {
       ]
     };
     
-    const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!eventId;
+    // Use a distinct variable name
+    const deleteResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!deleteResult;
   }
   
   /**
@@ -410,44 +418,46 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       const metadata: BookmarkWithMetadata[] = [];
       
-      // Subscribe to bookmark metadata events
-      const subId = pool.sub(relays, [
+      // Subscribe to bookmark metadata events - updated for SimplePool API
+      const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARK_METADATA],
           authors: [pubkey]
         }
-      ], {
-        cb: (event) => {
-          try {
-            // Extract referenced event ID from e tag
-            const eventRef = event.tags.find(tag => tag[0] === 'e');
-            if (!eventRef || !eventRef[1]) return;
-            
-            const eventId = eventRef[1];
-            
-            // Parse metadata from content
-            const data = JSON.parse(event.content);
-            
-            // Extract any tags
-            const tagList = event.tags
-              .filter(tag => tag[0] === 't' && tag.length >= 2)
-              .map(tag => tag[1]);
-            
-            metadata.push({
-              eventId,
-              collectionId: data.collectionId,
-              note: data.note,
-              tags: tagList.length > 0 ? tagList : undefined
-            });
-          } catch (e) {
-            console.error("Error parsing bookmark metadata:", e);
-          }
+      ];
+      
+      const sub = pool.sub(relays, filters);
+      
+      sub.on('event', (event) => {
+        try {
+          // Extract referenced event ID from e tag
+          const eventRef = event.tags.find(tag => tag[0] === 'e');
+          if (!eventRef || !eventRef[1]) return;
+          
+          const eventId = eventRef[1];
+          
+          // Parse metadata from content
+          const data = JSON.parse(event.content);
+          
+          // Extract any tags
+          const tagList = event.tags
+            .filter(tag => tag[0] === 't' && tag.length >= 2)
+            .map(tag => tag[1]);
+          
+          metadata.push({
+            eventId,
+            collectionId: data.collectionId,
+            note: data.note,
+            tags: tagList.length > 0 ? tagList : undefined
+          });
+        } catch (e) {
+          console.error("Error parsing bookmark metadata:", e);
         }
       });
       
       // Set a timeout to resolve with found metadata
       setTimeout(() => {
-        pool.unsub(subId);
+        pool.close([sub.id]);
         resolve(metadata);
       }, 3000);
     });

@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
 import { EVENT_KINDS } from '../constants';
@@ -110,51 +110,54 @@ export class InteractionsManager {
       let userHasReposted = false;
       const likers: string[] = [];
       
-      // Subscribe to reactions (kind 7)
-      const reactionsSubId = pool.sub(relayUrls, [
+      // Subscribe to reactions (kind 7) - updated for SimplePool API
+      const reactionsFilters: Filter[] = [
         {
           kinds: [EVENT_KINDS.REACTION],
           "#e": [eventId],
           limit: 100
         }
-      ], {
-        cb: (event) => {
-          // Count likes (positive reactions)
-          const content = event.content.trim();
-          if (["+", "👍", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️"].includes(content)) {
-            likes++;
-            likers.push(event.pubkey);
-            
-            // Check if current user has liked
-            if (currentPubkey && event.pubkey === currentPubkey) {
-              userHasLiked = true;
-            }
+      ];
+      
+      const reactionsSub = pool.sub(relayUrls, reactionsFilters);
+      
+      reactionsSub.on('event', (event) => {
+        // Count likes (positive reactions)
+        const content = event.content.trim();
+        if (["+", "👍", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️"].includes(content)) {
+          likes++;
+          likers.push(event.pubkey);
+          
+          // Check if current user has liked
+          if (currentPubkey && event.pubkey === currentPubkey) {
+            userHasLiked = true;
           }
         }
       });
       
-      // Subscribe to reposts (kind 6)
-      const repostsSubId = pool.sub(relayUrls, [
+      // Subscribe to reposts (kind 6) - updated for SimplePool API  
+      const repostsFilters: Filter[] = [
         {
           kinds: [EVENT_KINDS.REPOST],
           "#e": [eventId],
           limit: 50
         }
-      ], {
-        cb: (event) => {
-          reposts++;
-          
-          // Check if current user has reposted
-          if (currentPubkey && event.pubkey === currentPubkey) {
-            userHasReposted = true;
-          }
+      ];
+      
+      const repostsSub = pool.sub(relayUrls, repostsFilters);
+      
+      repostsSub.on('event', (event) => {
+        reposts++;
+        
+        // Check if current user has reposted
+        if (currentPubkey && event.pubkey === currentPubkey) {
+          userHasReposted = true;
         }
       });
       
       // Set a timeout to resolve with found counts
       setTimeout(() => {
-        pool.unsub(reactionsSubId);
-        pool.unsub(repostsSubId);
+        pool.close([reactionsSub.id, repostsSub.id]);
         
         resolve({
           likes,

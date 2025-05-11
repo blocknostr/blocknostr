@@ -1,10 +1,10 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter, type Sub } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: any[], onEvent: (event: NostrEvent) => void }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: Filter[], onEvent: (event: NostrEvent) => void }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -13,7 +13,7 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
+    filters: Filter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     if (relays.length === 0) {
@@ -24,11 +24,12 @@ export class SubscriptionManager {
     const id = `sub_${this.nextId++}`;
     
     try {
-      // Subscribe using the pool
-      this.pool.sub(relays, filters, {
-        cb: event => {
-          onEvent(event as NostrEvent);
-        }
+      // Subscribe using the pool - properly typed now
+      const sub = this.pool.sub(relays, filters);
+      
+      // Add event handler to the subscription
+      sub.on('event', (event) => {
+        onEvent(event as NostrEvent);
       });
       
       // Store subscription details for later unsubscribe
@@ -45,7 +46,8 @@ export class SubscriptionManager {
     const subscription = this.subscriptions.get(subId);
     if (subscription) {
       try {
-        this.pool.close(subscription.relays, subscription.filters);
+        // Close requires only the subscription ID now
+        this.pool.close([subId]);
         this.subscriptions.delete(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);
