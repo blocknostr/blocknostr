@@ -52,7 +52,7 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // NIP-51 lists have empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey
+        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
       };
 
       const relays = this.getConnectedRelayUrls();
@@ -61,6 +61,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(muteEvent);
         
+        // Explicitly assert the event has all required properties for publishing
         await this.pool.publish(relays, signedEvent);
         
         // Update local cache
@@ -112,7 +113,7 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // NIP-51 lists have empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey
+        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
       };
 
       const relays = this.getConnectedRelayUrls();
@@ -121,6 +122,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(muteEvent);
         
+        // Explicitly assert the event has all required properties for publishing
         await this.pool.publish(relays, signedEvent);
         
         // Update local cache
@@ -158,14 +160,15 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      // Fix: Create a proper Filter object for querySync
+      // Create a proper Filter object for querySync
       const filter: Filter = {
         kinds: [EVENT_KINDS.MUTE_LIST],
         authors: [currentUserPubkey],
         limit: 1
       };
 
-      const events = await this.pool.querySync(relays, [filter]);
+      // Fix: Use querySync with a single filter, not an array of filters
+      const events = await this.pool.querySync(relays, filter);
 
       if (events && events.length > 0) {
         // Extract pubkeys from the 'p' tags
@@ -239,7 +242,7 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // Empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey
+        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
       };
 
       const relays = this.getConnectedRelayUrls();
@@ -248,6 +251,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(blockEvent);
         
+        // Explicitly assert the event has all required properties for publishing
         await this.pool.publish(relays, signedEvent);
         
         // Update local cache
@@ -299,7 +303,7 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // Empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey
+        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
       };
 
       const relays = this.getConnectedRelayUrls();
@@ -308,6 +312,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(blockEvent);
         
+        // Explicitly assert the event has all required properties for publishing
         await this.pool.publish(relays, signedEvent);
         
         // Update local cache
@@ -345,14 +350,15 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      // Fix: Create a proper Filter object for querySync
+      // Create a proper Filter object for querySync
       const filter: Filter = {
         kinds: [EVENT_KINDS.BLOCK_LIST],
         authors: [currentUserPubkey],
         limit: 1
       };
 
-      const events = await this.pool.querySync(relays, [filter]);
+      // Fix: Use querySync with a single filter, not an array of filters
+      const events = await this.pool.querySync(relays, filter);
 
       if (events && events.length > 0) {
         // Extract pubkeys from the 'p' tags
