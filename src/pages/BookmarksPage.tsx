@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { NostrEvent, nostrService, BookmarkWithMetadata, BookmarkCollection } from "@/lib/nostr";
 import NoteCard from "@/components/NoteCard";
@@ -327,14 +326,14 @@ const BookmarksPage = () => {
             
             <div className="flex gap-2 items-center flex-wrap">
               <Select
-                value={selectedCollection || ""}
-                onValueChange={(value) => setSelectedCollection(value || null)}
+                value={selectedCollection || "all"}
+                onValueChange={(value) => setSelectedCollection(value === "all" ? null : value)}
               >
                 <SelectTrigger className="w-[150px] md:w-[180px]">
                   <SelectValue placeholder="All collections" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All collections</SelectItem>
+                  <SelectItem value="all">All collections</SelectItem>
                   {collections.map((collection) => (
                     <SelectItem key={collection.id} value={collection.id}>
                       {collection.name}
