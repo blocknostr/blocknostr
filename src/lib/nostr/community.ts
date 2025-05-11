@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { toast } from "sonner";
 import { EventManager } from './event';
@@ -361,5 +362,5 @@ export class CommunityManager {
   }
 }
 
-// Re-export the ProposalCategory type from types/community
-export { ProposalCategory } from '@/types/community';
+// Correctly re-export the type using 'export type'
+export type { ProposalCategory } from '@/types/community';

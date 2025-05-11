@@ -10,6 +10,7 @@ import { CommunityManager } from './community';
 import { BookmarkManager } from './bookmark';
 import { verifyNip05, fetchNip05Data } from './nip05';
 import { toast } from 'sonner';
+import type { ProposalCategory } from '@/types/community';
 
 class NostrService {
   private userManager: UserManager;
@@ -649,4 +650,4 @@ export { SocialManager } from './social';
 export type { ReactionCounts, ContactList } from './social/types';
 
 // Re-export from community module
-export type { ProposalCategory } from './community';
+export type { ProposalCategory } from '@/types/community';
