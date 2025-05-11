@@ -1,76 +1,39 @@
 
 import { useState, useEffect } from 'react';
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import ImagePreview from './media/ImagePreview';
-import VideoPreview from './media/VideoPreview';
+import MediaCarousel from './media/MediaCarousel';
 import MediaLightbox from './media/MediaLightbox';
-import MediaLoadingState from './media/MediaLoadingState';
-import MediaErrorState from './media/MediaErrorState';
-import ExpandButton from './media/ExpandButton';
 
 interface MediaPreviewProps {
-  url: string;
+  url: string | string[];
   alt?: string;
 }
 
 const MediaPreview = ({ url, alt }: MediaPreviewProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isVideo, setIsVideo] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   
-  useEffect(() => {
-    // Determine if the URL is for a video
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov'];
-    setIsVideo(videoExtensions.some(ext => url.toLowerCase().endsWith(ext)));
-    
-    // Reset states when URL changes
-    setIsLoaded(false);
-    setError(false);
-  }, [url]);
+  // Convert single URL to array for consistent handling
+  const urls = Array.isArray(url) ? url : [url];
   
-  const handleMediaLoad = () => {
-    setIsLoaded(true);
-  };
-  
-  const handleError = () => {
-    setError(true);
+  const handleExpandClick = (index: number) => {
+    setSelectedIndex(index);
+    setIsOpen(true);
   };
   
   return (
     <>
-      <div className="mt-3 rounded-lg overflow-hidden border border-border bg-accent/20 relative group">
-        <AspectRatio ratio={16/9} className="bg-muted">
-          {isVideo ? (
-            <VideoPreview
-              url={url}
-              onLoad={handleMediaLoad}
-              onError={handleError}
-            />
-          ) : (
-            <ImagePreview
-              url={url}
-              alt={alt}
-              onLoad={handleMediaLoad}
-              onError={handleError}
-            />
-          )}
-          
-          {!isLoaded && !error && <MediaLoadingState />}
-          {error && <MediaErrorState isVideo={isVideo} />}
-          
-          {isLoaded && !error && (
-            <ExpandButton onClick={() => setIsOpen(true)} />
-          )}
-        </AspectRatio>
+      <div className="mt-3">
+        <MediaCarousel 
+          urls={urls}
+          onExpandClick={handleExpandClick}
+        />
       </div>
       
       <MediaLightbox
         isOpen={isOpen}
         onOpenChange={setIsOpen}
-        url={url}
-        alt={alt}
-        isVideo={isVideo}
+        urls={urls}
+        initialIndex={selectedIndex}
       />
     </>
   );

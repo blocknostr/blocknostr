@@ -24,7 +24,7 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
   const displayContent = isExpanded ? content : shouldTruncate ? content.slice(0, CHARACTER_LIMIT) : content;
   
   useEffect(() => {
-    // Extract URLs from content
+    // Extract URLs from content - look for media file extensions
     const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov))/gi;
     const urls = content.match(urlRegex) || [];
     setMediaUrls(urls);
@@ -51,7 +51,7 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
   return (
     <div className="mt-3">
       <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
-        {/* Use the new content formatter for NIP-27 support */}
+        {/* Use the content formatter for NIP-27 support */}
         {contentFormatter.formatContent(displayContent)}
       </div>
       
@@ -90,18 +90,12 @@ const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContent
       
       {/* Display media content */}
       {mediaUrls.length > 0 && (
-        <div className="space-y-2 mt-3 rounded-md overflow-hidden">
-          {mediaUrls.map((url, index) => (
-            <MediaPreview 
-              key={index} 
-              url={url} 
-              alt={`Media attachment ${index + 1}`} 
-            />
-          ))}
+        <div className="space-y-2 mt-3">
+          <MediaPreview url={mediaUrls} alt="Media attachments" />
         </div>
       )}
       
-      {/* Post Reach information - Moved below media */}
+      {/* Post Reach information */}
       {reachCount > 0 && (
         <div className="flex items-center mt-2 text-xs text-muted-foreground">
           <span>{reachCount.toLocaleString()} views</span>
