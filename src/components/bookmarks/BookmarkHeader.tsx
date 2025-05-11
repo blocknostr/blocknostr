@@ -18,12 +18,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SortOption } from "@/hooks/bookmarks/useBookmarkFilters";
 
 interface BookmarkHeaderProps {
   viewMode: "list" | "grid";
   setViewMode: (mode: "list" | "grid") => void;
-  sortBy: string;
-  setSortBy: (sort: string) => void;
+  sortBy: SortOption;
+  setSortBy: (sort: SortOption) => void;
   isOnline?: boolean;
   refreshBookmarks?: () => Promise<void>;
   isLoading?: boolean;

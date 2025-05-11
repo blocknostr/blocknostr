@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useBookmarkData } from "@/hooks/bookmarks/useBookmarkData";
-import { useBookmarkFilters } from "@/hooks/bookmarks/useBookmarkFilters";
+import { useBookmarkFilters, SortOption } from "@/hooks/bookmarks/useBookmarkFilters";
 import { useSwipeable } from "@/hooks/use-swipeable";
 import { cn } from "@/lib/utils";
 

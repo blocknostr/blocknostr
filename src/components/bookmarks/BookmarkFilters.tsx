@@ -20,6 +20,7 @@ interface BookmarkFiltersProps {
   handleResetFilters: () => void;
   handleRemoveTag: (tag: string) => void;
   setIsCollectionDialogOpen: (isOpen: boolean) => void;
+  networkStatus?: 'online' | 'offline' | 'limited';
 }
 
 const BookmarkFilters: React.FC<BookmarkFiltersProps> = ({
@@ -34,7 +35,8 @@ const BookmarkFilters: React.FC<BookmarkFiltersProps> = ({
   allTags,
   handleResetFilters,
   handleRemoveTag,
-  setIsCollectionDialogOpen
+  setIsCollectionDialogOpen,
+  networkStatus = 'online'
 }) => {
   if (!isLoggedIn) return null;
 
@@ -74,6 +76,7 @@ const BookmarkFilters: React.FC<BookmarkFiltersProps> = ({
             size="sm" 
             className="h-8 text-xs px-2"
             onClick={() => setIsCollectionDialogOpen(true)}
+            disabled={networkStatus === 'offline'}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             New

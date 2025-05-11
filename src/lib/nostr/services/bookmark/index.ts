@@ -10,9 +10,9 @@ import { BookmarkMetadataService } from './bookmark-metadata-service';
  * Main bookmark service that composes specialized services
  */
 export class BookmarkService implements 
-  Omit<BookmarkOperationsService, 'ensureConnectedRelays'>,
-  Omit<BookmarkCollectionService, 'ensureConnectedRelays'>,
-  Omit<BookmarkMetadataService, 'ensureConnectedRelays'> {
+  Omit<BookmarkOperationsService, "ensureConnectedRelays">,
+  Omit<BookmarkCollectionService, "ensureConnectedRelays">,
+  Omit<BookmarkMetadataService, "ensureConnectedRelays"> {
 
   private operationsService: BookmarkOperationsService;
   private collectionService: BookmarkCollectionService;
@@ -52,6 +52,11 @@ export class BookmarkService implements
   
   async isBookmarked(...args: Parameters<BookmarkOperationsService['isBookmarked']>) {
     return this.operationsService.isBookmarked(...args);
+  }
+  
+  // Add the missing processPendingOperations method
+  async processPendingOperations(): Promise<void> {
+    return this.operationsService.processPendingOperations();
   }
 
   // BookmarkCollectionService methods

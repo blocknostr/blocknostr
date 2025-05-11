@@ -9,6 +9,8 @@ interface UseBookmarkFiltersProps {
   bookmarkMetadata: BookmarkWithMetadata[];
 }
 
+export type SortOption = "newest" | "oldest" | "popular";
+
 export const useBookmarkFilters = ({ 
   bookmarkedEvents, 
   profiles, 
@@ -19,7 +21,7 @@ export const useBookmarkFilters = ({
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
   
@@ -58,11 +60,16 @@ export const useBookmarkFilters = ({
     }
     
     // Sort events
-    return filtered.sort((a, b) => 
-      sortBy === "newest" 
-        ? b.created_at - a.created_at 
-        : a.created_at - b.created_at
-    );
+    return filtered.sort((a, b) => {
+      if (sortBy === "newest") {
+        return b.created_at - a.created_at;
+      } else if (sortBy === "oldest") {
+        return a.created_at - b.created_at;
+      }
+      // For "popular" or any other sort option, we would add logic here
+      // Default to newest
+      return b.created_at - a.created_at;
+    });
   }, [bookmarkedEvents, searchTerm, selectedCollection, selectedTags, sortBy, profiles, bookmarkMetadata]);
   
   // Pagination
@@ -96,7 +103,7 @@ export const useBookmarkFilters = ({
     viewMode,
     setViewMode,
     sortBy,
-    setSortBy,
+    setSortBy: (sort: SortOption) => setSortBy(sort),
     page,
     setPage,
     paginatedEvents,
