@@ -42,11 +42,13 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setIsSaving(true);
 
     try {
+      console.log("Starting note save process");
+      
       // Generate a unique ID for the note if one doesn't exist
       const uniqueId = noteId || `notebin-${Math.random().toString(36).substring(2, 10)}`;
       
       // Use current timestamp for publishedAt
-      const publishedAt = new Date().toLocaleString();
+      const publishedAt = new Date().toISOString();
       
       // Create a new event object
       const event = {
@@ -69,13 +71,17 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       
       // Only publish to Nostr if user is logged in
       if (nostrService.publicKey) {
+        console.log("User is logged in, publishing to Nostr");
         const publishedId = await nostrService.publishEvent(event);
         if (publishedId) {
           eventId = publishedId;
+          console.log("Published to Nostr with ID:", publishedId);
         }
+      } else {
+        console.log("User not logged in, saving locally only");
       }
 
-      // Create the note object
+      // Create the note object with consistent structure
       const newNote: Note = {
         id: eventId,
         title,
@@ -86,6 +92,8 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
         author: nostrService.publicKey || 'local-user',
         event
       };
+      
+      console.log("Calling onNoteSaved with note:", newNote);
       
       // Save to the parent component's state
       onNoteSaved(newNote);

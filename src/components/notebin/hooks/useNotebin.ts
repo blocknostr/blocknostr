@@ -4,6 +4,7 @@ import { useNoteOperations } from "./useNoteOperations";
 import { useNotebinFilter } from "@/hooks/useNotebinFilter";
 import { Note } from "./types";
 import { SortOption } from "../SortOptions";
+import useLocalStorage from "@/hooks/use-local-storage";
 
 export function useNotebin() {
   const [title, setTitle] = useState("");
@@ -11,10 +12,12 @@ export function useNotebin() {
   const [language, setLanguage] = useState("text");
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [savedNotes, setSavedNotes] = useState<Note[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Use our custom localStorage hook for saved notes
+  const [savedNotes, setSavedNotes] = useLocalStorage<Note[]>('notebin_saved_notes', []);
   
   // Use our hooks for different functionalities
   const noteFetcher = useNoteFetcher();
@@ -23,26 +26,23 @@ export function useNotebin() {
   // Use our custom hook for filtering
   const { availableTags, filteredNotes: tagFilteredNotes } = useNotebinFilter(savedNotes, selectedTags);
 
-  // Load saved notes from localStorage on mount
+  // Log the current state of savedNotes for debugging
   useEffect(() => {
-    try {
-      const storedNotes = localStorage.getItem('notebin_saved_notes');
-      if (storedNotes) {
-        setSavedNotes(JSON.parse(storedNotes));
-      }
-    } catch (error) {
-      console.error("Failed to load notes from localStorage:", error);
+    console.log("Current saved notes:", savedNotes);
+  }, [savedNotes]);
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedView = localStorage.getItem("notebin_view");
+    if (savedView === "grid" || savedView === "list") {
+      setView(savedView);
     }
   }, []);
 
-  // Save notes to localStorage whenever they change
+  // Save view preference to localStorage
   useEffect(() => {
-    try {
-      localStorage.setItem('notebin_saved_notes', JSON.stringify(savedNotes));
-    } catch (error) {
-      console.error("Failed to save notes to localStorage:", error);
-    }
-  }, [savedNotes]);
+    localStorage.setItem("notebin_view", view);
+  }, [view]);
 
   // Search filtering
   const searchFilteredNotes = searchQuery
@@ -71,19 +71,6 @@ export function useNotebin() {
     }
   });
 
-  // Load view preference from localStorage
-  useEffect(() => {
-    const savedView = localStorage.getItem("notebin_view");
-    if (savedView === "grid" || savedView === "list") {
-      setView(savedView);
-    }
-  }, []);
-
-  // Save view preference to localStorage
-  useEffect(() => {
-    localStorage.setItem("notebin_view", view);
-  }, [view]);
-
   // Handle tag toggling for filtering
   const handleTagToggle = useCallback((tag: string) => {
     setSelectedTags(prev => 
@@ -110,6 +97,7 @@ export function useNotebin() {
 
   // Handle successful note save
   const handleNoteSaved = useCallback((note: Note) => {
+    console.log("Saving note:", note);
     setSavedNotes(prev => {
       // Check if note already exists (by ID) and update it
       const noteExists = prev.some(existingNote => existingNote.id === note.id);
@@ -126,7 +114,7 @@ export function useNotebin() {
 
     // Show the note list view after saving
     document.getElementById('notesListSection')?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  }, [setSavedNotes]);
 
   // View a note (load into editor)
   const viewNote = useCallback((note: Note) => {
