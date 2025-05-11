@@ -168,7 +168,9 @@ export const useWorldChat = () => {
 
     try {
       // Process mentions and links according to NIP-27
-      const processedContent = contentFormatter.parseContent(messageContent);
+      const formattedContent = contentFormatter.parseContent(messageContent);
+      // Since formattedContent could be FormattedSegment[], we need to convert it to string
+      const processedContent = typeof formattedContent === 'string' ? formattedContent : messageContent;
       
       // Create a message with the world-chat tag
       const eventId = await nostrService.publishEvent({
