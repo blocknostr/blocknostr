@@ -12,12 +12,13 @@ import { toast } from "sonner";
 interface ReactionBarProps {
   isLoggedIn: boolean;
   onAddReaction: (emoji: string) => void;
+  isCurrentUser: boolean;
 }
 
 // Common emojis for quick reactions
 const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "👏", "🙏", "🔥"];
 
-const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) => {
+const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction, isCurrentUser }) => {
   const handleReaction = (emoji: string) => {
     if (!isLoggedIn) {
       toast.error("You must be logged in to react");
@@ -27,15 +28,18 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
   };
 
   return (
-    <div className="mt-0.5">
+    <div className={`absolute ${isCurrentUser ? 'left-0 -translate-x-[95%]' : 'right-0 translate-x-[95%]'} top-1/2 -translate-y-1/2`}>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] opacity-70 hover:opacity-100">
-            <SmilePlus className="h-3 w-3 mr-1" />
-            React
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-5 w-5 p-0 rounded-full opacity-0 group-hover:opacity-90 transition-opacity"
+          >
+            <SmilePlus className="h-3.5 w-3.5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-1">
+        <PopoverContent className="w-auto p-1" align={isCurrentUser ? "start" : "end"}>
           <div className="flex flex-wrap gap-1 max-w-[200px]">
             {COMMON_EMOJIS.map(emoji => (
               <Button 

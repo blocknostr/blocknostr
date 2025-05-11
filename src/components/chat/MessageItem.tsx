@@ -45,7 +45,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   return (
     <div 
-      className={`flex items-end gap-1 group hover:bg-accent/10 rounded-md transition-colors
+      className={`flex items-end gap-1 group hover:bg-accent/10 rounded-md transition-colors px-1
         ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}
     >
       {/* Avatar is only shown for the last message in a group */}
@@ -58,7 +58,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
         <div className="w-6 flex-shrink-0"></div> // Spacer to keep alignment
       )}
       
-      <div className={`min-w-0 max-w-[85%] ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+      <div className={`min-w-0 max-w-[85%] ${isCurrentUser ? 'items-end' : 'items-start'} relative`}>
         {/* Show name only for first message in group */}
         {isFirstInGroup && (
           <div className={`flex items-center gap-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-0.5`}>
@@ -77,6 +77,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </span>
         </div>
         
+        {/* Reaction button with absolute positioning */}
+        <ReactionBar 
+          isLoggedIn={isLoggedIn} 
+          onAddReaction={onAddReaction} 
+          isCurrentUser={isCurrentUser}
+        />
+        
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
           <div className={`flex flex-wrap gap-0.5 mt-0.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
@@ -87,11 +94,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
             ))}
           </div>
         )}
-        
-        {/* Reaction button - only shows on hover */}
-        <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${isCurrentUser ? 'text-right' : 'text-left'}`}>
-          <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
-        </div>
       </div>
     </div>
   );

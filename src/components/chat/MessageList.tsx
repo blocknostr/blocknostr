@@ -119,13 +119,13 @@ const MessageList: React.FC<MessageListProps> = ({
         </Button>
       )}
       
-      <div className="p-1 space-y-1 flex flex-col-reverse">
+      <div className="p-1 space-y-0 flex flex-col-reverse">
         {/* End marker for scrolling */}
         <div ref={messagesEndRef} />
         
         {/* Render message groups */}
         {groupedMessages.map((group, groupIndex) => (
-          <div key={`group-${groupIndex}`} className="space-y-0.5">
+          <div key={`group-${groupIndex}`} className="space-y-0.25 my-0.5">
             {group.map((message, messageIndex) => (
               <MessageItem
                 key={message.id}
@@ -146,4 +146,3 @@ const MessageList: React.FC<MessageListProps> = ({
 };
 
 export default MessageList;
-
