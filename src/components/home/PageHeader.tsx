@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Lightbulb } from "lucide-react";
+import { ArrowRight, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoginButton from "@/components/LoginButton";
 import { useTheme } from "@/hooks/use-theme";
