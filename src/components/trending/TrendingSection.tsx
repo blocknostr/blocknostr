@@ -28,10 +28,10 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({ onTopicClick = () => 
   } = useTrendingTopicsData();
   
   return (
-    <Card className="overflow-hidden border-border/30 shadow-none bg-card/50 backdrop-blur-sm">
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium tracking-tight">Trending</CardTitle>
+          <CardTitle className="text-lg">Trending</CardTitle>
           <DropdownMenu open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <TrendingFilterButton />
             <TrendingFilterMenu 

@@ -158,16 +158,10 @@ export function useUserPreferences() {
       }
       
       // Fallback: create a new object based on defaults if the nested object is invalid
-      // Fixed: Ensure defaultPreferences[key] is a valid object before spreading
-      const defaultForKey = defaultPreferences[key];
-      
       return {
         ...prev,
         [key]: {
-          // Only spread if it's a valid object
-          ...(defaultForKey && typeof defaultForKey === 'object' && !Array.isArray(defaultForKey) 
-              ? defaultForKey 
-              : {}),
+          ...defaultPreferences[key],
           [nestedKey]: value,
         },
       };
