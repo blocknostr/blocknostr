@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -9,9 +9,13 @@ import MediaFeed from "./feed/MediaFeed";
 import TrendingTopics from "./feed/TrendingTopics";
 import SavedHashtags from "./feed/SavedHashtags";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Image } from "lucide-react";
+import { Settings, X, Image } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
+import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
+import { contentCache } from "@/lib/nostr/cache/content-cache";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -19,9 +23,19 @@ interface MainFeedProps {
 }
 
 const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
-  const [activeTab, setActiveTab] = useState("global");
+  const { preferences } = useUserPreferences();
+  const [activeTab, setActiveTab] = useState(preferences.defaultFeed);
+  const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
+  const isOffline = contentCache.isOffline();
+
+  // When preferences change, update the active tab if it's the default feed
+  useEffect(() => {
+    if (activeTab === preferences.defaultFeed) {
+      setActiveTab(preferences.defaultFeed);
+    }
+  }, [preferences.defaultFeed]);
 
   const handleTopicClick = (topic: string) => {
     if (onClearHashtag) {
@@ -36,33 +50,56 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     }
   };
 
+  // Apply font size from preferences to the feed container
+  const fontSizeClass = preferences.uiPreferences.fontSize === 'small' 
+    ? 'text-sm' 
+    : preferences.uiPreferences.fontSize === 'large' 
+      ? 'text-lg' 
+      : 'text-base';
+
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
+      {isOffline && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
+          <span>You're currently offline. Viewing cached content.</span>
+        </div>
+      )}
+      
       <div className="border-b pb-4 mb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Home</h1>
-          {activeHashtag && (
-            <div className="flex items-center">
-              <span className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
-                #{activeHashtag}
-                <button 
-                  onClick={onClearHashtag} 
-                  className="rounded-full hover:bg-primary/20 p-1 transition-colors"
-                  title="Clear filter"
-                >
-                  <X size={14} />
-                </button>
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {activeHashtag && (
+              <div className="flex items-center">
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
+                  #{activeHashtag}
+                  <button 
+                    onClick={onClearHashtag} 
+                    className="rounded-full hover:bg-primary/20 p-1 transition-colors"
+                    title="Clear filter"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setIsCustomizationDialogOpen(true)}
+              title="Customize feed"
+            >
+              <Settings size={18} />
+            </Button>
+          </div>
         </div>
       </div>
       
       {/* User's saved hashtags for quick access */}
-      <SavedHashtags onTopicClick={handleTopicClick} />
+      {preferences.uiPreferences.showTrending && <SavedHashtags onTopicClick={handleTopicClick} />}
       
       {/* Trending topics at the top */}
-      <TrendingTopics onTopicClick={handleTopicClick} />
+      {preferences.uiPreferences.showTrending && <TrendingTopics onTopicClick={handleTopicClick} />}
       
       <CreateNoteForm />
       
@@ -114,6 +151,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           <MediaFeed activeHashtag={activeHashtag} />
         </TabsContent>
       </Tabs>
+
+      {/* Customization Dialog */}
+      <FeedCustomizationDialog 
+        open={isCustomizationDialogOpen}
+        onOpenChange={setIsCustomizationDialogOpen}
+      />
     </div>
   );
 };

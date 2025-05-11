@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { Relay } from './types';
 
@@ -11,10 +10,14 @@ export class RelayManager {
   ];
   private _userRelays: Map<string, boolean> = new Map(); // Map of relay URLs to read/write status
   private pool: SimplePool;
+  private reconnectTimers: Map<string, number> = new Map();
+  private connectionStatus: Map<string, { connected: boolean, lastAttempt: number, failures: number }> = new Map();
+  private healthCheckInterval: number | null = null;
   
   constructor(pool: SimplePool) {
     this.pool = pool;
     this.loadUserRelays();
+    this.startHealthCheck();
   }
   
   get userRelays(): Map<string, boolean> {
@@ -43,9 +46,23 @@ export class RelayManager {
     localStorage.setItem('nostr_user_relays', JSON.stringify(relaysObject));
   }
   
-  async connectToRelay(relayUrl: string): Promise<boolean> {
-    if (this.relays.has(relayUrl)) {
+  async connectToRelay(relayUrl: string, retryCount: number = 0): Promise<boolean> {
+    if (this.relays.has(relayUrl) && this.relays.get(relayUrl)?.readyState === WebSocket.OPEN) {
       return true; // Already connected
+    }
+    
+    // Track connection attempt
+    if (!this.connectionStatus.has(relayUrl)) {
+      this.connectionStatus.set(relayUrl, { connected: false, lastAttempt: Date.now(), failures: 0 });
+    }
+    
+    const status = this.connectionStatus.get(relayUrl)!;
+    status.lastAttempt = Date.now();
+    
+    // Clear any existing reconnect timer
+    if (this.reconnectTimers.has(relayUrl)) {
+      window.clearTimeout(this.reconnectTimers.get(relayUrl));
+      this.reconnectTimers.delete(relayUrl);
     }
     
     try {
@@ -54,11 +71,28 @@ export class RelayManager {
       return new Promise((resolve) => {
         socket.onopen = () => {
           this.relays.set(relayUrl, socket);
+          status.connected = true;
+          status.failures = 0;
           resolve(true);
         };
         
         socket.onerror = () => {
+          status.failures++;
           resolve(false);
+        };
+        
+        socket.onclose = () => {
+          status.connected = false;
+          this.relays.delete(relayUrl);
+          
+          // Exponential backoff for reconnection (max ~1 minute)
+          if (retryCount < 6 && this._userRelays.has(relayUrl)) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 60000);
+            const timerId = window.setTimeout(() => {
+              this.connectToRelay(relayUrl, retryCount + 1);
+            }, delay);
+            this.reconnectTimers.set(relayUrl, timerId);
+          }
         };
         
         socket.onmessage = (msg) => {
@@ -76,9 +110,18 @@ export class RelayManager {
             console.error('Error parsing relay message:', e);
           }
         };
+        
+        // Set timeout for connection
+        setTimeout(() => {
+          if (socket.readyState !== WebSocket.OPEN) {
+            socket.close();
+            resolve(false);
+          }
+        }, 5000);
       });
     } catch (error) {
       console.error(`Failed to connect to relay ${relayUrl}:`, error);
+      status.failures++;
       return false;
     }
   }
@@ -182,5 +225,66 @@ export class RelayManager {
     }
     
     return successCount;
+  }
+  
+  // Health check for relay connections
+  private startHealthCheck(): void {
+    if (this.healthCheckInterval !== null) {
+      window.clearInterval(this.healthCheckInterval);
+    }
+    
+    // Check relay health every 30 seconds
+    this.healthCheckInterval = window.setInterval(() => {
+      this.performHealthCheck();
+    }, 30000);
+  }
+  
+  private async performHealthCheck(): Promise<void> {
+    // Check all user relays
+    for (const relayUrl of this._userRelays.keys()) {
+      const socket = this.relays.get(relayUrl);
+      
+      // If not connected or socket is closing/closed, try to reconnect
+      if (!socket || socket.readyState > WebSocket.OPEN) {
+        this.connectToRelay(relayUrl);
+      }
+    }
+  }
+  
+  // Method to pick best relays for a specific operation
+  pickBestRelays(operation: 'read' | 'write', count: number = 3): string[] {
+    const connectedRelays = this.getRelayStatus()
+      .filter(relay => relay.status === 'connected')
+      .filter(relay => operation === 'read' || (operation === 'write' && relay.write));
+    
+    // If we have enough connected relays, use them
+    if (connectedRelays.length >= count) {
+      return connectedRelays.slice(0, count).map(relay => relay.url);
+    }
+    
+    // Otherwise, return all available relays that match the criteria
+    return connectedRelays.map(relay => relay.url);
+  }
+  
+  // Clean up when manager is destroyed
+  cleanup(): void {
+    // Clear the health check interval
+    if (this.healthCheckInterval !== null) {
+      window.clearInterval(this.healthCheckInterval);
+    }
+    
+    // Clear all reconnect timers
+    this.reconnectTimers.forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+    
+    // Close all open connections
+    this.relays.forEach((socket) => {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
+    });
+    
+    this.relays.clear();
   }
 }

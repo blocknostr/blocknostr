@@ -14,22 +14,27 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
 import { useTheme } from "@/hooks/use-theme";
+import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 const Index: React.FC = () => {
   const { darkMode, toggleDarkMode } = useTheme();
+  const { preferences } = useUserPreferences();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const isMobile = useIsMobile();
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   
   useEffect(() => {
-    // Init connection to relays when the app loads
+    // Init connection to relays when the app loads if auto-connect is enabled
     const initNostr = async () => {
-      await nostrService.connectToDefaultRelays();
+      if (preferences.relayPreferences.autoConnect) {
+        await nostrService.connectToDefaultRelays();
+      }
     };
     
     initNostr();
-  }, []);
+  }, [preferences.relayPreferences.autoConnect]);
 
   useEffect(() => {
     // Listen for hashtag setting events
@@ -84,7 +89,10 @@ const Index: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background relative">
+    <div className={cn(
+      "flex min-h-screen bg-background relative",
+      preferences.uiPreferences.compactMode ? "text-sm" : ""
+    )}>
       {/* Mobile left panel */}
       {isMobile && (
         <Sheet open={leftPanelOpen} onOpenChange={setLeftPanelOpen}>
@@ -149,6 +157,7 @@ const Index: React.FC = () => {
         <div className="flex" onClick={handleMainContentClick}>
           <main className="flex-1 border-r min-h-screen">
             <div className="max-w-2xl mx-auto px-4 py-4">
+              <ConnectionStatusBanner />
               <MainFeed 
                 activeHashtag={activeHashtag} 
                 onClearHashtag={clearHashtag}
@@ -157,7 +166,7 @@ const Index: React.FC = () => {
           </main>
           
           {/* Desktop right sidebar - only visible on non-mobile screens */}
-          {!isMobile && (
+          {!isMobile && preferences.uiPreferences.showTrending && (
             <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
               <div className="space-y-6">
                 <div className="mb-4">
