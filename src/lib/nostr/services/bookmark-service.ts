@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { BookmarkCollection, BookmarkWithMetadata } from '../bookmark';
 
@@ -26,11 +25,11 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.addBookmark(
-      eventId, 
+      this.pool,
       this.publicKey, 
       null, // We're not storing private keys
+      eventId,
       connectedRelays,
-      this.pool,
       collectionId, 
       tags, 
       note
@@ -45,11 +44,11 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.removeBookmark(
-      eventId, 
+      this.pool,
       this.publicKey, 
       null, // We're not storing private keys
-      connectedRelays,
-      this.pool
+      eventId, 
+      connectedRelays
     );
   }
   

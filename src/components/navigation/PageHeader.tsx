@@ -13,7 +13,7 @@ interface PageHeaderProps {
   className?: string;
   rightContent?: React.ReactNode;
   showThemeToggle?: boolean;
-  children?: React.ReactNode; // Add children prop for mobile menu
+  children?: React.ReactNode;
 }
 
 const PageHeader: React.FC<PageHeaderProps> = ({
@@ -23,7 +23,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   className = "",
   rightContent,
   showThemeToggle = true,
-  children // Accept children for mobile menu
+  children
 }) => {
   const { darkMode, toggleDarkMode } = useTheme();
   

@@ -11,7 +11,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 import BookmarksPage from './pages/BookmarksPage';
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
@@ -40,7 +40,7 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
-          <Toaster />
+          <Toaster position="bottom-right" closeButton />
         </div>
       </NavigationProvider>
     </BrowserRouter>
