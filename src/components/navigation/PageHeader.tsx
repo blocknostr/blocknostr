@@ -37,7 +37,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {/* Render children (mobile menu) first if provided */}
           {children}
           
-          {showBackButton && <BackButton fallbackPath={fallbackPath} />}
+          {showBackButton && <BackButton fallbackPath={fallbackPath} showText={true} />}
           <h1 className="font-semibold">{title}</h1>
         </div>
         

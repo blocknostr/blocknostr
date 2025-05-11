@@ -2,7 +2,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigation } from "@/contexts/NavigationContext";
 import { useNavigate } from "react-router-dom";
 
 interface BackButtonProps {
@@ -18,15 +17,11 @@ const BackButton: React.FC<BackButtonProps> = ({
   variant = "ghost",
   showText = false
 }) => {
-  const { goBack, canGoBack } = useNavigation();
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (canGoBack) {
-      goBack();
-    } else if (fallbackPath) {
-      navigate(fallbackPath);
-    }
+    // Always navigate to home
+    navigate("/");
   };
 
   return (
@@ -35,10 +30,10 @@ const BackButton: React.FC<BackButtonProps> = ({
       size="sm"
       className={`flex items-center gap-1 ${className}`}
       onClick={handleClick}
-      aria-label="Go back"
+      aria-label="Go back to home"
     >
       <ArrowLeft className="h-4 w-4" />
-      {showText && <span>Back</span>}
+      {showText && <span>Home</span>}
     </Button>
   );
 };

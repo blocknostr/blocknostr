@@ -33,19 +33,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [location.pathname]);
 
   const goBack = () => {
-    if (history.length > 1) {
-      // Remove current page from history
-      const newHistory = [...history];
-      newHistory.pop();
-      const previousPage = newHistory[newHistory.length - 1];
-      
-      // Update history and navigate
-      setHistory(newHistory);
-      navigate(previousPage);
-    } else {
-      // If no previous page in history, go to home
-      navigate("/");
-    }
+    // Always go to home
+    navigate("/");
   };
 
   return (

@@ -76,31 +76,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     if (path.startsWith("/notebin")) return "Notebin";
     if (path.startsWith("/wallets")) return "Wallets";
     if (path.startsWith("/premium")) return "Premium";
-    if (path.startsWith("/settings")) return "Settings";
     if (path.startsWith("/post")) return "Post";
     
     return "BlockNoster";
   };
 
-  // Determine which pages should show a back button
-  const shouldShowBackButton = () => {
-    const path = location.pathname;
-    // Home, top-level sections, and settings don't need back buttons
-    const noBackButtonRoutes = [
-      '/',
-      '/communities',
-      '/settings',
-      '/messages',
-      '/notifications',
-      '/wallets',
-      '/premium',
-      '/notebin'
-    ];
-    
-    return !noBackButtonRoutes.includes(path) && !noBackButtonRoutes.some(route => 
-      route !== '/' && path === `${route}/`
-    );
-  };
+  // Always show back button on all pages
+  const shouldShowBackButton = () => true;
 
   return (
     <div className={cn(
