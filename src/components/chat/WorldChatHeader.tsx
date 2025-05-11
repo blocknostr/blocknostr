@@ -2,7 +2,7 @@
 import React from "react";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { Wifi, WifiOff } from "lucide-react";
-import type { ConnectionStatus } from "./useWorldChat";
+import type { ConnectionStatus } from "./hooks";
 import { cn } from "@/lib/utils";
 
 interface WorldChatHeaderProps {
