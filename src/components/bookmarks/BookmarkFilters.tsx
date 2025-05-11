@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { BookmarkCollection } from "@/lib/nostr";
 
 interface BookmarkFiltersProps {
@@ -20,14 +19,6 @@ interface BookmarkFiltersProps {
   allTags: string[];
   handleResetFilters: () => void;
   handleRemoveTag: (tag: string) => void;
-  handleCreateCollection: () => void;
-  newCollectionName: string;
-  setNewCollectionName: (name: string) => void;
-  newCollectionColor: string;
-  setNewCollectionColor: (color: string) => void;
-  newCollectionDescription: string;
-  setNewCollectionDescription: (description: string) => void;
-  isCollectionDialogOpen: boolean;
   setIsCollectionDialogOpen: (isOpen: boolean) => void;
 }
 
@@ -43,14 +34,6 @@ const BookmarkFilters: React.FC<BookmarkFiltersProps> = ({
   allTags,
   handleResetFilters,
   handleRemoveTag,
-  handleCreateCollection,
-  newCollectionName,
-  setNewCollectionName,
-  newCollectionColor,
-  setNewCollectionColor,
-  newCollectionDescription,
-  setNewCollectionDescription,
-  isCollectionDialogOpen,
   setIsCollectionDialogOpen
 }) => {
   if (!isLoggedIn) return null;
@@ -86,61 +69,15 @@ const BookmarkFilters: React.FC<BookmarkFiltersProps> = ({
             </SelectContent>
           </Select>
           
-          <Dialog open={isCollectionDialogOpen} onOpenChange={setIsCollectionDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-xs px-2">
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                New
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Create collection</DialogTitle>
-                <DialogDescription>
-                  Organize your bookmarks with collections
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                <div className="space-y-1">
-                  <Label htmlFor="collection-name" className="text-xs">Name</Label>
-                  <Input
-                    id="collection-name"
-                    value={newCollectionName}
-                    onChange={(e) => setNewCollectionName(e.target.value)}
-                    placeholder="e.g., Programming, Articles"
-                    className="h-8"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="collection-color" className="text-xs">Color</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="collection-color"
-                      type="color"
-                      value={newCollectionColor}
-                      onChange={(e) => setNewCollectionColor(e.target.value)}
-                      className="w-10 h-8 p-1"
-                    />
-                    <span className="text-xs">{newCollectionColor}</span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="collection-description" className="text-xs">Description (optional)</Label>
-                  <Input
-                    id="collection-description"
-                    value={newCollectionDescription}
-                    onChange={(e) => setNewCollectionDescription(e.target.value)}
-                    placeholder="Brief description"
-                    className="h-8"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" size="sm" onClick={() => setIsCollectionDialogOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleCreateCollection}>Create</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 text-xs px-2"
+            onClick={() => setIsCollectionDialogOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            New
+          </Button>
           
           <Dialog>
             <DialogTrigger asChild>
