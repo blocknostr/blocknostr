@@ -1,13 +1,13 @@
 
 import { SimplePool } from 'nostr-tools';
-import { BookmarkCollection, BookmarkWithMetadata } from '../bookmark';
+import { BookmarkCollection, BookmarkWithMetadata, BookmarkManagerFacade } from '../bookmark';
 
 /**
  * Bookmark service that handles bookmark-related methods
  */
 export class BookmarkService {
   constructor(
-    private bookmarkManager: any, 
+    private bookmarkManager: BookmarkManagerFacade, 
     private pool: SimplePool, 
     private publicKey: string | null,
     private getConnectedRelayUrls: () => string[]

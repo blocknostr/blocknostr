@@ -7,7 +7,7 @@ import { SubscriptionManager } from './subscription';
 import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
-import { BookmarkManager } from './bookmark';
+import { BookmarkManagerFacade } from './bookmark';
 import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
@@ -29,7 +29,7 @@ class NostrService {
   private eventManager: EventManager;
   public socialManager: SocialManager;
   public communityManager: CommunityManager;
-  public bookmarkManager: BookmarkManager;
+  public bookmarkManager: BookmarkManagerFacade;
   private pool: SimplePool;
   private profileService: ProfileService;
   private communityService: CommunityService;
@@ -48,7 +48,7 @@ class NostrService {
     this.eventManager = new EventManager();
     this.socialManager = new SocialManager(this.eventManager, this.userManager);
     this.communityManager = new CommunityManager(this.eventManager);
-    this.bookmarkManager = new BookmarkManager(this.eventManager);
+    this.bookmarkManager = new BookmarkManagerFacade(this.eventManager);
     
     // Initialize services
     this.profileService = new ProfileService(
@@ -63,13 +63,8 @@ class NostrService {
       this.userManager.publicKey
     );
     
-    this.bookmarkService = new BookmarkService(
-      this.bookmarkManager,
-      this.pool,
-      this.userManager.publicKey,
-      this.getConnectedRelayUrls.bind(this)
-    );
-
+    this.initBookmarkService();
+    
     // Initialize the thread service
     this.threadService = new ThreadService(
       this.pool,
@@ -95,6 +90,19 @@ class NostrService {
       this.fetchFollowingList();
       this.fetchRelayList(); // Add relay list fetching for NIP-65
     }
+  }
+
+  private initBookmarkService() {
+    // Create the bookmark manager using the event manager
+    const bookmarkManager = new BookmarkManagerFacade(this.eventManager);
+    
+    // Initialize the bookmark service with the manager
+    this.bookmarkService = new BookmarkService(
+      bookmarkManager,
+      this.pool,
+      this.publicKey,
+      this.getConnectedRelayUrls.bind(this)
+    );
   }
 
   // Public API for user management
