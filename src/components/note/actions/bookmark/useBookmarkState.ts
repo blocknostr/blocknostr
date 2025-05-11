@@ -16,6 +16,14 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const [relaysConnected, setRelaysConnected] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
+  const [queue, setQueue] = useState<({
+    id: string;
+    type: "add" | "remove" | "addCollection";
+    data: any;
+    status: "pending" | "processing" | "failed" | "completed";
+    attempts: number;
+    timestamp: number;
+})[]>([]);
   
   // Check for cached bookmark status on mount
   useEffect(() => {
@@ -105,6 +113,68 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     return true;
   };
   
+  // Fix the add operation
+  const addToQueue = useCallback((eventId: string, collectionId?: string, tags?: string[], note?: string) => {
+    setQueue(prev => [
+      ...prev,
+      {
+        id: `add-${eventId}`,
+        type: "add",
+        data: { eventId, collectionId, tags, note },
+        status: "pending",
+        attempts: 0,
+        timestamp: Date.now()
+      }
+    ]);
+  }, []);
+
+  // Fix the remove operation
+  const removeFromQueue = useCallback((eventId: string) => {
+    setQueue(prev => [
+      ...prev,
+      {
+        id: `remove-${eventId}`,
+        type: "remove",
+        data: { eventId },
+        status: "pending",
+        attempts: 0,
+        timestamp: Date.now()
+      }
+    ]);
+  }, []);
+  
+  // Update the operation argument types
+  const processOperation = useCallback(async (operation: QueuedOperation & { id: string }) => {
+    try {
+      console.log(`Processing operation ${operation.type} for event ${operation.data.eventId}`);
+      
+      // Update status to processing
+      setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'processing' } : op));
+      
+      // Perform the operation
+      let success = false;
+      if (operation.type === 'add') {
+        success = await nostrService.addBookmark(operation.data.eventId, operation.data.collectionId, operation.data.tags, operation.data.note);
+      } else if (operation.type === 'remove') {
+        success = await nostrService.removeBookmark(operation.data.eventId);
+      }
+      
+      if (success) {
+        // Update status to completed
+        setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'completed' } : op));
+        console.log(`Operation ${operation.type} for event ${operation.data.eventId} completed`);
+      } else {
+        // Update status to failed
+        setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'failed' } : op));
+        console.error(`Operation ${operation.type} for event ${operation.data.eventId} failed`);
+      }
+    } catch (error) {
+      console.error(`Error processing operation ${operation.type} for event ${operation.data.eventId}:`, error);
+      // Update status to failed
+      setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'failed' } : op));
+    }
+  }, []);
+  
   // Handler for bookmark actions with retry mechanism
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
@@ -130,69 +200,13 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       // Cache optimistically
       await BookmarkCacheService.cacheBookmarkStatus(eventId, newBookmarkState);
       
-      // Prepare the operation based on whether it's an add or remove
-      const operation = newBookmarkState 
-        ? () => nostrService.addBookmark(eventId)
-        : () => nostrService.removeBookmark(eventId);
-      
-      // If offline, queue the operation for later and show appropriate message
-      if (!navigator.onLine) {
-        const queuedOperation: QueuedOperation = {
-          type: newBookmarkState ? 'add' : 'remove',
-          timestamp: Date.now(),
-          eventId
-        };
-        
-        await BookmarkCacheService.queueOperation(queuedOperation);
-        
-        toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
-        return;
-      }
-      
-      // Try to connect to relays if needed
-      const connected = await ensureRelayConnection();
-      if (!connected) {
-        // Keep the optimistic UI update but queue the operation for later
-        const queuedOperation: QueuedOperation = {
-          type: newBookmarkState ? 'add' : 'remove',
-          timestamp: Date.now(),
-          eventId
-        };
-        
-        await BookmarkCacheService.queueOperation(queuedOperation);
-        return;
-      }
-      
-      console.log("Connected relays:", nostrService.getRelayStatus()
-        .filter(r => r.status === 'connected')
-        .map(r => r.url));
-      
-      // Execute the operation with retry logic
-      const result = await retry(
-        operation,
-        {
-          maxAttempts: 3,
-          onRetry: (attempt, error) => {
-            console.log(`Retry attempt ${attempt} for bookmark operation:`, error);
-          },
-          shouldRetry: (error) => {
-            // Don't retry if it's a validation error or permission issue
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            return !errorMsg.includes("validation") && !errorMsg.includes("permission");
-          }
-        }
-      );
-      
-      if (result) {
-        toast.success(newBookmarkState ? "Post bookmarked" : "Bookmark removed");
-        console.log("Bookmark operation successful");
+      if (newBookmarkState) {
+        addToQueue(eventId);
       } else {
-        // Revert UI state on failure
-        setIsBookmarked(!newBookmarkState);
-        await BookmarkCacheService.cacheBookmarkStatus(eventId, !newBookmarkState);
-        console.error("Bookmark operation failed but didn't throw an error");
-        toast.error(newBookmarkState ? "Failed to bookmark post" : "Failed to remove bookmark");
+        removeFromQueue(eventId);
       }
+      
+      toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
     } catch (error) {
       console.error("Error bookmarking post:", error);
       // Revert UI state
@@ -212,7 +226,7 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     } finally {
       setIsBookmarkPending(false);
     }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected]);
+  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, addToQueue, removeFromQueue]);
   
   return {
     isBookmarked,

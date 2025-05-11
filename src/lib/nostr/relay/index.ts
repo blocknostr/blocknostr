@@ -2,6 +2,8 @@
 export { ConnectionManager } from './connection-manager';
 export { HealthManager } from './health-manager';
 export { RelayInfoService, type RelayInfo } from './relay-info-service';
+
+// Export the RelayManager without re-declaration
 export { RelayManager } from './relay-manager';
 
 // Import SimplePool - we need this for certain methods
@@ -12,5 +14,8 @@ declare module './relay-manager' {
   interface RelayManager {
     connectToRelays: (relayUrls: string[]) => Promise<void>;
     connectToRelay: (relayUrl: string) => Promise<boolean>;
+    addRelay: (relayUrl: string, readWrite?: boolean) => Promise<boolean>;
+    removeRelay: (relayUrl: string) => void;
+    addMultipleRelays: (relayUrls: string[]) => Promise<number>;
   }
 }

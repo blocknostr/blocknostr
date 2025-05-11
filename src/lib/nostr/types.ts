@@ -1,4 +1,3 @@
-
 export interface NostrEvent {
   id?: string;
   pubkey?: string;
@@ -11,9 +10,9 @@ export interface NostrEvent {
 
 export interface Relay {
   url: string;
-  status: 'connected' | 'connecting' | 'disconnected' | 'error';
-  read: boolean;
-  write: boolean;
+  status: string;
+  read?: boolean;
+  write?: boolean;
 }
 
 export interface NostrProfileMetadata {

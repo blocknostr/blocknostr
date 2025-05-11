@@ -1,6 +1,11 @@
 
 import { SimplePool } from 'nostr-tools';
-import { RelayConnectionOptions } from '../types';
+
+export interface RelayConnectionOptions {
+  maxAttempts?: number; 
+  timeout?: number;
+  onProgress?: (message: string) => void;
+}
 
 /**
  * Validates that relay URLs are properly formatted

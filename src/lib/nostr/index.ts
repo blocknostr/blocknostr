@@ -4,10 +4,10 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { NostrService } from './services';
-import { nostrService } from './services/index';
-import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { NostrService } from './service';
+import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { BookmarkService } from './services/bookmark-service';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
 export type { NostrEvent, Relay } from './types';
@@ -33,8 +33,8 @@ export type {
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
-// Export service instance
-export { nostrService };
+// Export service instance and type
+export { nostrServiceInstance as nostrService };
 export type { NostrService };
 
 // Export cache modules

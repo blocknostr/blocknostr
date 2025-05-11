@@ -2,10 +2,11 @@ import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
 import { retry } from '@/lib/utils/retry';
-import { BookmarkStorage } from '@/lib/nostr/bookmark';
+import { BookmarkCacheService } from '@/lib/nostr/bookmark/cache/bookmark-cache-service';
+import { QueuedOperation } from '@/lib/nostr/bookmark/types';
 
 /**
- * Hook to manage bookmark state and operations with:
+ * Improved hook to manage bookmark state and operations with:
  * - Retry mechanism
  * - Offline support
  * - Enhanced error handling
@@ -15,13 +16,21 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const [relaysConnected, setRelaysConnected] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
+  const [queue, setQueue] = useState<({
+    id: string;
+    type: "add" | "remove" | "addCollection";
+    data: any;
+    status: "pending" | "processing" | "failed" | "completed";
+    attempts: number;
+    timestamp: number;
+})[]>([]);
   
   // Check for cached bookmark status on mount
   useEffect(() => {
     const checkCachedStatus = async () => {
       // Only check cache if we don't have a server-provided initial value
       if (initialIsBookmarked === false) {
-        const cachedStatus = await BookmarkStorage.getCachedBookmarkStatus(eventId);
+        const cachedStatus = await BookmarkCacheService.getCachedBookmarkStatus(eventId);
         if (cachedStatus !== null) {
           setIsBookmarked(cachedStatus);
           console.log(`Using cached bookmark status for ${eventId}: ${cachedStatus}`);
@@ -42,7 +51,21 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     };
     
     // Initial check
-    checkRelayStatus();
+    const isConnected = checkRelayStatus();
+    
+    // Connect to relays if needed
+    const connectIfNeeded = async () => {
+      if (!isConnected) {
+        try {
+          await nostrService.connectToUserRelays();
+          checkRelayStatus();
+        } catch (error) {
+          console.error("Failed to connect to relays during initial check:", error);
+        }
+      }
+    };
+    
+    connectIfNeeded();
     
     // Set up interval to check connections periodically
     const intervalId = setInterval(() => {
@@ -90,6 +113,72 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     return true;
   };
   
+  const addToQueue = useCallback((eventId: string, collectionId?: string, tags?: string[], note?: string) => {
+    setQueue(prev => [
+      ...prev,
+      {
+        id: `add-${eventId}`,
+        type: "add",
+        data: { eventId, collectionId, tags, note },
+        status: "pending",
+        attempts: 0,
+        timestamp: Date.now()
+      }
+    ]);
+  }, []);
+
+  const removeFromQueue = useCallback((eventId: string) => {
+    setQueue(prev => [
+      ...prev,
+      {
+        id: `remove-${eventId}`,
+        type: "remove",
+        data: { eventId },
+        status: "pending",
+        attempts: 0,
+        timestamp: Date.now()
+      }
+    ]);
+  }, []);
+
+  const processOperation = useCallback(async (operation: {
+    id: string;
+    type: "add" | "remove" | "addCollection";
+    data: any;
+    status: "pending" | "processing" | "failed" | "completed";
+    attempts: number;
+    timestamp: number;
+}) => {
+    if (operation.status !== 'pending') return;
+
+    try {
+      setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'processing' } : op));
+
+      const success = operation.type === 'add'
+        ? await nostrService.addBookmark(operation.data.eventId, operation.data.collectionId, operation.data.tags, operation.data.note)
+        : await nostrService.removeBookmark(operation.data.eventId);
+
+      if (success) {
+        setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'completed' } : op));
+      } else {
+        setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'failed', attempts: op.attempts + 1 } : op));
+      }
+    } catch (error) {
+      console.error("Error processing operation:", error);
+      setQueue(prev => prev.map(op => op.id === operation.id ? { ...op, status: 'failed', attempts: op.attempts + 1 } : op));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.onLine) return;
+
+    const pendingOperations = queue.filter(op => op.status === 'pending' && op.attempts < 3);
+
+    pendingOperations.forEach(operation => {
+      processOperation(operation as any);
+    });
+  }, [queue, processOperation]);
+
   // Handler for bookmark actions with retry mechanism
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
@@ -113,76 +202,35 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       setIsBookmarked(newBookmarkState);
       
       // Cache optimistically
-      await BookmarkStorage.cacheBookmarkStatus(eventId, newBookmarkState);
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, newBookmarkState);
       
-      // If offline, queue the operation for later and show appropriate message
-      if (!navigator.onLine) {
-        await BookmarkStorage.queueOperation({
-          type: newBookmarkState ? 'add' : 'remove',
-          eventId,
-          tags: [],
-          note: '',
-          status: 'pending',
-          attempts: 0,
-          id: `${newBookmarkState ? 'add' : 'remove'}_${eventId}_${Date.now()}`
-        });
-        
-        toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
-        return;
-      }
-      
-      // Try to connect to relays if needed
-      const connected = await ensureRelayConnection();
-      if (!connected) {
-        // Keep the optimistic UI update but queue the operation for later
-        await BookmarkStorage.queueOperation({
-          type: newBookmarkState ? 'add' : 'remove',
-          eventId,
-          tags: [],
-          note: '',
-          status: 'pending',
-          attempts: 0,
-          id: `${newBookmarkState ? 'add' : 'remove'}_${eventId}_${Date.now()}`
-        });
-        return;
-      }
-      
-      // Execute the operation with retry logic
-      const operation = newBookmarkState 
-        ? () => nostrService.addBookmark(eventId)
-        : () => nostrService.removeBookmark(eventId);
-        
-      const result = await retry(
-        operation,
-        {
-          maxAttempts: 3,
-          onRetry: (attempt, error) => {
-            console.log(`Retry attempt ${attempt} for bookmark operation:`, error);
-          }
-        }
-      );
-      
-      if (result) {
-        toast.success(newBookmarkState ? "Post bookmarked" : "Bookmark removed");
+      if (newBookmarkState) {
+        addToQueue(eventId);
       } else {
-        // Revert UI state on failure
-        setIsBookmarked(!newBookmarkState);
-        await BookmarkStorage.cacheBookmarkStatus(eventId, !newBookmarkState);
-        toast.error(newBookmarkState ? "Failed to bookmark post" : "Failed to remove bookmark");
+        removeFromQueue(eventId);
       }
+      
+      toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}.`);
     } catch (error) {
       console.error("Error bookmarking post:", error);
       // Revert UI state
       setIsBookmarked(!isBookmarked);
-      await BookmarkStorage.cacheBookmarkStatus(eventId, !isBookmarked);
+      await BookmarkCacheService.cacheBookmarkStatus(eventId, !isBookmarked);
       
-      // Show descriptive error
+      // Show descriptive error based on type
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      toast.error(`Failed to update bookmark: ${errorMsg}`);
+      
+      if (errorMsg.includes("timeout")) {
+        toast.error("Operation timed out. Please try again when you have a better connection.");
+      } else if (errorMsg.includes("relay")) {
+        toast.error("Unable to reach relays. Please check your network connection.");
+      } else {
+        toast.error(`Failed to update bookmark: ${errorMsg}`);
+      }
     } finally {
       setIsBookmarkPending(false);
     }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected]);
+  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected, addToQueue, removeFromQueue]);
   
   return {
     isBookmarked,
@@ -191,6 +239,7 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
     relaysConnected,
     setRelaysConnected,
     handleBookmark,
-    ensureRelayConnection
+    ensureRelayConnection,
+    isLoggedIn
   };
 }
