@@ -142,13 +142,30 @@ export function useUserPreferences() {
     nestedKey: NK,
     value: UserPreferences[K][NK]
   ) => {
-    setPreferences(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        [nestedKey]: value,
-      },
-    }));
+    setPreferences(prev => {
+      // Create a safe copy of the nested object with type checking
+      const nestedObject = prev[key];
+      
+      // Ensure we have a valid object before spreading
+      if (nestedObject && typeof nestedObject === 'object' && !Array.isArray(nestedObject)) {
+        return {
+          ...prev,
+          [key]: {
+            ...nestedObject,
+            [nestedKey]: value,
+          },
+        };
+      }
+      
+      // Fallback: create a new object based on defaults if the nested object is invalid
+      return {
+        ...prev,
+        [key]: {
+          ...defaultPreferences[key],
+          [nestedKey]: value,
+        },
+      };
+    });
   }, []);
 
   // Reset all preferences to default
