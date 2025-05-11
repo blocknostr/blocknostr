@@ -22,9 +22,10 @@ const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉",
 const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage, disabled = false }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSend = () => {
-    if (!newMessage.trim() || !isLoggedIn || disabled) {
+  const handleSend = async () => {
+    if (!newMessage.trim() || !isLoggedIn || disabled || isSending) {
       return;
     }
     
@@ -33,9 +34,14 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
       return;
     }
 
-    onSendMessage(newMessage);
-    setNewMessage("");
-    setIsTyping(false);
+    setIsSending(true);
+    try {
+      await onSendMessage(newMessage);
+      setNewMessage("");
+      setIsTyping(false);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +102,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
           maxLength={maxChars * 2} // Allow typing past limit but show warning
           className="text-xs h-8 rounded-full bg-muted/50"
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-          disabled={disabled}
+          disabled={disabled || isSending}
         />
         
         <div className="flex items-center gap-1">
@@ -105,12 +111,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
           </span>
           <Button 
             onClick={handleSend} 
-            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
+            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled || isSending}
             size="sm"
             className="h-8 w-8 p-0 rounded-full"
             variant={disabled ? "outline" : "default"}
           >
-            <SendHorizontal className="h-4 w-4" />
+            <SendHorizontal className={`h-4 w-4 ${isSending ? 'animate-pulse' : ''}`} />
           </Button>
         </div>
       </div>
@@ -118,6 +124,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
       {isTyping && isLoggedIn && !disabled && (
         <p className="text-[10px] text-muted-foreground mt-1 ml-1">
           You are typing...
+        </p>
+      )}
+      
+      {isSending && (
+        <p className="text-[10px] text-primary mt-1 ml-1">
+          Sending message...
         </p>
       )}
       

@@ -5,7 +5,7 @@ import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -93,7 +93,7 @@ const WorldChat = () => {
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
         onSendMessage={sendMessage}
-        disabled={connectionStatus === 'disconnected'}
+        disabled={connectionStatus !== 'connected'}
       />
     </Card>
   );
