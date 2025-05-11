@@ -6,7 +6,6 @@ import FollowingFeed from "./FollowingFeed";
 import GlobalFeed from "./feed/GlobalFeed";
 import ForYouFeed from "./feed/ForYouFeed";
 import MediaFeed from "./feed/MediaFeed";
-import TrendingTopics from "./feed/TrendingTopics";
 import SavedHashtags from "./feed/SavedHashtags";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, X, Image } from "lucide-react";
@@ -105,9 +104,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       
       {/* User's saved hashtags for quick access */}
       {preferences.uiPreferences.showTrending && <SavedHashtags onTopicClick={handleTopicClick} />}
-      
-      {/* Trending topics at the top */}
-      {preferences.uiPreferences.showTrending && <TrendingTopics onTopicClick={handleTopicClick} />}
       
       <CreateNoteForm />
       

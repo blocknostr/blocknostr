@@ -2,7 +2,7 @@
 import React from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
-import { TrendingSection } from "@/components/trending";
+import TrendingTopics from "@/components/feed/TrendingTopics";
 import WhoToFollow from "@/components/WhoToFollow";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
@@ -29,7 +29,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           <div className="mb-4">
             <GlobalSearch />
           </div>
-          <TrendingSection onTopicClick={onTopicClick} />
+          <TrendingTopics onTopicClick={onTopicClick} />
           <WhoToFollow />
         </div>
       </aside>
@@ -45,7 +45,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="mb-4">
               <GlobalSearch />
             </div>
-            <TrendingSection onTopicClick={onTopicClick} />
+            <TrendingTopics onTopicClick={onTopicClick} />
             <WhoToFollow />
           </div>
         </SheetContent>
