@@ -33,8 +33,8 @@ export class SocialManager {
    * @param options Optional configuration options
    */
   async getReactionCounts(
-    eventId: string, 
-    relays: string[] = [], 
+    eventId: string,
+    relays: string[] = [],
     options: any = {}
   ): Promise<{ 
     likes: number, 
