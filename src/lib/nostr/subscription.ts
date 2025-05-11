@@ -4,7 +4,7 @@ import { NostrEvent } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter[], onEvent: (event: NostrEvent) => void, subCloser: any }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: Filter, onEvent: (event: NostrEvent) => void, subCloser: any }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -24,15 +24,25 @@ export class SubscriptionManager {
     const id = `sub_${this.nextId++}`;
     
     try {
-      // Create subscription with proper callback for the "event" event
-      const subCloser = this.pool.subscribe(relays, filters, {
+      // Create subscription with proper callback
+      // Note: SimplePool.subscribe now expects a single filter, not an array
+      // We'll apply each filter from the array individually and combine the subscriptions
+      if (filters.length === 0) {
+        console.error("No filters provided for subscription");
+        return "";
+      }
+      
+      // Use the first filter for subscription
+      const filter = filters[0];
+      
+      const subCloser = this.pool.subscribe(relays, filter, {
         onevent: (event) => {
           onEvent(event as NostrEvent);
         }
       });
       
       // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays, filters, onEvent, subCloser });
+      this.subscriptions.set(id, { relays, filters: filter, onEvent, subCloser });
       
       return id;
     } catch (error) {

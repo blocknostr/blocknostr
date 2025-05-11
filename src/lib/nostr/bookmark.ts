@@ -133,15 +133,14 @@ export class BookmarkManager {
       let bookmarkedIds: string[] = [];
       
       // Subscribe to bookmark list events
-      const filters: Filter[] = [
-        {
-          kinds: [EVENT_KINDS.BOOKMARKS],
-          authors: [pubkey],
-          limit: 1
-        }
-      ];
+      // Note: SimplePool.subscribe now expects a single filter, not an array
+      const filter: Filter = {
+        kinds: [EVENT_KINDS.BOOKMARKS],
+        authors: [pubkey],
+        limit: 1
+      };
       
-      const sub = pool.subscribe(relays, filters, {
+      const sub = pool.subscribe(relays, filter, {
         onevent: (event) => {
           // Extract e tags (bookmarked event IDs)
           const bookmarks = event.tags
@@ -298,14 +297,13 @@ export class BookmarkManager {
       });
       
       // Subscribe to bookmark collections
-      const filters: Filter[] = [
-        {
-          kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
-          authors: [pubkey],
-        }
-      ];
+      // Note: SimplePool.subscribe now expects a single filter, not an array
+      const filter: Filter = {
+        kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
+        authors: [pubkey],
+      };
       
-      const sub = pool.subscribe(relays, filters, {
+      const sub = pool.subscribe(relays, filter, {
         onevent: (event) => {
           try {
             const data = JSON.parse(event.content);
@@ -415,14 +413,13 @@ export class BookmarkManager {
       const metadata: BookmarkWithMetadata[] = [];
       
       // Subscribe to bookmark metadata events
-      const filters: Filter[] = [
-        {
-          kinds: [EVENT_KINDS.BOOKMARK_METADATA],
-          authors: [pubkey]
-        }
-      ];
+      // Note: SimplePool.subscribe now expects a single filter, not an array
+      const filter: Filter = {
+        kinds: [EVENT_KINDS.BOOKMARK_METADATA],
+        authors: [pubkey]
+      };
       
-      const sub = pool.subscribe(relays, filters, {
+      const sub = pool.subscribe(relays, filter, {
         onevent: (event) => {
           try {
             // Extract referenced event ID from e tag

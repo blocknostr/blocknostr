@@ -113,15 +113,14 @@ export class ContactsManager {
       };
       
       // Subscribe to contact list events
-      const filters: Filter[] = [
-        {
-          kinds: [EVENT_KINDS.CONTACTS],
-          authors: [pubkey],
-          limit: 1
-        }
-      ];
+      // Note: SimplePool.subscribe now expects a single filter, not an array
+      const filter: Filter = {
+        kinds: [EVENT_KINDS.CONTACTS],
+        authors: [pubkey],
+        limit: 1
+      };
       
-      const sub = pool.subscribe(relayUrls, filters, {
+      const sub = pool.subscribe(relayUrls, filter, {
         onevent: (event) => {
           // Extract p tags (pubkeys) and other tags
           const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
