@@ -3,7 +3,7 @@ import React from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
 import TrendingTopics from "@/components/feed/TrendingTopics";
-import WhoToFollow from "@/components/WhoToFollow";
+import WorldChat from "@/components/chat/WorldChat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface RightSidebarProps {
@@ -38,7 +38,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
             activeHashtag={activeHashtag}
             onClearHashtag={onClearHashtag}
           />
-          <WhoToFollow />
+          <WorldChat />
         </div>
       </aside>
     );
@@ -58,7 +58,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
               activeHashtag={activeHashtag}
               onClearHashtag={onClearHashtag}
             />
-            <WhoToFollow />
+            <WorldChat />
           </div>
         </SheetContent>
       </Sheet>
