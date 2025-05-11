@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SocialManager } from '@/lib/nostr/social';
+import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
 
 const PostPage = () => {
@@ -27,9 +26,8 @@ const PostPage = () => {
     zapAmount: 0
   });
 
-  // Create SocialManager with the expected parameters (event manager and user manager)
-  // Since we don't have direct access to those, we'll use null values which the class should handle
-  const socialManager = new SocialManager(null, null);
+  // Create SocialManager instance
+  const socialManager = new SocialManager();
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -104,7 +102,7 @@ const PostPage = () => {
       if (!eventId) return;
       
       // Get reaction counts from the social manager
-      // Pass all required arguments (eventId, defaultRelays, and another empty parameter for callbacks)
+      // Pass the eventId and relays to the SocialManager getReactionCounts method
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
       setReactionCounts(counts);
     } catch (error) {
