@@ -1,8 +1,9 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
 import { EVENT_KINDS } from '../constants';
-import { ReactionCounts } from './types';
+import { ReactionCounts, ZapInfo } from './types';
 
 export class InteractionsManager {
   private eventManager: EventManager;
@@ -105,9 +106,15 @@ export class InteractionsManager {
     return new Promise((resolve) => {
       let likes = 0;
       let reposts = 0;
+      let zaps = 0;
+      let zapAmount = 0;
+      let replies = 0;
       let userHasLiked = false;
       let userHasReposted = false;
+      let userHasZapped = false;
       const likers: string[] = [];
+      const reposters: string[] = [];
+      const zappers: string[] = [];
       
       // Create a filter for reactions (kind 7)
       const reactionsFilter: Filter = {
@@ -144,6 +151,7 @@ export class InteractionsManager {
       const repostsSub = pool.subscribe(relayUrls, repostsFilter, {
         onevent: (event) => {
           reposts++;
+          reposters.push(event.pubkey);
           
           // Check if current user has reposted
           if (currentPubkey && event.pubkey === currentPubkey) {
@@ -160,9 +168,15 @@ export class InteractionsManager {
         resolve({
           likes,
           reposts,
+          zaps,
+          zapAmount,
+          replies,
           userHasLiked,
           userHasReposted,
-          likers
+          userHasZapped,
+          likers,
+          reposters,
+          zappers
         });
       }, 2000);
     });
@@ -216,7 +230,7 @@ export async function getLightningAddress(
       let lnurl: string | null = null;
       
       // Subscribe to profile metadata to get lightning info
-      const sub = pool.sub(relayUrls, [{
+      const sub = pool.subscribe(relayUrls, [{
         kinds: [0],
         authors: [pubkey],
         limit: 1

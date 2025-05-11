@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Repeat, MessageSquare, Zap, Eye } from "lucide-react";
+import { SimplePool } from 'nostr-tools'; // Import SimplePool directly
 
 interface PostStats {
   likes: number;
@@ -107,7 +108,7 @@ const PostPage = () => {
       
       // Get reaction counts
       try {
-        const pool = new nostrService.SimplePool();
+        const pool = new SimplePool(); // Create a new SimplePool instance directly
         const connectedRelays = nostrService.getRelayStatus()
           .filter(relay => relay.status === 'connected')
           .map(relay => relay.url);
