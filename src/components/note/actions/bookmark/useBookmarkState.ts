@@ -1,27 +1,13 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { Bookmark } from 'lucide-react';
-import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
-import { 
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 
-interface BookmarkButtonProps {
-  eventId: string;
-  isBookmarked: boolean;
-  setIsBookmarked: (value: boolean) => void;
-}
-
-const BookmarkButton = ({ 
-  eventId, 
-  isBookmarked, 
-  setIsBookmarked 
-}: BookmarkButtonProps) => {
+/**
+ * Hook to manage bookmark state and operations
+ */
+export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) {
+  const [isBookmarked, setIsBookmarked] = useState(initialIsBookmarked);
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
   const [relaysConnected, setRelaysConnected] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
@@ -58,7 +44,32 @@ const BookmarkButton = ({
     return () => clearInterval(intervalId);
   }, []);
   
-  // Use useCallback to prevent unnecessary recreations of the function
+  // Connect to relays if needed
+  const ensureRelayConnection = async () => {
+    if (!relaysConnected) {
+      console.log("Attempting to connect to relays before bookmark operation...");
+      try {
+        await nostrService.connectToUserRelays();
+        const status = nostrService.getRelayStatus();
+        const connected = status.filter(r => r.status === 'connected').length;
+        
+        if (connected === 0) {
+          toast.error("Cannot bookmark: No relays available. Please check your connection.");
+          console.error("Failed to connect to any relays for bookmark operation");
+          return false;
+        }
+        setRelaysConnected(true);
+        return true;
+      } catch (error) {
+        toast.error("Failed to connect to relays. Please try again.");
+        console.error("Error connecting to relays:", error);
+        return false;
+      }
+    }
+    return true;
+  };
+  
+  // Handler for bookmark actions
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
     // Prevent event bubbling to parent elements
     e.stopPropagation();
@@ -73,25 +84,9 @@ const BookmarkButton = ({
       return;
     }
     
-    if (!relaysConnected) {
-      console.log("Attempting to connect to relays before bookmark operation...");
-      try {
-        await nostrService.connectToUserRelays();
-        const status = nostrService.getRelayStatus();
-        const connected = status.filter(r => r.status === 'connected').length;
-        
-        if (connected === 0) {
-          toast.error("Cannot bookmark: No relays available. Please check your connection.");
-          console.error("Failed to connect to any relays for bookmark operation");
-          return;
-        }
-        setRelaysConnected(true);
-      } catch (error) {
-        toast.error("Failed to connect to relays. Please try again.");
-        console.error("Error connecting to relays:", error);
-        return;
-      }
-    }
+    // Ensure relay connection
+    const connected = await ensureRelayConnection();
+    if (!connected) return;
     
     try {
       setIsBookmarkPending(true);
@@ -133,47 +128,16 @@ const BookmarkButton = ({
     } finally {
       setIsBookmarkPending(false);
     }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected, setIsBookmarked]);
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className={`rounded-full hover:text-yellow-500 hover:bg-yellow-500/10 ${isBookmarked ? 'text-yellow-500' : ''}`}
-          title="Bookmark"
-          onClick={handleBookmark}
-          disabled={isBookmarkPending}
-        >
-          <Bookmark className="h-[18px] w-[18px]" />
-        </Button>
-      </ContextMenuTrigger>
-      <ContextMenuContent onClick={(e) => e.stopPropagation()}>
-        <ContextMenuItem onClick={(e) => {
-          e.preventDefault();
-          handleBookmark(e as unknown as React.MouseEvent);
-        }}>
-          {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
-        </ContextMenuItem>
-        {!relaysConnected && (
-          <ContextMenuItem onClick={async (e) => {
-            e.preventDefault();
-            toast.loading("Connecting to relays...");
-            try {
-              await nostrService.connectToUserRelays();
-              toast.success("Connected to relays");
-              setRelaysConnected(true);
-            } catch (error) {
-              toast.error("Failed to connect to relays");
-            }
-          }}>
-            Connect to relays
-          </ContextMenuItem>
-        )}
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-};
-
-export default BookmarkButton;
+  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected]);
+  
+  return {
+    isBookmarked,
+    setIsBookmarked,
+    isBookmarkPending,
+    relaysConnected,
+    setRelaysConnected,
+    handleBookmark,
+    ensureRelayConnection,
+    isLoggedIn
+  };
+}
