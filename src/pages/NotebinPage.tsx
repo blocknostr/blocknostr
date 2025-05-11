@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Menu } from "lucide-react";
@@ -14,6 +13,7 @@ const NotebinPage = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [language, setLanguage] = useState("text");
+  const [tags, setTags] = useState<string[]>([]);
   const [savedNotes, setSavedNotes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
@@ -64,11 +64,17 @@ const NotebinPage = () => {
             ? new Date(parseInt(publishedTag[1]) * 1000).toLocaleString() 
             : new Date(event.created_at * 1000).toLocaleString();
             
+          // Extract tags from event
+          const tagList = event.tags
+            .filter(tag => tag[0] === 't' && tag.length >= 2)
+            .map(tag => tag[1]);
+            
           const note = {
             id: event.id,
             title,
             language,
             content: event.content,
+            tags: tagList,
             publishedAt,
             author: event.pubkey,
             event
@@ -192,6 +198,7 @@ const NotebinPage = () => {
     setTitle(note.title);
     setContent(note.content);
     setLanguage(note.language || "text");
+    setTags(note.tags || []);
   };
 
   return (

@@ -1,6 +1,7 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Save, Share, Copy, Link } from "lucide-react";
+import { Save, Share, Copy, Link, Eye, EyeOff, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -14,6 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LANGUAGE_OPTIONS } from "./constants";
+import { Textarea } from "@/components/ui/textarea";
+import { TagInput } from "./TagInput";
+import { NotePreview } from "./NotePreview";
+import { useHotkeys } from "./useHotkeys";
 
 interface NoteEditorProps {
   onNoteSaved: (note: any) => void;
@@ -25,6 +30,27 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
   const [language, setLanguage] = useState("text");
   const [isSaving, setIsSaving] = useState(false);
   const [noteId, setNoteId] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [previewMode, setPreviewMode] = useState<boolean>(false);
+
+  // Register keyboard shortcuts
+  useHotkeys('ctrl+s', (e) => {
+    e.preventDefault();
+    if (canSave()) handleSave();
+  }, [title, content, isSaving]);
+  
+  useHotkeys('ctrl+p', (e) => {
+    e.preventDefault();
+    togglePreview();
+  }, [previewMode]);
+
+  const togglePreview = () => {
+    setPreviewMode(!previewMode);
+  };
+
+  const canSave = () => {
+    return !isSaving && !!nostrService.publicKey && !!title && !!content;
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !content.trim()) {
@@ -46,6 +72,11 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
           ["d", `notebin-${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
         ]
       };
+      
+      // Add user tags to the note
+      tags.forEach(tag => {
+        event.tags.push(["t", tag]); // Using "t" as per NIP-12 for tags
+      });
 
       const eventId = await nostrService.publishEvent(event);
 
@@ -59,6 +90,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
           title,
           language,
           content,
+          tags,
           publishedAt: new Date().toLocaleString(),
           author: nostrService.publicKey,
           event
@@ -108,6 +140,8 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     setContent("");
     setLanguage("text");
     setNoteId(null);
+    setTags([]);
+    setPreviewMode(false);
   };
 
   return (
@@ -140,26 +174,59 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             </div>
           </div>
           
+          <TagInput 
+            value={tags}
+            onChange={setTags}
+            placeholder="Add tags..."
+            maxTags={5}
+          />
+          
           <div className="min-h-[300px] border rounded-md">
-            <CodeEditor
-              value={content}
-              language={language}
-              placeholder="Enter your code or text here..."
-              onChange={(evn) => setContent(evn.target.value)}
-              padding={15}
-              style={{
-                backgroundColor: "var(--background)",
-                fontFamily: "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
-                fontSize: 14,
-                minHeight: "300px",
-                width: "100%"
-              }}
-              className="min-h-[300px]"
-            />
+            {previewMode ? (
+              <div className="flex flex-col md:flex-row h-full">
+                <div className="w-full md:w-1/2 border-r">
+                  <CodeEditor
+                    value={content}
+                    language={language}
+                    placeholder="Enter your code or text here..."
+                    onChange={(evn) => setContent(evn.target.value)}
+                    padding={15}
+                    style={{
+                      backgroundColor: "var(--background)",
+                      fontFamily: "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+                      fontSize: 14,
+                      height: "100%",
+                      minHeight: "300px",
+                      width: "100%"
+                    }}
+                    className="min-h-[300px]"
+                  />
+                </div>
+                <div className="w-full md:w-1/2 p-4 overflow-auto" style={{ minHeight: "300px" }}>
+                  <NotePreview content={content} language={language} />
+                </div>
+              </div>
+            ) : (
+              <CodeEditor
+                value={content}
+                language={language}
+                placeholder="Enter your code or text here..."
+                onChange={(evn) => setContent(evn.target.value)}
+                padding={15}
+                style={{
+                  backgroundColor: "var(--background)",
+                  fontFamily: "ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace",
+                  fontSize: 14,
+                  minHeight: "300px",
+                  width: "100%"
+                }}
+                className="min-h-[300px]"
+              />
+            )}
           </div>
           
-          <div className="flex flex-col md:flex-row justify-between gap-4">
-            <div className="flex gap-2">
+          <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={clearEditor}>
                 Clear
               </Button>
@@ -167,6 +234,20 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
               <Button variant="outline" onClick={copyToClipboard}>
                 <Copy className="h-4 w-4 mr-2" />
                 Copy
+              </Button>
+              
+              <Button variant="outline" onClick={togglePreview}>
+                {previewMode ? (
+                  <>
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Hide Preview
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </>
+                )}
               </Button>
             </div>
             
@@ -182,7 +263,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
               
               <Button 
                 onClick={handleSave}
-                disabled={isSaving || !nostrService.publicKey || !title || !content}
+                disabled={!canSave()}
               >
                 <Save className="h-4 w-4 mr-2" />
                 Save
@@ -190,8 +271,16 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             </div>
           </div>
           
+          <div className="text-xs text-muted-foreground mt-1">
+            <span>Keyboard shortcuts: </span>
+            <kbd className="px-1 py-0.5 text-xs border rounded">Ctrl+S</kbd>
+            <span> Save, </span>
+            <kbd className="px-1 py-0.5 text-xs border rounded">Ctrl+P</kbd>
+            <span> Toggle Preview</span>
+          </div>
+          
           {!nostrService.publicKey && (
-            <p className="text-sm text-muted-foreground text-center mt-4">
+            <p className="text-sm text-muted-foreground text-center mt-2">
               You need to be logged in to save notes.
             </p>
           )}
