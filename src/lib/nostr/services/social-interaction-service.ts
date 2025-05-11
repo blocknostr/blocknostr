@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { toast } from 'sonner';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -47,23 +47,19 @@ export class SocialInteractionService {
       tags.push(['d', 'mute-list']); // NIP-51 requires 'd' tag with 'mute-list' value
 
       // Create and publish the event
-      const muteEvent: Partial<NostrEvent> = {
+      const muteEvent = {
         kind: EVENT_KINDS.MUTE_LIST,
         tags: tags,
         content: '', // NIP-51 lists have empty content
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: currentUserPubkey
       };
 
       const relays = this.getConnectedRelayUrls();
       
       // Use the browser extension to sign and publish
       if (window.nostr) {
-        const signedEvent = await window.nostr.signEvent({
-          kind: muteEvent.kind!,
-          tags: muteEvent.tags!,
-          content: muteEvent.content!,
-          created_at: Math.floor(Date.now() / 1000),
-          pubkey: currentUserPubkey
-        });
+        const signedEvent = await window.nostr.signEvent(muteEvent);
         
         await this.pool.publish(relays, signedEvent);
         
@@ -111,23 +107,19 @@ export class SocialInteractionService {
       tags.push(['d', 'mute-list']); // NIP-51 requires 'd' tag with 'mute-list' value
 
       // Create and publish the event
-      const muteEvent: Partial<NostrEvent> = {
+      const muteEvent = {
         kind: EVENT_KINDS.MUTE_LIST,
         tags: tags,
         content: '', // NIP-51 lists have empty content
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: currentUserPubkey
       };
 
       const relays = this.getConnectedRelayUrls();
       
       // Use the browser extension to sign and publish
       if (window.nostr) {
-        const signedEvent = await window.nostr.signEvent({
-          kind: muteEvent.kind!,
-          tags: muteEvent.tags!,
-          content: muteEvent.content!,
-          created_at: Math.floor(Date.now() / 1000),
-          pubkey: currentUserPubkey
-        });
+        const signedEvent = await window.nostr.signEvent(muteEvent);
         
         await this.pool.publish(relays, signedEvent);
         
@@ -166,12 +158,14 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      // Using pool.querySync instead of list which is not available in SimplePool
-      const events = await this.pool.querySync(relays, [{
+      // Fix: Create a proper Filter object for querySync
+      const filter: Filter = {
         kinds: [EVENT_KINDS.MUTE_LIST],
         authors: [currentUserPubkey],
         limit: 1
-      }]);
+      };
+
+      const events = await this.pool.querySync(relays, [filter]);
 
       if (events && events.length > 0) {
         // Extract pubkeys from the 'p' tags
@@ -240,23 +234,19 @@ export class SocialInteractionService {
       tags.push(['d', 'block-list']); // Similar to NIP-51 structure
 
       // Create and publish the event
-      const blockEvent: Partial<NostrEvent> = {
+      const blockEvent = {
         kind: EVENT_KINDS.BLOCK_LIST,
         tags: tags,
         content: '', // Empty content
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: currentUserPubkey
       };
 
       const relays = this.getConnectedRelayUrls();
       
       // Use the browser extension to sign and publish
       if (window.nostr) {
-        const signedEvent = await window.nostr.signEvent({
-          kind: blockEvent.kind!,
-          tags: blockEvent.tags!,
-          content: blockEvent.content!,
-          created_at: Math.floor(Date.now() / 1000),
-          pubkey: currentUserPubkey
-        });
+        const signedEvent = await window.nostr.signEvent(blockEvent);
         
         await this.pool.publish(relays, signedEvent);
         
@@ -304,23 +294,19 @@ export class SocialInteractionService {
       tags.push(['d', 'block-list']); // Similar to NIP-51 structure
 
       // Create and publish the event
-      const blockEvent: Partial<NostrEvent> = {
+      const blockEvent = {
         kind: EVENT_KINDS.BLOCK_LIST,
         tags: tags,
         content: '', // Empty content
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: currentUserPubkey
       };
 
       const relays = this.getConnectedRelayUrls();
       
       // Use the browser extension to sign and publish
       if (window.nostr) {
-        const signedEvent = await window.nostr.signEvent({
-          kind: blockEvent.kind!,
-          tags: blockEvent.tags!,
-          content: blockEvent.content!,
-          created_at: Math.floor(Date.now() / 1000),
-          pubkey: currentUserPubkey
-        });
+        const signedEvent = await window.nostr.signEvent(blockEvent);
         
         await this.pool.publish(relays, signedEvent);
         
@@ -359,12 +345,14 @@ export class SocialInteractionService {
     try {
       const relays = this.getConnectedRelayUrls();
       
-      // Using pool.querySync instead of list which is not available in SimplePool
-      const events = await this.pool.querySync(relays, [{
+      // Fix: Create a proper Filter object for querySync
+      const filter: Filter = {
         kinds: [EVENT_KINDS.BLOCK_LIST],
         authors: [currentUserPubkey],
         limit: 1
-      }]);
+      };
+
+      const events = await this.pool.querySync(relays, [filter]);
 
       if (events && events.length > 0) {
         // Extract pubkeys from the 'p' tags
