@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
@@ -23,7 +23,40 @@ const BookmarkButton = ({
   setIsBookmarked 
 }: BookmarkButtonProps) => {
   const [isBookmarkPending, setIsBookmarkPending] = useState(false);
+  const [relaysConnected, setRelaysConnected] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
+  
+  // Check relay connections on mount and ensure connectivity
+  useEffect(() => {
+    const checkAndConnectRelays = async () => {
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
+      
+      if (connectedCount === 0) {
+        console.log("No connected relays found, attempting connection...");
+        try {
+          await nostrService.connectToUserRelays();
+          const newStatus = nostrService.getRelayStatus();
+          const newConnectedCount = newStatus.filter(r => r.status === 'connected').length;
+          setRelaysConnected(newConnectedCount > 0);
+          console.log(`Connected to ${newConnectedCount} relays`);
+        } catch (error) {
+          console.error("Failed to connect to relays:", error);
+          setRelaysConnected(false);
+        }
+      } else {
+        setRelaysConnected(true);
+        console.log(`Already connected to ${connectedCount} relays`);
+      }
+    };
+    
+    checkAndConnectRelays();
+    
+    // Check connection status every 10 seconds
+    const intervalId = setInterval(checkAndConnectRelays, 10000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
   
   // Use useCallback to prevent unnecessary recreations of the function
   const handleBookmark = useCallback(async (e: React.MouseEvent) => {
@@ -40,8 +73,31 @@ const BookmarkButton = ({
       return;
     }
     
+    if (!relaysConnected) {
+      console.log("Attempting to connect to relays before bookmark operation...");
+      try {
+        await nostrService.connectToUserRelays();
+        const status = nostrService.getRelayStatus();
+        const connected = status.filter(r => r.status === 'connected').length;
+        
+        if (connected === 0) {
+          toast.error("Cannot bookmark: No relays available. Please check your connection.");
+          console.error("Failed to connect to any relays for bookmark operation");
+          return;
+        }
+        setRelaysConnected(true);
+      } catch (error) {
+        toast.error("Failed to connect to relays. Please try again.");
+        console.error("Error connecting to relays:", error);
+        return;
+      }
+    }
+    
     try {
       setIsBookmarkPending(true);
+      console.log("Connected relays:", nostrService.getRelayStatus()
+        .filter(r => r.status === 'connected')
+        .map(r => r.url));
       
       if (isBookmarked) {
         // Remove bookmark
@@ -77,7 +133,7 @@ const BookmarkButton = ({
     } finally {
       setIsBookmarkPending(false);
     }
-  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, setIsBookmarked]);
+  }, [eventId, isBookmarked, isLoggedIn, isBookmarkPending, relaysConnected, setIsBookmarked]);
 
   return (
     <ContextMenu>
@@ -100,6 +156,21 @@ const BookmarkButton = ({
         }}>
           {isBookmarked ? "Remove from bookmarks" : "Add to bookmarks"}
         </ContextMenuItem>
+        {!relaysConnected && (
+          <ContextMenuItem onClick={async (e) => {
+            e.preventDefault();
+            toast.loading("Connecting to relays...");
+            try {
+              await nostrService.connectToUserRelays();
+              toast.success("Connected to relays");
+              setRelaysConnected(true);
+            } catch (error) {
+              toast.error("Failed to connect to relays");
+            }
+          }}>
+            Connect to relays
+          </ContextMenuItem>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

@@ -14,6 +14,16 @@ export class BookmarkManager {
   }
   
   /**
+   * Validate relays before proceeding with operations
+   * @private
+   */
+  private validateRelays(relays: string[]): void {
+    if (relays.length === 0) {
+      throw new Error("Cannot perform bookmark operation: No relays provided");
+    }
+  }
+  
+  /**
    * Add a bookmark for an event
    */
   async addBookmark(
@@ -27,19 +37,15 @@ export class BookmarkManager {
     note?: string
   ): Promise<boolean> {
     if (!publicKey) {
-      console.error("Cannot add bookmark: No public key provided");
-      return false;
+      throw new Error("Cannot add bookmark: No public key provided");
     }
     
     if (!eventId) {
-      console.error("Cannot add bookmark: No event ID provided");
-      return false;
+      throw new Error("Cannot add bookmark: No event ID provided");
     }
     
-    if (relays.length === 0) {
-      console.error("Cannot add bookmark: No relays provided");
-      return false;
-    }
+    // Validate relays
+    this.validateRelays(relays);
     
     try {
       console.log(`Adding bookmark for event ${eventId} to relays:`, relays);
@@ -77,6 +83,10 @@ export class BookmarkManager {
       const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
       console.log("Bookmark publish result:", publishResult);
       
+      if (!publishResult) {
+        throw new Error("Failed to publish bookmark event");
+      }
+      
       // Also create bookmark metadata if provided
       if (publishResult && (collectionId || tags?.length || note)) {
         await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
@@ -85,7 +95,7 @@ export class BookmarkManager {
       return !!publishResult;
     } catch (error) {
       console.error("Error adding bookmark:", error);
-      return false;
+      throw error; // Re-throw for better error handling upstream
     }
   }
   
@@ -100,19 +110,15 @@ export class BookmarkManager {
     relays: string[]
   ): Promise<boolean> {
     if (!publicKey) {
-      console.error("Cannot remove bookmark: No public key provided");
-      return false;
+      throw new Error("Cannot remove bookmark: No public key provided");
     }
     
     if (!eventId) {
-      console.error("Cannot remove bookmark: No event ID provided");
-      return false;
+      throw new Error("Cannot remove bookmark: No event ID provided");
     }
     
-    if (relays.length === 0) {
-      console.error("Cannot remove bookmark: No relays provided");
-      return false;
-    }
+    // Validate relays
+    this.validateRelays(relays);
     
     try {
       console.log(`Removing bookmark for event ${eventId} from relays:`, relays);
@@ -147,6 +153,10 @@ export class BookmarkManager {
       const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
       console.log("Bookmark removal result:", publishResult);
       
+      if (!publishResult) {
+        throw new Error("Failed to publish bookmark removal event");
+      }
+      
       // Also remove any bookmark metadata
       if (publishResult) {
         await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
@@ -155,7 +165,7 @@ export class BookmarkManager {
       return !!publishResult;
     } catch (error) {
       console.error("Error removing bookmark:", error);
-      return false;
+      throw error; // Re-throw for better error handling upstream
     }
   }
   
@@ -167,8 +177,12 @@ export class BookmarkManager {
     pubkey: string,
     relays: string[]
   ): Promise<string[]> {
-    return new Promise((resolve) => {
+    // Validate relays
+    this.validateRelays(relays);
+    
+    return new Promise<string[]>((resolve, reject) => {
       let bookmarkedIds: string[] = [];
+      let received = false;
       
       // Subscribe to bookmark list events (NIP-51 compliant)
       const filter: Filter = {
@@ -178,23 +192,36 @@ export class BookmarkManager {
         limit: 1
       };
       
-      const sub = pool.subscribe(relays, filter, {
-        onevent: (event) => {
-          // Extract e tags (bookmarked event IDs)
-          const bookmarks = event.tags
-            .filter(tag => tag.length >= 2 && tag[0] === 'e')
-            .map(tag => tag[1]);
+      try {
+        const sub = pool.subscribe(relays, filter, {
+          onevent: (event) => {
+            received = true;
+            // Extract e tags (bookmarked event IDs)
+            const bookmarks = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 'e')
+              .map(tag => tag[1]);
+            
+            bookmarkedIds = bookmarks;
+          },
+          onerror: (err) => {
+            console.error("Error in bookmark subscription:", err);
+            // Don't reject, as we want to try all relays before giving up
+          }
+        });
+        
+        // Set a configurable timeout to resolve with found bookmarks
+        const timeout = 5000; // Increased from 3000 for better reliability
+        setTimeout(() => {
+          sub.close();
           
-          bookmarkedIds = bookmarks;
-        }
-      });
-      
-      // Set a configurable timeout to resolve with found bookmarks
-      const timeout = 3000; // Could be made configurable based on network conditions
-      setTimeout(() => {
-        sub.close();
-        resolve(bookmarkedIds);
-      }, timeout);
+          // Even if we didn't receive anything, resolve with empty array rather than rejecting
+          console.log(`Bookmark list query timeout after ${timeout}ms, found ${bookmarkedIds.length} bookmarks`);
+          resolve(bookmarkedIds);
+        }, timeout);
+      } catch (error) {
+        console.error("Error getting bookmark list:", error);
+        reject(error);
+      }
     });
   }
   
@@ -207,8 +234,13 @@ export class BookmarkManager {
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
-    const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
-    return bookmarks.includes(eventId);
+    try {
+      const bookmarks = await this.getBookmarkList(pool, pubkey, relays);
+      return bookmarks.includes(eventId);
+    } catch (error) {
+      console.error("Error checking if event is bookmarked:", error);
+      return false;
+    }
   }
 
   /**
@@ -226,33 +258,48 @@ export class BookmarkManager {
   ): Promise<boolean> {
     if (!publicKey) return false;
     
-    // Create metadata object
-    const metadata: Record<string, any> = {};
-    if (collectionId) metadata.collectionId = collectionId;
-    if (note) metadata.note = note;
+    // Validate relays
+    this.validateRelays(relays);
     
-    // Generate a stable identifier for this bookmark's metadata
-    const stableId = `meta_${eventId.substring(0, 8)}`;
-    
-    // Create metadata event (NIP-33 compliant parameterized replaceable event)
-    const event = {
-      kind: EVENT_KINDS.BOOKMARK_METADATA,
-      content: JSON.stringify(metadata),
-      tags: [
-        ["e", eventId], // Reference to bookmarked event
-        ["d", stableId] // Stable identifier for this specific bookmark's metadata
-      ]
-    };
-    
-    // Add tags if provided (using proper "t" tag per NIP-standardization)
-    if (tags && tags.length > 0) {
-      tags.forEach(tag => {
-        event.tags.push(["t", tag]);
-      });
+    try {
+      // Create metadata object
+      const metadata: Record<string, any> = {};
+      if (collectionId) metadata.collectionId = collectionId;
+      if (note) metadata.note = note;
+      
+      // Generate a stable identifier for this bookmark's metadata
+      const stableId = `meta_${eventId.substring(0, 8)}`;
+      
+      // Create metadata event (NIP-33 compliant parameterized replaceable event)
+      const event = {
+        kind: EVENT_KINDS.BOOKMARK_METADATA,
+        content: JSON.stringify(metadata),
+        tags: [
+          ["e", eventId], // Reference to bookmarked event
+          ["d", stableId] // Stable identifier for this specific bookmark's metadata
+        ]
+      };
+      
+      // Add tags if provided (using proper "t" tag per NIP-standardization)
+      if (tags && tags.length > 0) {
+        tags.forEach(tag => {
+          event.tags.push(["t", tag]);
+        });
+      }
+      
+      console.log("Publishing bookmark metadata:", event);
+      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark metadata publish result:", publishResult);
+      
+      if (!publishResult) {
+        throw new Error("Failed to publish bookmark metadata");
+      }
+      
+      return !!publishResult;
+    } catch (error) {
+      console.error("Error updating bookmark metadata:", error);
+      return false;
     }
-    
-    const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!publishResult;
   }
   
   /**
@@ -267,20 +314,35 @@ export class BookmarkManager {
   ): Promise<boolean> {
     if (!publicKey) return false;
     
-    // Generate the same stable identifier for the bookmark's metadata
-    const stableId = `meta_${eventId.substring(0, 8)}`;
+    // Validate relays
+    this.validateRelays(relays);
     
-    // Create deletion event (NIP-09 compliant)
-    const event = {
-      kind: EVENT_KINDS.DELETE,
-      content: "Deleted bookmark metadata",
-      tags: [
-        // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
-        ["a", `${EVENT_KINDS.BOOKMARK_METADATA}:${publicKey}:${stableId}`]
-      ]
-    };
-    
-    const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!result;
+    try {
+      // Generate the same stable identifier for the bookmark's metadata
+      const stableId = `meta_${eventId.substring(0, 8)}`;
+      
+      // Create deletion event (NIP-09 compliant)
+      const event = {
+        kind: EVENT_KINDS.DELETE,
+        content: "Deleted bookmark metadata",
+        tags: [
+          // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
+          ["a", `${EVENT_KINDS.BOOKMARK_METADATA}:${publicKey}:${stableId}`]
+        ]
+      };
+      
+      console.log("Publishing bookmark metadata deletion:", event);
+      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      console.log("Bookmark metadata deletion result:", result);
+      
+      if (!result) {
+        throw new Error("Failed to delete bookmark metadata");
+      }
+      
+      return !!result;
+    } catch (error) {
+      console.error("Error removing bookmark metadata:", error);
+      return false;
+    }
   }
 }
