@@ -31,48 +31,51 @@ export class ProfileService {
       const connectedRelays = this.getConnectedRelayUrls();
       
       return new Promise((resolve) => {
-        const subscribe = (filters: any, onEvent: (event: NostrEvent) => void): string => {
-          const subscription = this.pool.subscribe(connectedRelays, filters, {
-            onevent: onEvent
-          });
-          return subscription.id || ''; // Ensure we have a string ID
+        const filters = {
+          kinds: [EVENT_KINDS.META],
+          authors: [pubkey],
+          limit: 1
         };
         
-        const unsubscribe = (subId: string): void => {
-          // Find the subscription and close it more safely
-          if (!subId) return;
-          this.pool.close(subId);
-        };
+        let subscription: { id?: string; close: () => void } | null = null;
         
-        const subId = subscribe(
-          {
-            kinds: [EVENT_KINDS.META],
-            authors: [pubkey],
-            limit: 1
-          },
-          (event) => {
-            try {
-              const profile = JSON.parse(event.content);
-              // Store the raw event tags for NIP-39 verification
-              if (Array.isArray(event.tags) && event.tags.length > 0) {
-                profile.tags = event.tags;
+        try {
+          subscription = this.pool.subscribe(
+            connectedRelays,
+            [filters],
+            {
+              onevent: (event) => {
+                try {
+                  const profile = JSON.parse(event.content);
+                  // Store the raw event tags for NIP-39 verification
+                  if (Array.isArray(event.tags) && event.tags.length > 0) {
+                    profile.tags = event.tags;
+                  }
+                  resolve(profile);
+                  
+                  // Cleanup subscription after receiving the profile
+                  setTimeout(() => {
+                    if (subscription) {
+                      subscription.close();
+                    }
+                  }, 100);
+                } catch (e) {
+                  console.error("Error parsing profile:", e);
+                  resolve(null);
+                }
               }
-              resolve(profile);
-              
-              // Cleanup subscription after receiving the profile
-              setTimeout(() => {
-                unsubscribe(subId);
-              }, 100);
-            } catch (e) {
-              console.error("Error parsing profile:", e);
-              resolve(null);
             }
-          }
-        );
+          );
+        } catch (error) {
+          console.error("Error in subscription:", error);
+          resolve(null);
+        }
         
         // Set a timeout to resolve with null if no profile is found
         setTimeout(() => {
-          unsubscribe(subId);
+          if (subscription) {
+            subscription.close();
+          }
           resolve(null);
         }, 5000);
       });

@@ -26,62 +26,64 @@ export class CommunityService {
       const connectedRelays = this.getConnectedRelayUrls();
       
       return new Promise((resolve) => {
-        const subscribe = (filters: any, onEvent: (event: NostrEvent) => void): string => {
-          const subcloser = this.pool.subscribe(connectedRelays, filters, {
-            onevent: onEvent
-          });
-          return subcloser.id || ''; // Make sure we have an ID
+        const filters = {
+          kinds: [EVENT_KINDS.COMMUNITY],
+          '#d': [communityId],
+          limit: 1
         };
         
-        const unsubscribe = (subId: string): void => {
-          if (this.pool.subscriptions && this.pool.subscriptions.has(subId)) {
-            const sub = this.pool.subscriptions.get(subId);
-            if (sub) sub.close();
-          }
-        };
+        let subscription: { close: () => void } | null = null;
         
-        const subId = subscribe(
-          {
-            kinds: [EVENT_KINDS.COMMUNITY],
-            '#d': [communityId],
-            limit: 1
-          },
-          (event) => {
-            try {
-              const community = JSON.parse(event.content);
-              community.id = event.id;
-              community.uniqueId = communityId;
-              
-              // Process members from the tags
-              const members = event.tags
-                .filter(tag => tag.length >= 2 && tag[0] === 'p')
-                .map(tag => tag[1]);
-                
-              community.members = members;
-              
-              // Process moderators from the tags
-              const moderators = event.tags
-                .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
-                .map(tag => tag[1]);
-                
-              community.moderators = moderators;
-              
-              resolve(community);
-              
-              // Cleanup subscription after receiving the community
-              setTimeout(() => {
-                unsubscribe(subId);
-              }, 100);
-            } catch (e) {
-              console.error("Error parsing community:", e);
-              resolve(null);
+        try {
+          subscription = this.pool.subscribe(
+            connectedRelays,
+            [filters],
+            {
+              onevent: (event) => {
+                try {
+                  const community = JSON.parse(event.content);
+                  community.id = event.id;
+                  community.uniqueId = communityId;
+                  
+                  // Process members from the tags
+                  const members = event.tags
+                    .filter(tag => tag.length >= 2 && tag[0] === 'p')
+                    .map(tag => tag[1]);
+                    
+                  community.members = members;
+                  
+                  // Process moderators from the tags
+                  const moderators = event.tags
+                    .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
+                    .map(tag => tag[1]);
+                    
+                  community.moderators = moderators;
+                  
+                  resolve(community);
+                  
+                  // Cleanup subscription after receiving the community
+                  setTimeout(() => {
+                    if (subscription) {
+                      subscription.close();
+                    }
+                  }, 100);
+                } catch (e) {
+                  console.error("Error parsing community:", e);
+                  resolve(null);
+                }
+              }
             }
-          }
-        );
+          );
+        } catch (error) {
+          console.error("Error in subscription:", error);
+          resolve(null);
+        }
         
         // Set a timeout to resolve with null if no community is found
         setTimeout(() => {
-          unsubscribe(subId);
+          if (subscription) {
+            subscription.close();
+          }
           resolve(null);
         }, 5000);
       });
@@ -96,19 +98,18 @@ export class CommunityService {
    */
   async createCommunity(
     name: string,
-    description: string,
-    publicKey: string | null,
-    relays: string[]
+    description: string
   ): Promise<string | null> {
-    if (!publicKey) return null;
+    if (!this.publicKey) return null;
     
     const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
+    const relays = this.getConnectedRelayUrls();
     
     // Create community metadata
     const communityData = {
       name,
       description,
-      creator: publicKey,
+      creator: this.publicKey,
       createdAt: Math.floor(Date.now() / 1000),
       image: "" // Optional image URL
     };
@@ -119,17 +120,16 @@ export class CommunityService {
       content: JSON.stringify(communityData),
       tags: [
         ["d", uniqueId], // Unique identifier for this community
-        ["p", publicKey] // Creator is the first member
+        ["p", this.publicKey] // Creator is the first member
       ]
     };
     
     try {
-      const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        publicKey,
-        null, // No private key
+      await this.communityManager.publishEvent(
         event,
-        relays
+        this.publicKey,
+        relays,
+        this.pool
       );
       return uniqueId; // Return the community ID on success
     } catch (error) {
@@ -146,13 +146,12 @@ export class CommunityService {
     title: string,
     description: string,
     options: string[],
-    publicKey: string | null,
-    relays: string[],
     category: string = 'other',
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    if (!publicKey || !communityId) return null;
+    if (!this.publicKey || !communityId) return null;
+    const relays = this.getConnectedRelayUrls();
     
     // Default end time is 7 days from now if not specified
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -181,12 +180,11 @@ export class CommunityService {
     };
     
     try {
-      const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        publicKey,
-        null, // No private key
+      await this.communityManager.publishEvent(
         event,
-        relays
+        this.publicKey,
+        relays,
+        this.pool
       );
       return proposalId; // Return the proposal ID on success
     } catch (error) {
@@ -202,11 +200,10 @@ export class CommunityService {
    */
   async voteOnProposal(
     proposalId: string,
-    optionIndex: number,
-    publicKey: string | null,
-    relays: string[]
+    optionIndex: number
   ): Promise<string | null> {
-    if (!publicKey || !proposalId) return null;
+    if (!this.publicKey || !proposalId) return null;
+    const relays = this.getConnectedRelayUrls();
     
     // Create vote event
     const event = {
@@ -219,11 +216,10 @@ export class CommunityService {
     
     try {
       const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        publicKey,
-        null, // No private key
         event,
-        relays
+        this.publicKey,
+        relays,
+        this.pool
       );
       return eventId;
     } catch (error) {

@@ -23,4 +23,12 @@ export type { ProposalCategory } from '@/types/community';
 // Re-export from bookmark module
 export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 
+// Re-export from services
+export { ProfileService, CommunityService, BookmarkService } from './services';
+export type { BaseServiceConfig, SubscriptionResult, EventSubscription } from './services/types';
+
+// Export key utility functions
+export { formatPubkey, getNpubFromHex, getHexFromNpub };
+
+// Export service instance
 export { nostrService };

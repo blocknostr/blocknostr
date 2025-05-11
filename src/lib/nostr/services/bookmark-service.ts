@@ -24,14 +24,15 @@ export class BookmarkService {
   ): Promise<boolean> {
     if (!this.publicKey) return false;
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.addBookmark(
-      this.pool,
-      this.publicKey,
+      eventId, 
+      this.publicKey, 
       null, // We're not storing private keys
-      eventId,
       connectedRelays,
-      collectionId,
-      tags,
+      this.pool,
+      collectionId, 
+      tags, 
       note
     );
   }
@@ -42,12 +43,13 @@ export class BookmarkService {
   async removeBookmark(eventId: string): Promise<boolean> {
     if (!this.publicKey) return false;
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.removeBookmark(
-      this.pool,
-      this.publicKey,
+      eventId, 
+      this.publicKey, 
       null, // We're not storing private keys
-      eventId,
-      connectedRelays
+      connectedRelays,
+      this.pool
     );
   }
   
@@ -57,10 +59,11 @@ export class BookmarkService {
   async getBookmarks(): Promise<string[]> {
     if (!this.publicKey) return [];
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.getBookmarkList(
-      this.pool,
       this.publicKey,
-      connectedRelays
+      connectedRelays,
+      this.pool
     );
   }
   
@@ -70,11 +73,12 @@ export class BookmarkService {
   async isBookmarked(eventId: string): Promise<boolean> {
     if (!this.publicKey) return false;
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.isBookmarked(
-      this.pool,
-      this.publicKey,
       eventId,
-      connectedRelays
+      this.publicKey,
+      connectedRelays,
+      this.pool
     );
   }
 
@@ -88,48 +92,15 @@ export class BookmarkService {
   ): Promise<string | null> {
     if (!this.publicKey) return null;
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.createCollection(
-      this.pool,
+      name,
       this.publicKey,
       null, // We're not storing private keys
-      name,
       connectedRelays,
+      this.pool,
       color,
       description
-    );
-  }
-
-  /**
-   * Update a bookmark collection
-   */
-  async updateBookmarkCollection(
-    collectionId: string,
-    updates: Partial<BookmarkCollection>
-  ): Promise<boolean> {
-    if (!this.publicKey) return false;
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.bookmarkManager.updateCollection(
-      this.pool,
-      this.publicKey,
-      null, // We're not storing private keys
-      collectionId,
-      updates,
-      connectedRelays
-    );
-  }
-
-  /**
-   * Delete a bookmark collection
-   */
-  async deleteBookmarkCollection(collectionId: string): Promise<boolean> {
-    if (!this.publicKey) return false;
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.bookmarkManager.deleteCollection(
-      this.pool,
-      this.publicKey,
-      null, // We're not storing private keys
-      collectionId,
-      connectedRelays
     );
   }
 
@@ -139,33 +110,11 @@ export class BookmarkService {
   async getBookmarkCollections(): Promise<BookmarkCollection[]> {
     if (!this.publicKey) return [];
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.getCollections(
-      this.pool,
       this.publicKey,
-      connectedRelays
-    );
-  }
-
-  /**
-   * Update bookmark metadata
-   */
-  async updateBookmarkMetadata(
-    eventId: string,
-    collectionId?: string,
-    tags?: string[],
-    note?: string
-  ): Promise<boolean> {
-    if (!this.publicKey) return false;
-    const connectedRelays = this.getConnectedRelayUrls();
-    return this.bookmarkManager.updateBookmarkMetadata(
-      this.pool,
-      this.publicKey,
-      null, // We're not storing private keys
-      eventId,
       connectedRelays,
-      collectionId,
-      tags,
-      note
+      this.pool
     );
   }
 
@@ -175,10 +124,11 @@ export class BookmarkService {
   async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
     if (!this.publicKey) return [];
     const connectedRelays = this.getConnectedRelayUrls();
+    
     return this.bookmarkManager.getBookmarkMetadata(
-      this.pool,
       this.publicKey,
-      connectedRelays
+      connectedRelays,
+      this.pool
     );
   }
 }
