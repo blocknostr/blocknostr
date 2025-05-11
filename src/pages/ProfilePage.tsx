@@ -2,7 +2,6 @@
 import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
-import Sidebar from "@/components/Sidebar";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileLoading from "@/components/profile/ProfileLoading";
@@ -44,49 +43,37 @@ const ProfilePage = () => {
   }
   
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      
-      <div className="flex-1 ml-0 md:ml-64">
-        <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex items-center h-14 px-4">
-            <h1 className="font-semibold">Profile</h1>
-          </div>
-        </header>
-        
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          {profileData ? (
-            <>
-              <ProfileHeader 
-                profileData={profileData}
-                npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
-                isCurrentUser={isCurrentUser}
-              />
-              
-              <ProfileStats 
-                followers={followers}
-                following={following}
-                postsCount={events.length + reposts.length}
-                currentUserPubkey={currentUserPubkey}
-                isCurrentUser={isCurrentUser}
-                relays={relays}
-                onRelaysChange={setRelays}
-                userNpub={npub}
-              />
-              
-              <ProfileTabs 
-                events={events}
-                media={media}
-                reposts={reposts}
-                profileData={profileData}
-                originalPostProfiles={originalPostProfiles}
-              />
-            </>
-          ) : (
-            <ProfileNotFound />
-          )}
-        </div>
-      </div>
+    <div className="max-w-3xl mx-auto px-4 py-4">
+      {profileData ? (
+        <>
+          <ProfileHeader 
+            profileData={profileData}
+            npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
+            isCurrentUser={isCurrentUser}
+          />
+          
+          <ProfileStats 
+            followers={followers}
+            following={following}
+            postsCount={events.length + reposts.length}
+            currentUserPubkey={currentUserPubkey}
+            isCurrentUser={isCurrentUser}
+            relays={relays}
+            onRelaysChange={setRelays}
+            userNpub={npub}
+          />
+          
+          <ProfileTabs 
+            events={events}
+            media={media}
+            reposts={reposts}
+            profileData={profileData}
+            originalPostProfiles={originalPostProfiles}
+          />
+        </>
+      ) : (
+        <ProfileNotFound />
+      )}
     </div>
   );
 };

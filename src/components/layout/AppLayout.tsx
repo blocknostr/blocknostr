@@ -5,9 +5,11 @@ import { useSwipeable } from "@/hooks/use-swipeable";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRightSidebar } from "@/contexts/RightSidebarContext";
+import { useLocation } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
+import PageHeader from "@/components/navigation/PageHeader";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,7 @@ interface AppLayoutProps {
 const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { preferences } = useUserPreferences();
   const isMobile = useIsMobile();
+  const location = useLocation();
   const { 
     activeHashtag, 
     rightPanelOpen, 
@@ -61,6 +64,24 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     window.scrollTo(0, 0);
   };
 
+  // Determine page title based on current route
+  const getPageTitle = () => {
+    const path = location.pathname;
+    
+    if (path === "/") return "Home";
+    if (path.startsWith("/profile")) return "Profile";
+    if (path.startsWith("/messages")) return "Messages";
+    if (path.startsWith("/notifications")) return "Notifications";
+    if (path.startsWith("/communities")) return "Communities";
+    if (path.startsWith("/notebin")) return "Notebin";
+    if (path.startsWith("/wallets")) return "Wallets";
+    if (path.startsWith("/premium")) return "Premium";
+    if (path.startsWith("/settings")) return "Settings";
+    if (path.startsWith("/post")) return "Post";
+    
+    return "BlockNoster";
+  };
+
   return (
     <div className={cn(
       "flex min-h-screen bg-background relative",
@@ -74,12 +95,33 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       
       <div 
         className={cn(
-          "flex-1 transition-all duration-200",
+          "flex-1 transition-all duration-200 flex flex-col",
           !isMobile && "ml-64"
         )}
       >
+        {/* Page Header - common across all pages */}
+        {location.pathname !== "/" && (
+          <PageHeader 
+            title={getPageTitle()}
+            showBackButton={!location.pathname.match(/^\/($|communities$|settings$|messages$|notifications$|wallets$|premium$)/)}
+          >
+            {isMobile && (
+              <button 
+                onClick={() => setLeftPanelOpen(true)} 
+                className="mr-2 p-1.5 rounded-md hover:bg-accent"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu">
+                  <line x1="4" x2="20" y1="12" y2="12"/>
+                  <line x1="4" x2="20" y1="6" y2="6"/>
+                  <line x1="4" x2="20" y1="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </PageHeader>
+        )}
+        
         <div 
-          className="flex w-full"
+          className="flex w-full flex-1"
           {...swipeHandlers}
           onClick={handleMainContentClick}
         >

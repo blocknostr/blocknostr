@@ -29,7 +29,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   
   return (
     <header className={cn(
-      "border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10",
+      "border-b sticky top-0 bg-background/80 backdrop-blur-sm z-30",
       className
     )}>
       <div className="flex items-center justify-between h-14 px-4">
