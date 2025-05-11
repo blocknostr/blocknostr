@@ -71,35 +71,20 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       )}
       
-      <div className="border-b pb-4 mb-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Home</h1>
-          <div className="flex items-center gap-2">
-            {activeHashtag && (
-              <div className="flex items-center">
-                <span className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
-                  #{activeHashtag}
-                  <button 
-                    onClick={onClearHashtag} 
-                    className="rounded-full hover:bg-primary/20 p-1 transition-colors"
-                    title="Clear filter"
-                  >
-                    <X size={14} />
-                  </button>
-                </span>
-              </div>
-            )}
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setIsCustomizationDialogOpen(true)}
-              title="Customize feed"
+      {activeHashtag && (
+        <div className="flex items-center mb-4">
+          <div className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
+            #{activeHashtag}
+            <button 
+              onClick={onClearHashtag} 
+              className="rounded-full hover:bg-primary/20 p-1 transition-colors"
+              title="Clear filter"
             >
-              <Settings size={18} />
-            </Button>
+              <X size={14} />
+            </button>
           </div>
         </div>
-      </div>
+      )}
       
       <CreateNoteForm />
       
@@ -110,7 +95,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       >
         <TabsList className={cn(
           "w-full mb-4",
-          isMobile ? "grid grid-cols-4" : ""
+          isMobile ? "grid grid-cols-5" : "flex"
         )}>
           <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
           <TabsTrigger 
@@ -127,6 +112,15 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             <Image className="h-4 w-4 mr-1" />
             Media
           </TabsTrigger>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setIsCustomizationDialogOpen(true)}
+            title="Customize feed"
+            className="size-10"
+          >
+            <Settings size={18} />
+          </Button>
         </TabsList>
         
         <TabsContent value="global">
