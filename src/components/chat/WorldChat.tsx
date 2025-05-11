@@ -8,6 +8,7 @@ import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -28,7 +29,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] mb-14"> {/* Added bottom margin of 14 (3.5rem) */}
+    <Card className="flex-grow flex flex-col h-[550px] mb-14">
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
@@ -76,14 +77,16 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      <MessageList
-        messages={messages}
-        profiles={profiles}
-        emojiReactions={emojiReactions}
-        loading={loading}
-        isLoggedIn={isLoggedIn}
-        onAddReaction={addReaction}
-      />
+      <ScrollArea className="flex-1">
+        <MessageList
+          messages={messages}
+          profiles={profiles}
+          emojiReactions={emojiReactions}
+          loading={loading}
+          isLoggedIn={isLoggedIn}
+          onAddReaction={addReaction}
+        />
+      </ScrollArea>
       
       <ChatInput
         isLoggedIn={isLoggedIn}

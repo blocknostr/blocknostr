@@ -15,7 +15,7 @@ interface ReactionBarProps {
 }
 
 // Common emojis for quick reactions
-const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+const COMMON_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "👏", "🙏", "🔥"];
 
 const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) => {
   const handleReaction = (emoji: string) => {
@@ -30,13 +30,13 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
     <div className="mt-0.5">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
+          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] opacity-70 hover:opacity-100">
             <SmilePlus className="h-3 w-3 mr-1" />
             React
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-1">
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
             {COMMON_EMOJIS.map(emoji => (
               <Button 
                 key={emoji} 

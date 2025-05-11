@@ -36,37 +36,41 @@ const MessageItem: React.FC<MessageItemProps> = ({
     return displayName.charAt(0).toUpperCase();
   };
 
+  const formattedTime = formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true });
+
   return (
-    <div className="flex items-start gap-1.5">
-      <Avatar className="h-6 w-6">
+    <div className="flex items-start gap-2 group hover:bg-accent/20 rounded-lg p-1 -mx-1 transition-colors">
+      <Avatar className="h-7 w-7 mt-0.5">
         <AvatarImage src={getProfilePicture(message.pubkey)} />
         <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
       </Avatar>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <span className="font-medium text-xs truncate">{getDisplayName(message.pubkey)}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium text-xs">{getDisplayName(message.pubkey)}</span>
           <span className="text-[10px] text-muted-foreground">
-            {formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true })}
+            {formattedTime}
           </span>
         </div>
         
-        <div className="text-xs break-words whitespace-pre-wrap">
+        <div className="text-sm break-words whitespace-pre-wrap">
           {contentFormatter.formatContent(message.content)}
         </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
-          <div className="flex flex-wrap gap-0.5 mt-0.5">
+          <div className="flex flex-wrap gap-0.5 mt-1">
             {emojiReactions.map((emoji, idx) => (
-              <span key={idx} className="inline-flex items-center bg-muted px-1 rounded-full text-[10px]">
+              <span key={idx} className="inline-flex items-center bg-muted px-1.5 py-0.5 rounded-full text-xs">
                 {emoji}
               </span>
             ))}
           </div>
         )}
         
-        <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
+        </div>
       </div>
     </div>
   );

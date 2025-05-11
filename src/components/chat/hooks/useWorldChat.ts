@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRelayConnection } from "./useRelayConnection";
 import { useProfileFetcher } from "./useProfileFetcher";
 import { useMessageSubscription } from "./useMessageSubscription";
@@ -38,6 +38,12 @@ export const useWorldChat = () => {
   
   // Message sending
   const { sendMessage } = useMessageSender(connectionStatus, setMessages, setError);
+
+  // Function to handle pull-to-refresh (to be implemented)
+  const refreshMessages = useCallback(async () => {
+    // Will be implemented in future updates
+    return;
+  }, []);
   
   // Combine errors
   const combinedError = error || connectionError;
@@ -59,5 +65,6 @@ export const useWorldChat = () => {
     // Actions
     sendMessage,
     addReaction,
+    refreshMessages, // For future pull-to-refresh
   };
 };
