@@ -38,12 +38,12 @@ export class BookmarkCollectionManager {
       createdAt: Math.floor(Date.now() / 1000)
     };
     
-    // Create collection event
+    // Create collection event (NIP-33 compliant parameterized replaceable event)
     const event = {
       kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
       content: JSON.stringify(collectionData),
       tags: [
-        ["d", collectionId] // Unique identifier
+        ["d", collectionId] // Unique identifier (NIP-33 compliant)
       ]
     };
     
@@ -76,15 +76,16 @@ export class BookmarkCollectionManager {
       name: updates.name || collection.name,
       color: updates.color || collection.color || "#000000",
       description: updates.description || collection.description || "",
-      createdAt: Math.floor(Date.now() / 1000)
+      updatedAt: Math.floor(Date.now() / 1000), // Add updatedAt timestamp
+      createdAt: collection.createdAt || Math.floor(Date.now() / 1000) // Preserve original creation time
     };
     
-    // Create updated collection event
+    // Create updated collection event (NIP-33 compliant parameterized replaceable event)
     const event = {
       kind: EVENT_KINDS.BOOKMARK_COLLECTIONS,
       content: JSON.stringify(updatedData),
       tags: [
-        ["d", collectionId] // Same unique identifier
+        ["d", collectionId] // Same unique identifier (NIP-33 compliant)
       ]
     };
     
@@ -104,11 +105,12 @@ export class BookmarkCollectionManager {
   ): Promise<boolean> {
     if (!publicKey) return false;
     
-    // Create deletion event (NIP-09)
+    // Create deletion event (NIP-09 compliant)
     const event = {
       kind: EVENT_KINDS.DELETE,
       content: "Deleted collection",
       tags: [
+        // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
         ["a", `${EVENT_KINDS.BOOKMARK_COLLECTIONS}:${publicKey}:${collectionId}`]
       ]
     };
@@ -128,7 +130,7 @@ export class BookmarkCollectionManager {
     return new Promise(async (resolve) => {
       const collections: BookmarkCollection[] = [];
       
-      // Subscribe to bookmark collections
+      // Subscribe to bookmark collections (NIP-33 compliant parameter-based filter)
       const filter: Filter = {
         kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
         authors: [pubkey],
@@ -150,6 +152,7 @@ export class BookmarkCollectionManager {
               name: data.name || "Unnamed Collection",
               color: data.color,
               description: data.description,
+              createdAt: data.createdAt || event.created_at, // Use event.created_at as fallback
               totalItems: 0 // We'll populate this count later
             });
           } catch (e) {
@@ -158,7 +161,8 @@ export class BookmarkCollectionManager {
         }
       });
       
-      // Set a timeout to resolve with found collections
+      // Set a configurable timeout to resolve with found collections
+      const timeout = 3000; // Could be made configurable based on network conditions
       setTimeout(async () => {
         sub.close();
         
@@ -184,7 +188,7 @@ export class BookmarkCollectionManager {
         }
         
         resolve(collections);
-      }, 3000);
+      }, timeout);
     });
   }
 }
@@ -210,7 +214,7 @@ export class BookmarkMetadataManager {
     return new Promise((resolve) => {
       const metadata: BookmarkWithMetadata[] = [];
       
-      // Subscribe to bookmark metadata events
+      // Subscribe to bookmark metadata events (NIP-33 compliant)
       const filter: Filter = {
         kinds: [EVENT_KINDS.BOOKMARK_METADATA],
         authors: [pubkey]
@@ -228,7 +232,7 @@ export class BookmarkMetadataManager {
             // Parse metadata from content
             const data = JSON.parse(event.content);
             
-            // Extract any tags
+            // Extract any tags following NIP standards
             const tagList = event.tags
               .filter(tag => tag[0] === 't' && tag.length >= 2)
               .map(tag => tag[1]);
@@ -237,7 +241,8 @@ export class BookmarkMetadataManager {
               eventId,
               collectionId: data.collectionId,
               note: data.note,
-              tags: tagList.length > 0 ? tagList : undefined
+              tags: tagList.length > 0 ? tagList : undefined,
+              createdAt: event.created_at // Add creation timestamp from event
             });
           } catch (e) {
             console.error("Error parsing bookmark metadata:", e);
@@ -245,11 +250,12 @@ export class BookmarkMetadataManager {
         }
       });
       
-      // Set a timeout to resolve with found metadata
+      // Set a configurable timeout to resolve with found metadata
+      const timeout = 3000; // Could be made configurable based on network conditions
       setTimeout(() => {
         sub.close();
         resolve(metadata);
-      }, 3000);
+      }, timeout);
     });
   }
 }

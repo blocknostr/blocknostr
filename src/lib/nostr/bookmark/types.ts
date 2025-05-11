@@ -7,6 +7,7 @@ export interface BookmarkCollection {
   color?: string;
   description?: string;
   totalItems: number;
+  createdAt?: number; // Add timestamp for creation time
 }
 
 export interface BookmarkWithMetadata {
@@ -14,6 +15,7 @@ export interface BookmarkWithMetadata {
   collectionId?: string;
   tags?: string[];
   note?: string;
+  createdAt?: number; // Add timestamp for creation time
 }
 
 export interface BookmarkManagerDependencies {

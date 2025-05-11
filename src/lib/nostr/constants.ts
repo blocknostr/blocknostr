@@ -13,10 +13,8 @@ export const EVENT_KINDS = {
   ENCRYPTED_DM_V2: 14,   // Encrypted direct message - NIP-17 (replaces kind:4)
   RELAY_LIST: 10002,     // Relay list metadata - NIP-65
   COMMUNITY: 34550,      // Communities - NIP-172
-  BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51 (was missing)
-  BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST
-  BOOKMARK_COLLECTIONS: 30001, // Custom kind for bookmark collections
-  BOOKMARK_METADATA: 30002,    // Custom kind for bookmark metadata (tags, notes)
+  BOOKMARK_LIST: 10003,  // Bookmarks - NIP-51
+  BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST (NIP-51)
   MUTE_LIST: 10000,      // NIP-51 Mute List
   BLOCK_LIST: 16462,     // Custom kind for Block List (following NIP-51 pattern)
   PROPOSAL: 34551,       // Custom kind for proposals
@@ -24,10 +22,15 @@ export const EVENT_KINDS = {
   COMMENT: 34553,        // Custom kind for comments
   KICK_PROPOSAL: 34554,  // Custom kind for kick proposals
   KICK_VOTE: 34555,      // Custom kind for kick votes
-  COMMUNITY_METADATA: 34556, // New: Community guidelines, rules, etc
-  COMMUNITY_INVITE: 34557,   // New: Community invite links
-  COMMUNITY_ROLE: 34558,     // New: Role assignments within communities
-  COMMUNITY_ACTIVITY: 34559, // New: Member activity tracking
+  COMMUNITY_METADATA: 34556, // Community guidelines, rules, etc
+  COMMUNITY_INVITE: 34557,   // Community invite links
+  COMMUNITY_ROLE: 34558,     // Role assignments within communities
+  COMMUNITY_ACTIVITY: 34559, // Member activity tracking
+  
+  // Application specific kinds (30000-39999 range)
+  BOOKMARK_COLLECTIONS: 30001, // Bookmark collections (Application specific)
+  BOOKMARK_METADATA: 30002,    // Bookmark metadata with tags, notes (Application specific)
+  
   BADGES: 30009,         // Badge definition - NIP-58
   ZAP_REQUEST: 9734,     // Zap Request - NIP-57
   ZAP_RECEIPT: 9735      // Zap Receipt - NIP-57

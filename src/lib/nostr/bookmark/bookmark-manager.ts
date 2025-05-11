@@ -61,11 +61,13 @@ export class BookmarkManager {
         return true; // Already bookmarked
       }
       
-      // Create bookmarks list event (NIP-51)
+      // Create bookmarks list event (NIP-51 compliant replaceable event)
       const event = {
         kind: EVENT_KINDS.BOOKMARKS,
         content: "",
         tags: [
+          // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
+          ["d", "bookmarks"],
           ...bookmarks.map(id => ["e", id]), // Include all existing bookmarks
           ["e", eventId] // Add new bookmark
         ]
@@ -128,13 +130,17 @@ export class BookmarkManager {
         return true; // Not bookmarked, nothing to do
       }
       
-      // Create updated bookmarks list event without the removed bookmark
+      // Create updated bookmarks list event without the removed bookmark (NIP-51 compliant)
       const event = {
         kind: EVENT_KINDS.BOOKMARKS,
         content: "",
-        tags: bookmarks
-          .filter(id => id !== eventId)
-          .map(id => ["e", id])
+        tags: [
+          // NIP-33: Use "d" tag with "bookmarks" as identifier for parameterized replaceable events
+          ["d", "bookmarks"],
+          ...bookmarks
+            .filter(id => id !== eventId)
+            .map(id => ["e", id])
+        ]
       };
       
       console.log("Publishing bookmark removal event:", event);
@@ -164,10 +170,11 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       let bookmarkedIds: string[] = [];
       
-      // Subscribe to bookmark list events
+      // Subscribe to bookmark list events (NIP-51 compliant)
       const filter: Filter = {
         kinds: [EVENT_KINDS.BOOKMARKS],
         authors: [pubkey],
+        "#d": ["bookmarks"], // NIP-33: Filter by "d" tag to get only bookmark lists
         limit: 1
       };
       
@@ -182,11 +189,12 @@ export class BookmarkManager {
         }
       });
       
-      // Set a timeout to resolve with found bookmarks
+      // Set a configurable timeout to resolve with found bookmarks
+      const timeout = 3000; // Could be made configurable based on network conditions
       setTimeout(() => {
         sub.close();
         resolve(bookmarkedIds);
-      }, 3000);
+      }, timeout);
     });
   }
   
@@ -223,17 +231,20 @@ export class BookmarkManager {
     if (collectionId) metadata.collectionId = collectionId;
     if (note) metadata.note = note;
     
-    // Create metadata event
+    // Generate a stable identifier for this bookmark's metadata
+    const stableId = `meta_${eventId.substring(0, 8)}`;
+    
+    // Create metadata event (NIP-33 compliant parameterized replaceable event)
     const event = {
       kind: EVENT_KINDS.BOOKMARK_METADATA,
       content: JSON.stringify(metadata),
       tags: [
         ["e", eventId], // Reference to bookmarked event
-        ["d", `meta_${eventId.substring(0, 8)}`] // Unique identifier based on event ID
+        ["d", stableId] // Stable identifier for this specific bookmark's metadata
       ]
     };
     
-    // Add tags if provided
+    // Add tags if provided (using proper "t" tag per NIP-standardization)
     if (tags && tags.length > 0) {
       tags.forEach(tag => {
         event.tags.push(["t", tag]);
@@ -256,12 +267,16 @@ export class BookmarkManager {
   ): Promise<boolean> {
     if (!publicKey) return false;
     
-    // Create deletion event (NIP-09)
+    // Generate the same stable identifier for the bookmark's metadata
+    const stableId = `meta_${eventId.substring(0, 8)}`;
+    
+    // Create deletion event (NIP-09 compliant)
     const event = {
       kind: EVENT_KINDS.DELETE,
       content: "Deleted bookmark metadata",
       tags: [
-        ["a", `${EVENT_KINDS.BOOKMARK_METADATA}:${publicKey}:meta_${eventId.substring(0, 8)}`]
+        // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
+        ["a", `${EVENT_KINDS.BOOKMARK_METADATA}:${publicKey}:${stableId}`]
       ]
     };
     
