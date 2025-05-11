@@ -87,7 +87,7 @@ export class AuthAdapter {
   signOut() {
     try {
       console.log("Signing out...");
-      // Fix: Call the service method without checking its return value
+      // Call the service method without checking its return value
       this.service.signOut();
       
       // Check authentication status after sign out

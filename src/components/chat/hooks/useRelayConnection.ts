@@ -66,102 +66,51 @@ export const useRelayConnection = () => {
       setConnectionStatus('connecting');
       console.log("Attempting to reconnect to relays...");
       
-      // First try to connect to user relays
+      // Try to connect to user relays first
       await nostrService.connectToUserRelays();
       
-      // Give relays a moment to establish connections
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check connection after connection attempt
+      const connected = await checkConnection();
       
-      // Check if connected
-      const isConnected = await checkConnection();
-      
-      if (!isConnected) {
-        console.log("Failed to connect to user relays, trying default relays");
-        // If user relays failed, try default relays
-        await nostrService.connectToDefaultRelays();
-        
-        // Give relays a moment to establish connections
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check connection again
-        await checkConnection();
-      }
-      
-      // Final check
-      const relayStatus = nostrService.getRelayStatus();
-      const connectedRelay = relayStatus.some(relay => relay.status === 'connected');
-      
-      if (connectedRelay) {
-        toast.success("Connected to relays");
-        setConnectionStatus('connected');
-        setLastConnectedTime(Date.now());
-        setError(null);
+      if (connected) {
+        toast.success("Reconnected to relays");
       } else {
-        setConnectionStatus('disconnected');
-        setError('Could not connect to relays');
-        toast.error("Failed to connect to any relays");
+        toast.error("Failed to reconnect to relays");
       }
-    } catch (err) {
-      console.error('Error reconnecting:', err);
-      setConnectionStatus('disconnected');
+      
+      return connected;
+    } catch (error) {
+      console.error("Error during reconnection:", error);
       setError('Reconnection failed');
+      setConnectionStatus('disconnected');
       toast.error("Failed to reconnect to relays");
+      return false;
     } finally {
       setIsReconnecting(false);
     }
   }, [isReconnecting, checkConnection]);
   
-  // Initial connection
+  // Initial connection check and periodic checks
   useEffect(() => {
-    const initializeConnection = async () => {
-      try {
-        setConnectionStatus('connecting');
-        console.log("Initializing relay connections...");
-        
-        // Try to connect to relays
-        await nostrService.connectToUserRelays();
-        
-        // Give a moment for connections to establish
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Check connections
-        await checkConnection();
-      } catch (err) {
-        console.error("Error during initial connection:", err);
-        setConnectionStatus('disconnected');
-        setError("Connection initialization failed");
-      }
-    };
-    
-    initializeConnection();
-  }, [checkConnection]);
-  
-  // Setup periodic check
-  useEffect(() => {
-    // Initial check
+    // Check connection immediately
     checkConnection();
     
-    // Periodic checks
-    const interval = setInterval(async () => {
-      const isConnected = await checkConnection();
-      
-      // If disconnected for more than 30 seconds, try to reconnect
-      if (!isConnected && !isReconnecting && 
-          lastConnectedTime && (Date.now() - lastConnectedTime > 30000)) {
-        console.log("Auto-reconnecting after extended disconnection");
-        reconnect();
-      }
+    // Set up periodic connection checks
+    const intervalId = setInterval(() => {
+      checkConnection();
     }, CONNECTION_CHECK_INTERVAL);
     
+    // Cleanup function
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalId);
     };
-  }, [checkConnection, isReconnecting, lastConnectedTime, reconnect]);
+  }, [checkConnection]);
   
   return {
     connectionStatus,
     error,
     isReconnecting,
-    reconnect
+    reconnect,
+    checkConnection
   };
 };

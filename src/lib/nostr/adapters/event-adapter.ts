@@ -48,7 +48,7 @@ export class EventAdapter {
         }
       }
       
-      // Attempt to publish the event - Fix: Don't pass second parameter
+      // Attempt to publish the event - Fix: Only pass the event parameter
       const result = await this.service.publishEvent(event);
       
       if (result) {
@@ -86,7 +86,7 @@ export class EventAdapter {
         // Try connecting to relays again
         await this.service.connectToUserRelays();
         
-        // Attempt to publish - Fix: Don't pass second parameter
+        // Attempt to publish - Fix: Only pass one parameter
         const result = await this.service.publishEvent(event);
         
         if (result) {

@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
+import { toast } from "sonner";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -28,7 +29,7 @@ const WorldChat = () => {
     isReconnecting
   } = useWorldChat();
 
-  // Check initial authentication and connection status
+  // Proactively check authentication and connection status
   useEffect(() => {
     const checkInitialState = async () => {
       console.log("WorldChat: Initial state check");
@@ -38,7 +39,18 @@ const WorldChat = () => {
       
       if (connectionStatus === 'disconnected') {
         console.log("WorldChat: Initiating reconnection on mount due to disconnected state");
-        reconnect();
+        await reconnect();
+      }
+      
+      // If not logged in but we need to prompt the user
+      if (!isLoggedIn && connectionStatus === 'connected') {
+        toast.info("Sign in to participate in the chat", {
+          duration: 5000,
+          action: {
+            label: "Sign In",
+            onClick: () => nostrService.login()
+          }
+        });
       }
     };
     

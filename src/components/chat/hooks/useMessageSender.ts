@@ -52,8 +52,8 @@ export const useMessageSender = (
       try {
         console.log(`Attempting to send message (attempt ${retries + 1}/${MAX_RETRIES + 1})`);
         
-        // Create and publish the message event
-        const event: Partial<NostrEvent> = {
+        // Create the message event - IMPORTANT: using correct format for publishEvent
+        const event = {
           kind: 1, // Text note
           content: content.trim(),
           tags: [
@@ -75,7 +75,7 @@ export const useMessageSender = (
           throw new Error('No connected relays available');
         }
         
-        // Publish the event
+        // Important: Call publishEvent with only one argument as per the fixed adapter
         const id = await nostrService.publishEvent(event);
         console.log("Event published with ID:", id);
         
@@ -151,7 +151,7 @@ export const useMessageSender = (
     } finally {
       setIsSending(false);
     }
-  }, [connectionStatus, nostrService.publicKey, setMessages, setError]);
+  }, [connectionStatus, setMessages, setError]);
   
   return {
     sendMessage,
