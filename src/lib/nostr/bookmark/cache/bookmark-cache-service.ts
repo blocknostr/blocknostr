@@ -1,196 +1,218 @@
 
+import { QueuedOperation, BookmarkOperationType, BookmarkCollection, BookmarkWithMetadata } from '../types';
+
 /**
- * Service for caching bookmark data to improve performance and
- * enable offline functionality
+ * Service for caching bookmark data and operations
+ * Provides local storage caching for offline support
  */
 export class BookmarkCacheService {
-  private static readonly STORAGE_KEY_PREFIX = 'nostr_bookmark_cache_';
-  
-  // Cache a bookmark's status (bookmarked or not)
-  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
-    try {
-      const key = `${this.STORAGE_KEY_PREFIX}status_${eventId}`;
-      localStorage.setItem(key, JSON.stringify({
-        value: isBookmarked,
-        timestamp: Date.now()
-      }));
-    } catch (error) {
-      console.error("Error caching bookmark status:", error);
-    }
-  }
-  
-  // Get cached bookmark status
-  static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
-    try {
-      const key = `${this.STORAGE_KEY_PREFIX}status_${eventId}`;
-      const cached = localStorage.getItem(key);
-      
-      if (!cached) return null;
-      
-      const data = JSON.parse(cached);
-      
-      // Check if cache is fresh (less than 24 hours old)
-      const isFresh = Date.now() - data.timestamp < 24 * 60 * 60 * 1000;
-      
-      return isFresh ? data.value : null;
-    } catch (error) {
-      console.error("Error getting cached bookmark status:", error);
-      return null;
-    }
-  }
-  
-  // Cache bookmark list
+  // Local storage keys
+  private static readonly BOOKMARK_LIST_KEY = 'nostr_bookmark_list';
+  private static readonly BOOKMARK_STATUS_PREFIX = 'nostr_bookmark_status_';
+  private static readonly BOOKMARK_COLLECTIONS_KEY = 'nostr_bookmark_collections';
+  private static readonly BOOKMARK_METADATA_KEY = 'nostr_bookmark_metadata';
+  private static readonly PENDING_OPERATIONS_KEY = 'nostr_pending_bookmarks';
+
+  /**
+   * Cache a list of bookmarked event IDs
+   */
   static async cacheBookmarkList(bookmarks: string[]): Promise<void> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}list`;
-      localStorage.setItem(key, JSON.stringify({
-        values: bookmarks,
-        timestamp: Date.now()
-      }));
+      localStorage.setItem(this.BOOKMARK_LIST_KEY, JSON.stringify(bookmarks));
     } catch (error) {
       console.error("Error caching bookmark list:", error);
     }
   }
-  
-  // Get cached bookmark list
+
+  /**
+   * Get cached bookmark list
+   */
   static async getCachedBookmarkList(): Promise<string[]> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}list`;
-      const cached = localStorage.getItem(key);
-      
-      if (!cached) return [];
-      
-      const data = JSON.parse(cached);
-      
-      // Check if cache is fresh (less than 1 hour old)
-      const isFresh = Date.now() - data.timestamp < 60 * 60 * 1000;
-      
-      return isFresh ? data.values : [];
+      const cached = localStorage.getItem(this.BOOKMARK_LIST_KEY);
+      return cached ? JSON.parse(cached) : [];
     } catch (error) {
       console.error("Error getting cached bookmark list:", error);
       return [];
     }
   }
-  
-  // Cache bookmark collections
-  static async cacheBookmarkCollections(collections: any[]): Promise<void> {
+
+  /**
+   * Cache bookmark status for a specific event
+   */
+  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}collections`;
-      localStorage.setItem(key, JSON.stringify({
-        values: collections,
-        timestamp: Date.now()
-      }));
+      localStorage.setItem(
+        `${this.BOOKMARK_STATUS_PREFIX}${eventId}`, 
+        JSON.stringify({ isBookmarked, timestamp: Date.now() })
+      );
+    } catch (error) {
+      console.error(`Error caching bookmark status for ${eventId}:`, error);
+    }
+  }
+
+  /**
+   * Get cached bookmark status for event
+   * @returns boolean | null (null means not in cache)
+   */
+  static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
+    try {
+      const cached = localStorage.getItem(`${this.BOOKMARK_STATUS_PREFIX}${eventId}`);
+      if (!cached) return null;
+      
+      const data = JSON.parse(cached);
+      // Check if cache is fresh enough (24 hours)
+      const isFresh = (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000;
+      return isFresh ? data.isBookmarked : null;
+    } catch (error) {
+      console.error(`Error getting cached bookmark status for ${eventId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Cache bookmark collections
+   */
+  static async cacheBookmarkCollections(collections: BookmarkCollection[]): Promise<void> {
+    try {
+      localStorage.setItem(this.BOOKMARK_COLLECTIONS_KEY, JSON.stringify(collections));
     } catch (error) {
       console.error("Error caching bookmark collections:", error);
     }
   }
-  
-  // Cache bookmark metadata
-  static async cacheBookmarkMetadata(metadata: any[]): Promise<void> {
+
+  /**
+   * Get cached bookmark collections
+   */
+  static async getCachedBookmarkCollections(): Promise<BookmarkCollection[]> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}metadata`;
-      localStorage.setItem(key, JSON.stringify({
-        values: metadata,
-        timestamp: Date.now()
-      }));
+      const cached = localStorage.getItem(this.BOOKMARK_COLLECTIONS_KEY);
+      return cached ? JSON.parse(cached) : [];
+    } catch (error) {
+      console.error("Error getting cached bookmark collections:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Cache bookmark metadata
+   */
+  static async cacheBookmarkMetadata(metadata: BookmarkWithMetadata[]): Promise<void> {
+    try {
+      localStorage.setItem(this.BOOKMARK_METADATA_KEY, JSON.stringify(metadata));
     } catch (error) {
       console.error("Error caching bookmark metadata:", error);
     }
   }
-  
-  // Queue operations for offline processing
-  static async queueOperation(operation: any): Promise<void> {
+
+  /**
+   * Get cached bookmark metadata
+   */
+  static async getCachedBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}pending_operations`;
-      
-      // Get existing operations
-      const existingJson = localStorage.getItem(key) || '{"operations":[]}';
-      const existing = JSON.parse(existingJson);
-      
-      // Add new operation with ID and timestamp
-      const completeOperation = {
-        ...operation,
-        id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        status: 'pending',
-        attempts: 0,
-        timestamp: Date.now()
-      };
-      
-      existing.operations.push(completeOperation);
-      
-      // Save back to storage
-      localStorage.setItem(key, JSON.stringify(existing));
+      const cached = localStorage.getItem(this.BOOKMARK_METADATA_KEY);
+      return cached ? JSON.parse(cached) : [];
     } catch (error) {
-      console.error("Error queuing bookmark operation:", error);
+      console.error("Error getting cached bookmark metadata:", error);
+      return [];
     }
   }
-  
-  // Get pending operations
-  static async getPendingOperations(): Promise<any[]> {
+
+  /**
+   * Queue an operation for later processing
+   */
+  static async queueOperation(operation: { 
+    type: BookmarkOperationType; 
+    data: any; 
+    timestamp: number 
+  }): Promise<void> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}pending_operations`;
-      const data = localStorage.getItem(key);
+      const operations = await this.getPendingOperations();
       
-      if (!data) return [];
+      const newOperation: QueuedOperation = {
+        id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        type: operation.type,
+        data: operation.data,
+        status: 'pending',
+        retryCount: 0,
+        timestamp: operation.timestamp || Date.now()
+      };
       
-      const parsed = JSON.parse(data);
-      return parsed.operations || [];
+      operations.push(newOperation);
+      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(operations));
+    } catch (error) {
+      console.error("Error queueing operation:", error);
+    }
+  }
+
+  /**
+   * Get all pending operations
+   */
+  static async getPendingOperations(): Promise<QueuedOperation[]> {
+    try {
+      const cached = localStorage.getItem(this.PENDING_OPERATIONS_KEY);
+      return cached ? JSON.parse(cached) : [];
     } catch (error) {
       console.error("Error getting pending operations:", error);
       return [];
     }
   }
-  
-  // Mark operation as completed
+
+  /**
+   * Mark an operation as completed and remove it from queue
+   */
   static async completeOperation(operationId: string): Promise<void> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}pending_operations`;
-      const existingJson = localStorage.getItem(key);
-      
-      if (!existingJson) return;
-      
-      const existing = JSON.parse(existingJson);
-      
-      // Filter out the completed operation
-      existing.operations = existing.operations.filter(
-        (op: any) => op.id !== operationId
-      );
-      
-      // Save back to storage
-      localStorage.setItem(key, JSON.stringify(existing));
+      const operations = await this.getPendingOperations();
+      const filteredOperations = operations.filter(op => op.id !== operationId);
+      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(filteredOperations));
     } catch (error) {
       console.error("Error completing operation:", error);
     }
   }
-  
-  // Update operation status
+
+  /**
+   * Update operation status (e.g., mark as failed)
+   */
   static async updateOperationStatus(
     operationId: string, 
     status: 'pending' | 'processing' | 'failed' | 'completed',
-    attempts: number
+    retryCount: number
   ): Promise<void> {
     try {
-      const key = `${this.STORAGE_KEY_PREFIX}pending_operations`;
-      const existingJson = localStorage.getItem(key);
-      
-      if (!existingJson) return;
-      
-      const existing = JSON.parse(existingJson);
-      
-      // Update the operation status
-      existing.operations = existing.operations.map((op: any) => {
+      const operations = await this.getPendingOperations();
+      const updatedOperations = operations.map(op => {
         if (op.id === operationId) {
-          return { ...op, status, attempts };
+          return { ...op, status, retryCount };
         }
         return op;
       });
       
-      // Save back to storage
-      localStorage.setItem(key, JSON.stringify(existing));
+      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(updatedOperations));
     } catch (error) {
       console.error("Error updating operation status:", error);
     }
   }
+
+  /**
+   * Clear all cached data (useful for logout)
+   */
+  static async clearAllCache(): Promise<void> {
+    try {
+      localStorage.removeItem(this.BOOKMARK_LIST_KEY);
+      localStorage.removeItem(this.BOOKMARK_COLLECTIONS_KEY);
+      localStorage.removeItem(this.BOOKMARK_METADATA_KEY);
+      localStorage.removeItem(this.PENDING_OPERATIONS_KEY);
+      
+      // Remove all individual bookmark status items
+      Object.keys(localStorage)
+        .filter(key => key.startsWith(this.BOOKMARK_STATUS_PREFIX))
+        .forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      console.error("Error clearing bookmark cache:", error);
+    }
+  }
 }
 
+// Export singleton instance
 export default BookmarkCacheService;

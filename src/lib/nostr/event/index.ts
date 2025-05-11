@@ -27,12 +27,11 @@ export class NostrEventManager implements EventManager {
    */
   async getEvents(filters: any[], relays: string[]): Promise<any[]> {
     try {
-      // Convert array of filters to proper Filter type
-      const properFilters: Filter = { kinds: [1] }; // Default filter
-      if (filters.length > 0) {
-        Object.assign(properFilters, filters[0]);
-      }
-      return await this.pool.querySync(relays, properFilters);
+      // Convert array of filters to proper Filter format
+      // Use the first filter or create a default one
+      const filter: Filter = filters.length > 0 ? filters[0] : { kinds: [1] };
+      
+      return await this.pool.querySync(relays, filter);
     } catch (error) {
       console.error("Error getting events:", error);
       return [];
@@ -46,6 +45,7 @@ export class NostrEventManager implements EventManager {
     try {
       // Create a proper filter object
       const filter: Filter = { ids: [id] };
+      
       const events = await this.pool.querySync(relays, filter);
       return events.length > 0 ? events[0] : null;
     } catch (error) {

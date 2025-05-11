@@ -37,15 +37,33 @@ export interface BookmarkEventKinds {
   BOOKMARK_LIST: number;
   BOOKMARK_COLLECTIONS: number;
   BOOKMARK_METADATA: number;
+  BOOKMARKS: number;
+  COLLECTIONS: number;
+  METADATA: number;
+  DELETE: number;
 }
 
 export const BookmarkEventKinds = {
   BOOKMARK_LIST: 10003,
   BOOKMARK_COLLECTIONS: 30001, 
-  BOOKMARK_METADATA: 30002
+  BOOKMARK_METADATA: 30002,
+  BOOKMARKS: 10003, // Same as BOOKMARK_LIST for compatibility
+  COLLECTIONS: 30001, // Same as BOOKMARK_COLLECTIONS for compatibility
+  METADATA: 30002, // Same as BOOKMARK_METADATA for compatibility
+  DELETE: 5 // NIP-09 Event Deletion
 };
 
 export interface BookmarkManagerDependencies {
   publishEvent: (event: any) => Promise<any>;
   getEvents: (filters: any[], relays?: string[]) => Promise<any[]>;
+}
+
+// Add this to fix the missing BookmarkFilters type error
+export interface BookmarkFilters {
+  collections?: string[];
+  tags?: string[];
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
 }

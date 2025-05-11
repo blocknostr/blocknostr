@@ -1,6 +1,6 @@
 
 import { BookmarkManager } from './bookmark-manager';
-import { NostrEventManager } from '../event';
+import { EventManager } from '../event';
 import { BookmarkManagerDependencies, QueuedOperation } from './types';
 import { bookmarkStorage } from './storage/bookmark-storage';
 import { validateRelays, generateStableMetadataId } from './utils/bookmark-utils';
@@ -12,7 +12,8 @@ export type {
   QueuedOperation,
   BookmarkStatus,
   BookmarkManagerDependencies,
-  BookmarkEventKinds
+  BookmarkEventKinds,
+  BookmarkFilters
 } from './types';
 
 // Re-export storage 
@@ -33,7 +34,7 @@ export interface RelayConnectionOptions {
 export class BookmarkManagerFacade {
   private bookmarkManager: BookmarkManager;
   
-  constructor(eventManager: NostrEventManager) {
+  constructor(eventManager: EventManager) {
     // Create the dependencies object with proper methods
     const dependencies: BookmarkManagerDependencies = {
       publishEvent: async (event: any) => eventManager.publishEvent(event),
