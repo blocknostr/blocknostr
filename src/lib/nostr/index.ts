@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -401,7 +400,15 @@ class NostrService {
     );
   }
   
-  public async createProposal(communityId: string, title: string, description: string, options: string[], endsAt?: number): Promise<string | null> {
+  public async createProposal(
+    communityId: string, 
+    title: string, 
+    description: string, 
+    options: string[],
+    category?: ProposalCategory,
+    minQuorum?: number,
+    endsAt?: number
+  ): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
     return this.communityManager.createProposal(
       this.pool,
@@ -412,6 +419,8 @@ class NostrService {
       this.publicKey,
       null, // We're not storing private keys
       connectedRelays,
+      category || 'other',
+      minQuorum,
       endsAt
     );
   }
@@ -638,3 +647,6 @@ export { EVENT_KINDS } from './constants';
 // Re-export from social module
 export { SocialManager } from './social';
 export type { ReactionCounts, ContactList } from './social/types';
+
+// Re-export from community module
+export type { ProposalCategory } from './community';
