@@ -105,7 +105,7 @@ export class NostrService {
     
     // Simplified implementation
     const defaultRelays = ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
-    defaultRelays.forEach(url => this.pool.ensureRelay(url));
+    await this.connectToRelays(defaultRelays);
     return defaultRelays;
   }
 
@@ -113,7 +113,7 @@ export class NostrService {
     const relayUrls = relays || this.getRelayUrls();
     // Use pool directly for subscription
     try {
-      const subscription = this.pool.sub(relayUrls, filters);
+      const subscription = this.pool.subscribe(relayUrls, filters);
       subscription.on('event', onEvent);
       return subscription.sub;
     } catch (e) {
@@ -157,6 +157,27 @@ export class NostrService {
     }
   }
 
+  // Get a single user profile
+  async getUserProfile(pubkey: string): Promise<any> {
+    const relays = this.getRelayUrls();
+    try {
+      return await this.eventManager.getUserProfile(this.pool, pubkey, relays);
+    } catch (e) {
+      console.error(`Error getting profile for ${pubkey}:`, e);
+      return null;
+    }
+  }
+
+  // Verify NIP-05 identifier
+  async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
+    try {
+      return await this.eventManager.verifyNip05(identifier, pubkey);
+    } catch (e) {
+      console.error("Error verifying NIP-05:", e);
+      return false;
+    }
+  }
+
   // Re-expose methods from BookmarkService as top-level methods
   async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
     return this.bookmarkService.addBookmark(eventId, collectionId, tags, note);
@@ -189,9 +210,28 @@ export class NostrService {
   async processPendingOperations(): Promise<void> {
     return this.bookmarkService.processPendingOperations();
   }
-}
 
-export const nostrService = new NostrService();
+  // Add missing relay methods
+  async getRelaysForUser(pubkey: string): Promise<string[]> {
+    // This would normally query relays for a user's relay list (NIP-65)
+    // For now, just return default relays
+    return ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
+  }
+
+  // Add multi-relay management method for ProfileRelaysDialog.tsx
+  async addMultipleRelays(relays: string[]): Promise<boolean> {
+    try {
+      await this.connectToRelays(relays);
+      return true;
+    } catch (error) {
+      console.error("Error adding multiple relays:", error);
+      return false;
+    }
+  }
+}
 
 // Export the types needed by the service
 export type { BookmarkService };
+
+// Create a singleton instance
+export const nostrService = new NostrService();

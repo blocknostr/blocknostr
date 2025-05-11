@@ -3,6 +3,7 @@ import { nostrService } from "@/lib/nostr";
 import { toast } from 'sonner';
 import { retry } from '@/lib/utils/retry';
 import { BookmarkCacheService } from '@/lib/nostr/bookmark/cache/bookmark-cache-service';
+import { QueuedOperation } from '@/lib/nostr/bookmark/types';
 
 /**
  * Improved hook to manage bookmark state and operations with:
@@ -136,11 +137,13 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       
       // If offline, queue the operation for later and show appropriate message
       if (!navigator.onLine) {
-        await BookmarkCacheService.queueOperation({
+        const queuedOperation: QueuedOperation = {
           type: newBookmarkState ? 'add' : 'remove',
-          data: { eventId },
-          timestamp: Date.now()
-        });
+          timestamp: Date.now(),
+          eventId
+        };
+        
+        await BookmarkCacheService.queueOperation(queuedOperation);
         
         toast.info(`Post ${newBookmarkState ? 'bookmarked' : 'bookmark removed'}. Changes will sync when you're back online.`);
         return;
@@ -150,11 +153,13 @@ export function useBookmarkState(eventId: string, initialIsBookmarked: boolean) 
       const connected = await ensureRelayConnection();
       if (!connected) {
         // Keep the optimistic UI update but queue the operation for later
-        await BookmarkCacheService.queueOperation({
+        const queuedOperation: QueuedOperation = {
           type: newBookmarkState ? 'add' : 'remove',
-          data: { eventId },
-          timestamp: Date.now()
-        });
+          timestamp: Date.now(),
+          eventId
+        };
+        
+        await BookmarkCacheService.queueOperation(queuedOperation);
         return;
       }
       

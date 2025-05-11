@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
 import { useNotebinFilter } from "@/hooks/useNotebinFilter";
@@ -11,10 +11,11 @@ export function useNotebin() {
   const [language, setLanguage] = useState("text");
   const [tags, setTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [savedNotes, setSavedNotes] = useState<Note[]>([]);
   
   // Use our hooks for different functionalities
-  const { savedNotes, isLoading, handleNoteSaved } = useNoteFetcher();
-  const { noteToDelete, isDeleting, handleDelete, isLoggedIn, setNoteToDelete } = useNoteOperations();
+  const noteFetcher = useNoteFetcher();
+  const { noteToDelete, isDeleting, handleDelete, isLoggedIn, setNoteToDelete, canDeleteNote } = useNoteOperations();
   
   // Use our custom hook for filtering
   const { availableTags, filteredNotes } = useNotebinFilter(savedNotes, selectedTags);
@@ -28,6 +29,11 @@ export function useNotebin() {
     );
   };
 
+  // Handle successful note save
+  const handleNoteSaved = (note: Note) => {
+    setSavedNotes(prev => [note, ...prev]);
+  };
+
   const viewNote = (note: Note) => {
     setTitle(note.title);
     setContent(note.content);
@@ -38,7 +44,7 @@ export function useNotebin() {
   return {
     savedNotes,
     filteredNotes,
-    isLoading,
+    isLoading: noteFetcher.isLoading,
     title,
     content,
     language,
@@ -52,6 +58,7 @@ export function useNotebin() {
     handleDelete,
     handleNoteSaved,
     viewNote,
-    setNoteToDelete
+    setNoteToDelete,
+    fetchNote: noteFetcher.fetchNote
   };
 }

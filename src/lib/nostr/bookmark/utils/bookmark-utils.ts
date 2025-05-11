@@ -61,3 +61,20 @@ export async function ensureRelayConnection(
 export function generateStableMetadataId(eventId: string): string {
   return `meta_${eventId.substring(0, 8)}`;
 }
+
+/**
+ * Extract tags from a Nostr event
+ */
+export function extractTagsFromEvent(event: any): string[] {
+  if (!event || !event.tags || !Array.isArray(event.tags)) {
+    return [];
+  }
+  
+  // Get all tags with 't' prefix
+  const tags = event.tags
+    .filter((tag: string[]) => tag.length >= 2 && tag[0] === 't')
+    .map((tag: string[]) => tag[1]);
+    
+  // Return unique tags
+  return Array.from(new Set(tags));
+}

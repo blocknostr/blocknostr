@@ -4,7 +4,8 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { NostrService, nostrService } from './service';
+import { NostrService } from './services';
+import { nostrService } from './services/index';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { BookmarkService } from './services/bookmark-service';
 

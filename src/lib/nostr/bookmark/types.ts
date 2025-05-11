@@ -8,9 +8,9 @@ export interface BookmarkCollection {
   color?: string;
   description?: string;
   eventCount?: number;
-  createdAt?: number;
+  createdAt: number; // Changed to required
   updatedAt?: number;
-  totalItems?: number;
+  totalItems: number; // Changed to required
 }
 
 /**
@@ -40,10 +40,26 @@ export type BookmarkStatus = 'pending' | 'processing' | 'completed' | 'failed';
  */
 export interface PendingOperation {
   id: string;
-  type: 'add' | 'remove' | 'create_collection' | 'addCollection';
+  type: BookmarkOperationType;
   status: BookmarkStatus;
   attempts: number;
+  timestamp: number;
   // Operation-specific data fields
+  eventId?: string;
+  collectionId?: string;
+  name?: string;
+  color?: string;
+  description?: string;
+  tags?: string[];
+  note?: string;
+}
+
+/**
+ * Simplified version for new operation queue
+ */
+export interface QueuedOperation {
+  type: BookmarkOperationType;
+  timestamp: number;
   eventId?: string;
   collectionId?: string;
   name?: string;
@@ -60,8 +76,7 @@ export enum BookmarkEventKinds {
   BOOKMARK_LIST = 30001,
   BOOKMARK_COLLECTIONS = 30002,
   BOOKMARK_METADATA = 30003,
-  BOOKMARKS = 30001, // Alias for BOOKMARK_LIST for compatibility
-  DELETE = 5
+  BOOKMARKS = 30001 // Alias for BOOKMARK_LIST for compatibility
 }
 
 /**
@@ -99,4 +114,4 @@ export interface BookmarkFilters {
 /**
  * Type for bookmark operation types
  */
-export type BookmarkOperationType = 'add' | 'remove' | 'create_collection' | 'addCollection';
+export type BookmarkOperationType = 'add' | 'remove' | 'create_collection' | 'update_collection';

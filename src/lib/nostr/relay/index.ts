@@ -1,21 +1,16 @@
 
-export { RelayManager } from './relay-manager';
 export { ConnectionManager } from './connection-manager';
 export { HealthManager } from './health-manager';
 export { RelayInfoService, type RelayInfo } from './relay-info-service';
+export { RelayManager } from './relay-manager';
 
-// Add missing method to RelayManager
+// Import SimplePool - we need this for certain methods
 import { SimplePool } from 'nostr-tools';
 
-// Update the RelayManager with missing methods
-export class RelayManager {
-  // This is just to satisfy TypeScript
-  // The actual implementation is in relay-manager.ts
-  
-  constructor(pool: SimplePool) {}
-  
-  async connectToRelays(relayUrls: string[]): Promise<void> {
-    // Implementation in relay-manager.ts
-    return Promise.resolve();
+// Extend the RelayManager interface with methods needed elsewhere
+declare module './relay-manager' {
+  interface RelayManager {
+    connectToRelays: (relayUrls: string[]) => Promise<void>;
+    connectToRelay: (relayUrl: string) => Promise<boolean>;
   }
 }

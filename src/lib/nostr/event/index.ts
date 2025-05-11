@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, Event as NostrToolsEvent } from 'nostr-tools';
 import { nip05 } from 'nostr-tools';
 import { NostrEvent } from '../types';
 
@@ -50,22 +50,24 @@ export class EventManager {
         const pubs = pool.publish(relays, signedEvent);
         
         // Wait for at least one OK response
-        for (const pub of pubs) {
-          try {
-            await Promise.race([
-              new Promise((resolve) => {
-                // Use callback style for pub which is likely an EventEmitter
-                pub.on('ok', () => resolve(true));
-              }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-            ]);
-            return signedEvent.id;
-          } catch (e) {
-            console.error("Error publishing to relay:", e);
-          }
-        }
+        let published = false;
+        const promises = pubs.map(pub => {
+          return new Promise<boolean>((resolve) => {
+            // Use subscribe instead of direct event handling
+            const timeout = setTimeout(() => resolve(false), 5000);
+            
+            pub.then(() => {
+              clearTimeout(timeout);
+              published = true;
+              resolve(true);
+            }).catch(() => {
+              resolve(false);
+            });
+          });
+        });
         
-        return null;
+        await Promise.all(promises);
+        return published ? signedEvent.id : null;
       } else {
         // Private key is provided, but we don't handle this case in the browser
         throw new Error("Direct private key signing not implemented for security reasons");
@@ -113,7 +115,7 @@ export class EventManager {
       let event = null;
       
       // Create a subscription for this event
-      const subscription = pool.sub(relays, [{ ids: [id] }]);
+      const subscription = pool.subscribe(relays, [{ ids: [id] }]);
       
       subscription.on('event', (e) => {
         event = e;
@@ -140,7 +142,7 @@ export class EventManager {
       const events: any[] = [];
       
       // Create a subscription for these events
-      const subscription = pool.sub(relays, [{ ids }]);
+      const subscription = pool.subscribe(relays, [{ ids }]);
       
       subscription.on('event', (e) => {
         events.push(e);
@@ -165,7 +167,7 @@ export class EventManager {
       const profiles: Record<string, any> = {};
       
       // Create a subscription for these profiles
-      const subscription = pool.sub(relays, [
+      const subscription = pool.subscribe(relays, [
         { kinds: [0], authors: pubkeys }
       ]);
       

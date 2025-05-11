@@ -14,6 +14,7 @@ import NoteCardFooter from './NoteCardFooter';
 import NoteCardCommentsSection from './NoteCardCommentsSection';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { useNoteCardReplies } from './hooks/useNoteCardReplies';
+import { Note } from '@/components/notebin/hooks/types';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -29,6 +30,8 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
   const [showComments, setShowComments] = useState(false);
   const [reachCount, setReachCount] = useState(0);
   const [isInteractingWithContent, setIsInteractingWithContent] = useState(false);
+  const [activeReply, setActiveReply] = useState<Note | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   
   // Use the replies hook instead of local state
@@ -41,6 +44,18 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     handleDeleteClick, 
     handleConfirmDelete 
   } = useNoteCardDeleteDialog({ event, onDelete });
+  
+  // Convert event to Note format for actions
+  const noteForActions: Note = {
+    id: event.id || '',
+    title: event.content.substring(0, 30),
+    content: event.content,
+    language: "text",
+    publishedAt: new Date(event.created_at * 1000).toISOString(),
+    author: event.pubkey || '',
+    event: event,
+    tags: event.tags?.map((tag: string[]) => tag[0]) || []
+  };
   
   // Calculate reach count when component mounts
   useEffect(() => {
@@ -81,6 +96,11 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
     setReplyCount(prev => prev + 1);
   };
 
+  const handleBookmarkToggle = () => {
+    // We'll let the BookmarkButton handle its own state
+    // This is just a passthrough
+  };
+
   return (
     <>
       <NoteCardContainer ref={cardRef} eventId={event.id}>
@@ -116,12 +136,10 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
           onInteractionEnd={handleInteractionEnd}
         >
           <NoteCardActions 
-            eventId={event.id || ''} 
-            pubkey={event.pubkey || ''}
-            onCommentClick={handleCommentClick} 
-            replyCount={replyCount}
-            isAuthor={event.pubkey === nostrService.publicKey}
-            onDelete={handleDeleteClick}
+            note={noteForActions}
+            setActiveReply={setActiveReply}
+            isBookmarked={isBookmarked}
+            onBookmarkToggle={handleBookmarkToggle}
           />
         </NoteCardFooter>
         
