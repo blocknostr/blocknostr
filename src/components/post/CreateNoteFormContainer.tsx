@@ -1,22 +1,21 @@
-
 import { useState, useRef } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import QuickReplies from '../post/quick-replies/QuickRepliesContainer';
 import NoteComposer from './NoteComposer';
-import FormattingToolbar from './FormattingToolbar';
 import MediaPreviewList from './MediaPreviewList';
 import CharacterCounter from './CharacterCounter';
 import SubmitButton from './SubmitButton';
 import ScheduledIndicator from './ScheduledIndicator';
 import SmartComposeToolbar from './SmartComposeToolbar';
-import { useHashtagDetector } from '@/hooks/useHashtagDetector';
 import { cn } from "@/lib/utils";
 import { useNoteFormState } from '@/hooks/useNoteFormState';
-import NoteFormHeader from './NoteFormHeader';
 import NoteFormFooter from './NoteFormFooter';
+
+// Define MAX_NOTE_LENGTH constant for error handling
+const MAX_NOTE_LENGTH = 280;
 
 const CreateNoteFormContainer = () => {
   const {
@@ -28,9 +27,6 @@ const CreateNoteFormContainer = () => {
     setMediaUrls,
     scheduledDate,
     setScheduledDate,
-    activeTab,
-    setActiveTab,
-    MAX_NOTE_LENGTH,
     charsLeft,
     isNearLimit,
     isOverLimit,
@@ -38,6 +34,9 @@ const CreateNoteFormContainer = () => {
     pubkey,
     detectedHashtags
   } = useNoteFormState();
+  
+  // Replace activeTab state with isQuickRepliesOpen for the collapsible
+  const [isQuickRepliesOpen, setIsQuickRepliesOpen] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +117,8 @@ const CreateNoteFormContainer = () => {
   
   const handleQuickReply = (text: string) => {
     setContent(prev => prev + (prev ? ' ' : '') + text);
+    // Auto-close quick replies after selection
+    setIsQuickRepliesOpen(false);
   };
   
   const handleHashtagClick = (tag: string) => {
@@ -158,40 +159,39 @@ const CreateNoteFormContainer = () => {
           <AvatarFallback>{avatarFallback}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <NoteFormHeader 
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
+          {/* Always show composer without tabs */}
+          <NoteComposer 
+            content={content}
+            setContent={setContent}
+            maxLength={MAX_NOTE_LENGTH}
+            textareaRef={textareaRef}
           />
           
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="compose" className="mt-1 p-0 border-0">
-              <NoteComposer 
-                content={content}
-                setContent={setContent}
-                maxLength={MAX_NOTE_LENGTH}
-                textareaRef={textareaRef}
-              />
-              
-              <SmartComposeToolbar 
-                onHashtagClick={handleHashtagClick}
-                onQuickReplyClick={handleQuickReply}
-              />
-              
-              {detectedHashtags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {detectedHashtags.map(tag => (
-                    <span key={tag} className="text-xs text-primary px-1 py-0.5 rounded-full bg-primary/10">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="templates" className="mt-1 p-0 border-0">
+          <SmartComposeToolbar 
+            onHashtagClick={handleHashtagClick}
+            onQuickReplyClick={handleQuickReply}
+          />
+          
+          {detectedHashtags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {detectedHashtags.map(tag => (
+                <span key={tag} className="text-xs text-primary px-1 py-0.5 rounded-full bg-primary/10">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+          
+          {/* Collapsible Quick Replies section */}
+          <Collapsible 
+            open={isQuickRepliesOpen} 
+            onOpenChange={setIsQuickRepliesOpen}
+            className="mt-2"
+          >
+            <CollapsibleContent className="CollapsibleContent">
               <QuickReplies onReplySelected={handleQuickReply} />
-            </TabsContent>
-          </Tabs>
+            </CollapsibleContent>
+          </Collapsible>
           
           <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
           
@@ -206,6 +206,8 @@ const CreateNoteFormContainer = () => {
             isNearLimit={isNearLimit}
             isOverLimit={isOverLimit}
             isSubmitting={isSubmitting}
+            isQuickRepliesOpen={isQuickRepliesOpen}
+            setIsQuickRepliesOpen={setIsQuickRepliesOpen}
           />
           
           <ScheduledIndicator scheduledDate={scheduledDate} />

@@ -8,7 +8,6 @@ export const useNoteFormState = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("compose");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Use our hashtag detector
@@ -31,8 +30,6 @@ export const useNoteFormState = () => {
     setMediaUrls,
     scheduledDate,
     setScheduledDate,
-    activeTab,
-    setActiveTab,
     textareaRef,
     pubkey,
     detectedHashtags,
