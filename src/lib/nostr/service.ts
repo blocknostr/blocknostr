@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -16,6 +15,7 @@ import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { ProfileService } from './services/profile-service';
 import { CommunityService } from './services/community-service';
 import { BookmarkService } from './services/bookmark-service';
+import { ThreadService } from './services/thread-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -33,6 +33,7 @@ class NostrService {
   private profileService: ProfileService;
   private communityService: CommunityService;
   private bookmarkService: BookmarkService;
+  private threadService: ThreadService;
   
   constructor() {
     // Initialize SimplePool first
@@ -64,6 +65,12 @@ class NostrService {
       this.bookmarkManager,
       this.pool,
       this.userManager.publicKey,
+      this.getConnectedRelayUrls.bind(this)
+    );
+
+    // Initialize the new thread service
+    this.threadService = new ThreadService(
+      this.pool,
       this.getConnectedRelayUrls.bind(this)
     );
     
@@ -452,6 +459,23 @@ class NostrService {
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
+  }
+  
+  // Thread methods for NIP-10 support
+  public async fetchThread(eventId: string): Promise<{
+    rootEvent: NostrEvent | null;
+    parentEvent: NostrEvent | null;
+    replies: NostrEvent[];
+  }> {
+    return this.threadService.fetchThread(eventId);
+  }
+  
+  public getThreadRootId(event: NostrEvent): string | null {
+    return this.threadService.getThreadRootId(event);
+  }
+  
+  public getParentId(event: NostrEvent): string | null {
+    return this.threadService.getParentId(event);
   }
 }
 

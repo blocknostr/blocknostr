@@ -81,6 +81,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             <NoteCardContent 
               content={event.content} 
               reachCount={reachCount}
+              tags={event.tags} // Pass tags to support NIP-10 hashtags
             />
           </CardContent>
         </Link>

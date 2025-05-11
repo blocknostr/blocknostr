@@ -5,13 +5,15 @@ import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 
 interface NoteCardContentProps {
   content: string;
   reachCount?: number;
+  tags?: string[][];
 }
 
-const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
+const NoteCardContent = ({ content, reachCount = 0, tags = [] }: NoteCardContentProps) => {
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -27,62 +29,31 @@ const NoteCardContent = ({ content, reachCount = 0 }: NoteCardContentProps) => {
     const urls = content.match(urlRegex) || [];
     setMediaUrls(urls);
 
-    // Extract hashtags from content
+    // Extract hashtags from content and tags
     const hashtagRegex = /#(\w+)/g;
-    const tags: string[] = [];
+    const contentTags: string[] = [];
     let match;
-    while ((match = hashtagRegex.exec(content)) !== null) {
-      tags.push(match[1]);
-    }
-    setHashtags(tags);
-  }, [content]);
-
-  // Format content to highlight hashtags and links
-  const renderFormattedContent = () => {
-    if (!displayContent) return null;
     
-    // Replace URLs with a placeholder to avoid rendering them twice
-    let formattedContent = displayContent;
-    mediaUrls.forEach(url => {
-      formattedContent = formattedContent.replace(url, '');
-    });
-
-    // Split by hashtags and URLs
-    return formattedContent.split(/(#\w+)|(https?:\/\/\S+)/g).map((part, index) => {
-      if (!part) return null;
+    while ((match = hashtagRegex.exec(content)) !== null) {
+      contentTags.push(match[1]);
+    }
+    
+    // Also extract hashtags from 't' tags (NIP-10)
+    const tagTags = Array.isArray(tags) 
+      ? tags.filter(tag => Array.isArray(tag) && tag[0] === 't' && tag.length >= 2)
+          .map(tag => tag[1])
+      : [];
       
-      if (part.startsWith('#')) {
-        const tag = part.substring(1);
-        return (
-          <span key={index} className="text-primary font-medium hover:underline cursor-pointer">
-            {part}
-          </span>
-        );
-      } else if (part.startsWith('http')) {
-        // Don't include media URLs that we'll render separately
-        if (!mediaUrls.includes(part)) {
-          return (
-            <a 
-              key={index} 
-              href={part} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-[#0EA5E9] hover:underline"
-              onClick={e => e.stopPropagation()}
-            >
-              {part}
-            </a>
-          );
-        }
-        return null;
-      }
-      return part;
-    });
-  };
+    // Combine both sources and remove duplicates
+    setHashtags(Array.from(new Set([...contentTags, ...tagTags])));
+  }, [content, tags]);
 
   return (
     <div className="mt-3">
-      <p className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">{renderFormattedContent()}</p>
+      <div className="whitespace-pre-wrap break-words text-[15px] md:text-base leading-relaxed">
+        {/* Use the new content formatter for NIP-27 support */}
+        {contentFormatter.formatContent(displayContent)}
+      </div>
       
       {shouldTruncate && (
         <Button 

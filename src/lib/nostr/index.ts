@@ -4,6 +4,8 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { NostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { contentCache } from './cache/content-cache';
+import { contentFormatter } from './format/content-formatter';
 
 // Initialize the NostrService instance
 const nostrService = new NostrService();
@@ -24,7 +26,7 @@ export type { ProposalCategory } from '@/types/community';
 export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 
 // Re-export from services
-export { ProfileService, CommunityService, BookmarkService } from './services';
+export { ProfileService, CommunityService, BookmarkService, ThreadService } from './services';
 export type { BaseServiceConfig, SubscriptionResult, EventSubscription } from './services/types';
 
 // Export key utility functions
@@ -32,3 +34,9 @@ export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance
 export { nostrService };
+
+// Export cache modules
+export { contentCache };
+
+// Export formatter
+export { contentFormatter };

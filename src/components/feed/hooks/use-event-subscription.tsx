@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
+import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 
 interface UseEventSubscriptionProps {
   following?: string[];
@@ -90,6 +90,9 @@ export function useEventSubscription({
             // Sort by creation time (newest first)
             newEvents.sort((a, b) => b.created_at - a.created_at);
             
+            // Cache the event for future use
+            contentCache.cacheEvent(event);
+            
             return newEvents;
           });
         }
@@ -100,7 +103,14 @@ export function useEventSubscription({
         
         // Fetch profile data for this pubkey if we don't have it yet
         if (event.pubkey) {
-          fetchProfileData(event.pubkey);
+          // Check cache first
+          const cachedProfile = contentCache.getProfile(event.pubkey);
+          if (cachedProfile) {
+            // Use cached profile
+          } else {
+            // Fetch from relays if not in cache
+            fetchProfileData(event.pubkey);
+          }
         }
       }
     );
