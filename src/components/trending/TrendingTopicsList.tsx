@@ -11,8 +11,8 @@ interface TrendingTopicsListProps {
 
 const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({ topics, onTopicClick }) => {
   return (
-    <CardContent className="px-4 pb-3">
-      <div className="space-y-4">
+    <CardContent className="px-3 py-2">
+      <div className="space-y-2">
         {topics.length > 0 ? (
           topics.map((topic) => (
             <TrendingTopicItem
@@ -23,7 +23,7 @@ const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({ topics, onTopic
             />
           ))
         ) : (
-          <div className="text-center py-2 text-muted-foreground">
+          <div className="text-center py-1 text-muted-foreground text-xs">
             No topics found
           </div>
         )}

@@ -25,11 +25,11 @@ const WhoToFollow = () => {
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Who to follow</CardTitle>
+      <CardHeader className="py-2 px-3">
+        <CardTitle className="text-base">Who to follow</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-3">
-        <div className="space-y-4">
+      <CardContent className="px-3 py-2">
+        <div className="space-y-2">
           {suggestedUsers.map((user) => {
             // Format the npub for display
             const shortNpub = `${user.npub.substring(0, 8)}...`;
@@ -37,17 +37,17 @@ const WhoToFollow = () => {
             
             return (
               <div key={user.npub} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-7 w-7">
                     <AvatarImage src={user.picture} />
-                    <AvatarFallback>{avatarFallback}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{avatarFallback}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium">{user.name}</div>
-                    <div className="text-sm text-muted-foreground">{shortNpub}</div>
+                    <div className="font-medium text-sm">{user.name}</div>
+                    <div className="text-xs text-muted-foreground">{shortNpub}</div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="rounded-full">
+                <Button variant="outline" size="sm" className="h-7 rounded-full text-xs px-2.5">
                   Follow
                 </Button>
               </div>

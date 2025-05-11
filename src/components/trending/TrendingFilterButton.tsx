@@ -13,9 +13,9 @@ interface TrendingFilterButtonProps {
 const TrendingFilterButton: React.FC<TrendingFilterButtonProps> = ({ className }) => {
   return (
     <DropdownMenuTrigger asChild>
-      <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
-        <SlidersHorizontal className="h-4 w-4" />
-        <span className="sr-only sm:not-sr-only sm:inline-block">Filters</span>
+      <Button variant="ghost" size="sm" className="h-7 px-1.5 gap-1">
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        <span className="sr-only sm:not-sr-only sm:inline-block text-xs">Filters</span>
       </Button>
     </DropdownMenuTrigger>
   );

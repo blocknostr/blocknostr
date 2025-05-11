@@ -35,12 +35,15 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
     currentTime
   } = useTrendingTopicsData();
   
+  // Limit the number of topics to 3 to save space
+  const limitedTopics = trendingTopics.slice(0, 3);
+  
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
+      <CardHeader className="py-2 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Hash className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base flex items-center gap-1">
+            <Hash className="h-3.5 w-3.5 text-primary" />
             Trending
           </CardTitle>
           <DropdownMenu open={isFilterOpen} onOpenChange={setIsFilterOpen}>
@@ -59,10 +62,10 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
       
       {/* Active Hashtag Display */}
       {activeHashtag && (
-        <div className="px-4 pb-2">
+        <div className="px-3 pb-1">
           <Badge 
             variant="secondary" 
-            className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary/15"
+            className="flex items-center gap-1 bg-primary/10 text-primary hover:bg-primary/15 text-xs py-0.5"
           >
             <span className="font-medium">#{activeHashtag}</span>
             {onClearHashtag && (
@@ -71,7 +74,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
                 className="rounded-full hover:bg-primary/20 p-0.5 transition-colors"
                 title="Clear filter"
               >
-                <X size={14} />
+                <X size={12} />
               </button>
             )}
           </Badge>
@@ -84,7 +87,7 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
       />
       
       <TrendingTopicsList 
-        topics={trendingTopics}
+        topics={limitedTopics}
         onTopicClick={onTopicClick}
       />
     </Card>
