@@ -77,7 +77,8 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      <ScrollArea className="flex-1">
+      {/* Use regular div instead of ScrollArea for proper scrolling behavior */}
+      <div className="flex-1 overflow-hidden flex flex-col">
         <MessageList
           messages={messages}
           profiles={profiles}
@@ -86,7 +87,7 @@ const WorldChat = () => {
           isLoggedIn={isLoggedIn}
           onAddReaction={addReaction}
         />
-      </ScrollArea>
+      </div>
       
       <ChatInput
         isLoggedIn={isLoggedIn}

@@ -37,29 +37,35 @@ const MessageItem: React.FC<MessageItemProps> = ({
   };
 
   const formattedTime = formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true });
+  
+  const isCurrentUser = nostrService.publicKey === message.pubkey;
 
   return (
-    <div className="flex items-start gap-2 group hover:bg-accent/20 rounded-lg p-1 -mx-1 transition-colors">
+    <div className={`flex items-start gap-2 group hover:bg-accent/20 rounded-lg p-2 transition-colors ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
       <Avatar className="h-7 w-7 mt-0.5">
         <AvatarImage src={getProfilePicture(message.pubkey)} />
         <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
       </Avatar>
       
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+      <div className={`min-w-0 max-w-[85%] ${isCurrentUser ? 'items-end' : 'items-start'}`}>
+        <div className={`flex items-center gap-1.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
           <span className="font-medium text-xs">{getDisplayName(message.pubkey)}</span>
           <span className="text-[10px] text-muted-foreground">
             {formattedTime}
           </span>
         </div>
         
-        <div className="text-sm break-words whitespace-pre-wrap">
+        <div className={`text-sm break-words whitespace-pre-wrap p-2 rounded-lg ${
+          isCurrentUser 
+            ? 'bg-primary text-primary-foreground' 
+            : 'bg-muted'
+        }`}>
           {contentFormatter.formatContent(message.content)}
         </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
-          <div className="flex flex-wrap gap-0.5 mt-1">
+          <div className={`flex flex-wrap gap-0.5 mt-1 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
             {emojiReactions.map((emoji, idx) => (
               <span key={idx} className="inline-flex items-center bg-muted px-1.5 py-0.5 rounded-full text-xs">
                 {emoji}
@@ -68,7 +74,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
         
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`opacity-0 group-hover:opacity-100 transition-opacity ${isCurrentUser ? 'text-right' : 'text-left'}`}>
           <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
         </div>
       </div>

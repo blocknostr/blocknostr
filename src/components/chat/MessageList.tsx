@@ -21,18 +21,18 @@ const MessageList: React.FC<MessageListProps> = ({
   isLoggedIn,
   onAddReaction
 }) => {
-  const messagesStartRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messagesStartRef.current) {
-      messagesStartRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
   if (loading) {
     return (
-      <CardContent className="p-0 overflow-y-auto flex-1 flex flex-col-reverse">
+      <CardContent className="p-0 overflow-y-auto flex-1">
         <div className="flex items-center justify-center h-full">
           <p className="text-sm text-muted-foreground">Loading messages...</p>
         </div>
@@ -42,7 +42,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   if (messages.length === 0) {
     return (
-      <CardContent className="p-0 overflow-y-auto flex-1 flex flex-col-reverse">
+      <CardContent className="p-0 overflow-y-auto flex-1">
         <div className="flex items-center justify-center h-full">
           <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
         </div>
@@ -50,14 +50,12 @@ const MessageList: React.FC<MessageListProps> = ({
     );
   }
 
-  // Reverse the messages array to display newest at bottom
-  const displayMessages = [...messages].reverse();
-
+  // We've already received messages in reverse order (newest first) from the hook
+  // so we don't need to reverse them again
   return (
     <CardContent className="p-0 overflow-y-auto flex-1">
-      <div className="p-2 space-y-2 flex flex-col-reverse">
-        <div ref={messagesStartRef} />
-        {displayMessages.map(message => (
+      <div className="p-2 space-y-2 flex flex-col">
+        {messages.map(message => (
           <MessageItem
             key={message.id}
             message={message}
@@ -67,6 +65,7 @@ const MessageList: React.FC<MessageListProps> = ({
             onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
           />
         ))}
+        <div ref={messagesEndRef} />
       </div>
     </CardContent>
   );
