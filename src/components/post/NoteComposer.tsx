@@ -21,7 +21,7 @@ const NoteComposer: React.FC<NoteComposerProps> = ({
       value={content}
       onChange={(e) => setContent(e.target.value)}
       placeholder="What's happening?"
-      className="resize-none border-none h-24 focus-visible:ring-0 text-lg p-0 bg-transparent"
+      className="resize-none border-none h-20 focus-visible:ring-0 text-sm p-0 bg-transparent"
       maxLength={maxLength * 2} // Allow typing past limit but show warning
       aria-label="Post content"
     />

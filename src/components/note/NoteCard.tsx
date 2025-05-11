@@ -1,5 +1,5 @@
+
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
@@ -68,11 +68,11 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
 
   return (
     <>
-      <Card className="mb-4 hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden">
+      <div className="hover:bg-accent/5 transition-colors py-2 px-3">
         <Link to={`/post/${event.id}`} className="block cursor-pointer">
           {repostData && <NoteCardRepostHeader repostData={repostData} />}
           
-          <CardContent className="pt-5 px-5 pb-3">
+          <div className="pt-1">
             <NoteCardHeader 
               pubkey={event.pubkey || ''} 
               createdAt={event.created_at} 
@@ -83,10 +83,10 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
               reachCount={reachCount}
               tags={event.tags} // Pass tags to support NIP-10 hashtags
             />
-          </CardContent>
+          </div>
         </Link>
         
-        <CardFooter className="pt-0 px-5 pb-3 flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
           <NoteCardActions 
             eventId={event.id || ''} 
             pubkey={event.pubkey || ''}
@@ -95,10 +95,10 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             isAuthor={event.pubkey === nostrService.publicKey}
             onDelete={handleDeleteClick}
           />
-        </CardFooter>
+        </div>
         
         {showComments && (
-          <div className="bg-muted/30 animate-fade-in">
+          <div className="bg-muted/20 animate-fade-in mt-1">
             <NoteCardComments
               eventId={event.id || ''}
               pubkey={event.pubkey || ''}
@@ -106,7 +106,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
             />
           </div>
         )}
-      </Card>
+      </div>
       
       <NoteCardDeleteDialog 
         open={isDeleteDialogOpen} 

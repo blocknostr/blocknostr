@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
@@ -53,18 +52,17 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
 
   const isCurrentUser = currentUserPubkey === hexPubkey;
 
+  // Keep existing handler functions
   const handleNotInterested = () => {
     toast.success("We'll show fewer posts like this");
   };
 
   const handleMuteAuthor = () => {
-    // Here you would implement the actual muting logic using nostrService
     setIsUserMuted(true);
     toast.success(`Muted ${displayName}`);
   };
 
   const handleBlockAuthor = () => {
-    // Here you would implement the actual blocking logic using nostrService
     setIsUserBlocked(true);
     toast.success(`Blocked ${displayName}`);
   };
@@ -97,55 +95,44 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
 
   return (
     <div className="flex justify-between">
-      <div className="flex">
+      <div className="flex items-start gap-2">
         <Link 
           to={`/profile/${npub}`} 
-          className="mr-3 shrink-0"
+          className="shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <Avatar className="h-11 w-11 border border-muted">
+          <Avatar className="h-9 w-9 border border-muted">
             <AvatarImage src={picture} alt={name} />
-            <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary text-xs">{avatarFallback}</AvatarFallback>
           </Avatar>
         </Link>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-x-1 flex-wrap">
+          <div className="flex items-center flex-wrap gap-x-1">
             <Link 
               to={`/profile/${npub}`}
-              className="font-bold hover:underline truncate flex items-center gap-1"
+              className="font-bold hover:underline truncate flex items-center text-sm"
               onClick={(e) => e.stopPropagation()}
             >
               {displayName}
               {xVerified && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <BadgeCheck className="h-3.5 w-3.5 text-blue-500 inline-block ml-0.5" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Verified X account (NIP-39)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <BadgeCheck className="h-3.5 w-3.5 text-blue-500 inline-block ml-0.5" />
               )}
             </Link>
             
-            <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
-            <span className="text-muted-foreground text-sm mx-0.5">·</span>
-            <span className="text-muted-foreground text-sm hover:underline cursor-pointer">{timeAgo}</span>
+            <span className="text-muted-foreground text-xs truncate">@{shortNpub}</span>
+            <span className="text-muted-foreground text-xs mx-0.5">·</span>
+            <span className="text-muted-foreground text-xs hover:underline cursor-pointer">{timeAgo}</span>
           </div>
         </div>
       </div>
       
       {/* Options dropdown menu */}
-      <div onClick={(e) => e.stopPropagation()}>
+      <div onClick={(e) => e.stopPropagation()} className="-mt-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="p-1 rounded-full hover:bg-accent/80 focus:outline-none">
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

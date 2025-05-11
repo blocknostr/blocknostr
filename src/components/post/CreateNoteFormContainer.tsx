@@ -1,8 +1,9 @@
+
 import { useState, useRef } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import QuickReplies from '../post/quick-replies/QuickRepliesContainer';
 import NoteComposer from './NoteComposer';
 import FormattingToolbar from './FormattingToolbar';
@@ -151,9 +152,9 @@ const CreateNoteFormContainer = () => {
   const avatarFallback = pubkey ? pubkey.substring(0, 2).toUpperCase() : 'N';
   
   return (
-    <form onSubmit={handleSubmit} className="mb-6">
-      <div className="flex gap-3 px-2">
-        <Avatar className="h-10 w-10 mt-1">
+    <form onSubmit={handleSubmit} className="mb-4 border-b pb-3">
+      <div className="flex gap-2 px-1">
+        <Avatar className="h-8 w-8 mt-1">
           <AvatarFallback>{avatarFallback}</AvatarFallback>
         </Avatar>
         <div className="flex-1">
@@ -163,7 +164,7 @@ const CreateNoteFormContainer = () => {
           />
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="compose" className="mt-3 p-0 border-0">
+            <TabsContent value="compose" className="mt-1 p-0 border-0">
               <NoteComposer 
                 content={content}
                 setContent={setContent}
@@ -177,9 +178,9 @@ const CreateNoteFormContainer = () => {
               />
               
               {detectedHashtags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="mt-1 flex flex-wrap gap-1">
                   {detectedHashtags.map(tag => (
-                    <span key={tag} className="text-xs text-primary px-1.5 py-0.5 rounded-full bg-primary/10">
+                    <span key={tag} className="text-xs text-primary px-1 py-0.5 rounded-full bg-primary/10">
                       #{tag}
                     </span>
                   ))}
@@ -187,7 +188,7 @@ const CreateNoteFormContainer = () => {
               )}
             </TabsContent>
             
-            <TabsContent value="templates" className="mt-3 p-0 border-0">
+            <TabsContent value="templates" className="mt-1 p-0 border-0">
               <QuickReplies onReplySelected={handleQuickReply} />
             </TabsContent>
           </Tabs>

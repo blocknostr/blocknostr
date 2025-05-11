@@ -39,8 +39,8 @@ const MediaPreview = ({ url, alt }: MediaPreviewProps) => {
   
   return (
     <>
-      <div className="mt-3 rounded-lg overflow-hidden border border-border bg-accent/20 relative group">
-        <AspectRatio ratio={16/9} className="bg-muted">
+      <div className="mt-2 rounded-md overflow-hidden border border-border/40 bg-accent/10 relative group">
+        <AspectRatio ratio={16/9} className="bg-muted max-h-80">
           {isVideo ? (
             <VideoPreview
               url={url}
