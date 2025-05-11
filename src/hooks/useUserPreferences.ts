@@ -80,23 +80,23 @@ export function useUserPreferences() {
             defaultFeed: parsedPrefs.defaultFeed || defaultPreferences.defaultFeed,
             feedFilters: {
               ...defaultPreferences.feedFilters,
-              ...(parsedPrefs.feedFilters || {}),
+              ...(parsedPrefs.feedFilters && typeof parsedPrefs.feedFilters === 'object' ? parsedPrefs.feedFilters : {}),
             },
             contentPreferences: {
               ...defaultPreferences.contentPreferences,
-              ...(parsedPrefs.contentPreferences || {}),
+              ...(parsedPrefs.contentPreferences && typeof parsedPrefs.contentPreferences === 'object' ? parsedPrefs.contentPreferences : {}),
             },
             notificationPreferences: {
               ...defaultPreferences.notificationPreferences,
-              ...(parsedPrefs.notificationPreferences || {}),
+              ...(parsedPrefs.notificationPreferences && typeof parsedPrefs.notificationPreferences === 'object' ? parsedPrefs.notificationPreferences : {}),
             },
             relayPreferences: {
               ...defaultPreferences.relayPreferences,
-              ...(parsedPrefs.relayPreferences || {}),
+              ...(parsedPrefs.relayPreferences && typeof parsedPrefs.relayPreferences === 'object' ? parsedPrefs.relayPreferences : {}),
             },
             uiPreferences: {
               ...defaultPreferences.uiPreferences,
-              ...(parsedPrefs.uiPreferences || {}),
+              ...(parsedPrefs.uiPreferences && typeof parsedPrefs.uiPreferences === 'object' ? parsedPrefs.uiPreferences : {}),
             },
           };
           
