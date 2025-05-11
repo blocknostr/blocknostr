@@ -1,26 +1,29 @@
 
-import { QueuedOperation, BookmarkOperationType, BookmarkCollection, BookmarkWithMetadata } from '../types';
+import { BookmarkWithMetadata, BookmarkCollection, QueuedOperation, BookmarkStatus } from '../types';
 
 /**
- * Service for caching bookmark data and operations
- * Provides local storage caching for offline support
+ * Service for caching bookmark data in the browser for offline support and performance
  */
 export class BookmarkCacheService {
-  // Local storage keys
-  private static readonly BOOKMARK_LIST_KEY = 'nostr_bookmark_list';
-  private static readonly BOOKMARK_STATUS_PREFIX = 'nostr_bookmark_status_';
-  private static readonly BOOKMARK_COLLECTIONS_KEY = 'nostr_bookmark_collections';
-  private static readonly BOOKMARK_METADATA_KEY = 'nostr_bookmark_metadata';
-  private static readonly PENDING_OPERATIONS_KEY = 'nostr_pending_bookmarks';
+  private static STORAGE_KEYS = {
+    BOOKMARKS_LIST: 'nostr_bookmarks_list',
+    BOOKMARK_STATUSES: 'nostr_bookmark_statuses',
+    BOOKMARK_COLLECTIONS: 'nostr_bookmark_collections',
+    BOOKMARK_METADATA: 'nostr_bookmark_metadata',
+    PENDING_OPERATIONS: 'nostr_pending_bookmarks'
+  };
 
   /**
    * Cache a list of bookmarked event IDs
    */
   static async cacheBookmarkList(bookmarks: string[]): Promise<void> {
     try {
-      localStorage.setItem(this.BOOKMARK_LIST_KEY, JSON.stringify(bookmarks));
+      localStorage.setItem(
+        this.STORAGE_KEYS.BOOKMARKS_LIST, 
+        JSON.stringify(bookmarks)
+      );
     } catch (error) {
-      console.error("Error caching bookmark list:", error);
+      console.error('Error caching bookmark list:', error);
     }
   }
 
@@ -29,10 +32,10 @@ export class BookmarkCacheService {
    */
   static async getCachedBookmarkList(): Promise<string[]> {
     try {
-      const cached = localStorage.getItem(this.BOOKMARK_LIST_KEY);
+      const cached = localStorage.getItem(this.STORAGE_KEYS.BOOKMARKS_LIST);
       return cached ? JSON.parse(cached) : [];
     } catch (error) {
-      console.error("Error getting cached bookmark list:", error);
+      console.error('Error getting cached bookmark list:', error);
       return [];
     }
   }
@@ -42,9 +45,14 @@ export class BookmarkCacheService {
    */
   static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
     try {
+      const cached = localStorage.getItem(this.STORAGE_KEYS.BOOKMARK_STATUSES);
+      const statuses: Record<string, boolean> = cached ? JSON.parse(cached) : {};
+      
+      statuses[eventId] = isBookmarked;
+      
       localStorage.setItem(
-        `${this.BOOKMARK_STATUS_PREFIX}${eventId}`, 
-        JSON.stringify({ isBookmarked, timestamp: Date.now() })
+        this.STORAGE_KEYS.BOOKMARK_STATUSES, 
+        JSON.stringify(statuses)
       );
     } catch (error) {
       console.error(`Error caching bookmark status for ${eventId}:`, error);
@@ -52,18 +60,15 @@ export class BookmarkCacheService {
   }
 
   /**
-   * Get cached bookmark status for event
-   * @returns boolean | null (null means not in cache)
+   * Get cached bookmark status for a specific event
    */
   static async getCachedBookmarkStatus(eventId: string): Promise<boolean | null> {
     try {
-      const cached = localStorage.getItem(`${this.BOOKMARK_STATUS_PREFIX}${eventId}`);
+      const cached = localStorage.getItem(this.STORAGE_KEYS.BOOKMARK_STATUSES);
       if (!cached) return null;
       
-      const data = JSON.parse(cached);
-      // Check if cache is fresh enough (24 hours)
-      const isFresh = (Date.now() - data.timestamp) < 24 * 60 * 60 * 1000;
-      return isFresh ? data.isBookmarked : null;
+      const statuses: Record<string, boolean> = JSON.parse(cached);
+      return eventId in statuses ? statuses[eventId] : null;
     } catch (error) {
       console.error(`Error getting cached bookmark status for ${eventId}:`, error);
       return null;
@@ -75,9 +80,12 @@ export class BookmarkCacheService {
    */
   static async cacheBookmarkCollections(collections: BookmarkCollection[]): Promise<void> {
     try {
-      localStorage.setItem(this.BOOKMARK_COLLECTIONS_KEY, JSON.stringify(collections));
+      localStorage.setItem(
+        this.STORAGE_KEYS.BOOKMARK_COLLECTIONS, 
+        JSON.stringify(collections)
+      );
     } catch (error) {
-      console.error("Error caching bookmark collections:", error);
+      console.error('Error caching bookmark collections:', error);
     }
   }
 
@@ -86,10 +94,10 @@ export class BookmarkCacheService {
    */
   static async getCachedBookmarkCollections(): Promise<BookmarkCollection[]> {
     try {
-      const cached = localStorage.getItem(this.BOOKMARK_COLLECTIONS_KEY);
+      const cached = localStorage.getItem(this.STORAGE_KEYS.BOOKMARK_COLLECTIONS);
       return cached ? JSON.parse(cached) : [];
     } catch (error) {
-      console.error("Error getting cached bookmark collections:", error);
+      console.error('Error getting cached bookmark collections:', error);
       return [];
     }
   }
@@ -99,9 +107,12 @@ export class BookmarkCacheService {
    */
   static async cacheBookmarkMetadata(metadata: BookmarkWithMetadata[]): Promise<void> {
     try {
-      localStorage.setItem(this.BOOKMARK_METADATA_KEY, JSON.stringify(metadata));
+      localStorage.setItem(
+        this.STORAGE_KEYS.BOOKMARK_METADATA, 
+        JSON.stringify(metadata)
+      );
     } catch (error) {
-      console.error("Error caching bookmark metadata:", error);
+      console.error('Error caching bookmark metadata:', error);
     }
   }
 
@@ -110,38 +121,41 @@ export class BookmarkCacheService {
    */
   static async getCachedBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
     try {
-      const cached = localStorage.getItem(this.BOOKMARK_METADATA_KEY);
+      const cached = localStorage.getItem(this.STORAGE_KEYS.BOOKMARK_METADATA);
       return cached ? JSON.parse(cached) : [];
     } catch (error) {
-      console.error("Error getting cached bookmark metadata:", error);
+      console.error('Error getting cached bookmark metadata:', error);
       return [];
     }
   }
 
   /**
-   * Queue an operation for later processing
+   * Queue a bookmark operation for later processing (when online)
    */
-  static async queueOperation(operation: { 
-    type: BookmarkOperationType; 
-    data: any; 
-    timestamp: number 
-  }): Promise<void> {
+  static async queueOperation(operation: Partial<QueuedOperation>): Promise<void> {
     try {
-      const operations = await this.getPendingOperations();
+      const cached = localStorage.getItem(this.STORAGE_KEYS.PENDING_OPERATIONS);
+      const operations: QueuedOperation[] = cached ? JSON.parse(cached) : [];
       
-      const newOperation: QueuedOperation = {
-        id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        type: operation.type,
-        data: operation.data,
-        status: 'pending',
-        retryCount: 0,
+      // Create a complete operation object
+      const completeOperation: QueuedOperation = {
+        id: operation.id || `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        type: operation.type!,
+        data: operation.data || {},
+        status: operation.status || 'pending',
+        retryCount: operation.retryCount || 0,
         timestamp: operation.timestamp || Date.now()
       };
       
-      operations.push(newOperation);
-      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(operations));
+      // Add to queue
+      operations.push(completeOperation);
+      
+      localStorage.setItem(
+        this.STORAGE_KEYS.PENDING_OPERATIONS, 
+        JSON.stringify(operations)
+      );
     } catch (error) {
-      console.error("Error queueing operation:", error);
+      console.error('Error queuing bookmark operation:', error);
     }
   }
 
@@ -150,69 +164,81 @@ export class BookmarkCacheService {
    */
   static async getPendingOperations(): Promise<QueuedOperation[]> {
     try {
-      const cached = localStorage.getItem(this.PENDING_OPERATIONS_KEY);
+      const cached = localStorage.getItem(this.STORAGE_KEYS.PENDING_OPERATIONS);
       return cached ? JSON.parse(cached) : [];
     } catch (error) {
-      console.error("Error getting pending operations:", error);
+      console.error('Error getting pending bookmark operations:', error);
       return [];
     }
   }
 
   /**
-   * Mark an operation as completed and remove it from queue
+   * Mark an operation as complete and remove from queue
    */
   static async completeOperation(operationId: string): Promise<void> {
     try {
-      const operations = await this.getPendingOperations();
-      const filteredOperations = operations.filter(op => op.id !== operationId);
-      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(filteredOperations));
+      const cached = localStorage.getItem(this.STORAGE_KEYS.PENDING_OPERATIONS);
+      if (!cached) return;
+      
+      const operations: QueuedOperation[] = JSON.parse(cached);
+      const updatedOperations = operations.filter(op => op.id !== operationId);
+      
+      localStorage.setItem(
+        this.STORAGE_KEYS.PENDING_OPERATIONS, 
+        JSON.stringify(updatedOperations)
+      );
     } catch (error) {
-      console.error("Error completing operation:", error);
+      console.error(`Error completing operation ${operationId}:`, error);
     }
   }
 
   /**
-   * Update operation status (e.g., mark as failed)
+   * Update operation status
    */
   static async updateOperationStatus(
     operationId: string, 
     status: 'pending' | 'processing' | 'failed' | 'completed',
-    retryCount: number
+    retryCount?: number
   ): Promise<void> {
     try {
-      const operations = await this.getPendingOperations();
+      const cached = localStorage.getItem(this.STORAGE_KEYS.PENDING_OPERATIONS);
+      if (!cached) return;
+      
+      const operations: QueuedOperation[] = JSON.parse(cached);
       const updatedOperations = operations.map(op => {
         if (op.id === operationId) {
-          return { ...op, status, retryCount };
+          return {
+            ...op, 
+            status,
+            retryCount: retryCount !== undefined ? retryCount : op.retryCount
+          };
         }
         return op;
       });
       
-      localStorage.setItem(this.PENDING_OPERATIONS_KEY, JSON.stringify(updatedOperations));
+      localStorage.setItem(
+        this.STORAGE_KEYS.PENDING_OPERATIONS, 
+        JSON.stringify(updatedOperations)
+      );
     } catch (error) {
-      console.error("Error updating operation status:", error);
+      console.error(`Error updating operation status ${operationId}:`, error);
     }
   }
 
   /**
-   * Clear all cached data (useful for logout)
+   * Clear all bookmark cache data
    */
   static async clearAllCache(): Promise<void> {
     try {
-      localStorage.removeItem(this.BOOKMARK_LIST_KEY);
-      localStorage.removeItem(this.BOOKMARK_COLLECTIONS_KEY);
-      localStorage.removeItem(this.BOOKMARK_METADATA_KEY);
-      localStorage.removeItem(this.PENDING_OPERATIONS_KEY);
-      
-      // Remove all individual bookmark status items
-      Object.keys(localStorage)
-        .filter(key => key.startsWith(this.BOOKMARK_STATUS_PREFIX))
-        .forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem(this.STORAGE_KEYS.BOOKMARKS_LIST);
+      localStorage.removeItem(this.STORAGE_KEYS.BOOKMARK_STATUSES);
+      localStorage.removeItem(this.STORAGE_KEYS.BOOKMARK_COLLECTIONS);
+      localStorage.removeItem(this.STORAGE_KEYS.BOOKMARK_METADATA);
+      localStorage.removeItem(this.STORAGE_KEYS.PENDING_OPERATIONS);
     } catch (error) {
-      console.error("Error clearing bookmark cache:", error);
+      console.error('Error clearing bookmark cache:', error);
     }
   }
 }
 
-// Export singleton instance
 export default BookmarkCacheService;

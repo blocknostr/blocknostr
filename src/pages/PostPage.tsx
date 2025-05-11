@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,11 +44,9 @@ const PostPage = () => {
         await nostrService.connectToUserRelays();
         
         // Get relay URLs to use - make sure we handle function return type properly
-        const relayUrls: string[] = Array.isArray(nostrService.getRelayUrls) 
-          ? defaultRelays  // If it's an array property (shouldn't happen but just in case)
-          : typeof nostrService.getRelayUrls === 'function'
-            ? nostrService.getRelayUrls() 
-            : defaultRelays;
+        const relayUrls = typeof nostrService.getRelayUrls === 'function' 
+          ? nostrService.getRelayUrls() 
+          : defaultRelays;
         
         // Subscribe to the specific note using the ID
         const filters = [{ ids: [id] }];
