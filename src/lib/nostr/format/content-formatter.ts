@@ -43,9 +43,11 @@ export class ContentFormatter implements ContentFormatterInterface {
     const segments = this.parseContent(content, mediaUrls);
     
     return (
-      <>
-        {segments.map((segment, index) => renderSegment(segment, index))}
-      </>
+      React.createElement(
+        React.Fragment,
+        null,
+        segments.map((segment, index) => renderSegment(segment, index))
+      )
     );
   }
 }
