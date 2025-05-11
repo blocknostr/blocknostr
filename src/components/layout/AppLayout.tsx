@@ -7,7 +7,6 @@ import { useScrollTracking } from "@/hooks/useScrollTracking";
 import Sidebar from "@/components/sidebar/Sidebar";
 import MobileSidebar from "@/components/MobileSidebar";
 import Header from "@/components/Header/Header";
-import AppBreadcrumbs from "./AppBreadcrumbs";
 import AppPanelsContainer from "./AppPanelsContainer";
 
 interface AppLayoutProps {
@@ -42,9 +41,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {/* Application header */}
         <Header toggleSidebar={() => setLeftPanelOpen(!leftPanelOpen)} />
-        
-        {/* Breadcrumbs navigation */}
-        <AppBreadcrumbs />
         
         {/* Main content with panels */}
         <AppPanelsContainer
