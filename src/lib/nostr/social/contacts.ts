@@ -112,7 +112,7 @@ export class ContactsManager {
         content: ''
       };
       
-      // Subscribe to contact list events - updated for SimplePool API
+      // Subscribe to contact list events
       const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.CONTACTS],
@@ -121,7 +121,7 @@ export class ContactsManager {
         }
       ];
       
-      const sub = pool.sub(relayUrls, filters);
+      const sub = pool.subscribe(relayUrls, filters);
       
       sub.on('event', (event) => {
         // Extract p tags (pubkeys) and other tags
@@ -137,7 +137,7 @@ export class ContactsManager {
       
       // Set a timeout to ensure we resolve even if no contact list is found
       setTimeout(() => {
-        pool.close([sub.id]);
+        pool.unsubscribe(relayUrls, filters);
         resolve(defaultResult);
       }, 5000);
     });

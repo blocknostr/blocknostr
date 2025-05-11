@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
@@ -110,7 +109,7 @@ export class InteractionsManager {
       let userHasReposted = false;
       const likers: string[] = [];
       
-      // Subscribe to reactions (kind 7) - updated for SimplePool API
+      // Subscribe to reactions (kind 7)
       const reactionsFilters: Filter[] = [
         {
           kinds: [EVENT_KINDS.REACTION],
@@ -119,7 +118,7 @@ export class InteractionsManager {
         }
       ];
       
-      const reactionsSub = pool.sub(relayUrls, reactionsFilters);
+      const reactionsSub = pool.subscribe(relayUrls, reactionsFilters);
       
       reactionsSub.on('event', (event) => {
         // Count likes (positive reactions)
@@ -135,7 +134,7 @@ export class InteractionsManager {
         }
       });
       
-      // Subscribe to reposts (kind 6) - updated for SimplePool API  
+      // Subscribe to reposts (kind 6)
       const repostsFilters: Filter[] = [
         {
           kinds: [EVENT_KINDS.REPOST],
@@ -144,7 +143,7 @@ export class InteractionsManager {
         }
       ];
       
-      const repostsSub = pool.sub(relayUrls, repostsFilters);
+      const repostsSub = pool.subscribe(relayUrls, repostsFilters);
       
       repostsSub.on('event', (event) => {
         reposts++;
@@ -157,7 +156,8 @@ export class InteractionsManager {
       
       // Set a timeout to resolve with found counts
       setTimeout(() => {
-        pool.close([reactionsSub.id, repostsSub.id]);
+        pool.unsubscribe(relayUrls, reactionsFilters);
+        pool.unsubscribe(relayUrls, repostsFilters);
         
         resolve({
           likes,

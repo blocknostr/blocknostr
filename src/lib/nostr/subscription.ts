@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter, type Sub } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent } from './types';
 
 export class SubscriptionManager {
@@ -24,10 +24,10 @@ export class SubscriptionManager {
     const id = `sub_${this.nextId++}`;
     
     try {
-      // Subscribe using the pool - properly typed now
-      const sub = this.pool.sub(relays, filters);
+      // Create subscription
+      const sub = this.pool.subscribe(relays, filters);
       
-      // Add event handler to the subscription
+      // Add event handler
       sub.on('event', (event) => {
         onEvent(event as NostrEvent);
       });
@@ -46,8 +46,8 @@ export class SubscriptionManager {
     const subscription = this.subscriptions.get(subId);
     if (subscription) {
       try {
-        // Close requires only the subscription ID now
-        this.pool.close([subId]);
+        // Unsubscribe from the subscription
+        this.pool.unsubscribe(subscription.relays, subscription.filters);
         this.subscriptions.delete(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);

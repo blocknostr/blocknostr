@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter, type Sub } from 'nostr-tools';
+import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
 
@@ -107,14 +107,14 @@ export class BookmarkManager {
           .map(id => ["e", id])
       };
       
-      const resultId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
       
       // Also remove any bookmark metadata
-      if (resultId) {
+      if (publishResult) {
         await this.removeBookmarkMetadata(pool, publicKey, privateKey, eventId, relays);
       }
       
-      return !!resultId;
+      return !!publishResult;
     } catch (error) {
       console.error("Error removing bookmark:", error);
       return false;
@@ -132,7 +132,7 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       let bookmarkedIds: string[] = [];
       
-      // Subscribe to bookmark list events - updated for SimplePool API
+      // Subscribe to bookmark list events
       const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARKS],
@@ -141,7 +141,7 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.sub(relays, filters);
+      const sub = pool.subscribe(relays, filters);
       
       sub.on('event', (event) => {
         // Extract e tags (bookmarked event IDs)
@@ -154,7 +154,7 @@ export class BookmarkManager {
       
       // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        pool.close([sub.id]);
+        pool.unsubscribe(relays, filters);
         resolve(bookmarkedIds);
       }, 3000);
     });
@@ -248,9 +248,8 @@ export class BookmarkManager {
       ]
     };
     
-      // Use a different variable name to avoid duplication
-      const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-      return !!publishResult;
+    const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!publishResult;
   }
   
   /**
@@ -274,7 +273,6 @@ export class BookmarkManager {
       ]
     };
     
-    // Fix: Use a different variable name
     const result = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
     return !!result;
   }
@@ -299,7 +297,7 @@ export class BookmarkManager {
         }
       });
       
-      // Subscribe to bookmark collections - updated for SimplePool API
+      // Subscribe to bookmark collections
       const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARK_COLLECTIONS],
@@ -307,7 +305,7 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.sub(relays, filters);
+      const sub = pool.subscribe(relays, filters);
       
       sub.on('event', (event) => {
         try {
@@ -333,7 +331,7 @@ export class BookmarkManager {
       
       // Set a timeout to resolve with found collections
       setTimeout(() => {
-        pool.close([sub.id]);
+        pool.unsubscribe(relays, filters);
         resolve(collections);
       }, 3000);
     });
@@ -376,7 +374,6 @@ export class BookmarkManager {
       });
     }
     
-    // Fix: Use a different variable name
     const metaResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
     return !!metaResult;
   }
@@ -402,7 +399,6 @@ export class BookmarkManager {
       ]
     };
     
-    // Use a distinct variable name
     const deleteResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
     return !!deleteResult;
   }
@@ -418,7 +414,7 @@ export class BookmarkManager {
     return new Promise((resolve) => {
       const metadata: BookmarkWithMetadata[] = [];
       
-      // Subscribe to bookmark metadata events - updated for SimplePool API
+      // Subscribe to bookmark metadata events
       const filters: Filter[] = [
         {
           kinds: [EVENT_KINDS.BOOKMARK_METADATA],
@@ -426,7 +422,7 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.sub(relays, filters);
+      const sub = pool.subscribe(relays, filters);
       
       sub.on('event', (event) => {
         try {
@@ -457,7 +453,7 @@ export class BookmarkManager {
       
       // Set a timeout to resolve with found metadata
       setTimeout(() => {
-        pool.close([sub.id]);
+        pool.unsubscribe(relays, filters);
         resolve(metadata);
       }, 3000);
     });
