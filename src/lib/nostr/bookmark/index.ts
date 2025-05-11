@@ -5,6 +5,7 @@ export interface BookmarkWithMetadata {
   collectionId?: string;
   tags?: string[];
   note?: string;
+  createdAt?: number;
 }
 
 export interface BookmarkCollection {
@@ -12,39 +13,46 @@ export interface BookmarkCollection {
   name: string;
   color?: string;
   description?: string;
+  createdAt?: number;
+  updatedAt?: number;
+  totalItems?: number;
 }
 
 // Simple facade for remaining imports
 export class BookmarkManagerFacade {
-  async isBookmarked(): Promise<boolean> {
+  constructor(_eventManager?: any) {
+    // Empty constructor to match the original class signature
+  }
+  
+  async isBookmarked(_pool?: any, _publicKey?: string, _eventId?: string, _relays?: string[]): Promise<boolean> {
     return false;
   }
   
-  async addBookmark(): Promise<boolean> {
+  async addBookmark(_pool?: any, _publicKey?: any, _privateKey?: any, _eventId?: string, _relays?: string[], _collectionId?: string, _tags?: string[], _note?: string): Promise<boolean> {
     return false;
   }
   
-  async removeBookmark(): Promise<boolean> {
+  async removeBookmark(_pool?: any, _publicKey?: any, _privateKey?: any, _eventId?: string, _relays?: string[]): Promise<boolean> {
     return false;
   }
   
-  async getBookmarkList(): Promise<string[]> {
+  async getBookmarkList(_pool?: any, _publicKey?: string, _relays?: string[]): Promise<string[]> {
     return [];
   }
   
-  async getCollections(): Promise<BookmarkCollection[]> {
+  async getCollections(_pool?: any, _publicKey?: string, _relays?: string[]): Promise<BookmarkCollection[]> {
     return [];
   }
   
-  async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
+  async getBookmarkMetadata(_pool?: any, _publicKey?: string, _relays?: string[]): Promise<BookmarkWithMetadata[]> {
     return [];
   }
   
-  async createCollection(): Promise<string | null> {
+  async createCollection(_pool?: any, _publicKey?: any, _privateKey?: any, _name?: string, _relays?: string[], _color?: string, _description?: string): Promise<string | null> {
     return null;
   }
   
-  async processPendingOperations(): Promise<void> {
+  async processPendingOperations(_pool?: any, _publicKey?: any, _privateKey?: any, _relays?: string[]): Promise<void> {
     return;
   }
 }

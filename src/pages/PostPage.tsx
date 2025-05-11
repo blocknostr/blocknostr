@@ -9,7 +9,7 @@ import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SocialManager } from '@/lib/nostr/social-manager';
+import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 
 const PostPage = () => {
@@ -46,7 +46,7 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          const { sub } = nostrService.subscribe(filters, (event) => {
+          const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
           });
           
