@@ -95,34 +95,29 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
   return (
     <div className="flex gap-1">
-      {/* Formatting options in a popover */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" type="button" className="rounded-full h-8 w-8" aria-label="Formatting options">
-            <Bold className="h-4 w-4" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-2" align="start">
-          <div className="flex gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => insertFormatting('bold')}
-              className="text-xs"
-            >
-              <Bold className="h-3.5 w-3.5 mr-1" /> Bold
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => insertFormatting('italic')}
-              className="text-xs"
-            >
-              <Italic className="h-3.5 w-3.5 mr-1" /> Italic
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      {/* Bold button directly visible */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        type="button" 
+        className="rounded-full h-8 w-8" 
+        onClick={() => insertFormatting('bold')} 
+        aria-label="Bold text"
+      >
+        <Bold className="h-4 w-4" />
+      </Button>
+      
+      {/* Italic button directly visible */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        type="button" 
+        className="rounded-full h-8 w-8" 
+        onClick={() => insertFormatting('italic')} 
+        aria-label="Italic text"
+      >
+        <Italic className="h-4 w-4" />
+      </Button>
       
       {/* Enhanced Media upload button */}
       <EnhancedMediaUpload onMediaAdded={onMediaAdded} />

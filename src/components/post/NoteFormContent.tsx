@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import QuickReplies from './quick-replies/QuickRepliesContainer';
 import NoteComposer from './NoteComposer';
 import MediaPreviewList from './MediaPreviewList';
 import ScheduledIndicator from './ScheduledIndicator';
@@ -14,9 +12,6 @@ interface NoteFormContentProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   mediaUrls: string[];
   removeMedia: (url: string) => void;
-  showQuickReplies: boolean;
-  setShowQuickReplies: (show: boolean) => void;
-  handleQuickReply: (text: string) => void;
   handleHashtagClick: (tag: string) => void;
   detectedHashtags: string[];
   scheduledDate: Date | null;
@@ -35,9 +30,6 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
   textareaRef,
   mediaUrls,
   removeMedia,
-  showQuickReplies,
-  setShowQuickReplies,
-  handleQuickReply,
   handleHashtagClick,
   detectedHashtags,
   scheduledDate,
@@ -74,14 +66,6 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         )}
       </div>
       
-      <Collapsible open={showQuickReplies} onOpenChange={setShowQuickReplies}>
-        <CollapsibleContent className="mt-3 data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up overflow-hidden">
-          <div className="p-2 border rounded-md bg-background">
-            <QuickReplies onReplySelected={handleQuickReply} />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-      
       <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
       
       <NoteFormFooter
@@ -95,8 +79,6 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         isNearLimit={isNearLimit}
         isOverLimit={isOverLimit}
         isSubmitting={isSubmitting}
-        showQuickReplies={showQuickReplies}
-        setShowQuickReplies={setShowQuickReplies}
       />
       
       <ScheduledIndicator scheduledDate={scheduledDate} />

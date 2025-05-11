@@ -7,7 +7,6 @@ export const useNoteFormState = () => {
   const [content, setContent] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
-  const [showQuickReplies, setShowQuickReplies] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Use our hashtag detector
@@ -25,8 +24,6 @@ export const useNoteFormState = () => {
     setMediaUrls,
     scheduledDate,
     setScheduledDate,
-    showQuickReplies,
-    setShowQuickReplies,
     textareaRef,
     pubkey,
     detectedHashtags,

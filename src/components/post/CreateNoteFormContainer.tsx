@@ -13,8 +13,6 @@ const CreateNoteFormContainer = () => {
     setMediaUrls,
     scheduledDate,
     setScheduledDate,
-    showQuickReplies,
-    setShowQuickReplies,
     MAX_NOTE_LENGTH,
     textareaRef,
     pubkey,
@@ -45,11 +43,6 @@ const CreateNoteFormContainer = () => {
   
   const removeMedia = (urlToRemove: string) => {
     setMediaUrls(prev => prev.filter(url => url !== urlToRemove));
-  };
-  
-  const handleQuickReply = (text: string) => {
-    setContent(prev => prev + (prev ? ' ' : '') + text);
-    setShowQuickReplies(false); // Auto-hide quick replies after selection
   };
   
   const handleHashtagClick = (tag: string) => {
@@ -90,9 +83,6 @@ const CreateNoteFormContainer = () => {
           textareaRef={textareaRef}
           mediaUrls={mediaUrls}
           removeMedia={removeMedia}
-          showQuickReplies={showQuickReplies}
-          setShowQuickReplies={setShowQuickReplies}
-          handleQuickReply={handleQuickReply}
           handleHashtagClick={handleHashtagClick}
           detectedHashtags={detectedHashtags}
           scheduledDate={scheduledDate}
