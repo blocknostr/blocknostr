@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
@@ -13,6 +12,7 @@ import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
 import PageHeader from "@/components/navigation/PageHeader";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
+import FloatingLoginButton from "@/components/auth/FloatingLoginButton";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -249,6 +249,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           />
         )}
       </div>
+      
+      {/* Add floating login button */}
+      <FloatingLoginButton />
     </div>
   );
 };
