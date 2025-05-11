@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
@@ -11,8 +10,7 @@ import { useNavigation } from "@/contexts/NavigationContext";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
-import Header from "@/components/Header/Header"; // Import the Header component
-import PageHeader from "@/components/navigation/PageHeader";
+import Header from "@/components/Header/Header";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 
 interface AppLayoutProps {
@@ -181,42 +179,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           "rubber-scroll overflow-fix" // iOS optimizations
         )}
       >
-        {/* Use the Header component */}
+        {/* Only use the Header component - removing PageHeader */}
         <Header toggleSidebar={() => setLeftPanelOpen(!leftPanelOpen)} />
         
-        {/* iOS-friendly Page Header with dynamic shadow based on scroll */}
-        <div className={cn(
-          "sticky top-14 z-40 w-full bg-background transition-all ios-spring duration-200 safe-top",
-          isScrolled ? "shadow-sm" : ""
-        )}>
-          <PageHeader 
-            title={getPageTitle()}
-            showBackButton={shouldShowBackButton()}
-          >
-            {isMobile && (
-              <button 
-                onClick={() => {
-                  setLeftPanelOpen(true);
-                  triggerHaptic('light');
-                }} 
-                className="mr-2 p-1.5 rounded-md hover:bg-accent haptic"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu">
-                  <line x1="4" x2="20" y1="12" y2="12"/>
-                  <line x1="4" x2="20" y1="6" y2="6"/>
-                  <line x1="4" x2="20" y1="18" y2="18"/>
-                </svg>
-              </button>
-            )}
-          </PageHeader>
-          
-          {/* Breadcrumbs - shown only on deeper pages */}
-          {shouldShowBreadcrumbs() && (
-            <div className="px-4 py-2">
-              <PageBreadcrumbs items={breadcrumbs} />
-            </div>
-          )}
-        </div>
+        {/* Breadcrumbs - shown only on deeper pages */}
+        {shouldShowBreadcrumbs() && (
+          <div className="px-4 py-2 bg-background">
+            <PageBreadcrumbs items={breadcrumbs} />
+          </div>
+        )}
         
         <div 
           className="flex w-full flex-1 overflow-fix"
