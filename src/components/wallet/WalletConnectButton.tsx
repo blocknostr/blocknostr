@@ -1,16 +1,31 @@
+
 import React, { useEffect } from "react";
-import { Wallet, ExternalLink, AlertCircle, CheckCircle2, Loader } from "lucide-react";
+import { Wallet, ExternalLink, AlertCircle, CheckCircle2, Loader, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Link } from "react-router-dom";
 
 interface WalletConnectButtonProps {
   className?: string;
+  showDropdown?: boolean;
 }
 
-const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
+const WalletConnectButton = ({ className, showDropdown = true }: WalletConnectButtonProps) => {
   const [hasNostrExtension, setHasNostrExtension] = React.useState<boolean>(false);
   const [isConnecting, setIsConnecting] = React.useState<boolean>(false);
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
@@ -74,7 +89,86 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       setIsConnecting(false);
     }
   };
+  
+  const handleLogout = async () => {
+    try {
+      triggerHaptic('warning');
+      await nostrService.signOut();
+      setIsConnected(false);
+      toast.success("Wallet disconnected", {
+        description: "Your wallet has been disconnected from BlockNoster",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to disconnect");
+    }
+  };
 
+  // Compact header version (icon only)
+  if (className?.includes('sm:block')) {
+    return (
+      <div className={className}>
+        {isConnected ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative"
+                      onClick={() => triggerHaptic('light')}
+                    >
+                      <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 rounded-full"></div>
+                      <Wallet className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to="/wallets" className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4" />
+                        <span>View Wallets</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="text-red-500 cursor-pointer"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Disconnect</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Wallet Connected</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleConnect}
+                >
+                  <Wallet className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Connect Wallet</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    );
+  }
+
+  // Full featured component for wallet pages
   return (
     <div className={cn("flex flex-col items-center", className)}>
       <div className="relative group">
@@ -93,40 +187,56 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         </div>
       </div>
       
-      <Button
-        onClick={handleConnect}
-        size="lg"
-        disabled={isConnecting || isConnected}
-        className={cn(
-          "py-6 px-8 mt-6 rounded-xl shadow-lg transition-all duration-300 w-full max-w-xs relative overflow-hidden",
-          isConnected 
-            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium hover:shadow-green-500/30"
-            : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium hover:shadow-purple-500/30"
-        )}
-      >
-        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
-        {isConnecting ? (
-          <>
-            <Loader className="mr-2 h-5 w-5 animate-spin" />
-            Connecting...
-          </>
-        ) : isConnected ? (
-          <>
+      {isConnected ? (
+        <div className="space-y-3 mt-6 w-full max-w-xs">
+          <Button
+            className={cn(
+              "py-6 px-8 rounded-xl shadow-lg transition-all duration-300 w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium",
+            )}
+            disabled={true}
+          >
             <CheckCircle2 className="mr-2 h-5 w-5" />
-            Connected
-          </>
-        ) : hasNostrExtension ? (
-          <>
-            <Wallet className="mr-2 h-5 w-5" />
-            Connect Nostr Extension
-          </>
-        ) : (
-          <>
-            <AlertCircle className="mr-2 h-5 w-5 text-amber-300" />
-            Install Nostr Extension
-          </>
-        )}
-      </Button>
+            Wallet Connected
+          </Button>
+          
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="w-full py-6 border-red-300/20 text-red-500 hover:text-red-600 hover:bg-red-50/50 dark:hover:bg-red-950/20"
+          >
+            <LogOut className="mr-2 h-5 w-5" />
+            Disconnect Wallet
+          </Button>
+        </div>
+      ) : (
+        <Button
+          onClick={handleConnect}
+          size="lg"
+          disabled={isConnecting}
+          className={cn(
+            "py-6 px-8 mt-6 rounded-xl shadow-lg transition-all duration-300 w-full max-w-xs relative overflow-hidden",
+            "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium hover:shadow-purple-500/30"
+          )}
+        >
+          <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
+          {isConnecting ? (
+            <>
+              <Loader className="mr-2 h-5 w-5 animate-spin" />
+              Connecting...
+            </>
+          ) : hasNostrExtension ? (
+            <>
+              <Wallet className="mr-2 h-5 w-5" />
+              Connect Nostr Extension
+            </>
+          ) : (
+            <>
+              <AlertCircle className="mr-2 h-5 w-5 text-amber-300" />
+              Install Nostr Extension
+            </>
+          )}
+        </Button>
+      )}
       
       <div className="mt-4 text-sm text-muted-foreground text-center max-w-xs">
         <p>Connect your {hasNostrExtension ? "Nostr extension" : "Alephium wallet"} to access the BlockNoster decentralized ecosystem</p>

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Search, Bell, MessageSquare, Wallet } from 'lucide-react';
+import { Menu, Search, Bell, MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 import LoginButton from '../LoginButton';
@@ -55,31 +55,11 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 </Link>
               </Button>
               
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                asChild
-                onClick={() => triggerHaptic('light')}
-              >
-                <Link to="/wallets">
-                  <Wallet className="h-5 w-5" />
-                </Link>
-              </Button>
+              <WalletConnectButton className="hidden sm:block" />
             </>
           ) : (
             <>
-              <div className="flex items-center">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  asChild
-                  onClick={() => triggerHaptic('light')}
-                >
-                  <Link to="/wallets">
-                    <Wallet className="h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
+              <WalletConnectButton className="hidden sm:block" />
               <LoginButton />
             </>
           )}
