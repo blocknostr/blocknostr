@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Trash2, Clock } from "lucide-react";
+import { Copy, Trash2, Clock, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
@@ -68,6 +68,7 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
   const timeAgo = getTimeAgo(note.publishedAt);
   const isRecent = isRecentNote(note.publishedAt);
   const cardGradient = getCardGradient(note.language);
+  const isEncrypted = note.encrypted || false;
             
   return (
     <Card 
@@ -76,7 +77,14 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
-          <h3 className="font-medium truncate">{note.title}</h3>
+          <div className="flex items-center gap-1">
+            {isEncrypted && (
+              <Lock className="h-3 w-3 text-green-600 dark:text-green-400" />
+            )}
+            <h3 className="font-medium truncate">
+              {note.title}
+            </h3>
+          </div>
           <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost" 
@@ -102,16 +110,22 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
           </div>
         </div>
         
-        <div className="flex items-center mt-2 text-xs text-muted-foreground">
+        <div className="flex items-center flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
           <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded-md">
             {note.language || 'text'}
           </div>
-          <span className="mx-2">•</span>
-          <div className="flex items-center">
+          
+          {isEncrypted && (
+            <Badge variant="outline" className="py-0 text-xs bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400">
+              Encrypted
+            </Badge>
+          )}
+          
+          <div className="flex items-center ml-auto">
             <Clock className="h-3 w-3 mr-1" />
             <span>{timeAgo}</span>
             {isRecent && (
-              <Badge variant="outline" className="ml-2 py-0 text-xs bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400">
+              <Badge variant="outline" className="ml-2 py-0 text-xs bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400">
                 New
               </Badge>
             )}
@@ -119,7 +133,7 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
         </div>
         
         <p className="mt-2 line-clamp-3 text-sm text-muted-foreground border-t pt-2">
-          {note.content}
+          {isEncrypted ? "[Encrypted content]" : note.content}
         </p>
       </CardContent>
     </Card>

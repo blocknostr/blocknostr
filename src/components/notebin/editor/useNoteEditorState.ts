@@ -1,9 +1,9 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useHotkeys } from "../useHotkeys";
 import { Note } from "../hooks/types";
+import { encryption } from "@/lib/encryption";
 
 export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [title, setTitle] = useState("");
@@ -13,6 +13,17 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [previewMode, setPreviewMode] = useState<boolean>(false);
+  const [isEncrypted, setIsEncrypted] = useState<boolean>(false);
+  const [password, setPassword] = useState<string>("");
+  const [hasSetPassword, setHasSetPassword] = useState<boolean>(false);
+  
+  // Generate and store a local encryption key if needed
+  useEffect(() => {
+    if (!localStorage.getItem('notebin_encryption_key')) {
+      const key = encryption.generateEncryptionKey();
+      localStorage.setItem('notebin_encryption_key', key);
+    }
+  }, []);
   
   // Register keyboard shortcuts
   useHotkeys('ctrl+s', (e) => {
@@ -25,8 +36,35 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     togglePreview();
   }, [previewMode]);
   
+  useHotkeys('ctrl+e', (e) => {
+    e.preventDefault();
+    toggleEncryption();
+  }, [isEncrypted]);
+  
   const togglePreview = () => {
     setPreviewMode(!previewMode);
+  };
+
+  const toggleEncryption = () => {
+    // If turning encryption on, check if logged in or has password
+    if (!isEncrypted) {
+      if (!nostrService.publicKey && !hasSetPassword) {
+        // Prompt for password if not logged in
+        const pwd = prompt("Enter an encryption password for local notes:");
+        if (pwd) {
+          setPassword(pwd);
+          setHasSetPassword(true);
+          setIsEncrypted(true);
+          toast.success("Encryption enabled with password");
+        }
+      } else {
+        setIsEncrypted(true);
+        toast.success("Encryption enabled");
+      }
+    } else {
+      setIsEncrypted(false);
+      toast.success("Encryption disabled");
+    }
   };
 
   const canSave = () => {
@@ -57,17 +95,57 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
       
+      // Process the content for encryption if needed
+      let processedContent = content;
+      let processedTitle = title;
+      let encryptionMetadata = null;
+      
+      if (isEncrypted) {
+        // Encrypt the content and title
+        if (nostrService.publicKey) {
+          // Use NIP-04 encryption
+          processedContent = await encryption.encryptContent(content) || content;
+          processedTitle = await encryption.encryptContent(title) || title;
+        } else if (hasSetPassword) {
+          // Use password-based encryption for local notes
+          const encryptedContent = await encryption.encryptWithPassword(content, password);
+          const encryptedTitle = await encryption.encryptWithPassword(title, password);
+          
+          if (encryptedContent && encryptedTitle) {
+            processedContent = encryptedContent.encrypted;
+            processedTitle = encryptedTitle.encrypted;
+            encryptionMetadata = {
+              contentSalt: encryptedContent.salt,
+              titleSalt: encryptedTitle.salt,
+              method: 'password'
+            };
+          } else {
+            toast.error("Failed to encrypt content");
+            setIsSaving(false);
+            return;
+          }
+        }
+      }
+      
       // Create a new event object with NIP-23 specific tags
       const event = {
         kind: 30023, // NIP-23 long-form content
-        content: content,
+        content: processedContent,
         tags: [
-          ["title", title],
+          ["title", processedTitle],
           ["language", language],
           ["published_at", timestampSeconds],
           ["d", uniqueId], // Unique identifier (NIP-33 parameterized replaceable event)
         ]
       };
+      
+      // Add encryption flag if needed
+      if (isEncrypted) {
+        event.tags.push(["encrypted", "true"]);
+        
+        // Store encryption method
+        event.tags.push(["encryption", nostrService.publicKey ? "nip04" : "password"]);
+      }
       
       // Add slug tag for better content addressing (NIP-23)
       event.tags.push(["slug", slug]);
@@ -94,14 +172,16 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       // Create the note object with consistent structure
       const newNote: Note = {
         id: eventId,
-        title,
+        title: isEncrypted ? processedTitle : title, // Store encrypted title
         language,
-        content,
+        content: processedContent, // Store encrypted content
         tags,
         publishedAt,
         author: nostrService.publicKey || 'local-user',
         event,
-        slug
+        slug,
+        encrypted: isEncrypted,
+        encryptionMetadata // Store encryption metadata for password-based encryption
       };
       
       console.log("Calling onNoteSaved with note:", newNote);
@@ -112,7 +192,7 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       // Update the local state
       setNoteId(eventId);
       
-      toast.success("Note saved successfully!");
+      toast.success(`Note saved ${isEncrypted ? "and encrypted" : ""} successfully!`);
       
       // Clear form if it's a new note
       if (!noteId) {
@@ -143,6 +223,10 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       return;
     }
     
+    if (isEncrypted) {
+      toast.warning("Warning: Sharing an encrypted note link. Only you can decrypt and view this note.");
+    }
+    
     const shareUrl = `${window.location.origin}/notebin?note=${noteId}`;
     
     navigator.clipboard.writeText(shareUrl)
@@ -161,6 +245,7 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setNoteId(null);
     setTags([]);
     setPreviewMode(false);
+    // Don't reset encryption settings - user may want to keep it on/off
   };
 
   return {
@@ -175,6 +260,8 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     tags,
     setTags,
     previewMode,
+    isEncrypted,
+    toggleEncryption,
     togglePreview,
     canSave,
     handleSave,

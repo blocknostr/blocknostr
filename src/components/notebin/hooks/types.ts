@@ -12,6 +12,12 @@ export interface Note {
   image?: string;
   slug?: string;
   version?: number;
+  encrypted?: boolean;
+  encryptionMetadata?: {
+    contentSalt?: string;
+    titleSalt?: string;
+    method: 'nip04' | 'password';
+  };
 }
 
 // NIP-23 specific types

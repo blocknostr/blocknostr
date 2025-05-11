@@ -24,6 +24,8 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     tags,
     setTags,
     previewMode,
+    isEncrypted,
+    toggleEncryption,
     togglePreview,
     canSave,
     handleSave,
@@ -68,10 +70,12 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             canSave={canSave()}
             noteId={noteId}
             previewMode={previewMode}
+            isEncrypted={isEncrypted}
             handleSave={handleSave}
             copyToClipboard={copyToClipboard}
             shareNote={shareNote}
             togglePreview={togglePreview}
+            toggleEncryption={toggleEncryption}
             clearEditor={clearEditor}
           />
           

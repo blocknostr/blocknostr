@@ -1,7 +1,8 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { Note } from "./types";
 import { nostrService } from "@/lib/nostr";
+import { encryption } from "@/lib/encryption";
+import { toast } from "sonner";
 
 export const useNoteFetcher = () => {
   const [note, setNote] = useState<Note | null>(null);
@@ -43,11 +44,11 @@ export const useNoteFetcher = () => {
       // Use subscribe method instead of subscribeToEvents
       const subId = nostrService.subscribe(
         filters,
-        (event) => {
+        async (event) => {
           try {
             // Extract title from tags
             const titleTag = event.tags.find(tag => tag[0] === 'title');
-            const title = titleTag ? titleTag[1] : 'Untitled Note';
+            let title = titleTag ? titleTag[1] : 'Untitled Note';
             
             // Extract language from tags
             const langTag = event.tags.find(tag => tag[0] === 'language');
@@ -62,17 +63,54 @@ export const useNoteFetcher = () => {
             const slugTag = event.tags.find(tag => tag[0] === 'slug');
             const slug = slugTag ? slugTag[1] : '';
             
+            // Check if the note is encrypted
+            const encryptedTag = event.tags.find(tag => tag[0] === 'encrypted');
+            const isEncrypted = encryptedTag ? encryptedTag[1] === 'true' : false;
+            
+            // Get encryption method if encrypted
+            const encryptionMethodTag = event.tags.find(tag => tag[0] === 'encryption');
+            const encryptionMethod = encryptionMethodTag ? encryptionMethodTag[1] : 'nip04';
+            
+            // Content to display
+            let content = event.content;
+
+            // Try to decrypt content if encrypted
+            if (isEncrypted && encryptionMethod === 'nip04') {
+              if (event.pubkey === nostrService.publicKey) {
+                try {
+                  // NIP-04 decryption (using the author's pubkey)
+                  const decryptedContent = await encryption.decryptContent(content, event.pubkey);
+                  if (decryptedContent) {
+                    content = decryptedContent;
+                  }
+                  
+                  // Try to decrypt title too
+                  const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
+                  if (decryptedTitle) {
+                    title = decryptedTitle;
+                  }
+                } catch (decryptError) {
+                  console.error("Failed to decrypt note:", decryptError);
+                  toast.error("Failed to decrypt note. Only the author can decrypt it.");
+                  // Keep encrypted content as is
+                }
+              } else {
+                toast.warning("This note is encrypted. Only the author can view it.");
+              }
+            }
+            
             // Create note object
             const note: Note = {
               id: event.id,
               title,
-              content: event.content,
+              content,
               language,
               publishedAt: new Date(event.created_at * 1000).toISOString(),
               author: event.pubkey,
               event,
               tags: contentTags,
-              slug
+              slug,
+              encrypted: isEncrypted
             };
             
             notes.push(note);
@@ -108,7 +146,7 @@ export const useNoteFetcher = () => {
       if (event) {
         // Extract title from tags
         const titleTag = event.tags.find(tag => tag[0] === 'title');
-        const title = titleTag ? titleTag[1] : 'Untitled Note';
+        let title = titleTag ? titleTag[1] : 'Untitled Note';
         
         // Extract language from tags
         const langTag = event.tags.find(tag => tag[0] === 'language');
@@ -123,17 +161,55 @@ export const useNoteFetcher = () => {
         const slugTag = event.tags.find(tag => tag[0] === 'slug');
         const slug = slugTag ? slugTag[1] : '';
         
+        // Check if the note is encrypted
+        const encryptedTag = event.tags.find(tag => tag[0] === 'encrypted');
+        const isEncrypted = encryptedTag ? encryptedTag[1] === 'true' : false;
+        
+        // Get encryption method if encrypted
+        const encryptionMethodTag = event.tags.find(tag => tag[0] === 'encryption');
+        const encryptionMethod = encryptionMethodTag ? encryptionMethodTag[1] : 'nip04';
+        
+        // Content to display
+        let content = event.content;
+
+        // Try to decrypt content if encrypted
+        if (isEncrypted && encryptionMethod === 'nip04') {
+          if (event.pubkey === nostrService.publicKey) {
+            try {
+              // NIP-04 decryption (using the author's pubkey)
+              const decryptedContent = await encryption.decryptContent(content, event.pubkey);
+              if (decryptedContent) {
+                content = decryptedContent;
+              }
+              
+              // Try to decrypt title too
+              const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
+              if (decryptedTitle) {
+                title = decryptedTitle;
+              }
+            } catch (decryptError) {
+              console.error("Failed to decrypt note:", decryptError);
+              toast.error("Failed to decrypt note. Only the author can decrypt it.");
+              // Keep encrypted content as is
+            }
+          } else {
+            toast.warning("This note is encrypted. Only the author can view it.");
+          }
+        }
+        
         const noteData: Note = {
           id: event.id,
           title,
-          content: event.content,
+          content,
           language,
           publishedAt: new Date(event.created_at * 1000).toISOString(),
           author: event.pubkey,
-          event: event,
+          event,
           tags: contentTags,
-          slug
+          slug,
+          encrypted: isEncrypted
         };
+        
         setNote(noteData);
       } else {
         setError("Note not found");
