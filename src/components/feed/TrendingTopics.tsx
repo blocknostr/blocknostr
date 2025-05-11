@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { Hashtag } from "lucide-react";
+import { Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -42,7 +42,7 @@ const TrendingTopics: React.FC<TrendingTopicsProps> = ({ onTopicClick }) => {
   return (
     <Card className={`p-3 mb-4 border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
       <div className="flex items-center gap-2 mb-2">
-        <Hashtag className="h-4 w-4 text-primary" />
+        <Hash className="h-4 w-4 text-primary" />
         <h3 className="font-medium text-sm">Trending Topics</h3>
       </div>
       

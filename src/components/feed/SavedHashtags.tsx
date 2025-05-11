@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { X, Save, Hashtag, Plus } from "lucide-react";
+import { X, Save, Hash, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -67,7 +67,7 @@ const SavedHashtags: React.FC<SavedHashtagsProps> = ({ onTopicClick }) => {
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1">
-          <Hashtag className="h-4 w-4 text-primary" />
+          <Hash className="h-4 w-4 text-primary" />
           <h3 className="font-medium text-sm">Your Hashtags</h3>
         </div>
         
