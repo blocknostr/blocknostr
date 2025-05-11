@@ -7,6 +7,8 @@ import { nostrService } from "@/lib/nostr";
 import NoteEditor from "@/components/notebin/NoteEditor";
 import NotesList from "@/components/notebin/NotesList";
 import DeleteDialog from "@/components/notebin/DeleteDialog";
+import { TagFilter } from "@/components/notebin/TagFilter";
+import { useNotebinFilter } from "@/hooks/useNotebinFilter";
 
 const NotebinPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -19,9 +21,22 @@ const NotebinPage = () => {
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  // Use our custom hook for filtering
+  const { availableTags, filteredNotes } = useNotebinFilter(savedNotes, selectedTags);
   
   const toggleSidebar = () => {
     setSidebarVisible(prev => !prev);
+  };
+
+  // Handle tag toggling for filtering
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag) 
+        : [...prev, tag]
+    );
   };
 
   // Fetch saved notebins when the page loads
@@ -234,10 +249,20 @@ const NotebinPage = () => {
             {/* Note Editor Component */}
             <NoteEditor onNoteSaved={handleNoteSaved} />
             
+            {/* Tag Filter Component */}
+            {availableTags.length > 0 && (
+              <TagFilter
+                availableTags={availableTags}
+                selectedTags={selectedTags}
+                onTagToggle={handleTagToggle}
+                className="mb-6 mt-4 p-4 border rounded-md bg-card"
+              />
+            )}
+            
             {/* Notes List Component */}
             <NotesList 
               isLoading={isLoading}
-              savedNotes={savedNotes}
+              savedNotes={filteredNotes}
               onNoteClick={viewNote}
               onDeleteClick={(noteId) => setNoteToDelete(noteId)}
               isLoggedIn={!!nostrService.publicKey}
