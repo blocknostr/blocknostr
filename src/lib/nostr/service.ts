@@ -12,6 +12,7 @@ import { BookmarkManager } from './bookmark';
 import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
+import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -282,6 +283,152 @@ class NostrService {
       eventId,
       connectedRelays
     );
+  }
+
+  // Utility methods for handling pubkeys
+  public formatPubkey(pubkey: string): string {
+    return formatPubkey(pubkey);
+  }
+  
+  public getNpubFromHex(hexPubkey: string): string {
+    return getNpubFromHex(hexPubkey);
+  }
+  
+  public getHexFromNpub(npub: string): string {
+    return getHexFromNpub(npub);
+  }
+  
+  // Community methods
+  public async fetchCommunity(communityId: string): Promise<any> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.communityManager.fetchCommunity(communityId, this.pool, connectedRelays);
+  }
+  
+  public async createCommunity(name: string, description: string): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.communityManager.createCommunity(
+      name, 
+      description, 
+      this.publicKey, 
+      connectedRelays,
+      this.pool
+    );
+  }
+  
+  public async createProposal(
+    communityId: string,
+    title: string,
+    description: string,
+    options: string[],
+    category: string,
+    minQuorum?: number,
+    endsAt?: number
+  ): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.communityManager.createProposal(
+      communityId,
+      title,
+      description,
+      options,
+      this.publicKey,
+      connectedRelays,
+      category as ProposalCategory,
+      minQuorum,
+      endsAt,
+      this.pool
+    );
+  }
+  
+  public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.communityManager.voteOnProposal(
+      proposalId,
+      optionIndex,
+      this.publicKey,
+      connectedRelays,
+      this.pool
+    );
+  }
+  
+  // Bookmark methods
+  public async isBookmarked(eventId: string): Promise<boolean> {
+    return this.bookmarkManager.isBookmarked(eventId);
+  }
+  
+  public async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.addBookmark(
+      eventId, 
+      this.publicKey, 
+      null, // We're not storing private keys
+      connectedRelays,
+      this.pool,
+      collectionId, 
+      tags, 
+      note
+    );
+  }
+  
+  public async removeBookmark(eventId: string): Promise<boolean> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.removeBookmark(
+      eventId, 
+      this.publicKey, 
+      null, // We're not storing private keys
+      connectedRelays,
+      this.pool
+    );
+  }
+  
+  public async getBookmarks(): Promise<string[]> {
+    return this.bookmarkManager.getBookmarks(this.publicKey);
+  }
+  
+  public async getBookmarkCollections(): Promise<BookmarkCollection[]> {
+    return this.bookmarkManager.getBookmarkCollections(this.publicKey);
+  }
+  
+  public async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
+    return this.bookmarkManager.getBookmarkMetadata(this.publicKey);
+  }
+  
+  public async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    return this.bookmarkManager.createBookmarkCollection(
+      name,
+      this.publicKey,
+      null, // We're not storing private keys
+      connectedRelays,
+      this.pool,
+      color,
+      description
+    );
+  }
+  
+  // Profile methods
+  public async getUserProfile(pubkey: string): Promise<any> {
+    // Create a new instance of ProfileService
+    const profileService = new ProfileService(
+      this.pool,
+      this.getConnectedRelayUrls.bind(this)
+    );
+    return profileService.getUserProfile(pubkey);
+  }
+  
+  public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
+    const profileService = new ProfileService(
+      this.pool,
+      this.getConnectedRelayUrls.bind(this)
+    );
+    return profileService.verifyNip05(identifier, expectedPubkey);
+  }
+  
+  public async fetchNip05Data(identifier: string): Promise<any> {
+    const profileService = new ProfileService(
+      this.pool,
+      this.getConnectedRelayUrls.bind(this)
+    );
+    return profileService.fetchNip05Data(identifier);
   }
   
   private async fetchFollowingList(): Promise<void> {

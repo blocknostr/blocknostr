@@ -39,10 +39,9 @@ export class ProfileService {
         };
         
         const unsubscribe = (subId: string): void => {
-          // Find the subscription by ID and close it
-          const subscriptions = Array.from(this.pool.relays.values()).map(r => Array.from(r.subs.values())).flat();
-          const sub = subscriptions.find(s => s.id === subId);
-          if (sub) sub.close();
+          // Find the subscription and close it more safely
+          if (!subId) return;
+          this.pool.close(subId);
         };
         
         const subId = subscribe(
