@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
-import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -24,7 +24,7 @@ interface MainFeedProps {
 
 const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const { preferences } = useUserPreferences();
-  const [activeTab, setActiveTab] = useState(preferences.defaultFeed);
+  const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
@@ -56,6 +56,14 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     : preferences.uiPreferences.fontSize === 'large' 
       ? 'text-lg' 
       : 'text-base';
+
+  // Handler for tab changes that ensures we only set valid FeedType values
+  const handleTabChange = (value: string) => {
+    // Ensure the value is a valid FeedType before setting it
+    if (value === 'global' || value === 'following' || value === 'for-you' || value === 'media') {
+      setActiveTab(value);
+    }
+  };
 
   return (
     <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
@@ -105,7 +113,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       
       <Tabs 
         value={activeTab} 
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="mt-4"
       >
         <TabsList className={cn(

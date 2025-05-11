@@ -69,7 +69,7 @@ export function useUserPreferences() {
     if (storedPrefs) {
       try {
         // Merge with defaults to ensure any new preferences are included
-        const parsedPrefs = JSON.parse(storedPrefs);
+        const parsedPrefs = JSON.parse(storedPrefs) as Partial<UserPreferences>;
         setPreferences({
           ...defaultPreferences,
           ...parsedPrefs
