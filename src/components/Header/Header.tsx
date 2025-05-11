@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Search, Bell, MessageSquare, BookmarkIcon } from 'lucide-react';
+import { Menu, Search, Bell, MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import LoginButton from '../LoginButton';
 import GlobalSearch from '../GlobalSearch';
@@ -43,12 +43,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/notifications">
                   <Bell className="h-5 w-5" />
-                </Link>
-              </Button>
-
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/bookmarks">
-                  <BookmarkIcon className="h-5 w-5" />
                 </Link>
               </Button>
               

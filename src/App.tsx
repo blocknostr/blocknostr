@@ -12,7 +12,6 @@ import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
 import { Toaster } from "sonner";
-import BookmarksPage from './pages/BookmarksPage';
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
 import { NavigationProvider } from './contexts/NavigationContext';
@@ -34,7 +33,6 @@ function App() {
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/post/:id" element={<PostPage />} />
               <Route path="/notebin" element={<NotebinPage />} />
-              <Route path="/bookmarks" element={<BookmarksPage />} />
               <Route path="/wallets" element={<WalletsPage />} />
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="*" element={<NotFound />} />

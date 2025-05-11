@@ -1,2 +1,3 @@
 
-export { BookmarkButton } from '@/components/bookmark/BookmarkButton';
+// This file is now empty since we're removing bookmark functionality
+export {};

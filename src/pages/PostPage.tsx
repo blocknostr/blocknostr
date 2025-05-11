@@ -44,31 +44,24 @@ const PostPage = () => {
         // Connect to relays
         await nostrService.connectToUserRelays();
         
-        // Get relay URLs to use - ensure we have strings not functions
-        let relayUrls: string[] = defaultRelays;
-        if (typeof nostrService.getRelayUrls === 'function') {
-          const result = nostrService.getRelayUrls();
-          // Make sure we're dealing with an array of strings
-          if (Array.isArray(result)) {
-            relayUrls = result;
-          }
-        }
+        // Get relay URLs to use
+        const relayUrls = defaultRelays;
         
         // Subscribe to the specific note using the ID
         const filters = [{ ids: [id] }];
         
-        const { sub } = nostrService.subscribe ? 
-          nostrService.subscribe(filters, (event) => {
+        if (nostrService.subscribe) {
+          const { sub } = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          }) : 
-          { sub: '' };
-
-        // Cleanup subscription
-        return () => {
-          if (sub && nostrService.unsubscribe) {
-            nostrService.unsubscribe(sub);
-          }
-        };
+          });
+          
+          // Cleanup subscription
+          return () => {
+            if (sub && nostrService.unsubscribe) {
+              nostrService.unsubscribe(sub);
+            }
+          };
+        }
       } catch (error) {
         console.error('Error fetching note:', error);
         toast.error('Failed to load post');
