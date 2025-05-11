@@ -13,6 +13,8 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [previewMode, setPreviewMode] = useState<boolean>(false);
+  const [summary, setSummary] = useState<string>("");
+  const [image, setImage] = useState<string>("");
   
   // Register keyboard shortcuts
   useHotkeys('ctrl+s', (e) => {
@@ -49,18 +51,38 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       
       // Use current timestamp for publishedAt
       const publishedAt = new Date().toISOString();
+      const timestampSeconds = Math.floor(Date.now() / 1000).toString();
       
-      // Create a new event object
+      // Generate a slug from the title
+      const slug = title.toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+      
+      // Create a new event object with NIP-23 specific tags
       const event = {
-        kind: 30023,
+        kind: 30023, // NIP-23 long-form content
         content: content,
         tags: [
           ["title", title],
           ["language", language],
-          ["published_at", Math.floor(Date.now() / 1000).toString()],
-          ["d", uniqueId] // Unique identifier
+          ["published_at", timestampSeconds],
+          ["d", uniqueId], // Unique identifier (NIP-33 parameterized replaceable event)
         ]
       };
+      
+      // Add summary tag if provided (NIP-23)
+      if (summary.trim()) {
+        event.tags.push(["summary", summary]);
+      }
+      
+      // Add image tag if provided (NIP-23)
+      if (image.trim()) {
+        event.tags.push(["image", image]);
+      }
+      
+      // Add slug tag for better content addressing (NIP-23)
+      event.tags.push(["slug", slug]);
       
       // Add user tags to the note
       tags.forEach(tag => {
@@ -90,7 +112,10 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
         tags,
         publishedAt,
         author: nostrService.publicKey || 'local-user',
-        event
+        event,
+        summary: summary || undefined,
+        image: image || undefined,
+        slug
       };
       
       console.log("Calling onNoteSaved with note:", newNote);
@@ -150,6 +175,8 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setNoteId(null);
     setTags([]);
     setPreviewMode(false);
+    setSummary("");
+    setImage("");
   };
 
   return {
@@ -170,6 +197,10 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     copyToClipboard,
     shareNote,
     clearEditor,
-    isLoggedIn: !!nostrService.publicKey
+    isLoggedIn: !!nostrService.publicKey,
+    summary,
+    setSummary,
+    image,
+    setImage
   };
 }

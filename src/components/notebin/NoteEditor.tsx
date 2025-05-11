@@ -30,7 +30,11 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     copyToClipboard,
     shareNote,
     clearEditor,
-    isLoggedIn
+    isLoggedIn,
+    summary,
+    setSummary,
+    image,
+    setImage
   } = useNoteEditorState(onNoteSaved);
 
   // Log whenever the component renders to help with debugging
@@ -48,6 +52,10 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
             setTitle={setTitle}
             language={language}
             setLanguage={setLanguage}
+            summary={summary}
+            setSummary={setSummary}
+            image={image}
+            setImage={setImage}
           />
           
           <EditorContent

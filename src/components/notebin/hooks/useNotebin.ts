@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
@@ -11,6 +12,8 @@ export function useNotebin() {
   const [content, setContent] = useState("");
   const [language, setLanguage] = useState("text");
   const [tags, setTags] = useState<string[]>([]);
+  const [summary, setSummary] = useState<string>("");
+  const [image, setImage] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
@@ -49,6 +52,7 @@ export function useNotebin() {
     ? tagFilteredNotes.filter(note => 
         note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
         note.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (note.summary?.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (note.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
       )
     : tagFilteredNotes;
@@ -122,6 +126,8 @@ export function useNotebin() {
     setContent(note.content);
     setLanguage(note.language || "text");
     setTags(note.tags || []);
+    setSummary(note.summary || "");
+    setImage(note.image || "");
     
     // Scroll to editor when viewing a note
     document.getElementById('noteEditor')?.scrollIntoView({ behavior: 'smooth' });
@@ -135,6 +141,10 @@ export function useNotebin() {
     content,
     language,
     tags,
+    summary,
+    setSummary,
+    image,
+    setImage,
     availableTags,
     selectedTags,
     noteToDelete,
