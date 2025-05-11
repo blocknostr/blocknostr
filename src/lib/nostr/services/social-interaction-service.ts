@@ -1,5 +1,5 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
+import { SimplePool, type Filter, type Event } from 'nostr-tools';
 import { toast } from 'sonner';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -52,8 +52,8 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // NIP-51 lists have empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
-      };
+        pubkey: currentUserPubkey // This must be set as required by Event type
+      } as Event; // Explicitly cast to Event type to ensure it satisfies the interface
 
       const relays = this.getConnectedRelayUrls();
       
@@ -61,8 +61,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(muteEvent);
         
-        // Explicitly assert the event has all required properties for publishing
-        await this.pool.publish(relays, signedEvent);
+        await this.pool.publish(relays, signedEvent as Event); // Cast to Event to satisfy type requirements
         
         // Update local cache
         contentCache.cacheMuteList(muteList);
@@ -113,8 +112,8 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // NIP-51 lists have empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
-      };
+        pubkey: currentUserPubkey // This must be set as required by Event type
+      } as Event; // Explicitly cast to Event type
 
       const relays = this.getConnectedRelayUrls();
       
@@ -122,8 +121,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(muteEvent);
         
-        // Explicitly assert the event has all required properties for publishing
-        await this.pool.publish(relays, signedEvent);
+        await this.pool.publish(relays, signedEvent as Event); // Cast to Event to satisfy type requirements
         
         // Update local cache
         contentCache.cacheMuteList(updatedMuteList);
@@ -167,7 +165,7 @@ export class SocialInteractionService {
         limit: 1
       };
 
-      // Fix: Use querySync with a single filter, not an array of filters
+      // Use querySync with a single filter, not an array of filters
       const events = await this.pool.querySync(relays, filter);
 
       if (events && events.length > 0) {
@@ -242,8 +240,8 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // Empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
-      };
+        pubkey: currentUserPubkey // This must be set as required by Event type
+      } as Event; // Explicitly cast to Event type
 
       const relays = this.getConnectedRelayUrls();
       
@@ -251,8 +249,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(blockEvent);
         
-        // Explicitly assert the event has all required properties for publishing
-        await this.pool.publish(relays, signedEvent);
+        await this.pool.publish(relays, signedEvent as Event); // Cast to Event to satisfy type requirements
         
         // Update local cache
         contentCache.cacheBlockList(blockList);
@@ -303,8 +300,8 @@ export class SocialInteractionService {
         tags: tags,
         content: '', // Empty content
         created_at: Math.floor(Date.now() / 1000),
-        pubkey: currentUserPubkey // Ensure pubkey is set as it's required by Event type
-      };
+        pubkey: currentUserPubkey // This must be set as required by Event type
+      } as Event; // Explicitly cast to Event type
 
       const relays = this.getConnectedRelayUrls();
       
@@ -312,8 +309,7 @@ export class SocialInteractionService {
       if (window.nostr) {
         const signedEvent = await window.nostr.signEvent(blockEvent);
         
-        // Explicitly assert the event has all required properties for publishing
-        await this.pool.publish(relays, signedEvent);
+        await this.pool.publish(relays, signedEvent as Event); // Cast to Event to satisfy type requirements
         
         // Update local cache
         contentCache.cacheBlockList(updatedBlockList);
@@ -357,7 +353,7 @@ export class SocialInteractionService {
         limit: 1
       };
 
-      // Fix: Use querySync with a single filter, not an array of filters
+      // Use querySync with a single filter, not an array of filters
       const events = await this.pool.querySync(relays, filter);
 
       if (events && events.length > 0) {
