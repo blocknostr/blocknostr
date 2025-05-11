@@ -1,15 +1,17 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRightSidebar } from "@/contexts/RightSidebarContext";
 import { useLocation } from "react-router-dom";
+import { useNavigation } from "@/contexts/NavigationContext";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
 import PageHeader from "@/components/navigation/PageHeader";
+import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -19,6 +21,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { preferences } = useUserPreferences();
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { parentRoute, getParentRoute } = useNavigation();
   const { 
     activeHashtag, 
     rightPanelOpen, 
@@ -28,6 +31,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   } = useRightSidebar();
   
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{label: string; path: string; isCurrentPage?: boolean}>>([]);
 
   // Setup swipe handlers for mobile gesture navigation
   const swipeHandlers = useSwipeable({
@@ -64,15 +68,63 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     window.scrollTo(0, 0);
   };
 
+  // Generate breadcrumbs based on current location
+  useEffect(() => {
+    const path = location.pathname;
+    const newBreadcrumbs = [];
+    
+    // Skip breadcrumbs for home page
+    if (path === '/') {
+      setBreadcrumbs([]);
+      return;
+    }
+    
+    // Add current page
+    const pageName = getPageTitle();
+    
+    // If we're on a deep path, add the parent
+    if (parentRoute && parentRoute !== '/') {
+      // Get the parent page title
+      const parentPathParts = parentRoute.split('/').filter(Boolean);
+      const parentName = parentPathParts.length > 0 ? 
+        parentPathParts[parentPathParts.length - 1].charAt(0).toUpperCase() + 
+        parentPathParts[parentPathParts.length - 1].slice(1) : 
+        "Home";
+      
+      newBreadcrumbs.push({
+        label: parentName,
+        path: parentRoute,
+      });
+    }
+    
+    // Add current page to breadcrumbs
+    newBreadcrumbs.push({
+      label: pageName,
+      path: path,
+      isCurrentPage: true
+    });
+    
+    setBreadcrumbs(newBreadcrumbs);
+  }, [location.pathname, parentRoute]);
+
   // Determine page title based on current route
   const getPageTitle = () => {
     const path = location.pathname;
     
     if (path === "/") return "Home";
     if (path.startsWith("/profile")) return "Profile";
+    if (path.startsWith("/settings")) return "Settings";
+    if (path.startsWith("/communities")) {
+      if (path === "/communities") return "Communities";
+      // Extract community name from path if possible
+      const parts = path.split('/');
+      if (parts.length > 2 && parts[2]) {
+        return parts[2].charAt(0).toUpperCase() + parts[2].slice(1);
+      }
+      return "Community";
+    }
     if (path.startsWith("/messages")) return "Messages";
     if (path.startsWith("/notifications")) return "Notifications";
-    if (path.startsWith("/communities")) return "Communities";
     if (path.startsWith("/notebin")) return "Notebin";
     if (path.startsWith("/wallets")) return "Wallets";
     if (path.startsWith("/premium")) return "Premium";
@@ -81,8 +133,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return "BlockNoster";
   };
 
-  // Always show back button on all pages
-  const shouldShowBackButton = () => true;
+  // Show back button on pages that aren't the home page
+  const shouldShowBackButton = () => location.pathname !== '/';
+
+  // Show breadcrumbs only on deeper pages, not top-level sections
+  const shouldShowBreadcrumbs = () => breadcrumbs.length > 1;
 
   return (
     <div className={cn(
@@ -119,6 +174,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             </button>
           )}
         </PageHeader>
+        
+        {/* Breadcrumbs - shown only on deeper pages */}
+        {shouldShowBreadcrumbs() && (
+          <div className="px-4 py-2">
+            <PageBreadcrumbs items={breadcrumbs} />
+          </div>
+        )}
         
         <div 
           className="flex w-full flex-1"

@@ -32,7 +32,11 @@ const CommunityPageHeader = ({
 
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur h-16 border-b flex items-center px-6">
-      <BackButton className="mr-2" showText={true} />
+      <BackButton 
+        fallbackPath="/communities" 
+        className="mr-2" 
+        showText={true}
+      />
       
       <div className="flex-1">
         <div className="flex items-center">

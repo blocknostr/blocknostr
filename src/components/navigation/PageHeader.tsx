@@ -5,6 +5,7 @@ import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
 
 interface PageHeaderProps {
   title: string;
@@ -26,6 +27,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   children
 }) => {
   const { darkMode, toggleDarkMode } = useTheme();
+  const location = useLocation();
+  const isHomePage = location.pathname === "/";
   
   return (
     <header className={cn(
@@ -37,7 +40,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {/* Render children (mobile menu) first if provided */}
           {children}
           
-          {showBackButton && <BackButton fallbackPath={fallbackPath} showText={true} />}
+          {showBackButton && !isHomePage && (
+            <BackButton 
+              fallbackPath={fallbackPath} 
+              showText={true} 
+              forceHome={isHomePage}
+            />
+          )}
           <h1 className="font-semibold">{title}</h1>
         </div>
         
