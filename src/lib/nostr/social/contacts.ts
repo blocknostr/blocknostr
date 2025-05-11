@@ -121,23 +121,23 @@ export class ContactsManager {
         }
       ];
       
-      const sub = pool.subscribe(relayUrls, filters);
-      
-      sub.on('event', (event) => {
-        // Extract p tags (pubkeys) and other tags
-        const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
-        const pubkeys = pTags.map(tag => tag[1]);
-        
-        resolve({
-          pubkeys,
-          tags: event.tags,
-          content: event.content
-        });
+      const sub = pool.subscribe(relayUrls, filters, {
+        onevent: (event) => {
+          // Extract p tags (pubkeys) and other tags
+          const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
+          const pubkeys = pTags.map(tag => tag[1]);
+          
+          resolve({
+            pubkeys,
+            tags: event.tags,
+            content: event.content
+          });
+        }
       });
       
       // Set a timeout to ensure we resolve even if no contact list is found
       setTimeout(() => {
-        pool.unsubscribe(relayUrls, filters);
+        sub.close();
         resolve(defaultResult);
       }, 5000);
     });

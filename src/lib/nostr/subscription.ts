@@ -4,7 +4,7 @@ import { NostrEvent } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter[], onEvent: (event: NostrEvent) => void }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: Filter[], onEvent: (event: NostrEvent) => void, subCloser: any }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -24,16 +24,15 @@ export class SubscriptionManager {
     const id = `sub_${this.nextId++}`;
     
     try {
-      // Create subscription
-      const sub = this.pool.subscribe(relays, filters);
-      
-      // Add event handler
-      sub.on('event', (event) => {
-        onEvent(event as NostrEvent);
+      // Create subscription with proper callback for the "event" event
+      const subCloser = this.pool.subscribe(relays, filters, {
+        onevent: (event) => {
+          onEvent(event as NostrEvent);
+        }
       });
       
       // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays, filters, onEvent });
+      this.subscriptions.set(id, { relays, filters, onEvent, subCloser });
       
       return id;
     } catch (error) {
@@ -46,8 +45,8 @@ export class SubscriptionManager {
     const subscription = this.subscriptions.get(subId);
     if (subscription) {
       try {
-        // Unsubscribe from the subscription
-        this.pool.unsubscribe(subscription.relays, subscription.filters);
+        // Use the subCloser's close method to unsubscribe
+        subscription.subCloser.close();
         this.subscriptions.delete(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);

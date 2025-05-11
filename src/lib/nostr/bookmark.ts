@@ -63,14 +63,14 @@ export class BookmarkManager {
         ]
       };
       
-      const resultId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
       
       // Also create bookmark metadata if provided
-      if (resultId && (collectionId || tags?.length || note)) {
+      if (publishResult && (collectionId || tags?.length || note)) {
         await this.updateBookmarkMetadata(pool, publicKey, privateKey, eventId, relays, collectionId, tags, note);
       }
       
-      return !!resultId;
+      return !!publishResult;
     } catch (error) {
       console.error("Error adding bookmark:", error);
       return false;
@@ -141,20 +141,20 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.subscribe(relays, filters);
-      
-      sub.on('event', (event) => {
-        // Extract e tags (bookmarked event IDs)
-        const bookmarks = event.tags
-          .filter(tag => tag.length >= 2 && tag[0] === 'e')
-          .map(tag => tag[1]);
-        
-        bookmarkedIds = bookmarks;
+      const sub = pool.subscribe(relays, filters, {
+        onevent: (event) => {
+          // Extract e tags (bookmarked event IDs)
+          const bookmarks = event.tags
+            .filter(tag => tag.length >= 2 && tag[0] === 'e')
+            .map(tag => tag[1]);
+          
+          bookmarkedIds = bookmarks;
+        }
       });
       
       // Set a timeout to resolve with found bookmarks
       setTimeout(() => {
-        pool.unsubscribe(relays, filters);
+        sub.close();
         resolve(bookmarkedIds);
       }, 3000);
     });
@@ -305,33 +305,33 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.subscribe(relays, filters);
-      
-      sub.on('event', (event) => {
-        try {
-          const data = JSON.parse(event.content);
-          
-          // Extract collection ID from d tag
-          const dTag = event.tags.find(tag => tag[0] === 'd');
-          if (!dTag || !dTag[1]) return;
-          
-          const collectionId = dTag[1];
-          
-          collections.push({
-            id: collectionId,
-            name: data.name || "Unnamed Collection",
-            color: data.color,
-            description: data.description,
-            totalItems: collectionCounts[collectionId] || 0
-          });
-        } catch (e) {
-          console.error("Error parsing collection data:", e);
+      const sub = pool.subscribe(relays, filters, {
+        onevent: (event) => {
+          try {
+            const data = JSON.parse(event.content);
+            
+            // Extract collection ID from d tag
+            const dTag = event.tags.find(tag => tag[0] === 'd');
+            if (!dTag || !dTag[1]) return;
+            
+            const collectionId = dTag[1];
+            
+            collections.push({
+              id: collectionId,
+              name: data.name || "Unnamed Collection",
+              color: data.color,
+              description: data.description,
+              totalItems: collectionCounts[collectionId] || 0
+            });
+          } catch (e) {
+            console.error("Error parsing collection data:", e);
+          }
         }
       });
       
       // Set a timeout to resolve with found collections
       setTimeout(() => {
-        pool.unsubscribe(relays, filters);
+        sub.close();
         resolve(collections);
       }, 3000);
     });
@@ -374,8 +374,8 @@ export class BookmarkManager {
       });
     }
     
-    const metaResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!metaResult;
+    const publishResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!publishResult;
   }
   
   /**
@@ -399,8 +399,8 @@ export class BookmarkManager {
       ]
     };
     
-    const deleteResult = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-    return !!deleteResult;
+    const result = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    return !!result;
   }
   
   /**
@@ -422,38 +422,38 @@ export class BookmarkManager {
         }
       ];
       
-      const sub = pool.subscribe(relays, filters);
-      
-      sub.on('event', (event) => {
-        try {
-          // Extract referenced event ID from e tag
-          const eventRef = event.tags.find(tag => tag[0] === 'e');
-          if (!eventRef || !eventRef[1]) return;
-          
-          const eventId = eventRef[1];
-          
-          // Parse metadata from content
-          const data = JSON.parse(event.content);
-          
-          // Extract any tags
-          const tagList = event.tags
-            .filter(tag => tag[0] === 't' && tag.length >= 2)
-            .map(tag => tag[1]);
-          
-          metadata.push({
-            eventId,
-            collectionId: data.collectionId,
-            note: data.note,
-            tags: tagList.length > 0 ? tagList : undefined
-          });
-        } catch (e) {
-          console.error("Error parsing bookmark metadata:", e);
+      const sub = pool.subscribe(relays, filters, {
+        onevent: (event) => {
+          try {
+            // Extract referenced event ID from e tag
+            const eventRef = event.tags.find(tag => tag[0] === 'e');
+            if (!eventRef || !eventRef[1]) return;
+            
+            const eventId = eventRef[1];
+            
+            // Parse metadata from content
+            const data = JSON.parse(event.content);
+            
+            // Extract any tags
+            const tagList = event.tags
+              .filter(tag => tag[0] === 't' && tag.length >= 2)
+              .map(tag => tag[1]);
+            
+            metadata.push({
+              eventId,
+              collectionId: data.collectionId,
+              note: data.note,
+              tags: tagList.length > 0 ? tagList : undefined
+            });
+          } catch (e) {
+            console.error("Error parsing bookmark metadata:", e);
+          }
         }
       });
       
       // Set a timeout to resolve with found metadata
       setTimeout(() => {
-        pool.unsubscribe(relays, filters);
+        sub.close();
         resolve(metadata);
       }, 3000);
     });

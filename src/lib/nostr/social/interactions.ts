@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
@@ -118,18 +119,18 @@ export class InteractionsManager {
         }
       ];
       
-      const reactionsSub = pool.subscribe(relayUrls, reactionsFilters);
-      
-      reactionsSub.on('event', (event) => {
-        // Count likes (positive reactions)
-        const content = event.content.trim();
-        if (["+", "👍", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️"].includes(content)) {
-          likes++;
-          likers.push(event.pubkey);
-          
-          // Check if current user has liked
-          if (currentPubkey && event.pubkey === currentPubkey) {
-            userHasLiked = true;
+      const reactionsSub = pool.subscribe(relayUrls, reactionsFilters, {
+        onevent: (event) => {
+          // Count likes (positive reactions)
+          const content = event.content.trim();
+          if (["+", "👍", "❤️", "🧡", "💛", "💚", "💙", "💜", "🤎", "🖤", "🤍", "♥️"].includes(content)) {
+            likes++;
+            likers.push(event.pubkey);
+            
+            // Check if current user has liked
+            if (currentPubkey && event.pubkey === currentPubkey) {
+              userHasLiked = true;
+            }
           }
         }
       });
@@ -143,21 +144,21 @@ export class InteractionsManager {
         }
       ];
       
-      const repostsSub = pool.subscribe(relayUrls, repostsFilters);
-      
-      repostsSub.on('event', (event) => {
-        reposts++;
-        
-        // Check if current user has reposted
-        if (currentPubkey && event.pubkey === currentPubkey) {
-          userHasReposted = true;
+      const repostsSub = pool.subscribe(relayUrls, repostsFilters, {
+        onevent: (event) => {
+          reposts++;
+          
+          // Check if current user has reposted
+          if (currentPubkey && event.pubkey === currentPubkey) {
+            userHasReposted = true;
+          }
         }
       });
       
       // Set a timeout to resolve with found counts
       setTimeout(() => {
-        pool.unsubscribe(relayUrls, reactionsFilters);
-        pool.unsubscribe(relayUrls, repostsFilters);
+        reactionsSub.close();
+        repostsSub.close();
         
         resolve({
           likes,
