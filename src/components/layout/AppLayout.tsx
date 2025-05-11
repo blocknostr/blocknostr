@@ -20,6 +20,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     activeHashtag, 
     rightPanelOpen, 
     setRightPanelOpen,
+    setActiveHashtag, // Add this line to get the setActiveHashtag function
     clearHashtag 
   } = useRightSidebar();
   
