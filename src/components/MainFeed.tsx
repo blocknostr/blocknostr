@@ -7,7 +7,7 @@ import GlobalFeed from "./feed/GlobalFeed";
 import ForYouFeed from "./feed/ForYouFeed";
 import MediaFeed from "./feed/MediaFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, X, Image } from "lucide-react";
+import { Settings, Image } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -68,21 +68,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       {isOffline && (
         <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
           <span>You're currently offline. Viewing cached content.</span>
-        </div>
-      )}
-      
-      {activeHashtag && (
-        <div className="flex items-center mb-4">
-          <div className="bg-primary/10 text-primary px-3 py-1 rounded-md flex items-center gap-2">
-            #{activeHashtag}
-            <button 
-              onClick={onClearHashtag} 
-              className="rounded-full hover:bg-primary/20 p-1 transition-colors"
-              title="Clear filter"
-            >
-              <X size={14} />
-            </button>
-          </div>
         </div>
       )}
       

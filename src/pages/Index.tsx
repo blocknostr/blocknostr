@@ -114,6 +114,8 @@ const Index: React.FC = () => {
             setRightPanelOpen={setRightPanelOpen}
             onTopicClick={handleTopicClick}
             isMobile={isMobile}
+            activeHashtag={activeHashtag}
+            onClearHashtag={clearHashtag}
           />
         </div>
       </div>

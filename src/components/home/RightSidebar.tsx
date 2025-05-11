@@ -11,13 +11,17 @@ interface RightSidebarProps {
   setRightPanelOpen: (open: boolean) => void;
   onTopicClick: (topic: string) => void;
   isMobile: boolean;
+  activeHashtag?: string;
+  onClearHashtag?: () => void;
 }
 
 const RightSidebar: React.FC<RightSidebarProps> = ({ 
   rightPanelOpen, 
   setRightPanelOpen, 
   onTopicClick,
-  isMobile 
+  isMobile,
+  activeHashtag,
+  onClearHashtag
 }) => {
   const { preferences } = useUserPreferences();
   
@@ -29,7 +33,11 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           <div className="mb-4">
             <GlobalSearch />
           </div>
-          <TrendingTopics onTopicClick={onTopicClick} />
+          <TrendingTopics 
+            onTopicClick={onTopicClick} 
+            activeHashtag={activeHashtag}
+            onClearHashtag={onClearHashtag}
+          />
           <WhoToFollow />
         </div>
       </aside>
@@ -45,7 +53,11 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
             <div className="mb-4">
               <GlobalSearch />
             </div>
-            <TrendingTopics onTopicClick={onTopicClick} />
+            <TrendingTopics 
+              onTopicClick={onTopicClick} 
+              activeHashtag={activeHashtag}
+              onClearHashtag={onClearHashtag}
+            />
             <WhoToFollow />
           </div>
         </SheetContent>
