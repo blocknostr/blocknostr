@@ -17,6 +17,8 @@ export const EVENT_KINDS = {
   BOOKMARKS: 10003,      // Alias for BOOKMARK_LIST
   BOOKMARK_COLLECTIONS: 30001, // Custom kind for bookmark collections
   BOOKMARK_METADATA: 30002,    // Custom kind for bookmark metadata (tags, notes)
+  MUTE_LIST: 10000,      // NIP-51 Mute List
+  BLOCK_LIST: 16462,     // Custom kind for Block List (following NIP-51 pattern)
   PROPOSAL: 34551,       // Custom kind for proposals
   VOTE: 34552,           // Custom kind for votes
   COMMENT: 34553,        // Custom kind for comments

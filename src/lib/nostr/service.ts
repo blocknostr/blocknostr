@@ -16,6 +16,7 @@ import { ProfileService } from './services/profile-service';
 import { CommunityService } from './services/community-service';
 import { BookmarkService } from './services/bookmark-service';
 import { ThreadService } from './services/thread/thread-service';
+import { SocialInteractionService } from './services/social-interaction-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -34,6 +35,7 @@ class NostrService {
   private communityService: CommunityService;
   private bookmarkService: BookmarkService;
   private threadService: ThreadService;
+  private socialInteractionService: SocialInteractionService;
   
   constructor() {
     // Initialize SimplePool first
@@ -71,6 +73,13 @@ class NostrService {
     // Initialize the new thread service
     this.threadService = new ThreadService(
       this.pool,
+      this.getConnectedRelayUrls.bind(this)
+    );
+    
+    // Initialize the social interaction service
+    this.socialInteractionService = new SocialInteractionService(
+      this.pool,
+      () => this.userManager.publicKey,
       this.getConnectedRelayUrls.bind(this)
     );
     
@@ -476,6 +485,31 @@ class NostrService {
   
   public getParentId(event: NostrEvent): string | null {
     return this.threadService.getParentId(event);
+  }
+  
+  // New social interaction methods
+  public async muteUser(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.muteUser(pubkey);
+  }
+
+  public async unmuteUser(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.unmuteUser(pubkey);
+  }
+
+  public async isUserMuted(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.isUserMuted(pubkey);
+  }
+
+  public async blockUser(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.blockUser(pubkey);
+  }
+
+  public async unblockUser(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.unblockUser(pubkey);
+  }
+
+  public async isUserBlocked(pubkey: string): Promise<boolean> {
+    return this.socialInteractionService.isUserBlocked(pubkey);
   }
 }
 

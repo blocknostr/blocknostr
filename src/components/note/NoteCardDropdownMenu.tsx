@@ -1,10 +1,10 @@
 
+import { useState, useEffect } from 'react';
 import { MoreHorizontal, Twitter, Flag, UserPlus, Mail, BellOff, UserX } from 'lucide-react';
 import { Button } from "../ui/button";
 import { nostrService } from '@/lib/nostr';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,12 +36,50 @@ const NoteCardDropdownMenu = ({
   const isOwnPost = pubkey === nostrService.publicKey;
   const [isUserMuted, setIsUserMuted] = useState(false);
   const [isUserBlocked, setIsUserBlocked] = useState(false);
+  const [isLoadingMuteStatus, setIsLoadingMuteStatus] = useState(true);
+  const [isLoadingBlockStatus, setIsLoadingBlockStatus] = useState(true);
   
   // Get name from profile data or use shortNpub as fallback
   const npub = nostrService.getNpubFromHex(pubkey);
   const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
   const name = profileData?.name || shortNpub;
   const displayName = profileData?.display_name || name;
+  
+  // Fetch mute and block status when component mounts
+  useEffect(() => {
+    if (!pubkey || !nostrService.publicKey) {
+      setIsLoadingMuteStatus(false);
+      setIsLoadingBlockStatus(false);
+      return;
+    }
+    
+    // Check if user is muted
+    const checkMuteStatus = async () => {
+      try {
+        const muted = await nostrService.isUserMuted(pubkey);
+        setIsUserMuted(muted);
+      } catch (error) {
+        console.error("Error checking mute status:", error);
+      } finally {
+        setIsLoadingMuteStatus(false);
+      }
+    };
+    
+    // Check if user is blocked
+    const checkBlockStatus = async () => {
+      try {
+        const blocked = await nostrService.isUserBlocked(pubkey);
+        setIsUserBlocked(blocked);
+      } catch (error) {
+        console.error("Error checking block status:", error);
+      } finally {
+        setIsLoadingBlockStatus(false);
+      }
+    };
+    
+    checkMuteStatus();
+    checkBlockStatus();
+  }, [pubkey]);
   
   const handleViewDetails = () => {
     if (eventId) {
@@ -94,16 +132,60 @@ const NoteCardDropdownMenu = ({
     }
   };
 
-  const handleMuteAuthor = () => {
-    // Here you would implement the actual muting logic using nostrService
-    setIsUserMuted(!isUserMuted);
-    toast.success(isUserMuted ? `Unmuted ${displayName}` : `Muted ${displayName}`);
+  const handleMuteAuthor = async () => {
+    if (!nostrService.publicKey) {
+      toast.error("You must be logged in to mute users");
+      return;
+    }
+    
+    try {
+      if (isUserMuted) {
+        // Unmute
+        const result = await nostrService.unmuteUser(pubkey);
+        if (result) {
+          setIsUserMuted(false);
+          toast.success(`Unmuted ${displayName}`);
+        }
+      } else {
+        // Mute
+        const result = await nostrService.muteUser(pubkey);
+        if (result) {
+          setIsUserMuted(true);
+          toast.success(`Muted ${displayName}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling mute status:", error);
+      toast.error(`Failed to ${isUserMuted ? 'unmute' : 'mute'} user`);
+    }
   };
 
-  const handleBlockAuthor = () => {
-    // Here you would implement the actual blocking logic using nostrService
-    setIsUserBlocked(!isUserBlocked);
-    toast.success(isUserBlocked ? `Unblocked ${displayName}` : `Blocked ${displayName}`);
+  const handleBlockAuthor = async () => {
+    if (!nostrService.publicKey) {
+      toast.error("You must be logged in to block users");
+      return;
+    }
+    
+    try {
+      if (isUserBlocked) {
+        // Unblock
+        const result = await nostrService.unblockUser(pubkey);
+        if (result) {
+          setIsUserBlocked(false);
+          toast.success(`Unblocked ${displayName}`);
+        }
+      } else {
+        // Block
+        const result = await nostrService.blockUser(pubkey);
+        if (result) {
+          setIsUserBlocked(true);
+          toast.success(`Blocked ${displayName}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error toggling block status:", error);
+      toast.error(`Failed to ${isUserBlocked ? 'unblock' : 'block'} user`);
+    }
   };
 
   const handleReport = () => {
@@ -165,7 +247,12 @@ const NoteCardDropdownMenu = ({
                 <UserPlus className="mr-2 h-4 w-4" />
                 <span>Follow user</span>
               </DropdownMenuItem>
-              {!isUserMuted ? (
+              {isLoadingMuteStatus ? (
+                <DropdownMenuItem disabled>
+                  <BellOff className="mr-2 h-4 w-4" />
+                  <span>Loading mute status...</span>
+                </DropdownMenuItem>
+              ) : !isUserMuted ? (
                 <DropdownMenuItem onClick={handleMuteAuthor}>
                   <BellOff className="mr-2 h-4 w-4" />
                   <span>Mute @{name}</span>
@@ -176,7 +263,12 @@ const NoteCardDropdownMenu = ({
                   <span>Unmute @{name}</span>
                 </DropdownMenuItem>
               )}
-              {!isUserBlocked ? (
+              {isLoadingBlockStatus ? (
+                <DropdownMenuItem disabled>
+                  <UserX className="mr-2 h-4 w-4" />
+                  <span>Loading block status...</span>
+                </DropdownMenuItem>
+              ) : !isUserBlocked ? (
                 <DropdownMenuItem onClick={handleBlockAuthor} className="text-destructive focus:text-destructive">
                   <UserX className="mr-2 h-4 w-4" />
                   <span>Block @{name}</span>

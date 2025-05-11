@@ -24,6 +24,9 @@ export class ContentCache {
   private feedCache: Map<string, CacheEntry<string[]>> = new Map();
   private offlineMode: boolean = false;
   
+  private _muteList: string[] | null = null;
+  private _blockList: string[] | null = null;
+  
   constructor() {
     // Load cache from IndexedDB on initialization
     this.loadFromStorage();
@@ -322,10 +325,73 @@ export class ContentCache {
   isOffline(): boolean {
     return this.offlineMode;
   }
+
+  // Mute list cache
+  private _muteList: string[] | null = null;
+  
+  // Block list cache
+  private _blockList: string[] | null = null;
+
+  // Methods for mute list
+  cacheMuteList(pubkeys: string[]): void {
+    this._muteList = pubkeys;
+    // Store in local storage for persistence
+    localStorage.setItem('nostr_mute_list', JSON.stringify(pubkeys));
+  }
+
+  getMuteList(): string[] | null {
+    // If we have it in memory, return it
+    if (this._muteList) {
+      return this._muteList;
+    }
+
+    // Try to load from local storage
+    const storedList = localStorage.getItem('nostr_mute_list');
+    if (storedList) {
+      try {
+        const parsedList = JSON.parse(storedList);
+        this._muteList = parsedList;
+        return parsedList;
+      } catch (e) {
+        console.error('Error parsing mute list from storage:', e);
+      }
+    }
+
+    return null;
+  }
+
+  // Methods for block list
+  cacheBlockList(pubkeys: string[]): void {
+    this._blockList = pubkeys;
+    // Store in local storage for persistence
+    localStorage.setItem('nostr_block_list', JSON.stringify(pubkeys));
+  }
+
+  getBlockList(): string[] | null {
+    // If we have it in memory, return it
+    if (this._blockList) {
+      return this._blockList;
+    }
+
+    // Try to load from local storage
+    const storedList = localStorage.getItem('nostr_block_list');
+    if (storedList) {
+      try {
+        const parsedList = JSON.parse(storedList);
+        this._blockList = parsedList;
+        return parsedList;
+      } catch (e) {
+        console.error('Error parsing block list from storage:', e);
+      }
+    }
+
+    return null;
+  }
 }
 
-// Create a singleton instance
-export const contentCache = new ContentCache();
+// Create and export singleton instance
+const contentCache = new ContentCache();
+export { contentCache };
 
 // Set up periodic cache cleanup
 setInterval(() => {
