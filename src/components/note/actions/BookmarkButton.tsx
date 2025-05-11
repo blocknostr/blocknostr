@@ -45,29 +45,35 @@ const BookmarkButton = ({
       
       if (isBookmarked) {
         // Remove bookmark
+        console.log("Attempting to remove bookmark for event:", eventId);
         setIsBookmarked(false); // Optimistically update UI
         const result = await nostrService.removeBookmark(eventId);
         if (result) {
           toast.success("Bookmark removed");
+          console.log("Bookmark removed successfully");
         } else {
           setIsBookmarked(true); // Revert if failed
+          console.error("Bookmark removal failed, but no error was thrown");
           toast.error("Failed to remove bookmark");
         }
       } else {
         // Add bookmark
+        console.log("Attempting to add bookmark for event:", eventId);
         setIsBookmarked(true); // Optimistically update UI
         const result = await nostrService.addBookmark(eventId);
         if (result) {
           toast.success("Post bookmarked");
+          console.log("Bookmark added successfully");
         } else {
           setIsBookmarked(false); // Revert if failed
+          console.error("Bookmark addition failed, but no error was thrown");
           toast.error("Failed to bookmark post");
         }
       }
     } catch (error) {
       console.error("Error bookmarking post:", error);
       setIsBookmarked(!isBookmarked); // Revert UI state
-      toast.error("Failed to update bookmark");
+      toast.error(`Failed to update bookmark: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsBookmarkPending(false);
     }

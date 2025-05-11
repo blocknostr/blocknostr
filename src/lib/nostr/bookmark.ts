@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
@@ -30,7 +31,7 @@ export class BookmarkManager {
   async addBookmark(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     eventId: string,
     relays: string[],
     collectionId?: string,
@@ -104,7 +105,7 @@ export class BookmarkManager {
   async removeBookmark(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     eventId: string,
     relays: string[]
   ): Promise<boolean> {
@@ -221,7 +222,7 @@ export class BookmarkManager {
   async createCollection(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     name: string,
     relays: string[],
     color?: string,
@@ -258,7 +259,7 @@ export class BookmarkManager {
   async updateCollection(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     collectionId: string,
     updates: Partial<BookmarkCollection>,
     relays: string[]
@@ -300,7 +301,7 @@ export class BookmarkManager {
   async deleteCollection(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     collectionId: string,
     relays: string[]
   ): Promise<boolean> {
@@ -384,7 +385,7 @@ export class BookmarkManager {
   async updateBookmarkMetadata(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     eventId: string,
     relays: string[],
     collectionId?: string,
@@ -425,7 +426,7 @@ export class BookmarkManager {
   async removeBookmarkMetadata(
     pool: SimplePool,
     publicKey: string | null,
-    privateKey: string | null,
+    privateKey: string | null | undefined,
     eventId: string,
     relays: string[]
   ): Promise<boolean> {

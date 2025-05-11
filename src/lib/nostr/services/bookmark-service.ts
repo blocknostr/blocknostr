@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { BookmarkCollection, BookmarkWithMetadata } from '../bookmark';
 
@@ -25,10 +26,11 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     try {
+      // Pass privateKey as undefined to let NostrService handle signing via extension
       const result = await this.bookmarkManager.addBookmark(
         this.pool,
         this.publicKey, 
-        null, // We're not storing private keys
+        undefined, // Let NostrService handle signing using the extension
         eventId,
         connectedRelays,
         collectionId, 
@@ -51,10 +53,11 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     try {
+      // Pass privateKey as undefined to let NostrService handle signing via extension
       const result = await this.bookmarkManager.removeBookmark(
         this.pool,
         this.publicKey, 
-        null, // We're not storing private keys
+        undefined, // Let NostrService handle signing using the extension
         eventId, 
         connectedRelays
       );
@@ -74,9 +77,9 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.getBookmarkList(
+      this.pool,
       this.publicKey,
-      connectedRelays,
-      this.pool
+      connectedRelays
     );
   }
   
@@ -88,10 +91,10 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.isBookmarked(
+      this.pool,
+      this.publicKey, 
       eventId,
-      this.publicKey,
-      connectedRelays,
-      this.pool
+      connectedRelays
     );
   }
 
@@ -107,11 +110,11 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.createCollection(
-      name,
-      this.publicKey,
-      null, // We're not storing private keys
-      connectedRelays,
       this.pool,
+      this.publicKey,
+      undefined, // Let NostrService handle signing using the extension
+      name,
+      connectedRelays,
       color,
       description
     );
@@ -125,9 +128,9 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.getCollections(
+      this.pool,
       this.publicKey,
-      connectedRelays,
-      this.pool
+      connectedRelays
     );
   }
 
@@ -139,9 +142,9 @@ export class BookmarkService {
     const connectedRelays = this.getConnectedRelayUrls();
     
     return this.bookmarkManager.getBookmarkMetadata(
+      this.pool,
       this.publicKey,
-      connectedRelays,
-      this.pool
+      connectedRelays
     );
   }
 }
