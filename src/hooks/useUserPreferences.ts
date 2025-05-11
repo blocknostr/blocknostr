@@ -161,10 +161,11 @@ export function useUserPreferences() {
       }
       
       // Fallback: create a new object based on defaults if the nested object is invalid
+      const defaultValue = defaultPreferences[key];
       return {
         ...prev,
         [key]: {
-          ...defaultPreferences[key],
+          ...(typeof defaultValue === 'object' && defaultValue !== null ? defaultValue : {}),
           [nestedKey]: value,
         } as UserPreferences[K],
       };
