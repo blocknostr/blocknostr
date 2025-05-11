@@ -4,22 +4,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { MoreHorizontal, BadgeCheck } from 'lucide-react';
-import FollowButton from '../FollowButton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { BadgeCheck } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toast } from 'sonner';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -31,8 +22,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const hexPubkey = pubkey || '';
   const npub = nostrService.getNpubFromHex(hexPubkey);
   const currentUserPubkey = nostrService.publicKey;
-  const [isUserBlocked, setIsUserBlocked] = useState(false);
-  const [isUserMuted, setIsUserMuted] = useState(false);
   const [xVerified, setXVerified] = useState(false);
   
   // Handle short display of npub (first 5 and last 5 chars)
@@ -50,24 +39,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     new Date(createdAt * 1000),
     { addSuffix: true }
   );
-
-  const isCurrentUser = currentUserPubkey === hexPubkey;
-
-  const handleNotInterested = () => {
-    toast.success("We'll show fewer posts like this");
-  };
-
-  const handleMuteAuthor = () => {
-    // Here you would implement the actual muting logic using nostrService
-    setIsUserMuted(true);
-    toast.success(`Muted ${displayName}`);
-  };
-
-  const handleBlockAuthor = () => {
-    // Here you would implement the actual blocking logic using nostrService
-    setIsUserBlocked(true);
-    toast.success(`Blocked ${displayName}`);
-  };
 
   // Check for X verification status from profile
   useEffect(() => {
@@ -138,44 +109,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
             <span className="text-muted-foreground text-sm hover:underline cursor-pointer">{timeAgo}</span>
           </div>
         </div>
-      </div>
-      
-      {/* Options dropdown menu */}
-      <div onClick={(e) => e.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="p-1 rounded-full hover:bg-accent/80 focus:outline-none">
-              <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={handleNotInterested}>
-              Not interested in this post
-            </DropdownMenuItem>
-            
-            {!isCurrentUser && !isUserBlocked && (
-              <>
-                <DropdownMenuSeparator />
-                <div className="px-2 py-1.5">
-                  <FollowButton pubkey={hexPubkey} className="w-full justify-center" />
-                </div>
-                <DropdownMenuSeparator />
-                {!isUserMuted ? (
-                  <DropdownMenuItem onClick={handleMuteAuthor}>
-                    Mute @{name}
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => setIsUserMuted(false)}>
-                    Unmute @{name}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={handleBlockAuthor} className="text-destructive focus:text-destructive">
-                  Block @{name}
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

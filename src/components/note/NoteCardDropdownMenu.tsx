@@ -1,9 +1,10 @@
 
-import { MoreHorizontal, Twitter, Flag, UserPlus, Mail } from 'lucide-react';
+import { MoreHorizontal, Twitter, Flag, UserPlus, Mail, BellOff, UserX } from 'lucide-react';
 import { Button } from "../ui/button";
 import { nostrService } from '@/lib/nostr';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import {
 interface NoteCardDropdownMenuProps {
   eventId: string;
   pubkey: string;
+  profileData?: Record<string, any>;
   onDeleteClick: () => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
@@ -25,12 +27,21 @@ interface NoteCardDropdownMenuProps {
 const NoteCardDropdownMenu = ({ 
   eventId, 
   pubkey, 
+  profileData,
   onDeleteClick,
   onInteractionStart,
   onInteractionEnd
 }: NoteCardDropdownMenuProps) => {
   const navigate = useNavigate();
   const isOwnPost = pubkey === nostrService.publicKey;
+  const [isUserMuted, setIsUserMuted] = useState(false);
+  const [isUserBlocked, setIsUserBlocked] = useState(false);
+  
+  // Get name from profile data or use shortNpub as fallback
+  const npub = nostrService.getNpubFromHex(pubkey);
+  const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+  const name = profileData?.name || shortNpub;
+  const displayName = profileData?.display_name || name;
   
   const handleViewDetails = () => {
     if (eventId) {
@@ -50,6 +61,10 @@ const NoteCardDropdownMenu = ({
           toast.error('Failed to copy link');
         });
     }
+  };
+
+  const handleNotInterested = () => {
+    toast.success("We'll show fewer posts like this");
   };
 
   const handleShareToTwitter = () => {
@@ -79,6 +94,18 @@ const NoteCardDropdownMenu = ({
     }
   };
 
+  const handleMuteAuthor = () => {
+    // Here you would implement the actual muting logic using nostrService
+    setIsUserMuted(!isUserMuted);
+    toast.success(isUserMuted ? `Unmuted ${displayName}` : `Muted ${displayName}`);
+  };
+
+  const handleBlockAuthor = () => {
+    // Here you would implement the actual blocking logic using nostrService
+    setIsUserBlocked(!isUserBlocked);
+    toast.success(isUserBlocked ? `Unblocked ${displayName}` : `Blocked ${displayName}`);
+  };
+
   const handleReport = () => {
     toast.info('Report functionality coming soon');
   };
@@ -99,6 +126,12 @@ const NoteCardDropdownMenu = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={handleNotInterested}>
+            Not interested in this post
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={handleViewDetails}>
               View details
@@ -132,6 +165,28 @@ const NoteCardDropdownMenu = ({
                 <UserPlus className="mr-2 h-4 w-4" />
                 <span>Follow user</span>
               </DropdownMenuItem>
+              {!isUserMuted ? (
+                <DropdownMenuItem onClick={handleMuteAuthor}>
+                  <BellOff className="mr-2 h-4 w-4" />
+                  <span>Mute @{name}</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleMuteAuthor}>
+                  <BellOff className="mr-2 h-4 w-4" />
+                  <span>Unmute @{name}</span>
+                </DropdownMenuItem>
+              )}
+              {!isUserBlocked ? (
+                <DropdownMenuItem onClick={handleBlockAuthor} className="text-destructive focus:text-destructive">
+                  <UserX className="mr-2 h-4 w-4" />
+                  <span>Block @{name}</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleBlockAuthor}>
+                  <UserX className="mr-2 h-4 w-4" />
+                  <span>Unblock @{name}</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleReport}>
                 <Flag className="mr-2 h-4 w-4" />
                 <span>Report</span>

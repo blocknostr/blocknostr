@@ -87,6 +87,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         <NoteCardDropdownMenu 
           eventId={event.id || ''} 
           pubkey={event.pubkey || ''} 
+          profileData={profileData}
           onDeleteClick={handleDeleteClick}
           onInteractionStart={handleInteractionStart}
           onInteractionEnd={handleInteractionEnd}
