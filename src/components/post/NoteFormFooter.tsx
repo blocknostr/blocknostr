@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import FormattingToolbar from './FormattingToolbar';
 import CharacterCounter from './CharacterCounter';
 import SubmitButton from './SubmitButton';
+import { cn } from "@/lib/utils";
 
 interface NoteFormFooterProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;

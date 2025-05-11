@@ -14,14 +14,17 @@ const CharacterCounter: React.FC<CharacterCounterProps> = ({
 }) => {
   return (
     <div className={cn(
-      "text-xs font-medium transition-colors duration-300",
-      isNearLimit ? "text-amber-500" : isOverLimit ? "text-red-500" : "text-muted-foreground opacity-70",
+      "text-xs font-medium transition-all duration-300 min-w-[3.5rem] text-center",
+      isNearLimit && !isOverLimit ? "text-amber-500" : 
+      isOverLimit ? "text-red-500" : 
+      "text-muted-foreground opacity-70",
       !isNearLimit && "hidden sm:flex sm:items-center sm:justify-center",
       isNearLimit && "flex items-center justify-center"
     )}>
       <span className={cn(
-        "transition-transform duration-300",
-        (isOverLimit || (isNearLimit && charsLeft < 20)) && "scale-110"
+        "transition-all duration-300",
+        (isOverLimit || (isNearLimit && charsLeft < 20)) && "scale-110 font-semibold",
+        charsLeft < 10 && "animate-pulse"
       )}>
         {charsLeft} left
       </span>

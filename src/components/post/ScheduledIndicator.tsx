@@ -13,11 +13,14 @@ const ScheduledIndicator: React.FC<ScheduledIndicatorProps> = ({ scheduledDate }
   
   return (
     <div className={cn(
-      "mt-3 py-2 px-3 bg-primary/5 rounded-md text-xs flex items-center gap-2",
-      "text-muted-foreground border border-border/20 shadow-sm"
+      "mt-3 py-2.5 px-3.5 bg-primary/5 rounded-md text-xs flex items-center gap-2.5",
+      "text-muted-foreground border border-border/30 shadow-sm transition-all duration-300",
+      "hover:bg-primary/10 hover:border-border/40"
     )}>
-      <Calendar className="h-3.5 w-3.5" />
-      Scheduled for {scheduledDate.toLocaleDateString()} at {scheduledDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+      <Calendar className="h-3.5 w-3.5 text-primary/70" />
+      <span className="font-medium">
+        Scheduled for {scheduledDate.toLocaleDateString()} at {scheduledDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+      </span>
     </div>
   );
 };

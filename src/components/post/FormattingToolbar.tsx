@@ -93,18 +93,21 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     }, 0);
   };
 
+  const toolbarBtnClass = "rounded-full h-9 w-9 flex items-center justify-center transition-all duration-200";
+  const toolbarIconClass = "h-4 w-4";
+
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-2 py-1">
       {/* Bold button directly visible */}
       <Button 
         variant="ghost" 
         size="icon" 
         type="button" 
-        className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10" 
+        className={cn(toolbarBtnClass, "hover:bg-primary/10")} 
         onClick={() => insertFormatting('bold')} 
         aria-label="Bold text"
       >
-        <Bold className="h-4 w-4" />
+        <Bold className={toolbarIconClass} />
       </Button>
       
       {/* Italic button directly visible */}
@@ -112,11 +115,11 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         variant="ghost" 
         size="icon" 
         type="button" 
-        className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10" 
+        className={cn(toolbarBtnClass, "hover:bg-primary/10")} 
         onClick={() => insertFormatting('italic')} 
         aria-label="Italic text"
       >
-        <Italic className="h-4 w-4" />
+        <Italic className={toolbarIconClass} />
       </Button>
       
       {/* Enhanced Media upload button */}
@@ -129,12 +132,13 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             variant="ghost" 
             size="icon" 
             type="button" 
-            className="rounded-full h-8 w-8 transition-colors hover:bg-primary/10"
+            className={cn(toolbarBtnClass, "hover:bg-primary/10")}
+            aria-label="Insert emoji"
           >
-            <Smile className="h-4 w-4" />
+            <Smile className={toolbarIconClass} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-80">
+        <PopoverContent className="w-80 p-0 border-border/80 shadow-lg">
           <EmojiPicker onEmojiSelect={insertEmoji} />
         </PopoverContent>
       </Popover>
@@ -147,14 +151,15 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             size="icon" 
             type="button" 
             className={cn(
-              "rounded-full h-8 w-8 transition-colors", 
+              toolbarBtnClass,
               scheduledDate ? "text-primary bg-primary/10 hover:bg-primary/20" : "hover:bg-primary/10"
             )}
+            aria-label="Schedule post"
           >
-            <Calendar className="h-4 w-4" />
+            <Calendar className={toolbarIconClass} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 border-border/80 shadow-lg" align="start">
           <div className="p-3">
             <p className="text-sm font-medium mb-2">Schedule post</p>
             <CalendarComponent
@@ -163,11 +168,12 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
               onSelect={setScheduledDate}
               initialFocus
               disabled={{ before: new Date() }}
+              className="rounded-md border-border/50"
             />
             
             {scheduledDate && (
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-xs">
+              <div className="flex justify-between items-center mt-3 pt-2 border-t border-border/30">
+                <span className="text-xs text-muted-foreground">
                   {formatDistanceToNow(scheduledDate, { addSuffix: true })}
                 </span>
                 <Button 

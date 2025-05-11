@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { Image } from "lucide-react";
+import { Image, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -119,11 +120,11 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
         variant="ghost"
         size="icon"
         type="button"
-        className="rounded-full"
+        className="rounded-full h-9 w-9 flex items-center justify-center transition-all duration-200 hover:bg-primary/10"
         onClick={handleClick}
         disabled={isUploading}
       >
-        <Image className="h-5 w-5" />
+        <Image className="h-4 w-4" />
         <span className="sr-only">Add media</span>
       </Button>
       
@@ -137,13 +138,17 @@ const EnhancedMediaUpload: React.FC<EnhancedMediaUploadProps> = ({ onMediaAdded 
           </DialogHeader>
           
           <Tabs defaultValue="upload" className="w-full">
-            <TabsList className="grid grid-cols-2">
+            <TabsList className="grid grid-cols-2 mb-2">
               <TabsTrigger value="upload">Upload File</TabsTrigger>
               <TabsTrigger value="url">Image URL</TabsTrigger>
             </TabsList>
             
             <TabsContent value="upload" className="mt-4">
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+              <div className={cn(
+                "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 text-center",
+                "border-border/30 hover:border-border/50 transition-colors duration-200",
+                uploadStatus === 'error' ? "border-destructive/30" : ""
+              )}>
                 <input
                   type="file"
                   ref={fileInputRef}

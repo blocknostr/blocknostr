@@ -43,27 +43,29 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
   MAX_NOTE_LENGTH
 }) => {
   return (
-    <div className="flex-1">
-      <div className="mt-2">
-        <NoteComposer 
-          content={content}
-          setContent={setContent}
-          maxLength={MAX_NOTE_LENGTH}
-          textareaRef={textareaRef}
-        />
+    <div className="flex-1 flex flex-col">
+      <div className="flex-grow">
+        <div className="pt-1 pb-1">
+          <NoteComposer 
+            content={content}
+            setContent={setContent}
+            maxLength={MAX_NOTE_LENGTH}
+            textareaRef={textareaRef}
+          />
+        </div>
         
         <SmartComposeToolbar 
           onHashtagClick={handleHashtagClick}
         />
         
         {detectedHashtags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {detectedHashtags.map(tag => (
               <span 
                 key={tag} 
                 className={cn(
-                  "text-xs text-primary px-2 py-1 rounded-full bg-primary/10",
-                  "transition-all hover:bg-primary/15"
+                  "text-xs font-medium text-primary px-2 py-1 rounded-full bg-primary/10",
+                  "transition-all duration-200 hover:bg-primary/15 hover:scale-105"
                 )}
               >
                 #{tag}
@@ -75,7 +77,10 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       
       <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
       
-      <div className="border-t mt-3 pt-3 border-border/50">
+      <div className={cn(
+        "border-t mt-3 pt-3 border-border/50",
+        mediaUrls.length > 0 ? "mt-1" : "mt-3"
+      )}>
         <NoteFormFooter
           textareaRef={textareaRef}
           content={content}

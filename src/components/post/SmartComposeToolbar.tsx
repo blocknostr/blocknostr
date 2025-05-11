@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface SmartComposeToolbarProps {
   onHashtagClick: (hashtag: string) => void;
@@ -81,6 +82,57 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
     ? savedHashtags.slice(0, maxVisibleTags) 
     : savedHashtags;
 
+  if (savedHashtags.length === 0) {
+    return (
+      <div className="mt-2 mb-1">
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md hover:bg-accent/50 transition-colors"
+            >
+              <Hash className="h-3.5 w-3.5" />
+              <span>Add saved tags</span>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Save a Hashtag</DialogTitle>
+              <DialogDescription>
+                Add a hashtag to your saved list for quick access
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex items-center gap-2 mt-2">
+              <div className="text-lg font-medium">#</div>
+              <Input 
+                placeholder="Enter hashtag"
+                value={newHashtag.replace(/^#/, '')} 
+                onChange={(e) => setNewHashtag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveHashtag();
+                }}
+                className="focus-visible:ring-1 focus-visible:ring-primary/30"
+              />
+            </div>
+            
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveHashtag}>
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2 relative">
       <div className="flex items-center gap-2 mb-1">
@@ -91,27 +143,35 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
       </div>
       
       <div className="relative pr-8"> {/* Create space for the add button */}
-        <ScrollArea className="w-full whitespace-nowrap pb-1">
+        <ScrollArea className="w-full whitespace-nowrap pb-1.5">
           <div className="flex space-x-1.5">
             {displayedTags.map((tag) => (
               <TooltipProvider key={tag}>
-                <Tooltip>
+                <Tooltip delayDuration={300}>
                   <TooltipTrigger asChild>
                     <Badge 
                       variant="outline"
-                      className="cursor-pointer hover:bg-accent py-0.5 text-xs flex items-center gap-1"
+                      className={cn(
+                        "cursor-pointer py-0.5 px-2 text-xs flex items-center gap-1",
+                        "hover:bg-primary/10 transition-colors duration-200",
+                        "border-primary/20 hover:border-primary/30"
+                      )}
                       onClick={() => onHashtagClick(tag)}
                     >
                       #{tag}
                       <button 
-                        className="hover:text-destructive ml-1 rounded-full h-3 w-3 inline-flex items-center justify-center"
+                        className={cn(
+                          "ml-1 rounded-full h-3.5 w-3.5 inline-flex items-center justify-center",
+                          "hover:bg-accent hover:text-destructive transition-colors"
+                        )}
                         onClick={(e) => handleRemoveHashtag(tag, e)}
+                        aria-label={`Remove tag ${tag}`}
                       >
                         <span className="text-xs">×</span>
                       </button>
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" align="center">
+                  <TooltipContent side="bottom" align="center" className="bg-background text-foreground border-border/50 shadow-sm">
                     <p className="text-xs">Click to add #{tag} to your post</p>
                   </TooltipContent>
                 </Tooltip>
@@ -124,12 +184,12 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
                   <TooltipTrigger asChild>
                     <Badge 
                       variant="outline"
-                      className="cursor-default py-0.5 text-xs"
+                      className="cursor-default py-0.5 px-2 text-xs bg-accent/30"
                     >
                       +{savedHashtags.length - maxVisibleTags} more
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" align="center">
+                  <TooltipContent side="bottom" align="center" className="bg-background text-foreground border-border/50 shadow-sm">
                     <p className="text-xs">
                       {savedHashtags.slice(maxVisibleTags).map(tag => `#${tag}`).join(', ')}
                     </p>
@@ -145,12 +205,16 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-6 w-6 p-0 absolute right-0 top-0 rounded-full"
+              className={cn(
+                "h-6 w-6 p-0 absolute right-0 top-0 rounded-full",
+                "border-primary/20 hover:border-primary/30 hover:bg-primary/5",
+                "transition-all duration-200"
+              )}
             >
               <Plus className="h-3.5 w-3.5" />
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Save a Hashtag</DialogTitle>
               <DialogDescription>
@@ -158,7 +222,7 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
               </DialogDescription>
             </DialogHeader>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2">
               <div className="text-lg font-medium">#</div>
               <Input 
                 placeholder="Enter hashtag"
@@ -167,27 +231,22 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveHashtag();
                 }}
+                className="focus-visible:ring-1 focus-visible:ring-primary/30"
               />
             </div>
             
-            <DialogFooter>
+            <DialogFooter className="mt-4">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveHashtag}>
-                <Save className="h-4 w-4 mr-2" />
+              <Button onClick={handleSaveHashtag} className="gap-1.5">
+                <Save className="h-4 w-4" />
                 Save
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      
-      {savedHashtags.length === 0 && (
-        <div className="text-xs text-muted-foreground mt-1">
-          No saved tags. Click <Plus className="h-3 w-3 inline" /> to add some.
-        </div>
-      )}
     </div>
   );
 };
