@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
@@ -165,7 +164,6 @@ const CreateNoteFormContainer = () => {
             
             <SmartComposeToolbar 
               onHashtagClick={handleHashtagClick}
-              onQuickReplyClick={handleQuickReply}
             />
             
             {detectedHashtags.length > 0 && (
