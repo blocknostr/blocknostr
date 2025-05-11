@@ -7,6 +7,7 @@ import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 import LoginButton from '../LoginButton';
 import GlobalSearch from '../GlobalSearch';
 import { nostrService } from '@/lib/nostr';
+import WalletConnectButton from '../wallet/WalletConnectButton';
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -15,10 +16,6 @@ interface HeaderProps {
 const Header = ({ toggleSidebar }: HeaderProps) => {
   const isLoggedIn = !!nostrService.publicKey;
   const { triggerHaptic } = useHapticFeedback();
-  
-  const handleWalletClick = () => {
-    triggerHaptic('medium');
-  };
   
   return (
     <header className="sticky top-0 z-40 bg-background border-b h-14 flex items-center px-4">
@@ -61,8 +58,8 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={handleWalletClick} 
                 asChild
+                onClick={() => triggerHaptic('light')}
               >
                 <Link to="/wallets">
                   <Wallet className="h-5 w-5" />
@@ -71,16 +68,18 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             </>
           ) : (
             <>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleWalletClick} 
-                asChild
-              >
-                <Link to="/wallets">
-                  <Wallet className="h-5 w-5" />
-                </Link>
-              </Button>
+              <div className="flex items-center">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  asChild
+                  onClick={() => triggerHaptic('light')}
+                >
+                  <Link to="/wallets">
+                    <Wallet className="h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
               <LoginButton />
             </>
           )}

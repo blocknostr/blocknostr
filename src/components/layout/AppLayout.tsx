@@ -11,6 +11,7 @@ import { useNavigation } from "@/contexts/NavigationContext";
 import Sidebar from "@/components/Sidebar";
 import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
+import Header from "@/components/Header/Header"; // Import the Header component
 import PageHeader from "@/components/navigation/PageHeader";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 
@@ -180,9 +181,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           "rubber-scroll overflow-fix" // iOS optimizations
         )}
       >
+        {/* Use the Header component */}
+        <Header toggleSidebar={() => setLeftPanelOpen(!leftPanelOpen)} />
+        
         {/* iOS-friendly Page Header with dynamic shadow based on scroll */}
         <div className={cn(
-          "sticky top-0 z-50 w-full bg-background transition-all ios-spring duration-200 safe-top",
+          "sticky top-14 z-40 w-full bg-background transition-all ios-spring duration-200 safe-top",
           isScrolled ? "shadow-sm" : ""
         )}>
           <PageHeader 
