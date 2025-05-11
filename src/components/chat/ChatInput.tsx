@@ -1,14 +1,15 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal, Smile } from "lucide-react";
+import { SendHorizontal, Smile, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { nostrService } from "@/lib/nostr";
 
 interface ChatInputProps {
   isLoggedIn: boolean;
@@ -23,6 +24,26 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Verify authentication on component mount
+  useEffect(() => {
+    // Check that the login state and public key are consistent
+    const publicKey = nostrService.publicKey;
+    const loginStateValid = isLoggedIn === !!publicKey;
+    
+    console.log("ChatInput: Authentication check");
+    console.log("- isLoggedIn prop:", isLoggedIn);
+    console.log("- Public key available:", !!publicKey);
+    
+    if (!loginStateValid) {
+      console.warn("ChatInput: Login state inconsistency detected", { 
+        isLoggedIn, publicKey 
+      });
+    }
+    
+    setAuthChecked(true);
+  }, [isLoggedIn]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !isLoggedIn || disabled || isSending) {
@@ -33,12 +54,29 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
       toast.error(`Message too long, maximum ${maxChars} characters`);
       return;
     }
+    
+    if (!nostrService.publicKey) {
+      console.error("ChatInput: Trying to send message but public key is not available");
+      toast.error("Authentication error. Please log in again.");
+      return;
+    }
 
     setIsSending(true);
     try {
-      await onSendMessage(newMessage);
-      setNewMessage("");
-      setIsTyping(false);
+      console.log("ChatInput: Sending message:", newMessage);
+      const result = await onSendMessage(newMessage);
+      
+      if (result) {
+        console.log("ChatInput: Message sent successfully with ID:", result);
+        setNewMessage("");
+        setIsTyping(false);
+      } else {
+        console.error("ChatInput: Message send failed (null result)");
+        toast.error("Failed to send message. Please try again.");
+      }
+    } catch (error) {
+      console.error("ChatInput: Error sending message:", error);
+      toast.error("Error sending message");
     } finally {
       setIsSending(false);
     }
@@ -53,6 +91,18 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
     setNewMessage(prev => prev + emoji);
     setIsTyping(true);
   };
+  
+  // If authentication is inconsistent, show an error
+  if (authChecked && isLoggedIn && !nostrService.publicKey) {
+    return (
+      <div className="border-t p-2 bg-red-50 dark:bg-red-900/10">
+        <div className="flex items-center gap-2 justify-center text-red-600 dark:text-red-400">
+          <AlertCircle className="h-4 w-4" />
+          <p className="text-xs">Authentication error. Please refresh and login again.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

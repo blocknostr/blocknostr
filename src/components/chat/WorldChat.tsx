@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
@@ -8,6 +8,7 @@ import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { nostrService } from "@/lib/nostr";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -26,6 +27,23 @@ const WorldChat = () => {
     reconnect,
     isReconnecting
   } = useWorldChat();
+
+  // Check initial authentication and connection status
+  useEffect(() => {
+    const checkInitialState = async () => {
+      console.log("WorldChat: Initial state check");
+      console.log("- Is logged in:", isLoggedIn);
+      console.log("- Connection status:", connectionStatus);
+      console.log("- Public key available:", !!nostrService.publicKey);
+      
+      if (connectionStatus === 'disconnected') {
+        console.log("WorldChat: Initiating reconnection on mount due to disconnected state");
+        reconnect();
+      }
+    };
+    
+    checkInitialState();
+  }, [connectionStatus, isLoggedIn, reconnect]);
 
   return (
     <Card className="flex-grow flex flex-col h-[550px] mb-14 overflow-hidden border-muted">
@@ -49,7 +67,10 @@ const WorldChat = () => {
               variant="outline" 
               size="sm" 
               className="h-5 text-[10px] py-0 px-2" 
-              onClick={reconnect}
+              onClick={() => {
+                console.log("Manual reconnect button clicked");
+                reconnect();
+              }}
               disabled={isReconnecting}
             >
               {isReconnecting ? (
