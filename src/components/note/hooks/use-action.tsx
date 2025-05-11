@@ -16,7 +16,7 @@ export function useAction(note: Note | UseActionProps) {
 
   // Extract properties based on the input type
   const eventId = 'eventId' in note ? note.eventId : note.id;
-  const authorPubkey = 'authorPubkey' in note ? note.authorPubkey : note.pubkey;
+  const authorPubkey = 'authorPubkey' in note ? note.authorPubkey : note.author;
   const event = 'event' in note ? note.event : note;
 
   const handleLike = async () => {

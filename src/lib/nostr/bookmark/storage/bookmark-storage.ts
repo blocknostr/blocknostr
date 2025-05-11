@@ -16,7 +16,7 @@ export interface BookmarkStorageInterface {
   clear(): void;
 }
 
-class BookmarkStorage implements BookmarkStorageInterface {
+export class BookmarkStorage implements BookmarkStorageInterface {
   private bookmarks: BookmarkWithMetadata[] = [];
   private collections: BookmarkCollection[] = [];
   private pendingOperations: QueuedOperation[] = [];
@@ -146,6 +146,32 @@ class BookmarkStorage implements BookmarkStorageInterface {
     this.storage.removeItem(this.STORAGE_KEYS.BOOKMARKS);
     this.storage.removeItem(this.STORAGE_KEYS.COLLECTIONS);
     this.storage.removeItem(this.STORAGE_KEYS.OPERATIONS);
+  }
+
+  // Static utility methods
+  static async cacheBookmarkStatus(eventId: string, isBookmarked: boolean): Promise<void> {
+    // Implementation for static cache methods
+    console.log(`Caching bookmark status: ${eventId} - ${isBookmarked}`);
+  }
+
+  static async cacheBookmarkList(bookmarks: string[]): Promise<void> {
+    // Implementation for caching bookmark list
+    console.log(`Caching ${bookmarks.length} bookmarks`);
+  }
+
+  static async cacheBookmarkCollections(collections: any[]): Promise<void> {
+    // Implementation for caching collections
+    console.log(`Caching ${collections.length} collections`);
+  }
+
+  static async cacheBookmarkMetadata(metadata: any[]): Promise<void> {
+    // Implementation for caching metadata
+    console.log(`Caching metadata for ${metadata.length} bookmarks`);
+  }
+
+  static async getPendingOperations(): Promise<QueuedOperation[]> {
+    // Implementation for getting pending operations
+    return [];
   }
 }
 

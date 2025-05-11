@@ -33,8 +33,8 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
     }
   }, [eventId, pendingOperations]);
 
-  const addToPendingOperations = useCallback((operation: QueuedOperation) => {
-    setPendingOperations(prev => {
+  const addToPendingOperations = useCallback((operation: Partial<QueuedOperation> & { type: string, data: any }) => {
+    setPendingOperations((prev: QueuedOperation[]) => {
       // Check if we already have this operation
       const exists = prev.some(
         op => op.type === operation.type && 
@@ -45,12 +45,22 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
         return prev;
       }
       
-      return [...prev, operation];
+      // Create complete QueuedOperation with required fields
+      const completeOperation: QueuedOperation = {
+        id: `op_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        timestamp: Date.now(),
+        type: operation.type as BookmarkOperationType,
+        status: 'pending',
+        retryCount: 0,
+        data: operation.data
+      };
+      
+      return [...prev, completeOperation];
     });
   }, [setPendingOperations]);
 
   const removeFromPendingOperations = useCallback((eventId: string) => {
-    setPendingOperations(prev => 
+    setPendingOperations((prev: QueuedOperation[]) => 
       prev.filter(op => !(op.type === 'add' && op.data?.eventId === eventId))
     );
   }, [setPendingOperations]);
@@ -74,14 +84,13 @@ export const useBookmarkState = (eventId: string, initialIsBookmarked: boolean) 
       } else {
         // Bookmark
         if (!relaysConnected) {
-          // Queue operation for later
+          // Queue operation for later with all required fields
           addToPendingOperations({
             type: 'add',
             data: { 
               eventId,
               timestamp: Date.now()
-            },
-            timestamp: Date.now()
+            }
           });
           
           toast.success("Bookmark added (offline mode)");

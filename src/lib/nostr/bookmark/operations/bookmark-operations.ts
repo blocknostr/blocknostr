@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { BookmarkEventKinds, BookmarkManagerDependencies } from '../types';
 import { validateRelays } from '../utils/bookmark-utils';
@@ -75,7 +74,7 @@ export class BookmarkOperations {
       };
       
       console.log("Publishing bookmark event:", event);
-      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.dependencies.publishEvent(event);
       console.log("Bookmark publish result:", publishResult);
       
       if (!publishResult) {
@@ -154,7 +153,7 @@ export class BookmarkOperations {
       };
       
       console.log("Publishing bookmark removal event:", event);
-      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.dependencies.publishEvent(event);
       console.log("Bookmark removal result:", publishResult);
       
       if (!publishResult) {
@@ -265,7 +264,7 @@ export class BookmarkOperations {
       
       // Create metadata event (NIP-33 compliant parameterized replaceable event)
       const event = {
-        kind: BookmarkEventKinds.BOOKMARK_METADATA,
+        kind: BookmarkEventKinds.METADATA,
         content: JSON.stringify(metadata),
         tags: [
           ["e", eventId], // Reference to bookmarked event
@@ -281,7 +280,7 @@ export class BookmarkOperations {
       }
       
       console.log("Publishing bookmark metadata:", event);
-      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata publish result:", publishResult);
       
       return !!publishResult;
@@ -316,12 +315,12 @@ export class BookmarkOperations {
         content: "Deleted bookmark metadata",
         tags: [
           // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
-          ["a", `${BookmarkEventKinds.BOOKMARK_METADATA}:${publicKey}:${stableId}`]
+          ["a", `${BookmarkEventKinds.METADATA}:${publicKey}:${stableId}`]
         ]
       };
       
       console.log("Publishing bookmark metadata deletion:", event);
-      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const result = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata deletion result:", result);
       
       return !!result;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,7 +54,7 @@ const PostPage = () => {
         const { sub } = nostrService.subscribe ? 
           nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          }, relayUrls) : 
+          }) : 
           { sub: '' };
 
         // Cleanup subscription
@@ -85,7 +84,9 @@ const PostPage = () => {
     }
 
     // Also fetch reaction counts
-    fetchReactionCounts(event.id);
+    if (event && event.id) {
+      fetchReactionCounts(event.id);
+    }
   };
 
   // Fetch the author's profile data
@@ -205,15 +206,15 @@ const PostPage = () => {
           <div className="p-4 md:p-6">
             {/* Note header with author info */}
             <NoteCardHeader 
-              pubkey={currentNote.pubkey} 
-              createdAt={currentNote.created_at} 
+              pubkey={currentNote?.pubkey} 
+              createdAt={currentNote?.created_at} 
               profileData={profileData || undefined}
             />
             
             {/* Note content */}
             <NoteCardContent 
-              content={currentNote.content} 
-              tags={currentNote.tags}
+              content={currentNote?.content} 
+              tags={currentNote?.tags}
             />
           </div>
 

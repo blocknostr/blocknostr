@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -66,7 +67,8 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: event.tags,
-        content: newComment
+        content: newComment,
+        sig: '' // Add missing sig property
       };
       
       setComments(prev => [fakeEvent, ...prev]);

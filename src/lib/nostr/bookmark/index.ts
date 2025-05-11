@@ -7,18 +7,23 @@ import { BookmarkManagerDependencies } from './types';
 export type { 
   BookmarkCollection, 
   BookmarkWithMetadata,
-  PendingOperation,
+  QueuedOperation as PendingOperation,
   BookmarkStatus,
   BookmarkManagerDependencies,
-  BookmarkEventKinds,
-  RelayConnectionOptions
+  BookmarkEventKinds
 } from './types';
 
 // Re-export storage 
-export { BookmarkStorage } from './storage/bookmark-storage';
+export { bookmarkStorage as BookmarkStorage } from './storage/bookmark-storage';
 
 // Re-export utils
-export { validateRelays, ensureRelayConnection, generateStableMetadataId } from './utils/bookmark-utils';
+export { validateRelays, generateStableMetadataId } from './utils/bookmark-utils';
+
+// Additional type for compatibility
+export interface RelayConnectionOptions {
+  timeout?: number;
+  maxRetries?: number;
+}
 
 /**
  * Main entry point for bookmark functionality
@@ -28,7 +33,8 @@ export class BookmarkManagerFacade {
   
   constructor(eventManager: EventManager) {
     const dependencies: BookmarkManagerDependencies = {
-      publishEvent: eventManager.publishEvent.bind(eventManager)
+      publishEvent: eventManager.publishEvent.bind(eventManager),
+      getEvents: eventManager.getEvents.bind(eventManager)
     };
     
     this.bookmarkManager = new BookmarkManager(dependencies);

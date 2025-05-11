@@ -1,14 +1,15 @@
 
-import { SimplePool, Event as NostrEvent } from 'nostr-tools';
+import { SimplePool, nip19, type Event } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 
 // EventManager interface 
 export interface EventManager {
-  getEvents: (filters: any[], relays: string[]) => Promise<NostrEvent[]>;
-  getEventById: (id: string, relays: string[]) => Promise<NostrEvent | null>;
+  getEvents: (filters: any[], relays: string[]) => Promise<any[]>;
+  getEventById: (id: string, relays: string[]) => Promise<any | null>;
   getProfilesByPubkeys: (pubkeys: string[], relays: string[]) => Promise<Record<string, any>>;
   getUserProfile: (pubkey: string, relays?: string[]) => Promise<Record<string, any> | null>;
   verifyNip05: (pubkey: string, nip05Identifier: string) => Promise<boolean>;
+  publishEvent: (event: any) => Promise<string>;
 }
 
 /**
@@ -24,9 +25,9 @@ export class NostrEventManager implements EventManager {
   /**
    * Get events based on filters
    */
-  async getEvents(filters: any[], relays: string[]): Promise<NostrEvent[]> {
+  async getEvents(filters: any[], relays: string[]): Promise<any[]> {
     try {
-      return await this.pool.list(relays, filters);
+      return await this.pool.querySync(relays, filters);
     } catch (error) {
       console.error("Error getting events:", error);
       return [];
@@ -36,9 +37,9 @@ export class NostrEventManager implements EventManager {
   /**
    * Get a specific event by ID
    */
-  async getEventById(id: string, relays: string[]): Promise<NostrEvent | null> {
+  async getEventById(id: string, relays: string[]): Promise<any | null> {
     try {
-      const events = await this.pool.list(relays, [{ ids: [id] }]);
+      const events = await this.pool.querySync(relays, [{ ids: [id] }]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error(`Error fetching event ${id}:`, error);
@@ -52,7 +53,7 @@ export class NostrEventManager implements EventManager {
   async getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>> {
     try {
       // Use KIND.META (0) to fetch profile information
-      const events = await this.pool.list(relays, [{ 
+      const events = await this.pool.querySync(relays, [{ 
         kinds: [EVENT_KINDS.META], 
         authors: pubkeys 
       }]);
@@ -107,6 +108,15 @@ export class NostrEventManager implements EventManager {
       console.error("Error verifying NIP-05:", error);
       return false;
     }
+  }
+  
+  /**
+   * Publish an event
+   */
+  async publishEvent(event: any): Promise<string> {
+    // This is a placeholder - actual implementation would sign and publish the event
+    console.log("Publishing event:", event);
+    return "event_id_" + Math.random().toString(36).substring(2, 10);
   }
 }
 

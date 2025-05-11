@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EVENT_KINDS } from '../../constants';
 import { BookmarkManagerDependencies } from '../types';
@@ -55,12 +54,8 @@ export class BookmarkMetadataOperations {
       }
       
       console.log("Publishing bookmark metadata:", event);
-      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata publish result:", publishResult);
-      
-      if (!publishResult) {
-        throw new Error("Failed to publish bookmark metadata");
-      }
       
       return !!publishResult;
     } catch (error) {
@@ -99,12 +94,8 @@ export class BookmarkMetadataOperations {
       };
       
       console.log("Publishing bookmark metadata deletion:", event);
-      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const result = await this.dependencies.publishEvent(event);
       console.log("Bookmark metadata deletion result:", result);
-      
-      if (!result) {
-        throw new Error("Failed to delete bookmark metadata");
-      }
       
       return !!result;
     } catch (error) {

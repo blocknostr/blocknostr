@@ -41,7 +41,9 @@ export interface BookmarkFilters {
 export enum BookmarkEventKinds {
   BOOKMARKS = 30001,
   COLLECTIONS = 30003,
+  BOOKMARK_COLLECTIONS = 30003, // Alias for COLLECTIONS
   METADATA = 30004,
+  BOOKMARK_METADATA = 30004, // Alias for METADATA
   DELETE = 5,
 }
 

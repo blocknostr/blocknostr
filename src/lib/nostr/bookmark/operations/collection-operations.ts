@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { BookmarkCollection, BookmarkEventKinds, BookmarkManagerDependencies } from '../types';
 import { validateRelays } from '../utils/bookmark-utils';
@@ -39,7 +38,7 @@ export class CollectionOperations {
     
     // Create collection event (NIP-33 compliant parameterized replaceable event)
     const event = {
-      kind: BookmarkEventKinds.BOOKMARK_COLLECTIONS,
+      kind: BookmarkEventKinds.COLLECTIONS,
       content: JSON.stringify(collectionData),
       tags: [
         ["d", collectionId] // Unique identifier (NIP-33 compliant)
@@ -47,7 +46,7 @@ export class CollectionOperations {
     };
     
     try {
-      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const result = await this.dependencies.publishEvent(event);
       return result ? collectionId : null;
     } catch (error) {
       console.error("Error creating collection:", error);
@@ -91,14 +90,14 @@ export class CollectionOperations {
       
       // Create updated collection event (NIP-33 compliant parameterized replaceable event)
       const event = {
-        kind: BookmarkEventKinds.BOOKMARK_COLLECTIONS,
+        kind: BookmarkEventKinds.COLLECTIONS,
         content: JSON.stringify(updatedData),
         tags: [
           ["d", collectionId] // Same unique identifier (NIP-33 compliant)
         ]
       };
       
-      const publishResult = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const publishResult = await this.dependencies.publishEvent(event);
       return !!publishResult;
     } catch (error) {
       console.error("Error updating collection:", error);
@@ -128,11 +127,11 @@ export class CollectionOperations {
         content: "Deleted collection",
         tags: [
           // NIP-09 format: ["a", "<kind>:<pubkey>:<d-identifier>"]
-          ["a", `${BookmarkEventKinds.BOOKMARK_COLLECTIONS}:${publicKey}:${collectionId}`]
+          ["a", `${BookmarkEventKinds.COLLECTIONS}:${publicKey}:${collectionId}`]
         ]
       };
       
-      const result = await this.dependencies.publishEvent(pool, publicKey, privateKey, event, relays);
+      const result = await this.dependencies.publishEvent(event);
       return !!result;
     } catch (error) {
       console.error("Error deleting collection:", error);
@@ -156,7 +155,7 @@ export class CollectionOperations {
       
       // Subscribe to bookmark collections (NIP-33 compliant parameter-based filter)
       const filter: Filter = {
-        kinds: [BookmarkEventKinds.BOOKMARK_COLLECTIONS],
+        kinds: [BookmarkEventKinds.COLLECTIONS],
         authors: [pubkey],
       };
       
