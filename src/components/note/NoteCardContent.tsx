@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Badge } from "@/components/ui/badge";
 import MediaPreview from '../MediaPreview';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { contentFormatter } from '@/lib/nostr/format/content-formatter';
+import { contentFormatter } from '@/lib/nostr/format';
 
 interface NoteCardContentProps {
   content: string;
