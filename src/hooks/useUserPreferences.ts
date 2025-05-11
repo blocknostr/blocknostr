@@ -68,14 +68,25 @@ export function useUserPreferences() {
     const storedPrefs = localStorage.getItem('blocknoster_preferences');
     if (storedPrefs) {
       try {
-        // Merge with defaults to ensure any new preferences are included
-        const parsedPrefs = JSON.parse(storedPrefs) as Partial<UserPreferences>;
-        setPreferences({
-          ...defaultPreferences,
-          ...parsedPrefs
-        });
+        // Parse stored preferences and ensure it's treated as an object
+        const parsedPrefs = JSON.parse(storedPrefs);
+        
+        // Verify that parsedPrefs is an object before spreading
+        if (parsedPrefs && typeof parsedPrefs === 'object' && !Array.isArray(parsedPrefs)) {
+          // Merge with defaults to ensure any new preferences are included
+          setPreferences({
+            ...defaultPreferences,
+            ...parsedPrefs as Partial<UserPreferences>
+          });
+        } else {
+          console.error('Stored preferences is not a valid object:', parsedPrefs);
+          // Use default preferences if stored data is invalid
+          setPreferences(defaultPreferences);
+        }
       } catch (e) {
         console.error('Failed to parse preferences:', e);
+        // Use default preferences in case of parsing error
+        setPreferences(defaultPreferences);
       }
     }
     setLoaded(true);
