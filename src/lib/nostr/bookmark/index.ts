@@ -4,7 +4,8 @@ import { BookmarkCollectionManager, BookmarkMetadataManager } from './collection
 import { EventManager } from '../event';
 import { BookmarkManagerDependencies, BookmarkCollection, BookmarkWithMetadata } from './types';
 
-export { BookmarkCollection, BookmarkWithMetadata } from './types';
+// Use 'export type' for re-exporting types when isolatedModules is enabled
+export type { BookmarkCollection, BookmarkWithMetadata } from './types';
 
 /**
  * Main entry point for bookmark functionality
