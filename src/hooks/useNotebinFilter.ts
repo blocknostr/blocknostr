@@ -1,16 +1,6 @@
 
 import { useMemo } from 'react';
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  language: string;
-  publishedAt: string;
-  author: string;
-  event: any;
-  tags?: string[];
-}
+import { Note } from '../components/notebin/hooks/types';
 
 export function useNotebinFilter(notes: Note[], selectedTags: string[]) {
   // Get all unique tags from the notes
