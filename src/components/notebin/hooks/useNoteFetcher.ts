@@ -22,54 +22,55 @@ export const useNoteFetcher = () => {
       await nostrService.connectToUserRelays();
       
       // Subscribe to notebin events (kind 30023)
-      const sub = nostrService.subscribeToEvents({
-        kinds: [30023],
-        limit: 20
-      });
+      const filters = [{ kinds: [30023], limit: 20 }];
       
       const notes: Note[] = [];
       
-      sub.on('event', (event) => {
-        try {
-          // Extract title from tags
-          const titleTag = event.tags.find(tag => tag[0] === 'title');
-          const title = titleTag ? titleTag[1] : 'Untitled Note';
-          
-          // Extract language from tags
-          const langTag = event.tags.find(tag => tag[0] === 'language');
-          const language = langTag ? langTag[1] : 'text';
-          
-          // Extract tags
-          const contentTags = event.tags
-            .filter(tag => tag[0] === 't')
-            .map(tag => tag[1]);
-          
-          // Extract slug
-          const slugTag = event.tags.find(tag => tag[0] === 'slug');
-          const slug = slugTag ? slugTag[1] : '';
-          
-          // Create note object
-          const note: Note = {
-            id: event.id,
-            title,
-            content: event.content,
-            language,
-            publishedAt: new Date(event.created_at * 1000).toISOString(),
-            author: event.pubkey,
-            event,
-            tags: contentTags,
-            slug
-          };
-          
-          notes.push(note);
-        } catch (err) {
-          console.error("Error parsing note event:", err);
+      // Use subscribe method instead of subscribeToEvents
+      const subId = nostrService.subscribe(
+        filters,
+        (event) => {
+          try {
+            // Extract title from tags
+            const titleTag = event.tags.find(tag => tag[0] === 'title');
+            const title = titleTag ? titleTag[1] : 'Untitled Note';
+            
+            // Extract language from tags
+            const langTag = event.tags.find(tag => tag[0] === 'language');
+            const language = langTag ? langTag[1] : 'text';
+            
+            // Extract tags
+            const contentTags = event.tags
+              .filter(tag => tag.length >= 2 && tag[0] === 't')
+              .map(tag => tag[1]);
+            
+            // Extract slug
+            const slugTag = event.tags.find(tag => tag[0] === 'slug');
+            const slug = slugTag ? slugTag[1] : '';
+            
+            // Create note object
+            const note: Note = {
+              id: event.id,
+              title,
+              content: event.content,
+              language,
+              publishedAt: new Date(event.created_at * 1000).toISOString(),
+              author: event.pubkey,
+              event,
+              tags: contentTags,
+              slug
+            };
+            
+            notes.push(note);
+          } catch (err) {
+            console.error("Error parsing note event:", err);
+          }
         }
-      });
+      );
       
       // Wait for events to be received (3 second timeout)
       setTimeout(() => {
-        sub.unsub();
+        nostrService.unsubscribe(subId);
         setNotebinNotes(notes);
         setIsLoading(false);
         console.log(`Fetched ${notes.length} notes from relays`);
