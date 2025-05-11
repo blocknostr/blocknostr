@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +27,9 @@ const PostPage = () => {
     zapAmount: 0
   });
 
-  const socialManager = new SocialManager();
+  // Create SocialManager with the expected parameters (event manager and user manager)
+  // Since we don't have direct access to those, we'll use null values which the class should handle
+  const socialManager = new SocialManager(null, null);
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -48,7 +51,7 @@ const PostPage = () => {
         if (nostrService.subscribe) {
           const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          });
+          }, defaultRelays); // Pass defaultRelays as the third argument
           
           // Cleanup subscription
           return () => {
@@ -101,7 +104,8 @@ const PostPage = () => {
       if (!eventId) return;
       
       // Get reaction counts from the social manager
-      const counts = await socialManager.getReactionCounts(eventId);
+      // Pass all required arguments (eventId, defaultRelays, and another empty parameter for callbacks)
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);

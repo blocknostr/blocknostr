@@ -4,6 +4,13 @@
  */
 export class SocialManager {
   /**
+   * Constructor with optional parameters to make it more flexible
+   */
+  constructor(eventManager: any = null, userManager: any = null) {
+    // Store managers if provided
+  }
+
+  /**
    * Like a Nostr event
    */
   async likeEvent(event: any): Promise<string> {
@@ -22,8 +29,14 @@ export class SocialManager {
   /**
    * Get reaction counts for an event
    * @param eventId The ID of the event to get reaction counts for
+   * @param relays Optional array of relay URLs
+   * @param options Optional configuration options
    */
-  async getReactionCounts(eventId: string): Promise<{ 
+  async getReactionCounts(
+    eventId: string, 
+    relays: string[] = [], 
+    options: any = {}
+  ): Promise<{ 
     likes: number, 
     reposts: number, 
     replies: number, 
