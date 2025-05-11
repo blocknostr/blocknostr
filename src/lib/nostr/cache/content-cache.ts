@@ -7,6 +7,7 @@ import { ThreadCache } from "./thread-cache";
 import { FeedCache } from "./feed-cache";
 import { ListCache } from "./list-cache";
 import { CacheConfig } from "./types";
+import { EventFilter } from "./utils/event-filter";
 
 /**
  * Content cache service for Nostr events
@@ -17,7 +18,7 @@ export class ContentCache {
   private eventCache: EventCache;
   private profileCache: ProfileCache;
   private threadCache: ThreadCache;
-  private feedCache: FeedCache;
+  private _feedCache: FeedCache;
   private muteListCache: ListCache;
   private blockListCache: ListCache;
   private offlineMode: boolean = false;
@@ -32,7 +33,7 @@ export class ContentCache {
     this.eventCache = new EventCache(config);
     this.profileCache = new ProfileCache(config);
     this.threadCache = new ThreadCache(config);
-    this.feedCache = new FeedCache(config);
+    this._feedCache = new FeedCache(config);
     this.muteListCache = new ListCache(STORAGE_KEYS.MUTE_LIST);
     this.blockListCache = new ListCache(STORAGE_KEYS.BLOCK_LIST);
     
@@ -59,7 +60,12 @@ export class ContentCache {
     this.eventCache.setOfflineMode(this.offlineMode);
     this.profileCache.setOfflineMode(this.offlineMode);
     this.threadCache.setOfflineMode(this.offlineMode);
-    this.feedCache.setOfflineMode(this.offlineMode);
+    this._feedCache.setOfflineMode(this.offlineMode);
+  }
+
+  // Access to the feed cache instance
+  get feedCache(): FeedCache {
+    return this._feedCache;
   }
   
   // Event cache methods
@@ -99,12 +105,24 @@ export class ContentCache {
   }
   
   // Feed cache methods
-  cacheFeed(feedType: string, eventIds: string[], important: boolean = false): void {
-    this.feedCache.cacheItem(feedType, eventIds, important);
+  cacheFeed(feedType: string, events: NostrEvent[], options: {
+    authorPubkeys?: string[],
+    hashtag?: string,
+    since?: number,
+    until?: number,
+    mediaOnly?: boolean
+  }, important: boolean = false): void {
+    this._feedCache.cacheFeed(feedType, events, options, important);
   }
   
-  getFeed(feedType: string): string[] | null {
-    return this.feedCache.getItem(feedType);
+  getFeed(feedType: string, options: {
+    authorPubkeys?: string[],
+    hashtag?: string,
+    since?: number,
+    until?: number,
+    mediaOnly?: boolean
+  }): NostrEvent[] | null {
+    return this._feedCache.getFeed(feedType, options);
   }
   
   // Mute list methods
@@ -130,14 +148,14 @@ export class ContentCache {
     this.eventCache.cleanupExpiredEntries();
     this.profileCache.cleanupExpiredEntries();
     this.threadCache.cleanupExpiredEntries();
-    this.feedCache.cleanupExpiredEntries();
+    this._feedCache.cleanupExpiredEntries();
   }
   
   clearAll(): void {
     this.eventCache.clear();
     this.profileCache.clear();
     this.threadCache.clear();
-    this.feedCache.clear();
+    this._feedCache.clear();
     this.muteListCache.clear();
     this.blockListCache.clear();
   }

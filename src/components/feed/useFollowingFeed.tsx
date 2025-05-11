@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from "react";
-import { nostrService } from "@/lib/nostr";
+import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
 import { toast } from "sonner";
-import { contentCache } from "@/lib/nostr/cache/content-cache";
 
 interface UseFollowingFeedProps {
   activeHashtag?: string;
@@ -16,6 +14,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [connectionAttempted, setConnectionAttempted] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [loadingFromCache, setLoadingFromCache] = useState(false);
+  const [cacheHit, setCacheHit] = useState(false);
   
   const { 
     events, 
@@ -56,6 +57,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       // Start the new subscription with the older timestamp range
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
+      
+      // Check if we have this range cached
+      loadFromCache('following', newSince, newUntil);
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
@@ -67,6 +71,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       // Start the new subscription with the older timestamp range
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
+      
+      // Check if we have this range cached
+      loadFromCache('following', newSince, newUntil);
     }
   };
   
@@ -78,8 +85,58 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setHasMore
   } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
+  // Helper function to load data from cache
+  const loadFromCache = (feedType: string, cacheSince?: number, cacheUntil?: number) => {
+    if (!navigator.onLine || contentCache.isOffline()) {
+      setLoadingFromCache(true);
+    }
+    
+    // Get feed cache object from contentCache
+    const feedCache = contentCache.feedCache;
+    if (!feedCache) return false;
+    
+    // Check if we have a cached feed for these parameters
+    const cachedEvents = feedCache.getFeed(feedType, {
+      authorPubkeys: following,
+      hashtag: activeHashtag,
+      since: cacheSince,
+      until: cacheUntil,
+    });
+    
+    if (cachedEvents && cachedEvents.length > 0) {
+      // We have cached data
+      setCacheHit(true);
+      setLastUpdated(new Date());
+      
+      // If offline or first load, replace events with cached events
+      if (contentCache.isOffline() || events.length === 0) {
+        setEvents(cachedEvents);
+        setLoading(false);
+      } else {
+        // Otherwise, append unique events
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e.id));
+          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
+          
+          // Return combined events sorted by timestamp
+          return [...prevEvents, ...newEvents]
+            .sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  };
+
   const initFeed = async (forceReconnect = false) => {
     setLoading(true);
+    const currentTime = Math.floor(Date.now() / 1000);
+    const weekAgo = currentTime - 24 * 60 * 60 * 7;
+    
+    // Always try to load from cache first for immediate response
+    const cacheLoaded = loadFromCache('following', weekAgo, currentTime);
     
     try {
       // If force reconnect or no relays connected, connect to relays
@@ -92,12 +149,13 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setConnectionAttempted(true);
       }
       
-      // Reset state when filter changes
-      setEvents([]);
+      // Reset state when filter changes (if not loading from cache)
+      if (!cacheLoaded) {
+        setEvents([]);
+      }
       setHasMore(true);
       
       // Reset the timestamp range for new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
       setSince(undefined);
       setUntil(currentTime);
       
@@ -106,17 +164,11 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         nostrService.unsubscribe(subId);
       }
       
-      // Load from cache first if offline
-      if (!navigator.onLine) {
-        const cachedEvents = contentCache.getEventsByAuthors(following);
-        if (cachedEvents.length > 0) {
-          setEvents(cachedEvents);
-        }
+      // If online, start a new subscription
+      if (navigator.onLine) {
+        const newSubId = setupSubscription(weekAgo, currentTime);
+        setSubId(newSubId);
       }
-      
-      // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60 * 7, currentTime);
-      setSubId(newSubId);
       
       if (following.length === 0) {
         setLoading(false);
@@ -132,14 +184,39 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       } else {
         toast.error("Failed to connect to relays. Check your connection or try again later.");
       }
+    } finally {
+      setLoadingFromCache(false);
     }
   };
   
   // Refresh feed function for manual refresh
   const refreshFeed = () => {
     setRetryCount(0);
+    setCacheHit(false);
     initFeed(true);
   };
+  
+  // Cache the feed data when events update
+  useEffect(() => {
+    if (events.length > 0 && following.length > 0) {
+      // Don't cache if we just loaded from cache
+      if (cacheHit) return;
+      
+      // Cache the current feed state
+      const feedCache = contentCache.feedCache;
+      if (feedCache) {
+        feedCache.cacheFeed('following', events, {
+          authorPubkeys: following,
+          hashtag: activeHashtag,
+          since,
+          until
+        }, true); // Mark as important for offline use
+        
+        // Update last updated timestamp
+        setLastUpdated(new Date());
+      }
+    }
+  }, [events, following, activeHashtag, cacheHit]);
   
   useEffect(() => {
     initFeed();
@@ -169,9 +246,12 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     repostData,
     loadMoreRef,
     loading,
+    loadingFromCache,
     following,
     hasMore,
     refreshFeed,
-    connectionAttempted
+    connectionAttempted,
+    lastUpdated,
+    cacheHit
   };
 }

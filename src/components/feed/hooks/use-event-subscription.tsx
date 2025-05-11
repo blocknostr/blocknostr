@@ -11,6 +11,8 @@ interface UseEventSubscriptionProps {
   setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>;
   handleRepost: (event: NostrEvent, setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => void;
   fetchProfileData: (pubkey: string) => void;
+  feedType?: string;
+  mediaOnly?: boolean;
 }
 
 export function useEventSubscription({
@@ -21,7 +23,9 @@ export function useEventSubscription({
   limit,
   setEvents,
   handleRepost,
-  fetchProfileData
+  fetchProfileData,
+  feedType = 'generic',
+  mediaOnly = false,
 }: UseEventSubscriptionProps) {
   const [subId, setSubId] = useState<string | null>(null);
   
@@ -88,6 +92,9 @@ export function useEventSubscription({
       }));
     }
     
+    // Create accumulators for events to be cached
+    let collectedEvents: NostrEvent[] = [];
+    
     // Subscribe to events
     const newSubId = nostrService.subscribe(
       filters,
@@ -105,8 +112,27 @@ export function useEventSubscription({
             // Sort by creation time (newest first)
             newEvents.sort((a, b) => b.created_at - a.created_at);
             
-            // Cache the event for future use
+            // Add event to collection for caching
+            collectedEvents.push(event);
+            
+            // Cache the event individually
             contentCache.cacheEvent(event);
+            
+            // Every 10 events, update the feed cache
+            if (collectedEvents.length % 10 === 0) {
+              contentCache.cacheFeed(
+                feedType,
+                [...prev, ...collectedEvents].sort((a, b) => b.created_at - a.created_at),
+                {
+                  authorPubkeys: following,
+                  hashtag: activeHashtag,
+                  since: sinceFetch,
+                  until: untilFetch,
+                  mediaOnly
+                },
+                true
+              );
+            }
             
             return newEvents;
           });
@@ -129,6 +155,43 @@ export function useEventSubscription({
         }
       }
     );
+    
+    // Cache collected events when subscription ends
+    if (newSubId) {
+      // Set up a scheduled task to periodically cache all collected events
+      const cacheIntervalId = setInterval(() => {
+        if (collectedEvents.length > 0) {
+          // Get current events from state to ensure we have everything
+          setEvents(currentEvents => {
+            // Cache all events we have
+            contentCache.cacheFeed(
+              feedType,
+              currentEvents,
+              {
+                authorPubkeys: following,
+                hashtag: activeHashtag,
+                since: sinceFetch,
+                until: untilFetch,
+                mediaOnly
+              },
+              true // Mark as important for offline use
+            );
+            
+            return currentEvents;
+          });
+        }
+      }, 10000); // Every 10 seconds
+      
+      // Clean up the interval when unsubscribing
+      const originalUnsubscribe = nostrService.unsubscribe;
+      nostrService.unsubscribe = (id) => {
+        if (id === newSubId) {
+          clearInterval(cacheIntervalId);
+          nostrService.unsubscribe = originalUnsubscribe;
+        }
+        return originalUnsubscribe.call(nostrService, id);
+      };
+    }
     
     return newSubId;
   };

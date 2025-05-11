@@ -5,6 +5,10 @@ import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
 import { useFollowingFeed } from "./feed/useFollowingFeed";
 import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
+import { Button } from "./ui/button";
+import { formatDistanceToNow } from "date-fns";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
@@ -18,19 +22,46 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     loadMoreRef,
     loading,
     following,
+    refreshFeed,
+    lastUpdated,
+    cacheHit,
+    loadingFromCache,
   } = useFollowingFeed({ activeHashtag });
 
   return (
     <>
       <ConnectionStatusBanner />
       
+      {/* Show cache status if we're showing cached content */}
+      {cacheHit && lastUpdated && (
+        <Alert variant="default" className="mb-4 bg-primary/10 border-primary/20">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <HistoryIcon className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                Showing cached content from {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+              </AlertDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshFeed}
+              className="text-xs h-8"
+            >
+              <RefreshCcwIcon className="h-3 w-3 mr-1" />
+              Refresh
+            </Button>
+          </div>
+        </Alert>
+      )}
+      
       {/* Show loading state when no events and loading */}
-      {loading && events.length === 0 && (
+      {(loading || loadingFromCache) && events.length === 0 && (
         <FeedLoading activeHashtag={activeHashtag} />
       )}
       
       {/* Show empty state when no events and not loading */}
-      {events.length === 0 && !loading && (
+      {events.length === 0 && !loading && !loadingFromCache && (
         <FeedEmptyState following={following} loading={loading} activeHashtag={activeHashtag} />
       )}
 
@@ -42,6 +73,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
           repostData={repostData}
           loadMoreRef={loadMoreRef}
           loading={loading}
+          onRefresh={refreshFeed}
         />
       )}
     </>

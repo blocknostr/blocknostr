@@ -11,6 +11,8 @@ interface UseFeedEventsProps {
   until?: number;
   activeHashtag?: string;
   limit?: number;
+  feedType?: string;
+  mediaOnly?: boolean;
 }
 
 export function useFeedEvents({
@@ -18,7 +20,9 @@ export function useFeedEvents({
   since,
   until,
   activeHashtag,
-  limit = 50
+  limit = 50,
+  feedType = 'generic',
+  mediaOnly = false
 }: UseFeedEventsProps) {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const { profiles, fetchProfileData } = useProfileFetcher();
@@ -34,6 +38,8 @@ export function useFeedEvents({
     setEvents,
     handleRepost,
     fetchProfileData,
+    feedType,
+    mediaOnly,
   });
 
   return {
