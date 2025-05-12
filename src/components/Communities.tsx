@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -5,20 +6,12 @@ import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
-interface CommunitiesProps {
-  pageSize?: number;
-}
-
-const Communities = ({ pageSize = 12 }: CommunitiesProps) => {
+const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
 
   const currentUserPubkey = nostrService.publicKey;
   
@@ -122,11 +115,11 @@ const Communities = ({ pageSize = 12 }: CommunitiesProps) => {
   const filteredCommunities = communitiesWithNumbers.filter(community => {
     const searchLower = searchTerm.toLowerCase().trim();
     
-    if (searchLower === '') return true;
-    
     // Check if searching for a serial number
     if (searchLower.startsWith('#')) {
+      // Format the community's serial number for comparison
       const communitySerialFormat = formatSerialNumber(community.serialNumber || 0);
+      // Compare with search term, ignoring case
       return communitySerialFormat.toLowerCase().includes(searchLower);
     }
     
@@ -137,22 +130,37 @@ const Communities = ({ pageSize = 12 }: CommunitiesProps) => {
     );
   });
   
-  // User communities
   const userCommunities = filteredCommunities.filter(community => 
     community.members.includes(currentUserPubkey || '')
   );
   
-  return {
-    communities: communitiesWithNumbers,
-    filteredCommunities,
-    userCommunities,
-    loading,
-    searchTerm,
-    setSearchTerm,
-    isDialogOpen,
-    setIsDialogOpen,
-    currentUserPubkey
-  };
+  return (
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-auto">
+      <div className="p-4 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Communities</h1>
+          <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
+        </div>
+        
+        <SearchBar 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm} 
+          placeholderText="Search by name or #ABC123" 
+        />
+      </div>
+      
+      <div className="flex-1 p-4">
+        <CommunitiesGrid 
+          communities={communitiesWithNumbers}
+          userCommunities={userCommunities}
+          filteredCommunities={filteredCommunities}
+          loading={loading}
+          currentUserPubkey={currentUserPubkey}
+          onCreateCommunity={() => setIsDialogOpen(true)}
+        />
+      </div>
+    </div>
+  );
 };
 
 export default Communities;
