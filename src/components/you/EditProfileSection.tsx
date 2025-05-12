@@ -1,6 +1,3 @@
-
-// src/components/you/EditProfileSection.tsx
-
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -33,14 +30,34 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
   onSaved,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({
-    profileData,
-  });
+  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({ profileData });
   const [retryAttempt, setRetryAttempt] = useState(0);
+
+  const connectWithRetries = async (maxRetries = 3, delay = 2000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`[PROFILE UPDATE] Attempt ${attempt} to connect to relays...`);
+      try {
+        await nostrService.connectToDefaultRelays();
+        const relays = nostrService.getRelayStatus();
+        const connectedRelays = relays.filter(r => r.status === 'connected');
+        if (connectedRelays.length > 0) {
+          console.log(`[PROFILE UPDATE] Connected to ${connectedRelays.length} relays:`, connectedRelays.map(r => r.url));
+          return connectedRelays;
+        }
+        console.log(`[PROFILE UPDATE] No relays connected on attempt ${attempt}`);
+      } catch (error) {
+        console.error(`[PROFILE UPDATE] Relay connection attempt ${attempt} failed:`, error);
+      }
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+      }
+    }
+    throw new Error("Failed to connect to any relays after multiple attempts");
+  };
 
   const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
-      toast.error('You must be logged in to update your profile');
+      toast.error('You must be logged in to update your profile', { duration: 8000 });
       return;
     }
 
@@ -48,80 +65,53 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     console.log('[PROFILE UPDATE] Starting profile update with values:', values);
 
     try {
-      // 1) Ensure we're connected to relays before publishing
-      console.log('[PROFILE UPDATE] Checking relay connections before publishing profile update...');
-      const relays = nostrService.getRelayStatus();
-      console.log('[PROFILE UPDATE] Current relay status:', relays);
-      const connectedRelays = relays.filter(r => r.status === 'connected');
-
-      if (connectedRelays.length === 0) {
-        console.log('[PROFILE UPDATE] No connected relays found, connecting to default relays...');
-        await nostrService.connectToDefaultRelays();
-
-        // Double-check we have connections after attempting to connect
-        const updatedRelays = nostrService.getRelayStatus();
-        console.log('[PROFILE UPDATE] Relay status after connection attempt:', updatedRelays);
-        const nowConnected = updatedRelays.filter(r => r.status === 'connected');
-
-        if (nowConnected.length === 0) {
-          toast.error('Unable to connect to any relays. Please check your internet connection.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        console.log('[PROFILE UPDATE] Successfully connected to relays:', nowConnected.map(r => r.url));
-      } else {
-        console.log('[PROFILE UPDATE] Already connected to relays:', connectedRelays.map(r => r.url));
+      // Connect to relays
+      let connectedRelays;
+      try {
+        connectedRelays = await connectWithRetries();
+      } catch (error) {
+        console.error('[PROFILE UPDATE] Relay connection failed:', error);
+        toast.error('Cannot connect to relays. Please check your network and try again.', { duration: 8000 });
+        setIsSubmitting(false);
+        return;
       }
 
-      // 2) Clean up values by removing empty strings
-      const cleanValues: Record<string, any> = {};
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          cleanValues[key] = value;
-        }
-      });
-
-      // 3) Sanitize image URLs
-      if (cleanValues.picture) {
-        cleanValues.picture = sanitizeImageUrl(cleanValues.picture);
+      // Sanitize image URLs
+      if (values.picture) {
+        values.picture = sanitizeImageUrl(values.picture);
       }
-      if (cleanValues.banner) {
-        cleanValues.banner = sanitizeImageUrl(cleanValues.banner);
+      if (values.banner) {
+        values.banner = sanitizeImageUrl(values.banner);
       }
 
-      // 4) Log it out for debugging
-      console.log('[PROFILE UPDATE] Clean values payload:', cleanValues);
+      console.log('[PROFILE UPDATE] Clean values payload:', values);
 
-      // 5) Verify NIP-05 if provided
+      // Verify NIP-05 if provided
       if (values.nip05) {
         console.log('[PROFILE UPDATE] Verifying NIP-05 identifier:', values.nip05);
         const verified = await verifyNip05Identifier(values.nip05);
         console.log('[PROFILE UPDATE] NIP-05 verification result:', verified);
         if (!verified) {
-          toast.warning('NIP-05 identifier could not be verified, but will be saved');
+          toast.warning('NIP-05 identifier could not be verified, but will be saved', { duration: 5000 });
         }
       }
 
-      // 6) Build the NIP-01 metadata event with proper type
+      // Build event
       const eventToPublish: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'> = {
         kind: 0,
-        content: JSON.stringify(cleanValues),
+        content: JSON.stringify(values),
         tags: [],
       };
       console.log('[PROFILE UPDATE] Event to publish:', eventToPublish);
 
-      // Get relay URLs for potential fallback publishing
-      const relayUrls = connectedRelays.map(r => r.url);
-      
-      // Add some known good relays if we don't have many
+      // Get relay URLs
+      let relayUrls = connectedRelays.map(r => r.url);
       if (relayUrls.length < 3) {
         const additionalRelays = [
           "wss://relay.damus.io", 
           "wss://nos.lol", 
           "wss://relay.snort.social"
         ];
-        
         for (const url of additionalRelays) {
           if (!relayUrls.includes(url)) {
             relayUrls.push(url);
@@ -129,13 +119,11 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       }
 
-      // 7) Use our enhanced publishing function with fallbacks
+      // Publish
       const publishResult = await publishProfileWithFallback(eventToPublish, relayUrls);
 
       if (publishResult.success) {
-        toast.success('Profile updated successfully');
-
-        // Dispatch an event to notify that the profile was published
+        toast.success(`Profile updated successfully on ${publishResult.successfulRelays.length} relay(s)`);
         if (nostrService.publicKey) {
           console.log('[PROFILE UPDATE] Broadcasting profilePublished event with eventId:', publishResult.eventId);
           window.dispatchEvent(new CustomEvent('profilePublished', { 
@@ -145,72 +133,51 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
             } 
           }));
         }
-
-        // Reset retry attempts
         setRetryAttempt(0);
-        
-        // Force refresh profile to ensure we have the latest data
-        console.log('[PROFILE UPDATE] Forcing profile refresh after update');
         if (nostrService.publicKey) {
+          console.log('[PROFILE UPDATE] Forcing profile refresh after update');
           await forceRefreshProfile(nostrService.publicKey);
         }
-
-        console.log('[PROFILE UPDATE] Profile refresh completed, calling onSaved()');
-        // Call onSaved, the profile will be refreshed via event listeners
         onSaved();
-        setIsSubmitting(false);
       } else {
-        // Display specific error if available
-        console.error('[PROFILE UPDATE] Profile update failed:', publishResult.error);
-
+        console.error('[PROFILE UPDATE] Profile update failed:', publishResult);
         if (publishResult.error?.includes('authorization') || publishResult.error?.includes('Unauthorized')) {
-          toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
-            duration: 6000,
-          });
-          setIsSubmitting(false);
+          toast.error(
+            "Authentication failed. Please ensure your Nostr extension is connected to the correct account and try again.",
+            { duration: 8000 }
+          );
         } else if (publishResult.error?.includes('proof-of-work') || publishResult.error?.includes('pow:')) {
-          toast.error('This relay requires proof-of-work which is not supported. We\'ll try with different relays.', {
-            duration: 4000,
-          });
-          
-          // Try again with different relays if we haven't exceeded retry limit
+          toast.error(
+            'Some relays require proof-of-work, which is not supported. Retrying with other relays...',
+            { duration: 5000 }
+          );
           if (retryAttempt < 2) {
-            const newRetryCount = retryAttempt + 1;
-            setRetryAttempt(newRetryCount);
-            setTimeout(() => {
-              onSubmit(values);
-            }, 1500);
+            setRetryAttempt(retryAttempt + 1);
+            setTimeout(() => onSubmit(values), 1500);
             return;
-          } else {
-            setIsSubmitting(false);
-            toast.error('Unable to publish after multiple attempts. Try connecting to different relays.');
           }
         } else if (publishResult.error?.includes('no active subscription')) {
-          toast.error('Connection to relays was lost. Reconnecting and trying again...', {
-            duration: 3000,
-          });
-          
-          // Try reconnecting to relays and retry once if we haven't exceeded retry limit
+          toast.error(
+            'Lost connection to relays. Attempting to reconnect...',
+            { duration: 5000 }
+          );
           if (retryAttempt < 2) {
-            setTimeout(async () => {
-              await nostrService.connectToDefaultRelays();
-              const newRetryCount = retryAttempt + 1;
-              setRetryAttempt(newRetryCount);
-              onSubmit(values);
-            }, 2000);
+            setRetryAttempt(retryAttempt + 1);
+            setTimeout(() => onSubmit(values), 1500);
             return;
-          } else {
-            setIsSubmitting(false);
-            toast.error('Unable to maintain connection to relays after multiple attempts.');
           }
         } else {
-          toast.error(publishResult.error || 'Failed to update profile');
-          setIsSubmitting(false);
+          toast.error(
+            publishResult.error || 
+            `Failed to update profile. Details: ${publishResult.failedRelays.map(r => `${r.url}: ${r.error}`).join(', ')}`,
+            { duration: 8000 }
+          );
         }
       }
     } catch (error) {
       console.error('[PROFILE UPDATE] Error in profile update process:', error);
-      toast.error('An error occurred while updating profile');
+      toast.error('An unexpected error occurred while updating profile', { duration: 8000 });
+    } finally {
       setIsSubmitting(false);
     }
   };
