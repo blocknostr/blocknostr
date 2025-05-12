@@ -67,3 +67,6 @@ export class CircuitBreaker {
     return true;
   }
 }
+
+// Export CircuitState type for use throughout the application
+export type { CircuitState };

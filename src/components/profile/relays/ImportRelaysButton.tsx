@@ -33,7 +33,7 @@ export const ImportRelaysButton = ({ userNpub, onImportComplete }: ImportRelaysB
       const successCount = await nostrService.addMultipleRelays(userRelays);
       
       // Check if any relays were added successfully
-      if (successCount > 0) {
+      if (successCount !== 0) {  // Change from > 0 to !== 0 to fix TypeScript error
         toast.success(`Added ${successCount} relays from ${userNpub}`);
         onImportComplete();
       } else {

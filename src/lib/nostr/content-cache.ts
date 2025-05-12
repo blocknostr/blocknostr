@@ -117,6 +117,15 @@ class ContentCache {
     if (!event || !event.id) return;
     this.set(`event:${event.id}`, event);
   }
+  
+  /**
+   * Get a cached event
+   * @param eventId Event ID
+   * @returns The cached event or null if not found
+   */
+  getEvent(eventId: string): any | null {
+    return this.get(`event:${eventId}`);
+  }
 
   /**
    * Get events by authors
@@ -137,23 +146,74 @@ class ContentCache {
     return events;
   }
 
-  // Add methods for feed caching
-  feedCache: Map<string, any[]> = new Map();
-
-  cacheFeed(key: string, events: any[], ttl: number = this.defaultTTL): void {
-    this.feedCache.set(key, events);
-    // Also set an expiration
-    this.set(`feed_expiry:${key}`, true, ttl);
-  }
-
-  getFeed(key: string): any[] | undefined {
-    // Check if expired
-    if (!this.has(`feed_expiry:${key}`)) {
-      this.feedCache.delete(key);
-      return undefined;
+  // Enhanced feed caching with proper type structure
+  feedCache = {
+    _cache: new Map<string, {events: any[], timestamp: number, expires: number}>(),
+    
+    generateCacheKey(feedType: string, options: any = {}): string {
+      const { authorPubkeys, hashtag, since, until, mediaOnly } = options;
+      let key = `feed:${feedType}`;
+      
+      if (authorPubkeys && authorPubkeys.length) {
+        key += `:authors:${authorPubkeys.sort().join(',')}`;
+      }
+      
+      if (hashtag) {
+        key += `:hashtag:${hashtag}`;
+      }
+      
+      if (since) {
+        key += `:since:${since}`;
+      }
+      
+      if (until) {
+        key += `:until:${until}`;
+      }
+      
+      if (mediaOnly) {
+        key += `:mediaOnly`;
+      }
+      
+      return key;
+    },
+    
+    set(key: string, events: any[], ttl: number): void {
+      this._cache.set(key, {
+        events,
+        timestamp: Date.now(),
+        expires: Date.now() + ttl
+      });
+    },
+    
+    get(key: string): any[] | undefined {
+      const entry = this._cache.get(key);
+      if (!entry || Date.now() > entry.expires) {
+        this._cache.delete(key);
+        return undefined;
+      }
+      return entry.events;
+    },
+    
+    getRawEntry(key: string): {events: any[], timestamp: number, expires: number} | undefined {
+      return this._cache.get(key);
+    },
+    
+    cacheFeed(feedType: string, events: any[], options: any = {}, important: boolean = false): void {
+      const key = this.generateCacheKey(feedType, options);
+      const ttl = important ? 30 * 60 * 1000 : 5 * 60 * 1000; // 30 mins if important, 5 mins otherwise
+      this.set(key, events, ttl);
+    },
+    
+    getFeed(feedType: string, options: any = {}): any[] | undefined {
+      const key = this.generateCacheKey(feedType, options);
+      return this.get(key);
+    },
+    
+    clearFeed(feedType: string, options: any = {}): void {
+      const key = this.generateCacheKey(feedType, options);
+      this._cache.delete(key);
     }
-    return this.feedCache.get(key);
-  }
+  };
 }
 
 // Export a singleton instance

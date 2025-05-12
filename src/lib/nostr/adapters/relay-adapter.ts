@@ -1,3 +1,4 @@
+
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
@@ -180,7 +181,7 @@ export class RelayAdapter extends BaseAdapter {
         try {
           return {
             url,
-            info: await this.relayManager.getRelayInformation(url)
+            info: await this.relayManager.getRelayInformation?.(url) || null
           };
         } catch (error) {
           return { url, info: null };

@@ -10,7 +10,7 @@ export class ContentFormatter {
    * @param tags Tags from the event
    * @returns Formatted content
    */
-  static formatContent(content: string, tags: string[][]): string {
+  formatContent(content: string, tags: string[][]): string {
     if (!content) return '';
     
     let formattedContent = content;
@@ -33,7 +33,7 @@ export class ContentFormatter {
    * @param tags Tags from the event
    * @returns Content with formatted mentions
    */
-  static formatMentions(content: string, tags: string[][]): string {
+  formatMentions(content: string, tags: string[][]): string {
     if (!content || !tags || tags.length === 0) return content;
     
     // Replace mentions like #[0], #[1], etc. with proper names or pubkeys
@@ -64,7 +64,7 @@ export class ContentFormatter {
    * @param content Raw text content
    * @returns Content with formatted links
    */
-  static formatLinks(content: string): string {
+  formatLinks(content: string): string {
     if (!content) return '';
     
     // Find URLs and make them clickable
@@ -79,7 +79,7 @@ export class ContentFormatter {
    * @param content Raw text content
    * @returns Content with formatted hashtags
    */
-  static formatHashtags(content: string): string {
+  formatHashtags(content: string): string {
     if (!content) return '';
     
     // Find hashtags and make them clickable
@@ -94,7 +94,7 @@ export class ContentFormatter {
    * @param timestamp Unix timestamp
    * @returns Formatted date string
    */
-  static formatDate(timestamp: number): string {
+  formatDate(timestamp: number): string {
     if (!timestamp) return '';
     
     const date = new Date(timestamp * 1000);
@@ -116,6 +116,16 @@ export class ContentFormatter {
     } else {
       return date.toLocaleDateString();
     }
+  }
+  
+  /**
+   * Process content before sending
+   * @param content Raw text content to process
+   * @returns Processed content
+   */
+  processContent(content: string): string {
+    // This is used in useMessageSender.ts
+    return content.trim();
   }
 }
 

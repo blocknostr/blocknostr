@@ -23,6 +23,7 @@ export { SubscriptionManager } from './subscription-manager';
 
 // Export circuit breaker
 export { CircuitBreaker } from './relay/circuit/circuit-breaker';
+export type { CircuitState } from './relay/circuit/circuit-breaker';
 
 // Export adapter
 export { NostrAdapter } from './adapter';

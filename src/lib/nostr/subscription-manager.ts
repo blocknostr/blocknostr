@@ -1,97 +1,79 @@
 
-import { NostrEvent } from "./types";
+import { nostrService } from "./service";
 
 /**
  * Manages subscriptions to Nostr events
+ * Provides methods for subscribing, unsubscribing, and tracking active subscriptions
  */
 export class SubscriptionManager {
   private subscriptions: Map<string, {
-    filters: any[];
-    callbacks: ((event: NostrEvent) => void)[];
-    relays?: string[];
+    filters: any[],
+    onEvent: (event: any) => void,
+    relays?: string[],
+    createdAt: number
   }> = new Map();
   
   /**
-   * Add a subscription
-   * @param id Subscription ID
-   * @param filters Nostr filters
-   * @param callback Callback function for events
-   * @param relays Optional array of relay URLs
+   * Subscribe to events matching filters
+   * @param filters Filters to match events
+   * @param onEvent Callback function for matching events
+   * @param relays Optional array of specific relays to query
+   * @returns Subscription ID
    */
-  addSubscription(
-    id: string,
-    filters: any[],
-    callback: (event: NostrEvent) => void,
-    relays?: string[]
-  ): void {
-    if (this.subscriptions.has(id)) {
-      // Add callback to existing subscription
-      const sub = this.subscriptions.get(id)!;
-      sub.callbacks.push(callback);
-    } else {
-      // Create new subscription
-      this.subscriptions.set(id, {
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    const subId = nostrService.subscribe(filters, onEvent, relays);
+    
+    if (subId) {
+      this.subscriptions.set(subId, {
         filters,
-        callbacks: [callback],
-        relays
+        onEvent,
+        relays,
+        createdAt: Date.now()
       });
     }
+    
+    return subId;
   }
   
   /**
-   * Remove a subscription
-   * @param id Subscription ID
-   * @param callback Optional callback to remove (if not provided, removes all)
-   * @returns Boolean indicating if subscription was fully removed
+   * Unsubscribe from events
+   * @param subId Subscription ID to unsubscribe
+   * @returns Boolean indicating success
    */
-  removeSubscription(id: string, callback?: (event: NostrEvent) => void): boolean {
-    if (!this.subscriptions.has(id)) {
-      return false;
+  unsubscribe(subId: string): boolean {
+    const result = nostrService.unsubscribe(subId);
+    
+    if (result) {
+      this.subscriptions.delete(subId);
     }
     
-    const sub = this.subscriptions.get(id)!;
-    
-    if (callback) {
-      // Remove specific callback
-      sub.callbacks = sub.callbacks.filter(cb => cb !== callback);
-      
-      // If no callbacks left, remove subscription
-      if (sub.callbacks.length === 0) {
-        this.subscriptions.delete(id);
-        return true;
-      }
-      
-      return false;
-    } else {
-      // Remove entire subscription
-      this.subscriptions.delete(id);
-      return true;
+    return result;
+  }
+  
+  /**
+   * Get all active subscriptions
+   * @returns Map of subscription IDs to subscription details
+   */
+  getSubscriptions(): Map<string, any> {
+    return this.subscriptions;
+  }
+  
+  /**
+   * Unsubscribe from all active subscriptions
+   */
+  unsubscribeAll(): void {
+    for (const subId of this.subscriptions.keys()) {
+      nostrService.unsubscribe(subId);
     }
+    
+    this.subscriptions.clear();
   }
   
   /**
-   * Get a subscription by ID
-   * @param id Subscription ID
-   * @returns Subscription or undefined
+   * Get the number of active subscriptions
+   * @returns Number of active subscriptions
    */
-  getSubscription(id: string) {
-    return this.subscriptions.get(id);
-  }
-  
-  /**
-   * Get all subscription IDs
-   * @returns Array of subscription IDs
-   */
-  getSubscriptionIds(): string[] {
-    return Array.from(this.subscriptions.keys());
-  }
-  
-  /**
-   * Check if a subscription exists
-   * @param id Subscription ID
-   * @returns Boolean indicating if subscription exists
-   */
-  hasSubscription(id: string): boolean {
-    return this.subscriptions.has(id);
+  getSubscriptionCount(): number {
+    return this.subscriptions.size;
   }
 }

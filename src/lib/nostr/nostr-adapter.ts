@@ -149,7 +149,7 @@ class AdaptedNostrService {
 
   // Direct messaging
   async sendDirectMessage(recipientPubkey: string, content: string) {
-    return this.service.sendDirectMessage?.(recipientPubkey, content) || false;
+    return this.service.sendDirectMessage?.(recipientPubkey, content) || null;
   }
 
   // Utility methods
@@ -171,105 +171,79 @@ class AdaptedNostrService {
   }
 
   async addMultipleRelays(relayUrls: string[]) {
-    return this.service.addMultipleRelays?.(relayUrls) || false;
+    return this.service.addMultipleRelays?.(relayUrls) || 0;
   }
-
-  async addRelay(relayUrl: string, readWrite: boolean = true) {
-    return this.service.addRelay?.(relayUrl, readWrite) || false;
+  
+  async getEvents(filters: any[]) {
+    return this.service.getEvents?.(filters) || [];
   }
-
-  removeRelay(relayUrl: string) {
-    return this.service.removeRelay?.(relayUrl) || false;
-  }
-
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
-    if (this.service.publishRelayList) {
-      return this.service.publishRelayList(relays);
-    }
-    return false;
-  }
-
+  
   async getEventById(id: string) {
     return this.service.getEventById?.(id) || null;
   }
-
-  async getEvents(filters: any) {
-    return this.service.getEvents?.(filters) || [];
-  }
-
+  
   async getProfilesByPubkeys(pubkeys: string[]) {
     return this.service.getProfilesByPubkeys?.(pubkeys) || {};
   }
-
-  async verifyNip05(identifier: string, pubkey: string) {
-    return this.service.verifyNip05?.(identifier, pubkey) || false;
-  }
-
-  // User moderation
+  
+  // User moderation methods
   async muteUser(pubkey: string) {
     return this.service.muteUser?.(pubkey) || false;
   }
-
+  
   async unmuteUser(pubkey: string) {
     return this.service.unmuteUser?.(pubkey) || false;
   }
-
+  
   async isUserMuted(pubkey: string) {
     return this.service.isUserMuted?.(pubkey) || false;
   }
-
+  
   async blockUser(pubkey: string) {
     return this.service.blockUser?.(pubkey) || false;
   }
-
+  
   async unblockUser(pubkey: string) {
     return this.service.unblockUser?.(pubkey) || false;
   }
-
+  
   async isUserBlocked(pubkey: string) {
     return this.service.isUserBlocked?.(pubkey) || false;
   }
-
-  // Reactions
-  async reactToPost(eventId: string, reaction: string = "+") {
-    return this.service.reactToPost?.(eventId, reaction) || false;
-  }
-
-  // Reposts
-  async repostNote(eventId: string, authorPubkey: string) {
-    return this.service.repostNote?.(eventId, authorPubkey) || false;
-  }
-
-  // Profile updates
-  async publishProfileMetadata(metadata: Record<string, any>) {
-    return this.service.publishProfileMetadata?.(metadata) || false;
-  }
   
   // Bookmark methods
-  async isBookmarked(eventId: string): Promise<boolean> {
-    if ('isBookmarked' in this.service) {
-      return this.service.isBookmarked(eventId);
-    }
-    return false;
+  async isBookmarked(eventId: string) {
+    return this.service.isBookmarked?.(eventId) || false;
   }
   
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
-    if ('addBookmark' in this.service) {
-      return this.service.addBookmark(eventId, collectionId, tags, note);
-    }
-    return false;
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.service.addBookmark?.(eventId, collectionId, tags, note) || false;
   }
   
-  async removeBookmark(eventId: string): Promise<boolean> {
-    if ('removeBookmark' in this.service) {
-      return this.service.removeBookmark(eventId);
-    }
-    return false;
+  async removeBookmark(eventId: string) {
+    return this.service.removeBookmark?.(eventId) || false;
+  }
+  
+  async getBookmarks() {
+    return this.service.getBookmarks?.() || [];
+  }
+  
+  async getBookmarkCollections() {
+    return this.service.getBookmarkCollections?.() || [];
+  }
+  
+  async getBookmarkMetadata() {
+    return this.service.getBookmarkMetadata?.() || {};
+  }
+  
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.service.createBookmarkCollection?.(name, color, description) || false;
+  }
+  
+  async processPendingOperations() {
+    return this.service.processPendingOperations?.() || false;
   }
 }
 
-// Import the raw service instance
-import { nostrService as rawNostrService } from './service';
-
-// Create and export the adapted instance
-export const adaptedNostrService = new AdaptedNostrService(rawNostrService);
+// Create a singleton instance
+export const adaptedNostrService = new AdaptedNostrService(nostrService);
