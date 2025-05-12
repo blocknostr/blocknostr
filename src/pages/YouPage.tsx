@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -20,7 +19,6 @@ const YouPage = () => {
   const currentUserPubkey = nostrService.publicKey;
   const refreshTimeoutRef = useRef<number | null>(null);
   const profileSavedTimeRef = useRef<number | null>(null);
-  const subscriptionsRef = useRef<string[]>([]);
   let isRefreshing = false;
 
   useEffect(() => {
@@ -135,28 +133,10 @@ const YouPage = () => {
 
   useEffect(() => {
     return () => {
-      // Clean up any timeouts
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
-      
-      // Clean up any active subscriptions
-      if (subscriptionsRef.current.length > 0) {
-        subscriptionsRef.current.forEach(subId => {
-          try {
-            if (nostrService.unsubscribe) {
-              nostrService.unsubscribe(subId);
-            }
-          } catch (e) {
-            console.warn("Error unsubscribing:", e);
-          }
-        });
-        subscriptionsRef.current = [];
-      }
-      
-      // Note: nostrService.unsubscribeAll() was called here, but that function doesn't exist
-      // Instead, we'll just log that we're cleaning up
-      console.log("[YOU PAGE] Component unmounted, cleaned up subscriptions");
+      nostrService.unsubscribeAll();
     };
   }, []);
 
