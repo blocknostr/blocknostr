@@ -2,51 +2,53 @@
 import { Loader2 } from "lucide-react";
 import { Community } from "./CommunityCard";
 import EmptyCommunityState from "./EmptyCommunityState";
-import UserCommunitiesSection from "./UserCommunitiesSection";
-import DiscoverCommunitiesSection from "./DiscoverCommunitiesSection";
+import CommunityCard from "./CommunityCard";
+import CommunityCardSkeleton from "./CommunityCardSkeleton";
 
 interface CommunitiesGridProps {
   communities: Community[];
-  userCommunities: Community[];
-  filteredCommunities: Community[];
-  loading: boolean;
+  loading?: boolean;
+  emptyMessage?: string;
   currentUserPubkey: string | null;
-  onCreateCommunity: () => void;
+  onCreateCommunity?: () => void;
 }
 
 const CommunitiesGrid = ({ 
   communities,
-  userCommunities,
-  filteredCommunities,
-  loading,
+  loading = false,
+  emptyMessage = "No communities found",
   currentUserPubkey,
   onCreateCommunity
 }: CommunitiesGridProps) => {
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        {[...Array(8)].map((_, index) => (
+          <CommunityCardSkeleton key={index} />
+        ))}
       </div>
     );
   }
   
-  if (filteredCommunities.length === 0) {
-    return <EmptyCommunityState onCreateCommunity={onCreateCommunity} />;
+  if (communities.length === 0) {
+    return <EmptyCommunityState 
+      message={emptyMessage} 
+      onCreateCommunity={onCreateCommunity} 
+    />;
   }
   
   return (
-    <div className="space-y-8">
-      <UserCommunitiesSection 
-        communities={userCommunities}
-        currentUserPubkey={currentUserPubkey}
-      />
-      
-      <DiscoverCommunitiesSection 
-        communities={filteredCommunities}
-        userCommunities={userCommunities}
-        currentUserPubkey={currentUserPubkey}
-      />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {communities.map(community => (
+        <div key={community.id} className="animate-fade-in">
+          <CommunityCard 
+            community={community}
+            isMember={(community.members || []).includes(currentUserPubkey || '')}
+            currentUserPubkey={currentUserPubkey}
+          />
+        </div>
+      ))}
     </div>
   );
 };
