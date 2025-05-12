@@ -10,6 +10,7 @@ import { Form } from "@/components/ui/form";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from './types';
 import { publishProfileWithFallback, sanitizeImageUrl } from '@/components/you/profile/profileUtils';
+import { UnsignedEvent } from 'nostr-tools';
 
 import ProfileBasicFields from './ProfileBasicFields';
 import ExternalLinksFields from './ExternalLinksFields';
@@ -78,8 +79,8 @@ const ProfileEditor = ({
       
       console.log("[PROFILE EDITOR] Prepared metadata:", metadata);
       
-      // Create the event object to publish
-      const eventToPublish: Partial<NostrEvent> = {
+      // Create the event object to publish - fix the type by making required properties explicit
+      const eventToPublish: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'> = {
         kind: 0,
         content: JSON.stringify(metadata),
         tags: []

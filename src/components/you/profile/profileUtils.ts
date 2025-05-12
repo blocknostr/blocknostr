@@ -1,3 +1,4 @@
+
 // src/components/you/profile/profileUtils.ts
 
 import { contentCache, nostrService } from '@/lib/nostr';
@@ -137,7 +138,7 @@ export const nip05Utils = {
  * Publish a profile metadata event with fallbacks & explicit signing.
  */
 export async function publishProfileWithFallback(
-  unsigned: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'>,
+  unsignedEvent: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'>,
   relayUrls: string[]
 ): Promise<{ success: boolean; error: string | null }> {
   if (!nostrService.publicKey) {
@@ -146,39 +147,29 @@ export async function publishProfileWithFallback(
 
   // Build full unsigned event
   const full: UnsignedEvent = {
-    ...unsigned,
+    ...unsignedEvent,
     pubkey: nostrService.publicKey,
     created_at: Math.floor(Date.now() / 1000),
   };
 
-  // Compute ID and sign
+  // Compute ID
   const id = getEventHash(full);
+  
   let sig: string;
   try {
-    sig = await nostrService.signEvent(full);
-  } catch (e: any) {
-    return { success: false, error: 'Signing failed: ' + e.message };
-  }
-
-  const event: RawEvent = { ...full, id, sig };
-
-  // Try each relay
-  for (const url of relayUrls) {
-    try {
-      const ok = await nostrService.publishEventToRelay(event, url);
-      if (ok) return { success: true, error: null };
-    } catch (e: any) {
-      console.warn(`[PUBLISH] Relay ${url} failed:`, e.message || e);
+    // Try to use the global publishEvent method instead of direct signing
+    const eventId = await nostrService.publishEvent({
+      ...full,
+      id
+    });
+    
+    if (eventId) {
+      return { success: true, error: null };
+    } else {
+      return { success: false, error: 'Failed to publish event' };
     }
-  }
-
-  // Fallback to global publish
-  try {
-    const ok = await nostrService.publishEvent(event);
-    if (ok) return { success: true, error: null };
   } catch (e: any) {
-    console.error('[PUBLISH] Global publish failed:', e.message || e);
+    console.error('[PUBLISH] Error publishing event:', e.message || e);
+    return { success: false, error: 'Failed to publish: ' + (e.message || e) };
   }
-
-  return { success: false, error: 'Invalid event data or no relay accepted it' };
 }

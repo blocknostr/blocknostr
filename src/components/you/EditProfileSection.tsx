@@ -1,3 +1,4 @@
+
 // src/components/you/EditProfileSection.tsx
 
 import React, { useState } from 'react';
@@ -9,6 +10,7 @@ import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { nostrService } from '@/lib/nostr';
+import { UnsignedEvent } from 'nostr-tools';
 
 import BasicInfoTab from './profile/BasicInfoTab';
 import AppearanceTab from './profile/AppearanceTab';
@@ -106,8 +108,8 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       }
 
-      // 7) Build the NIP-01 metadata event
-      const eventToPublish = {
+      // 7) Build the NIP-01 metadata event with proper type
+      const eventToPublish: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'> = {
         kind: 0,
         content: JSON.stringify(cleanValues),
         tags: [],
