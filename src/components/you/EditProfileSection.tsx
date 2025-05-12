@@ -23,8 +23,7 @@ interface EditProfileSectionProps {
 
 const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({ profileData });
-
+const verified = await nip05Verify(normalizedIdentifier);
   const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
       toast.error("You must be logged in to update your profile");
