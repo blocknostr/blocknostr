@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
+import { contentCache } from '@/lib/nostr/cache/content-cache'; // Direct import of contentCache
 
 export function useProfileHeader(profileData: any, npub: string, pubkeyHex: string) {
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
@@ -70,7 +70,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
       
       try {
         // Use cached profile timestamp if available
-        const cachedProfile = nostrService.contentCache?.getProfile?.(pubkeyHex);
+        const cachedProfile = contentCache?.getProfile?.(pubkeyHex);
         if (cachedProfile && cachedProfile._createdAt) {
           setCreationDate(new Date(cachedProfile._createdAt * 1000));
           return;

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
@@ -46,6 +45,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   
   // Extract media URLs from content and tags
   const mediaUrls = useMemo(() => {
+    // ... keep existing code (media URL extraction logic)
     const urlsFromContent: string[] = [];
     const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/gi;
     let match;
@@ -120,9 +120,8 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={(e: React.MouseEvent) => {  // Fix: Properly type the event parameter as React.MouseEvent
-                e.stopPropagation();
-                handleHashtagClick(tag);
+              onClick={(e, clickedTag) => {  // Updated to match the new signature
+                handleHashtagClick(clickedTag);
               }}
               variant="small"
             />

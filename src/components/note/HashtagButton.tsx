@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface HashtagButtonProps {
   tag: string;
-  onClick: (tag: string) => void;
+  onClick: (e: React.MouseEvent, tag: string) => void; // Updated to accept both event and tag
   variant?: 'default' | 'small' | 'large' | 'pill';
   showHash?: boolean;
   className?: string;
@@ -20,7 +20,7 @@ const HashtagButton: React.FC<HashtagButtonProps> = ({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    onClick(tag);
+    onClick(e, tag); // Pass both the event and tag
   };
   
   return (
