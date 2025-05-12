@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -189,7 +190,9 @@ export class NostrService {
   
   // Add the unsubscribeAll method that forwards the call to subscriptionManager
   public unsubscribeAll(): void {
-    this.subscriptionManager.unsubscribeAll();
+    if (this.subscriptionManager && typeof this.subscriptionManager.unsubscribeAll === 'function') {
+      this.subscriptionManager.unsubscribeAll();
+    }
   }
   
   // Renew subscription

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -19,6 +20,7 @@ const YouPage = () => {
   const currentUserPubkey = nostrService.publicKey;
   const refreshTimeoutRef = useRef<number | null>(null);
   const profileSavedTimeRef = useRef<number | null>(null);
+  const subscriptionsRef = useRef<string[]>([]);
   let isRefreshing = false;
 
   useEffect(() => {
@@ -136,7 +138,23 @@ const YouPage = () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
-      nostrService.unsubscribeAll();
+      
+      // Clean up subscriptions safely
+      try {
+        if (typeof nostrService.unsubscribeAll === 'function') {
+          nostrService.unsubscribeAll();
+        } else {
+          console.log("[YOU PAGE] unsubscribeAll not available, cleaning up individual subscriptions");
+          // If unsubscribeAll doesn't exist, clean up any stored subscriptions
+          subscriptionsRef.current.forEach(subId => {
+            if (subId && typeof nostrService.unsubscribe === 'function') {
+              nostrService.unsubscribe(subId);
+            }
+          });
+        }
+      } catch (err) {
+        console.error("[YOU PAGE] Error while cleaning up subscriptions:", err);
+      }
     };
   }, []);
 

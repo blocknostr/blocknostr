@@ -1,3 +1,4 @@
+
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -19,6 +20,7 @@ export class NostrAdapter extends BaseAdapter {
   private dataAdapter: DataAdapter;
   private communityAdapter: CommunityAdapter;
   private bookmarkAdapter: BookmarkAdapter;
+  private activeSubscriptions: Set<string> = new Set();
 
   constructor(service: typeof nostrService) {
     super(service);
@@ -289,6 +291,46 @@ export class NostrAdapter extends BaseAdapter {
 
   async processPendingOperations() {
     return this.bookmarkAdapter.processPendingOperations();
+  }
+
+  // Subscription management
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    const subscriptionId = this.service.subscribe(filters, onEvent, relays);
+    if (subscriptionId) {
+      this.activeSubscriptions.add(subscriptionId);
+    }
+    return subscriptionId;
+  }
+  
+  unsubscribe(subscriptionId: string): void {
+    if (subscriptionId) {
+      this.service.unsubscribe(subscriptionId);
+      this.activeSubscriptions.delete(subscriptionId);
+    }
+  }
+  
+  // Implement unsubscribeAll method
+  unsubscribeAll(): void {
+    console.log(`[NostrAdapter] Unsubscribing all ${this.activeSubscriptions.size} subscriptions`);
+    
+    try {
+      // Try using service's unsubscribeAll method first
+      if (this.service && typeof this.service.unsubscribeAll === 'function') {
+        this.service.unsubscribeAll();
+      } else {
+        // Fall back to unsubscribing each subscription individually
+        this.activeSubscriptions.forEach(subId => {
+          if (this.service && typeof this.service.unsubscribe === 'function') {
+            this.service.unsubscribe(subId);
+          }
+        });
+      }
+      
+      // Clear the set of active subscriptions
+      this.activeSubscriptions.clear();
+    } catch (error) {
+      console.error('[NostrAdapter] Error unsubscribing:', error);
+    }
   }
 
   // Manager getters
