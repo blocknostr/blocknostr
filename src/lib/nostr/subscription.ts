@@ -1,6 +1,6 @@
 
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Filter, NostrFilter } from './types';
+import { NostrEvent, Filter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
@@ -33,8 +33,10 @@ export class SubscriptionManager {
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
         // Convert our Filter type to be compatible with nostr-tools Filter type
-        // by using type assertion
-        return this.pool.subscribe(relays, filter as any, {
+        // Clone the filter to avoid modifying the original
+        const nostrToolsFilter = { ...filter } as any;
+        
+        return this.pool.subscribe(relays, nostrToolsFilter, {
           onevent: (event) => {
             onEvent(event as NostrEvent);
           }

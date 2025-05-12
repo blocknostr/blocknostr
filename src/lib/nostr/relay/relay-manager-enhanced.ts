@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
@@ -6,7 +5,8 @@ import { HealthManager } from './health-manager';
 import { RelayInfoService } from './relay-info-service';
 import { RelayPerformanceTracker } from './performance/relay-performance-tracker';
 import { RelaySelector } from './selection/relay-selector';
-import { CircuitBreaker, CircuitState, CircuitStateValues } from './circuit/circuit-breaker';
+import { CircuitBreaker, CircuitStateValues } from './circuit/circuit-breaker';
+import type { CircuitState } from './circuit/circuit-breaker';
 import { RelayDiscoverer } from './discovery/relay-discoverer';
 
 // Create instances (these would typically be singletons)
@@ -39,7 +39,8 @@ export class EnhancedRelayManager {
     this.loadUserRelays();
     this.healthManager = new HealthManager(this.connectionManager, this._userRelays);
     this.relayInfoService = new RelayInfoService(this.pool);
-    // Fix: Pass an array of relay URLs, not the SimplePool instance
+    
+    // Fix: Create the RelayDiscoverer with relay URLs, not the pool
     this.relayDiscoverer = new RelayDiscoverer(Array.from(this._userRelays.keys()));
     
     // Start monitoring relay health
@@ -400,7 +401,6 @@ export class EnhancedRelayManager {
   
   /**
    * Start background relay discovery if not already running
-   * Simplified version that doesn't rely on methods not in RelayDiscoverer
    */
   private async startBackgroundDiscovery(): Promise<void> {
     if (this.discoveryRunning) return;
@@ -412,9 +412,8 @@ export class EnhancedRelayManager {
       if (connectedRelays.length > 0) {
         console.log('Starting background relay discovery...');
         
-        // Simplified discovery logic without using missing methods
+        // Record successful connections
         for (const url of connectedRelays) {
-          // Test connection and add to known relays
           this.relayDiscoverer.recordSuccess(url);
         }
         
@@ -447,7 +446,6 @@ export class EnhancedRelayManager {
   
   /**
    * Investigate relay performance periodically
-   * Simplified version that doesn't rely on methods not in RelayDiscoverer
    */
   private async investigateRelayPerformance(): Promise<void> {
     try {

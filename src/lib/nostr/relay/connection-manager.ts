@@ -9,7 +9,37 @@ export class ConnectionManager {
   private connectionStatus: Map<string, { connected: boolean, lastAttempt: number, failures: number }> = new Map();
   private reconnectTimers: Map<string, number> = new Map();
   
-  constructor() {}
+  constructor() {
+    // Add event listener for online/offline status
+    window.addEventListener('online', this.handleOnlineStatus.bind(this, true));
+    window.addEventListener('offline', this.handleOnlineStatus.bind(this, false));
+  }
+  
+  /**
+   * Handle online/offline status changes
+   * @param isOnline Boolean indicating if browser is online
+   */
+  private handleOnlineStatus(isOnline: boolean) {
+    if (isOnline) {
+      console.log('Browser went online, attempting to reconnect to relays');
+      // Get all relays that were previously connected
+      const relaysToReconnect = Array.from(this.connectionStatus.entries())
+        .filter(([_, status]) => status.failures < 3)
+        .map(([url]) => url);
+        
+      // Attempt to reconnect
+      if (relaysToReconnect.length > 0) {
+        this.connectToRelays(relaysToReconnect);
+      }
+    } else {
+      console.log('Browser went offline, marking relays as disconnected');
+      // Mark all as disconnected but don't actually close connections
+      // This allows them to reconnect when we come back online
+      this.connectionStatus.forEach((status, url) => {
+        status.connected = false;
+      });
+    }
+  }
   
   /**
    * Connect to a specific relay
@@ -18,7 +48,14 @@ export class ConnectionManager {
    * @returns Promise resolving to boolean indicating connection success
    */
   async connectToRelay(relayUrl: string, retryCount: number = 0): Promise<boolean> {
+    // Don't try to connect if browser is offline
+    if (!navigator.onLine) {
+      console.log(`Browser offline, not connecting to ${relayUrl}`);
+      return false;
+    }
+    
     if (this.relays.has(relayUrl) && this.relays.get(relayUrl)?.readyState === WebSocket.OPEN) {
+      console.log(`Already connected to ${relayUrl}`);
       return true; // Already connected
     }
     
@@ -37,28 +74,33 @@ export class ConnectionManager {
     }
     
     try {
+      console.log(`Connecting to relay: ${relayUrl}`);
       const socket = new WebSocket(relayUrl);
       
       return new Promise((resolve) => {
         socket.onopen = () => {
+          console.log(`Connected to relay: ${relayUrl}`);
           this.relays.set(relayUrl, socket);
           status.connected = true;
           status.failures = 0;
           resolve(true);
         };
         
-        socket.onerror = () => {
+        socket.onerror = (error) => {
+          console.error(`Error connecting to relay ${relayUrl}:`, error);
           status.failures++;
           resolve(false);
         };
         
         socket.onclose = () => {
+          console.log(`Connection closed to relay: ${relayUrl}`);
           status.connected = false;
           this.relays.delete(relayUrl);
           
           // Exponential backoff for reconnection (max ~1 minute)
           if (retryCount < 6) {
             const delay = Math.min(1000 * Math.pow(2, retryCount), 60000);
+            console.log(`Will try to reconnect to ${relayUrl} in ${delay}ms`);
             const timerId = window.setTimeout(() => {
               this.connectToRelay(relayUrl, retryCount + 1);
             }, delay);
@@ -79,6 +121,7 @@ export class ConnectionManager {
         // Set timeout for connection
         setTimeout(() => {
           if (socket.readyState !== WebSocket.OPEN) {
+            console.log(`Connection timeout for relay: ${relayUrl}`);
             socket.close();
             resolve(false);
           }
@@ -97,8 +140,12 @@ export class ConnectionManager {
    * @returns Promise resolving when all connection attempts complete
    */
   async connectToRelays(relayUrls: string[]): Promise<void> {
+    console.log(`Attempting to connect to ${relayUrls.length} relays`);
     const promises = relayUrls.map(url => this.connectToRelay(url));
     await Promise.all(promises);
+    
+    const connected = relayUrls.filter(url => this.isConnected(url)).length;
+    console.log(`Connected to ${connected} out of ${relayUrls.length} relays`);
   }
   
   /**
@@ -166,5 +213,9 @@ export class ConnectionManager {
     });
     
     this.reconnectTimers.clear();
+    
+    // Remove event listeners
+    window.removeEventListener('online', this.handleOnlineStatus.bind(this, true));
+    window.removeEventListener('offline', this.handleOnlineStatus.bind(this, false));
   }
 }

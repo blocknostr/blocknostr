@@ -24,6 +24,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   const [connectStatus, setConnectStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
   const [animateIn, setAnimateIn] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"extension" | "manual">("extension");
+  const [relayConnected, setRelayConnected] = useState<boolean>(false);
 
   // Check for Nostr extension
   useEffect(() => {
@@ -51,8 +52,48 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       // Reset states when dialog closes
       setActiveTab("extension");
       setConnectStatus('idle');
+      setRelayConnected(false);
     }
   }, [open]);
+
+  // Helper function to connect to relays
+  const connectToRelays = async (): Promise<boolean> => {
+    console.log("Attempting to connect to relays...");
+    try {
+      // Attempt to connect to relays
+      await nostrService.connectToUserRelays();
+      
+      // Check if we have any successful connections
+      const relays = nostrService.getRelayStatus();
+      const connectedCount = relays.filter(r => r.status === 'connected').length;
+      
+      console.log(`Connected to ${connectedCount} relays out of ${relays.length}`);
+      
+      if (connectedCount > 0) {
+        setRelayConnected(true);
+        return true;
+      }
+      
+      // Try fallback to default relays
+      console.log("Trying default relays...");
+      await nostrService.connectToDefaultRelays();
+      
+      const relaysAfterDefault = nostrService.getRelayStatus();
+      const connectedCountAfterDefault = relaysAfterDefault.filter(r => r.status === 'connected').length;
+      
+      console.log(`Connected to ${connectedCountAfterDefault} relays after trying defaults`);
+      
+      if (connectedCountAfterDefault > 0) {
+        setRelayConnected(true);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error connecting to relays:", error);
+      return false;
+    }
+  };
 
   const handleConnect = async () => {
     if (!hasExtension) {
@@ -63,9 +104,32 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
     setConnectStatus('connecting');
     
     try {
+      // First attempt login to get the public key
       const success = await nostrService.login();
       
       if (success) {
+        // Now attempt to connect to relays before showing success
+        console.log("Login successful, attempting to connect to relays...");
+        
+        // Try to connect to relays with multiple attempts
+        let relaySuccess = false;
+        for (let i = 0; i < 3 && !relaySuccess; i++) {
+          relaySuccess = await connectToRelays();
+          if (relaySuccess) break;
+          
+          // Wait a bit before retrying
+          if (i < 2) {
+            console.log(`Relay connection attempt ${i+1} failed, retrying...`);
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        
+        if (relaySuccess) {
+          console.log("Successfully connected to relays");
+        } else {
+          console.warn("Could not connect to any relays. Proceeding with login anyway...");
+        }
+        
         setConnectStatus('success');
         toast.success("Connected successfully", {
           description: "Welcome to BlockNoster"
@@ -75,10 +139,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         setTimeout(() => {
           onOpenChange(false);
           
-          // Reload the page to refresh content with logged in state
+          // Don't reload the page immediately, allow some time for connections
           setTimeout(() => {
+            // Store connection time to verify connections after reload
+            localStorage.setItem('nostr_last_connection', Date.now().toString());
+            
+            // Now reload the page
             window.location.reload();
-          }, 300);
+          }, relaySuccess ? 300 : 1000); // Longer delay if relays couldn't connect
         }, 700);
       } else {
         setConnectStatus('error');

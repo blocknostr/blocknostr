@@ -1,5 +1,5 @@
 
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
@@ -19,7 +19,40 @@ const MAX_CHARS = 140;
 
 const WorldChat = () => {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const isLoggedIn = !!nostrService.publicKey;
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  // Check login status on mount and after any changes
+  useEffect(() => {
+    const checkLoginStatus = () => {
+      setIsLoggedIn(!!nostrService.publicKey);
+    };
+    
+    checkLoginStatus();
+    
+    // Set up an interval to check login status (in case user switches accounts in extension)
+    const interval = setInterval(checkLoginStatus, 5000);
+    
+    // Check if we need to connect to relays after page load
+    const lastConnection = localStorage.getItem('nostr_last_connection');
+    if (lastConnection && nostrService.publicKey) {
+      const connectionTime = parseInt(lastConnection, 10);
+      const now = Date.now();
+      
+      // If last connection was recent (within 5 seconds) and we have a public key,
+      // try to connect to relays if none are currently connected
+      if (now - connectionTime < 5000) {
+        const relays = nostrService.getRelayStatus();
+        const connectedCount = relays.filter(r => r.status === 'connected').length;
+        
+        if (connectedCount === 0) {
+          console.log("Recently logged in but no relays connected. Attempting to connect...");
+          nostrService.connectToUserRelays();
+        }
+      }
+    }
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const {
     messages,
@@ -77,6 +110,24 @@ const WorldChat = () => {
     );
   }
 
+  // If logged in but still connecting to relays, show a connecting state
+  if (connectionStatus === 'connecting') {
+    return (
+      <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm">
+        <WorldChatHeader connectionStatus={connectionStatus} />
+        <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
+          <div className="p-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-full mb-3">
+            <RefreshCw className="h-8 w-8 text-blue-500 animate-spin" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Connecting to relays</h3>
+          <p className="text-muted-foreground mb-4 max-w-xs">
+            Please wait while we connect to the Nostr network...
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
@@ -111,17 +162,6 @@ const WorldChat = () => {
                 <>Reconnect</>
               )}
             </Button>
-          </div>
-        </Alert>
-      )}
-      
-      {connectionStatus === 'connecting' && (
-        <Alert className="mx-2 mt-1 mb-0 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-md">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
-            <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
-              Connecting to relays...
-            </AlertDescription>
           </div>
         </Alert>
       )}

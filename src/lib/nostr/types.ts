@@ -1,7 +1,7 @@
-
+import type { Event } from 'nostr-tools';
 import { CircuitState } from './relay/circuit/circuit-breaker';
 
-export interface NostrEvent {
+export interface NostrEvent extends Event {
   id: string;
   pubkey: string;
   created_at: number;
@@ -13,10 +13,9 @@ export interface NostrEvent {
 
 export interface Relay {
   url: string;
-  status: "connected" | "connecting" | "disconnected" | "error" | "failed" | "unknown";
+  status: 'connected' | 'connecting' | 'disconnected' | 'failed' | 'unknown';
   read?: boolean;
   write?: boolean;
-  // Add these new properties for relay performance tracking
   score?: number;
   avgResponse?: number;
   circuitStatus?: CircuitState;
@@ -32,11 +31,9 @@ export interface Filter {
   since?: number;
   until?: number;
   limit?: number;
-  // Add an index signature to make it compatible with nostr-tools Filter
   [key: `#${string}`]: string[] | undefined;
 }
 
-// Add NostrFilter as an alias for Filter to maintain compatibility
 export type NostrFilter = Filter;
 
 export interface NostrProfileMetadata {
@@ -86,7 +83,6 @@ export interface BookmarkWithMetadata extends NostrEvent {
   metadata: BookmarkMetadata;
 }
 
-// Add proper CacheOptions interface
 export interface CacheOptions {
   authorPubkeys?: string[];
   hashtag?: string;
@@ -95,27 +91,21 @@ export interface CacheOptions {
   mediaOnly?: boolean;
 }
 
-// Update ContentCache interface to include all required methods
 export interface ContentCache {
-  // Event methods
   cacheEvent: (event: NostrEvent, important?: boolean) => void;
   getEvent: (eventId: string) => NostrEvent | null;
   cacheEvents: (events: NostrEvent[], important?: boolean) => void;
   getEventsByAuthors: (authorPubkeys: string[]) => NostrEvent[];
   
-  // Profile methods
   cacheProfile: (pubkey: string, profileData: any, important?: boolean) => void;
   getProfile: (pubkey: string) => any | null;
   
-  // Thread methods
   cacheThread: (rootId: string, events: NostrEvent[], important?: boolean) => void;
   getThread: (rootId: string) => NostrEvent[] | null;
   
-  // Feed methods
   cacheFeed: (feedType: string, events: NostrEvent[], options: CacheOptions, important?: boolean) => void;
   getFeed: (feedType: string, options: CacheOptions) => NostrEvent[] | null;
   
-  // Feed cache access
   feedCache: {
     getFeed: (feedType: string, options: CacheOptions) => NostrEvent[] | null;
     cacheFeed: (feedType: string, options: CacheOptions, events: NostrEvent[], expiryMs?: number) => void;
@@ -124,8 +114,9 @@ export interface ContentCache {
     getRawEntry: (key: string) => any;
   };
   
-  // Utility methods
   cleanupExpiredEntries: () => void;
   clearAll: () => void;
   isOffline: () => boolean;
 }
+
+export { CircuitState };
