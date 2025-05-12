@@ -1,8 +1,10 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { useNavigation } from "@/contexts/NavigationContext";
+import Link from "next/link";
 
 interface BackButtonProps {
   fallbackPath?: string;
@@ -19,13 +21,15 @@ const BackButton: React.FC<BackButtonProps> = ({
   showText = false,
   forceHome = false
 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { goBack, canGoBack, parentRoute } = useNavigation();
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isHomePage = pathname === "/";
 
   const handleClick = () => {
     // If forceHome is true, always navigate to home
     if (forceHome) {
-      navigate("/");
+      router.push("/");
       return;
     }
 
@@ -35,15 +39,15 @@ const BackButton: React.FC<BackButtonProps> = ({
     } 
     // Otherwise use the fallback or parent route
     else if (fallbackPath) {
-      navigate(fallbackPath);
+      router.push(fallbackPath);
     } 
     // Finally, use the detected parent route
     else if (parentRoute) {
-      navigate(parentRoute);
+      router.push(parentRoute);
     }
     // Last resort - go home
     else {
-      navigate("/");
+      router.push("/");
     }
   };
 

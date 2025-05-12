@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavigationContextType {
   history: string[];
@@ -37,8 +37,8 @@ const routeHierarchy: Record<string, string> = {
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [history, setHistory] = useState<string[]>([]);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const router = useRouter();
   const [parentRoute, setParentRoute] = useState<string | null>(null);
 
   // Get parent route based on current path
@@ -67,15 +67,15 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     setHistory(prev => {
       // Don't add duplicate entries for the same path
-      if (prev.length > 0 && prev[prev.length - 1] === location.pathname) {
+      if (prev.length > 0 && prev[prev.length - 1] === pathname) {
         return prev;
       }
-      return [...prev, location.pathname];
+      return [...prev, pathname];
     });
 
     // Update the parent route based on current path
-    setParentRoute(getParentRoute(location.pathname));
-  }, [location.pathname]);
+    setParentRoute(getParentRoute(pathname));
+  }, [pathname]);
 
   const goBack = () => {
     if (history.length > 1) {
@@ -86,11 +86,11 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Update history and navigate
       setHistory(newHistory);
-      navigate(previousPage);
+      router.push(previousPage);
     } else {
       // If no previous page in history, go to parent route
-      const parent = getParentRoute(location.pathname);
-      navigate(parent);
+      const parent = getParentRoute(pathname);
+      router.push(parent);
     }
   };
 

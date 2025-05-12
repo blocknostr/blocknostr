@@ -5,7 +5,7 @@ import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-import { useLocation } from "react-router-dom";
+import { usePathname } from "next/navigation";
 
 interface PageHeaderProps {
   title: string;
@@ -27,8 +27,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   children
 }) => {
   const { darkMode, toggleDarkMode } = useTheme();
-  const location = useLocation();
-  const isHomePage = location.pathname === "/";
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
   
   return (
     <header className={cn(

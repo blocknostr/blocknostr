@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Link as RouterLink, LinkProps as RouterLinkProps } from 'react-router-dom';
+import NextLink, { LinkProps as NextLinkProps } from 'next/link';
 
 // Define proper types for the Next.js Link component props
-interface NextLinkProps extends Omit<RouterLinkProps, 'to'> {
+interface LinkProps extends Omit<NextLinkProps, 'href'> {
   href: string;
   as?: string;
   replace?: boolean;
@@ -13,10 +13,11 @@ interface NextLinkProps extends Omit<RouterLinkProps, 'to'> {
   prefetch?: boolean;
   locale?: string;
   children: React.ReactNode;
+  className?: string;
 }
 
-// Create a Link component that mimics Next.js Link API but uses react-router-dom
-const Link = React.forwardRef<HTMLAnchorElement, NextLinkProps>(({ 
+// Create a Link component that uses Next.js Link
+const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(({ 
   href, 
   as,
   replace, 
@@ -26,17 +27,25 @@ const Link = React.forwardRef<HTMLAnchorElement, NextLinkProps>(({
   prefetch,
   locale,
   children,
+  className,
   ...rest 
 }, ref) => {
   return (
-    <RouterLink 
-      to={href} 
-      replace={replace} 
-      ref={ref}
+    <NextLink 
+      href={href} 
+      as={as}
+      replace={replace}
+      scroll={scroll} 
+      shallow={shallow}
+      prefetch={prefetch}
+      locale={locale}
+      passHref={passHref || true}
       {...rest}
     >
-      {children}
-    </RouterLink>
+      <a ref={ref} className={className}>
+        {children}
+      </a>
+    </NextLink>
   );
 });
 
@@ -45,4 +54,4 @@ Link.displayName = 'Link';
 export default Link;
 
 // For compatibility with imports like: import { Link } from "next/link"
-export { default as Link } from './Link';
+export { Link };
