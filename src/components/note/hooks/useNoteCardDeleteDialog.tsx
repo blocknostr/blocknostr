@@ -21,21 +21,6 @@ export function useNoteCardDeleteDialog({ event, onDelete }: UseNoteCardDeleteDi
     try {
       setIsDeleting(true);
       
-      // First check if the event has already been deleted
-      const eventExists = await checkIfEventExists(event.id || '');
-      
-      if (!eventExists) {
-        setIsDeleteDialogOpen(false);
-        setIsDeleting(false);
-        toast.info("This post was already deleted. Refreshing data...");
-        
-        // Call parent's onDelete if provided to refresh the UI
-        if (onDelete) {
-          onDelete();
-        }
-        return;
-      }
-      
       // In Nostr, we don't actually delete posts but we can mark them as deleted
       await nostrService.publishEvent({
         kind: 5, // Deletion event
@@ -58,32 +43,6 @@ export function useNoteCardDeleteDialog({ event, onDelete }: UseNoteCardDeleteDi
       toast.error("Failed to delete post");
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
-    }
-  };
-  
-  // Helper function to check if an event exists (hasn't been deleted)
-  const checkIfEventExists = async (eventId: string): Promise<boolean> => {
-    try {
-      // Try to retrieve the event from the Nostr network
-      const retrievedEvent = await nostrService.getEventById(eventId);
-      
-      // If the event is null or we received a deletion event, it's already deleted
-      if (!retrievedEvent) {
-        return false;
-      }
-      
-      // Check for deletion events referencing this event
-      const deletionEvents = await nostrService.getEvents({
-        kinds: [5], // Deletion events
-        "#e": [eventId]
-      });
-      
-      // If there are deletion events for this event ID, it's already deleted
-      return deletionEvents.length === 0;
-    } catch (error) {
-      console.error("Error checking event status:", error);
-      // Assume it exists if we can't verify
-      return true;
     }
   };
 
