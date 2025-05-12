@@ -93,7 +93,7 @@ const YouPage = () => {
     }
   };
 
-  // Updated handleProfileSaved to address unauthorized address and 404 errors
+  // Enhanced logging for signing and saving process
   const handleProfileSaved = useCallback(async () => {
     console.log("[YOU PAGE] Profile saved, exiting edit mode");
     setIsEditing(false);
@@ -152,6 +152,8 @@ const YouPage = () => {
         } catch (error) {
           if (error.message.includes("Unauthorized address")) {
             console.error("[YOU PAGE] Unauthorized address error:", error);
+            console.log("[YOU PAGE] Expected address:", "d4AQouU6pE74tjvLdDhkkywUH1sESdVH9v96UofXMwUs");
+            console.log("[YOU PAGE] Actual address:", error.actualAddress || "Unknown");
             toast.error("Unauthorized address. Please check your signing credentials.");
           } else {
             console.error("[YOU PAGE] Error refreshing after save:", error);
