@@ -70,28 +70,42 @@ const defaultPreferences: UserPreferences = {
 
 // Storage keys for splitting preferences into smaller chunks
 const STORAGE_KEYS = {
-  MAIN: 'blocknoster_preferences_main',
-  FEED_FILTERS: 'blocknoster_preferences_filters',
-  CONTENT_PREFS: 'blocknoster_preferences_content',
-  NOTIFICATION_PREFS: 'blocknoster_preferences_notifications',
-  RELAY_PREFS: 'blocknoster_preferences_relays',
-  UI_PREFS: 'blocknoster_preferences_ui'
+  DEFAULT_FEED: 'bn_pref_default_feed',
+  FEED_FILTERS: 'bn_pref_feed_filters', 
+  CONTENT_PREFS: 'bn_pref_content',
+  NOTIFICATION_PREFS: 'bn_pref_notif',
+  RELAY_PREFS: 'bn_pref_relay',
+  UI_PREFS: 'bn_pref_ui',
+  // Even more granular storage keys for large arrays
+  HIDDEN_USERS: 'bn_pref_hidden_users',
+  STORAGE_STATUS: 'bn_storage_status'
+};
+
+// Compress arrays by joining with delimiter 
+const compressArray = (array: string[]): string => {
+  return array.join('|');
+};
+
+// Decompress string back to array
+const decompressArray = (compressed: string): string[] => {
+  return compressed ? compressed.split('|') : [];
 };
 
 // Safely save to localStorage with error handling
 const safeLocalStorageSave = (key: string, value: any): boolean => {
   try {
-    const serialized = JSON.stringify(value);
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
     localStorage.setItem(key, serialized);
     return true;
   } catch (error) {
     console.error(`Failed to save to localStorage (${key}):`, error);
     
-    // Show error notification only once
-    if (key === STORAGE_KEYS.MAIN) {
-      toast.error("Unable to save preferences", {
-        description: "Storage limit reached. Some preferences may not persist."
-      });
+    // Mark storage as problematic
+    try {
+      localStorage.setItem(STORAGE_KEYS.STORAGE_STATUS, 'limited');
+    } catch (e) {
+      // If we can't even save this, storage is completely unavailable
+      console.error("Storage completely unavailable:", e);
     }
     
     return false;
@@ -103,6 +117,13 @@ const safeLocalStorageLoad = <T>(key: string, defaultValue: T): T => {
   try {
     const serialized = localStorage.getItem(key);
     if (serialized === null) return defaultValue;
+    
+    // If the value is a compressed array (starts with pipe or alphanumeric)
+    if (typeof defaultValue === 'object' && Array.isArray(defaultValue) && 
+        (typeof serialized === 'string' && /^[a-zA-Z0-9|]+$/.test(serialized))) {
+      return decompressArray(serialized) as unknown as T;
+    }
+    
     return JSON.parse(serialized) as T;
   } catch (error) {
     console.error(`Failed to load from localStorage (${key}):`, error);
@@ -114,6 +135,7 @@ export function useUserPreferences() {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
   const [loaded, setLoaded] = useState(false);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const [storageQuotaReached, setStorageQuotaReached] = useState(false);
 
   // Test if localStorage is available
   useEffect(() => {
@@ -121,6 +143,13 @@ export function useUserPreferences() {
       const testKey = 'blocknoster_storage_test';
       localStorage.setItem(testKey, 'test');
       localStorage.removeItem(testKey);
+      
+      // Check if we previously had storage issues
+      const storageStatus = localStorage.getItem(STORAGE_KEYS.STORAGE_STATUS);
+      if (storageStatus === 'limited') {
+        setStorageQuotaReached(true);
+      }
+      
       setStorageAvailable(true);
     } catch (e) {
       console.error('localStorage not available:', e);
@@ -137,8 +166,24 @@ export function useUserPreferences() {
     
     try {
       // Load individual preference sections
-      const mainPrefs = safeLocalStorageLoad<Partial<UserPreferences>>(STORAGE_KEYS.MAIN, {});
-      const feedFilters = safeLocalStorageLoad(STORAGE_KEYS.FEED_FILTERS, defaultPreferences.feedFilters);
+      const defaultFeed = safeLocalStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
+      
+      // Load feed filters except hidden users (which we'll handle separately)
+      const feedFilters = safeLocalStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
+        showReplies: defaultPreferences.feedFilters.showReplies,
+        showReposted: defaultPreferences.feedFilters.showReposted,
+      });
+      
+      // Load hidden users array separately (could be large)
+      let hideFromUsers: string[] = [];
+      try {
+        const compressedUsers = localStorage.getItem(STORAGE_KEYS.HIDDEN_USERS);
+        hideFromUsers = compressedUsers ? decompressArray(compressedUsers) : [];
+      } catch (e) {
+        console.error('Failed to load hidden users:', e);
+        hideFromUsers = [];
+      }
+      
       const contentPreferences = safeLocalStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
       const notificationPreferences = safeLocalStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
       const relayPreferences = safeLocalStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
@@ -147,8 +192,12 @@ export function useUserPreferences() {
       // Merge all preferences with defaults for any missing properties
       const mergedPreferences: UserPreferences = {
         ...defaultPreferences,
-        ...mainPrefs,
-        feedFilters,
+        defaultFeed,
+        feedFilters: {
+          ...defaultPreferences.feedFilters,
+          ...feedFilters,
+          hideFromUsers,
+        },
         contentPreferences,
         notificationPreferences,
         relayPreferences,
@@ -168,20 +217,55 @@ export function useUserPreferences() {
   // Save preferences to localStorage with chunking to avoid quota issues
   useEffect(() => {
     if (loaded && storageAvailable) {
-      // Save main preferences (excluding nested objects which we'll save separately)
-      const mainPrefs = {
-        defaultFeed: preferences.defaultFeed
-      };
-      safeLocalStorageSave(STORAGE_KEYS.MAIN, mainPrefs);
+      // Track if any saves failed
+      let anySaveFailed = false;
       
-      // Save each section separately to split storage
-      safeLocalStorageSave(STORAGE_KEYS.FEED_FILTERS, preferences.feedFilters);
-      safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
-      safeLocalStorageSave(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
-      safeLocalStorageSave(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
-      safeLocalStorageSave(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
+      // Save default feed
+      const feedSuccess = safeLocalStorageSave(STORAGE_KEYS.DEFAULT_FEED, preferences.defaultFeed);
+      if (!feedSuccess) anySaveFailed = true;
+      
+      // Save feed filters without the potentially large hideFromUsers array
+      const feedFilters = {
+        showReplies: preferences.feedFilters.showReplies,
+        showReposted: preferences.feedFilters.showReposted
+      };
+      const filtersSuccess = safeLocalStorageSave(STORAGE_KEYS.FEED_FILTERS, feedFilters);
+      if (!filtersSuccess) anySaveFailed = true;
+      
+      // Save hidden users as compressed string
+      if (preferences.feedFilters.hideFromUsers && preferences.feedFilters.hideFromUsers.length > 0) {
+        const compressedUsers = compressArray(preferences.feedFilters.hideFromUsers);
+        const usersSuccess = safeLocalStorageSave(STORAGE_KEYS.HIDDEN_USERS, compressedUsers);
+        if (!usersSuccess) anySaveFailed = true;
+      }
+      
+      // Save each section separately
+      const contentSuccess = safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
+      if (!contentSuccess) anySaveFailed = true;
+      
+      const notifSuccess = safeLocalStorageSave(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
+      if (!notifSuccess) anySaveFailed = true;
+      
+      const relaySuccess = safeLocalStorageSave(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
+      if (!relaySuccess) anySaveFailed = true;
+      
+      const uiSuccess = safeLocalStorageSave(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
+      if (!uiSuccess) anySaveFailed = true;
+
+      // Update storage quota reached state
+      if (anySaveFailed && !storageQuotaReached) {
+        setStorageQuotaReached(true);
+        toast.error("Storage limit reached", {
+          description: "Some preferences may not be saved between sessions.",
+          duration: 5000
+        });
+      } else if (!anySaveFailed && storageQuotaReached) {
+        // Storage working again, update status
+        setStorageQuotaReached(false);
+        safeLocalStorageSave(STORAGE_KEYS.STORAGE_STATUS, 'ok');
+      }
     }
-  }, [preferences, loaded, storageAvailable]);
+  }, [preferences, loaded, storageAvailable, storageQuotaReached]);
 
   // Update specific preference
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
@@ -234,7 +318,20 @@ export function useUserPreferences() {
   // Reset all preferences to default
   const resetPreferences = useCallback(() => {
     setPreferences(defaultPreferences);
-  }, []);
+    
+    // Clear all preference keys from storage
+    if (storageAvailable) {
+      Object.values(STORAGE_KEYS).forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.error(`Failed to remove key ${key}:`, e);
+        }
+      });
+    }
+    
+    toast.success("Preferences reset to defaults");
+  }, [storageAvailable]);
 
   return {
     preferences,
@@ -242,6 +339,7 @@ export function useUserPreferences() {
     updateNestedPreference,
     resetPreferences,
     loaded,
-    storageAvailable
+    storageAvailable,
+    storageQuotaReached
   };
 }
