@@ -39,20 +39,22 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     }
 
     setIsSubmitting(true);
-    console.log('Submitting profile form with values:', values);
+    console.log('[PROFILE UPDATE] Starting profile update with values:', values);
 
     try {
       // 1) Ensure we're connected to relays before publishing
-      console.log("Checking relay connections before publishing profile update...");
+      console.log("[PROFILE UPDATE] Checking relay connections before publishing profile update...");
       const relays = nostrService.getRelayStatus();
+      console.log("[PROFILE UPDATE] Current relay status:", relays);
       const connectedRelays = relays.filter(r => r.status === 'connected');
       
       if (connectedRelays.length === 0) {
-        console.log("No connected relays found, connecting to default relays...");
+        console.log("[PROFILE UPDATE] No connected relays found, connecting to default relays...");
         await nostrService.connectToDefaultRelays();
         
         // Double-check we have connections after attempting to connect
         const updatedRelays = nostrService.getRelayStatus();
+        console.log("[PROFILE UPDATE] Relay status after connection attempt:", updatedRelays);
         const nowConnected = updatedRelays.filter(r => r.status === 'connected');
         
         if (nowConnected.length === 0) {
@@ -60,6 +62,10 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
           setIsSubmitting(false);
           return;
         }
+        
+        console.log("[PROFILE UPDATE] Successfully connected to relays:", nowConnected.map(r => r.url));
+      } else {
+        console.log("[PROFILE UPDATE] Already connected to relays:", connectedRelays.map(r => r.url));
       }
 
       // 2) Clean up values by removing empty strings
@@ -77,11 +83,13 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
       }
 
       // 4) Log it out for debugging
-      console.log('📤 cleanValues payload:', cleanValues);
+      console.log('[PROFILE UPDATE] Clean values payload:', cleanValues);
 
       // 5) Verify NIP-05 if provided
       if (values.nip05) {
+        console.log("[PROFILE UPDATE] Verifying NIP-05 identifier:", values.nip05);
         const verified = await verifyNip05Identifier(values.nip05);
+        console.log("[PROFILE UPDATE] NIP-05 verification result:", verified);
         if (!verified) {
           toast.warning(
             'NIP-05 identifier could not be verified, but will be saved'
@@ -96,48 +104,64 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         tags: [],
       };
 
+      console.log("[PROFILE UPDATE] Event to publish:", eventToPublish);
+
       // 7) Publish the event with error handling for POW requirements
       try {
-        console.log("Publishing profile update to connected relays...");
+        console.log("[PROFILE UPDATE] Publishing profile update to connected relays...");
         const success = await nostrService.publishEvent(eventToPublish);
+        console.log("[PROFILE UPDATE] Publish result:", success ? "Success" : "Failed");
 
         if (success) {
           toast.success('Profile updated successfully');
 
           // Delay briefly to allow relay propagation, then refresh
+          console.log("[PROFILE UPDATE] Waiting for relay propagation before refreshing");
           setTimeout(async () => {
             if (nostrService.publicKey) {
               try {
+                console.log("[PROFILE UPDATE] Forcing profile refresh after update");
                 await forceRefreshProfile(nostrService.publicKey);
+                console.log("[PROFILE UPDATE] Profile refresh completed, calling onSaved()");
                 onSaved();
               } catch (refreshError) {
-                console.error("Error refreshing profile after update:", refreshError);
+                console.error("[PROFILE UPDATE] Error refreshing profile after update:", refreshError);
                 // Still call onSaved even if refresh fails
+                console.log("[PROFILE UPDATE] Calling onSaved() despite refresh error");
                 onSaved();
               }
             } else {
+              console.log("[PROFILE UPDATE] No public key available for refresh, calling onSaved()");
               onSaved();
             }
           }, 2000);
         } else {
+          console.error("[PROFILE UPDATE] Profile update failed - no success response");
           toast.error('Failed to update profile');
+          setIsSubmitting(false);
         }
       } catch (publishError: any) {
-        console.error('Error publishing profile update:', publishError);
+        console.error('[PROFILE UPDATE] Error publishing profile update:', publishError);
         
         // Handle specific errors
         if (publishError.message && publishError.message.includes('pow:')) {
+          console.log("[PROFILE UPDATE] Detected POW requirement error");
           toast.error('This relay requires proof-of-work which is not yet supported. Try connecting to different relays.');
         } else if (publishError.message && publishError.message.includes('subscription')) {
+          console.log("[PROFILE UPDATE] Detected subscription error");
           toast.error('Connection to relay was lost. Please try again.');
+        } else if (publishError.message && publishError.message.includes('timeout')) {
+          console.log("[PROFILE UPDATE] Detected timeout error");
+          toast.error('Connection to relay timed out. Please try again.');
         } else {
+          console.log("[PROFILE UPDATE] Unknown error type");
           toast.error('An error occurred while updating profile');
         }
+        setIsSubmitting(false);
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('[PROFILE UPDATE] Error in profile update process:', error);
       toast.error('An error occurred while updating profile');
-    } finally {
       setIsSubmitting(false);
     }
   };

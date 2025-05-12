@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -48,21 +49,37 @@ const YouPage = () => {
   
   // Function to manually refresh profile with improved error handling
   const handleRefreshProfile = async () => {
-    if (!currentUserPubkey) return;
+    if (!currentUserPubkey) {
+      console.log("[YOU PAGE] No current user pubkey, cannot refresh profile");
+      return;
+    }
     
     try {
       setRefreshing(true);
+      console.log(`[YOU PAGE] Starting manual profile refresh for: ${currentUserPubkey}`);
+      
+      // Get relay status before refresh
+      const relaysBefore = nostrService.getRelayStatus();
+      console.log("[YOU PAGE] Relay status before refresh:", relaysBefore);
+      
+      // Force refresh profile
       await forceRefreshProfile(currentUserPubkey);
       
       // Refetch profile data using the hook's refetch method
+      console.log("[YOU PAGE] Calling profile data refresh method");
       await profileData.refreshProfile();
       
+      // Get relay status after refresh
+      const relaysAfter = nostrService.getRelayStatus();
+      console.log("[YOU PAGE] Relay status after refresh:", relaysAfter);
+      
       // Force re-render by updating the key
+      console.log("[YOU PAGE] Updating profile key to force re-render");
       setProfileKey(Date.now());
       
       toast.success("Profile refreshed successfully");
     } catch (error) {
-      console.error("Error refreshing profile:", error);
+      console.error("[YOU PAGE] Error refreshing profile:", error);
       toast.error("Failed to refresh profile");
     } finally {
       setRefreshing(false);
@@ -71,24 +88,34 @@ const YouPage = () => {
 
   // Handle profile changes after saving with improved refresh
   const handleProfileSaved = useCallback(async () => {
+    console.log("[YOU PAGE] Profile saved, exiting edit mode");
     setIsEditing(false);
     
     // Force refresh to show latest changes with a slight delay
+    console.log("[YOU PAGE] Setting timeout to refresh profile after save");
     setTimeout(async () => {
       try {
+        console.log("[YOU PAGE] Starting profile refresh after save");
         setRefreshing(true);
         // Ensure cache is cleared and fresh profile is fetched
         if (currentUserPubkey) {
+          console.log(`[YOU PAGE] Forcing refresh for pubkey: ${currentUserPubkey}`);
           await forceRefreshProfile(currentUserPubkey);
+          console.log("[YOU PAGE] Force refresh completed, refreshing profile data");
           await profileData.refreshProfile();
+          console.log("[YOU PAGE] Profile data refresh completed");
+        } else {
+          console.log("[YOU PAGE] No current user pubkey, skipping refresh");
         }
         
         // Force re-render of the profile preview
+        console.log("[YOU PAGE] Updating profile key to force re-render");
         setProfileKey(Date.now());
       } catch (error) {
-        console.error("Error refreshing after save:", error);
+        console.error("[YOU PAGE] Error refreshing after save:", error);
       } finally {
         setRefreshing(false);
+        console.log("[YOU PAGE] Profile refresh after save completed");
       }
     }, 1000);
   }, [profileData, currentUserPubkey]);
