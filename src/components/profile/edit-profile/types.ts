@@ -1,7 +1,6 @@
 
-import { z } from 'zod';
+import { z } from "zod";
 
-// Define form schema with validation
 export const profileFormSchema = z.object({
   name: z.string().optional(),
   display_name: z.string().optional(),

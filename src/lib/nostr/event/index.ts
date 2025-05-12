@@ -9,7 +9,7 @@ export interface EventManager {
   getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
   getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null>;
   verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean>;
-  publishEventDirectly?(event: any, relays: string[]): Promise<boolean>;
+  publishEventDirectly(event: any, relays: string[]): Promise<boolean>;
 }
 
 /**

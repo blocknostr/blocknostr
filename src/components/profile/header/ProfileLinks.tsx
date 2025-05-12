@@ -1,17 +1,16 @@
 
-import React from "react";
-import { Globe, Link2, Twitter, ExternalLink, Calendar, BadgeCheck } from "lucide-react";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { formatDistanceToNow } from "date-fns";
+import React from 'react';
+import { Link, Globe, Twitter, Calendar } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProfileLinksProps {
   website?: string;
   twitter?: string;
   nip05?: string;
-  nip05Verified: boolean | null;
+  nip05Verified: boolean;
   xVerified: boolean;
-  xVerifiedInfo: { username: string; tweetId: string } | null;
-  creationDate: Date;
+  xVerifiedInfo: any;
+  creationDate: string;
 }
 
 const ProfileLinks = ({ 
@@ -21,76 +20,67 @@ const ProfileLinks = ({
   nip05Verified,
   xVerified,
   xVerifiedInfo,
-  creationDate 
+  creationDate
 }: ProfileLinksProps) => {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-4">
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground mt-2">
+      {/* Website link */}
       {website && (
         <a 
           href={website.startsWith('http') ? website : `https://${website}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
+          className="flex items-center gap-1 hover:text-primary transition-colors"
         >
-          <Globe className="h-3.5 w-3.5" />
-          {website.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}
-          <ExternalLink className="h-3 w-3" />
+          <Globe className="h-4 w-4" />
+          {new URL(website.startsWith('http') ? website : `https://${website}`).hostname}
         </a>
       )}
       
-      {(twitter || xVerifiedInfo?.username) && (
+      {/* X/Twitter link */}
+      {(twitter || xVerified) && (
         <a 
-          href={`https://x.com/${(twitter || xVerifiedInfo?.username || '').replace('@', '')}`}
+          href={`https://x.com/${xVerified ? xVerifiedInfo?.username : twitter?.replace('@', '')}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 hover:underline hover:text-foreground transition-colors"
+          className="flex items-center gap-1 hover:text-primary transition-colors"
         >
-          <Twitter className="h-3.5 w-3.5" />
-          @{(twitter || xVerifiedInfo?.username || '').replace('@', '')}
-          {xVerified && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex items-center">
-                    <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="space-y-1">
-                    <p>Verified X account (NIP-39)</p>
-                    {xVerifiedInfo?.tweetId && (
-                      <a 
-                        href={`https://x.com/status/${xVerifiedInfo.tweetId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline text-xs flex items-center"
-                      >
-                        View proof <ExternalLink className="h-2.5 w-2.5 ml-1" />
-                      </a>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          <ExternalLink className="h-3 w-3" />
+          <Twitter className="h-4 w-4" />
+          @{xVerified ? xVerifiedInfo?.username : twitter?.replace('@', '')}
         </a>
       )}
       
-      {nip05 && (
-        <div className="flex items-center gap-1">
-          <Link2 className="h-3.5 w-3.5" />
-          <span className={nip05Verified === true ? "text-green-600" : ""}>
-            {nip05}
-            {nip05Verified === true && " ✓"}
-          </span>
-        </div>
+      {/* NIP-05 identifier */}
+      {nip05 && nip05Verified && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="flex items-center gap-1 cursor-help">
+                <Link className="h-4 w-4" />
+                {nip05}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Verified Nostr identity</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
       
-      <div className="flex items-center gap-1">
-        <Calendar className="h-3.5 w-3.5" />
-        <span>Joined {formatDistanceToNow(creationDate, { addSuffix: true })}</span>
-      </div>
+      {/* Account creation date */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex items-center gap-1 cursor-help">
+              <Calendar className="h-4 w-4" />
+              Joined {creationDate}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Estimated account creation date</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 };

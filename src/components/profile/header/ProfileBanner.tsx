@@ -1,5 +1,5 @@
 
-import React from "react";
+import React from 'react';
 
 interface ProfileBannerProps {
   bannerUrl?: string;
@@ -7,14 +7,17 @@ interface ProfileBannerProps {
 
 const ProfileBanner = ({ bannerUrl }: ProfileBannerProps) => {
   return (
-    <div 
-      className="h-48 md:h-64 bg-gradient-to-r from-violet-500 to-fuchsia-500 w-full rounded-t-lg"
-      style={bannerUrl ? { 
-        backgroundImage: `url(${bannerUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center'
-      } : {}}
-    ></div>
+    <div className="relative h-40 md:h-60 w-full overflow-hidden">
+      {bannerUrl ? (
+        <img
+          src={bannerUrl}
+          alt="Profile Banner"
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-r from-primary/20 to-primary/10" />
+      )}
+    </div>
   );
 };
 

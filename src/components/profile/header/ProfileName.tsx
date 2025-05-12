@@ -1,60 +1,46 @@
 
-import React from "react";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Check, AlertCircle } from "lucide-react";
+import React from 'react';
+import { Loader2, CheckCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ProfileNameProps {
   displayName: string;
   username: string;
   nip05?: string;
-  nip05Verified: boolean | null;
+  nip05Verified: boolean;
 }
 
 const ProfileName = ({ displayName, username, nip05, nip05Verified }: ProfileNameProps) => {
   return (
     <div>
-      <div className="flex items-center gap-2">
-        <h2 className="text-2xl font-bold">{displayName}</h2>
+      <h1 className="text-2xl font-bold flex items-center gap-2">
+        {displayName}
+        
+        {/* NIP-05 verification indicator */}
         {nip05 && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                  nip05Verified === true 
-                    ? "bg-green-500/10 text-green-600" 
-                    : nip05Verified === false 
-                      ? "bg-red-500/10 text-red-600"
-                      : "bg-gray-500/10 text-gray-600"
-                }`}>
-                  {nip05Verified === true ? (
-                    <>
-                      <Check className="h-3 w-3" />
-                      Verified
-                    </>
-                  ) : nip05Verified === false ? (
-                    <>
-                      <AlertCircle className="h-3 w-3" />
-                      Unverified
-                    </>
+                <span className="inline-flex items-center">
+                  {nip05Verified ? (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
-                    <>Verifying...</>
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   )}
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{nip05}</p>
-                {nip05Verified === true ? (
-                  <p className="text-green-600">✓ NIP-05 verified</p>
-                ) : nip05Verified === false ? (
-                  <p className="text-red-600">✗ NIP-05 verification failed</p>
+                {nip05Verified ? (
+                  <p>Verified as <span className="font-semibold">{nip05}</span></p>
                 ) : (
-                  <p>Verifying NIP-05 identifier...</p>
+                  <p>Unverified identity: {nip05}</p>
                 )}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
-      </div>
+      </h1>
+      
       <p className="text-muted-foreground">@{username}</p>
     </div>
   );

@@ -1,7 +1,8 @@
 
+import React from 'react';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from './types';
 
@@ -12,7 +13,7 @@ interface ProfileBasicFieldsProps {
 const ProfileBasicFields = ({ form }: ProfileBasicFieldsProps) => {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="name"
@@ -22,6 +23,7 @@ const ProfileBasicFields = ({ form }: ProfileBasicFieldsProps) => {
               <FormControl>
                 <Input placeholder="username" {...field} />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -33,8 +35,9 @@ const ProfileBasicFields = ({ form }: ProfileBasicFieldsProps) => {
             <FormItem>
               <FormLabel>Display Name</FormLabel>
               <FormControl>
-                <Input placeholder="Display Name" {...field} />
+                <Input placeholder="Your Name" {...field} />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -47,44 +50,13 @@ const ProfileBasicFields = ({ form }: ProfileBasicFieldsProps) => {
           <FormItem>
             <FormLabel>About</FormLabel>
             <FormControl>
-              <Textarea
+              <Textarea 
                 placeholder="Tell us about yourself"
-                rows={3}
-                {...field}
+                className="min-h-[120px]"
+                {...field} 
               />
             </FormControl>
-          </FormItem>
-        )}
-      />
-      
-      <FormField
-        control={form.control}
-        name="picture"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Profile Picture URL</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="https://example.com/profile.jpg"
-                {...field}
-              />
-            </FormControl>
-          </FormItem>
-        )}
-      />
-      
-      <FormField
-        control={form.control}
-        name="banner"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Banner Image URL</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="https://example.com/banner.jpg"
-                {...field}
-              />
-            </FormControl>
+            <FormMessage />
           </FormItem>
         )}
       />

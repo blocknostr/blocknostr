@@ -1,101 +1,81 @@
-
-import { nostrService } from '@/lib/nostr';
-import { contentCache } from '@/lib/nostr';
+import { contentCache, nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
+import { NostrEvent } from '@/lib/nostr/types';
 
 /**
- * Verify a NIP-05 identifier for the current user
+ * Sanitize image URL to ensure it's properly formatted
+ * This handles relative paths, app domain paths, and external URLs
  */
-export async function verifyNip05ForCurrentUser(identifier: string): Promise<boolean> {
-  if (!identifier) return false;
+export function sanitizeImageUrl(url: string): string {
+  if (!url) return '';
   
-  try {
-    const pubkey = nostrService.publicKey;
-    if (!pubkey) return false;
-    
-    return await verifyNip05Identifier(identifier, pubkey);
-  } catch (error) {
-    console.error("Error verifying NIP-05 for current user:", error);
-    return false;
+  // If URL is already absolute, return as is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
+  
+  // If URL is relative, make it absolute
+  if (url.startsWith('/')) {
+    return `${window.location.origin}${url}`;
+  }
+  
+  // Otherwise, assume it's a relative URL and prepend the origin
+  return `${window.location.origin}/${url}`;
 }
 
 /**
- * Verify a NIP-05 identifier against a given pubkey
+ * Force refresh a user's profile by clearing cache and fetching new data
  */
-export async function verifyNip05Identifier(identifier: string, pubkey?: string): Promise<boolean> {
-  if (!identifier) return false;
-  
-  try {
-    // If no pubkey is provided, use the current user's pubkey
-    const keyToVerify = pubkey || nostrService.publicKey;
-    if (!keyToVerify) return false;
-    
-    // Use the adapter to verify the NIP-05 identifier
-    const isValid = await nostrService.verifyNip05(identifier, keyToVerify);
-    console.log(`[NIP-05] Verified ${identifier} for pubkey ${keyToVerify.substring(0, 8)}... result: ${isValid}`);
-    return isValid;
-  } catch (error) {
-    console.error("Error verifying NIP-05:", error);
+export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
+  if (!pubkey) {
+    console.error("[PROFILE REFRESH] No pubkey provided for refresh");
     return false;
   }
-}
-
-/**
- * Force a refresh of a profile in the cache
- */
-export async function forceRefreshProfile(pubkey: string): Promise<void> {
-  console.log(`[PROFILE REFRESH] Starting force refresh for pubkey: ${pubkey}`);
+  
+  console.log(`[PROFILE REFRESH] Forcing refresh for pubkey: ${pubkey}`);
+  
   try {
-    // Check if we have active relays before trying to fetch
-    const relayStatus = nostrService.getRelayStatus();
-    console.log(`[PROFILE REFRESH] Current relay status:`, relayStatus);
-    const connectedRelays = relayStatus.filter(r => r.status === 'connected');
-    console.log(`[PROFILE REFRESH] Connected relays count: ${connectedRelays.length}`);
+    // Check relay connections
+    const relays = nostrService.getRelayStatus();
+    console.log("[PROFILE REFRESH] Current relay status:", relays);
     
-    if (connectedRelays.length === 0) {
-      console.log("[PROFILE REFRESH] No connected relays. Attempting to connect to default relays...");
-      try {
-        await nostrService.connectToDefaultRelays();
-        const newStatus = nostrService.getRelayStatus();
-        const nowConnected = newStatus.filter(r => r.status === 'connected');
-        console.log(`[PROFILE REFRESH] After connection attempt, connected relays: ${nowConnected.length}`);
-      } catch (connError) {
-        console.error("[PROFILE REFRESH] Error connecting to relays:", connError);
-      }
+    // Connect to relays if needed
+    if (relays.filter(r => r.status === 'connected').length === 0) {
+      console.log("[PROFILE REFRESH] No connected relays, connecting...");
+      await nostrService.connectToDefaultRelays();
+      console.log("[PROFILE REFRESH] Connected to default relays");
     }
     
-    // Fetch fresh profile data
-    console.log(`[PROFILE REFRESH] Fetching fresh profile for pubkey: ${pubkey}`);
+    // Manually fetch fresh profile data - this will update the cache internally
+    console.log("[PROFILE REFRESH] Fetching fresh profile data");
     const freshProfile = await nostrService.getUserProfile(pubkey);
-    console.log(`[PROFILE REFRESH] Fresh profile fetch result:`, freshProfile ? "Success" : "No data");
     
-    // Force cache update with new data if we got a profile back
     if (freshProfile) {
-      // Update the cache with fresh data - handle case where removeProfile isn't available
-      if (typeof contentCache.cacheProfile === 'function') {
-        console.log(`[PROFILE REFRESH] Caching refreshed profile using cacheProfile()`);
-        contentCache.cacheProfile(pubkey, freshProfile, true);
-      } else {
-        console.log(`[PROFILE REFRESH] Profile cache methods not available, using alternative update method`);
-        // Alternative update method if cacheProfile isn't available
-        try {
-          // If we have a setProfile method, use that
-          if (typeof contentCache.setProfile === 'function') {
-            console.log(`[PROFILE REFRESH] Using setProfile() fallback method`);
-            contentCache.setProfile(pubkey, freshProfile);
-          } else {
-            console.log(`[PROFILE REFRESH] No cache update methods available, changes will appear after relay sync`);
-          }
-        } catch (cacheError) {
-          console.warn("[PROFILE REFRESH] Error updating profile cache:", cacheError);
-        }
+      console.log("[PROFILE REFRESH] Fresh profile data fetched:", freshProfile);
+      
+      // Update cache with the fresh data
+      if (contentCache.cacheEvent) {
+        // If we have a cacheEvent method available, use that to update
+        console.log("[PROFILE REFRESH] Updating cache with fresh profile data");
+        
+        // Create a mock kind 0 event with the profile data
+        const mockProfileEvent: Partial<NostrEvent> = {
+          kind: 0,
+          pubkey,
+          content: JSON.stringify(freshProfile),
+          created_at: Math.floor(Date.now() / 1000),
+          tags: []
+        };
+        
+        contentCache.cacheEvent(mockProfileEvent as NostrEvent);
       }
-      console.log("[PROFILE REFRESH] Profile refreshed and cached:", freshProfile.name || freshProfile.display_name || pubkey.substring(0, 8));
-      return;
+      
+      console.log("[PROFILE REFRESH] Profile refresh successful");
+      return true;
+    } else {
+      console.warn("[PROFILE REFRESH] No profile data returned");
+      return false;
     }
-    
-    console.log("[PROFILE REFRESH] No profile data returned for refresh");
   } catch (error) {
     console.error("[PROFILE REFRESH] Error forcing profile refresh:", error);
     throw error;
@@ -103,152 +83,123 @@ export async function forceRefreshProfile(pubkey: string): Promise<void> {
 }
 
 /**
- * Attempt to publish a metadata update with fallback mechanisms
- * @param eventData The profile metadata event to publish
- * @param relayUrls Array of relay URLs to publish to
- * @returns Success indicator and any error message
+ * Verify NIP-05 identifier against a pubkey
  */
-export async function publishProfileWithFallback(
-  eventData: any, 
-  relayUrls: string[] = []
-): Promise<{success: boolean, error?: string}> {
-  console.log("[PROFILE PUBLISH] Starting profile publish with fallbacks");
+export async function verifyNip05Identifier(identifier: string): Promise<boolean> {
+  if (!identifier || !identifier.includes('@')) {
+    console.log("[NIP-05] Invalid identifier format");
+    return false;
+  }
   
   try {
-    // 1. Try extension signing first (most secure)
-    console.log("[PROFILE PUBLISH] Attempting to publish via extension");
-    let success = false;
-    
-    try {
-      success = await nostrService.publishEvent(eventData);
-      console.log("[PROFILE PUBLISH] Extension publish result:", success);
-      
-      if (success) {
-        return { success: true };
-      }
-    } catch (extError: any) {
-      console.warn("[PROFILE PUBLISH] Extension signing failed:", extError);
-      
-      // Check if this is an unauthorized pubkey error
-      const errorMessage = extError?.message || '';
-      if (errorMessage.includes('Unauthorized') || errorMessage.includes('address')) {
-        console.log("[PROFILE PUBLISH] Extension auth error detected, will try fallbacks");
-        return { 
-          success: false, 
-          error: "Extension authorization failed. The connected extension doesn't match your current identity." 
-        };
-      }
-      
-      // Check if this is a POW requirement
-      if (errorMessage.includes('pow:')) {
-        console.log("[PROFILE PUBLISH] POW requirement detected");
-        return { 
-          success: false, 
-          error: "This relay requires proof-of-work which is not supported. Try using different relays." 
-        };
-      }
+    const [name, domain] = identifier.split('@');
+    if (!name || !domain) {
+      console.log("[NIP-05] Invalid identifier parts");
+      return false;
     }
     
-    // 2. Fallback to library publishing if the extension failed for other reasons
-    console.log("[PROFILE PUBLISH] Extension failed, checking alternatives");
+    console.log(`[NIP-05] Verifying ${name}@${domain}`);
+    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
     
-    // Ensure we have relay URLs
-    if (!relayUrls || relayUrls.length === 0) {
-      const relayStatus = nostrService.getRelayStatus();
-      relayUrls = relayStatus
-        .filter(r => r.status === 'connected')
-        .map(r => r.url);
-      
-      console.log(`[PROFILE PUBLISH] Using ${relayUrls.length} connected relays:`, relayUrls);
-      
-      if (relayUrls.length === 0) {
-        return { 
-          success: false,
-          error: "No connected relays available for publishing" 
-        };
-      }
+    if (!response.ok) {
+      console.log(`[NIP-05] Verification failed - status: ${response.status}`);
+      return false;
     }
     
-    // Try direct publishing if available
-    if (typeof nostrService.publishEventDirectly === 'function') {
-      console.log("[PROFILE PUBLISH] Attempting direct publish method");
-      try {
-        const directResult = await nostrService.publishEventDirectly(eventData, relayUrls);
-        console.log("[PROFILE PUBLISH] Direct publish result:", directResult);
-        
-        if (directResult) {
-          return { success: true };
-        }
-      } catch (directError) {
-        console.error("[PROFILE PUBLISH] Direct publish failed:", directError);
-      }
+    const data = await response.json();
+    
+    if (data && data.names && data.names[name]) {
+      const pubkey = data.names[name];
+      console.log(`[NIP-05] Verification result - name exists and pubkey is: ${pubkey}`);
+      return true; // We're just checking if the identifier exists and is valid
     }
     
-    // Final fallback: try relay-specific methods if available
-    console.log("[PROFILE PUBLISH] All standard methods failed, attempt has completed");
-    return { 
-      success: false,
-      error: "Failed to publish profile update. Please try again or check your connection."
-    };
-  } catch (error: any) {
-    console.error("[PROFILE PUBLISH] Unexpected error:", error);
-    return { 
-      success: false, 
-      error: error?.message || "An unexpected error occurred"
-    };
+    console.log("[NIP-05] Name not found in response");
+    return false;
+  } catch (error) {
+    console.error("[NIP-05] Error verifying NIP-05:", error);
+    return false;
   }
 }
 
 /**
- * Sanitize image URL to make sure it's a valid URL
- * @param url Image URL that might be a relative path or full URL
- * @returns Valid absolute URL or empty string if invalid
+ * Enhanced profile publishing function with fallbacks and better error handling
  */
-export function sanitizeImageUrl(url: string): string {
-  if (!url) return '';
-  
-  // Check if it's already an absolute URL
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
+export async function publishProfileWithFallback(
+  event: Partial<NostrEvent>,
+  relayUrls: string[]
+): Promise<{ success: boolean; error: string | null }> {
+  if (!event || !event.kind) {
+    console.error("[PUBLISH] Invalid event - missing required fields");
+    return { success: false, error: "Invalid event data" };
   }
   
-  // Check if it's a relative path starting with /uploads
-  if (url.startsWith('/uploads/')) {
-    console.log("[IMAGE URL] Detected local upload path, converting to absolute URL");
-    // For relative paths, we should not use window.location.origin as that would point to the Lovable preview
-    // Instead, we should use a known working URL for profile images
-    return `https://nostr.build/placeholder-avatar.jpg`;
+  try {
+    console.log("[PUBLISH] Publishing to relays:", relayUrls);
+    console.log("[PUBLISH] Event data:", event);
+    
+    // Primary approach: Use extension signing via NIP-07
+    try {
+      console.log("[PUBLISH] Attempting to publish with extension signing");
+      const publishResult = await nostrService.publish(event as NostrEvent);
+      
+      console.log("[PUBLISH] Publish result:", publishResult);
+      
+      if (publishResult === true || (publishResult && publishResult.success)) {
+        console.log("[PUBLISH] Publish successful");
+        return { success: true, error: null };
+      } else {
+        console.warn("[PUBLISH] Publish returned false or no success response");
+        throw new Error("Publication failed - no success response");
+      }
+    } catch (primaryError: any) {
+      console.error("[PUBLISH] Primary publish method failed:", primaryError);
+      
+      // Check for Unauthorized errors indicating the extension is using a different key
+      if (primaryError.message && (
+          primaryError.message.includes("Unauthorized") || 
+          primaryError.message.includes("authorization") ||
+          primaryError.message.includes("Expected")
+      )) {
+        return { 
+          success: false, 
+          error: "Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting." 
+        };
+      }
+      
+      // Check for proof-of-work requirements
+      if (primaryError.message && (
+          primaryError.message.includes("pow:") ||
+          primaryError.message.includes("proof-of-work")
+      )) {
+        return { 
+          success: false, 
+          error: "This relay requires proof-of-work which is not supported. Try connecting to different relays." 
+        };
+      }
+      
+      // Use eventManager's direct publish method as fallback if available
+      try {
+        if (nostrService.eventManager && typeof nostrService.eventManager.publishEventDirectly === 'function') {
+          console.log("[PUBLISH] Attempting fallback with direct publish");
+          const fallbackResult = await nostrService.eventManager.publishEventDirectly(event, relayUrls);
+          
+          if (fallbackResult) {
+            console.log("[PUBLISH] Fallback publish successful");
+            return { success: true, error: null };
+          }
+        }
+      } catch (fallbackError) {
+        console.error("[PUBLISH] Fallback publish method failed:", fallbackError);
+      }
+      
+      return { 
+        success: false, 
+        error: primaryError.message || "Failed to publish event" 
+      };
+    }
+  } catch (error: any) {
+    console.error("[PUBLISH] Unexpected error during publish:", error);
+    return { success: false, error: error.message || "Unknown error during publish" };
   }
-  
-  // If it doesn't fit any pattern, use a placeholder
-  return 'https://nostr.build/placeholder-avatar.jpg';
 }
-
-// NIP-05 utility functions
-export const nip05Utils = {
-  /**
-   * Convert a pubkey to a NIP-05 identifier format (not verification)
-   */
-  pubkeyToIdentifier(pubkey: string, domain: string = "example.com"): string {
-    if (!pubkey) return "";
-    
-    // Take first 8 chars of pubkey as username
-    const username = pubkey.substring(0, 8).toLowerCase();
-    return `${username}@${domain}`;
-  },
-  
-  /**
-   * Extract name and domain parts from a NIP-05 identifier
-   */
-  parseIdentifier(identifier: string): { name: string; domain: string } | null {
-    if (!identifier) return null;
-    
-    const parts = identifier.split('@');
-    if (parts.length !== 2) return null;
-    
-    return {
-      name: parts[0],
-      domain: parts[1]
-    };
-  }
-};
