@@ -58,8 +58,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
       )}
     >
       <div className={clsx(
-        "flex items-start gap-1.5 max-w-[85%]",
-        isCurrentUser ? "flex-row-reverse ml-auto" : ""
+        "flex items-start gap-1.5",
+        isCurrentUser 
+          ? "flex-row-reverse justify-start" 
+          : ""
       )}>
         {/* Avatar - only show for first message in a group */}
         {!shouldGroupWithPrevious && !isCurrentUser && (
@@ -72,7 +74,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
         {/* Spacer when avatar is hidden but alignment needs to be maintained */}
         {shouldGroupWithPrevious && !isCurrentUser && <div className="w-7 flex-shrink-0" />}
         
-        <div className="flex-1 min-w-0">
+        <div className={clsx("relative", 
+          isCurrentUser ? "ml-auto" : "",
+          "max-w-[75%]" // Limit message width
+        )}>
           {/* Name - only show for first message in a group */}
           {!shouldGroupWithPrevious && !isCurrentUser && (
             <div className="flex items-baseline gap-1.5">
@@ -85,10 +90,10 @@ const MessageItem: React.FC<MessageItemProps> = ({
           <div className="group relative">
             <div
               className={clsx(
-                "inline-block text-sm break-words whitespace-pre-wrap px-3 py-1.5 rounded-2xl shadow-sm max-w-full",
+                "inline-block text-sm break-words whitespace-pre-wrap px-3 py-1.5 rounded-2xl shadow-sm w-full",
                 isCurrentUser 
-                  ? "bg-primary text-primary-foreground rounded-tr-2xl message-bubble-sent-no-point"
-                  : "bg-muted/80 rounded-tl-2xl message-bubble-received-no-point",
+                  ? "bg-primary text-primary-foreground message-bubble-sent-no-point"
+                  : "bg-muted/80 message-bubble-received-no-point",
                 {
                   "rounded-tr-2xl": isCurrentUser && shouldGroupWithPrevious,
                   "rounded-tl-2xl": !isCurrentUser && shouldGroupWithPrevious
@@ -115,10 +120,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
               </div>
             )}
             
-            {/* Reaction bar - more subtle and appears on hover */}
+            {/* Reaction bar - repositioned to sides */}
             <div className={clsx(
-              "absolute bottom-0 opacity-0 group-hover:opacity-100 transition-opacity",
-              isCurrentUser ? "right-0 translate-y-4" : "left-0 translate-y-4"
+              "absolute opacity-0 group-hover:opacity-100 transition-opacity",
+              isCurrentUser 
+                ? "left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-1" // Left side for current user's messages
+                : "right-0 top-1/2 translate-x-full -translate-y-1/2 pl-1" // Right side for others' messages
             )}>
               <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
             </div>
