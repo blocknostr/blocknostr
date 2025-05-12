@@ -16,9 +16,6 @@ interface EditProfileDialogProps {
 
 const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }: EditProfileDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [twitterVerified, setTwitterVerified] = useState(false);
-  const [tweetId, setTweetId] = useState<string | null>(null);
-  const [xUsername, setXUsername] = useState<string | null>(null);
   
   // Initialize form with react-hook-form
   const form = useForm<ProfileFormValues>({
@@ -31,8 +28,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
       banner: '',
       website: '',
       nip05: '',
-      twitter: '',
-      tweetUrl: ''
+      twitter: ''
     }
   });
   
@@ -48,8 +44,7 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         banner: profileData.banner || '',
         website: profileData.website || '',
         nip05: profileData.nip05 || '',
-        twitter: profileData.twitter || '',
-        tweetUrl: ''
+        twitter: profileData.twitter || ''
       });
       
       // Check if Twitter is already verified via NIP-39 "i" tag
@@ -59,17 +54,10 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         );
         
         if (twitterTag) {
-          setTwitterVerified(true);
-          setTweetId(twitterTag[2]); // Tweet ID is in position 2
           const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
-          setXUsername(username);
           form.setValue('twitter', username);
-        } else if (profileData.twitter_verified) {
-          // Legacy verification
-          setTwitterVerified(!!profileData.twitter_verified);
-          if (profileData.twitter_proof) {
-            setTweetId(profileData.twitter_proof);
-          }
+        } else if (profileData.twitter) {
+          form.setValue('twitter', profileData.twitter);
         }
       }
     }
@@ -88,10 +76,6 @@ const EditProfileDialog = ({ open, onOpenChange, profileData, onProfileUpdated }
         <ProfileEditor
           form={form}
           isSubmitting={isSubmitting}
-          twitterVerified={twitterVerified}
-          setTwitterVerified={setTwitterVerified}
-          setTweetId={setTweetId}
-          setXUsername={setXUsername}
           onClose={() => onOpenChange(false)}
           onProfileUpdated={onProfileUpdated}
         />
