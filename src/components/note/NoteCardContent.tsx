@@ -6,33 +6,41 @@ import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import EnhancedMediaContent from '../media/EnhancedMediaContent';
 import { cn } from '@/lib/utils';
+import { NostrEvent } from '@/lib/nostr';
 
 interface NoteCardContentProps {
-  content: string;
+  content?: string;
   tags?: string[][];
   reachCount?: number;
+  event?: NostrEvent;
 }
 
 const NoteCardContent: React.FC<NoteCardContentProps> = ({
   content,
   tags = [],
-  reachCount
+  reachCount,
+  event
 }) => {
+  // Use content from props or from event if provided
+  const contentToUse = content || event?.content || '';
+  // Use tags from props or from event if provided
+  const tagsToUse = tags.length > 0 ? tags : (event?.tags || []);
+  
   const [expanded, setExpanded] = useState(false);
   
   // Check if content is longer than 280 characters
-  const isLong = content.length > 280;
+  const isLong = contentToUse.length > 280;
   
   // Truncate content if necessary and not expanded
   const displayContent = (!expanded && isLong) 
-    ? content.substring(0, 277) + '...' 
-    : content;
+    ? contentToUse.substring(0, 277) + '...' 
+    : contentToUse;
   
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
   // Extract hashtags from tags array
-  const hashtags = tags
+  const hashtags = tagsToUse
     .filter(tag => tag[0] === 't')
     .map(tag => tag[1]);
   
@@ -43,19 +51,19 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     let match;
     
     // Extract from content
-    while ((match = mediaRegex.exec(content)) !== null) {
+    while ((match = mediaRegex.exec(contentToUse)) !== null) {
       urlsFromContent.push(match[0]);
     }
     
     // Extract from tags
-    const urlsFromTags = tags
+    const urlsFromTags = tagsToUse
       .filter(tag => tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r')
       .map(tag => tag[1])
       .filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
     
     // Combine and deduplicate URLs
     return [...new Set([...urlsFromContent, ...urlsFromTags])];
-  }, [content, tags]);
+  }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
   const handleHashtagClick = (tag: string) => {

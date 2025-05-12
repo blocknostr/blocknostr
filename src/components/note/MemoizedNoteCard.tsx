@@ -9,8 +9,15 @@ import NoteCardRepostHeader from './NoteCardRepostHeader';
 import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { Note } from '../notebin/hooks/types';
-import { Heart } from 'lucide-react';
+
+// Update the Note type to include createdAt
+interface Note {
+  id: string;
+  author: string;
+  content: string;
+  event: NostrEvent;
+  createdAt?: number; // Make this optional so it works with existing code
+}
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -127,5 +134,8 @@ const NoteCard = ({
     </Card>
   );
 };
+
+// Import the Heart icon that was missing
+import { Heart } from 'lucide-react';
 
 export default React.memo(NoteCard);

@@ -1,36 +1,14 @@
 
+// Add or update the Note interface to include createdAt
 export interface Note {
   id: string;
-  title: string;
-  content: string;
-  language: string;
-  publishedAt: string;
   author: string;
-  event: any;
-  tags?: string[];
-  summary?: string;
-  image?: string;
-  slug?: string;
-  version?: number;
-  encrypted?: boolean;
-  encryptionMetadata?: {
-    contentSalt?: string;
-    titleSalt?: string;
-    method: 'nip04' | 'password';
-  };
-}
-
-// NIP-23 specific types
-export interface Nip23Note extends Note {
-  summary: string;
-  slug: string;
-  image?: string;
-}
-
-// NIP-33 versioning support
-export interface NoteVersion {
-  version: number;
   content: string;
-  publishedAt: string;
-  summary?: string;
+  title?: string;
+  language?: string;
+  publishedAt?: string;
+  tags?: string[];
+  encrypted?: boolean;
+  createdAt?: number; // Add this field for compatibility
+  event?: any; // Add event field to store the original NostrEvent
 }
