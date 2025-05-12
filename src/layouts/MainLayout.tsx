@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/sidebar/Sidebar";
 import GlobalSidebar from "@/components/sidebar/GlobalSidebar";
@@ -38,6 +38,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     preventDefaultTouchmoveEvent: true,
     trackMouse: false
   });
+
+  // Listen for hashtag changes from global events
+  useEffect(() => {
+    const handleHashtagChange = (event: CustomEvent) => {
+      setActiveHashtag(event.detail);
+    };
+    
+    window.addEventListener('set-hashtag', handleHashtagChange as EventListener);
+    
+    return () => {
+      window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
+    };
+  }, []);
 
   const handleTopicClick = (topic: string) => {
     setActiveHashtag(topic);

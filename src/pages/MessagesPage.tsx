@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TrendingSection } from "@/components/trending";
 
 const MessagesPage = () => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -65,8 +66,15 @@ const MessagesPage = () => {
           </Alert>
         )}
         
-        <div className="flex-1 overflow-hidden">
-          <MessagingSystem />
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            <MessagingSystem />
+          </div>
+          
+          {/* Trending section for the messages page */}
+          <div className="hidden lg:block w-80 p-4 border-l h-[calc(100vh-3.5rem)] overflow-y-auto">
+            <TrendingSection onTopicClick={() => {}} />
+          </div>
         </div>
       </div>
     </div>

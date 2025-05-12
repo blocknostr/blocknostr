@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
@@ -9,6 +9,7 @@ import { AlertTriangle } from "lucide-react";
 
 const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
+  const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   
   useEffect(() => {
     // Init connection to relays when the app loads if auto-connect is enabled
@@ -23,6 +24,13 @@ const Index: React.FC = () => {
     
     initNostr();
     
+    // Listen for hashtag changes from global events
+    const handleHashtagChange = (event: CustomEvent) => {
+      setActiveHashtag(event.detail);
+    };
+    
+    window.addEventListener('set-hashtag', handleHashtagChange as EventListener);
+    
     // Warn user if storage is not available
     if (storageAvailable === false) {
       toast.warning(
@@ -33,7 +41,15 @@ const Index: React.FC = () => {
         }
       );
     }
+    
+    return () => {
+      window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
+    };
   }, [preferences.relayPreferences?.autoConnect, storageAvailable]);
+
+  const clearHashtag = () => {
+    setActiveHashtag(undefined);
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-4">
@@ -46,7 +62,7 @@ const Index: React.FC = () => {
         </div>
       )}
       <ConnectionStatusBanner />
-      <MainFeed />
+      <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
     </div>
   );
 };

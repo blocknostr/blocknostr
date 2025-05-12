@@ -27,15 +27,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   const { preferences } = useUserPreferences();
   const location = useLocation();
   
-  // Check if we should hide trending on certain pages
+  // Now show trending on all pages by removing exclusions
+  // This will make trending appear consistently across the app
   const shouldShowTrending = () => {
-    // List of paths where we might want to hide trending
-    const hideTrendingPaths = [
-      '/messages', 
-      '/notebin'
-    ];
-    
-    return !hideTrendingPaths.some(path => location.pathname.startsWith(path));
+    return true; // Always show trending section on all pages
   };
   
   // Desktop right sidebar
