@@ -1,9 +1,10 @@
 
 import { useState, useCallback } from 'react';
-import { nostrService } from '@/lib/nostr';
-import { toast } from 'sonner';
 import { contentCache } from '@/lib/nostr';
+import { toast } from 'sonner';
 import { getHexPubkey } from '@/lib/utils/profileUtils';
+import { fetchProfileWithRetry, handleProfileCache, createMinimalProfile } from './useProfileFetchRetry';
+import { useProfileError } from './useProfileError';
 
 interface UseProfileFetchOptions {
   onSuccess?: (profileData: any) => void;
@@ -11,18 +12,17 @@ interface UseProfileFetchOptions {
 
 export function useProfileFetch(options: UseProfileFetchOptions = {}) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { error, setError, handleError, clearError } = useProfileError();
   
   const { onSuccess } = options;
   
   const fetchProfile = useCallback(async (hexPubkey: string) => {
     if (!hexPubkey) {
-      setError("Invalid profile identifier");
-      return null;
+      return handleError("Invalid profile identifier");
     }
     
     setLoading(true);
-    setError(null);
+    clearError();
     
     try {
       console.log("Fetching profile for hex pubkey:", hexPubkey);
@@ -40,40 +40,18 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
         return cachedProfile;
       }
       
-      // Connect to relays if not already connected
       try {
-        await nostrService.connectToUserRelays();
-        
-        // Add some popular relays to increase chances of finding the profile
-        const additionalRelays = [
-          "wss://relay.damus.io", 
-          "wss://relay.nostr.band", 
-          "wss://nos.lol",
-          "wss://nostr-pub.wellorder.net",
-          "wss://relay.nostr.info"
-        ];
-        await nostrService.addMultipleRelays(additionalRelays);
-        
-        console.log("Connected to relays, fetching profile...");
-        
-        const profileMetadata = await nostrService.getUserProfile(hexPubkey);
+        const profileMetadata = await fetchProfileWithRetry(hexPubkey);
         
         if (profileMetadata) {
-          console.log("Profile found:", profileMetadata.name || profileMetadata.display_name || hexPubkey);
-          
-          // Cache the profile
-          try {
-            contentCache.cacheProfile(hexPubkey, profileMetadata, true);
-          } catch (cacheError) {
-            console.warn("Failed to cache profile:", cacheError);
-          }
+          const processedProfile = handleProfileCache(hexPubkey, profileMetadata);
           
           if (onSuccess) {
-            onSuccess(profileMetadata);
+            onSuccess(processedProfile);
           }
           
           setLoading(false);
-          return profileMetadata;
+          return processedProfile;
         } else {
           console.warn("No profile data returned for pubkey:", hexPubkey);
           setLoading(false);
@@ -94,10 +72,7 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
           return cachedProfile;
         } else {
           // Create minimal profile data
-          const minimalData = {
-            pubkey: hexPubkey,
-            created_at: Math.floor(Date.now() / 1000)
-          };
+          const minimalData = createMinimalProfile(hexPubkey);
           
           if (onSuccess) {
             onSuccess(minimalData);
@@ -110,12 +85,11 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
       }
     } catch (error) {
       console.error("Error fetching profile metadata:", error);
-      setError("Failed to load profile");
-      toast.error("Could not load profile data. Please try again.");
+      return handleError("Failed to load profile");
+    } finally {
       setLoading(false);
-      return null;
     }
-  }, [onSuccess]);
+  }, [onSuccess, handleError, clearError]);
   
   const fetchProfileFromIdentifier = useCallback(async (identifier: string | undefined) => {
     if (!identifier) return null;
@@ -128,7 +102,7 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
     }
     
     return fetchProfile(hexPubkey);
-  }, [fetchProfile]);
+  }, [fetchProfile, setError]);
   
   return {
     fetchProfile,
