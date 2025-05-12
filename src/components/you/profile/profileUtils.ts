@@ -1,3 +1,4 @@
+
 import { nostrService } from '@/lib/nostr';
 import { verifyNip05 as nip05Verify, isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
 import { isValidHexString } from '@/lib/nostr/utils/keys';
@@ -19,7 +20,7 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
   const normalizedIdentifier = identifier.trim().toLowerCase();
   
   try {
-    // Verify using the general NIP-05 verification utility
+    // Verify using the general NIP-05 verification utility with only one argument
     // Check if result is not null to properly indicate verification status
     const verified = await nip05Verify(normalizedIdentifier);
     return verified !== null; // Return true if a valid pubkey was returned

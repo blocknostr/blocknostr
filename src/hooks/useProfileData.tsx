@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
 import { useProfileRelations } from './profile/useProfileRelations';
@@ -65,7 +64,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     if (postsError && !metadataError) {
       setErrorMessage(postsError);
     }
-  }, [postsError, metadataError]);
+  }, [postsError, metadataError, setErrorMessage]);
   
   // Get followers and following with improved error handling
   const { 
@@ -162,7 +161,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     
     // Call base refresh function
     return refreshProfileBase();
-  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays, refreshProfileBase]);
+  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays, refreshProfileBase, setErrorMessage]);
   
   return {
     profileData,
