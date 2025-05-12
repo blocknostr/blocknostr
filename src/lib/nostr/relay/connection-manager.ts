@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 
 /**
@@ -10,6 +9,8 @@ export class ConnectionManager {
   private reconnectTimers: Map<string, number> = new Map();
   
   constructor() {
+    console.log("ConnectionManager initialized");
+    
     // Add event listener for online/offline status
     window.addEventListener('online', this.handleOnlineStatus.bind(this, true));
     window.addEventListener('offline', this.handleOnlineStatus.bind(this, false));
@@ -59,6 +60,8 @@ export class ConnectionManager {
       return true; // Already connected
     }
     
+    console.log(`Connecting to relay: ${relayUrl}`);
+    
     // Track connection attempt
     if (!this.connectionStatus.has(relayUrl)) {
       this.connectionStatus.set(relayUrl, { connected: false, lastAttempt: Date.now(), failures: 0 });
@@ -74,7 +77,6 @@ export class ConnectionManager {
     }
     
     try {
-      console.log(`Connecting to relay: ${relayUrl}`);
       const socket = new WebSocket(relayUrl);
       
       return new Promise((resolve) => {
@@ -83,6 +85,10 @@ export class ConnectionManager {
           this.relays.set(relayUrl, socket);
           status.connected = true;
           status.failures = 0;
+          
+          // Store connection info in localStorage to assist after page reload
+          this.saveConnectionState();
+          
           resolve(true);
         };
         
@@ -141,11 +147,56 @@ export class ConnectionManager {
    */
   async connectToRelays(relayUrls: string[]): Promise<void> {
     console.log(`Attempting to connect to ${relayUrls.length} relays`);
+    const startTime = performance.now();
+    
     const promises = relayUrls.map(url => this.connectToRelay(url));
     await Promise.all(promises);
     
     const connected = relayUrls.filter(url => this.isConnected(url)).length;
-    console.log(`Connected to ${connected} out of ${relayUrls.length} relays`);
+    const duration = Math.round(performance.now() - startTime);
+    console.log(`Connected to ${connected} out of ${relayUrls.length} relays in ${duration}ms`);
+    
+    // Save connection state to localStorage
+    this.saveConnectionState();
+  }
+  
+  /**
+   * Save connection state to localStorage for persistence across page loads
+   */
+  private saveConnectionState(): void {
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      localStorage.setItem('nostr_connected_relays', JSON.stringify(connectedRelays));
+      localStorage.setItem('nostr_last_connection_time', Date.now().toString());
+    } catch (e) {
+      console.error("Error saving connection state to localStorage:", e);
+    }
+  }
+  
+  /**
+   * Try to restore connections from localStorage after page reload
+   */
+  async restoreConnections(): Promise<boolean> {
+    try {
+      const connectedRelaysJson = localStorage.getItem('nostr_connected_relays');
+      const lastConnectionTime = localStorage.getItem('nostr_last_connection_time');
+      
+      if (connectedRelaysJson && lastConnectionTime) {
+        const timeSinceLastConnection = Date.now() - parseInt(lastConnectionTime);
+        if (timeSinceLastConnection < 30000) { // Only restore if less than 30 seconds
+          console.log("Restoring relay connections after page reload");
+          const connectedRelays = JSON.parse(connectedRelaysJson);
+          if (Array.isArray(connectedRelays) && connectedRelays.length > 0) {
+            await this.connectToRelays(connectedRelays);
+            return this.getConnectedRelayUrls().length > 0;
+          }
+        }
+      }
+      return false;
+    } catch (e) {
+      console.error("Error restoring connections:", e);
+      return false;
+    }
   }
   
   /**

@@ -25,6 +25,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   const [animateIn, setAnimateIn] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"extension" | "manual">("extension");
   const [relayConnected, setRelayConnected] = useState<boolean>(false);
+  const [connectionRetries, setConnectionRetries] = useState<number>(0);
 
   // Check for Nostr extension
   useEffect(() => {
@@ -53,12 +54,13 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       setActiveTab("extension");
       setConnectStatus('idle');
       setRelayConnected(false);
+      setConnectionRetries(0);
     }
   }, [open]);
 
-  // Helper function to connect to relays
-  const connectToRelays = async (): Promise<boolean> => {
-    console.log("Attempting to connect to relays...");
+  // Helper function to connect to relays with retry logic
+  const connectToRelays = async (retries = 0): Promise<boolean> => {
+    console.log(`Attempting to connect to relays (attempt ${retries + 1})...`);
     try {
       // Attempt to connect to relays
       await nostrService.connectToUserRelays();
@@ -72,6 +74,13 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       if (connectedCount > 0) {
         setRelayConnected(true);
         return true;
+      }
+      
+      // No connections yet, but still have retries left
+      if (retries < 2) {
+        console.log(`Retry ${retries + 1}: No relays connected yet, waiting before trying again...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return connectToRelays(retries + 1);
       }
       
       // Try fallback to default relays
@@ -111,9 +120,12 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         // Now attempt to connect to relays before showing success
         console.log("Login successful, attempting to connect to relays...");
         
-        // Try to connect to relays with multiple attempts
+        // Try to connect to relays
         let relaySuccess = false;
+        setConnectionRetries(0);
+        
         for (let i = 0; i < 3 && !relaySuccess; i++) {
+          setConnectionRetries(i);
           relaySuccess = await connectToRelays();
           if (relaySuccess) break;
           
@@ -127,12 +139,21 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         if (relaySuccess) {
           console.log("Successfully connected to relays");
         } else {
-          console.warn("Could not connect to any relays. Proceeding with login anyway...");
+          console.warn("Could not connect to any relays. Will try again after login...");
         }
+        
+        // Store connection status in localStorage for persistence
+        localStorage.setItem('nostr_login_status', JSON.stringify({
+          connected: relaySuccess,
+          timestamp: Date.now(),
+          pubkey: nostrService.publicKey
+        }));
         
         setConnectStatus('success');
         toast.success("Connected successfully", {
-          description: "Welcome to BlockNoster"
+          description: relaySuccess ? 
+            "Connected to Nostr network successfully" : 
+            "Connected to wallet, but relay connection is pending"
         });
         
         // Short delay to show success state before closing
@@ -141,13 +162,10 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
           
           // Don't reload the page immediately, allow some time for connections
           setTimeout(() => {
-            // Store connection time to verify connections after reload
-            localStorage.setItem('nostr_last_connection', Date.now().toString());
-            
-            // Now reload the page
+            // Now reload the page - we'll restore connections on page load
             window.location.reload();
-          }, relaySuccess ? 300 : 1000); // Longer delay if relays couldn't connect
-        }, 700);
+          }, 500);
+        }, 1000);
       } else {
         setConnectStatus('error');
         toast.error("Connection failed", {

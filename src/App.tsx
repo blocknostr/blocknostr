@@ -1,47 +1,33 @@
 
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Index from './pages/Index';
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import CommunitiesPage from './pages/CommunitiesPage';
-import CommunityPage from './pages/CommunityPage';
-import MessagesPage from './pages/MessagesPage';
-import NotificationsPage from './pages/NotificationsPage';
-import PostPage from './pages/PostPage';
-import NotebinPage from './pages/NotebinPage';
-import NotFound from './pages/NotFound';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from "sonner";
-import WalletsPage from "./pages/WalletsPage";
-import PremiumPage from "./pages/PremiumPage";
-import MainLayout from './layouts/MainLayout';
+
+// Main Layout
+import Layout from "./Layout";
+
+// Pages
+import Home from "./pages/home";
+
+// Initialize Nostr connections
+import initializeNostrConnections from "./lib/nostr/init";
 
 function App() {
+  // Initialize Nostr connections when app loads
+  useEffect(() => {
+    initializeNostrConnections();
+  }, []);
+  
   return (
-    <BrowserRouter>
-      <div className="flex flex-col min-h-screen">
-        <main className="flex-1">
-          <Routes>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/:pubkey" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/communities" element={<CommunitiesPage />} />
-              <Route path="/communities/:id" element={<CommunityPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/post/:id" element={<PostPage />} />
-              <Route path="/notebin" element={<NotebinPage />} />
-              <Route path="/wallets" element={<WalletsPage />} />
-              <Route path="/premium" element={<PremiumPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </main>
-        <Toaster position="bottom-right" closeButton />
-      </div>
-    </BrowserRouter>
+    <>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Layout><Home /></Layout>} />
+          {/* Add other routes here */}
+        </Routes>
+      </Router>
+      <Toaster position="top-right" closeButton richColors />
+    </>
   );
 }
 

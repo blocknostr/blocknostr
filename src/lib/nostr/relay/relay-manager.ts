@@ -1,6 +1,6 @@
-
 import { Relay } from "../types";
 import { SimplePool } from "nostr-tools";
+import { ConnectionManager } from "./connection-manager";
 
 /**
  * Manages relay connections and subscriptions
@@ -8,6 +8,7 @@ import { SimplePool } from "nostr-tools";
 export class RelayManager {
   private relays: Map<string, Relay> = new Map();
   private pool: SimplePool;
+  private connectionManager: ConnectionManager;
   private subscriptions: Map<string, { unsubscribe: () => void }> = new Map();
   private defaultRelays = [
     "wss://relay.damus.io",
@@ -17,6 +18,8 @@ export class RelayManager {
   
   constructor() {
     this.pool = new SimplePool();
+    this.connectionManager = new ConnectionManager();
+    
     // Initialize with default relays
     this.defaultRelays.forEach(url => {
       this.relays.set(url, {
@@ -33,6 +36,8 @@ export class RelayManager {
    */
   async connectToUserRelays(): Promise<boolean> {
     try {
+      console.log("RelayManager: Connecting to user relays...");
+      
       // If we have stored user relays, load them
       const userRelaysJson = localStorage.getItem('nostr_relays');
       if (userRelaysJson) {
@@ -63,30 +68,30 @@ export class RelayManager {
         return this.connectToDefaultRelays();
       }
       
-      // Connect to all relays
+      // Connect to all relays via ConnectionManager
       const relayUrls = Array.from(this.relays.keys());
-      const connections = await Promise.allSettled(
-        relayUrls.map(url => this.connectToRelay(url))
-      );
+      console.log(`RelayManager: Attempting to connect to ${relayUrls.length} relays`);
       
-      // Update relay statuses
-      connections.forEach((result, index) => {
-        const url = relayUrls[index];
+      await this.connectionManager.connectToRelays(relayUrls);
+      
+      // Update relay statuses based on ConnectionManager state
+      relayUrls.forEach(url => {
         const relay = this.relays.get(url);
         if (!relay) return;
         
-        if (result.status === 'fulfilled' && result.value) {
-          relay.status = 'connected';
-        } else {
-          // Fixed: Use 'failed' instead of 'error'
-          relay.status = 'failed';
-        }
+        relay.status = this.connectionManager.isConnected(url) ? 
+          'connected' : 'disconnected';
         
         this.relays.set(url, relay);
       });
       
       // Return success if at least one relay connected
-      return Array.from(this.relays.values()).some(r => r.status === 'connected');
+      const connectedCount = Array.from(this.relays.values())
+        .filter(r => r.status === 'connected')
+        .length;
+      
+      console.log(`RelayManager: Connected to ${connectedCount}/${relayUrls.length} relays`);
+      return connectedCount > 0;
     } catch (error) {
       console.error("Error connecting to user relays:", error);
       return false;
@@ -98,28 +103,29 @@ export class RelayManager {
    */
   async connectToDefaultRelays(): Promise<boolean> {
     try {
-      const connections = await Promise.allSettled(
-        this.defaultRelays.map(url => this.connectToRelay(url))
-      );
+      console.log("RelayManager: Connecting to default relays...");
+      
+      // Connect to default relays via ConnectionManager
+      await this.connectionManager.connectToRelays(this.defaultRelays);
       
       // Update relay statuses
-      connections.forEach((result, index) => {
-        const url = this.defaultRelays[index];
+      this.defaultRelays.forEach(url => {
         const relay = this.relays.get(url);
         if (!relay) return;
         
-        if (result.status === 'fulfilled' && result.value) {
-          relay.status = 'connected';
-        } else {
-          // Fixed: Use 'failed' instead of 'error'
-          relay.status = 'failed';
-        }
+        relay.status = this.connectionManager.isConnected(url) ? 
+          'connected' : 'disconnected';
         
         this.relays.set(url, relay);
       });
       
       // Return success if at least one relay connected
-      return Array.from(this.relays.values()).some(r => r.status === 'connected');
+      const connectedCount = Array.from(this.relays.values())
+        .filter(r => r.status === 'connected')
+        .length;
+      
+      console.log(`RelayManager: Connected to ${connectedCount}/${this.defaultRelays.length} default relays`);
+      return connectedCount > 0;
     } catch (error) {
       console.error("Error connecting to default relays:", error);
       return false;
@@ -127,7 +133,7 @@ export class RelayManager {
   }
   
   /**
-   * Connect to a specific relay
+   * Connect to a specific relay using ConnectionManager
    */
   private async connectToRelay(url: string): Promise<boolean> {
     try {
@@ -138,16 +144,16 @@ export class RelayManager {
         this.relays.set(url, relay);
       }
       
-      // Simulate relay connection (actual implementation would connect to relay)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Use ConnectionManager for actual WebSocket connection
+      const connected = await this.connectionManager.connectToRelay(url);
       
-      // Update status
+      // Update status based on result
       if (relay) {
-        relay.status = 'connected';
+        relay.status = connected ? 'connected' : 'failed';
         this.relays.set(url, relay);
       }
       
-      return true;
+      return connected;
     } catch (error) {
       console.error(`Error connecting to relay ${url}:`, error);
       
@@ -285,9 +291,20 @@ export class RelayManager {
         return subId;
       }
       
-      // Create subscription
+      // Create subscription using actual connected relays
+      const connectedRelays = relayUrls.filter(url => 
+        this.connectionManager.isConnected(url)
+      );
+      
+      if (connectedRelays.length === 0) {
+        console.warn("No active websocket connections for subscription");
+        return subId;
+      }
+      
+      console.log(`Creating subscription on ${connectedRelays.length} relays`);
+      
       const sub = this.pool.subscribeMany(
-        relayUrls,
+        connectedRelays,
         filters,
         { onevent: onEvent }
       );
@@ -361,5 +378,23 @@ export class RelayManager {
     // This would normally fetch the user's relay list
     // For now, just return default relays
     return this.defaultRelays;
+  }
+  
+  /**
+   * Clean up connections when manager is destroyed
+   */
+  cleanup(): void {
+    // Clean up connection manager
+    this.connectionManager.cleanup();
+    
+    // Clean up subscriptions
+    this.subscriptions.forEach(sub => {
+      try {
+        sub.unsubscribe();
+      } catch (err) {
+        console.error("Error cleaning up subscription:", err);
+      }
+    });
+    this.subscriptions.clear();
   }
 }
