@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -45,9 +44,9 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Fix: Only pass the identifier to the verification function
-        const isValid = await verifyNip05Identifier(values.nip05);
-        if (!isValid) {
+        // Fix the TS error by removing the second argument
+        const verified = await nostrService.verifyNip05Identifier(values.nip05);
+        if (!verified) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");
         }
       }

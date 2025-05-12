@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
 import { useProfileRelations } from './profile/useProfileRelations';
@@ -7,6 +8,9 @@ import { useProfileRelays } from './profile/useProfileRelays';
 import { useProfileReplies } from './profile/useProfileReplies';
 import { useProfileLikes } from './profile/useProfileLikes';
 import { nostrService } from '@/lib/nostr';
+import { useConnectionStatus } from './profile/useConnectionStatus';
+import { useProfileDebugInfo } from './profile/useProfileDebugInfo';
+import { useProfileRefresh } from './profile/useProfileRefresh';
 
 interface UseProfileDataProps {
   npub: string | undefined;
@@ -16,9 +20,6 @@ interface UseProfileDataProps {
 export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
   // State for tracking original post profiles (used in reposts)
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
-  const [refreshCounter, setRefreshCounter] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed' | null>(null);
   
   // Get profile metadata and loading state
   const { 
@@ -30,43 +31,23 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     refetch: refetchProfile
   } = useProfileMetadata({ npub, currentUserPubkey });
   
-  // Track connection status
-  useEffect(() => {
-    if (metadataLoading) {
-      setConnectionStatus('connecting');
-    } else if (metadataError) {
-      setConnectionStatus('failed');
-      setError(metadataError);
-    } else if (profileData) {
-      setConnectionStatus('connected');
-      setError(null);
-    }
-  }, [metadataLoading, metadataError, profileData]);
+  // Use connection status hook
+  const { connectionStatus, errorMessage, setErrorMessage } = useConnectionStatus({
+    loading: metadataLoading,
+    error: metadataError,
+    profileData
+  });
   
-  // Log important information for debugging
-  useEffect(() => {
-    if (npub) {
-      console.log("Profile page for npub:", npub);
-      
-      try {
-        const hex = nostrService.getHexFromNpub(npub);
-        console.log("Converted to hex pubkey:", hex);
-      } catch (error) {
-        console.error("Error converting npub to hex:", error);
-        setError("Invalid profile identifier. Please check the URL.");
-      }
-    }
-    
-    if (hexNpub) {
-      console.log("Using hex pubkey for profile:", hexNpub);
-    }
-    
-    if (metadataLoading) {
-      console.log("Profile data loading...");
-    } else {
-      console.log("Profile data loaded:", profileData ? "success" : "not found");
-    }
-  }, [npub, hexNpub, metadataLoading, profileData]);
+  // Use debug info hook
+  useProfileDebugInfo({ 
+    npub, 
+    hexNpub, 
+    loading: metadataLoading, 
+    profileData 
+  });
+  
+  // Use refresh hook
+  const { refreshCounter, refreshProfile: refreshProfileBase } = useProfileRefresh();
   
   // Get user's posts and media with improved error handling
   const { 
@@ -82,7 +63,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   // Update error state if posts loading fails
   useEffect(() => {
     if (postsError && !metadataError) {
-      setError(postsError);
+      setErrorMessage(postsError);
     }
   }, [postsError, metadataError]);
   
@@ -102,7 +83,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   // Update error state if relations loading fails
   useEffect(() => {
     if (relationsHasError && !metadataError && !postsError) {
-      setError(relationsError || "Failed to load profile connections");
+      setErrorMessage(relationsError || "Failed to load profile connections");
     }
   }, [relationsHasError, relationsError, metadataError, postsError]);
   
@@ -117,9 +98,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   const { 
     reposts, 
     replies: repostReplies, 
-    fetchOriginalPost,
-    // Replace 'loading' property with renamed variable to avoid TypeScript error
-    // since this object doesn't have a 'loading' property
+    fetchOriginalPost
   } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
@@ -139,7 +118,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   // Update error state if relays loading fails
   useEffect(() => {
     if (relaysError && !metadataError && !postsError && !relationsError) {
-      setError(relaysError);
+      setErrorMessage(relaysError);
     }
   }, [relaysError, metadataError, postsError, relationsError]);
   
@@ -160,48 +139,13 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     }
   }, [events, reposts]);
   
-  // Set up listeners for refresh events
-  useEffect(() => {
-    const handleRefetchEvents = (e: Event) => {
-      console.log("Received refetch event");
-      setRefreshCounter(prev => prev + 1);
-      
-      // Clear any existing errors on refresh
-      setError(null);
-    };
-    
-    window.addEventListener('refetchProfile', handleRefetchEvents);
-    window.addEventListener('refetchPosts', handleRefetchEvents);
-    window.addEventListener('refetchRelations', handleRefetchEvents);
-    
-    return () => {
-      window.removeEventListener('refetchProfile', handleRefetchEvents);
-      window.removeEventListener('refetchPosts', handleRefetchEvents);
-      window.removeEventListener('refetchRelations', handleRefetchEvents);
-    };
-  }, []);
-  
   // Determine overall loading state
   const loading = metadataLoading || (postsLoading && events.length === 0);
   
-  // Function to refresh all profile data
+  // Enhanced refresh function that calls all refresh methods
   const refreshProfile = useCallback(async () => {
-    console.log("Refreshing all profile data");
-    
     // Reset error state
-    setError(null);
-    
-    // Ensure we're connected to relays
-    await nostrService.connectToUserRelays();
-    
-    // Add more popular relays to increase chances of success
-    await nostrService.addMultipleRelays([
-      "wss://relay.damus.io", 
-      "wss://nos.lol", 
-      "wss://relay.nostr.band",
-      "wss://relay.snort.social",
-      "wss://nostr.mutinywallet.com"
-    ]).catch(err => console.warn("Error adding additional relays:", err));
+    setErrorMessage(null);
     
     // Refresh relays first
     if (refreshRelays) {
@@ -216,12 +160,9 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     // Clear cached data
     setOriginalPostProfiles({});
     
-    // Update the refresh counter to trigger rerender
-    setRefreshCounter(prev => prev + 1);
-    
-    // Wait a bit to allow data to load
-    return new Promise<void>(resolve => setTimeout(resolve, 2000));
-  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays]);
+    // Call base refresh function
+    return refreshProfileBase();
+  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays, refreshProfileBase]);
   
   return {
     profileData,
@@ -230,7 +171,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     media,
     reposts,
     loading,
-    error,
+    error: errorMessage,
     relays,
     setRelays,
     followers,
