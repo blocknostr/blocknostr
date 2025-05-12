@@ -1,11 +1,14 @@
 
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
 import TrendingTopics from "@/components/feed/TrendingTopics";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { nostrService } from "@/lib/nostr";
+import LoginDialog from "@/components/auth/LoginDialog";
 
 // Lazy load WorldChat to improve initial sidebar load
 const WorldChat = lazy(() => import("@/components/chat/WorldChat"));
@@ -31,9 +34,9 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
 }) => {
   const { preferences } = useUserPreferences();
   const location = useLocation();
+  const isLoggedIn = !!nostrService.publicKey;
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
-  // Now show trending on all pages by removing exclusions
-  // This will make trending appear consistently across the app
   const shouldShowTrending = () => {
     return true; // Always show trending section on all pages
   };
@@ -49,6 +52,38 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
       <Loader2 className="h-4 w-4 text-primary/50 animate-spin" />
     </div>
   );
+  
+  const handleLoginClick = () => {
+    setLoginDialogOpen(true);
+  };
+  
+  const renderChatSection = () => {
+    if (!isLoggedIn) {
+      return (
+        <div className="flex-grow flex flex-col mt-1 overflow-hidden relative border rounded-md">
+          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+            <LogIn className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <p className="text-sm text-muted-foreground mb-3">Connect to join the chat</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLoginClick}
+            >
+              Login
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
+        <Suspense fallback={chatFallback}>
+          <WorldChat />
+        </Suspense>
+      </div>
+    );
+  };
   
   // Desktop right sidebar
   if (!isMobile && preferences.uiPreferences?.showTrending) {
@@ -73,12 +108,13 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             </div>
           )}
           
-          <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
-            <Suspense fallback={chatFallback}>
-              <WorldChat />
-            </Suspense>
-          </div>
+          {renderChatSection()}
         </div>
+        
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
       </aside>
     );
   }
@@ -107,12 +143,13 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
               </div>
             )}
             
-            <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
-              <Suspense fallback={chatFallback}>
-                <WorldChat />
-              </Suspense>
-            </div>
+            {renderChatSection()}
           </div>
+          
+          <LoginDialog 
+            open={loginDialogOpen}
+            onOpenChange={setLoginDialogOpen}
+          />
         </SheetContent>
       </Sheet>
     );

@@ -6,6 +6,8 @@ import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner
 import { toast } from "sonner";
 import { AlertTriangle, Loader2, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import LoginWelcomeBanner from "@/components/feed/LoginWelcomeBanner";
+import LoginDialog from "@/components/auth/LoginDialog";
 
 // Lazy load MainFeed to improve initial page load
 const MainFeed = lazy(() => import("@/components/MainFeed"));
@@ -15,12 +17,17 @@ const Index: React.FC = () => {
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
   const [storageErrorDismissed, setStorageErrorDismissed] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const isLoggedIn = !!nostrService.publicKey;
   
   useEffect(() => {
-    // Init connection to relays when the app loads if auto-connect is enabled
+    // Only init connection to relays when logged in and auto-connect is enabled
     const initNostr = async () => {
       try {
-        await nostrService.connectToUserRelays();
+        // Only connect to relays if logged in
+        if (isLoggedIn) {
+          await nostrService.connectToUserRelays();
+        }
       } catch (error) {
         console.error("Error initializing Nostr:", error);
         toast.error("Failed to connect to relays");
@@ -52,7 +59,7 @@ const Index: React.FC = () => {
     return () => {
       window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
     };
-  }, [preferences.relayPreferences?.autoConnect, storageAvailable, storageErrorDismissed]);
+  }, [isLoggedIn, preferences.relayPreferences?.autoConnect, storageAvailable, storageErrorDismissed]);
 
   const clearHashtag = () => {
     setActiveHashtag(undefined);
@@ -80,6 +87,10 @@ const Index: React.FC = () => {
       console.error("Error clearing storage:", e);
       toast.error("Failed to clear storage");
     }
+  };
+
+  const handleLoginClick = () => {
+    setLoginDialogOpen(true);
   };
 
   return (
@@ -117,14 +128,20 @@ const Index: React.FC = () => {
         </div>
       )}
       
-      <ConnectionStatusBanner />
+      {/* Show connection status only if logged in */}
+      {isLoggedIn && <ConnectionStatusBanner />}
       
-      {isInitializing ? (
+      {/* Show login welcome banner when not logged in */}
+      {!isLoggedIn && (
+        <LoginWelcomeBanner onLoginClick={handleLoginClick} />
+      )}
+      
+      {isLoggedIn && isInitializing ? (
         <div className="py-12 flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
           <p className="text-muted-foreground">Initializing connection...</p>
         </div>
-      ) : (
+      ) : isLoggedIn ? (
         <Suspense fallback={
           <div className="py-12 flex flex-col items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
@@ -133,7 +150,20 @@ const Index: React.FC = () => {
         }>
           <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
         </Suspense>
+      ) : (
+        <div className="py-8 border rounded-lg bg-muted/20 text-center">
+          <p className="text-muted-foreground mb-4">
+            Connect with your Nostr extension to view posts and interact with the community.
+          </p>
+          <Button onClick={handleLoginClick}>Connect Now</Button>
+        </div>
       )}
+
+      {/* Login Dialog */}
+      <LoginDialog 
+        open={loginDialogOpen}
+        onOpenChange={setLoginDialogOpen}
+      />
     </div>
   );
 };

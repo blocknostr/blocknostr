@@ -1,10 +1,11 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Wallet, ExternalLink, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { nostrService } from "@/lib/nostr";
+import LoginDialog from "@/components/auth/LoginDialog";
 
 interface WalletConnectButtonProps {
   className?: string;
@@ -12,7 +13,8 @@ interface WalletConnectButtonProps {
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   const { toast } = useToast();
-  const [hasNostrExtension, setHasNostrExtension] = React.useState<boolean>(false);
+  const [hasNostrExtension, setHasNostrExtension] = useState<boolean>(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   React.useEffect(() => {
     // Check for NIP-07 extension
@@ -27,35 +29,8 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = async () => {
-    if (hasNostrExtension) {
-      try {
-        // Try to use NIP-07 login
-        const success = await nostrService.login();
-        if (success) {
-          toast({
-            title: "Successfully connected",
-            description: "Your Nostr extension is now connected to BlockNoster",
-            duration: 3000,
-          });
-        }
-      } catch (error) {
-        console.error("Connect error:", error);
-        toast({
-          title: "Connection failed",
-          description: "Could not connect to your Nostr extension",
-          variant: "destructive",
-          duration: 3000,
-        });
-      }
-    } else {
-      toast({
-        title: "No extension found",
-        description: "Please install a Nostr browser extension like Alby or nos2x",
-        duration: 5000,
-      });
-      // Open extension info
-      window.open("https://getalby.com/", "_blank");
-    }
+    // Open login dialog
+    setLoginDialogOpen(true);
   };
 
   return (
@@ -107,6 +82,12 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
           </a>
         </div>
       </div>
+      
+      {/* Login Dialog */}
+      <LoginDialog 
+        open={loginDialogOpen}
+        onOpenChange={setLoginDialogOpen}
+      />
     </div>
   );
 };

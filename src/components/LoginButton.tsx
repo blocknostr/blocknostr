@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
 import { LogIn, LogOut, User, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -10,11 +10,13 @@ import {
   TooltipProvider, 
   TooltipTrigger 
 } from "@/components/ui/tooltip";
+import LoginDialog from "./auth/LoginDialog";
 
 const LoginButton = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [npub, setNpub] = useState<string>("");
   const [hasExtension, setHasExtension] = useState<boolean>(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
   
   useEffect(() => {
     // Check if user is already logged in
@@ -43,35 +45,8 @@ const LoginButton = () => {
   }, []);
   
   const handleLogin = async () => {
-    try {
-      if (!window.nostr) {
-        toast.error(
-          "No Nostr extension detected!", 
-          { 
-            description: "Please install Alby, nos2x, or another Nostr browser extension.",
-            duration: 5000
-          }
-        );
-        
-        // Open links in a new tab
-        window.open("https://getalby.com/", "_blank");
-        return;
-      }
-      
-      const success = await nostrService.login();
-      
-      if (success) {
-        const pubkey = nostrService.publicKey;
-        if (pubkey) {
-          setIsLoggedIn(true);
-          setNpub(nostrService.formatPubkey(pubkey));
-          toast.success("Successfully logged in!");
-        }
-      }
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error("Login failed");
-    }
+    // Open login dialog instead of direct login
+    setLoginDialogOpen(true);
   };
   
   const handleLogout = async () => {
@@ -79,6 +54,11 @@ const LoginButton = () => {
     setIsLoggedIn(false);
     setNpub("");
     toast.success("Signed out successfully");
+    
+    // Reload the page to reset all states
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
   
   if (isLoggedIn) {
@@ -124,40 +104,54 @@ const LoginButton = () => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        
+        {/* Login Dialog component */}
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
       </div>
     );
   }
   
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button 
-            onClick={handleLogin} 
-            className="flex items-center gap-2"
-            variant={hasExtension ? "default" : "outline"}
-          >
-            {hasExtension ? (
-              <>
-                <Wallet className="h-4 w-4" />
-                <span>Sign in with Nostr</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <span>Install Nostr Extension</span>
-              </>
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          {hasExtension ? 
-            "Sign in using your Nostr extension" : 
-            "Install Alby, nos2x or another Nostr extension"
-          }
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              onClick={handleLogin} 
+              className="flex items-center gap-2"
+              variant={hasExtension ? "default" : "outline"}
+            >
+              {hasExtension ? (
+                <>
+                  <Wallet className="h-4 w-4" />
+                  <span>Sign in with Nostr</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <span>Install Nostr Extension</span>
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {hasExtension ? 
+              "Sign in using your Nostr extension" : 
+              "Install Alby, nos2x or another Nostr extension"
+            }
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      
+      {/* Login Dialog component */}
+      <LoginDialog 
+        open={loginDialogOpen}
+        onOpenChange={setLoginDialogOpen}
+      />
+    </>
   );
 };
 

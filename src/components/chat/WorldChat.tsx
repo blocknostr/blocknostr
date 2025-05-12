@@ -1,12 +1,14 @@
 
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { nostrService } from "@/lib/nostr";
+import LoginDialog from "../auth/LoginDialog";
 
 // Lazy load the MessageList component to improve initial load performance
 const MessageList = lazy(() => import("./MessageList"));
@@ -15,12 +17,14 @@ const MessageList = lazy(() => import("./MessageList"));
 const MAX_CHARS = 140;
 
 const WorldChat = () => {
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const isLoggedIn = !!nostrService.publicKey;
+
   const {
     messages,
     profiles,
     emojiReactions,
     loading,
-    isLoggedIn,
     sendMessage,
     addReaction,
     error,
@@ -28,6 +32,35 @@ const WorldChat = () => {
     reconnect,
     isReconnecting
   } = useWorldChat();
+
+  const handleLoginClick = () => {
+    setLoginDialogOpen(true);
+  };
+
+  // Show login prompt if not logged in
+  if (!isLoggedIn) {
+    return (
+      <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative">
+        <WorldChatHeader connectionStatus="disconnected" />
+        <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
+          <LogIn className="h-12 w-12 text-muted-foreground mb-3" />
+          <h3 className="text-lg font-medium mb-1">Connect to join the chat</h3>
+          <p className="text-muted-foreground mb-4">
+            Login with your Nostr extension to view messages and participate in the conversation.
+          </p>
+          <Button onClick={handleLoginClick}>
+            Connect
+          </Button>
+        </div>
+        
+        {/* Login Dialog */}
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative"> 
