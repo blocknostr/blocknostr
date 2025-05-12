@@ -15,8 +15,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+// Import from the correct location that has the 2-parameter implementation
+import { verifyNip05 } from '@/lib/nostr/utils/nip/nip05';
 import { nostrService } from '@/lib/nostr';
-import { verifyNip05 } from '@/lib/nostr/nip05';
 
 // Define form schema that follows NIP-01 metadata format
 const profileFormSchema = z.object({
@@ -118,7 +119,7 @@ const ProfileSettingsPage = () => {
     setIsNip05Verified(null);
     
     try {
-      // Fix: Pass both parameters to verifyNip05 as it expects both
+      // Fix: Pass both parameters to verifyNip05 which expects both
       const isValid = await verifyNip05(identifier, pubkey);
       setIsNip05Verified(isValid);
     } catch (error) {
