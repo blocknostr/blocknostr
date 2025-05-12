@@ -28,6 +28,7 @@ const ProfileEditor = ({
   onClose,
   onProfileUpdated
 }: ProfileEditorProps) => {
+  const [retryCount, setRetryCount] = useState(0);
   
   const handleSubmit = async (values: ProfileFormValues) => {
     try {
@@ -97,33 +98,72 @@ const ProfileEditor = ({
       // Get relay URLs for potential fallback publishing
       const relayUrls = connectedRelays.map(r => r.url);
       
-      // Use our enhanced publishing function with fallbacks
-      const { success, error } = await publishProfileWithFallback(eventToPublish, relayUrls);
+      // Add some known good relays if we don't have many connections
+      if (relayUrls.length < 3) {
+        const additionalRelays = [
+          "wss://relay.damus.io",
+          "wss://nos.lol",
+          "wss://relay.snort.social"
+        ];
+        
+        for (const url of additionalRelays) {
+          if (!relayUrls.includes(url)) {
+            relayUrls.push(url);
+          }
+        }
+      }
       
-      if (success) {
+      // Use our enhanced publishing function with fallbacks
+      const publishResult = await publishProfileWithFallback(eventToPublish, relayUrls);
+      
+      if (publishResult.success) {
         toast.success("Profile updated successfully");
         
         // Trigger a custom event to notify components of the profile update
         if (nostrService.publicKey) {
+          console.log("[PROFILE EDITOR] Broadcasting profilePublished event with eventId:", publishResult.eventId);
           window.dispatchEvent(new CustomEvent('profilePublished', { 
-            detail: { pubkey: nostrService.publicKey } 
+            detail: { 
+              pubkey: nostrService.publicKey,
+              eventId: publishResult.eventId
+            } 
           }));
         }
+        
+        // Reset retry count on success
+        setRetryCount(0);
         
         // Close dialog and refresh profile
         onClose();
         onProfileUpdated();
       } else {
         // Display specific error if available
-        console.error("[PROFILE EDITOR] Profile update failed:", error);
+        console.error("[PROFILE EDITOR] Profile update failed:", publishResult.error);
         
-        if (error?.includes("authorization") || error?.includes("Unauthorized")) {
+        if (publishResult.error?.includes("authorization") || publishResult.error?.includes("Unauthorized")) {
           toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
             duration: 6000
           });
-        } else if (error?.includes("proof-of-work") || error?.includes("pow:")) {
-          toast.error("This relay requires proof-of-work which is not supported. Try connecting to different relays.");
-        } else if (error?.includes("no active subscription")) {
+        } else if (publishResult.error?.includes("proof-of-work") || publishResult.error?.includes("pow:")) {
+          toast.error("This relay requires proof-of-work which is not supported. We'll try different relays automatically.", {
+            duration: 4000
+          });
+          
+          // Increment retry count
+          const newRetryCount = retryCount + 1;
+          setRetryCount(newRetryCount);
+          
+          // If we haven't tried too many times, attempt with different relays
+          if (newRetryCount <= 2) {
+            toast.loading("Trying alternative relays...");
+            
+            // Try with specifically non-POW relays
+            setTimeout(() => {
+              handleSubmit(values);
+            }, 1500);
+            return;
+          }
+        } else if (publishResult.error?.includes("no active subscription")) {
           toast.error("Connection to relays was lost. Reconnecting...", {
             duration: 3000
           });
@@ -131,38 +171,24 @@ const ProfileEditor = ({
           // Try reconnecting to relays and retry once
           try {
             await nostrService.connectToDefaultRelays();
-            const retryRelays = nostrService.getRelayStatus().filter(r => r.status === 'connected');
             
-            if (retryRelays.length > 0) {
-              // Retry the publish with the new relay connections
-              const retryResult = await publishProfileWithFallback(
-                eventToPublish, 
-                retryRelays.map(r => r.url)
-              );
-              
-              if (retryResult.success) {
-                toast.success("Profile updated successfully after reconnection");
-                
-                // Trigger a custom event to notify components of the profile update
-                if (nostrService.publicKey) {
-                  window.dispatchEvent(new CustomEvent('profilePublished', { 
-                    detail: { pubkey: nostrService.publicKey } 
-                  }));
-                }
-                
-                onClose();
-                onProfileUpdated();
-                return;
-              }
+            // Increment retry count
+            const newRetryCount = retryCount + 1;
+            setRetryCount(newRetryCount);
+            
+            // If we haven't tried too many times, retry
+            if (newRetryCount <= 2) {
+              setTimeout(() => {
+                handleSubmit(values);
+              }, 1500);
+              return;
             }
-            
-            toast.error("Failed to update profile after reconnection");
           } catch (reconnectError) {
             console.error("[PROFILE EDITOR] Reconnection failed:", reconnectError);
             toast.error("Failed to reconnect to relays");
           }
         } else {
-          toast.error(error || "Failed to update profile");
+          toast.error(publishResult.error || "Failed to update profile");
         }
       }
     } catch (error) {

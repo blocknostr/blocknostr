@@ -1,4 +1,3 @@
-
 // src/components/you/profile/profileUtils.ts
 
 import { contentCache, nostrService } from '@/lib/nostr';
@@ -149,13 +148,13 @@ export const nip05Utils = {
 };
 
 /**
- * Publish a profile metadata event with improved error handling for subscription issues.
- * Handles both direct publishing and handles POW requirements gracefully.
+ * Enhanced profile publication with improved error handling for various Nostr relay issues.
+ * Handles both direct publishing and manages POW requirements gracefully.
  */
 export async function publishProfileWithFallback(
   unsignedEvent: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'>,
   relayUrls: string[]
-): Promise<{ success: boolean; error: string | null }> {
+): Promise<{ success: boolean; error: string | null; eventId?: string }> {
   if (!nostrService.publicKey) {
     return { success: false, error: 'No public key available' };
   }
@@ -171,109 +170,164 @@ export async function publishProfileWithFallback(
   const id = getEventHash(full);
   
   try {
-    // Try to use the global publishEvent method with error handling
-    console.log('[PUBLISH] Attempting to publish event...');
+    console.log('[PUBLISH] Attempting to publish event with tryPublishWithRetries...');
     
-    // Check if relays require POW
-    const powRequired = relayUrls.some(url => url.includes('pow') || url.includes('proof-of-work'));
-    if (powRequired) {
-      console.log('[PUBLISH] Detected POW relay requirements - this may fail');
+    // Try our enhanced publish function with retries
+    const result = await tryPublishWithRetries({
+      ...full,
+      id
+    }, relayUrls);
+    
+    if (result.success) {
+      // Dispatch event to notify listeners about successful publish
+      window.dispatchEvent(new CustomEvent('profilePublished', { 
+        detail: { eventId: result.eventId, pubkey: nostrService.publicKey } 
+      }));
+      return { success: true, error: null, eventId: result.eventId };
     }
     
-    // Try submitting to specific relays first (might avoid POW requirements)
-    for (const url of relayUrls) {
-      try {
-        // Skip relays known to require POW
-        if (url.includes('pow') || url.toLowerCase().includes('proof')) {
-          console.log(`[PUBLISH] Skipping POW relay: ${url}`);
-          continue;
-        }
+    // If we got here, all methods failed
+    return { 
+      success: false, 
+      error: result.error || 'Failed to publish after multiple attempts', 
+      eventId: result.eventId 
+    };
+  } catch (e: any) {
+    console.error('[PUBLISH] Unexpected error in publishProfileWithFallback:', e);
+    return { success: false, error: 'Unexpected error: ' + (e.message || e) };
+  }
+}
+
+/**
+ * Helper function to try different publishing strategies with retries
+ */
+async function tryPublishWithRetries(
+  event: UnsignedEvent & { id: string },
+  relayUrls: string[]
+): Promise<{ success: boolean; error: string | null; eventId?: string }> {
+  // First attempt: Try direct publishing to each relay individually
+  console.log('[PUBLISH] Attempting direct publishing to individual relays first');
+  
+  // Filter out relays that might require POW
+  const nonPowRelays = relayUrls.filter(url => 
+    !url.includes('pow') && 
+    !url.toLowerCase().includes('proof') &&
+    !url.includes('nostr.band')  // Known to require PoW
+  );
+  
+  // Try each non-POW relay
+  for (const url of nonPowRelays) {
+    try {
+      console.log(`[PUBLISH] Trying to publish to relay: ${url}`);
+      
+      // Try publishing to this specific relay
+      const relay = await nostrService.addRelay(url);
+      if (relay) {
+        let eventId: string | undefined;
         
-        // Try publishing to this specific relay
-        const relay = await nostrService.addRelay(url);
-        if (relay) {
-          const eventId = await nostrService.publishEvent({
-            ...full,
-            id
+        try {
+          // Try the first attempt
+          eventId = await nostrService.publishEvent({
+            ...event
           });
           
           if (eventId) {
-            console.log(`[PUBLISH] Successfully published to relay: ${url}`);
-            // Dispatch event to notify listeners about successful publish
-            window.dispatchEvent(new CustomEvent('profilePublished', { 
-              detail: { eventId, pubkey: nostrService.publicKey } 
-            }));
-            return { success: true, error: null };
+            console.log(`[PUBLISH] Successfully published to relay: ${url} with eventId: ${eventId}`);
+            return { success: true, error: null, eventId };
+          }
+        } catch (relayError: any) {
+          // Handle specific errors
+          if (relayError.message?.includes('no active subscription')) {
+            console.log(`[PUBLISH] No active subscription for ${url}, reconnecting...`);
+            
+            // Try reconnecting to this relay
+            await nostrService.removeRelay(url);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await nostrService.addRelay(url);
+            
+            // Try publishing again after reconnection
+            try {
+              eventId = await nostrService.publishEvent({
+                ...event
+              });
+              
+              if (eventId) {
+                console.log(`[PUBLISH] Successfully published to relay: ${url} after reconnection`);
+                return { success: true, error: null, eventId };
+              }
+            } catch (retryError) {
+              console.warn(`[PUBLISH] Second attempt to ${url} failed:`, retryError);
+            }
+          } else if (relayError.message?.includes('pow:') || relayError.message?.includes('proof-of-work')) {
+            console.warn(`[PUBLISH] Relay ${url} requires POW, skipping:`, relayError.message);
+            continue;
           }
         }
-      } catch (relayError: any) {
-        if (relayError.message?.includes('pow:') || relayError.message?.includes('proof-of-work')) {
-          console.warn(`[PUBLISH] Relay ${url} requires POW, skipping`);
-          continue;
-        }
-        console.warn(`[PUBLISH] Failed to publish to relay ${url}:`, relayError);
       }
+    } catch (relayError: any) {
+      console.warn(`[PUBLISH] Failed to publish to relay ${url}:`, relayError);
+    }
+  }
+  
+  // Second attempt: Try global publish method with reconnection
+  console.log('[PUBLISH] Trying global publish method');
+  try {
+    // Ensure we have some connections
+    const relayStatus = nostrService.getRelayStatus();
+    if (!relayStatus.some(r => r.status === 'connected')) {
+      console.log('[PUBLISH] No connected relays, attempting to reconnect...');
+      await nostrService.connectToDefaultRelays();
     }
     
-    // Fallback to global publish across all connected relays
-    try {
-      const eventId = await nostrService.publishEvent({
-        ...full,
-        id
-      });
-      
-      if (eventId) {
-        console.log('[PUBLISH] Successfully published via global method');
-        // Dispatch event to notify listeners about successful publish
-        window.dispatchEvent(new CustomEvent('profilePublished', { 
-          detail: { eventId, pubkey: nostrService.publicKey } 
-        }));
-        return { success: true, error: null };
-      } else {
-        console.warn('[PUBLISH] Global publish returned no event ID');
-        return { success: false, error: 'Failed to publish event - no event ID returned' };
-      }
-    } catch (globalError: any) {
-      console.error('[PUBLISH] Global publish failed:', globalError);
-      if (globalError.message?.includes('pow:')) {
-        return { success: false, error: 'Relay requires proof-of-work which is not supported' };
-      }
-      return { success: false, error: `Global publish failed: ${globalError.message || globalError}` };
-    }
-  } catch (e: any) {
-    console.error('[PUBLISH] Error publishing event:', e.message || e);
+    // Try global publish
+    const eventId = await nostrService.publishEvent({
+      ...event
+    });
     
-    // Handle specific error cases
-    if (e.message?.includes('no active subscription')) {
-      console.log('[PUBLISH] No active subscription error - trying to reconnect relays...');
+    if (eventId) {
+      console.log('[PUBLISH] Successfully published via global method');
+      return { success: true, error: null, eventId };
+    }
+  } catch (globalError: any) {
+    console.error('[PUBLISH] Global publish attempt failed:', globalError);
+    
+    // Special case for subscription errors
+    if (globalError.message?.includes('no active subscription')) {
+      // Try reconnecting to all relays
+      console.log('[PUBLISH] No active subscription error, reconnecting to all relays...');
       try {
-        // Try reconnecting to relays
         await nostrService.connectToDefaultRelays();
-        // Retry the publish once
+        
+        // Wait a moment for connections to establish
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Try publishing once more
         try {
           const eventId = await nostrService.publishEvent({
-            ...full,
-            id
+            ...event
           });
           
           if (eventId) {
-            console.log('[PUBLISH] Retry successful after reconnection');
-            return { success: true, error: null };
+            console.log('[PUBLISH] Successfully published after reconnection');
+            return { success: true, error: null, eventId };
           }
-        } catch (retryError) {
-          console.error('[PUBLISH] Retry failed:', retryError);
+        } catch (finalError: any) {
+          if (finalError.message?.includes('pow:')) {
+            return { success: false, error: 'Relay requires proof-of-work which is not supported' };
+          }
+          return { success: false, error: `Final attempt failed: ${finalError.message || finalError}` };
         }
       } catch (reconnectError) {
         console.error('[PUBLISH] Reconnection failed:', reconnectError);
+        return { success: false, error: 'Failed to reconnect to relays' };
       }
-      
-      return { success: false, error: 'Connection to relays lost. Please try again.' };
-    } else if (e.message?.includes('pow:')) {
+    } else if (globalError.message?.includes('pow:')) {
       return { success: false, error: 'Relay requires proof-of-work which is not supported' };
     }
-    
-    return { success: false, error: 'Failed to publish: ' + (e.message || e) };
   }
+  
+  // If we got here, all methods failed
+  return { success: false, error: 'Failed to publish event after multiple attempts' };
 }
 
 /**

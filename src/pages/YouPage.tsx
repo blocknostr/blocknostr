@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -19,6 +18,7 @@ const YouPage = () => {
   const [profileKey, setProfileKey] = useState(() => Date.now());
   const currentUserPubkey = nostrService.publicKey;
   const refreshTimeoutRef = useRef<number | null>(null);
+  const profileSavedTimeRef = useRef<number | null>(null);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -41,25 +41,38 @@ const YouPage = () => {
   // Track edit mode state locally
   const [isEditing, setIsEditing] = useState(false);
   
-  // Listen for profile refresh events
+  // Listen for profile refresh events with improved handling
   useEffect(() => {
-    const handleProfileRefreshed = () => {
-      console.log("[YOU PAGE] Received profileRefreshed event");
+    const handleProfileRefreshed = (e: CustomEvent) => {
+      console.log("[YOU PAGE] Received profileRefreshed event", e.detail);
       // Force re-render by updating the key
       setProfileKey(Date.now());
     };
     
-    const handleProfilePublished = () => {
-      console.log("[YOU PAGE] Received profilePublished event");
-      // Will refresh after publication
+    const handleProfilePublished = (e: CustomEvent) => {
+      console.log("[YOU PAGE] Received profilePublished event", e.detail);
+      
+      // Store the timestamp when profile was published
+      profileSavedTimeRef.current = Date.now();
+      
+      // Since we might get the event with undefined eventId, check for it
+      const eventId = e.detail?.eventId;
+      
+      if (eventId) {
+        console.log(`[YOU PAGE] Profile published with event ID: ${eventId}`);
+      } else {
+        console.log("[YOU PAGE] Profile published but no event ID provided");
+      }
+      
+      // We'll handle refresh separately via the handleProfileSaved mechanism
     };
     
-    window.addEventListener('profileRefreshed', handleProfileRefreshed);
-    window.addEventListener('profilePublished', handleProfilePublished);
+    window.addEventListener('profileRefreshed', handleProfileRefreshed as EventListener);
+    window.addEventListener('profilePublished', handleProfilePublished as EventListener);
     
     return () => {
-      window.removeEventListener('profileRefreshed', handleProfileRefreshed);
-      window.removeEventListener('profilePublished', handleProfilePublished);
+      window.removeEventListener('profileRefreshed', handleProfileRefreshed as EventListener);
+      window.removeEventListener('profilePublished', handleProfilePublished as EventListener);
     };
   }, []);
   
@@ -86,15 +99,21 @@ const YouPage = () => {
       console.log("[YOU PAGE] Relay status before refresh:", relaysBefore);
       
       // Force refresh profile
-      await forceRefreshProfile(currentUserPubkey);
+      const refreshResult = await forceRefreshProfile(currentUserPubkey);
+      
+      if (!refreshResult) {
+        console.log("[YOU PAGE] Profile refresh failed, attempting to reconnect relays");
+        
+        // Try reconnecting to relays first
+        await nostrService.connectToDefaultRelays();
+        
+        // Try refresh again after reconnection
+        await forceRefreshProfile(currentUserPubkey);
+      }
       
       // Refetch profile data using the hook's refetch method
       console.log("[YOU PAGE] Calling profile data refresh method");
       await profileData.refreshProfile();
-      
-      // Get relay status after refresh
-      const relaysAfter = nostrService.getRelayStatus();
-      console.log("[YOU PAGE] Relay status after refresh:", relaysAfter);
       
       // Force re-render by updating the key
       console.log("[YOU PAGE] Updating profile key to force re-render");
@@ -114,40 +133,61 @@ const YouPage = () => {
     console.log("[YOU PAGE] Profile saved, exiting edit mode");
     setIsEditing(false);
     
-    // Force refresh to show latest changes with a slight delay
-    console.log("[YOU PAGE] Setting timeout to refresh profile after save");
+    // Only force a refresh if it's been at least 2 seconds since we got a profilePublished event
+    const shouldRefresh = !profileSavedTimeRef.current || 
+                          (Date.now() - profileSavedTimeRef.current) > 2000;
     
-    // Clear any existing timeout
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
-    
-    // Set new timeout
-    refreshTimeoutRef.current = window.setTimeout(async () => {
-      try {
-        console.log("[YOU PAGE] Starting profile refresh after save");
-        setRefreshing(true);
-        // Ensure cache is cleared and fresh profile is fetched
-        if (currentUserPubkey) {
-          console.log(`[YOU PAGE] Forcing refresh for pubkey: ${currentUserPubkey}`);
-          await forceRefreshProfile(currentUserPubkey);
-          console.log("[YOU PAGE] Force refresh completed, refreshing profile data");
-          await profileData.refreshProfile();
-          console.log("[YOU PAGE] Profile data refresh completed");
-        } else {
-          console.log("[YOU PAGE] No current user pubkey, skipping refresh");
-        }
-        
-        // Force re-render of the profile preview
-        console.log("[YOU PAGE] Updating profile key to force re-render");
-        setProfileKey(Date.now());
-      } catch (error) {
-        console.error("[YOU PAGE] Error refreshing after save:", error);
-      } finally {
-        setRefreshing(false);
-        console.log("[YOU PAGE] Profile refresh after save completed");
+    if (shouldRefresh) {
+      console.log("[YOU PAGE] Setting timeout to refresh profile after save");
+      
+      // Clear any existing timeout
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
       }
-    }, 1000);
+      
+      // Set new timeout with a longer delay to allow relay propagation
+      refreshTimeoutRef.current = window.setTimeout(async () => {
+        try {
+          console.log("[YOU PAGE] Starting profile refresh after save");
+          setRefreshing(true);
+          
+          // Wait a bit longer for relay propagation
+          console.log("[YOU PAGE] Waiting for relay propagation before refreshing");
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Ensure cache is cleared and fresh profile is fetched
+          if (currentUserPubkey) {
+            console.log(`[YOU PAGE] Forcing refresh for pubkey: ${currentUserPubkey}`);
+            const refreshResult = await forceRefreshProfile(currentUserPubkey);
+            
+            if (!refreshResult) {
+              console.log("[YOU PAGE] Initial refresh failed, trying to reconnect relays");
+              await nostrService.connectToDefaultRelays();
+              
+              // Try one more time after reconnection
+              await forceRefreshProfile(currentUserPubkey);
+            }
+            
+            console.log("[YOU PAGE] Force refresh completed, refreshing profile data");
+            await profileData.refreshProfile();
+            console.log("[YOU PAGE] Profile data refresh completed");
+          } else {
+            console.log("[YOU PAGE] No current user pubkey, skipping refresh");
+          }
+          
+          // Force re-render of the profile preview
+          console.log("[YOU PAGE] Updating profile key to force re-render");
+          setProfileKey(Date.now());
+        } catch (error) {
+          console.error("[YOU PAGE] Error refreshing after save:", error);
+        } finally {
+          setRefreshing(false);
+          console.log("[YOU PAGE] Profile refresh after save completed");
+        }
+      }, 2500);  // Increased timeout to allow for relay propagation
+    } else {
+      console.log("[YOU PAGE] Skipping refresh as we just received a profilePublished event");
+    }
     
     return () => {
       if (refreshTimeoutRef.current) {
