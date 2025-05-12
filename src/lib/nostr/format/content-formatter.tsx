@@ -7,8 +7,8 @@ export const contentFormatter: ContentFormatterInterface = {
   /**
    * Format Nostr content, processing hashtags, mentions, and URLs
    */
-  formatContent: (content: string): React.ReactNode => {
-    if (!content) return null;
+  formatContent: (content: string, mediaUrls?: string[]): React.JSX.Element => {
+    if (!content) return <></>;
     
     // Split content by spaces to identify potential entities
     const parts = content.split(/(\s+)/);
@@ -58,7 +58,7 @@ export const contentFormatter: ContentFormatterInterface = {
   /**
    * Format a Nostr event content with additional processing for note references
    */
-  formatEventContent: (content: string, eventReferences?: Record<string, any>): React.ReactNode => {
+  formatEventContent: (content: string, eventReferences?: Record<string, any>): React.JSX.Element => {
     return contentFormatter.formatContent(content);
   },
 

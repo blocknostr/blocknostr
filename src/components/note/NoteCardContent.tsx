@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { MessageSquare, ExternalLink } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
-import { formatRelativeTime } from '@/lib/utils';
+// Remove import for formatRelativeTime since it's not used in this component
 
 interface NoteCardContentProps {
   content: string;
