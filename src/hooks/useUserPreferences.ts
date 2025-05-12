@@ -78,7 +78,8 @@ const STORAGE_KEYS = {
   UI_PREFS: 'bn_pref_ui',
   // Even more granular storage keys for large arrays
   HIDDEN_USERS: 'bn_pref_hidden_users',
-  STORAGE_STATUS: 'bn_storage_status'
+  STORAGE_STATUS: 'bn_storage_status',
+  STORAGE_TEST: 'bn_storage_test'
 };
 
 // Compress arrays by joining with delimiter 
@@ -91,31 +92,46 @@ const decompressArray = (compressed: string): string[] => {
   return compressed ? compressed.split('|') : [];
 };
 
-// Safely save to localStorage with error handling
+// In-memory fallback when localStorage is unavailable
+const memoryStore = new Map<string, string>();
+
+// Safely save to localStorage with error handling and memory fallback
 const safeLocalStorageSave = (key: string, value: any): boolean => {
   try {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-    localStorage.setItem(key, serialized);
-    return true;
-  } catch (error) {
-    console.error(`Failed to save to localStorage (${key}):`, error);
     
-    // Mark storage as problematic
+    // First try browser localStorage
     try {
-      localStorage.setItem(STORAGE_KEYS.STORAGE_STATUS, 'limited');
-    } catch (e) {
-      // If we can't even save this, storage is completely unavailable
-      console.error("Storage completely unavailable:", e);
+      localStorage.setItem(key, serialized);
+      return true;
+    } catch (error) {
+      // If localStorage fails, use memory storage as fallback
+      console.warn(`Using memory storage for key (${key}) due to: ${error}`);
+      memoryStore.set(key, serialized);
+      
+      // Mark storage as problematic
+      memoryStore.set(STORAGE_KEYS.STORAGE_STATUS, 'limited');
+      return false;
     }
-    
+  } catch (error) {
+    console.error(`Failed to serialize or save value (${key}):`, error);
     return false;
   }
 };
 
-// Safely load from localStorage with error handling
-const safeLocalStorageLoad = <T>(key: string, defaultValue: T): T => {
+// Safely load from storage with fallback to memory store
+const safeStorageLoad = <T>(key: string, defaultValue: T): T => {
   try {
-    const serialized = localStorage.getItem(key);
+    // Try localStorage first
+    let serialized: string | null = null;
+    try {
+      serialized = localStorage.getItem(key);
+    } catch (e) {
+      // If localStorage fails, try memory storage
+      console.warn(`Using memory storage for reading key (${key}) due to: ${e}`);
+      serialized = memoryStore.get(key) || null;
+    }
+    
     if (serialized === null) return defaultValue;
     
     // If the value is a compressed array (starts with pipe or alphanumeric)
@@ -126,8 +142,35 @@ const safeLocalStorageLoad = <T>(key: string, defaultValue: T): T => {
     
     return JSON.parse(serialized) as T;
   } catch (error) {
-    console.error(`Failed to load from localStorage (${key}):`, error);
+    console.error(`Failed to load from storage (${key}):`, error);
     return defaultValue;
+  }
+};
+
+// Test if storage is available and has sufficient quota
+const testStorageAvailability = (): { available: boolean, quotaReached: boolean } => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.STORAGE_TEST, 'test');
+    localStorage.removeItem(STORAGE_KEYS.STORAGE_TEST);
+    
+    // Check if we previously had storage issues
+    let storageStatus = '';
+    try {
+      storageStatus = localStorage.getItem(STORAGE_KEYS.STORAGE_STATUS) || '';
+    } catch (e) {
+      storageStatus = memoryStore.get(STORAGE_KEYS.STORAGE_STATUS) || '';
+    }
+    
+    return { 
+      available: true, 
+      quotaReached: storageStatus === 'limited'
+    };
+  } catch (e) {
+    console.error('Storage availability test failed:', e);
+    return { 
+      available: false, 
+      quotaReached: true
+    };
   }
 };
 
@@ -139,37 +182,26 @@ export function useUserPreferences() {
 
   // Test if localStorage is available
   useEffect(() => {
-    try {
-      const testKey = 'blocknoster_storage_test';
-      localStorage.setItem(testKey, 'test');
-      localStorage.removeItem(testKey);
-      
-      // Check if we previously had storage issues
-      const storageStatus = localStorage.getItem(STORAGE_KEYS.STORAGE_STATUS);
-      if (storageStatus === 'limited') {
-        setStorageQuotaReached(true);
-      }
-      
-      setStorageAvailable(true);
-    } catch (e) {
-      console.error('localStorage not available:', e);
-      setStorageAvailable(false);
+    const { available, quotaReached } = testStorageAvailability();
+    setStorageAvailable(available);
+    setStorageQuotaReached(quotaReached);
+    
+    if (!available) {
+      console.warn("Storage is unavailable. Using in-memory storage only.");
+    }
+    if (quotaReached) {
+      console.warn("Storage quota has been reached. Some preferences may not persist.");
     }
   }, []);
 
-  // Load preferences from localStorage with chunked storage
+  // Load preferences from storage with chunked storage
   useEffect(() => {
-    if (!storageAvailable) {
-      setLoaded(true);
-      return;
-    }
-    
     try {
       // Load individual preference sections
-      const defaultFeed = safeLocalStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
+      const defaultFeed = safeStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
       
       // Load feed filters except hidden users (which we'll handle separately)
-      const feedFilters = safeLocalStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
+      const feedFilters = safeStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
         showReplies: defaultPreferences.feedFilters.showReplies,
         showReposted: defaultPreferences.feedFilters.showReposted,
       });
@@ -177,17 +209,17 @@ export function useUserPreferences() {
       // Load hidden users array separately (could be large)
       let hideFromUsers: string[] = [];
       try {
-        const compressedUsers = localStorage.getItem(STORAGE_KEYS.HIDDEN_USERS);
-        hideFromUsers = compressedUsers ? decompressArray(compressedUsers) : [];
+        const compressedUsers = safeStorageLoad<string>(STORAGE_KEYS.HIDDEN_USERS, '');
+        hideFromUsers = decompressArray(compressedUsers);
       } catch (e) {
         console.error('Failed to load hidden users:', e);
         hideFromUsers = [];
       }
       
-      const contentPreferences = safeLocalStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
-      const notificationPreferences = safeLocalStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
-      const relayPreferences = safeLocalStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
-      const uiPreferences = safeLocalStorageLoad(STORAGE_KEYS.UI_PREFS, defaultPreferences.uiPreferences);
+      const contentPreferences = safeStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
+      const notificationPreferences = safeStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
+      const relayPreferences = safeStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
+      const uiPreferences = safeStorageLoad(STORAGE_KEYS.UI_PREFS, defaultPreferences.uiPreferences);
       
       // Merge all preferences with defaults for any missing properties
       const mergedPreferences: UserPreferences = {
@@ -216,7 +248,7 @@ export function useUserPreferences() {
 
   // Save preferences to localStorage with chunking to avoid quota issues
   useEffect(() => {
-    if (loaded && storageAvailable) {
+    if (loaded) {
       // Track if any saves failed
       let anySaveFailed = false;
       
@@ -255,17 +287,22 @@ export function useUserPreferences() {
       // Update storage quota reached state
       if (anySaveFailed && !storageQuotaReached) {
         setStorageQuotaReached(true);
-        toast.error("Storage limit reached", {
-          description: "Some preferences may not be saved between sessions.",
-          duration: 5000
-        });
+        
+        // Only show toast first time we detect the issue
+        toast.warning(
+          "Storage limit reached", 
+          { 
+            description: "Some preferences will only be available for this session.",
+            duration: 5000
+          }
+        );
       } else if (!anySaveFailed && storageQuotaReached) {
         // Storage working again, update status
         setStorageQuotaReached(false);
         safeLocalStorageSave(STORAGE_KEYS.STORAGE_STATUS, 'ok');
       }
     }
-  }, [preferences, loaded, storageAvailable, storageQuotaReached]);
+  }, [preferences, loaded, storageQuotaReached]);
 
   // Update specific preference
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
@@ -324,6 +361,7 @@ export function useUserPreferences() {
       Object.values(STORAGE_KEYS).forEach(key => {
         try {
           localStorage.removeItem(key);
+          memoryStore.delete(key);
         } catch (e) {
           console.error(`Failed to remove key ${key}:`, e);
         }

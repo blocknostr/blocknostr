@@ -184,6 +184,7 @@ export const encryption = {
   
   /**
    * Generate a secure encryption key for local storage
+   * This function does not attempt to save the key to localStorage
    */
   generateEncryptionKey(): string {
     const array = new Uint8Array(32);
@@ -191,6 +192,19 @@ export const encryption = {
     return Array.from(array)
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
+  },
+  
+  /**
+   * Try to safely store an encryption key, with fallback for quota errors
+   */
+  safelyStoreEncryptionKey(key: string): boolean {
+    try {
+      localStorage.setItem('notebin_encryption_key', key);
+      return true;
+    } catch (error) {
+      console.warn("Failed to store encryption key:", error);
+      return false;
+    }
   },
   
   /**

@@ -4,7 +4,33 @@ import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
 const WORLD_CHAT_TAG = "world-chat";
-const MAX_MESSAGES = 100; // Keeping at 100 messages
+const MAX_MESSAGES = 100; // Keep at 100 messages
+const INITIAL_LOAD_LIMIT = 50; // Initial batch size
+
+/**
+ * Safely get an item from localStorage with error handling
+ */
+const safeLocalStorageGet = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn(`Error reading from localStorage (${key}):`, error);
+    return null;
+  }
+};
+
+/**
+ * Safely set an item in localStorage with error handling
+ */
+const safeLocalStorageSet = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (error) {
+    console.warn(`Error writing to localStorage (${key}):`, error);
+    return false;
+  }
+};
 
 /**
  * Hook to manage message subscriptions and state
@@ -18,6 +44,28 @@ export const useMessageSubscription = (
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   
   const isLoggedIn = !!nostrService.publicKey;
+  
+  // Try to load cached messages on initial load to avoid empty state
+  useEffect(() => {
+    try {
+      const cachedMessages = safeLocalStorageGet('world_chat_messages');
+      if (cachedMessages) {
+        const parsedMessages = JSON.parse(cachedMessages);
+        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+          setMessages(parsedMessages);
+          
+          // Fetch profiles for these messages
+          parsedMessages.forEach((msg: NostrEvent) => {
+            fetchProfile(msg.pubkey).catch(err => 
+              console.warn(`Failed to fetch profile for ${msg.pubkey}:`, err)
+            );
+          });
+        }
+      }
+    } catch (error) {
+      console.warn("Error loading cached messages:", error);
+    }
+  }, [fetchProfile]);
   
   // Setup message subscription
   useEffect(() => {
@@ -44,11 +92,22 @@ export const useMessageSubscription = (
         const updated = [...prev, event].sort((a, b) => b.created_at - a.created_at);
         
         // Keep only the most recent MAX_MESSAGES
-        return updated.slice(0, MAX_MESSAGES);
+        const limitedMessages = updated.slice(0, MAX_MESSAGES);
+        
+        // Cache the messages for faster loading next time
+        try {
+          safeLocalStorageSet('world_chat_messages', JSON.stringify(limitedMessages));
+        } catch (e) {
+          console.warn("Failed to cache messages:", e);
+        }
+        
+        return limitedMessages;
       });
       
       // Fetch profile data if we don't have it yet - do this outside of state update
-      fetchProfile(event.pubkey);
+      fetchProfile(event.pubkey).catch(err => 
+        console.warn(`Failed to fetch profile for ${event.pubkey}:`, err)
+      );
     };
     
     // Subscribe to world chat messages with a smaller batch size and throttled updates
@@ -57,7 +116,7 @@ export const useMessageSubscription = (
         {
           kinds: [EVENT_KINDS.TEXT_NOTE],
           '#t': [WORLD_CHAT_TAG], // Using '#t' for tag filtering
-          limit: 50 // Reduced from 100 to 50 for faster initial load
+          limit: INITIAL_LOAD_LIMIT
         } as NostrFilter
       ],
       updateMessages

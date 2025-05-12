@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react";
 
 // Lazy load WorldChat to improve initial sidebar load
 const WorldChat = lazy(() => import("@/components/chat/WorldChat"));
+// Lazy load SavedHashtags for better performance
+const SavedHashtags = lazy(() => import("@/components/feed/SavedHashtags"));
 
 interface GlobalSidebarProps {
   rightPanelOpen: boolean;
@@ -42,6 +44,12 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
     </div>
   );
   
+  const hashtagsFallback = (
+    <div className="h-[100px] flex items-center justify-center">
+      <Loader2 className="h-4 w-4 text-primary/50 animate-spin" />
+    </div>
+  );
+  
   // Desktop right sidebar
   if (!isMobile && preferences.uiPreferences?.showTrending) {
     return (
@@ -50,6 +58,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           <div>
             <GlobalSearch />
           </div>
+          
+          <Suspense fallback={hashtagsFallback}>
+            <SavedHashtags onTopicClick={onTopicClick} />
+          </Suspense>
           
           {shouldShowTrending() && (
             <div className="mb-0.5">
@@ -80,6 +92,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             <div>
               <GlobalSearch />
             </div>
+            
+            <Suspense fallback={hashtagsFallback}>
+              <SavedHashtags onTopicClick={onTopicClick} />
+            </Suspense>
             
             {shouldShowTrending() && (
               <div className="mb-0.5">

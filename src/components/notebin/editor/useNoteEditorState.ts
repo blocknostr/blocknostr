@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -16,12 +17,32 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [isEncrypted, setIsEncrypted] = useState<boolean>(false);
   const [password, setPassword] = useState<string>("");
   const [hasSetPassword, setHasSetPassword] = useState<boolean>(false);
+  const [encryptionKey, setEncryptionKey] = useState<string | null>(null);
   
-  // Generate and store a local encryption key if needed
+  // Generate and store a local encryption key if needed, handling storage errors gracefully
   useEffect(() => {
-    if (!localStorage.getItem('notebin_encryption_key')) {
+    try {
+      // First try to get existing key
+      const existingKey = localStorage.getItem('notebin_encryption_key');
+      if (existingKey) {
+        setEncryptionKey(existingKey);
+        return;
+      }
+      
+      // Generate new key if needed
       const key = encryption.generateEncryptionKey();
-      localStorage.setItem('notebin_encryption_key', key);
+      setEncryptionKey(key);
+      
+      // Attempt to save to localStorage, but don't fail if it can't be saved
+      try {
+        localStorage.setItem('notebin_encryption_key', key);
+      } catch (storageError) {
+        console.warn("Could not save encryption key to localStorage, using in-memory key instead:", storageError);
+        // We can still use the key in-memory during this session
+      }
+    } catch (error) {
+      console.error("Error managing encryption key:", error);
+      // We'll continue without encryption
     }
   }, []);
   

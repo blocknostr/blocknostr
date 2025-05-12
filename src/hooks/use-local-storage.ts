@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -22,6 +21,22 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
   // State to store our value
   // Pass initial state function to useState so logic is only executed once
   const [storedValue, setStoredValue] = useState<T>(readValue);
+  // Keep track if localStorage is available and has sufficient quota
+  const [storageAvailable, setStorageAvailable] = useState<boolean>(true);
+
+  // Test storage availability on mount
+  useEffect(() => {
+    try {
+      // Test if localStorage is available at all
+      const testKey = "__storage_test__";
+      window.localStorage.setItem(testKey, testKey);
+      window.localStorage.removeItem(testKey);
+      setStorageAvailable(true);
+    } catch (e) {
+      console.warn("localStorage not available:", e);
+      setStorageAvailable(false);
+    }
+  }, []);
 
   // Return a wrapped version of useState's setter function that persists the new value to localStorage
   const setValue = (value: T | ((val: T) => T)) => {
@@ -32,12 +47,24 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       // Save state
       setStoredValue(valueToStore);
       
-      // Save to local storage
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      // Only attempt to save to localStorage if it's available
+      if (storageAvailable && typeof window !== 'undefined') {
+        try {
+          const serialized = JSON.stringify(valueToStore);
+          window.localStorage.setItem(key, serialized);
+        } catch (error) {
+          console.warn(`Error setting localStorage key "${key}":`, error);
+          // If it's a quota exceeded error, mark storage as unavailable
+          if (error instanceof DOMException && 
+              (error.name === 'QuotaExceededError' || 
+               error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+            setStorageAvailable(false);
+            // We can still use the in-memory state
+          }
+        }
       }
     } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
+      console.warn(`Error saving value:`, error);
     }
   };
 
