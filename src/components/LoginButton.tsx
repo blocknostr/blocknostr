@@ -133,7 +133,7 @@ const LoginButton = () => {
               {hasExtension ? (
                 <>
                   <Shield className="h-4 w-4" />
-                  <span>Connect</span>
+                  <span>Connect Wallet</span>
                 </>
               ) : (
                 <>
@@ -146,7 +146,7 @@ const LoginButton = () => {
           <TooltipContent side="bottom">
             {hasExtension ? 
               "Connect with your Nostr wallet" : 
-              "Install Alby, nos2x or another Nostr extension"
+              "Install Alby, Alephium or nos2x extension"
             }
           </TooltipContent>
         </Tooltip>

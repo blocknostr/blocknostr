@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { 
   Dialog, 
@@ -104,6 +103,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       url: "https://getalby.com/"
     },
     {
+      id: "alephium",
+      name: "Alephium",
+      description: "Wallet extension",
+      color: "bg-green-500", 
+      letter: "A",
+      url: "https://alephium.org/docs/wallet/browser-extension-wallet/"
+    },
+    {
       id: "nos2x",
       name: "nos2x",
       description: "Browser extension",
@@ -118,14 +125,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       color: "bg-purple-500",
       letter: "S",
       url: "https://snort.social/"
-    },
-    {
-      id: "amethyst",
-      name: "Amethyst",
-      description: "Mobile app",
-      color: "bg-indigo-500",
-      letter: "A",
-      url: "https://amethyst.social/"
     }
   ];
 
@@ -180,7 +179,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
             </div>
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
               {clientOptions.map(client => (
                 <a 
@@ -200,6 +199,12 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
                   <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground opacity-60 group-hover:opacity-100" />
                 </a>
               ))}
+            </div>
+            
+            <div className="bg-blue-50/40 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800/30">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                <span className="font-semibold">Alephium users:</span> If you have the Alephium wallet extension, it can be used with Nostr. When connecting, it will prompt you to create a Schnorr signature child wallet.
+              </p>
             </div>
             
             <div className="pt-1">

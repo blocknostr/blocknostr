@@ -4,10 +4,8 @@ import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, HardDrive } from "lucide-react";
+import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import LoginWelcomeBanner from "@/components/feed/LoginWelcomeBanner";
-import LoginDialog from "@/components/auth/LoginDialog";
 
 // Lazy load MainFeed to improve initial page load
 const MainFeed = lazy(() => import("@/components/MainFeed"));
@@ -17,7 +15,6 @@ const Index: React.FC = () => {
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const [isInitializing, setIsInitializing] = useState(true);
   const [storageErrorDismissed, setStorageErrorDismissed] = useState(false);
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
   useEffect(() => {
@@ -89,10 +86,6 @@ const Index: React.FC = () => {
     }
   };
 
-  const handleLoginClick = () => {
-    setLoginDialogOpen(true);
-  };
-
   return (
     <div className="max-w-2xl mx-auto px-4 py-4">
       {storageQuotaReached && !storageErrorDismissed && (
@@ -131,9 +124,39 @@ const Index: React.FC = () => {
       {/* Show connection status only if logged in */}
       {isLoggedIn && <ConnectionStatusBanner />}
       
-      {/* Show login welcome banner when not logged in */}
+      {/* Welcome message (no login button) */}
       {!isLoggedIn && (
-        <LoginWelcomeBanner onLoginClick={handleLoginClick} />
+        <div className="p-6 rounded-xl bg-gradient-to-br from-background/80 to-background/60 mb-6 shadow-md border border-border/30 animate-in fade-in slide-in-from-bottom-5 backdrop-blur-sm">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+            <div className="p-4 bg-primary/10 rounded-full shadow-inner border border-primary/20 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
+              <Shield className="h-10 w-10 text-primary relative z-10" />
+            </div>
+            
+            <div className="flex-1 text-center md:text-left">
+              <h2 className="text-2xl font-light tracking-tight mb-2">
+                <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  Welcome to BlockNoster
+                </span>
+              </h2>
+              <p className="text-muted-foreground">
+                Connect your Nostr wallet using the button in the top right corner to access the decentralized social network and interact with the Alephium blockchain.
+              </p>
+              <div className="mt-3">
+                <a 
+                  href="https://nostr.how"
+                  target="_blank"
+                  rel="noopener noreferrer" 
+                  className="flex items-center justify-center md:justify-start text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-1" /> 
+                  <span>New to Nostr? Learn more</span>
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
       
       {isLoggedIn && isInitializing ? (
@@ -151,19 +174,12 @@ const Index: React.FC = () => {
           <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
         </Suspense>
       ) : (
-        <div className="py-8 border rounded-lg bg-muted/20 text-center">
-          <p className="text-muted-foreground mb-4">
-            Connect with your Nostr extension to view posts and interact with the community.
+        <div className="py-8 text-center">
+          <p className="text-muted-foreground">
+            Use the Connect Wallet button in the top right to join the BlockNoster ecosystem.
           </p>
-          <Button onClick={handleLoginClick}>Connect Now</Button>
         </div>
       )}
-
-      {/* Login Dialog */}
-      <LoginDialog 
-        open={loginDialogOpen}
-        onOpenChange={setLoginDialogOpen}
-      />
     </div>
   );
 };
