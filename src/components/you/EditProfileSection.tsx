@@ -22,6 +22,8 @@ import {
   sanitizeImageUrl,
   publishProfileWithFallback
 } from './profile/profileUtils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface EditProfileSectionProps {
   profileData: any;
@@ -37,6 +39,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     profileData,
   });
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
@@ -45,6 +48,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     }
 
     setIsSubmitting(true);
+    setPublishError(null);
     console.log('[PROFILE UPDATE] Starting profile update with values:', values);
 
     try {
@@ -64,7 +68,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         const nowConnected = updatedRelays.filter(r => r.status === 'connected');
 
         if (nowConnected.length === 0) {
-          toast.error('Unable to connect to any relays. Please check your internet connection.');
+          setPublishError('Unable to connect to any relays. Try adding relays in the profile settings.');
           setIsSubmitting(false);
           return;
         }
@@ -114,12 +118,14 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
       // Get relay URLs for potential fallback publishing
       const relayUrls = connectedRelays.map(r => r.url);
       
-      // Add some known good relays if we don't have many
+      // Add some known good non-POW relays if we don't have many
       if (relayUrls.length < 3) {
         const additionalRelays = [
           "wss://relay.damus.io", 
           "wss://nos.lol", 
-          "wss://relay.snort.social"
+          "wss://relay.snort.social",
+          "wss://nostr.mom",
+          "wss://relay.current.fyi"
         ];
         
         for (const url of additionalRelays) {
@@ -134,6 +140,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
 
       if (publishResult.success) {
         toast.success('Profile updated successfully');
+        setPublishError(null);
 
         // Dispatch an event to notify that the profile was published
         if (nostrService.publicKey) {
@@ -158,40 +165,26 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         console.log('[PROFILE UPDATE] Profile refresh completed, calling onSaved()');
         // Call onSaved, the profile will be refreshed via event listeners
         onSaved();
-        setIsSubmitting(false);
       } else {
         // Display specific error if available
         console.error('[PROFILE UPDATE] Profile update failed:', publishResult.error);
+        setPublishError(publishResult.error || 'Failed to update profile');
 
-        if (publishResult.error?.includes('authorization') || publishResult.error?.includes('Unauthorized')) {
-          toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
-            duration: 6000,
-          });
-          setIsSubmitting(false);
-        } else if (publishResult.error?.includes('proof-of-work') || publishResult.error?.includes('pow:')) {
-          toast.error('This relay requires proof-of-work which is not supported. We\'ll try with different relays.', {
-            duration: 4000,
-          });
-          
+        if (publishResult.error?.includes('proof-of-work') || publishResult.error?.includes('pow:')) {
           // Try again with different relays if we haven't exceeded retry limit
           if (retryAttempt < 2) {
             const newRetryCount = retryAttempt + 1;
             setRetryAttempt(newRetryCount);
+            toast.loading('Retrying with different relays...');
             setTimeout(() => {
               onSubmit(values);
             }, 1500);
             return;
-          } else {
-            setIsSubmitting(false);
-            toast.error('Unable to publish after multiple attempts. Try connecting to different relays.');
           }
         } else if (publishResult.error?.includes('no active subscription')) {
-          toast.error('Connection to relays was lost. Reconnecting and trying again...', {
-            duration: 3000,
-          });
-          
           // Try reconnecting to relays and retry once if we haven't exceeded retry limit
           if (retryAttempt < 2) {
+            toast.loading('Reconnecting to relays...');
             setTimeout(async () => {
               await nostrService.connectToDefaultRelays();
               const newRetryCount = retryAttempt + 1;
@@ -199,18 +192,13 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
               onSubmit(values);
             }, 2000);
             return;
-          } else {
-            setIsSubmitting(false);
-            toast.error('Unable to maintain connection to relays after multiple attempts.');
           }
-        } else {
-          toast.error(publishResult.error || 'Failed to update profile');
-          setIsSubmitting(false);
         }
       }
     } catch (error) {
       console.error('[PROFILE UPDATE] Error in profile update process:', error);
-      toast.error('An error occurred while updating profile');
+      setPublishError('An error occurred while updating profile');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -221,6 +209,22 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         <CardTitle>Edit Your Profile</CardTitle>
       </CardHeader>
       <CardContent>
+        {publishError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center">
+              <span className="flex-1">{publishError}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setPublishError(null)}
+              >
+                Dismiss
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs defaultValue="basic">

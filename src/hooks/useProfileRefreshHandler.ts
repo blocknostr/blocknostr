@@ -18,33 +18,79 @@ export function useProfileRefreshHandler({
   refreshTimeoutRef
 }: UseProfileRefreshHandlerProps) {
   const [refreshing, setRefreshing] = useState(false);
-  let isRefreshing = false;
+  const refreshAttemptRef = useRef(0);
+  const maxAttempts = 3;
 
   const handleRefreshProfile = async () => {
-    if (isRefreshing) {
+    if (refreshing) {
       console.log("[PROFILE REFRESH] Refresh already in progress");
       return;
     }
 
-    isRefreshing = true;
-
     try {
-      console.log(`[PROFILE REFRESH] Forcing refresh for ${currentUserPubkey}`);
-      const refreshResult = await forceRefreshProfile(currentUserPubkey);
-
-      if (!refreshResult) {
-        console.log("[PROFILE REFRESH] Initial refresh failed, reconnecting relays");
-        await nostrService.connectToDefaultRelays();
-        await forceRefreshProfile(currentUserPubkey);
-      }
-
-      await refreshProfile();
+      setRefreshing(true);
+      toast.loading("Refreshing profile...");
+      
+      // Reset the attempt counter
+      refreshAttemptRef.current = 0;
+      
+      // Try to refresh with retry logic
+      await refreshWithRetry();
+      
       toast.success("Profile refreshed successfully");
     } catch (error) {
       console.error("[PROFILE REFRESH] Error refreshing profile:", error);
       toast.error("Failed to refresh profile");
     } finally {
-      isRefreshing = false;
+      setRefreshing(false);
+    }
+  };
+
+  // Helper function to handle refresh with retries
+  const refreshWithRetry = async (): Promise<boolean> => {
+    if (!currentUserPubkey) return false;
+    
+    try {
+      console.log(`[PROFILE REFRESH] Forcing refresh for ${currentUserPubkey}, attempt ${refreshAttemptRef.current + 1}/${maxAttempts}`);
+      
+      // Check relay connections first
+      const relays = nostrService.getRelayStatus();
+      const connectedRelays = relays.filter(r => r.status === 'connected');
+      
+      if (connectedRelays.length === 0) {
+        console.log("[PROFILE REFRESH] No connected relays, attempting to connect...");
+        await nostrService.connectToDefaultRelays();
+      }
+      
+      // Try to force refresh the profile
+      const refreshResult = await forceRefreshProfile(currentUserPubkey);
+      
+      if (refreshResult) {
+        await refreshProfile();
+        return true;
+      }
+      
+      // If we failed but have more attempts left, try again
+      refreshAttemptRef.current++;
+      if (refreshAttemptRef.current < maxAttempts) {
+        console.log(`[PROFILE REFRESH] Retry attempt ${refreshAttemptRef.current}/${maxAttempts}`);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return refreshWithRetry();
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("[PROFILE REFRESH] Error in refresh attempt:", error);
+      
+      // Try again if we have attempts left
+      refreshAttemptRef.current++;
+      if (refreshAttemptRef.current < maxAttempts) {
+        console.log(`[PROFILE REFRESH] Retry attempt ${refreshAttemptRef.current}/${maxAttempts}`);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return refreshWithRetry();
+      }
+      
+      return false;
     }
   };
 
@@ -66,26 +112,21 @@ export function useProfileRefreshHandler({
           console.log("[YOU PAGE] Starting profile refresh after save");
           setRefreshing(true);
 
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
+          // Slightly longer delay for relay propagation
+          await new Promise(resolve => setTimeout(resolve, 2500));
+          
+          // Reset retry counter
+          refreshAttemptRef.current = 0;
+          
           if (currentUserPubkey) {
-            console.log(`[YOU PAGE] Forcing refresh for pubkey: ${currentUserPubkey}`);
-            const refreshResult = await forceRefreshProfile(currentUserPubkey);
-
-            if (!refreshResult) {
-              console.log("[YOU PAGE] Initial refresh failed, trying to reconnect relays");
-              await nostrService.connectToDefaultRelays();
-              await forceRefreshProfile(currentUserPubkey);
-            }
-
-            await refreshProfile();
+            await refreshWithRetry();
           }
         } catch (error) {
           console.error("[YOU PAGE] Error refreshing after save:", error);
         } finally {
           setRefreshing(false);
         }
-      }, 2500);
+      }, 3000);
     }
   }, [currentUserPubkey, refreshProfile, profileSavedTimeRef, refreshTimeoutRef]);
 
