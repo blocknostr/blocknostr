@@ -1,8 +1,14 @@
 
-import React from 'react';
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { UseFormReturn } from 'react-hook-form';
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { ProfileFormValues } from './types';
 
 interface ExternalLinksFieldsProps {
@@ -12,7 +18,12 @@ interface ExternalLinksFieldsProps {
 const ExternalLinksFields = ({ form }: ExternalLinksFieldsProps) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-base font-medium">External Links</h3>
+      <div className="space-y-2">
+        <h3 className="text-lg font-medium">External Links & Verification</h3>
+        <p className="text-sm text-muted-foreground">
+          Connect your external accounts and verify your identity.
+        </p>
+      </div>
       
       <FormField
         control={form.control}
@@ -23,11 +34,14 @@ const ExternalLinksFields = ({ form }: ExternalLinksFieldsProps) => {
             <FormControl>
               <Input placeholder="https://yourwebsite.com" {...field} />
             </FormControl>
+            <FormDescription>
+              Your personal website or blog
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
       />
-      
+
       <FormField
         control={form.control}
         name="nip05"
@@ -37,20 +51,26 @@ const ExternalLinksFields = ({ form }: ExternalLinksFieldsProps) => {
             <FormControl>
               <Input placeholder="you@example.com" {...field} />
             </FormControl>
+            <FormDescription>
+              Your NIP-05 identifier for verification (e.g. name@domain.com)
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
       />
-      
+
       <FormField
         control={form.control}
         name="twitter"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Twitter</FormLabel>
+            <FormLabel>Twitter Username</FormLabel>
             <FormControl>
-              <Input placeholder="@username" {...field} />
+              <Input placeholder="username" {...field} />
             </FormControl>
+            <FormDescription>
+              Your Twitter username (without @)
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}

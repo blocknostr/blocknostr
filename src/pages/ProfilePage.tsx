@@ -18,7 +18,7 @@ import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConn
 import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
 import { retry } from "@/lib/utils/retry";
 
-// Import the existing EditProfileDialog and form
+// Import the EditProfileDialog component from the correct path
 import EditProfileDialog from "@/components/profile/edit-profile/EditProfileDialog";
 
 const ProfilePage: React.FC = () => {

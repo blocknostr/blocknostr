@@ -179,7 +179,7 @@ export class NostrAdapter {
     this.subscriptions.delete(subId);
   }
   
-  // Add unsubscribeAll method
+  // Add unsubscribeAll method that was missing
   unsubscribeAll = () => {
     console.log("Unsubscribing all subscriptions");
     this.subscriptions.clear();
