@@ -5,7 +5,7 @@
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.tld
  * @param pubkeyHex - Optional hexadecimal public key to verify against
- * @returns True if verified (pubkey matches if provided), false if verification fails
+ * @returns The pubkey in hex format if verified (and matching if pubkeyHex provided), or null if verification fails
  */
 export async function verifyNip05(identifier: string, pubkeyHex?: string): Promise<string | null> {
   // Check if the identifier is valid (contains @)
