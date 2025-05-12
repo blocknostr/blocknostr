@@ -48,29 +48,15 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
       {/* Mobile sidebar - shown based on state */}
       <MobileSidebar isOpen={leftPanelOpen} onOpenChange={setLeftPanelOpen} />
       
-      {/* Desktop right sidebar */}
-      {!isMobile && showTrending && (
-        <RightSidebar
-          rightPanelOpen={rightPanelOpen}
-          setRightPanelOpen={setRightPanelOpen}
-          onTopicClick={handleTopicClick}
-          isMobile={isMobile}
-          activeHashtag={activeHashtag}
-          onClearHashtag={clearHashtag}
-        />
-      )}
-      
-      {/* Mobile right sidebar - rendered as a sheet */}
-      {isMobile && (
-        <RightSidebar
-          rightPanelOpen={rightPanelOpen}
-          setRightPanelOpen={setRightPanelOpen}
-          onTopicClick={handleTopicClick}
-          isMobile={isMobile}
-          activeHashtag={activeHashtag}
-          onClearHashtag={clearHashtag}
-        />
-      )}
+      {/* Right sidebar - conditionally rendered based on device */}
+      <RightSidebar
+        rightPanelOpen={rightPanelOpen}
+        setRightPanelOpen={setRightPanelOpen}
+        onTopicClick={handleTopicClick}
+        isMobile={isMobile}
+        activeHashtag={activeHashtag}
+        onClearHashtag={clearHashtag}
+      />
     </>
   );
 };

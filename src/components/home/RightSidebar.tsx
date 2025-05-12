@@ -54,9 +54,9 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
     );
   }
   
-  // Desktop right sidebar
+  // Desktop right sidebar - fixed positioning for proper layout
   return (
-    <aside className="w-80 p-4 sticky top-0 h-screen overflow-y-auto border-l">
+    <aside className="hidden md:block w-80 p-4 sticky top-0 h-screen overflow-y-auto border-l">
       {sidebarContent}
     </aside>
   );
