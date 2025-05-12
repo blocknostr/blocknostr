@@ -125,25 +125,15 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
       if (success) {
         toast.success('Profile updated successfully');
 
-        // Delay briefly to allow relay propagation, then refresh
-        console.log('[PROFILE UPDATE] Waiting for relay propagation before refreshing');
-        setTimeout(async () => {
-          if (nostrService.publicKey) {
-            try {
-              console.log('[PROFILE UPDATE] Forcing profile refresh after update');
-              await forceRefreshProfile(nostrService.publicKey);
-              console.log('[PROFILE UPDATE] Profile refresh completed, calling onSaved()');
-              onSaved();
-            } catch (refreshError) {
-              console.error('[PROFILE UPDATE] Error refreshing profile after update:', refreshError);
-              console.log('[PROFILE UPDATE] Calling onSaved() despite refresh error');
-              onSaved();
-            }
-          } else {
-            console.log('[PROFILE UPDATE] No public key available for refresh, calling onSaved()');
-            onSaved();
-          }
-        }, 2000);
+        // Dispatch an event to notify that the profile was published
+        if (nostrService.publicKey) {
+          window.dispatchEvent(new CustomEvent('profilePublished', { 
+            detail: { pubkey: nostrService.publicKey } 
+          }));
+        }
+
+        // Call onSaved immediately, the profile will be refreshed via event listeners
+        onSaved();
       } else {
         // Display specific error if available
         console.error('[PROFILE UPDATE] Profile update failed:', error);
@@ -154,6 +144,17 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
           });
         } else if (error?.includes('proof-of-work') || error?.includes('pow:')) {
           toast.error('This relay requires proof-of-work which is not supported. Try connecting to different relays.');
+        } else if (error?.includes('no active subscription')) {
+          toast.error('Connection to relays was lost. Reconnecting and trying again...', {
+            duration: 3000,
+          });
+          
+          // Try reconnecting to relays and retry once
+          setTimeout(async () => {
+            await nostrService.connectToDefaultRelays();
+            onSubmit(values);
+          }, 2000);
+          return;
         } else {
           toast.error(error || 'Failed to update profile');
         }

@@ -45,6 +45,12 @@ const ProfileEditor = ({
           // Check connection status after attempt
           const updatedRelays = nostrService.getRelayStatus();
           console.log("[PROFILE EDITOR] Relay status after connection attempt:", updatedRelays);
+          
+          // Verify we have connections
+          if (!updatedRelays.some(r => r.status === 'connected')) {
+            toast.error("Unable to connect to relays. Please check your connection and try again.");
+            return;
+          }
         } catch (connError) {
           console.error("[PROFILE EDITOR] Failed to connect to relays:", connError);
           toast.error("Unable to connect to relays. Please check your connection and try again.");
@@ -96,13 +102,17 @@ const ProfileEditor = ({
       
       if (success) {
         toast.success("Profile updated successfully");
-        // Wait briefly for relays to process the update
-        console.log("[PROFILE EDITOR] Waiting for relay propagation before refreshing...");
-        setTimeout(() => {
-          console.log("[PROFILE EDITOR] Calling onClose() and onProfileUpdated()");
-          onClose();
-          onProfileUpdated();
-        }, 1500);
+        
+        // Trigger a custom event to notify components of the profile update
+        if (nostrService.publicKey) {
+          window.dispatchEvent(new CustomEvent('profilePublished', { 
+            detail: { pubkey: nostrService.publicKey } 
+          }));
+        }
+        
+        // Close dialog and refresh profile
+        onClose();
+        onProfileUpdated();
       } else {
         // Display specific error if available
         console.error("[PROFILE EDITOR] Profile update failed:", error);
@@ -113,6 +123,44 @@ const ProfileEditor = ({
           });
         } else if (error?.includes("proof-of-work") || error?.includes("pow:")) {
           toast.error("This relay requires proof-of-work which is not supported. Try connecting to different relays.");
+        } else if (error?.includes("no active subscription")) {
+          toast.error("Connection to relays was lost. Reconnecting...", {
+            duration: 3000
+          });
+          
+          // Try reconnecting to relays and retry once
+          try {
+            await nostrService.connectToDefaultRelays();
+            const retryRelays = nostrService.getRelayStatus().filter(r => r.status === 'connected');
+            
+            if (retryRelays.length > 0) {
+              // Retry the publish with the new relay connections
+              const retryResult = await publishProfileWithFallback(
+                eventToPublish, 
+                retryRelays.map(r => r.url)
+              );
+              
+              if (retryResult.success) {
+                toast.success("Profile updated successfully after reconnection");
+                
+                // Trigger a custom event to notify components of the profile update
+                if (nostrService.publicKey) {
+                  window.dispatchEvent(new CustomEvent('profilePublished', { 
+                    detail: { pubkey: nostrService.publicKey } 
+                  }));
+                }
+                
+                onClose();
+                onProfileUpdated();
+                return;
+              }
+            }
+            
+            toast.error("Failed to update profile after reconnection");
+          } catch (reconnectError) {
+            console.error("[PROFILE EDITOR] Reconnection failed:", reconnectError);
+            toast.error("Failed to reconnect to relays");
+          }
         } else {
           toast.error(error || "Failed to update profile");
         }

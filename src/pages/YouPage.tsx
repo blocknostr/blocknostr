@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
@@ -16,8 +16,9 @@ const YouPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [profileKey, setProfileKey] = useState(Date.now());
+  const [profileKey, setProfileKey] = useState(() => Date.now());
   const currentUserPubkey = nostrService.publicKey;
+  const refreshTimeoutRef = useRef<number | null>(null);
   
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -39,6 +40,28 @@ const YouPage = () => {
 
   // Track edit mode state locally
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Listen for profile refresh events
+  useEffect(() => {
+    const handleProfileRefreshed = () => {
+      console.log("[YOU PAGE] Received profileRefreshed event");
+      // Force re-render by updating the key
+      setProfileKey(Date.now());
+    };
+    
+    const handleProfilePublished = () => {
+      console.log("[YOU PAGE] Received profilePublished event");
+      // Will refresh after publication
+    };
+    
+    window.addEventListener('profileRefreshed', handleProfileRefreshed);
+    window.addEventListener('profilePublished', handleProfilePublished);
+    
+    return () => {
+      window.removeEventListener('profileRefreshed', handleProfileRefreshed);
+      window.removeEventListener('profilePublished', handleProfilePublished);
+    };
+  }, []);
   
   // Handle connection errors
   useEffect(() => {
@@ -93,7 +116,14 @@ const YouPage = () => {
     
     // Force refresh to show latest changes with a slight delay
     console.log("[YOU PAGE] Setting timeout to refresh profile after save");
-    setTimeout(async () => {
+    
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    
+    // Set new timeout
+    refreshTimeoutRef.current = window.setTimeout(async () => {
       try {
         console.log("[YOU PAGE] Starting profile refresh after save");
         setRefreshing(true);
@@ -118,7 +148,22 @@ const YouPage = () => {
         console.log("[YOU PAGE] Profile refresh after save completed");
       }
     }, 1000);
+    
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
   }, [profileData, currentUserPubkey]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (loading) {
     return (

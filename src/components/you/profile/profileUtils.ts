@@ -28,6 +28,7 @@ export function sanitizeImageUrl(url: string): string {
 
 /**
  * Force refresh a user's profile by clearing cache and fetching new data.
+ * Enhanced with retry mechanism and better error handling.
  */
 export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
   if (!pubkey) {
@@ -46,13 +47,20 @@ export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
     const relays = nostrService.getRelayStatus();
     if (!relays.some(r => r.status === 'connected')) {
       await nostrService.connectToDefaultRelays();
+      
+      // Verify we have connections after attempt
+      const updatedRelays = nostrService.getRelayStatus();
+      if (!updatedRelays.some(r => r.status === 'connected')) {
+        console.warn('[PROFILE REFRESH] Failed to connect to any relays');
+        return false;
+      }
     }
 
     // Fetch fresh profile (updates cache internally)
     const fresh = await nostrService.getUserProfile(pubkey);
     if (fresh) {
       console.log('[PROFILE REFRESH] Fetched fresh profile:', fresh);
-      // Re-cache via a mock kind-0 event if desired
+      // Re-cache via a mock kind-0 event
       const evt: Partial<NostrEvent> = {
         kind: 0,
         pubkey,
@@ -61,6 +69,12 @@ export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
         tags: [],
       };
       contentCache.cacheEvent(evt as NostrEvent);
+      
+      // Dispatch an event to notify other components that profile data was refreshed
+      window.dispatchEvent(new CustomEvent('profileRefreshed', { 
+        detail: { pubkey, profile: fresh } 
+      }));
+      
       return true;
     } else {
       console.warn('[PROFILE REFRESH] No data returned');
@@ -135,7 +149,8 @@ export const nip05Utils = {
 };
 
 /**
- * Publish a profile metadata event with fallbacks & explicit signing.
+ * Publish a profile metadata event with improved error handling for subscription issues.
+ * Handles both direct publishing and handles POW requirements gracefully.
  */
 export async function publishProfileWithFallback(
   unsignedEvent: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'>,
@@ -155,21 +170,139 @@ export async function publishProfileWithFallback(
   // Compute ID
   const id = getEventHash(full);
   
-  let sig: string;
   try {
-    // Try to use the global publishEvent method instead of direct signing
-    const eventId = await nostrService.publishEvent({
-      ...full,
-      id
-    });
+    // Try to use the global publishEvent method with error handling
+    console.log('[PUBLISH] Attempting to publish event...');
     
-    if (eventId) {
-      return { success: true, error: null };
-    } else {
-      return { success: false, error: 'Failed to publish event' };
+    // Check if relays require POW
+    const powRequired = relayUrls.some(url => url.includes('pow') || url.includes('proof-of-work'));
+    if (powRequired) {
+      console.log('[PUBLISH] Detected POW relay requirements - this may fail');
+    }
+    
+    // Try submitting to specific relays first (might avoid POW requirements)
+    for (const url of relayUrls) {
+      try {
+        // Skip relays known to require POW
+        if (url.includes('pow') || url.toLowerCase().includes('proof')) {
+          console.log(`[PUBLISH] Skipping POW relay: ${url}`);
+          continue;
+        }
+        
+        // Try publishing to this specific relay
+        const relay = await nostrService.addRelay(url);
+        if (relay) {
+          const eventId = await nostrService.publishEvent({
+            ...full,
+            id
+          }, [url]);
+          
+          if (eventId) {
+            console.log(`[PUBLISH] Successfully published to relay: ${url}`);
+            // Dispatch event to notify listeners about successful publish
+            window.dispatchEvent(new CustomEvent('profilePublished', { 
+              detail: { eventId, pubkey: nostrService.publicKey } 
+            }));
+            return { success: true, error: null };
+          }
+        }
+      } catch (relayError: any) {
+        if (relayError.message?.includes('pow:') || relayError.message?.includes('proof-of-work')) {
+          console.warn(`[PUBLISH] Relay ${url} requires POW, skipping`);
+          continue;
+        }
+        console.warn(`[PUBLISH] Failed to publish to relay ${url}:`, relayError);
+      }
+    }
+    
+    // Fallback to global publish across all connected relays
+    try {
+      const eventId = await nostrService.publishEvent({
+        ...full,
+        id
+      });
+      
+      if (eventId) {
+        console.log('[PUBLISH] Successfully published via global method');
+        // Dispatch event to notify listeners about successful publish
+        window.dispatchEvent(new CustomEvent('profilePublished', { 
+          detail: { eventId, pubkey: nostrService.publicKey } 
+        }));
+        return { success: true, error: null };
+      } else {
+        console.warn('[PUBLISH] Global publish returned no event ID');
+        return { success: false, error: 'Failed to publish event - no event ID returned' };
+      }
+    } catch (globalError: any) {
+      console.error('[PUBLISH] Global publish failed:', globalError);
+      if (globalError.message?.includes('pow:')) {
+        return { success: false, error: 'Relay requires proof-of-work which is not supported' };
+      }
+      return { success: false, error: `Global publish failed: ${globalError.message || globalError}` };
     }
   } catch (e: any) {
     console.error('[PUBLISH] Error publishing event:', e.message || e);
+    
+    // Handle specific error cases
+    if (e.message?.includes('no active subscription')) {
+      console.log('[PUBLISH] No active subscription error - trying to reconnect relays...');
+      try {
+        // Try reconnecting to relays
+        await nostrService.connectToDefaultRelays();
+        // Retry the publish once
+        try {
+          const eventId = await nostrService.publishEvent({
+            ...full,
+            id
+          });
+          
+          if (eventId) {
+            console.log('[PUBLISH] Retry successful after reconnection');
+            return { success: true, error: null };
+          }
+        } catch (retryError) {
+          console.error('[PUBLISH] Retry failed:', retryError);
+        }
+      } catch (reconnectError) {
+        console.error('[PUBLISH] Reconnection failed:', reconnectError);
+      }
+      
+      return { success: false, error: 'Connection to relays lost. Please try again.' };
+    } else if (e.message?.includes('pow:')) {
+      return { success: false, error: 'Relay requires proof-of-work which is not supported' };
+    }
+    
     return { success: false, error: 'Failed to publish: ' + (e.message || e) };
   }
 }
+
+/**
+ * Register event listeners for profile updates.
+ * This allows components to react to profile changes.
+ */
+export function setupProfileEventListeners() {
+  // Listen for profile published events
+  window.addEventListener('profilePublished', (e: any) => {
+    const { pubkey, eventId } = e.detail;
+    console.log(`[PROFILE] Profile published with event ID: ${eventId}`);
+    
+    // Force refresh after a short delay to allow propagation
+    if (pubkey) {
+      setTimeout(() => {
+        forceRefreshProfile(pubkey);
+      }, 1500);
+    }
+  });
+  
+  // Listen for profile refreshed events
+  window.addEventListener('profileRefreshed', (e: any) => {
+    const { pubkey, profile } = e.detail;
+    console.log(`[PROFILE] Profile refreshed for ${pubkey}`);
+    
+    // Dispatch a general UI refresh event
+    window.dispatchEvent(new CustomEvent('refetchProfile'));
+  });
+}
+
+// Set up listeners when this module is imported
+setupProfileEventListeners();
