@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache'; 
-import { verifyNip05, checkXVerification } from '@/lib/nostr/utils/nip-utilities';
+import { verifyNip05 } from '@/lib/nostr/utils/nip-utilities';
 import { toast } from 'sonner';
 
 export function useProfileHeader(profileData: any, npub: string, pubkeyHex: string) {
@@ -24,12 +24,13 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   
   // Verify NIP-05 identifier when profile data changes
   useEffect(() => {
+    // Guard clause - skip if no nip05 or pubkey
+    if (!profileData?.nip05 || !pubkeyHex) return;
+    
+    let abortController: AbortController | null = new AbortController();
+    setVerifyingNip05(true);
+    
     const verifyIdentifier = async () => {
-      if (!profileData?.nip05 || !pubkeyHex) return;
-      
-      let abortController: AbortController | null = new AbortController();
-      setVerifyingNip05(true);
-      
       try {
         const isVerified = await verifyNip05(profileData.nip05, pubkeyHex);
         if (isMounted.current) {
@@ -49,32 +50,70 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
     };
     
     verifyIdentifier();
+    
+    // Clean up function
+    return () => {
+      if (abortController) {
+        abortController.abort();
+      }
+    };
   }, [profileData?.nip05, pubkeyHex]);
 
   // Check for X verification status from profile according to NIP-39
   useEffect(() => {
-    if (profileData) {
-      // Add null check for tags before processing
-      const verification = checkXVerification(profileData);
-      if (isMounted.current) {
-        setXVerified(verification.xVerified);
-        setXVerifiedInfo(verification.xVerifiedInfo);
+    // Guard clause - skip if no profile data
+    if (!profileData) return;
+      
+    // Safe check for tags before processing
+    if (profileData.tags && Array.isArray(profileData.tags)) {
+      const twitterTag = profileData.tags.find((tag: any[]) => 
+        Array.isArray(tag) && tag.length >= 3 && tag[0] === 'i' && tag[1]?.startsWith('twitter:')
+      );
+      
+      if (twitterTag) {
+        const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
+        const tweetId = twitterTag[2]; // Tweet ID is in position 2
+        
+        if (isMounted.current) {
+          setXVerified(true);
+          setXVerifiedInfo({ username, tweetId });
+        }
+        return;
       }
+    }
+    
+    // Fall back to legacy verification if no NIP-39 tag found
+    if (profileData.twitter_verified) {
+      if (isMounted.current) {
+        setXVerified(true);
+        setXVerifiedInfo({ 
+          username: profileData.twitter || '', 
+          tweetId: profileData.twitter_proof || '' 
+        });
+      }
+      return;
+    }
+    
+    // No verification found
+    if (isMounted.current) {
+      setXVerified(false);
+      setXVerifiedInfo(null);
     }
   }, [profileData]);
   
   // Get account creation timestamp from earliest metadata event (NIP-01)
   useEffect(() => {
     const fetchAccountCreationDate = async () => {
+      // Guard clause - skip if no pubkey
       if (!pubkeyHex) return;
-      
-      let activeSubscriptions: string[] = [];
       
       try {
         // Use cached profile timestamp if available
         const cachedProfile = contentCache.getProfile(pubkeyHex);
         if (cachedProfile && cachedProfile._createdAt) {
-          setCreationDate(new Date(cachedProfile._createdAt * 1000));
+          if (isMounted.current) {
+            setCreationDate(new Date(cachedProfile._createdAt * 1000));
+          }
           return;
         }
         
@@ -101,21 +140,10 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
         if (isMounted.current) {
           toast.error("Could not determine account age");
         }
-      } finally {
-        // Clean up any subscriptions that might have been created
-        activeSubscriptions.forEach(subId => {
-          if (nostrService.unsubscribe) {
-            nostrService.unsubscribe(subId);
-          }
-        });
       }
     };
     
     fetchAccountCreationDate();
-    
-    return () => {
-      // No additional cleanup needed here as we're using the isMounted pattern
-    };
   }, [pubkeyHex]);
   
   // Format profile data for display

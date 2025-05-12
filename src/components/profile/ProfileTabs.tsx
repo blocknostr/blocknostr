@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/note/NoteCard";
@@ -40,21 +41,32 @@ const ProfileTabs = ({
       
       setLoadingReactionProfiles(true);
       
-      // Get unique author pubkeys from referenced events
-      const authorPubkeys = Object.values(referencedEvents || {})
-        .filter(event => !!event?.pubkey)
-        .map(event => event.pubkey);
-      
-      // Fetch profiles for all authors
-      for (const pubkey of authorPubkeys) {
-        try {
-          await fetchProfileData(pubkey);
-        } catch (error) {
-          console.error(`Error fetching profile for ${pubkey}:`, error);
+      try {
+        // Get unique author pubkeys from referenced events
+        const authorPubkeys = Object.values(referencedEvents)
+          .filter(event => !!event?.pubkey)
+          .map(event => event.pubkey);
+        
+        if (authorPubkeys.length === 0) {
+          setLoadingReactionProfiles(false);
+          return;
         }
+        
+        // Fetch profiles for all authors
+        const uniquePubkeys = [...new Set(authorPubkeys)]; // Remove duplicates
+        
+        for (const pubkey of uniquePubkeys) {
+          try {
+            await fetchProfileData(pubkey);
+          } catch (error) {
+            console.error(`Error fetching profile for ${pubkey}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching reaction profiles:", error);
+      } finally {
+        setLoadingReactionProfiles(false);
       }
-      
-      setLoadingReactionProfiles(false);
     };
     
     fetchReactionProfiles();
@@ -73,7 +85,7 @@ const ProfileTabs = ({
         
         {/* Posts Tab */}
         <TabsContent value="posts" className="mt-4">
-          {events.length === 0 ? (
+          {!Array.isArray(events) || events.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No posts found.
             </div>
@@ -92,7 +104,7 @@ const ProfileTabs = ({
         
         {/* Replies Tab - Now implemented with NIP-10 */}
         <TabsContent value="replies" className="mt-4">
-          {!replies || replies.length === 0 ? (
+          {!replies || !Array.isArray(replies) || replies.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No replies found.
             </div>
@@ -112,7 +124,7 @@ const ProfileTabs = ({
 
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
-          {!reposts || reposts.length === 0 ? (
+          {!reposts || !Array.isArray(reposts) || reposts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
             </div>
@@ -122,9 +134,14 @@ const ProfileTabs = ({
                 <NoteCard 
                   key={originalEvent.id} 
                   event={originalEvent} 
-                  profileData={originalEvent.pubkey && originalPostProfiles[originalEvent.pubkey] ? originalPostProfiles[originalEvent.pubkey] : undefined}
+                  profileData={
+                    originalEvent && originalEvent.pubkey && 
+                    originalPostProfiles && originalPostProfiles[originalEvent.pubkey] 
+                      ? originalPostProfiles[originalEvent.pubkey] 
+                      : undefined
+                  }
                   repostData={{
-                    reposterPubkey: repostEvent.pubkey || '',
+                    reposterPubkey: repostEvent?.pubkey || '',
                     reposterProfile: profileData
                   }}
                 />
@@ -135,25 +152,30 @@ const ProfileTabs = ({
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          {!media || media.length === 0 ? (
+          {!media || !Array.isArray(media) || media.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No media found.
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {media.map(event => (
-                <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
-                  <img 
-                    src={extractFirstImageUrl(event.content, event.tags) || ''}
-                    alt="Media" 
-                    className="h-full w-full object-cover transition-all hover:scale-105"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      window.location.href = `/post/${event.id}`;
-                    }}
-                  />
-                </div>
-              ))}
+              {media.map(event => {
+                const imageUrl = extractFirstImageUrl(event.content, event.tags);
+                if (!imageUrl) return null;
+                
+                return (
+                  <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
+                    <img 
+                      src={imageUrl}
+                      alt="Media" 
+                      className="h-full w-full object-cover transition-all hover:scale-105"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.location.href = `/post/${event.id}`;
+                      }}
+                    />
+                  </div>
+                );
+              }).filter(Boolean)}
             </div>
           )}
         </TabsContent>
@@ -176,7 +198,9 @@ const ProfileTabs = ({
                   eventId = eTag ? eTag[1] : '';
                 }
                 
-                const originalEvent = eventId && referencedEvents ? referencedEvents[eventId] : undefined;
+                if (!eventId || !referencedEvents) return null;
+                
+                const originalEvent = referencedEvents[eventId];
                 
                 if (!originalEvent) {
                   return (
@@ -201,31 +225,13 @@ const ProfileTabs = ({
                     }}
                   />
                 );
-              })}
+              }).filter(Boolean)}
             </div>
           )}
         </TabsContent>
       </Tabs>
     </div>
   );
-};
-
-// Helper function to extract the first image URL from content
-const extractImageUrl = (content: string): string => {
-  // Check for URLs in content
-  const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i;
-  const matches = content.match(urlRegex);
-  
-  if (matches && matches[0]) {
-    return matches[0];
-  }
-  
-  // If no match in content, check for other image patterns
-  const altUrlRegex = /(https?:\/\/[^\s]+)/i;
-  const altMatches = content.match(altUrlRegex);
-  
-  // Return any URL or empty string as fallback
-  return altMatches ? altMatches[0] : '';
 };
 
 export default ProfileTabs;

@@ -49,8 +49,14 @@ const extractUrlsFromContent = (content: string): string[] => {
     'gi'
   );
   
-  while ((match = combinedRegex.exec(content)) !== null) {
-    urls.push(match[0]);
+  try {
+    while ((match = combinedRegex.exec(content)) !== null) {
+      if (match[0]) {
+        urls.push(match[0]);
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting URLs from content:", error);
   }
   
   return urls;
@@ -70,6 +76,8 @@ const extractMediaFromTags = (tags: string[][]): MediaItem[] => {
   );
   
   return mediaTags.map(tag => {
+    if (!tag[1]) return null; // Skip invalid tags without URL
+    
     // Basic media item with URL
     const mediaItem: MediaItem = {
       url: tag[1],
@@ -111,7 +119,7 @@ const extractMediaFromTags = (tags: string[][]): MediaItem[] => {
     }
     
     return mediaItem;
-  });
+  }).filter(Boolean) as MediaItem[]; // Filter out null items
 };
 
 /**
@@ -122,6 +130,8 @@ export const extractMediaUrls = (
   content: string | undefined, 
   tags: string[][] | undefined
 ): string[] => {
+  if (!content && (!tags || !Array.isArray(tags))) return [];
+  
   const mediaItems: MediaItem[] = [];
   const urls: Set<string> = new Set();
   
@@ -129,8 +139,10 @@ export const extractMediaUrls = (
   if (Array.isArray(tags)) {
     const tagMediaItems = extractMediaFromTags(tags);
     tagMediaItems.forEach(item => {
-      mediaItems.push(item);
-      urls.add(item.url);
+      if (item && item.url) {
+        mediaItems.push(item);
+        urls.add(item.url);
+      }
     });
   }
   
@@ -138,7 +150,7 @@ export const extractMediaUrls = (
   if (content) {
     const contentUrls = extractUrlsFromContent(content);
     contentUrls.forEach(url => {
-      if (!urls.has(url)) {
+      if (url && !urls.has(url)) {
         urls.add(url);
         mediaItems.push({ url, type: url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : 'url' });
       }
@@ -165,8 +177,10 @@ export const extractMediaItems = (event?: NostrEvent): MediaItem[] => {
   if (Array.isArray(tags)) {
     const tagMediaItems = extractMediaFromTags(tags);
     tagMediaItems.forEach(item => {
-      mediaItems.push(item);
-      urls.add(item.url);
+      if (item && item.url) {
+        mediaItems.push(item);
+        urls.add(item.url);
+      }
     });
   }
   
@@ -174,7 +188,7 @@ export const extractMediaItems = (event?: NostrEvent): MediaItem[] => {
   if (content) {
     const contentUrls = extractUrlsFromContent(content);
     contentUrls.forEach(url => {
-      if (!urls.has(url)) {
+      if (url && !urls.has(url)) {
         urls.add(url);
         
         // Determine media type based on URL extension
@@ -206,7 +220,7 @@ export const extractFirstImageUrl = (content?: string, tags?: string[][]): strin
       Array.isArray(tag) && 
       tag.length >= 2 && 
       (tag[0] === 'image' || tag[0] === 'imeta') && 
-      tag[1].match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)
+      tag[1]?.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)
     );
     
     if (imageTag && imageTag[1]) {
@@ -223,4 +237,42 @@ export const extractFirstImageUrl = (content?: string, tags?: string[][]): strin
   }
   
   return null;
+};
+
+/**
+ * Validates a URL to make sure it's properly formed
+ * @param url The URL to validate
+ * @returns Boolean indicating if the URL is valid
+ */
+export const isValidMediaUrl = (url: string): boolean => {
+  if (!url) return false;
+  
+  try {
+    // Basic URL validation
+    new URL(url);
+    
+    // Additional checks for media URLs
+    return (
+      url.startsWith('http://') || 
+      url.startsWith('https://')
+    );
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Tests if a URL is an image by extension
+ */
+export const isImageUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+};
+
+/**
+ * Tests if a URL is a video by extension
+ */
+export const isVideoUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
 };
