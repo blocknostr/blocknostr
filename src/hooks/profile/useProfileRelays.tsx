@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { nostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
+import { parseRelayList } from '@/lib/nostr/utils/nip-utilities';
 
 interface UseProfileRelaysProps {
   isCurrentUser: boolean;
@@ -53,31 +54,16 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
         ],
         (event) => {
           if (event.kind === 10002) {
-            // Parse relay list from tags
-            const relayObjects: Relay[] = [];
+            // Parse relay list using NIP-65 utilities
+            const relayMap = parseRelayList(event);
             
-            event.tags.forEach(tag => {
-              if (Array.isArray(tag) && tag[0] === 'r' && tag.length >= 2) {
-                const url = tag[1];
-                
-                // Check for read/write markers
-                let read = true;
-                let write = true;
-                
-                if (tag.length >= 3) {
-                  // Format is ["r", "wss://example.com", "read", "write"]
-                  read = tag.includes('read');
-                  write = tag.includes('write');
-                }
-                
-                relayObjects.push({
-                  url,
-                  status: 'disconnected',
-                  read,
-                  write
-                });
-              }
-            });
+            // Convert to Relay objects
+            const relayObjects: Relay[] = Array.from(relayMap.entries()).map(([url, permission]) => ({
+              url,
+              status: 'disconnected',
+              read: permission.read,
+              write: permission.write
+            }));
             
             setRelays(relayObjects);
           }

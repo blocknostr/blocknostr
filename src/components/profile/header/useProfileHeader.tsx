@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
-import { contentCache } from '@/lib/nostr/cache/content-cache'; // Direct import of contentCache
+import { contentCache } from '@/lib/nostr/cache/content-cache'; 
+import { verifyNip05, checkXVerification } from '@/lib/nostr/utils/nip-utilities';
 
 export function useProfileHeader(profileData: any, npub: string, pubkeyHex: string) {
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
@@ -11,12 +13,12 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   
   // Verify NIP-05 identifier when profile data changes
   useEffect(() => {
-    const verifyNip05 = async () => {
+    const verifyIdentifier = async () => {
       if (!profileData?.nip05 || !pubkeyHex) return;
       
       setVerifyingNip05(true);
       try {
-        const isVerified = await nostrService.verifyNip05(profileData.nip05, pubkeyHex);
+        const isVerified = await verifyNip05(profileData.nip05, pubkeyHex);
         setNip05Verified(isVerified);
       } catch (error) {
         console.error('Error verifying NIP-05:', error);
@@ -26,40 +28,15 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
       }
     };
     
-    verifyNip05();
+    verifyIdentifier();
   }, [profileData?.nip05, pubkeyHex]);
 
   // Check for X verification status from profile according to NIP-39
   useEffect(() => {
     if (profileData) {
-      // First, check for NIP-39 "i" tags in the event
-      if (profileData.tags && Array.isArray(profileData.tags)) {
-        const twitterTag = profileData.tags.find((tag: any[]) => 
-          Array.isArray(tag) && tag.length >= 3 && tag[0] === 'i' && tag[1]?.startsWith('twitter:')
-        );
-        
-        if (twitterTag) {
-          const username = twitterTag[1].split(':')[1]; // Extract username from "twitter:username"
-          const tweetId = twitterTag[2]; // Tweet ID is in position 2
-          
-          setXVerified(true);
-          setXVerifiedInfo({ username, tweetId });
-          return;
-        }
-      }
-      
-      // Fall back to legacy verification if no NIP-39 tag found
-      if (profileData.twitter_verified) {
-        setXVerified(true);
-        setXVerifiedInfo({ 
-          username: profileData.twitter || '', 
-          tweetId: profileData.twitter_proof || '' 
-        });
-        return;
-      }
-      
-      setXVerified(false);
-      setXVerifiedInfo(null);
+      const verification = checkXVerification(profileData);
+      setXVerified(verification.xVerified);
+      setXVerifiedInfo(verification.xVerifiedInfo);
     }
   }, [profileData]);
   
@@ -70,7 +47,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
       
       try {
         // Use cached profile timestamp if available
-        const cachedProfile = contentCache?.getProfile?.(pubkeyHex);
+        const cachedProfile = contentCache.getProfile(pubkeyHex);
         if (cachedProfile && cachedProfile._createdAt) {
           setCreationDate(new Date(cachedProfile._createdAt * 1000));
           return;
@@ -82,13 +59,31 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
             {
               kinds: [0], // Metadata events
               authors: [pubkeyHex],
-              limit: 1
+              limit: 10,
+              // Request oldest events first
+              until: Math.floor(Date.now() / 1000)
             }
           ],
-          (event) => {
-            if (event?.created_at) {
-              const eventDate = new Date(event.created_at * 1000);
-              setCreationDate(eventDate);
+          (events) => {
+            // If we received multiple events, sort them to find the oldest
+            if (Array.isArray(events)) {
+              events.sort((a, b) => a.created_at - b.created_at);
+              if (events.length > 0) {
+                const oldestEvent = events[0];
+                setCreationDate(new Date(oldestEvent.created_at * 1000));
+                
+                // Cache this timestamp for future reference
+                if (contentCache.getProfile(pubkeyHex)) {
+                  const existingProfile = contentCache.getProfile(pubkeyHex);
+                  contentCache.cacheProfile(pubkeyHex, {
+                    ...existingProfile,
+                    _createdAt: oldestEvent.created_at
+                  });
+                }
+              }
+            } else if (events?.created_at) {
+              // Single event response
+              setCreationDate(new Date(events.created_at * 1000));
             }
           }
         );

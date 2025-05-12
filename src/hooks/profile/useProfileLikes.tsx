@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { NostrEvent, nostrService } from '@/lib/nostr';
+import { NostrEvent, nostrService, contentCache } from '@/lib/nostr';
 
 interface UseProfileLikesProps {
   hexPubkey: string | undefined;
@@ -20,7 +20,7 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
     const reactionsSubId = nostrService.subscribe(
       [
         {
-          kinds: [7], // Reaction events
+          kinds: [7], // Reaction events (NIP-25)
           authors: [hexPubkey],
           limit: 50
         }
@@ -38,9 +38,7 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
         });
         
         // Get the event ID that was reacted to
-        const reactedEventId = event.tags?.find(tag => 
-          Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
-        )?.[1];
+        const reactedEventId = getReactedToEventId(event);
         
         // Fetch the referenced event if we have its ID
         if (reactedEventId) {
@@ -57,11 +55,35 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
     };
   }, [hexPubkey]);
   
+  // Helper to extract event ID from NIP-25 reaction
+  const getReactedToEventId = (event: NostrEvent): string | null => {
+    // According to NIP-25, 'e' tag points to the event being reacted to
+    if (event.tags && Array.isArray(event.tags)) {
+      const eTag = event.tags.find(tag => 
+        Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+      );
+      
+      return eTag ? eTag[1] : null;
+    }
+    return null;
+  };
+  
   // Helper to fetch events that were reacted to
   const fetchReferencedEvent = (eventId: string) => {
-    // Check if we already have this event
+    // Check if we already have this event or if it's in cache
     if (referencedEvents[eventId]) return;
     
+    // Check cache first
+    const cachedEvent = contentCache.getEvent(eventId);
+    if (cachedEvent) {
+      setReferencedEvents(prev => ({
+        ...prev,
+        [eventId]: cachedEvent
+      }));
+      return;
+    }
+    
+    // If not in cache, fetch from network
     const subId = nostrService.subscribe(
       [
         {
@@ -71,10 +93,29 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
         }
       ],
       (event) => {
+        if (!event) return;
+        
+        // Cache the event for future reference
+        contentCache.cacheEvent(event);
+        
+        // Update our state
         setReferencedEvents(prev => ({
           ...prev,
           [eventId]: event
         }));
+        
+        // After we get the event, fetch the author's profile
+        if (event.pubkey) {
+          nostrService.getUserProfile(event.pubkey)
+            .then(profile => {
+              if (profile) {
+                contentCache.cacheProfile(event.pubkey, profile);
+              }
+            })
+            .catch(error => {
+              console.error(`Error fetching profile for ${event.pubkey}:`, error);
+            });
+        }
       }
     );
     

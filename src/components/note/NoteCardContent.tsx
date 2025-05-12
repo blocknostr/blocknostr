@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
@@ -120,7 +121,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={(e, clickedTag) => {  // Updated to match the new signature
+              onClick={(_, clickedTag) => {
                 handleHashtagClick(clickedTag);
               }}
               variant="small"
