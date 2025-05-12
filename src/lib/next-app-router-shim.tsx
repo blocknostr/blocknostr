@@ -8,10 +8,23 @@ import React from 'react';
 import * as NextNavigation from 'next/navigation';
 import Link from 'next/link';
 
-// Export functions by directly referencing the imported module
-export const usePathname = NextNavigation.usePathname;
-export const useRouter = NextNavigation.useRouter;
-export const useSearchParams = NextNavigation.useSearchParams;
+// Create internal named functions that wrap Next.js functions
+function internalUsePathname() {
+  return NextNavigation.usePathname();
+}
+
+function internalUseRouter() {
+  return NextNavigation.useRouter();
+}
+
+function internalUseSearchParams() {
+  return NextNavigation.useSearchParams();
+}
+
+// Export the wrapper functions
+export const usePathname = internalUsePathname;
+export const useRouter = internalUseRouter;
+export const useSearchParams = internalUseSearchParams;
 
 // Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
@@ -22,7 +35,7 @@ export function useParams() {
 
 // Compatibility for React Router's Navigate component
 export function Navigate({ to, replace }: { to: string, replace?: boolean }) {
-  const router = NextNavigation.useRouter();
+  const router = internalUseRouter();
   
   React.useEffect(() => {
     if (replace) {
@@ -44,8 +57,8 @@ export function generateMetadata({ title, description }: { title?: string; descr
 
 // For components that still rely on useLocation
 export function useLocation() {
-  const pathname = NextNavigation.usePathname();
-  const searchParams = NextNavigation.useSearchParams();
+  const pathname = internalUsePathname();
+  const searchParams = internalUseSearchParams();
   
   return {
     pathname,
@@ -55,7 +68,7 @@ export function useLocation() {
 }
 
 export function useNavigate() {
-  const router = NextNavigation.useRouter();
+  const router = internalUseRouter();
   
   return (path: string, options?: { replace?: boolean }) => {
     if (options?.replace) {
