@@ -6,6 +6,8 @@ import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -135,11 +137,14 @@ const Communities = () => {
   );
   
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-auto">
-      <div className="p-4 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Communities</h1>
-          <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
+    <div className="flex flex-col">
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Find Your Communities</h2>
+          <Button onClick={() => setIsDialogOpen(true)} size="sm" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Create Community
+          </Button>
         </div>
         
         <SearchBar 
@@ -147,9 +152,11 @@ const Communities = () => {
           setSearchTerm={setSearchTerm} 
           placeholderText="Search by name or #ABC123" 
         />
+        
+        <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
       </div>
       
-      <div className="flex-1 p-4">
+      <div className="pb-6">
         <CommunitiesGrid 
           communities={communitiesWithNumbers}
           userCommunities={userCommunities}
