@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 
 interface UseProfileRepostsProps {
@@ -17,6 +17,26 @@ export function useProfileReposts({
   }[]>([]);
   
   const [replies, setReplies] = useState<NostrEvent[]>([]);
+  const subscriptionsRef = useRef<Set<string>>(new Set());
+  const timeoutsRef = useRef<Set<number>>(new Set());
+  const isMounted = useRef(true);
+  
+  // Set up the mounted ref for cleanup
+  useState(() => {
+    return () => {
+      isMounted.current = false;
+      
+      // Clean up all subscriptions
+      subscriptionsRef.current.forEach(subId => {
+        nostrService.unsubscribe(subId);
+      });
+      
+      // Clear all timeouts
+      timeoutsRef.current.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+    };
+  });
 
   const fetchOriginalPost = (eventId: string, pubkey: string | null, repostEvent: NostrEvent) => {
     // Subscribe to the original event by ID
@@ -28,6 +48,8 @@ export function useProfileReposts({
         }
       ],
       (originalEvent) => {
+        if (!isMounted.current) return;
+        
         setReposts(prev => {
           if (prev.some(r => r.originalEvent.id === originalEvent.id)) {
             return prev;
@@ -54,6 +76,8 @@ export function useProfileReposts({
               }
             ],
             (event) => {
+              if (!isMounted.current) return;
+              
               try {
                 const metadata = JSON.parse(event.content);
                 setOriginalPostProfiles(prev => ({
@@ -66,18 +90,36 @@ export function useProfileReposts({
             }
           );
           
+          // Track subscription
+          subscriptionsRef.current.add(metadataSubId);
+          
           // Cleanup subscription after a short time
-          setTimeout(() => {
-            nostrService.unsubscribe(metadataSubId);
+          const timeoutId = window.setTimeout(() => {
+            if (subscriptionsRef.current.has(metadataSubId)) {
+              nostrService.unsubscribe(metadataSubId);
+              subscriptionsRef.current.delete(metadataSubId);
+            }
           }, 5000);
+          
+          // Track timeout
+          timeoutsRef.current.add(timeoutId);
         }
       }
     );
     
+    // Track subscription
+    subscriptionsRef.current.add(eventSubId);
+    
     // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(eventSubId);
+    const timeoutId = window.setTimeout(() => {
+      if (subscriptionsRef.current.has(eventSubId)) {
+        nostrService.unsubscribe(eventSubId);
+        subscriptionsRef.current.delete(eventSubId);
+      }
     }, 5000);
+    
+    // Track timeout
+    timeoutsRef.current.add(timeoutId);
   };
 
   return { reposts, replies, fetchOriginalPost };

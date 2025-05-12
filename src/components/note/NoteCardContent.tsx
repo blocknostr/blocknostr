@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,14 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
+  const isMounted = useRef(true);
+  
+  // Setup cleanup when component unmounts
+  React.useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   // Check if content is longer than 280 characters
   const isLong = contentToUse.length > 280;

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache'; 
 import { verifyNip05, checkXVerification } from '@/lib/nostr/utils/nip-utilities';
@@ -12,20 +12,39 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
   const [creationDate, setCreationDate] = useState<Date>(new Date());
   
+  // Track if the component is mounted to avoid state updates after unmount
+  const isMounted = useRef(true);
+  
+  // Set up the mounted ref
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  
   // Verify NIP-05 identifier when profile data changes
   useEffect(() => {
     const verifyIdentifier = async () => {
       if (!profileData?.nip05 || !pubkeyHex) return;
       
+      let abortController: AbortController | null = new AbortController();
       setVerifyingNip05(true);
+      
       try {
         const isVerified = await verifyNip05(profileData.nip05, pubkeyHex);
-        setNip05Verified(isVerified);
+        if (isMounted.current) {
+          setNip05Verified(isVerified);
+        }
       } catch (error) {
         console.error('Error verifying NIP-05:', error);
-        setNip05Verified(false);
+        if (isMounted.current) {
+          setNip05Verified(false);
+        }
       } finally {
-        setVerifyingNip05(false);
+        if (isMounted.current) {
+          setVerifyingNip05(false);
+        }
+        abortController = null;
       }
     };
     
@@ -37,8 +56,10 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
     if (profileData) {
       // Add null check for tags before processing
       const verification = checkXVerification(profileData);
-      setXVerified(verification.xVerified);
-      setXVerifiedInfo(verification.xVerifiedInfo);
+      if (isMounted.current) {
+        setXVerified(verification.xVerified);
+        setXVerifiedInfo(verification.xVerifiedInfo);
+      }
     }
   }, [profileData]);
   
@@ -46,6 +67,8 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   useEffect(() => {
     const fetchAccountCreationDate = async () => {
       if (!pubkeyHex) return;
+      
+      let activeSubscriptions: string[] = [];
       
       try {
         // Use cached profile timestamp if available
@@ -58,7 +81,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
         // Use the ProfileService for fetching account creation date
         const creationTimestamp = await nostrService.getAccountCreationDate(pubkeyHex);
         
-        if (creationTimestamp) {
+        if (creationTimestamp && isMounted.current) {
           setCreationDate(new Date(creationTimestamp * 1000));
           
           // Cache this timestamp for future reference
@@ -69,17 +92,30 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
               _createdAt: creationTimestamp
             });
           }
-        } else {
+        } else if (isMounted.current) {
           // If no creation date found, use current timestamp as fallback
           console.warn('No account creation date found for', pubkeyHex);
         }
       } catch (error) {
         console.error("Error fetching account creation date:", error);
-        toast.error("Could not determine account age");
+        if (isMounted.current) {
+          toast.error("Could not determine account age");
+        }
+      } finally {
+        // Clean up any subscriptions that might have been created
+        activeSubscriptions.forEach(subId => {
+          if (nostrService.unsubscribe) {
+            nostrService.unsubscribe(subId);
+          }
+        });
       }
     };
     
     fetchAccountCreationDate();
+    
+    return () => {
+      // No additional cleanup needed here as we're using the isMounted pattern
+    };
   }, [pubkeyHex]);
   
   // Format profile data for display

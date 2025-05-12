@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { nostrService } from '@/lib/nostr';
 
 interface UseNoteCardRepliesProps {
@@ -8,6 +8,15 @@ interface UseNoteCardRepliesProps {
 
 export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
   const [replyCount, setReplyCount] = useState(0);
+  const subscriptionRef = useRef<string | null>(null);
+  const isMounted = useRef(true);
+  
+  useEffect(() => {
+    // Set up the mounted ref
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   useEffect(() => {
     if (!eventId) return;
@@ -28,20 +37,42 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
             tag[0] === 'e' && tag[1] === eventId && (tag[3] === 'reply' || !tag[3])
           );
           
-          if (isReply) {
+          if (isReply && isMounted.current) {
             count++;
             setReplyCount(count);
           }
         }
       );
       
+      // Store the subscription ID for cleanup
+      subscriptionRef.current = subId;
+      
       // Cleanup subscription after a short time
-      setTimeout(() => {
-        nostrService.unsubscribe(subId);
+      const timeoutId = setTimeout(() => {
+        if (subscriptionRef.current) {
+          nostrService.unsubscribe(subscriptionRef.current);
+          subscriptionRef.current = null;
+        }
       }, 5000);
+      
+      // Return a cleanup function that will be called when the component unmounts
+      return () => {
+        clearTimeout(timeoutId);
+        if (subscriptionRef.current) {
+          nostrService.unsubscribe(subscriptionRef.current);
+          subscriptionRef.current = null;
+        }
+      };
     };
     
-    fetchReplyCount();
+    const cleanup = fetchReplyCount();
+    
+    // Ensure we clean up when the component unmounts or when eventId changes
+    return () => {
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
   }, [eventId]);
 
   return {

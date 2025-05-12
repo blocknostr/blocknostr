@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { extractMediaUrls } from '@/lib/nostr/utils';
 
@@ -10,6 +10,15 @@ interface UseProfilePostsProps {
 export function useProfilePosts({ hexPubkey }: UseProfilePostsProps) {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [media, setMedia] = useState<NostrEvent[]>([]);
+  const subscriptionRef = useRef<string | null>(null);
+  const isMounted = useRef(true);
+  
+  // Set up the mounted ref for cleanup
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   useEffect(() => {
     if (!hexPubkey) return;
@@ -24,6 +33,8 @@ export function useProfilePosts({ hexPubkey }: UseProfilePostsProps) {
         }
       ],
       (event) => {
+        if (!isMounted.current) return;
+        
         setEvents(prev => {
           // Check if we already have this event
           if (prev.some(e => e.id === event.id)) {
@@ -49,8 +60,15 @@ export function useProfilePosts({ hexPubkey }: UseProfilePostsProps) {
       }
     );
     
+    // Store the subscription ID for cleanup
+    subscriptionRef.current = notesSubId;
+    
     return () => {
-      nostrService.unsubscribe(notesSubId);
+      // Ensure we clean up the subscription when the component unmounts
+      if (subscriptionRef.current) {
+        nostrService.unsubscribe(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
     };
   }, [hexPubkey]);
 

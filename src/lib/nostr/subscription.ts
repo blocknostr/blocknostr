@@ -65,4 +65,24 @@ export class SubscriptionManager {
       }
     }
   }
+  
+  // New method to check if a subscription exists
+  hasSubscription(subId: string): boolean {
+    return this.subscriptions.has(subId);
+  }
+  
+  // New method to get all active subscription IDs
+  getActiveSubscriptionIds(): string[] {
+    return Array.from(this.subscriptions.keys());
+  }
+  
+  // New method to unsubscribe from all subscriptions
+  unsubscribeAll(): void {
+    this.getActiveSubscriptionIds().forEach(id => this.unsubscribe(id));
+  }
+  
+  // New method to get count of active subscriptions
+  getActiveSubscriptionCount(): number {
+    return this.subscriptions.size;
+  }
 }

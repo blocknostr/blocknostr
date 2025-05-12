@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 
 interface UseProfileRepliesProps {
@@ -9,6 +9,16 @@ interface UseProfileRepliesProps {
 export function useProfileReplies({ hexPubkey }: UseProfileRepliesProps) {
   const [replies, setReplies] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(false);
+  const subscriptionRef = useRef<string | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const isMounted = useRef(true);
+  
+  // Set up the mounted ref for cleanup
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   useEffect(() => {
     if (!hexPubkey) return;
@@ -25,6 +35,8 @@ export function useProfileReplies({ hexPubkey }: UseProfileRepliesProps) {
         }
       ],
       (event) => {
+        if (!isMounted.current) return;
+        
         // Check if this is a reply by looking for e tags (NIP-10)
         const hasETags = event.tags?.some(tag => 
           Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
@@ -44,11 +56,28 @@ export function useProfileReplies({ hexPubkey }: UseProfileRepliesProps) {
       }
     );
     
+    // Store subscription ID for cleanup
+    subscriptionRef.current = repliesSubId;
+    
     // Set loading to false after some time
-    setTimeout(() => setLoading(false), 3000);
+    timeoutRef.current = window.setTimeout(() => {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }, 3000);
     
     return () => {
-      nostrService.unsubscribe(repliesSubId);
+      // Clean up subscription when component unmounts
+      if (subscriptionRef.current) {
+        nostrService.unsubscribe(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
+      
+      // Clear timeout
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, [hexPubkey]);
 

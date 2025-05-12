@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService, contentCache } from '@/lib/nostr';
 
 interface UseProfileLikesProps {
@@ -10,6 +10,16 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
   const [reactions, setReactions] = useState<NostrEvent[]>([]);
   const [referencedEvents, setReferencedEvents] = useState<Record<string, NostrEvent>>({});
   const [loading, setLoading] = useState(false);
+  const subscriptionsRef = useRef<Set<string>>(new Set());
+  const timeoutRef = useRef<number | null>(null);
+  const isMounted = useRef(true);
+  
+  // Set up the mounted ref for cleanup
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   useEffect(() => {
     if (!hexPubkey) return;
@@ -26,6 +36,8 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
         }
       ],
       (event) => {
+        if (!isMounted.current) return;
+        
         // Process reaction event
         setReactions(prev => {
           // Check if we already have this event
@@ -47,11 +59,28 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
       }
     );
     
+    // Track subscription for cleanup
+    subscriptionsRef.current.add(reactionsSubId);
+    
     // Set loading to false after some time
-    setTimeout(() => setLoading(false), 3000);
+    timeoutRef.current = window.setTimeout(() => {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }, 3000);
     
     return () => {
-      nostrService.unsubscribe(reactionsSubId);
+      // Clean up all tracked subscriptions when component unmounts
+      subscriptionsRef.current.forEach(subId => {
+        nostrService.unsubscribe(subId);
+      });
+      subscriptionsRef.current.clear();
+      
+      // Clear timeout
+      if (timeoutRef.current !== null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
   }, [hexPubkey]);
   
@@ -76,10 +105,12 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
     // Check cache first
     const cachedEvent = contentCache.getEvent(eventId);
     if (cachedEvent) {
-      setReferencedEvents(prev => ({
-        ...prev,
-        [eventId]: cachedEvent
-      }));
+      if (isMounted.current) {
+        setReferencedEvents(prev => ({
+          ...prev,
+          [eventId]: cachedEvent
+        }));
+      }
       return;
     }
     
@@ -93,7 +124,7 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
         }
       ],
       (event) => {
-        if (!event) return;
+        if (!event || !isMounted.current) return;
         
         // Cache the event for future reference
         contentCache.cacheEvent(event);
@@ -108,7 +139,7 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
         if (event.pubkey) {
           nostrService.getUserProfile(event.pubkey)
             .then(profile => {
-              if (profile) {
+              if (profile && isMounted.current) {
                 contentCache.cacheProfile(event.pubkey, profile);
               }
             })
@@ -119,10 +150,18 @@ export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
       }
     );
     
+    // Track subscription for cleanup
+    subscriptionsRef.current.add(subId);
+    
     // Cleanup subscription after a short time
-    setTimeout(() => {
-      nostrService.unsubscribe(subId);
+    const timeoutId = window.setTimeout(() => {
+      if (subscriptionsRef.current.has(subId)) {
+        nostrService.unsubscribe(subId);
+        subscriptionsRef.current.delete(subId);
+      }
     }, 2000);
+    
+    // If component unmounts before timeout, we'll clean up in the effect's return function
   };
 
   return { 
