@@ -10,7 +10,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   const [verifyingNip05, setVerifyingNip05] = useState(false);
   const [xVerified, setXVerified] = useState(false);
   const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
-  const [creationDate, setCreationDate] = useState<Date>(new Date());
+  const [creationDate, setCreationDate] = useState<Date | null>(null);
   
   // Track if the component is mounted to avoid state updates after unmount
   const isMounted = useRef(true);
