@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -45,7 +44,6 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Fix: Call verifyNip05Identifier with only one argument
         const isValid = await verifyNip05Identifier(values.nip05);
         if (!isValid) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");

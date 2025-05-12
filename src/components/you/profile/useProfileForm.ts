@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { nostrService } from '@/lib/nostr';
-import { verifyNip05Identifier, nip05Utils } from './profileUtils';
+import { verifyNip05Identifier, verifyNip05ForCurrentUser, nip05Utils } from './profileUtils';
 import { isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
 
 // Form schema based on NIP-01 metadata fields
@@ -81,7 +81,7 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
   }, [nip05Value]);
 
   // Function to verify NIP-05 identifier
-  async function verifyNip05ForCurrentUser(identifier: string) {
+  async function verifyNip05ForUser(identifier: string) {
     if (!identifier || !nostrService.publicKey) {
       setIsNip05Verified(null);
       return false;
@@ -91,7 +91,7 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
       setIsNip05Verifying(true);
       
       // Call the utility function to verify NIP-05
-      const isValid = await verifyNip05Identifier(identifier);
+      const isValid = await verifyNip05ForCurrentUser(identifier);
       setIsNip05Verified(isValid);
       return isValid;
     } catch (error) {
@@ -108,6 +108,6 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
     isNip05Verified,
     isNip05Verifying,
     setIsNip05Verified,
-    verifyNip05: verifyNip05ForCurrentUser
+    verifyNip05: verifyNip05ForUser
   };
 }
