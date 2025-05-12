@@ -1,139 +1,75 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Lock, Smile, Info } from "lucide-react";
+import { SendHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { nostrService } from "@/lib/nostr";
 
 interface ChatInputProps {
   isLoggedIn: boolean;
   maxChars: number;
-  onSendMessage: (content: string) => Promise<string | null>;
+  onSendMessage: (message: string) => void;
   disabled?: boolean;
 }
 
-const ChatInput = ({ isLoggedIn, maxChars, onSendMessage, disabled }: ChatInputProps) => {
-  const [message, setMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const remainingChars = maxChars - message.length;
+const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage, disabled = false }) => {
+  const [newMessage, setNewMessage] = useState("");
 
-  // If user logs in, focus the input
-  useEffect(() => {
-    if (isLoggedIn && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isLoggedIn]);
-
-  const handleSend = async () => {
-    if (!message.trim() || isSending) return;
-    
-    if (!isLoggedIn) {
-      toast.error("You must be signed in to send messages");
-      
-      // Prompt login after a short delay
-      setTimeout(() => {
-        toast.info("Sign in to participate", {
-          action: {
-            label: "Sign In",
-            onClick: () => nostrService.login()
-          }
-        });
-      }, 500);
+  const handleSend = () => {
+    if (!newMessage.trim() || !isLoggedIn || disabled) {
       return;
     }
     
-    if (message.length > maxChars) {
-      toast.error(`Message too long (max ${maxChars} characters)`);
+    if (newMessage.length > maxChars) {
+      toast.error(`Message too long, maximum ${maxChars} characters`);
       return;
     }
-    
-    setIsSending(true);
-    
-    try {
-      // Call the onSendMessage prop and check the result
-      const messageId = await onSendMessage(message);
-      
-      // Only clear message if sent successfully
-      if (messageId) {
-        setMessage("");
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      setIsSending(false);
-    }
+
+    onSendMessage(newMessage);
+    setNewMessage("");
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div className="border-t p-2">
+        <p className="text-xs text-center text-muted-foreground p-1">
+          Login to join the conversation
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-2 border-t bg-background flex gap-2 items-center">
-      {!isLoggedIn ? (
-        <div className="flex-1 bg-muted/50 rounded-md px-3 py-2 text-sm flex items-center justify-between">
-          <span className="text-muted-foreground">Login to send messages</span>
-          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          <Input
-            ref={inputRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1"
-            maxLength={maxChars + 10} // Allow some buffer over the limit
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            disabled={disabled || isSending}
-          />
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  disabled
-                >
-                  <Smile className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Reactions coming soon</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <Button
-            onClick={handleSend}
-            size="icon"
-            className="h-8 w-8"
-            disabled={!message.trim() || message.length > maxChars || disabled || isSending}
+    <div className="border-t p-2">
+      <div className="flex items-center gap-1">
+        <Input
+          placeholder={disabled ? "Disconnected from relays..." : "Send a message..."}
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          maxLength={maxChars * 2} // Allow typing past limit but show warning
+          className="text-xs h-8"
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+          disabled={disabled}
+        />
+        <div className="flex items-center gap-1">
+          <span className={`text-[10px] ${newMessage.length > maxChars ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+            {newMessage.length}/{maxChars}
+          </span>
+          <Button 
+            onClick={handleSend} 
+            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
+            size="sm"
+            className="h-8 w-8 p-0"
+            variant={disabled ? "outline" : "default"}
           >
-            {isSending ? (
-              <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-white animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <SendHorizontal className="h-4 w-4" />
           </Button>
-          
-          {message.length > 0 && (
-            <div className={`text-xs ${remainingChars < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {remainingChars}
-            </div>
-          )}
-        </>
+        </div>
+      </div>
+      {disabled && (
+        <p className="text-[10px] text-muted-foreground text-center mt-1">
+          Reconnect to relays to send messages
+        </p>
       )}
     </div>
   );

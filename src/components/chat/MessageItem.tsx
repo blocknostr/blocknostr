@@ -12,8 +12,6 @@ interface MessageItemProps {
   profiles: Record<string, any>;
   isLoggedIn: boolean;
   onAddReaction: (emoji: string) => void;
-  isFirstInGroup: boolean;
-  showAvatar: boolean;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({
@@ -21,9 +19,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   emojiReactions,
   profiles,
   isLoggedIn,
-  onAddReaction,
-  isFirstInGroup,
-  showAvatar
+  onAddReaction
 }) => {
   const getDisplayName = (pubkey: string) => {
     const profile = profiles[pubkey];
@@ -40,60 +36,37 @@ const MessageItem: React.FC<MessageItemProps> = ({
     return displayName.charAt(0).toUpperCase();
   };
 
-  const formattedTime = formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true });
-  const isCurrentUser = isLoggedIn && message.pubkey === profiles?._currentUser?.pubkey;
-
   return (
-    <div 
-      className={`flex items-end gap-1 group hover:bg-accent/10 rounded-md transition-colors px-1
-        ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}
-    >
-      {/* Avatar is only shown for the last message in a group */}
-      {showAvatar ? (
-        <Avatar className="h-6 w-6 mb-0.5 flex-shrink-0">
-          <AvatarImage src={getProfilePicture(message.pubkey)} />
-          <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
-        </Avatar>
-      ) : (
-        <div className="w-6 flex-shrink-0"></div> // Spacer to keep alignment
-      )}
+    <div className="flex items-start gap-1.5">
+      <Avatar className="h-6 w-6">
+        <AvatarImage src={getProfilePicture(message.pubkey)} />
+        <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
+      </Avatar>
       
-      <div className={`min-w-0 max-w-[85%] ${isCurrentUser ? 'items-end' : 'items-start'} relative`}>
-        {/* Show name only for first message in group */}
-        {isFirstInGroup && (
-          <div className={`flex items-center gap-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-0.5`}>
-            <span className="font-medium text-[10px] text-muted-foreground">{getDisplayName(message.pubkey)}</span>
-          </div>
-        )}
-        
-        <div className={`relative text-xs break-words whitespace-pre-wrap py-1 px-2 rounded-lg ${
-          isCurrentUser 
-            ? 'bg-primary text-primary-foreground rounded-br-none' 
-            : 'bg-muted rounded-bl-none'
-        }`}>
-          {contentFormatter.formatContent(message.content)}
-          <span className="text-[8px] ml-1 opacity-70 inline-block align-bottom">
-            {formattedTime.includes('less than a minute') ? 'now' : formattedTime}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          <span className="font-medium text-xs truncate">{getDisplayName(message.pubkey)}</span>
+          <span className="text-[10px] text-muted-foreground">
+            {formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true })}
           </span>
         </div>
         
-        {/* Reaction button with absolute positioning */}
-        <ReactionBar 
-          isLoggedIn={isLoggedIn} 
-          onAddReaction={onAddReaction} 
-          isCurrentUser={isCurrentUser}
-        />
+        <div className="text-xs break-words whitespace-pre-wrap">
+          {contentFormatter.formatContent(message.content)}
+        </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
-          <div className={`flex flex-wrap gap-0.5 mt-0.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+          <div className="flex flex-wrap gap-0.5 mt-0.5">
             {emojiReactions.map((emoji, idx) => (
-              <span key={idx} className="inline-flex items-center bg-muted/70 px-1 py-0.5 rounded-full text-[10px]">
+              <span key={idx} className="inline-flex items-center bg-muted px-1 rounded-full text-[10px]">
                 {emoji}
               </span>
             ))}
           </div>
         )}
+        
+        <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
       </div>
     </div>
   );

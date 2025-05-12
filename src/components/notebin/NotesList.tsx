@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Note } from "./hooks/types";
-import NotesSkeleton from "./NotesSkeleton";
+import { NotesSkeleton } from "./NotesSkeleton";
 import NotesGrid from "./NotesGrid";
 import NotesEmptyState from "./NotesEmptyState";
 import NotesLoginPrompt from "./NotesLoginPrompt";

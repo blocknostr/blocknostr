@@ -1,15 +1,13 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -29,65 +27,34 @@ const WorldChat = () => {
     isReconnecting
   } = useWorldChat();
 
-  // Proactively check authentication and connection status
-  useEffect(() => {
-    const checkInitialState = async () => {
-      console.log("WorldChat: Initial state check");
-      console.log("- Is logged in:", isLoggedIn);
-      console.log("- Connection status:", connectionStatus);
-      console.log("- Public key available:", !!nostrService.publicKey);
-      
-      if (connectionStatus === 'disconnected') {
-        console.log("WorldChat: Initiating reconnection on mount due to disconnected state");
-        await reconnect();
-      }
-      
-      // If not logged in but we need to prompt the user
-      if (!isLoggedIn && connectionStatus === 'connected') {
-        toast.info("Sign in to participate in the chat", {
-          duration: 5000,
-          action: {
-            label: "Sign In",
-            onClick: () => nostrService.login()
-          }
-        });
-      }
-    };
-    
-    checkInitialState();
-  }, [connectionStatus, isLoggedIn, reconnect]);
-
   return (
-    <Card className="flex flex-col h-[400px] overflow-hidden border-muted">
+    <Card className="flex-grow flex flex-col h-[550px] mb-14"> {/* Added bottom margin of 14 (3.5rem) */}
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
-        <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1 rounded-sm">
-          <AlertCircle className="h-3 w-3" />
+        <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1">
+          <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">{error}</AlertDescription>
         </Alert>
       )}
       
       {connectionStatus === 'disconnected' && (
-        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-1 rounded-sm">
+        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-1">
           <div className="flex justify-between w-full items-center">
-            <div className="flex items-center gap-1">
-              <WifiOff className="h-3 w-3" />
-              <AlertDescription className="text-[10px]">Not connected to relays</AlertDescription>
+            <div className="flex items-center gap-2">
+              <WifiOff className="h-3.5 w-3.5" />
+              <AlertDescription className="text-xs">Not connected to relays</AlertDescription>
             </div>
             <Button 
               variant="outline" 
               size="sm" 
-              className="h-5 text-[10px] py-0 px-2" 
-              onClick={() => {
-                console.log("Manual reconnect button clicked");
-                reconnect();
-              }}
+              className="h-6 text-xs py-0" 
+              onClick={reconnect}
               disabled={isReconnecting}
             >
               {isReconnecting ? (
                 <>
-                  <RefreshCw className="h-2.5 w-2.5 mr-1 animate-spin" />
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                   Reconnecting...
                 </>
               ) : (
@@ -99,34 +66,30 @@ const WorldChat = () => {
       )}
       
       {connectionStatus === 'connecting' && (
-        <Alert className="mx-2 mt-1 mb-0 py-1 rounded-sm bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-1">
-            <RefreshCw className="h-3 w-3 animate-spin text-blue-500" />
-            <AlertDescription className="text-[10px] text-blue-700 dark:text-blue-400">
+        <Alert className="mx-2 mt-1 mb-0 py-1 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
+            <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
               Connecting to relays...
             </AlertDescription>
           </div>
         </Alert>
       )}
       
-      {/* Message list with flex-grow to take available space */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <MessageList
-          messages={messages}
-          profiles={profiles}
-          emojiReactions={emojiReactions}
-          loading={loading}
-          isLoggedIn={isLoggedIn}
-          onAddReaction={addReaction}
-        />
-      </div>
+      <MessageList
+        messages={messages}
+        profiles={profiles}
+        emojiReactions={emojiReactions}
+        loading={loading}
+        isLoggedIn={isLoggedIn}
+        onAddReaction={addReaction}
+      />
       
-      {/* Fixed input area at bottom */}
       <ChatInput
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
         onSendMessage={sendMessage}
-        disabled={connectionStatus !== 'connected'}
+        disabled={connectionStatus === 'disconnected'}
       />
     </Card>
   );

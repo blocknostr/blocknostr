@@ -6,18 +6,16 @@ interface NoteCardFooterProps {
   children: ReactNode;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
-  className?: string;
 }
 
 const NoteCardFooter = ({ 
   children, 
   onInteractionStart, 
-  onInteractionEnd,
-  className = ""
+  onInteractionEnd 
 }: NoteCardFooterProps) => {
   return (
     <CardFooter 
-      className={`pt-0 px-5 pb-3 flex-wrap gap-1 ${className}`} 
+      className="pt-0 px-5 pb-3 flex-wrap gap-1" 
       onMouseEnter={onInteractionStart} 
       onMouseLeave={onInteractionEnd}
     >

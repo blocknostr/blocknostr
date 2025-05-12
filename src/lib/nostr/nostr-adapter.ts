@@ -1,121 +1,241 @@
 
-import { AuthAdapter } from './adapters/auth-adapter';
-import { SocialAdapter } from './adapters/social-adapter';
-import { ModerationAdapter } from './adapters/moderation-adapter';
-import { RelayAdapter } from './adapters/relay-adapter';
-import { CommunityAdapter } from './adapters/community-adapter';
-import { UtilitiesAdapter } from './adapters/utilities-adapter';
-import { BookmarkAdapter } from './adapters/bookmark-adapter';
-import { EventAdapter } from './adapters/event-adapter';
-import { ProfileAdapter } from './adapters/profile-adapter';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { nostrService as originalNostrService } from './service';
 
 /**
- * NostrAdapter combines all adapter modules to provide a complete interface
+ * NostrAdapter adds compatibility methods to the original nostrService
  * This ensures all components continue to work without changing their implementation
  */
 class NostrAdapter {
   private service: typeof originalNostrService;
   
-  // Adapter modules
-  private authAdapter: AuthAdapter;
-  private socialAdapter: SocialAdapter;
-  private moderationAdapter: ModerationAdapter;
-  private relayAdapter: RelayAdapter;
-  private communityAdapter: CommunityAdapter;
-  private utilitiesAdapter: UtilitiesAdapter;
-  private bookmarkAdapter: BookmarkAdapter;
-  private eventAdapter: EventAdapter;
-  private profileAdapter: ProfileAdapter;
-  
   constructor(service: typeof originalNostrService) {
     this.service = service;
-    
-    // Initialize all adapter modules
-    this.authAdapter = new AuthAdapter(service);
-    this.socialAdapter = new SocialAdapter(service);
-    this.moderationAdapter = new ModerationAdapter(service);
-    this.relayAdapter = new RelayAdapter(service);
-    this.communityAdapter = new CommunityAdapter(service);
-    this.utilitiesAdapter = new UtilitiesAdapter(service);
-    this.bookmarkAdapter = new BookmarkAdapter(service);
-    this.eventAdapter = new EventAdapter(service);
-    this.profileAdapter = new ProfileAdapter(service);
   }
 
-  // Auth methods from AuthAdapter
-  get publicKey() { return this.authAdapter.publicKey; }
-  get following() { return this.authAdapter.following; }
-  login() { return this.authAdapter.login(); }
-  signOut() { return this.authAdapter.signOut(); }
-  
-  // Social methods from SocialAdapter
-  isFollowing(pubkey: string) { return this.socialAdapter.isFollowing(pubkey); }
-  followUser(pubkey: string) { return this.socialAdapter.followUser(pubkey); }
-  unfollowUser(pubkey: string) { return this.socialAdapter.unfollowUser(pubkey); }
-  sendDirectMessage(recipientPubkey: string, content: string) { return this.socialAdapter.sendDirectMessage(recipientPubkey, content); }
-  get socialManager() { return this.socialAdapter.socialManager; }
-  
-  // Moderation methods from ModerationAdapter
-  muteUser(pubkey: string) { return this.moderationAdapter.muteUser(pubkey); }
-  unmuteUser(pubkey: string) { return this.moderationAdapter.unmuteUser(pubkey); }
-  isUserMuted(pubkey: string) { return this.moderationAdapter.isUserMuted(pubkey); }
-  blockUser(pubkey: string) { return this.moderationAdapter.blockUser(pubkey); }
-  unblockUser(pubkey: string) { return this.moderationAdapter.unblockUser(pubkey); }
-  isUserBlocked(pubkey: string) { return this.moderationAdapter.isUserBlocked(pubkey); }
-  
-  // Relay methods from RelayAdapter
-  addRelay(relayUrl: string, readWrite: boolean = true) { return this.relayAdapter.addRelay(relayUrl, readWrite); }
-  removeRelay(relayUrl: string) { return this.relayAdapter.removeRelay(relayUrl); }
-  getRelayStatus() { return this.relayAdapter.getRelayStatus(); }
-  getRelayUrls() { return this.relayAdapter.getRelayUrls(); }
-  getRelaysForUser(pubkey: string) { return this.relayAdapter.getRelaysForUser(pubkey); }
-  connectToDefaultRelays() { return this.relayAdapter.connectToDefaultRelays(); }
-  connectToUserRelays() { return this.relayAdapter.connectToUserRelays(); }
-  addMultipleRelays(relayUrls: string[]) { return this.relayAdapter.addMultipleRelays(relayUrls); }
-  get relayManager() { return this.relayAdapter.relayManager; }
-  
-  // Community methods from CommunityAdapter
-  createCommunity(name: string, description: string) { return this.communityAdapter.createCommunity(name, description); }
-  createProposal(communityId: string, title: string, description: string, options: string[], category: string) { 
-    return this.communityAdapter.createProposal(communityId, title, description, options, category); 
+  // Auth methods
+  get publicKey() {
+    return this.service.publicKey;
   }
-  voteOnProposal(proposalId: string, optionIndex: number) { return this.communityAdapter.voteOnProposal(proposalId, optionIndex); }
-  get communityManager() { return this.communityAdapter.communityManager; }
   
-  // Utility methods from UtilitiesAdapter
-  formatPubkey(pubkey: string) { return this.utilitiesAdapter.formatPubkey(pubkey); }
-  getNpubFromHex(hexPubkey: string) { return this.utilitiesAdapter.getNpubFromHex(hexPubkey); }
-  getHexFromNpub(npub: string) { return this.utilitiesAdapter.getHexFromNpub(npub); }
-  
-  // Bookmark methods from BookmarkAdapter
-  isBookmarked(eventId: string) { return this.bookmarkAdapter.isBookmarked(eventId); }
-  addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) { 
-    return this.bookmarkAdapter.addBookmark(eventId, collectionId, tags, note); 
+  get following() {
+    return this.service.following;
   }
-  removeBookmark(eventId: string) { return this.bookmarkAdapter.removeBookmark(eventId); }
-  getBookmarks() { return this.bookmarkAdapter.getBookmarks(); }
-  getBookmarkCollections() { return this.bookmarkAdapter.getBookmarkCollections(); }
-  getBookmarkMetadata() { return this.bookmarkAdapter.getBookmarkMetadata(); }
-  createBookmarkCollection(name: string, color?: string, description?: string) { 
-    return this.bookmarkAdapter.createBookmarkCollection(name, color, description); 
-  }
-  processPendingOperations() { return this.bookmarkAdapter.processPendingOperations(); }
-  get bookmarkManager() { return this.bookmarkAdapter.bookmarkManager; }
   
-  // Event methods from EventAdapter
-  publishEvent(event: any) { return this.eventAdapter.publishEvent(event); }
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) { 
-    return this.eventAdapter.subscribe(filters, onEvent, relays); 
+  async login() {
+    return this.service.login();
   }
-  unsubscribe(subId: string) { return this.eventAdapter.unsubscribe(subId); }
-  getEventById(id: string) { return this.eventAdapter.getEventById(id); }
-  getEvents(ids: string[]) { return this.eventAdapter.getEvents(ids); }
   
-  // Profile methods from ProfileAdapter
-  getProfilesByPubkeys(pubkeys: string[]) { return this.profileAdapter.getProfilesByPubkeys(pubkeys); }
-  getUserProfile(pubkey: string) { return this.profileAdapter.getUserProfile(pubkey); }
-  verifyNip05(identifier: string, pubkey: string) { return this.profileAdapter.verifyNip05(identifier, pubkey); }
+  signOut() {
+    return this.service.signOut();
+  }
+  
+  // Social methods
+  isFollowing(pubkey: string) {
+    return this.service.isFollowing(pubkey);
+  }
+  
+  async followUser(pubkey: string) {
+    return this.service.followUser(pubkey);
+  }
+  
+  async unfollowUser(pubkey: string) {
+    return this.service.unfollowUser(pubkey);
+  }
+  
+  async sendDirectMessage(recipientPubkey: string, content: string) {
+    return this.service.sendDirectMessage(recipientPubkey, content);
+  }
+
+  // User moderation methods
+  async muteUser(pubkey: string) {
+    return this.service.muteUser(pubkey);
+  }
+  
+  async unmuteUser(pubkey: string) {
+    return this.service.unmuteUser(pubkey);
+  }
+  
+  async isUserMuted(pubkey: string) {
+    return this.service.isUserMuted(pubkey);
+  }
+  
+  async blockUser(pubkey: string) {
+    return this.service.blockUser(pubkey);
+  }
+  
+  async unblockUser(pubkey: string) {
+    return this.service.unblockUser(pubkey);
+  }
+  
+  async isUserBlocked(pubkey: string) {
+    return this.service.isUserBlocked(pubkey);
+  }
+
+  // Community methods
+  async createCommunity(name: string, description: string) {
+    return this.service.createCommunity(name, description);
+  }
+  
+  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
+    return this.service.createProposal(communityId, title, description, options, category as any);
+  }
+
+  // Added missing voteOnProposal method
+  async voteOnProposal(proposalId: string, optionIndex: number) {
+    return this.service.voteOnProposal(proposalId, optionIndex);
+  }
+
+  // Utilities
+  formatPubkey(pubkey: string) {
+    return formatPubkey(pubkey);
+  }
+  
+  getNpubFromHex(hexPubkey: string) {
+    return getNpubFromHex(hexPubkey);
+  }
+  
+  getHexFromNpub(npub: string) {
+    return getHexFromNpub(npub);
+  }
+  
+  // Relay methods
+  async addRelay(relayUrl: string, readWrite: boolean = true) {
+    return this.service.addRelay(relayUrl, readWrite);
+  }
+  
+  removeRelay(relayUrl: string) {
+    return this.service.removeRelay(relayUrl);
+  }
+  
+  getRelayStatus() {
+    return this.service.getRelayStatus();
+  }
+
+  // Add getRelayUrls method
+  getRelayUrls() {
+    return this.service.getRelayUrls();
+  }
+  
+  // Add getRelaysForUser method
+  async getRelaysForUser(pubkey: string) {
+    return this.service.getRelaysForUser(pubkey);
+  }
+  
+  async connectToDefaultRelays() {
+    return this.service.connectToUserRelays();
+  }
+  
+  async connectToUserRelays() {
+    return this.service.connectToUserRelays();
+  }
+  
+  async addMultipleRelays(relayUrls: string[]) {
+    return this.service.addMultipleRelays(relayUrls);
+  }
+
+  // Pass through all other methods directly
+  get socialManager() {
+    return {
+      ...this.service.socialManager,
+      likeEvent: (event: any) => {
+        return this.service.reactToPost(event.id);
+      },
+      repostEvent: (event: any) => {
+        return this.service.repostNote(event.id, event.pubkey);
+      },
+      // Add missing getReactionCounts method
+      getReactionCounts: (eventId: string) => {
+        // Implement a basic version that returns zeros
+        return Promise.resolve({
+          likes: 0,
+          reposts: 0
+        });
+      },
+      // Add missing reactToEvent method
+      reactToEvent: (eventId: string, emoji: string = "+") => {
+        return this.service.reactToPost(eventId, emoji);
+      }
+    };
+  }
+  
+  get relayManager() {
+    return this.service.relayManager;
+  }
+  
+  get communityManager() {
+    return this.service.communityManager;
+  }
+  
+  get bookmarkManager() {
+    return this.service.bookmarkManager;
+  }
+
+  // Pass through direct method calls
+  async publishEvent(event: any) {
+    return this.service.publishEvent(event);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string) {
+    return this.service.unsubscribe(subId);
+  }
+  
+  async getEventById(id: string) {
+    return this.service.getEventById(id);
+  }
+  
+  async getEvents(ids: string[]) {
+    return this.service.getEvents(ids);
+  }
+  
+  async getProfilesByPubkeys(pubkeys: string[]) {
+    return this.service.getProfilesByPubkeys(pubkeys);
+  }
+  
+  async getUserProfile(pubkey: string) {
+    return this.service.getUserProfile(pubkey);
+  }
+  
+  async verifyNip05(identifier: string, pubkey: string) {
+    return this.service.verifyNip05(identifier, pubkey);
+  }
+  
+  // Bookmark methods
+  async isBookmarked(eventId: string) {
+    return this.service.isBookmarked(eventId);
+  }
+  
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.service.addBookmark(eventId, collectionId, tags, note);
+  }
+  
+  async removeBookmark(eventId: string) {
+    return this.service.removeBookmark(eventId);
+  }
+  
+  async getBookmarks() {
+    return this.service.getBookmarks();
+  }
+  
+  async getBookmarkCollections() {
+    return this.service.getBookmarkCollections();
+  }
+  
+  async getBookmarkMetadata() {
+    return this.service.getBookmarkMetadata();
+  }
+  
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.service.createBookmarkCollection(name, color, description);
+  }
+  
+  async processPendingOperations() {
+    return this.service.processPendingOperations();
+  }
 }
 
 // Create an adapted instance and export it to replace the original

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
@@ -30,26 +30,9 @@ export function useFeedEvents({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [cacheHit, setCacheHit] = useState<boolean>(false);
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
-  const scrollPositionRef = useRef<number>(0);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
   const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
-  
-  // Custom events setter that preserves scroll position
-  const setEventsWithScrollPreservation = (newEvents: NostrEvent[] | ((prev: NostrEvent[]) => NostrEvent[])) => {
-    // Save current scroll position
-    scrollPositionRef.current = window.scrollY;
-    
-    // Update events
-    setEvents(newEvents);
-    
-    // Restore scroll position after render
-    setTimeout(() => {
-      if (scrollPositionRef.current > 0) {
-        window.scrollTo(0, scrollPositionRef.current);
-      }
-    }, 0);
-  };
   
   // Handle event subscription
   const { subId, setSubId, setupSubscription } = useEventSubscription({
@@ -58,7 +41,7 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: setEventsWithScrollPreservation, // Use our custom setter
+    setEvents,
     handleRepost,
     fetchProfileData,
     feedType,
@@ -138,9 +121,6 @@ export function useFeedEvents({
       setSubId(null);
     }
     
-    // Scroll to top when refreshing the feed
-    window.scrollTo(0, 0);
-    
     // Setup a new subscription
     const currentTime = Math.floor(Date.now() / 1000);
     const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
@@ -158,7 +138,7 @@ export function useFeedEvents({
     subId,
     setSubId,
     setupSubscription,
-    setEvents: setEventsWithScrollPreservation, // Return our custom setter
+    setEvents,
     refreshFeed,
     lastUpdated,
     cacheHit,

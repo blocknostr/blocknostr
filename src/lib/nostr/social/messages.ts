@@ -41,7 +41,7 @@ export class MessagesManager {
       
       // Create direct message event (kind 4)
       const event = {
-        kind: EVENT_KINDS.DIRECT_MESSAGE,
+        kind: EVENT_KINDS.ENCRYPTED_DM,
         content: encryptedContent,
         tags: [
           ["p", recipientPubkey] // Tag recipient

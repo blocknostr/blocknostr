@@ -1,32 +1,22 @@
-import React, { useEffect } from "react";
-import { Wallet, ExternalLink, AlertCircle, CheckCircle2, Loader } from "lucide-react";
+
+import React from "react";
+import { Wallet, ExternalLink, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToast } from "@/components/ui/use-toast";
 import { nostrService } from "@/lib/nostr";
-import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 
 interface WalletConnectButtonProps {
   className?: string;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
+  const { toast } = useToast();
   const [hasNostrExtension, setHasNostrExtension] = React.useState<boolean>(false);
-  const [isConnecting, setIsConnecting] = React.useState<boolean>(false);
-  const [isConnected, setIsConnected] = React.useState<boolean>(false);
-  const { triggerHaptic } = useHapticFeedback();
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Check for NIP-07 extension
     setHasNostrExtension(!!window.nostr);
-    
-    // Check if already connected
-    const checkConnection = async () => {
-      const pubkey = nostrService.publicKey;
-      setIsConnected(!!pubkey);
-    };
-    
-    checkConnection();
     
     // Re-check for extension periodically
     const intervalId = setInterval(() => {
@@ -37,41 +27,34 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = async () => {
-    triggerHaptic('medium');
-    
-    if (!hasNostrExtension) {
-      toast("No extension found", {
-        description: "Please install a Nostr browser extension like Alby or nos2x",
-        duration: 5000,
-      });
-      
-      // Open extension info
-      window.open("https://getalby.com/", "_blank");
-      return;
-    }
-    
-    setIsConnecting(true);
-    
-    try {
-      // Try to use NIP-07 login
-      const success = await nostrService.login();
-      if (success) {
-        setIsConnected(true);
-        triggerHaptic('success');
-        toast("Successfully connected", {
-          description: "Your Nostr extension is now connected to BlockNoster",
+    if (hasNostrExtension) {
+      try {
+        // Try to use NIP-07 login
+        const success = await nostrService.login();
+        if (success) {
+          toast({
+            title: "Successfully connected",
+            description: "Your Nostr extension is now connected to BlockNoster",
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error("Connect error:", error);
+        toast({
+          title: "Connection failed",
+          description: "Could not connect to your Nostr extension",
+          variant: "destructive",
           duration: 3000,
         });
       }
-    } catch (error) {
-      console.error("Connect error:", error);
-      triggerHaptic('error');
-      toast.error("Connection failed", {
-        description: "Could not connect to your Nostr extension",
-        duration: 3000,
+    } else {
+      toast({
+        title: "No extension found",
+        description: "Please install a Nostr browser extension like Alby or nos2x",
+        duration: 5000,
       });
-    } finally {
-      setIsConnecting(false);
+      // Open extension info
+      window.open("https://getalby.com/", "_blank");
     }
   };
 
@@ -79,43 +62,18 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     <div className={cn("flex flex-col items-center", className)}>
       <div className="relative group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full opacity-75 group-hover:opacity-100 blur group-hover:blur-md transition-all duration-300"></div>
-        <div className={cn(
-          "relative p-6 rounded-full shadow-lg group-hover:shadow-purple-500/40 transition-all duration-300",
-          isConnected 
-            ? "bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600" 
-            : "bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-600"
-        )}>
-          {isConnected ? (
-            <CheckCircle2 className="h-12 w-12 text-white" />
-          ) : (
-            <Wallet className="h-12 w-12 text-white" />
-          )}
+        <div className="relative p-6 rounded-full bg-gradient-to-br from-purple-500 via-violet-500 to-indigo-600 shadow-lg group-hover:shadow-purple-500/40 transition-all duration-300">
+          <Wallet className="h-12 w-12 text-white" />
         </div>
       </div>
       
       <Button
         onClick={handleConnect}
         size="lg"
-        disabled={isConnecting || isConnected}
-        className={cn(
-          "py-6 px-8 mt-6 rounded-xl shadow-lg transition-all duration-300 w-full max-w-xs relative overflow-hidden",
-          isConnected 
-            ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-medium hover:shadow-green-500/30"
-            : "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium hover:shadow-purple-500/30"
-        )}
+        className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium py-6 px-8 mt-6 rounded-xl shadow-lg hover:shadow-purple-500/30 transition-all duration-300 w-full max-w-xs relative overflow-hidden"
       >
-        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
-        {isConnecting ? (
-          <>
-            <Loader className="mr-2 h-5 w-5 animate-spin" />
-            Connecting...
-          </>
-        ) : isConnected ? (
-          <>
-            <CheckCircle2 className="mr-2 h-5 w-5" />
-            Connected
-          </>
-        ) : hasNostrExtension ? (
+        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-400/10 to-indigo-400/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
+        {hasNostrExtension ? (
           <>
             <Wallet className="mr-2 h-5 w-5" />
             Connect Nostr Extension
@@ -136,7 +94,6 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-center text-xs text-purple-400 hover:text-purple-300 transition-colors"
-            onClick={() => triggerHaptic('light')}
           >
             Get Alby <ExternalLink className="ml-1 h-3 w-3" />
           </a>
@@ -145,7 +102,6 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center justify-center text-xs text-purple-400 hover:text-purple-300 transition-colors"
-            onClick={() => triggerHaptic('light')}
           >
             Get nos2x <ExternalLink className="ml-1 h-3 w-3" />
           </a>

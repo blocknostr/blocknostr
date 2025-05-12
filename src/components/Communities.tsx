@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -134,9 +135,10 @@ const Communities = () => {
   );
   
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="p-4">
+    <div className="h-[calc(100vh-3.5rem)] flex flex-col overflow-auto">
+      <div className="p-4 border-b bg-background/95 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold">Communities</h1>
           <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
         </div>
         
@@ -147,7 +149,7 @@ const Communities = () => {
         />
       </div>
       
-      <div className="p-4">
+      <div className="flex-1 p-4">
         <CommunitiesGrid 
           communities={communitiesWithNumbers}
           userCommunities={userCommunities}

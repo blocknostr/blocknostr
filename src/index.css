@@ -1,6 +1,3 @@
-
-@import './styles/ios-optimizations.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -16,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 261 60% 74%;
+    --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -36,56 +33,67 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
     
-    /* Sidebar variables */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222.2 84% 4.9%;
-    --sidebar-primary: 261 60% 74%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 40% 96.1%;
-    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 222.2 84% 4.9%;
+    /* Theme change variables */
+    --theme-change-x: 50%;
+    --theme-change-y: 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Updated dark mode theme with black, gray, and white tones */
+    --background: 0 0% 7%; /* Near black */
+    --foreground: 0 0% 95%; /* Off-white */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 10%; /* Dark gray */
+    --card-foreground: 0 0% 95%; /* Off-white */
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 10%; /* Dark gray */
+    --popover-foreground: 0 0% 95%; /* Off-white */
 
-    --primary: 261 60% 74%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 0 0% 95%; /* Off-white */
+    --primary-foreground: 0 0% 10%; /* Dark gray */
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 15%; /* Gray */
+    --secondary-foreground: 0 0% 95%; /* Off-white */
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 20%; /* Medium gray */
+    --muted-foreground: 0 0% 70%; /* Light gray */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 25%; /* Gray */
+    --accent-foreground: 0 0% 95%; /* Off-white */
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 95%; /* Off-white */
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 0 0% 20%; /* Medium gray */
+    --input: 0 0% 20%; /* Medium gray */
+    --ring: 0 0% 70%; /* Light gray */
     
-    /* Sidebar variables */
-    --sidebar-background: 222.2 84% 4.9%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 261 60% 74%;
-    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-    --sidebar-accent: 217.2 32.6% 17.5%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 212.7 26.8% 83.9%;
+    /* Sidebar related colors */
+    --sidebar-background: 0 0% 10%; /* Dark gray */
+    --sidebar-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-primary: 0 0% 95%; /* Off-white */
+    --sidebar-primary-foreground: 0 0% 7%; /* Near black */
+    --sidebar-accent: 0 0% 15%; /* Gray */
+    --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-border: 0 0% 20%; /* Medium gray */
+    --sidebar-ring: 0 0% 40%; /* Gray */
   }
 }
 
@@ -93,44 +101,86 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-/* BlockNostr-specific styles */
-.bn-gradient-text {
-  @apply bg-gradient-to-r from-blocknostr-purple to-blocknostr-light-purple bg-clip-text text-transparent;
+/* Theme transition classes - updated with shorter duration */
+.color-theme-in-transition,
+.color-theme-in-transition *,
+.color-theme-in-transition *:before,
+.color-theme-in-transition *:after {
+  transition: all 1s ease-out !important;
+  transition-delay: 0 !important;
 }
 
-.bn-button {
-  @apply bg-gradient-to-r from-blocknostr-purple to-blocknostr-dark-purple text-white transition-all hover:opacity-90 active:transform active:scale-95;
+/* Radial effect for theme transition */
+html.color-theme-in-transition {
+  background-image: radial-gradient(
+    circle at var(--theme-change-x) var(--theme-change-y),
+    hsl(var(--background)) 0%,
+    hsl(var(--background)) 10%,
+    transparent 70%
+  );
+  background-position: center;
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  animation: theme-ripple 1s ease-out forwards;
 }
 
-/* Additional UI enhancements */
-.fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+@keyframes theme-ripple {
+  0% {
+    background-size: 0% 0%;
+  }
+  100% {
+    background-size: 300% 300%;
+  }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Mobile optimizations */
+@layer utilities {
+  .touch-action-none {
+    touch-action: none;
+  }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+/* Ensure proper tap targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .card {
+    @apply mx-auto max-w-[95%];
+  }
+  
+  /* Allow smaller heights for specific UI elements that need it */
+  .h-auto,
+  .min-h-auto,
+  button.h-auto,
+  button.min-h-auto {
+    min-height: auto;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* Improve swipe gesture detection */
+.sheet-open {
+  overflow: hidden;
 }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-accent rounded-full;
+/* Ensure the content area fills available space */
+.app-content {
+  @apply flex-1 min-h-screen w-full;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/40;
+/* Theme toggle button styles */
+.theme-toggle-button {
+  position: relative;
+  z-index: 10;
 }

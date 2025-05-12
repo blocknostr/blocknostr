@@ -1,9 +1,8 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Search, Bell, MessageSquare, Wallet } from 'lucide-react';
+import { Menu, Search, Bell, MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 import LoginButton from '../LoginButton';
 import GlobalSearch from '../GlobalSearch';
 import { nostrService } from '@/lib/nostr';
@@ -14,11 +13,6 @@ interface HeaderProps {
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
   const isLoggedIn = !!nostrService.publicKey;
-  const { triggerHaptic } = useHapticFeedback();
-  
-  const handleWalletClick = () => {
-    triggerHaptic('medium');
-  };
   
   return (
     <header className="sticky top-0 z-40 bg-background border-b h-14 flex items-center px-4">
@@ -57,32 +51,9 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   <MessageSquare className="h-5 w-5" />
                 </Link>
               </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleWalletClick} 
-                asChild
-              >
-                <Link to="/wallets">
-                  <Wallet className="h-5 w-5" />
-                </Link>
-              </Button>
             </>
           ) : (
-            <>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleWalletClick} 
-                asChild
-              >
-                <Link to="/wallets">
-                  <Wallet className="h-5 w-5" />
-                </Link>
-              </Button>
-              <LoginButton />
-            </>
+            <LoginButton />
           )}
         </div>
       </div>

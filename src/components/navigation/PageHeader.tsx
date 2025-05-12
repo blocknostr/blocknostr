@@ -5,7 +5,6 @@ import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
 
 interface PageHeaderProps {
   title: string;
@@ -27,12 +26,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   children
 }) => {
   const { darkMode, toggleDarkMode } = useTheme();
-  const pathname = usePathname();
-  const isHomePage = pathname === "/";
   
   return (
     <header className={cn(
-      "border-b sticky top-0 bg-background/80 backdrop-blur-sm z-30",
+      "border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10",
       className
     )}>
       <div className="flex items-center justify-between h-14 px-4">
@@ -40,15 +37,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           {/* Render children (mobile menu) first if provided */}
           {children}
           
-          {showBackButton && !isHomePage && (
-            <BackButton 
-              fallbackPath={fallbackPath} 
-              showText={true} 
-              forceHome={isHomePage}
-              className="text-primary hover:bg-primary/10"
-            />
-          )}
-          <h1 className="font-semibold bg-gradient-to-r from-blocknostr-purple to-blocknostr-light-purple bg-clip-text text-transparent">{title}</h1>
+          {showBackButton && <BackButton fallbackPath={fallbackPath} />}
+          <h1 className="font-semibold">{title}</h1>
         </div>
         
         <div className="flex items-center space-x-2">

@@ -1,4 +1,6 @@
 
+import { useParams } from "react-router-dom";
+import Sidebar from "@/components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { useCommunity } from "@/hooks/useCommunity";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,11 +11,14 @@ import CommunityHeader from "@/components/community/CommunityHeader";
 import ProposalList from "@/components/community/ProposalList";
 import CommunityLoading from "@/components/community/CommunityLoading";
 import CommunityNotFound from "@/components/community/CommunityNotFound";
+import CommunityPageHeader from "@/components/community/CommunityPageHeader";
 import CommunityGuidelines from "@/components/community/CommunityGuidelines";
 import CommunitySettings from "@/components/community/CommunitySettings";
 import CommunityInvites from "@/components/community/CommunityInvites";
 
-export const CommunityPage = ({ id }: { id?: string }) => {
+const CommunityPage = () => {
+  const { id } = useParams();
+  
   const {
     community,
     proposals,
@@ -56,91 +61,107 @@ export const CommunityPage = ({ id }: { id?: string }) => {
   }
   
   return (
-    <div className="flex-1 overflow-auto">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Main Content - Left side */}
-          <div className="lg:col-span-8 space-y-5">
-            {/* Community Info */}
-            <CommunityHeader 
-              community={community}
-              currentUserPubkey={currentUserPubkey}
-              userRole={userRole}
-              onLeaveCommunity={handleLeaveCommunity}
-            />
-            
-            <Tabs defaultValue="proposals" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-4">
-                <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
-                {(isCreator || isModerator) && (
-                  <TabsTrigger value="settings">Settings</TabsTrigger>
-                )}
-              </TabsList>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
+      
+      <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+        <CommunityPageHeader
+          name={community.name}
+          isMember={isMember}
+          isCreator={isCreator}
+          isCreatorOnlyMember={isCreatorOnlyMember}
+          currentUserPubkey={currentUserPubkey}
+          onJoinCommunity={handleJoinCommunity}
+          onLeaveCommunity={handleLeaveCommunity}
+          onDeleteCommunity={handleDeleteCommunity}
+          isPrivate={community.isPrivate}
+        />
+        
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main Content - Left side */}
+            <div className="lg:col-span-8 space-y-5">
+              {/* Community Info */}
+              <CommunityHeader 
+                community={community}
+                currentUserPubkey={currentUserPubkey}
+                userRole={userRole}
+                onLeaveCommunity={handleLeaveCommunity}
+              />
               
-              {/* Proposals Tab */}
-              <TabsContent value="proposals">
-                <ProposalList
-                  communityId={community.id}
-                  proposals={proposals}
-                  isMember={isMember}
-                  isCreator={isCreator}
-                  currentUserPubkey={currentUserPubkey}
-                  canCreateProposal={canCreateProposal}
-                />
-              </TabsContent>
-              
-              {/* Guidelines Tab */}
-              <TabsContent value="guidelines">
-                <CommunityGuidelines
-                  guidelines={community.guidelines}
-                  canEdit={canSetGuidelines}
-                  onUpdate={handleSetGuidelines}
-                />
-              </TabsContent>
-              
-              {/* Settings Tab - Only for Creator/Moderators */}
-              {(isCreator || isModerator) && (
-                <TabsContent value="settings">
-                  <CommunitySettings
-                    community={community}
+              <Tabs defaultValue="proposals" className="w-full">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                  <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
+                  {(isCreator || isModerator) && (
+                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                  )}
+                </TabsList>
+                
+                {/* Proposals Tab */}
+                <TabsContent value="proposals">
+                  <ProposalList
+                    communityId={community.id}
+                    proposals={proposals}
+                    isMember={isMember}
                     isCreator={isCreator}
-                    isModerator={isModerator}
-                    onSetPrivate={handleSetPrivate}
-                    onUpdateTags={handleSetCommunityTags}
-                    onAddModerator={handleAddModerator}
-                    onRemoveModerator={handleRemoveModerator}
+                    currentUserPubkey={currentUserPubkey}
+                    canCreateProposal={canCreateProposal}
                   />
                 </TabsContent>
-              )}
-            </Tabs>
-          </div>
-          
-          {/* Right Panel - Members list & Invites */}
-          <div className="lg:col-span-4 space-y-5">
-            <MembersList 
-              community={community}
-              currentUserPubkey={currentUserPubkey}
-              onKickProposal={handleCreateKickProposal}
-              kickProposals={kickProposals}
-              onVoteKick={handleVoteOnKick}
-              onLeaveCommunity={handleLeaveCommunity}
-              userRole={userRole}
-              canKickPropose={canKickPropose}
-            />
+                
+                {/* Guidelines Tab */}
+                <TabsContent value="guidelines">
+                  <CommunityGuidelines
+                    guidelines={community.guidelines}
+                    canEdit={canSetGuidelines}
+                    onUpdate={handleSetGuidelines}
+                  />
+                </TabsContent>
+                
+                {/* Settings Tab - Only for Creator/Moderators */}
+                {(isCreator || isModerator) && (
+                  <TabsContent value="settings">
+                    <CommunitySettings
+                      community={community}
+                      isCreator={isCreator}
+                      isModerator={isModerator}
+                      onSetPrivate={handleSetPrivate}
+                      onUpdateTags={handleSetCommunityTags}
+                      onAddModerator={handleAddModerator}
+                      onRemoveModerator={handleRemoveModerator}
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
+            </div>
             
-            {isMember && (
-              <CommunityInvites
-                communityId={community.id}
-                inviteLinks={inviteLinks}
-                onCreateInvite={handleCreateInvite}
-                isPrivate={community.isPrivate}
+            {/* Right Panel - Members list & Invites */}
+            <div className="lg:col-span-4 space-y-5">
+              <MembersList 
+                community={community}
+                currentUserPubkey={currentUserPubkey}
+                onKickProposal={handleCreateKickProposal}
+                kickProposals={kickProposals}
+                onVoteKick={handleVoteOnKick}
+                onLeaveCommunity={handleLeaveCommunity}
+                userRole={userRole}
+                canKickPropose={canKickPropose}
               />
-            )}
+              
+              {isMember && (
+                <CommunityInvites
+                  communityId={community.id}
+                  inviteLinks={inviteLinks}
+                  onCreateInvite={handleCreateInvite}
+                  isPrivate={community.isPrivate}
+                />
+              )}
+            </div>
           </div>
         </div>
+        <Toaster position="bottom-right" />
       </div>
-      <Toaster position="bottom-right" />
     </div>
   );
 };

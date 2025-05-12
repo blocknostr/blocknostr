@@ -1,22 +1,20 @@
-
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import NoteCardHeader from '@/components/note/NoteCardHeader';
 import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
 
-export const PostPage = ({
-  id
-}: {
-  id?: string
-}) => {
-  const router = useRouter();
+const PostPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [currentNote, setCurrentNote] = useState<any>(null);
   const [profileData, setProfileData] = useState<Record<string, any> | null>(null);
@@ -104,6 +102,7 @@ export const PostPage = ({
       if (!eventId) return;
       
       // Get reaction counts from the social manager
+      // Pass the eventId and relays to the SocialManager getReactionCounts method
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
       setReactionCounts(counts);
     } catch (error) {
@@ -138,7 +137,7 @@ export const PostPage = ({
 
   // Handle back navigation
   const handleBack = () => {
-    router.back();
+    navigate(-1);
   };
 
   if (isLoading) {
@@ -219,6 +218,8 @@ export const PostPage = ({
           {renderStats()}
         </CardContent>
       </Card>
+
+      {/* TODO: Add replies section here */}
     </div>
   );
 };

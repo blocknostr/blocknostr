@@ -97,7 +97,7 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
 
   return (
     <>
-      <NoteCardContainer ref={cardRef} eventId={event.id} className="bg-card hover:shadow-md transition-shadow border border-border">
+      <NoteCardContainer ref={cardRef} eventId={event.id}>
         <NoteCardDropdownMenu 
           eventId={event.id || ''} 
           pubkey={event.pubkey || ''} 
@@ -128,7 +128,6 @@ const NoteCard = ({ event, profileData, repostData, onDelete }: NoteCardProps) =
         <NoteCardFooter 
           onInteractionStart={handleInteractionStart} 
           onInteractionEnd={handleInteractionEnd}
-          className="border-t border-border/50 mt-2"
         >
           <NoteCardActions 
             note={noteForActions}

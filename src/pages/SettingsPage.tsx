@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -10,10 +9,10 @@ import { toast } from "sonner";
 import { nostrService, Relay } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, Plus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 
-export const SettingsPage = () => {
-  const router = useRouter();
+const SettingsPage = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("account");
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
@@ -26,7 +25,7 @@ export const SettingsPage = () => {
       
       if (!pubkey) {
         toast.error("You need to log in to access settings");
-        router.push("/");
+        navigate("/");
       }
     };
     
@@ -42,7 +41,7 @@ export const SettingsPage = () => {
     const interval = setInterval(loadRelays, 5000);
     
     return () => clearInterval(interval);
-  }, [router]);
+  }, [navigate]);
   
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;

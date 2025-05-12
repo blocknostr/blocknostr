@@ -1,76 +1,34 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { useHapticFeedback } from '@/hooks/use-haptic-feedback';
-import { useLocation } from '@/lib/next-app-router-shim';
+import React from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useLocation } from "react-router-dom";
+import { LucideIcon } from "lucide-react";
 
 interface SidebarNavItemProps {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  active?: boolean;
-  badge?: number;
-  onClick?: () => void;
-  disabled?: boolean;
-  newFeature?: boolean;
+  name: string;
+  icon: LucideIcon;
+  href: string;
+  isActive: boolean;
 }
 
-const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
-  icon: Icon,
-  label,
-  path,
-  active,
-  badge,
-  onClick,
-  disabled = false,
-  newFeature = false
-}) => {
-  const { triggerHaptic } = useHapticFeedback();
-  const location = useLocation();
-  
-  // Check if this item is active based on current path
-  const isActive = active || location.pathname === path || 
-                  (path !== '/' && location.pathname.startsWith(path));
-  
-  const handleClick = () => {
-    triggerHaptic('light');
-    if (onClick) onClick();
-  };
-  
+const SidebarNavItem = ({ name, icon: Icon, href, isActive }: SidebarNavItemProps) => {
   return (
-    <Link
-      to={disabled ? '#' : path}
-      onClick={handleClick}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sidebar-foreground relative",
-        isActive 
-          ? "bg-sidebar-primary/20 text-sidebar-primary font-medium" 
-          : "hover:bg-sidebar-accent/10",
-        disabled && "opacity-50 cursor-not-allowed"
-      )}
-    >
-      <div className="flex-shrink-0">
-        <Icon className={cn(
-          "h-5 w-5",
-          isActive ? "text-sidebar-primary" : "text-sidebar-foreground"
-        )} />
-      </div>
-      
-      <span className="flex-1 truncate">{label}</span>
-      
-      {badge !== undefined && badge > 0 && (
-        <span className="bg-sidebar-primary text-sidebar-primary-foreground text-xs rounded-full px-2 py-0.5 font-medium">
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
-      
-      {newFeature && (
-        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
-          NEW
-        </span>
-      )}
-    </Link>
+    <li key={name}>
+      <Link to={href}>
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full justify-start text-left font-medium",
+            isActive ? "bg-accent text-accent-foreground" : ""
+          )}
+        >
+          <Icon className="mr-2 h-5 w-5" />
+          {name}
+        </Button>
+      </Link>
+    </li>
   );
 };
 

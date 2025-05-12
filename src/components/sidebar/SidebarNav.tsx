@@ -1,125 +1,105 @@
 
-import React from 'react';
-import { useLocation } from '@/lib/next-app-router-shim';
-import SidebarNavItem from './SidebarNavItem';
-import { Separator } from '@/components/ui/separator';
+import React from "react";
+import { useLocation } from "react-router-dom";
 import { 
-  Home, MessageSquare, Bell, Bookmark, Settings, 
-  Users, Wallet, FileText, Crown, Search
-} from 'lucide-react';
+  Home, 
+  Bell, 
+  Mail, 
+  User, 
+  Users, 
+  Settings, 
+  FileText, 
+  Wallet, 
+  Crown 
+} from "lucide-react";
+import SidebarNavItem from "./SidebarNavItem";
 
 interface SidebarNavProps {
   isLoggedIn: boolean;
 }
 
-const SidebarNav: React.FC<SidebarNavProps> = ({ isLoggedIn }) => {
+const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const location = useLocation();
   
-  const navigationItems = [
+  const navItems = [
     {
-      key: 'home',
-      label: 'Home',
+      name: "Home",
       icon: Home,
-      href: '/',
-      isActive: location.pathname === '/'
+      href: "/",
+      requiresAuth: false
     },
     {
-      key: 'messages',
-      label: 'Messages',
-      icon: MessageSquare,
-      href: '/messages',
-      isActive: location.pathname.startsWith('/messages')
-    },
-    {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: Bell,
-      href: '/notifications',
-      isActive: location.pathname.startsWith('/notifications')
-    },
-    {
-      key: 'notebin',
-      label: 'Notebin',
-      icon: FileText,
-      href: '/notebin',
-      isActive: location.pathname.startsWith('/notebin'),
-      newFeature: true
-    },
-    {
-      key: 'communities',
-      label: 'Communities',
-      icon: Users,
-      href: '/communities',
-      isActive: location.pathname.startsWith('/communities')
-    },
-    {
-      key: 'search',
-      label: 'Search',
-      icon: Search,
-      href: '/search',
-      isActive: location.pathname === '/search'
-    }
-  ];
-  
-  // Secondary navigation items (may require auth)
-  const secondaryItems = [
-    {
-      key: 'wallets',
-      label: 'Wallets',
+      name: "Wallets",
       icon: Wallet,
-      href: '/wallets',
-      isActive: location.pathname.startsWith('/wallets'),
+      href: "/wallets",
       requiresAuth: true
     },
     {
-      key: 'premium',
-      label: 'Premium',
-      icon: Crown,
-      href: '/premium',
-      isActive: location.pathname.startsWith('/premium')
+      name: "Notifications",
+      icon: Bell,
+      href: "/notifications",
+      requiresAuth: true
     },
     {
-      key: 'settings',
-      label: 'Settings',
+      name: "BlockMail",
+      icon: Mail,
+      href: "/messages",
+      requiresAuth: true
+    },
+    {
+      name: "Communities",
+      icon: Users,
+      href: "/communities",
+      requiresAuth: false
+    },
+    {
+      name: "Notebin",
+      icon: FileText,
+      href: "/notebin",
+      requiresAuth: false
+    },
+    {
+      name: "Premium",
+      icon: Crown,
+      href: "/premium",
+      requiresAuth: false
+    },
+    {
+      name: "Profile",
+      icon: User,
+      href: "/profile",
+      requiresAuth: true
+    },
+    {
+      name: "Settings",
       icon: Settings,
-      href: '/settings',
-      isActive: location.pathname.startsWith('/settings')
+      href: "/settings",
+      requiresAuth: false
     }
   ];
-  
+
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto py-2">
-      <nav className="space-y-1 px-2">
-        {navigationItems.map((item) => (
-          <SidebarNavItem
-            key={item.key}
-            icon={item.icon}
-            label={item.label}
-            path={item.href}
-            active={item.isActive}
-            newFeature={item.key === 'notebin'}
-          />
-        ))}
-      </nav>
-      
-      <div className="mt-4">
-        <Separator className="my-4 bg-sidebar-border" />
-        
-        <nav className="space-y-1 px-2">
-          {secondaryItems.map((item) => (
-            (!item.requiresAuth || (item.requiresAuth && isLoggedIn)) && (
-              <SidebarNavItem
-                key={item.key}
-                icon={item.icon}
-                label={item.label}
-                path={item.href}
-                active={item.isActive}
-              />
-            )
-          ))}
-        </nav>
-      </div>
-    </div>
+    <nav className="flex-1">
+      <ul className="space-y-2">
+        {navItems.map((item) => {
+          if (item.requiresAuth && !isLoggedIn) {
+            return null;
+          }
+          
+          const isActive = location.pathname === item.href;
+          
+          return (
+            <SidebarNavItem
+              key={item.name}
+              name={item.name}
+              icon={item.icon}
+              href={item.href}
+              isActive={isActive}
+            />
+          );
+        })}
+      </ul>
+    </nav>
   );
 };
 

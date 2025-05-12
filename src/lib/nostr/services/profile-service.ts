@@ -1,126 +1,111 @@
 
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent, NostrProfileMetadata } from '../types';
+import { SimplePool, Filter } from 'nostr-tools';
+import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
+import { verifyNip05, fetchNip05Data } from '../nip05';
 
 /**
- * Service for managing user profiles
+ * Profile service that handles user profile-related methods
  */
 export class ProfileService {
-  private profileCache: Map<string, NostrProfileMetadata> = new Map();
-  
-  constructor(
-    private pool: SimplePool,
-    private getConnectedRelayUrls: () => string[]
-  ) {}
-  
+  constructor(private pool: SimplePool, private getConnectedRelayUrls: () => string[]) {}
+
   /**
-   * Get user profile metadata
+   * Add getUserProfile method with improved implementation
+   * Complies with NIP-01 for metadata retrieval
    */
-  async getUserProfile(pubkey: string): Promise<NostrProfileMetadata | null> {
+  async getUserProfile(pubkey: string): Promise<{
+    name?: string;
+    display_name?: string;
+    picture?: string;
+    nip05?: string;
+    about?: string;
+    banner?: string;
+    website?: string;
+    lud16?: string;
+    [key: string]: any;
+  } | null> {
     if (!pubkey) return null;
     
-    // Check cache first
-    if (this.profileCache.has(pubkey)) {
-      return this.profileCache.get(pubkey) || null;
-    }
-    
-    const relays = this.getConnectedRelayUrls();
-    if (relays.length === 0) return null;
-    
     try {
-      const event = await this.pool.get(relays, {
-        kinds: [EVENT_KINDS.META],
-        authors: [pubkey]
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      return new Promise((resolve) => {
+        // Properly construct a single filter object according to nostr-tools Filter type
+        const filter: Filter = {
+          kinds: [EVENT_KINDS.META],
+          authors: [pubkey],
+          limit: 1
+        };
+        
+        let subscription: { close: () => void } | null = null;
+        
+        try {
+          subscription = this.pool.subscribe(
+            connectedRelays,
+            filter,
+            {
+              onevent: (event) => {
+                try {
+                  const profile = JSON.parse(event.content);
+                  // Store the raw event tags for NIP-39 verification
+                  if (Array.isArray(event.tags) && event.tags.length > 0) {
+                    profile.tags = event.tags;
+                  }
+                  resolve(profile);
+                  
+                  // Cleanup subscription after receiving the profile
+                  setTimeout(() => {
+                    if (subscription) {
+                      subscription.close();
+                    }
+                  }, 100);
+                } catch (e) {
+                  console.error("Error parsing profile:", e);
+                  resolve(null);
+                }
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Error in subscription:", error);
+          resolve(null);
+        }
+        
+        // Set a timeout to resolve with null if no profile is found
+        setTimeout(() => {
+          if (subscription) {
+            subscription.close();
+          }
+          resolve(null);
+        }, 5000);
       });
-      
-      if (!event || !event.content) return null;
-      
-      try {
-        const profileData = JSON.parse(event.content) as NostrProfileMetadata;
-        
-        // Cache the profile data
-        this.profileCache.set(pubkey, profileData);
-        
-        return profileData;
-      } catch (e) {
-        console.error('Error parsing profile data:', e);
-        return null;
-      }
     } catch (error) {
-      console.error(`Error fetching profile for ${pubkey}:`, error);
+      console.error("Error fetching user profile:", error);
       return null;
     }
   }
-  
+
   /**
-   * Get profiles for multiple users
-   */
-  async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, NostrProfileMetadata>> {
-    const relays = this.getConnectedRelayUrls();
-    if (relays.length === 0 || pubkeys.length === 0) return {};
-    
-    const profiles: Record<string, NostrProfileMetadata> = {};
-    
-    // First check cache for any already fetched profiles
-    pubkeys.forEach(pubkey => {
-      if (this.profileCache.has(pubkey)) {
-        profiles[pubkey] = this.profileCache.get(pubkey)!;
-      }
-    });
-    
-    // Get remaining pubkeys that aren't in the cache
-    const remainingPubkeys = pubkeys.filter(pubkey => !profiles[pubkey]);
-    
-    if (remainingPubkeys.length === 0) {
-      return profiles;
-    }
-    
-    try {
-      const events = await this.pool.querySync(relays, {
-        kinds: [EVENT_KINDS.META],
-        authors: remainingPubkeys
-      });
-      
-      events.forEach(event => {
-        try {
-          const profileData = JSON.parse(event.content);
-          profiles[event.pubkey] = profileData;
-          
-          // Update cache
-          this.profileCache.set(event.pubkey, profileData);
-        } catch (e) {
-          console.error(`Error parsing profile for ${event.pubkey}:`, e);
-        }
-      });
-      
-      return profiles;
-    } catch (error) {
-      console.error('Error fetching profiles:', error);
-      return profiles;
-    }
-  }
-  
-  /**
-   * Verify a NIP-05 identifier
+   * Verify a NIP-05 identifier and check if it matches the expected pubkey
+   * @param identifier - NIP-05 identifier in the format username@domain.com
+   * @param expectedPubkey - The pubkey that should match the NIP-05 identifier
+   * @returns True if the NIP-05 identifier resolves to the expected pubkey
    */
   async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    try {
-      const [name, domain] = identifier.split('@');
-      if (!name || !domain) return false;
-      
-      const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      
-      if (data && data.names && data.names[name] === expectedPubkey) {
-        return true;
-      }
-      
-      return false;
-    } catch (e) {
-      console.error("Error verifying NIP-05:", e);
-      return false;
-    }
+    const pubkey = await verifyNip05(identifier);
+    return pubkey !== null && pubkey === expectedPubkey;
+  }
+
+  /**
+   * Fetch additional data associated with a NIP-05 identifier
+   * @param identifier - NIP-05 identifier in the format username@domain.com
+   * @returns NIP-05 data including relays
+   */
+  async fetchNip05Data(identifier: string): Promise<{
+    relays?: Record<string, { read: boolean; write: boolean }>;
+    [key: string]: any;
+  } | null> {
+    return fetchNip05Data(identifier);
   }
 }
