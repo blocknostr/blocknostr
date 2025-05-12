@@ -20,7 +20,7 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
   
   try {
     // Verify using the general NIP-05 verification utility
-    // Fixed: Check if result is not null to properly indicate verification status
+    // Check if result is not null to properly indicate verification status
     const pubkeyHex = await nip05Verify(normalizedIdentifier);
     return pubkeyHex !== null; // Return true if a valid pubkey was returned
   } catch (error) {
