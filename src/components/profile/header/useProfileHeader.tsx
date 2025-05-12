@@ -32,8 +32,8 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
     
     const verifyIdentifier = async () => {
       try {
-        // Fix: Call verifyNip05 and check if the returned pubkey matches our pubkeyHex
-        const responsePubkey = await verifyNip05(profileData.nip05, pubkeyHex);
+        // Fix: Call verifyNip05 with just one argument
+        const responsePubkey = await verifyNip05(profileData.nip05);
         if (isMounted.current) {
           // Set to true if the pubkeys match, false otherwise
           setNip05Verified(responsePubkey === pubkeyHex);
