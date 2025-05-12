@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-// Import from the correct location that has the 2-parameter implementation
+// Import directly from the utils/nip folder to avoid confusion with multiple implementations
 import { verifyNip05 } from '@/lib/nostr/utils/nip/nip05';
 import { nostrService } from '@/lib/nostr';
 
@@ -119,7 +119,7 @@ const ProfileSettingsPage = () => {
     setIsNip05Verified(null);
     
     try {
-      // Fix: Pass both parameters to verifyNip05 which expects both
+      // Make sure to pass both parameters to match the function signature in utils/nip/nip05.ts
       const isValid = await verifyNip05(identifier, pubkey);
       setIsNip05Verified(isValid);
     } catch (error) {
