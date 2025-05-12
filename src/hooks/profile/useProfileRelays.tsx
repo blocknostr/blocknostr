@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { nostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
-import { parseRelayList } from '@/lib/nostr/utils/nip-utilities';
+import { parseRelayList } from '@/lib/nostr/utils/nip';
 
 interface UseProfileRelaysProps {
   isCurrentUser: boolean;

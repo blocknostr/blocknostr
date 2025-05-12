@@ -5,6 +5,7 @@ import {
   checkXVerification,
   parseRelayList
 } from '../nip';
+import { NostrEvent } from "../../types";
 
 describe('NIP-01: Account Creation Date', () => {
   test('should return null for empty events array', () => {

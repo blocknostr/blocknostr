@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache'; 
-import { verifyNip05 } from '@/lib/nostr/utils/nip-utilities';
+import { verifyNip05 } from '@/lib/nostr/utils/nip';
 import { toast } from 'sonner';
 
 export function useProfileHeader(profileData: any, npub: string, pubkeyHex: string) {
