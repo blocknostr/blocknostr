@@ -45,7 +45,7 @@ function App() {
           richColors
           theme="dark"
           toastOptions={{
-            duration: 2500,
+            duration: 775, // Reduced by 69% from 2500ms to 775ms
             className: "nostr-toast",
             style: { 
               background: "hsl(var(--background))",

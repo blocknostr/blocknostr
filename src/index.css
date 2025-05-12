@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -201,10 +200,10 @@ html.color-theme-in-transition {
     position: relative;
   }
   
-  /* Toast notification animations */
+  /* Toast notification animations - updated for smoother transitions with shorter duration */
   .nostr-toast {
-    animation: toast-slide-in 0.2s ease-out;
-    transition: all 0.3s ease-out;
+    animation: toast-slide-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     cursor: pointer;
   }
   
@@ -220,7 +219,7 @@ html.color-theme-in-transition {
   }
   
   .nostr-toast-exit {
-    animation: toast-slide-out 0.2s ease-out forwards;
+    animation: toast-slide-out 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   
   @keyframes toast-slide-out {
