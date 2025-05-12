@@ -1,3 +1,4 @@
+
 // src/components/you/EditProfileSection.tsx
 
 import React, { useState } from 'react';
@@ -38,6 +39,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     }
 
     setIsSubmitting(true);
+    console.log('Submitting profile form with values:', values);
 
     try {
       // 1) Clean up values by removing empty strings
@@ -86,7 +88,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
             await forceRefreshProfile(nostrService.publicKey);
           }
           onSaved();
-        }, 1000);
+        }, 1500);
       } else {
         toast.error('Failed to update profile');
       }

@@ -1,3 +1,4 @@
+
 /**
  * src/lib/storage.ts
  * Safely interact with localStorage, including automatic JSON parsing
@@ -50,5 +51,21 @@ export function safeLocalStorageGetJson<T = any>(key: string): T | undefined {
     console.warn(`Invalid JSON in localStorage[${key}], clearing it:`, err);
     safeLocalStorageRemove(key);
     return undefined;
+  }
+}
+
+/**
+ * Safely save JSON to localStorage, with proper stringification.
+ * @param key Storage key
+ * @param value Value to store
+ * @returns Boolean indicating success
+ */
+export function safeLocalStorageSetJson<T = any>(key: string, value: T): boolean {
+  try {
+    const json = JSON.stringify(value);
+    return safeLocalStorageSet(key, json);
+  } catch (err) {
+    console.warn(`Error stringifying to localStorage[${key}]:`, err);
+    return false;
   }
 }

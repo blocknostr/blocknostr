@@ -45,7 +45,7 @@ const YouPage = () => {
     }
   }, [profileData.error]);
   
-  // Function to manually refresh profile
+  // Function to manually refresh profile with improved error handling
   const handleRefreshProfile = async () => {
     if (!currentUserPubkey) return;
     
@@ -68,19 +68,31 @@ const YouPage = () => {
     }
   };
 
-  // Handle profile changes after saving
+  // Handle profile changes after saving with improved refresh
   const handleProfileSaved = useCallback(async () => {
     setIsEditing(false);
     
-    // Force refresh to show latest changes
-    await handleRefreshProfile();
-    
-    // Force re-render of the profile preview
-    setProfileKey(Date.now());
-    
-    // Show success message
-    toast.success("Your profile has been updated!");
-  }, []);
+    // Force refresh to show latest changes with a slight delay
+    setTimeout(async () => {
+      try {
+        setRefreshing(true);
+        // Ensure cache is cleared and fresh profile is fetched
+        if (currentUserPubkey) {
+          await forceRefreshProfile(currentUserPubkey);
+          await profileData.refreshProfile();
+        }
+        
+        // Force re-render of the profile preview
+        setProfileKey(Date.now());
+        
+        console.log("Profile updated and refreshed successfully");
+      } catch (error) {
+        console.error("Error refreshing after save:", error);
+      } finally {
+        setRefreshing(false);
+      }
+    }, 1000);
+  }, [profileData, currentUserPubkey]);
 
   if (loading) {
     return (
@@ -111,7 +123,7 @@ const YouPage = () => {
               onClick={handleRefreshProfile}
               disabled={refreshing || profileData.loading}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing || profileData.loading ? 'animate-spin' : ''}`} />
               Refresh Profile
             </Button>
           </div>
