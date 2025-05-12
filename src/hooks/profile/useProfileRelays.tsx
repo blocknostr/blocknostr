@@ -43,62 +43,29 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   const loadUserRelays = async (userPubkey: string) => {
     setIsLoading(true);
     try {
-      // Subscribe to relay list events (NIP-65)
-      const subId = nostrService.subscribe(
-        [
-          {
-            kinds: [10002], // Relay List Metadata (NIP-65)
-            authors: [userPubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          if (event.kind === 10002) {
-            // Parse relay list using NIP-65 utilities
-            const relayMap = parseRelayList(event);
-            
-            // Convert to Relay objects
-            const relayObjects: Relay[] = Array.from(relayMap.entries()).map(([url, permission]) => ({
-              url,
-              status: 'disconnected',
-              read: permission.read,
-              write: permission.write
-            }));
-            
-            setRelays(relayObjects);
-          }
-        }
-      );
+      // First try to get the relay list using the new NIP-65 compliant method
+      const relayUrls = await nostrService.getRelaysForUser(userPubkey);
       
-      // If no results after 3 seconds, fall back to a default list
-      setTimeout(() => {
-        if (relays.length === 0) {
-          // Fallback to try default relays
-          nostrService.getRelaysForUser(userPubkey)
-            .then(userRelays => {
-              // Convert to Relay objects with disconnected status
-              const relayObjects: Relay[] = userRelays.map(url => ({
-                url,
-                status: 'disconnected',
-                read: true,
-                write: true
-              }));
-              
-              setRelays(relayObjects);
-            })
-            .catch(error => {
-              console.error("Error fetching default relays:", error);
-              setRelays([]);
-            });
-        }
+      if (relayUrls && relayUrls.length > 0) {
+        // Convert to Relay objects with disconnected status
+        const relayObjects: Relay[] = relayUrls.map(url => ({
+          url,
+          status: 'disconnected',
+          read: true,
+          write: true
+        }));
         
-        nostrService.unsubscribe(subId);
-        setIsLoading(false);
-      }, 3000);
-      
+        setRelays(relayObjects);
+      } else {
+        // Fallback - let the user know we couldn't find relays
+        toast.info("No relay preferences found for this user");
+        setRelays([]);
+      }
     } catch (error) {
       console.error("Error loading user relays:", error);
       toast.error("Failed to load user's relays");
+      setRelays([]);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -108,7 +75,19 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     if (!isCurrentUser) return false;
     
     try {
-      // Create relay list event according to NIP-65
+      // Use the RelayAdapter's publishRelayList method if available
+      if ('publishRelayList' in nostrService) {
+        const success = await (nostrService as any).publishRelayList(relays);
+        if (success) {
+          toast.success("Relay preferences updated");
+          return true;
+        } else {
+          toast.error("Failed to update relay preferences");
+          return false;
+        }
+      }
+      
+      // Fallback implementation if the method isn't available
       const event = {
         kind: 10002,
         content: '',

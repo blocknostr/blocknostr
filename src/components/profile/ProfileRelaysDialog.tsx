@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,9 @@ const ProfileRelaysDialog = ({
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isAddingRelay, setIsAddingRelay] = useState(false);
   const [isImportingRelays, setIsImportingRelays] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Handle adding a single relay
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
     
@@ -40,7 +43,7 @@ const ProfileRelaysDialog = ({
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
         if (onRelaysChange) {
-          onRelaysChange(relayStatus as Relay[]);
+          onRelaysChange(relayStatus);
         }
       } else {
         toast.error(`Failed to add relay: ${newRelayUrl}`);
@@ -53,16 +56,51 @@ const ProfileRelaysDialog = ({
     }
   };
   
+  // Handle removing a relay
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
     if (onRelaysChange) {
-      onRelaysChange(relayStatus as Relay[]);
+      onRelaysChange(relayStatus);
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
 
+  // Save relay list to NIP-65 event
+  const handleSaveRelayList = async () => {
+    if (!isCurrentUser || relays.length === 0) return;
+    
+    setIsSaving(true);
+    
+    try {
+      // Use the new publishRelayList method if available
+      const success = await (nostrService as any).publishRelayList?.(relays) || 
+                       await nostrService.publishEvent({
+                         kind: 10002,
+                         content: '',
+                         tags: relays.map(relay => {
+                           const tag = ['r', relay.url];
+                           if (relay.read) tag.push('read');
+                           if (relay.write) tag.push('write');
+                           return tag;
+                         })
+                       });
+      
+      if (success) {
+        toast.success("Relay preferences saved and published");
+      } else {
+        toast.error("Failed to save relay preferences");
+      }
+    } catch (error) {
+      console.error("Error saving relay preferences:", error);
+      toast.error("Failed to save relay preferences");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Import relays from another user
   const handleImportRelays = async () => {
     if (!userNpub || isCurrentUser) return;
     
@@ -70,7 +108,7 @@ const ProfileRelaysDialog = ({
     
     try {
       const userPubkey = nostrService.getHexFromNpub(userNpub);
-      // Try to find the user's relays
+      // Use the new NIP-65 compliant method
       const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
       if (userRelays.length === 0) {
@@ -88,7 +126,7 @@ const ProfileRelaysDialog = ({
         // Update relay status
         const relayStatus = nostrService.getRelayStatus();
         if (onRelaysChange) {
-          onRelaysChange(relayStatus as Relay[]);
+          onRelaysChange(relayStatus);
         }
       } else {
         toast.error("Failed to add any relays");
@@ -200,6 +238,23 @@ const ProfileRelaysDialog = ({
               </>
             )}
           </div>
+          
+          {isCurrentUser && relays.length > 0 && (
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleSaveRelayList}
+                disabled={isSaving}
+                variant="default"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                Save Relay Preferences
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

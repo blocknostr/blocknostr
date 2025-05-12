@@ -1,4 +1,3 @@
-
 import { nostrService } from '../service';
 import { BaseAdapter } from './base-adapter';
 import { SocialAdapter } from './social-adapter';
@@ -104,6 +103,11 @@ export class NostrAdapter extends BaseAdapter {
   
   async addMultipleRelays(relayUrls: string[]) {
     return this.relayAdapter.addMultipleRelays(relayUrls);
+  }
+  
+  // Add the new NIP-65 relay list publishing method
+  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
+    return this.relayAdapter.publishRelayList(relays);
   }
   
   // Data retrieval methods
