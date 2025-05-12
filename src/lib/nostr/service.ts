@@ -546,19 +546,31 @@ export class NostrService {
    */
   public async pingRelay(relayUrl: string): Promise<boolean> {
     try {
-      const relay = this.relayManager.getRelay(relayUrl);
-      if (!relay) {
-        console.warn(`[PING] Relay not found: ${relayUrl}`);
+      // Instead of getting a relay object and calling methods on it,
+      // we'll check if the relay is in our connected relays list
+      const relays = this.getRelayStatus();
+      const foundRelay = relays.find(r => r.url === relayUrl);
+      
+      if (foundRelay) {
+        // If we already have it in our list and it's connected, return true
+        if (foundRelay.status === 'connected') {
+          console.log(`[PING] Relay ${relayUrl} is already connected`);
+          return true;
+        }
+      }
+      
+      // If not connected, try to connect
+      console.log(`[PING] Attempting to connect to relay ${relayUrl}`);
+      const connected = await this.addRelay(relayUrl);
+      
+      // Check connection status
+      if (connected) {
+        console.log(`[PING] Successfully connected to ${relayUrl}`);
+        return true;
+      } else {
+        console.log(`[PING] Failed to connect to ${relayUrl}`);
         return false;
       }
-
-      // Attempt to open a connection to the relay
-      await relay.connect();
-
-      // Check if the relay is connected
-      const isConnected = relay.isConnected();
-      console.log(`[PING] Relay ${relayUrl} is ${isConnected ? 'reachable' : 'not reachable'}`);
-      return isConnected;
     } catch (error) {
       console.error(`[PING] Error pinging relay ${relayUrl}:`, error);
       return false;
@@ -744,4 +756,3 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
-

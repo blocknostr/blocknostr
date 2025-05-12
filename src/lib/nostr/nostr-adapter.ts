@@ -314,22 +314,41 @@ export class NostrAdapter extends BaseAdapter {
     console.log(`[NostrAdapter] Unsubscribing all ${this.activeSubscriptions.size} subscriptions`);
     
     try {
-      // Try using service's unsubscribeAll method first
-      if (this.service && typeof this.service.unsubscribeAll === 'function') {
-        this.service.unsubscribeAll();
-      } else {
-        // Fall back to unsubscribing each subscription individually
-        this.activeSubscriptions.forEach(subId => {
-          if (this.service && typeof this.service.unsubscribe === 'function') {
-            this.service.unsubscribe(subId);
-          }
-        });
-      }
+      // Unsubscribe each subscription individually
+      this.activeSubscriptions.forEach(subId => {
+        if (this.service && typeof this.service.unsubscribe === 'function') {
+          this.service.unsubscribe(subId);
+        }
+      });
       
       // Clear the set of active subscriptions
       this.activeSubscriptions.clear();
     } catch (error) {
       console.error('[NostrAdapter] Error unsubscribing:', error);
+    }
+  }
+  
+  // Add ping relay method
+  async pingRelay(relayUrl: string): Promise<boolean> {
+    try {
+      const status = this.getRelayStatus();
+      const relay = status.find(r => r.url === relayUrl);
+      
+      if (!relay) {
+        console.log(`[PingRelay] Relay ${relayUrl} not found in status list`);
+        return false;
+      }
+      
+      if (relay.status === 'connected') {
+        return true;
+      }
+      
+      // Try to connect to the relay
+      const connected = await this.addRelay(relayUrl);
+      return connected;
+    } catch (error) {
+      console.error(`[PingRelay] Error pinging relay ${relayUrl}:`, error);
+      return false;
     }
   }
 

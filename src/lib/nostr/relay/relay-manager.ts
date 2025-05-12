@@ -19,6 +19,7 @@ export class RelayManager {
     'wss://relay.nostr.band'
   ];
   private relayInfoService: RelayInfoService;
+  private relays: Map<string, Relay> = new Map();
 
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -254,20 +255,10 @@ export class RelayManager {
    * @param relayUrl - The URL of the relay to retrieve.
    * @returns The relay instance if found, or null if not found.
    */
-  public getRelay(relayUrl: string): Relay | null {
-    try {
-      const relay = this.pool.getRelay(relayUrl);
-      if (relay) {
-        console.log(`[RelayManager] Found relay: ${relayUrl}`);
-        return relay;
-      } else {
-        console.warn(`[RelayManager] Relay not found: ${relayUrl}`);
-        return null;
-      }
-    } catch (error) {
-      console.error(`[RelayManager] Error retrieving relay ${relayUrl}:`, error);
-      return null;
-    }
+  public getRelay(url: string): any {
+    // Instead of using the pool's getRelay which doesn't exist,
+    // we'll check our internal relays map
+    return this.relays.get(url);
   }
 
   /**

@@ -1,6 +1,8 @@
+
 // src/components/you/profile/profileUtils.ts
 
 import { contentCache, nostrService } from '@/lib/nostr';
+import { adaptedNostrService } from '@/lib/nostr/nostr-adapter';
 import { NostrEvent } from '@/lib/nostr/types';
 import { getEventHash, type UnsignedEvent, type Event as RawEvent } from 'nostr-tools';
 
@@ -239,7 +241,8 @@ export async function publishProfileWithFallback(
     const reachableRelays = await Promise.all(
       relayUrls.map(async (url) => {
         try {
-          const isReachable = await nostrService.pingRelay(url);
+          // Use the new pingRelay method from adaptedNostrService
+          const isReachable = await adaptedNostrService.pingRelay(url);
           if (isReachable) {
             console.log(`[PUBLISH] Relay reachable: ${url}`);
             return url;
