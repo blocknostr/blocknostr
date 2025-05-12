@@ -123,6 +123,71 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
 }
 
 /**
+ * Verify NIP-05 identifier against current user's pubkey
+ * This function verifies if the NIP-05 identifier belongs to the current user
+ */
+export async function verifyNip05ForCurrentUser(identifier: string): Promise<boolean> {
+  if (!identifier || !nostrService.publicKey) {
+    console.log("[NIP-05] No identifier or public key");
+    return false;
+  }
+  
+  try {
+    const [name, domain] = identifier.split('@');
+    if (!name || !domain) {
+      console.log("[NIP-05] Invalid identifier parts");
+      return false;
+    }
+    
+    console.log(`[NIP-05] Verifying ${name}@${domain} for current user`);
+    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
+    
+    if (!response.ok) {
+      console.log(`[NIP-05] Verification failed - status: ${response.status}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.names && data.names[name]) {
+      const pubkey = data.names[name];
+      const currentPubkey = nostrService.publicKey;
+      
+      // Check if the pubkey from NIP-05 matches the current user's pubkey
+      const isValid = pubkey === currentPubkey;
+      console.log(`[NIP-05] Verification result for current user - pubkeys match: ${isValid}`);
+      return isValid;
+    }
+    
+    console.log("[NIP-05] Name not found in response");
+    return false;
+  } catch (error) {
+    console.error("[NIP-05] Error verifying NIP-05:", error);
+    return false;
+  }
+}
+
+// Utility functions for NIP-05 handling
+export const nip05Utils = {
+  formatIdentifier: (username: string, domain: string): string => {
+    return `${username}@${domain}`;
+  },
+  
+  parseIdentifier: (identifier: string): { username: string, domain: string } | null => {
+    if (!identifier || !identifier.includes('@')) return null;
+    
+    const [username, domain] = identifier.split('@');
+    if (!username || !domain) return null;
+    
+    return { username, domain };
+  },
+  
+  isValidFormat: (identifier: string): boolean => {
+    return !!identifier && identifier.includes('@') && identifier.split('@').length === 2;
+  }
+};
+
+/**
  * Enhanced profile publishing function with fallbacks and better error handling
  */
 export async function publishProfileWithFallback(
@@ -138,10 +203,64 @@ export async function publishProfileWithFallback(
     console.log("[PUBLISH] Publishing to relays:", relayUrls);
     console.log("[PUBLISH] Event data:", event);
     
-    // Primary approach: Use extension signing via NIP-07
+    // Primary approach: Use direct method if available
     try {
-      console.log("[PUBLISH] Attempting to publish with extension signing");
-      const publishResult = await nostrService.publish(event as NostrEvent);
+      console.log("[PUBLISH] Attempting to publish event");
+      
+      // Handle publication based on available methods
+      let publishResult;
+      
+      // Check if we have a signEvent method available (NIP-07 extension)
+      if (typeof window !== 'undefined' && window.nostr && window.nostr.signEvent) {
+        console.log("[PUBLISH] Using NIP-07 extension for signing");
+        
+        // Copy event to avoid modifying the original
+        const eventToSign = { ...event };
+        
+        // Add created_at if not present
+        if (!eventToSign.created_at) {
+          eventToSign.created_at = Math.floor(Date.now() / 1000);
+        }
+        
+        // Sign the event
+        try {
+          const signedEvent = await window.nostr.signEvent(eventToSign);
+          
+          // Publish to relays
+          if (relayUrls && relayUrls.length > 0) {
+            let successCount = 0;
+            
+            // Try to publish to each relay
+            for (const relayUrl of relayUrls) {
+              try {
+                const relay = nostrService['pool']?.getRelay(relayUrl);
+                if (relay) {
+                  await relay.publish(signedEvent);
+                  successCount++;
+                }
+              } catch (relayError) {
+                console.error(`[PUBLISH] Error publishing to relay ${relayUrl}:`, relayError);
+              }
+            }
+            
+            publishResult = successCount > 0;
+          }
+        } catch (signError: any) {
+          console.error("[PUBLISH] Error signing event:", signError);
+          return {
+            success: false,
+            error: signError.message || "Failed to sign event"
+          };
+        }
+      } else {
+        // Fallback to nostrService internal methods if available
+        if (typeof nostrService['publishEvent'] === 'function') {
+          publishResult = await nostrService['publishEvent'](event as NostrEvent);
+        } else {
+          console.warn("[PUBLISH] No suitable publish method found");
+          return { success: false, error: "No publishing method available" };
+        }
+      }
       
       console.log("[PUBLISH] Publish result:", publishResult);
       
@@ -150,7 +269,7 @@ export async function publishProfileWithFallback(
         return { success: true, error: null };
       } else {
         console.warn("[PUBLISH] Publish returned false or no success response");
-        throw new Error("Publication failed - no success response");
+        return { success: false, error: "Failed to publish - no success response" };
       }
     } catch (primaryError: any) {
       console.error("[PUBLISH] Primary publish method failed:", primaryError);
@@ -178,14 +297,21 @@ export async function publishProfileWithFallback(
         };
       }
       
-      // Use eventManager's direct publish method as fallback if available
+      // Last fallback attempt using the pool directly if available
       try {
-        if (nostrService.eventManager && typeof nostrService.eventManager.publishEventDirectly === 'function') {
-          console.log("[PUBLISH] Attempting fallback with direct publish");
-          const fallbackResult = await nostrService.eventManager.publishEventDirectly(event, relayUrls);
+        if (nostrService['pool'] && typeof nostrService['pool'].publish === 'function') {
+          console.log("[PUBLISH] Attempting fallback with pool.publish");
           
-          if (fallbackResult) {
-            console.log("[PUBLISH] Fallback publish successful");
+          // Need to handle the event having a complete signature or not
+          const eventToPublish = { ...event };
+          if (!eventToPublish.created_at) {
+            eventToPublish.created_at = Math.floor(Date.now() / 1000);
+          }
+          
+          // Try to publish with the pool
+          const pub = nostrService['pool'].publish(relayUrls, eventToPublish as NostrEvent);
+          if (pub) {
+            console.log("[PUBLISH] Fallback publish initiated");
             return { success: true, error: null };
           }
         }
