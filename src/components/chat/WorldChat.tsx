@@ -28,18 +28,18 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] mb-14 border shadow-md overflow-hidden"> 
+    <Card className="flex-grow flex flex-col h-[550px] mb-14 border shadow-md overflow-hidden rounded-lg"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
-        <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-2 rounded-md">
+        <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1.5 rounded-md">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="text-xs">{error}</AlertDescription>
         </Alert>
       )}
       
       {connectionStatus === 'disconnected' && (
-        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-2 rounded-md">
+        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-1.5 rounded-md">
           <div className="flex justify-between w-full items-center">
             <div className="flex items-center gap-2">
               <WifiOff className="h-3.5 w-3.5" />
@@ -66,7 +66,7 @@ const WorldChat = () => {
       )}
       
       {connectionStatus === 'connecting' && (
-        <Alert className="mx-2 mt-1 mb-0 py-2 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-md">
+        <Alert className="mx-2 mt-1 mb-0 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-md">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
             <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">

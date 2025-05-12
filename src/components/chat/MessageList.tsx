@@ -65,16 +65,22 @@ const MessageList: React.FC<MessageListProps> = ({
     <CardContent className="p-0 overflow-y-auto flex-1">
       <div className="p-2 flex flex-col-reverse">
         <div ref={messagesEndRef} />
-        {messages.map(message => (
-          <MessageItem
-            key={message.id}
-            message={message}
-            emojiReactions={emojiReactions[message.id] || []}
-            profiles={profiles}
-            isLoggedIn={isLoggedIn}
-            onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
-          />
-        ))}
+        {messages.map((message, index) => {
+          // Get previous message for grouping logic
+          const previousMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
+          
+          return (
+            <MessageItem
+              key={message.id}
+              message={message}
+              previousMessage={previousMessage}
+              emojiReactions={emojiReactions[message.id] || []}
+              profiles={profiles}
+              isLoggedIn={isLoggedIn}
+              onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
+            />
+          );
+        })}
       </div>
     </CardContent>
   );

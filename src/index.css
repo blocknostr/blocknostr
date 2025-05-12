@@ -157,10 +157,36 @@ html.color-theme-in-transition {
   
   .message-bubble-sent {
     @apply bg-primary text-primary-foreground rounded-2xl rounded-tr-sm;
+    position: relative;
+  }
+  
+  .message-bubble-sent:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -6px;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--primary));
+    border-radius: 0 0 0 10px;
+    clip-path: polygon(0 0, 0% 100%, 100% 0);
   }
   
   .message-bubble-received {
     @apply bg-muted rounded-2xl rounded-tl-sm;
+    position: relative;
+  }
+  
+  .message-bubble-received:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--muted) / 0.8);
+    border-radius: 0 0 10px 0;
+    clip-path: polygon(100% 0, 0 0, 100% 100%);
   }
 }
 
