@@ -1,246 +1,133 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useProfileMetadata } from './profile/useProfileMetadata';
-import { useProfilePosts } from './profile/useProfilePosts';
-import { useProfileRelations } from './profile/useProfileRelations';
-import { useProfileReposts } from './profile/useProfileReposts';
-import { useProfileRelays } from './profile/useProfileRelays';
-import { useProfileReplies } from './profile/useProfileReplies';
-import { useProfileLikes } from './profile/useProfileLikes';
 import { nostrService } from '@/lib/nostr';
+import { useProfileRelays } from './profile/useProfileRelays';
 
-interface UseProfileDataProps {
-  npub: string | undefined;
-  currentUserPubkey: string | null;
-}
-
-export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
-  // State for tracking original post profiles (used in reposts)
-  const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
-  const [refreshCounter, setRefreshCounter] = useState(0);
+/**
+ * Hook to manage profile data and related functionality
+ */
+export function useProfileData(pubkey: string | null) {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed' | null>(null);
+  const [followCount, setFollowCount] = useState<number | null>(null);
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
   
-  // Get profile metadata and loading state
+  // Check if this is the current user's profile
+  const isCurrentUser = !!nostrService.publicKey && pubkey === nostrService.publicKey;
+  
+  // Get relay information using the useProfileRelays hook
   const { 
-    profileData, 
-    loading: metadataLoading, 
-    isCurrentUser,
-    hexNpub,
-    error: metadataError,
-    refetch: refetchProfile
-  } = useProfileMetadata({ npub, currentUserPubkey });
-  
-  // Track connection status
-  useEffect(() => {
-    if (metadataLoading) {
-      setConnectionStatus('connecting');
-    } else if (metadataError) {
-      setConnectionStatus('failed');
-      setError(metadataError);
-    } else if (profileData) {
-      setConnectionStatus('connected');
-      setError(null);
-    }
-  }, [metadataLoading, metadataError, profileData]);
-  
-  // Log important information for debugging
-  useEffect(() => {
-    if (npub) {
-      console.log("Profile page for npub:", npub);
-      
-      try {
-        const hex = nostrService.getHexFromNpub(npub);
-        console.log("Converted to hex pubkey:", hex);
-      } catch (error) {
-        console.error("Error converting npub to hex:", error);
-        setError("Invalid profile identifier. Please check the URL.");
-      }
-    }
-    
-    if (hexNpub) {
-      console.log("Using hex pubkey for profile:", hexNpub);
-    }
-    
-    if (metadataLoading) {
-      console.log("Profile data loading...");
-    } else {
-      console.log("Profile data loaded:", profileData ? "success" : "not found");
-    }
-  }, [npub, hexNpub, metadataLoading, profileData]);
-  
-  // Get user's posts and media with improved error handling
-  const { 
-    events, 
-    media, 
-    loading: postsLoading,
-    error: postsError,
-    refetch: refetchPosts 
-  } = useProfilePosts({ 
-    hexPubkey: hexNpub 
-  });
-  
-  // Update error state if posts loading fails
-  useEffect(() => {
-    if (postsError && !metadataError) {
-      setError(postsError);
-    }
-  }, [postsError, metadataError]);
-  
-  // Get followers and following with improved error handling
-  const { 
-    followers, 
-    following, 
-    isLoading: relationsLoading,
-    hasError: relationsHasError,
-    errorMessage: relationsError,
-    refetch: refetchRelations
-  } = useProfileRelations({ 
-    hexPubkey: hexNpub, 
+    relays, 
+    loading: relaysLoading, 
+    error: relaysError,
+    addRelay,
+    removeRelay,
+    refreshRelays,
+    setRelays,
+    loadError
+  } = useProfileRelays({ 
+    pubkey, 
     isCurrentUser 
   });
   
-  // Update error state if relations loading fails
-  useEffect(() => {
-    if (relationsHasError && !metadataError && !postsError) {
-      setError(relationsError || "Failed to load profile connections");
+  // Fetch profile data
+  const fetchProfileData = useCallback(async () => {
+    if (!pubkey) {
+      setLoading(false);
+      return;
     }
-  }, [relationsHasError, relationsError, metadataError, postsError]);
-  
-  // Log followers and following counts for debugging
-  useEffect(() => {
-    if (!relationsLoading) {
-      console.log(`Profile relations: ${followers.length} followers, ${following.length} following`);
-    }
-  }, [followers, following, relationsLoading]);
-  
-  // Get reposts and handle fetching original posts
-  const { 
-    reposts, 
-    replies: repostReplies, 
-    fetchOriginalPost,
-  } = useProfileReposts({ 
-    originalPostProfiles, 
-    setOriginalPostProfiles 
-  });
-  
-  // Get relays information with improved error handling - fix the argument passed to useProfileRelays
-  const { 
-    relays, 
-    addRelay,
-    removeRelay,
-    setRelays,
-    refreshRelays,
-    loadError: relaysError
-  } = useProfileRelays({ 
-    pubkey: hexNpub,
-    isCurrentUser
-  });
-  
-  // Update error state if relays loading fails
-  useEffect(() => {
-    if (relaysError && !metadataError && !postsError && !relationsError) {
-      setError(relaysError);
-    }
-  }, [relaysError, metadataError, postsError, relationsError]);
-  
-  // Get replies (NIP-10)
-  const { replies } = useProfileReplies({
-    hexPubkey: hexNpub
-  });
-  
-  // Get likes/reactions (NIP-25)
-  const { reactions, referencedEvents } = useProfileLikes({
-    hexPubkey: hexNpub
-  });
-  
-  // Log post counts for debugging
-  useEffect(() => {
-    if (events.length > 0 || reposts.length > 0) {
-      console.log(`Profile posts: ${events.length} posts, ${reposts.length} reposts`);
-    }
-  }, [events, reposts]);
-  
-  // Set up listeners for refresh events
-  useEffect(() => {
-    const handleRefetchEvents = (e: Event) => {
-      console.log("Received refetch event");
-      setRefreshCounter(prev => prev + 1);
-      
-      // Clear any existing errors on refresh
+    
+    try {
+      setLoading(true);
       setError(null);
-    };
-    
-    window.addEventListener('refetchProfile', handleRefetchEvents);
-    window.addEventListener('refetchPosts', handleRefetchEvents);
-    window.addEventListener('refetchRelations', handleRefetchEvents);
-    
-    return () => {
-      window.removeEventListener('refetchProfile', handleRefetchEvents);
-      window.removeEventListener('refetchPosts', handleRefetchEvents);
-      window.removeEventListener('refetchRelations', handleRefetchEvents);
-    };
-  }, []);
-  
-  // Determine overall loading state
-  const loading = metadataLoading || (postsLoading && events.length === 0);
-  
-  // Function to refresh all profile data
-  const refreshProfile = useCallback(async () => {
-    console.log("Refreshing all profile data");
-    
-    // Reset error state
-    setError(null);
-    
-    // Ensure we're connected to relays
-    await nostrService.connectToUserRelays();
-    
-    // Add more popular relays to increase chances of success
-    await nostrService.addMultipleRelays([
-      "wss://relay.damus.io", 
-      "wss://nos.lol", 
-      "wss://relay.nostr.band",
-      "wss://relay.snort.social",
-      "wss://nostr.mutinywallet.com"
-    ]).catch(err => console.warn("Error adding additional relays:", err));
-    
-    // Refresh relays first
-    if (refreshRelays) {
-      refreshRelays();
+      
+      // Get profile data from service
+      const profile = await nostrService.getUserProfile(pubkey);
+      
+      if (profile) {
+        setProfileData(profile);
+      } else {
+        setProfileData(null);
+      }
+      
+      // Get follow counts (placeholder implementation)
+      setFollowCount(0);
+      setFollowerCount(0);
+      
+      // Attempt to get real follow counts if available
+      try {
+        // Fetch followed accounts
+        if (isCurrentUser) {
+          setFollowCount(nostrService.following.length);
+        }
+        
+        // TODO: Implement follower count
+      } catch (err) {
+        console.warn("Error fetching follow counts:", err);
+      }
+    } catch (err) {
+      console.error("Error fetching profile data:", err);
+      setError("Failed to load profile data");
+    } finally {
+      setLoading(false);
     }
-    
-    // Trigger the individual refresh functions
-    if (refetchProfile) refetchProfile();
-    if (refetchPosts) refetchPosts();
-    if (refetchRelations) refetchRelations();
-    
-    // Clear cached data
-    setOriginalPostProfiles({});
-    
-    // Update the refresh counter to trigger rerender
-    setRefreshCounter(prev => prev + 1);
-    
-    // Wait a bit to allow data to load
-    return new Promise<void>(resolve => setTimeout(resolve, 2000));
-  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays]);
+  }, [pubkey, isCurrentUser]);
   
+  // Fetch profile data on mount or when pubkey changes
+  useEffect(() => {
+    fetchProfileData();
+  }, [fetchProfileData]);
+  
+  // Check if user is being followed
+  const isFollowing = useCallback(() => {
+    if (!pubkey || !nostrService.publicKey) return false;
+    return nostrService.isFollowing(pubkey);
+  }, [pubkey]);
+  
+  // Follow a user
+  const followUser = useCallback(async () => {
+    if (!pubkey || !nostrService.publicKey) return false;
+    
+    try {
+      const success = await nostrService.followUser(pubkey);
+      return success;
+    } catch (err) {
+      console.error("Error following user:", err);
+      return false;
+    }
+  }, [pubkey]);
+  
+  // Unfollow a user
+  const unfollowUser = useCallback(async () => {
+    if (!pubkey || !nostrService.publicKey) return false;
+    
+    try {
+      const success = await nostrService.unfollowUser(pubkey);
+      return success;
+    } catch (err) {
+      console.error("Error unfollowing user:", err);
+      return false;
+    }
+  }, [pubkey]);
+
   return {
     profileData,
-    events,
-    replies,
-    media,
-    reposts,
     loading,
     error,
-    relays,
-    setRelays,
-    followers,
-    following,
-    originalPostProfiles,
+    fetchProfileData,
     isCurrentUser,
-    reactions,
-    referencedEvents,
-    refreshProfile,
-    connectionStatus
+    isFollowing: isFollowing(),
+    followUser,
+    unfollowUser,
+    followCount,
+    followerCount,
+    relays,
+    relaysLoading,
+    relaysError: loadError, // Use loadError from useProfileRelays
+    addRelay,
+    removeRelay,
+    refreshRelays,
+    setRelays
   };
 }

@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { EnhancedRelay } from "@/components/profile/ProfileRelaysDialog";
 import { WifiOff, Wifi, Clock, AlertTriangle } from "lucide-react";
 import { CircuitBreaker, CircuitStateValues } from "@/lib/nostr/relay/circuit/circuit-breaker";
+import { Relay } from "@/lib/nostr/types";
 
 interface RelayListProps {
-  relays: EnhancedRelay[];
+  relays: Relay[];
   onRemoveRelay?: (relayUrl: string) => void;
   isCurrentUser: boolean;
+  renderRelayScore?: (relay: Relay) => React.ReactNode;
 }
 
 // Helper function to get color based on status
@@ -54,7 +56,7 @@ const getCircuitBadgeVariant = (state?: string): "default" | "secondary" | "outl
   }
 };
 
-export const RelayList: React.FC<RelayListProps> = ({ relays, onRemoveRelay, isCurrentUser }) => {
+export const RelayList: React.FC<RelayListProps> = ({ relays, onRemoveRelay, isCurrentUser, renderRelayScore }) => {
   if (!relays || relays.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
@@ -70,8 +72,8 @@ export const RelayList: React.FC<RelayListProps> = ({ relays, onRemoveRelay, isC
   // Group relays by status for better organization
   const connectedRelays = relays.filter(r => r.status === 'connected');
   const connectingRelays = relays.filter(r => r.status === 'connecting');
-  const errorRelays = relays.filter(r => ['error', 'failed', 'disconnected'].includes(r.status));
-  const unknownRelays = relays.filter(r => !['connected', 'connecting', 'error', 'failed', 'disconnected'].includes(r.status));
+  const errorRelays = relays.filter(r => ['error', 'failed', 'disconnected'].includes(r.status as string));
+  const unknownRelays = relays.filter(r => !['connected', 'connecting', 'error', 'failed', 'disconnected'].includes(r.status as string));
   
   // Combine in order of importance
   const orderedRelays = [
@@ -134,6 +136,9 @@ export const RelayList: React.FC<RelayListProps> = ({ relays, onRemoveRelay, isC
                       Required
                     </Badge>
                   )}
+
+                  {/* Add custom score rendering if provided */}
+                  {renderRelayScore && renderRelayScore(relay)}
                 </div>
               </div>
             </div>

@@ -1,3 +1,4 @@
+
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -13,6 +14,11 @@ export interface Relay {
   status: "connected" | "connecting" | "disconnected" | "error" | "failed" | "unknown";
   read?: boolean;
   write?: boolean;
+  // Add these new properties for relay performance tracking
+  score?: number;
+  avgResponse?: number;
+  circuitStatus?: CircuitState;
+  isRequired?: boolean;
 }
 
 export interface Filter {
@@ -24,6 +30,21 @@ export interface Filter {
   since?: number;
   until?: number;
   limit?: number;
+}
+
+// Add NostrFilter as an alias for Filter to maintain compatibility
+export type NostrFilter = Filter;
+
+export interface NostrProfileMetadata {
+  name?: string;
+  display_name?: string;
+  about?: string;
+  picture?: string;
+  banner?: string;
+  website?: string;
+  nip05?: string;
+  lud16?: string;
+  [key: string]: any;
 }
 
 export type EventDeDuplication = {

@@ -59,26 +59,14 @@ const ProfileRelaysDialog = ({
   const handleRelayChange = () => {
     const relayStatus = nostrService.getRelayStatus();
     
-    // Enhance with performance data if available
-    const enhancedRelays: EnhancedRelay[] = relayStatus.map(relay => {
-      // Add defaults for extended properties and ensure status is provided
-      return {
-        ...relay,
-        status: relay.status || 'unknown', // Ensure status is required
-        score: relay.score !== undefined ? relay.score : 50,
-        avgResponse: relay.avgResponse !== undefined ? relay.avgResponse : undefined,
-        circuitStatus: 'closed' as CircuitState // Default to closed
-      };
-    });
-    
     if (onRelaysChange) {
-      // Since we're enhancing, this is safe to pass
+      // Since we're using standard Relay type in our API
       onRelaysChange(relayStatus);
     }
   };
 
   // Save relay list to NIP-65 event with improved error handling
-  const handleSaveRelayList = async (relaysToSave: EnhancedRelay[]): Promise<boolean> => {
+  const handleSaveRelayList = async (relaysToSave: Relay[]): Promise<boolean> => {
     if (!isCurrentUser || relaysToSave.length === 0) return false;
     
     setIsPublishing(true);
@@ -87,7 +75,7 @@ const ProfileRelaysDialog = ({
       // Sort relays by performance score before saving
       const sortedRelays = [...relaysToSave].sort((a, b) => {
         // Sort by score if available
-        if (a.score !== undefined && b.score !== undefined) {
+        if ((a.score !== undefined) && (b.score !== undefined)) {
           return b.score - a.score;
         }
         // Otherwise sort by status (connected first)
@@ -177,8 +165,8 @@ const ProfileRelaysDialog = ({
     if (a.status !== "connected" && b.status === "connected") return 1;
     
     // Then by score if available
-    const aScore = (a as any).score;
-    const bScore = (b as any).score;
+    const aScore = a.score;
+    const bScore = b.score;
     if (aScore !== undefined && bScore !== undefined) {
       return bScore - aScore;
     }
@@ -192,16 +180,6 @@ const ProfileRelaysDialog = ({
     if (percentage > 40) return "secondary"; // Using supported variant
     return "destructive"; // Using supported variant
   };
-
-  // Convert relays to EnhancedRelay type for the RelayList component
-  const enhancedRelays: EnhancedRelay[] = sortedRelays.map(relay => ({
-    ...relay,
-    status: relay.status || 'unknown', // Ensure status is required
-    score: (relay as any).score || 50,
-    avgResponse: (relay as any).avgResponse,
-    circuitStatus: (relay as any).circuitStatus || 'closed' as CircuitState,
-    isRequired: (relay as any).isRequired || false
-  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -249,7 +227,7 @@ const ProfileRelaysDialog = ({
         {/* Simple relay list */}
         <div className="space-y-4">
           <RelayList
-            relays={enhancedRelays}
+            relays={sortedRelays}
             onRemoveRelay={handleRemoveRelay}
             isCurrentUser={isCurrentUser}
           />
@@ -258,7 +236,7 @@ const ProfileRelaysDialog = ({
             <div className="mt-4 flex justify-end">
               <Button
                 variant="default"
-                onClick={() => handleSaveRelayList(enhancedRelays)}
+                onClick={() => handleSaveRelayList(sortedRelays)}
                 disabled={isPublishing}
               >
                 {isPublishing ? 'Saving...' : 'Save Relay Preferences'}

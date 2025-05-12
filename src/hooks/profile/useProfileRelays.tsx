@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService, adaptedNostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -56,7 +57,7 @@ export function useProfileRelays({
           if (userRelays && userRelays.length > 0) {
             const newRelays: Relay[] = userRelays.map(url => ({
               url,
-              status: 'unknown', // Fixed status to match type
+              status: 'unknown' as const, // Use const assertion to ensure the correct type
               read: true,
               write: true
             }));
@@ -102,7 +103,7 @@ export function useProfileRelays({
         return false;
       }
       
-      // Add the relay
+      // Add the relay using nostrService directly
       const success = await nostrService.addRelay(formattedUrl);
       
       if (success) {
@@ -153,7 +154,7 @@ export function useProfileRelays({
     }
     
     try {
-      // Remove the relay
+      // Remove the relay using nostrService directly
       nostrService.removeRelay(url);
       
       // Update the state

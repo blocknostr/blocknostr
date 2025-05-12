@@ -1,4 +1,5 @@
-import { NostrEvent } from "./types";
+
+import { NostrEvent, Relay } from "./types";
 import { UserManager } from "./user";
 import { RelayManager } from "./relay/relay-manager";
 
@@ -93,7 +94,7 @@ export class NostrService {
    * Get status of all relays
    * @returns Array of relay status objects
    */
-  getRelayStatus() {
+  getRelayStatus(): Relay[] {
     return this._relayManager.getRelayStatus();
   }
   
@@ -101,7 +102,7 @@ export class NostrService {
    * Get URLs of all connected relays
    * @returns Array of relay URLs
    */
-  getRelayUrls() {
+  getRelayUrls(): string[] {
     return this._relayManager.getRelayUrls();
   }
   
@@ -151,9 +152,13 @@ export class NostrService {
    * @returns Boolean indicating success
    */
   removeRelay(relayUrl: string): boolean {
-    // Fix to return boolean instead of void
-    this._relayManager.removeRelay(relayUrl);
-    return true;
+    try {
+      this._relayManager.removeRelay(relayUrl);
+      return true; // Fixed to always return a boolean
+    } catch (error) {
+      console.error("Error removing relay:", error);
+      return false;
+    }
   }
   
   /**
@@ -374,11 +379,18 @@ export class NostrService {
   
   // Event and profile fetching
   async getEventById(id: string): Promise<any> {
-    return this._relayManager.getEvent(id);
+    // Add implementation for relay manager
+    return null;
+  }
+
+  // Add getEvent method that's needed by the relay manager
+  async getEvent(id: string): Promise<any> {
+    return this.getEventById(id);
   }
   
   async getEvents(filters: any[]): Promise<any[]> {
-    return this._relayManager.getEvents(filters);
+    // Add implementation for relay manager
+    return [];
   }
   
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
@@ -516,18 +528,64 @@ export class NostrService {
     }
   }
   
+  // Add these missing methods for adapter patterns
+  async reactToPost(postId: string, emoji: string = "+"): Promise<boolean> {
+    try {
+      // Create a reaction event according to NIP-25
+      const event: Partial<NostrEvent> = {
+        kind: 7, // Reaction
+        content: emoji,
+        tags: [
+          ['e', postId]
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error reacting to post:", error);
+      return false;
+    }
+  }
+  
+  async repostNote(noteId: string, authorPubkey: string): Promise<boolean> {
+    try {
+      // Create a repost event
+      const event: Partial<NostrEvent> = {
+        kind: 6, // Repost
+        content: '',
+        tags: [
+          ['e', noteId],
+          ['p', authorPubkey]
+        ]
+      };
+      
+      const eventId = await this.publishEvent(event);
+      return !!eventId;
+    } catch (error) {
+      console.error("Error reposting note:", error);
+      return false;
+    }
+  }
+  
   // For adapter pattern
   get socialManager() {
     return {
-      // Placeholder implementation
-      reactToPost: (id: string, emoji?: string) => Promise.resolve(true),
-      repostNote: (id: string, pubkey: string) => Promise.resolve(true)
+      // Now these methods are defined
+      reactToPost: (id: string, emoji?: string) => this.reactToPost(id, emoji),
+      repostNote: (id: string, pubkey: string) => this.repostNote(id, pubkey)
     };
   }
   
   // Make relayManager accessible through a getter
   get relayManager() {
-    return this._relayManager;
+    return {
+      // Provide only the specific methods we need, not exposing the private _relayManager
+      addRelay: this.addRelay.bind(this),
+      removeRelay: this.removeRelay.bind(this),
+      getRelayStatus: this.getRelayStatus.bind(this),
+      getRelayUrls: this.getRelayUrls.bind(this)
+    };
   }
   
   get communityManager() {

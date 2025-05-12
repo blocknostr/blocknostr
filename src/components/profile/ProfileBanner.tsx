@@ -1,22 +1,39 @@
 
+import React from 'react';
+// Remove next/image import and use an img element directly
+
 interface ProfileBannerProps {
-  bannerUrl?: string | null;
+  bannerUrl?: string;
+  alt?: string;
+  className?: string;
 }
 
-export function ProfileBanner({ bannerUrl }: ProfileBannerProps) {
-  const defaultBanner = 'https://images.unsplash.com/photo-1633421878925-def48a15d1dd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80';
+const ProfileBanner: React.FC<ProfileBannerProps> = ({
+  bannerUrl,
+  alt = "Profile Banner",
+  className = ""
+}) => {
+  // Default banner if none provided
+  const defaultBanner = "/images/default-banner.jpg";
   
   return (
-    <div className="relative w-full h-32 md:h-48 overflow-hidden rounded-t-lg">
-      {bannerUrl || defaultBanner ? (
-        <img
-          src={bannerUrl || defaultBanner}
-          alt="Profile banner"
+    <div className={`w-full h-48 overflow-hidden ${className}`}>
+      {bannerUrl ? (
+        <img 
+          src={bannerUrl} 
+          alt={alt}
           className="w-full h-full object-cover"
+          onError={(e) => {
+            // Fallback to default if error occurs
+            const target = e.target as HTMLImageElement;
+            target.src = defaultBanner;
+          }}
         />
       ) : (
-        <div className="w-full h-full bg-gradient-to-r from-blue-500/30 to-purple-500/30" />
+        <div className="w-full h-full bg-gradient-to-r from-blue-400 to-purple-500"></div>
       )}
     </div>
   );
-}
+};
+
+export default ProfileBanner;

@@ -9,10 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
+import { nostrService } from "@/lib/nostr";
 import { Relay } from "@/lib/nostr";
 import { toast } from "sonner";
-import { relayPerformanceTracker } from "@/lib/nostr/relay/performance/relay-performance-tracker";
 import { Loader2 } from "lucide-react";
 
 // Schema for validating relay URLs
@@ -37,7 +36,6 @@ interface RelayDialogContentProps {
   onRelayAdded: () => void;
   onPublishRelayList: (relays: Relay[]) => Promise<boolean>;
   userNpub?: string;
-  renderRelayScore?: (relay: Relay) => React.ReactNode;
 }
 
 export function RelayDialogContent({
@@ -46,8 +44,7 @@ export function RelayDialogContent({
   onRemoveRelay,
   onRelayAdded,
   onPublishRelayList,
-  userNpub,
-  renderRelayScore
+  userNpub
 }: RelayDialogContentProps) {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -69,16 +66,13 @@ export function RelayDialogContent({
       // Start measuring connection time
       const startTime = performance.now();
       
-      // Try to connect to the relay
-      const connected = await adaptedNostrService.addRelay(values.url, values.readWrite);
+      // Try to connect to the relay using direct nostrService
+      const connected = await nostrService.addRelay(values.url, values.readWrite);
       
       // Calculate connection time
       const connectionTime = performance.now() - startTime;
       
       if (connected) {
-        // Record performance metrics
-        relayPerformanceTracker.trackResponseTime(values.url, 'connect', connectionTime);
-        
         // Notify user
         toast.success(`Connected to relay: ${values.url}`);
         
@@ -88,8 +82,6 @@ export function RelayDialogContent({
         // Update relay list
         onRelayAdded();
       } else {
-        // Record performance metrics
-        relayPerformanceTracker.recordFailure(values.url, 'connect', 'Connection failed');
         toast.error(`Failed to connect to relay: ${values.url}`);
       }
     } catch (error) {
@@ -206,7 +198,6 @@ export function RelayDialogContent({
           relays={relays} 
           isCurrentUser={isCurrentUser} 
           onRemoveRelay={onRemoveRelay}
-          renderRelayScore={renderRelayScore}
         />
         
         {isCurrentUser && (

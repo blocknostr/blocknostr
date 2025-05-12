@@ -71,6 +71,7 @@ export class CircuitBreaker {
 }
 
 // Add CircuitState enum value for use in other files
+// Export as consts instead of using them as types
 export const CircuitStateValues = {
   CLOSED: 'closed' as CircuitState,
   HALF_OPEN: 'half-open' as CircuitState,
