@@ -19,6 +19,7 @@ const YouPage = () => {
   const currentUserPubkey = nostrService.publicKey;
   const refreshTimeoutRef = useRef<number | null>(null);
   const profileSavedTimeRef = useRef<number | null>(null);
+  let isRefreshing = false;
 
   useEffect(() => {
     if (!currentUserPubkey) {
@@ -57,26 +58,20 @@ const YouPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (profileData.error) {
-      toast.error(profileData.error);
-    }
-  }, [profileData.error]);
-
   const handleRefreshProfile = async () => {
-    if (!currentUserPubkey) {
-      console.log("[YOU PAGE] No current user pubkey, cannot refresh profile");
+    if (isRefreshing) {
+      console.log("[PROFILE REFRESH] Refresh already in progress");
       return;
     }
 
-    try {
-      setRefreshing(true);
-      console.log(`[YOU PAGE] Starting manual profile refresh for: ${currentUserPubkey}`);
+    isRefreshing = true;
 
+    try {
+      console.log(`[PROFILE REFRESH] Forcing refresh for ${currentUserPubkey}`);
       const refreshResult = await forceRefreshProfile(currentUserPubkey);
 
       if (!refreshResult) {
-        console.log("[YOU PAGE] Profile refresh failed, attempting to reconnect relays");
+        console.log("[PROFILE REFRESH] Initial refresh failed, reconnecting relays");
         await nostrService.connectToDefaultRelays();
         await forceRefreshProfile(currentUserPubkey);
       }
@@ -85,10 +80,10 @@ const YouPage = () => {
       setProfileKey(Date.now());
       toast.success("Profile refreshed successfully");
     } catch (error) {
-      console.error("[YOU PAGE] Error refreshing profile:", error);
+      console.error("[PROFILE REFRESH] Error refreshing profile:", error);
       toast.error("Failed to refresh profile");
     } finally {
-      setRefreshing(false);
+      isRefreshing = false;
     }
   };
 
@@ -141,6 +136,7 @@ const YouPage = () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
+      nostrService.unsubscribeAll();
     };
   }, []);
 
