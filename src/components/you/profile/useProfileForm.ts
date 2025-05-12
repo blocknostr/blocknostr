@@ -52,8 +52,8 @@ export function useProfileForm(profileData: any) {
   
   useEffect(() => {
     if (nip05Value) {
-      const timeoutId = setTimeout(() => {
-        verifyNip05Identifier(nip05Value);
+      const timeoutId = setTimeout(async () => {
+        await verifyNip05Identifier(nip05Value);
       }, 1000);
       
       return () => clearTimeout(timeoutId);
