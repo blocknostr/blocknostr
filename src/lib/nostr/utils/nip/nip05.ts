@@ -5,20 +5,36 @@
  */
 
 /**
- * Tests if a string conforms to the NIP-05 identifier format
+ * Tests if a string conforms to the NIP-05 identifier format (local-part@domain.tld)
+ * As per NIP-05, local-part should be restricted to a-z0-9-_. (case-insensitive)
  */
 export function isValidNip05Format(nip05: string): boolean {
   if (!nip05) return false;
   
-  // NIP-05 format is user@domain.tld
-  const regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return regex.test(nip05);
+  // NIP-05 format is local-part@domain.tld
+  // The spec recommends restricting local-part to a-z0-9-_. (case-insensitive)
+  const parts = nip05.split('@');
+  if (parts.length !== 2) return false;
+  
+  const [localPart, domain] = parts;
+  
+  // Check if localPart is empty or domain is invalid
+  if (!localPart || !domain || !domain.includes('.')) return false;
+  
+  // Check if localPart follows recommended character restrictions (a-z0-9-_.)
+  const localPartRegex = /^[a-z0-9\-_.]+$/i;
+  if (!localPartRegex.test(localPart)) return false;
+  
+  // Basic domain validation
+  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
+  return domainRegex.test(domain);
 }
 
 /**
  * Verify a NIP-05 identifier and check if it resolves to the expected pubkey
- * Enhanced to validate JSON structure and names field
- * @param identifier - NIP-05 identifier in the format username@domain.com
+ * Enhanced to validate JSON structure and names field, per NIP-05 spec
+ * 
+ * @param identifier - NIP-05 identifier in the format username@domain.tld
  * @param expectedPubkey - The pubkey that should match the NIP-05 identifier
  * @returns True if the NIP-05 identifier resolves to the expected pubkey
  */
@@ -30,9 +46,11 @@ export async function verifyNip05(identifier: string, expectedPubkey?: string): 
 
   try {
     const [name, domain] = identifier.split('@');
-    const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
+    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
     
-    const response = await fetch(url);
+    // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
+    const response = await fetch(url, { redirect: 'error' });
+    
     if (!response.ok) {
       console.error(`NIP-05 verification failed: HTTP ${response.status}`);
       return false;

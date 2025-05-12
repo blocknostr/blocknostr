@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { verifyNip05 } from '@/lib/nostr/nip05';
 import { nostrService } from '@/lib/nostr';
+import { verifyNip05Identifier } from './profileUtils';
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -70,11 +70,8 @@ export function useProfileForm(profileData: any) {
     setIsNip05Verified(null);
     
     try {
-      // The verifyNip05 function expects only one argument (the identifier)
-      const pubkey = await verifyNip05(identifier);
-      
-      // Check if the returned pubkey matches the current user's pubkey
-      const isValid = pubkey === nostrService.publicKey;
+      // Call the utility function with one argument (the identifier)
+      const isValid = await verifyNip05Identifier(identifier);
       setIsNip05Verified(isValid);
       return isValid;
     } catch (error) {

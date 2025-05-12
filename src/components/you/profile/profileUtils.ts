@@ -4,7 +4,7 @@ import { nostrService } from '@/lib/nostr';
 
 /**
  * Verifies a NIP-05 identifier against the current user's pubkey
- * @param identifier The NIP-05 identifier to verify
+ * @param identifier The NIP-05 identifier to verify (in format local-part@domain.tld)
  * @returns True if the identifier resolves to the current user's pubkey
  */
 export async function verifyNip05Identifier(identifier: string): Promise<boolean> {
