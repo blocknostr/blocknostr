@@ -7,33 +7,17 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Form } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { nostrService } from '@/lib/nostr';
-import { verifyNip05 } from '@/lib/nostr/nip05';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle } from 'lucide-react';
 
-// Form schema based on NIP-01 metadata fields
-const profileFormSchema = z.object({
-  name: z.string().optional(),
-  display_name: z.string().optional(),
-  about: z.string().optional(),
-  picture: z.string().url().optional().or(z.string().length(0)),
-  banner: z.string().url().optional().or(z.string().length(0)),
-  website: z.string().url().optional().or(z.string().length(0)),
-  nip05: z.string().optional(),
-  lud16: z.string().optional(), // Lightning address
-  twitter: z.string().optional(),
-  github: z.string().optional(),
-  mastodon: z.string().optional(),
-  nostr: z.string().optional()
-});
-
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
+// Import refactored components
+import BasicInfoTab from './profile/BasicInfoTab';
+import AppearanceTab from './profile/AppearanceTab';
+import SocialIdentityTab from './profile/SocialIdentityTab';
+import { useProfileForm } from './profile/useProfileForm';
+import { verifyNip05Identifier } from './profile/profileUtils';
 
 interface EditProfileSectionProps {
   profileData: any;
@@ -42,67 +26,9 @@ interface EditProfileSectionProps {
 
 const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isNip05Verified, setIsNip05Verified] = useState<boolean | null>(null);
-  const [isNip05Verifying, setIsNip05Verifying] = useState(false);
+  const { form, isNip05Verified, isNip05Verifying, setIsNip05Verified } = useProfileForm(profileData);
 
-  // Initialize form with existing profile data
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: profileData.profileData?.name || '',
-      display_name: profileData.profileData?.display_name || '',
-      about: profileData.profileData?.about || '',
-      picture: profileData.profileData?.picture || '',
-      banner: profileData.profileData?.banner || '',
-      website: profileData.profileData?.website || '',
-      nip05: profileData.profileData?.nip05 || '',
-      lud16: profileData.profileData?.lud16 || '',
-      twitter: profileData.profileData?.twitter || '',
-      github: profileData.profileData?.github || '',
-      mastodon: profileData.profileData?.mastodon || '',
-      nostr: profileData.profileData?.nostr || ''
-    }
-  });
-
-  const verifyNip05Identifier = async (identifier: string) => {
-    if (!identifier || !nostrService.publicKey) return;
-    
-    setIsNip05Verifying(true);
-    setIsNip05Verified(null);
-    
-    try {
-      // The verifyNip05 function expects only one argument (the identifier)
-      // The function will return the verified pubkey or null
-      const pubkey = await verifyNip05(identifier);
-      
-      // Check if the returned pubkey matches the current user's pubkey
-      const isValid = pubkey === nostrService.publicKey;
-      setIsNip05Verified(isValid);
-      return isValid;
-    } catch (error) {
-      console.error("Error verifying NIP-05:", error);
-      setIsNip05Verified(false);
-      return false;
-    } finally {
-      setIsNip05Verifying(false);
-    }
-  };
-
-  // Handle nip05 verification when value changes
-  const nip05Value = form.watch('nip05');
-  React.useEffect(() => {
-    if (nip05Value) {
-      const timeoutId = setTimeout(() => {
-        verifyNip05Identifier(nip05Value);
-      }, 1000);
-      
-      return () => clearTimeout(timeoutId);
-    } else {
-      setIsNip05Verified(null);
-    }
-  }, [nip05Value]);
-
-  const onSubmit = async (values: ProfileFormValues) => {
+  const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
       toast.error("You must be logged in to update your profile");
       return;
@@ -122,7 +48,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Fix: Pass only one argument to verifyNip05Identifier
+        // Pass only one argument to verifyNip05Identifier
         const isValid = await verifyNip05Identifier(values.nip05);
         if (!isValid) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");
@@ -186,173 +112,18 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
               </TabsList>
               
               <TabsContent value="basic" className="space-y-4 pt-4">
-                <FormField
-                  control={form.control}
-                  name="display_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Display Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your display name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your username" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="about"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>About</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Tell the world about yourself" 
-                          className="min-h-32" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="website"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Website</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://yourwebsite.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <BasicInfoTab form={form} />
               </TabsContent>
               
               <TabsContent value="appearance" className="space-y-4 pt-4">
-                <FormField
-                  control={form.control}
-                  name="picture"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Profile Picture URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://example.com/your-image.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="banner"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Banner Image URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://example.com/your-banner.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <AppearanceTab form={form} />
               </TabsContent>
               
               <TabsContent value="social" className="space-y-4 pt-4">
-                <FormField
-                  control={form.control}
-                  name="nip05"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>NIP-05 Identifier</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input placeholder="you@example.com" {...field} />
-                          {nip05Value && (
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                              {isNip05Verifying ? (
-                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                              ) : isNip05Verified === true ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : isNip05Verified === false ? (
-                                <AlertCircle className="h-4 w-4 text-red-500" />
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-                      </FormControl>
-                      {isNip05Verified === false && nip05Value && (
-                        <Alert variant="warning" className="py-2">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            This NIP-05 identifier cannot be verified
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="twitter"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Twitter/X Username</FormLabel>
-                      <FormControl>
-                        <Input placeholder="username (without @)" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="github"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>GitHub Username</FormLabel>
-                      <FormControl>
-                        <Input placeholder="username" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="lud16"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Lightning Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="your@lightning.address" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <SocialIdentityTab
+                  form={form}
+                  isNip05Verified={isNip05Verified}
+                  isNip05Verifying={isNip05Verifying}
                 />
               </TabsContent>
             </Tabs>
