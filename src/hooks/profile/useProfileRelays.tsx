@@ -37,7 +37,7 @@ export function useProfileRelays({ pubkey, isCurrentUser }: UseProfileRelaysProp
         if (!combinedRelays.some(r => r.url === relayUrl)) {
           combinedRelays.push({
             url: relayUrl,
-            status: 'disconnected',
+            status: 'disconnected' as const,
             read: true,
             write: true
           });
@@ -52,7 +52,7 @@ export function useProfileRelays({ pubkey, isCurrentUser }: UseProfileRelaysProp
         circuitStatus: relay.circuitStatus || 'closed'
       }));
       
-      setRelays(enhancedRelays);
+      setRelays(enhancedRelays as Relay[]);
     } catch (error) {
       console.error("Error loading relays:", error);
       setLoadError("Failed to load relays");
@@ -109,11 +109,11 @@ export function useProfileRelays({ pubkey, isCurrentUser }: UseProfileRelaysProp
       
       if (success) {
         // Update local relay list
-        const updatedRelays = [
+        const updatedRelays: Relay[] = [
           ...relays,
           {
             url,
-            status: 'connecting',
+            status: 'connecting' as const,
             read: true,
             write: true,
             score: 50,

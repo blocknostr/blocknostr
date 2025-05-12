@@ -5,10 +5,14 @@
  */
 
 // Define circuit states
-export type CircuitState = 'closed' | 'open' | 'half-open';
+export enum CircuitState {
+  CLOSED = 'closed',
+  OPEN = 'open',
+  HALF_OPEN = 'half-open'
+}
 
 export class CircuitBreaker {
-  private state: CircuitState = 'closed';
+  private state: CircuitState = CircuitState.CLOSED;
   private failureCount: number = 0;
   private lastFailureTime: number = 0;
   private successThreshold: number = 3;
@@ -29,10 +33,10 @@ export class CircuitBreaker {
    * Track a successful operation
    */
   recordSuccess(): void {
-    if (this.state === 'half-open') {
+    if (this.state === CircuitState.HALF_OPEN) {
       this.failureCount--;
       if (this.failureCount <= -this.successThreshold) {
-        this.state = 'closed';
+        this.state = CircuitState.CLOSED;
         this.failureCount = 0;
         this.lastFailureTime = 0;
       }
@@ -45,13 +49,13 @@ export class CircuitBreaker {
   recordFailure(): void {
     this.lastFailureTime = Date.now();
     
-    if (this.state === 'closed') {
+    if (this.state === CircuitState.CLOSED) {
       this.failureCount++;
       if (this.failureCount >= this.failureThreshold) {
-        this.state = 'open';
+        this.state = CircuitState.OPEN;
       }
-    } else if (this.state === 'half-open') {
-      this.state = 'open';
+    } else if (this.state === CircuitState.HALF_OPEN) {
+      this.state = CircuitState.OPEN;
       this.failureCount = this.failureThreshold; // Reset failure count
     }
   }
@@ -62,14 +66,14 @@ export class CircuitBreaker {
    * it will transition to half-open
    */
   isAllowed(): boolean {
-    if (this.state === 'closed') {
+    if (this.state === CircuitState.CLOSED) {
       return true;
     }
     
-    if (this.state === 'open') {
+    if (this.state === CircuitState.OPEN) {
       const timeElapsed = Date.now() - this.lastFailureTime;
       if (timeElapsed >= this.resetTimeout) {
-        this.state = 'half-open';
+        this.state = CircuitState.HALF_OPEN;
         return true;
       }
       return false;
@@ -90,7 +94,7 @@ export class CircuitBreaker {
    * Reset the circuit to its initial state
    */
   reset(): void {
-    this.state = 'closed';
+    this.state = CircuitState.CLOSED;
     this.failureCount = 0;
     this.lastFailureTime = 0;
   }
@@ -99,7 +103,7 @@ export class CircuitBreaker {
    * Force the circuit to open
    */
   forceOpen(): void {
-    this.state = 'open';
+    this.state = CircuitState.OPEN;
     this.lastFailureTime = Date.now();
     this.failureCount = this.failureThreshold;
   }
@@ -109,9 +113,12 @@ export class CircuitBreaker {
    * Returns 0 if circuit is closed or already eligible for reset
    */
   getRemainingTimeUntilReset(): number {
-    if (this.state !== 'open') return 0;
+    if (this.state !== CircuitState.OPEN) return 0;
     
     const timeElapsed = Date.now() - this.lastFailureTime;
     return Math.max(0, this.resetTimeout - timeElapsed);
   }
 }
+
+// Create and export a singleton instance for global use
+export const circuitBreaker = new CircuitBreaker();

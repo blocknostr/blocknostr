@@ -1,6 +1,4 @@
 
-// Extend or create the file with necessary types
-
 // Basic Nostr event as per NIP-01
 export interface NostrEvent {
   id: string;
@@ -23,6 +21,13 @@ export interface NostrProfileMetadata {
   lud16?: string;
   website?: string;
   [key: string]: any;
+}
+
+// Complete user profile type
+export interface NostrProfile extends NostrProfileMetadata {
+  pubkey: string;
+  created_at?: number;
+  nip05Verified?: boolean;
 }
 
 // Circuit breaker state for relay connections
@@ -60,5 +65,15 @@ export type ProposalCategory =
   | 'marketing' 
   | 'community' 
   | 'other';
+
+// Note Card Props for the NoteCard component
+export interface NoteCardProps {
+  event: NostrEvent;
+  showActionButtons?: boolean;
+  profileData?: NostrProfileMetadata | null;
+  isReply?: boolean;
+  isDetailed?: boolean;
+  inThread?: boolean;
+}
 
 // Add any additional types needed by the application

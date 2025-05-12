@@ -1,5 +1,6 @@
+
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Relay } from './types';
+import { NostrEvent, Relay, NostrFilter } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';
@@ -9,7 +10,7 @@ import { SocialManager } from './social';
 import { CommunityManager } from './community';
 import { BookmarkManagerFacade } from './bookmark';
 import { toast } from 'sonner';
-import type { ProposalCategory } from '@/types/community';
+import type { ProposalCategory } from '@/lib/nostr/types';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
@@ -166,7 +167,7 @@ export class NostrService {
   
   // Subscription management
   public subscribe(
-    filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
+    filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
     relays?: string[],
     options?: {
@@ -389,11 +390,36 @@ export class NostrService {
         return [];
       }
       
-      const events = await this.pool.queryManyAsync(
-        availableRelays,
-        convertedFilters as any[],
-        { timeout: 5000 }  // 5 second timeout
-      );
+      // Use regular query instead of queryManyAsync
+      const events = await Promise.race([
+        new Promise<NostrEvent[]>((resolve) => {
+          const results: NostrEvent[] = [];
+          const sub = this.pool.subscribeMany(
+            availableRelays,
+            convertedFilters as any[],
+            {
+              onevent: (event) => {
+                results.push(event);
+              },
+              oneose: () => {
+                sub.close();
+                resolve(results);
+              }
+            }
+          );
+          
+          // Set timeout for this query
+          setTimeout(() => {
+            sub.close();
+            resolve(results);
+          }, 5000);
+        }),
+        new Promise<NostrEvent[]>((resolve) => {
+          setTimeout(() => {
+            resolve([]);
+          }, 5000);
+        })
+      ]) as NostrEvent[];
       
       return events;
     } catch (e) {
@@ -773,7 +799,7 @@ export class NostrService {
     // Create a fetcher function for each group
     return relayGroups.map(relayGroup => async () => {
       // Create filter based on options
-      const filter: any = {
+      const filter: NostrFilter = {
         authors: [pubkey],
         limit: options.limit || 20
       };

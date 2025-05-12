@@ -4,8 +4,7 @@ import { ArrowUpDown, CheckCircle2, XCircle, AlertCircle, Info } from "lucide-re
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { circuitBreaker } from "@/lib/nostr/relay/circuit/circuit-breaker";
-import { CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
+import { circuitBreaker, CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
 
 interface RelayListProps {
   relays: Relay[];
@@ -32,8 +31,8 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
         failed: 1
       };
       
-      const aValue = statusOrder[a.status] || 0;
-      const bValue = statusOrder[b.status] || 0;
+      const aValue = statusOrder[a.status as string] || 0;
+      const bValue = statusOrder[b.status as string] || 0;
       
       return sortDirection === 'asc' 
         ? aValue - bValue 

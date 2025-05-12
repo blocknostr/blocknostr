@@ -1,6 +1,6 @@
 
 import { nostrService } from './service';
-import { NostrEvent, Relay, NostrProfile, NostrFilter } from './types';
+import { NostrEvent, Relay } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 /**
@@ -9,9 +9,11 @@ import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
  */
 class AdaptedNostrService {
   private service: typeof nostrService;
+  private _publicKey: string | null = null;
   
   constructor(service: typeof nostrService) {
     this.service = service;
+    this._publicKey = service.publicKey; // Cache the initial value
   }
 
   /**
@@ -70,9 +72,9 @@ class AdaptedNostrService {
     return this.service.getAccountCreationDate(pubkey);
   }
 
-  // Access to following list - FIXED to avoid recursion
+  // Access to following list - FIXED: Return directly instead of using a getter
   get following() {
-    return this.service.following || [];
+    return this.service.following;
   }
 
   // Profile caching
@@ -83,19 +85,24 @@ class AdaptedNostrService {
     return null;
   }
 
-  // User Properties - FIXED to avoid recursion
+  // User Properties - FIXED: Use cached value to avoid recursion
   get publicKey() {
-    // Return the service.publicKey directly to avoid infinite recursion
-    return this.service.publicKey;
+    return this._publicKey;
   }
 
   // Auth methods
   async login() {
-    return this.service.login();
+    const success = await this.service.login();
+    if (success) {
+      this._publicKey = this.service.publicKey; // Update the cached value
+    }
+    return success;
   }
 
   signOut() {
-    return this.service.signOut();
+    const result = this.service.signOut();
+    this._publicKey = null; // Clear the cached value
+    return result;
   }
 
   // Connection methods
@@ -236,6 +243,28 @@ class AdaptedNostrService {
   // Profile updates
   async publishProfileMetadata(metadata: Record<string, any>) {
     return this.service.publishProfileMetadata(metadata);
+  }
+  
+  // Bookmark methods
+  async isBookmarked(eventId: string): Promise<boolean> {
+    if ('isBookmarked' in this.service) {
+      return this.service.isBookmarked(eventId);
+    }
+    return false;
+  }
+  
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
+    if ('addBookmark' in this.service) {
+      return this.service.addBookmark(eventId, collectionId, tags, note);
+    }
+    return false;
+  }
+  
+  async removeBookmark(eventId: string): Promise<boolean> {
+    if ('removeBookmark' in this.service) {
+      return this.service.removeBookmark(eventId);
+    }
+    return false;
   }
 }
 

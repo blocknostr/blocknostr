@@ -1,36 +1,32 @@
 
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Relay, NostrFilter, NostrProfileMetadata, NoteCardProps } from './types';
-import { EVENT_KINDS } from './constants';
-import { contentCache } from './cache/content-cache';
-import { contentFormatter } from './format/content-formatter';
-import { NostrService } from './service';
-import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
-import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+// Re-export types
+export type {
+  NostrEvent,
+  NostrProfileMetadata,
+  NostrProfile,
+  Relay,
+  NostrFilter,
+  CircuitState,
+  ProposalCategory,
+  NoteCardProps
+} from './types';
 
-// Re-export types from internal modules
-export type { NostrEvent, Relay, NostrFilter, NostrProfileMetadata, NoteCardProps } from './types';
+// Export constants
 export { EVENT_KINDS } from './constants';
 
-// Re-export from social module
-export { SocialManager } from './social';
-export type { ReactionCounts, ContactList } from './social/types';
+// Export service
+export { nostrService } from './service';
+export { adaptedNostrService } from './nostr-adapter';
 
-// Re-export from community module
-export type { ProposalCategory } from '@/types/community';
+// Export utils
+export { 
+  formatPubkey, 
+  getNpubFromHex, 
+  getHexFromNpub 
+} from './utils/keys';
 
-// Export bookmark types for backward compatibility
-export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
+// Export content cache
+export { contentCache } from './content-cache';
 
-// Export key utility functions
-export { formatPubkey, getNpubFromHex, getHexFromNpub };
-
-// Export service instance and type
-export { nostrServiceInstance as nostrService };
-export type { NostrService };
-
-// Export cache modules
-export { contentCache };
-
-// Export formatter
-export { contentFormatter };
+// Export subscription manager
+export { SubscriptionManager } from './subscription-manager';
