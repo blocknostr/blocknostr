@@ -34,7 +34,8 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
   
   try {
     const pubkeyHex = await nip05Verify(identifier);
-    return !!pubkeyHex && pubkeyHex === nostrService.publicKey;
+    // Fix the comparison - pubkeyHex will be a string (or null), not a boolean
+    return pubkeyHex !== null && pubkeyHex === nostrService.publicKey;
   } catch (error) {
     console.error("Error verifying NIP-05 for current user:", error);
     return false;

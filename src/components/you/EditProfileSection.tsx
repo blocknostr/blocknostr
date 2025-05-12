@@ -57,8 +57,6 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         tags: [] // Tags for NIP-39 would go here if implemented
       };
       
-      // Note: Twitter verification tag has been removed
-      
       // Publish the event
       const success = await nostrService.publishEvent(eventToPublish);
       

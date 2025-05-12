@@ -66,7 +66,9 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
       if (isValidNip05Format(nip05Value)) {
         setIsNip05Verifying(true);
         timeoutId = window.setTimeout(async () => {
-          await verifyNip05ForCurrentUser(nip05Value);
+          const isValid = await verifyNip05ForCurrentUser(nip05Value);
+          setIsNip05Verified(isValid);
+          setIsNip05Verifying(false);
         }, 800); // Debounce verification
       } else {
         setIsNip05Verified(false);

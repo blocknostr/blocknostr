@@ -7,11 +7,11 @@
  * @param pubkeyHex - Optional hexadecimal public key to verify against
  * @returns True if verified (pubkey matches if provided), false if verification fails
  */
-export async function verifyNip05(identifier: string, pubkeyHex?: string): Promise<boolean> {
+export async function verifyNip05(identifier: string, pubkeyHex?: string): Promise<string | null> {
   // Check if the identifier is valid (contains @)
   if (!identifier || !identifier.includes('@')) {
     console.error("Invalid NIP-05 identifier format");
-    return false;
+    return null;
   }
 
   try {
@@ -21,7 +21,7 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     // Format should be local-part@domain, as per NIP-05
     if (!name || !domain) {
       console.error("NIP-05 identifier must contain both name and domain parts");
-      return false;
+      return null;
     }
     
     // Make a GET request to the well-known URL
@@ -34,7 +34,7 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     // Check if the request was successful
     if (!response.ok) {
       console.error(`NIP-05 verification failed: HTTP ${response.status} for ${url}`);
-      return false;
+      return null;
     }
     
     // Parse the response as JSON
@@ -43,19 +43,19 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     // Validate the response structure as per NIP-05 spec
     if (!data || typeof data !== 'object') {
       console.error("NIP-05 verification failed: Invalid response format");
-      return false;
+      return null;
     }
     
     // Check if the response has a names object
     if (!data.names || typeof data.names !== 'object') {
       console.error("NIP-05 verification failed: Missing or invalid 'names' field");
-      return false;
+      return null;
     }
     
     // Check if the name exists in the names object and get its pubkey
     if (!Object.prototype.hasOwnProperty.call(data.names, name)) {
       console.error(`NIP-05 verification failed: Username '${name}' not found in names object`);
-      return false;
+      return null;
     }
     
     // Get the pubkey from the response
@@ -63,14 +63,14 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     
     // If a pubkey was provided, verify it matches
     if (pubkeyHex) {
-      return responsePubkey === pubkeyHex;
+      return responsePubkey === pubkeyHex ? responsePubkey : null;
     }
     
-    // If no pubkey was provided, just check if there's a value
-    return !!responsePubkey;
+    // If no pubkey was provided, just return the pubkey
+    return responsePubkey;
   } catch (error) {
     console.error("Error verifying NIP-05:", error);
-    return false;
+    return null;
   }
 }
 
@@ -82,7 +82,8 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
  * @returns True if the identifier resolves to the specified pubkey, false otherwise
  */
 export async function verifyNip05ForPubkey(identifier: string, pubkeyHex: string): Promise<boolean> {
-  return await verifyNip05(identifier, pubkeyHex);
+  const result = await verifyNip05(identifier, pubkeyHex);
+  return result === pubkeyHex;
 }
 
 /**
