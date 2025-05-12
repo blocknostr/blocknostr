@@ -101,10 +101,13 @@ const YouPage = () => {
     const shouldRefresh = !profileSavedTimeRef.current ||
       (Date.now() - profileSavedTimeRef.current) > 2000;
 
+    console.log("[YOU PAGE] Should refresh:", shouldRefresh);
+
     if (shouldRefresh) {
       console.log("[YOU PAGE] Setting timeout to refresh profile after save");
 
       if (refreshTimeoutRef.current) {
+        console.log("[YOU PAGE] Clearing existing refresh timeout");
         clearTimeout(refreshTimeoutRef.current);
       }
 
@@ -120,25 +123,32 @@ const YouPage = () => {
 
             // Retry mechanism for relay connection and PoW handling
             await retry(async () => {
+              console.log("[YOU PAGE] Attempting forceRefreshProfile");
               const refreshResult = await forceRefreshProfile(currentUserPubkey);
+
+              console.log("[YOU PAGE] forceRefreshProfile result:", refreshResult);
 
               if (!refreshResult) {
                 console.log("[YOU PAGE] Initial refresh failed, trying to reconnect relays");
                 await nostrService.connectToDefaultRelays();
+                console.log("[YOU PAGE] Reconnected to relays, retrying forceRefreshProfile");
                 await forceRefreshProfile(currentUserPubkey);
               }
             }, {
               maxAttempts: 3,
               baseDelay: 2000,
-              onRetry: () => {
+              onRetry: (attempt) => {
+                console.log(`[YOU PAGE] Retry attempt ${attempt} for profile refresh`);
                 toast.info("Retrying profile refresh...");
               },
             });
 
+            console.log("[YOU PAGE] Refreshing profile data");
             await profileData.refreshProfile();
           }
 
           setProfileKey(Date.now());
+          console.log("[YOU PAGE] Profile refresh completed successfully");
         } catch (error) {
           if (error.message.includes("Unauthorized address")) {
             console.error("[YOU PAGE] Unauthorized address error:", error);
@@ -148,6 +158,7 @@ const YouPage = () => {
             toast.error("Failed to refresh profile. Please try again later.");
           }
         } finally {
+          console.log("[YOU PAGE] Resetting refreshing state");
           setRefreshing(false);
         }
       }, 2500);
