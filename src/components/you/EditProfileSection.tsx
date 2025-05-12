@@ -1,3 +1,5 @@
+// src/components/you/EditProfileSection.tsx
+
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -8,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { nostrService } from '@/lib/nostr';
 
-// Import refactored components
 import BasicInfoTab from './profile/BasicInfoTab';
 import AppearanceTab from './profile/AppearanceTab';
 import SocialIdentityTab from './profile/SocialIdentityTab';
@@ -39,7 +40,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Clean up values by removing empty strings
+      // 1) Clean up values by removing empty strings
       const cleanValues: Record<string, any> = {};
       Object.entries(values).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
@@ -47,9 +48,16 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       });
 
-      console.log('Submitting profile update with values:', cleanValues);
+      // 2) Map `about` → `bio` so your view picks it up
+      if (cleanValues.about) {
+        cleanValues.bio = cleanValues.about;
+        delete cleanValues.about;
+      }
 
-      // Verify NIP-05 if provided
+      // 3) Log it out for debugging
+      console.log('📤 cleanValues payload:', cleanValues);
+
+      // 4) Verify NIP-05 if provided
       if (values.nip05) {
         const verified = await verifyNip05Identifier(values.nip05);
         if (!verified) {
@@ -59,23 +67,22 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       }
 
-      // Create the NIP-01 metadata event
+      // 5) Build the NIP-01 metadata event
       const eventToPublish = {
         kind: 0,
         content: JSON.stringify(cleanValues),
         tags: [],
       };
 
-      // Publish the event
+      // 6) Publish the event
       const success = await nostrService.publishEvent(eventToPublish);
 
       if (success) {
         toast.success('Profile updated successfully');
 
-        // small delay to allow relay propagation, then force-refresh
+        // Delay briefly to allow relay propagation, then refresh
         setTimeout(async () => {
           if (nostrService.publicKey) {
-            console.log('Refreshing profile data after update');
             await forceRefreshProfile(nostrService.publicKey);
           }
           onSaved();
