@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname as nextUsePathname, useRouter as nextUseRouter } from "next/navigation";
 
 interface NavigationContextType {
   history: string[];
@@ -39,8 +39,8 @@ const routeHierarchy: Record<string, string> = {
 
 export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [history, setHistory] = useState<string[]>([]);
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname = nextUsePathname();
+  const router = nextUseRouter();
   const [parentRoute, setParentRoute] = useState<string | null>(null);
 
   // Get parent route based on current path

@@ -5,13 +5,14 @@
 // for the transition period while migrating
 
 import React from 'react';
-import { usePathname as nextUsePathname, useRouter, useSearchParams as nextUseSearchParams } from 'next/navigation';
+import { usePathname as nextUsePathname, useRouter as nextUseRouter, useSearchParams as nextUseSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 // Export Next.js App Router functionality with standard names
 // Rename imports to avoid circular reference
 export const usePathname = nextUsePathname;
 export const useSearchParams = nextUseSearchParams;
+export const useRouter = nextUseRouter;
 
 // Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
@@ -20,14 +21,9 @@ export function useParams() {
   return {};
 }
 
-// Export Next.js Router with exact API match for useRouter()
-export { useRouter };
-
-// Next.js Link component is already properly exported
-
 // Compatibility for React Router's Navigate component
 export function Navigate({ to, replace }: { to: string, replace?: boolean }) {
-  const router = useRouter();
+  const router = nextUseRouter();
   
   React.useEffect(() => {
     if (replace) {
@@ -60,7 +56,7 @@ export function useLocation() {
 }
 
 export function useNavigate() {
-  const router = useRouter();
+  const router = nextUseRouter();
   
   return (path: string, options?: { replace?: boolean }) => {
     if (options?.replace) {
