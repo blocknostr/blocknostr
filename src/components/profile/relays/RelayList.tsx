@@ -1,208 +1,200 @@
 
-import { Relay } from "@/lib/nostr";
-import { ArrowUpDown, CheckCircle2, XCircle, AlertCircle, Info } from "lucide-react";
-import { useState } from "react";
+import React from "react";
+import { CircuitBreaker, CircuitState } from "@/lib/nostr";
+import { EnhancedRelay } from "../ProfileRelaysDialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Trash2, ExternalLink, AlertTriangle, Check, Clock, X, Wifi, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { circuitBreaker, CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
 
 interface RelayListProps {
-  relays: Relay[];
+  relays: EnhancedRelay[];
+  onRemoveRelay: (url: string) => void;
   isCurrentUser: boolean;
-  onRemoveRelay?: (url: string) => void;
-  renderRelayScore?: (relay: Relay) => React.ReactNode;
 }
 
-export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelayScore }: RelayListProps) {
-  const [sortField, setSortField] = useState<'url' | 'status' | 'score'>('status');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-
-  // Sort relays based on the selected field and direction
-  const sortedRelays = [...relays].sort((a, b) => {
-    if (sortField === 'url') {
-      return sortDirection === 'asc' 
-        ? a.url.localeCompare(b.url) 
-        : b.url.localeCompare(a.url);
-    } else if (sortField === 'status') {
-      // For status: connected > disconnected > failed
-      const statusOrder: Record<string, number> = {
-        connected: 3,
-        disconnected: 2,
-        failed: 1
-      };
-      
-      const aValue = statusOrder[a.status as string] || 0;
-      const bValue = statusOrder[b.status as string] || 0;
-      
-      return sortDirection === 'asc' 
-        ? aValue - bValue 
-        : bValue - aValue;
-    } else if (sortField === 'score' && a.score !== undefined && b.score !== undefined) {
-      return sortDirection === 'asc' 
-        ? a.score - b.score 
-        : b.score - a.score;
-    }
-    return 0;
-  });
-
-  // Handle sort toggle
-  const handleSortChange = (field: 'url' | 'status' | 'score') => {
-    if (sortField === field) {
-      // Toggle direction if clicking the same field
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new field and default to descending for status and score, ascending for URL
-      setSortField(field);
-      setSortDirection(field === 'url' ? 'asc' : 'desc');
+export const RelayList: React.FC<RelayListProps> = ({
+  relays,
+  onRemoveRelay,
+  isCurrentUser
+}) => {
+  // Function to get status badge variant
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "success";
+      case "connecting":
+        return "warning";
+      case "disconnected":
+      case "error":
+      case "failed":
+        return "destructive";
+      default:
+        return "secondary";
     }
   };
 
-  // Render status indicator with tooltips
-  const renderStatus = (relay: Relay) => {
-    // Use the circuit breaker without url parameter for backward compatibility
-    const circuitState = relay.circuitStatus as CircuitState || 'closed';
-    
-    if (relay.status === 'connected') {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="ml-1.5 text-green-600">Connected</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Connected and working</p>
-              {relay.avgResponse !== undefined && (
-                <p className="text-xs">Response time: {Math.round(relay.avgResponse)}ms</p>
-              )}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    } else if (relay.status === 'failed' || circuitState === CircuitState.OPEN) {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center">
-                <XCircle className="h-4 w-4 text-red-500" />
-                <span className="ml-1.5 text-red-600">Failed</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Connection failed</p>
-              <p className="text-xs">This relay will be temporarily skipped</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
-    } else {
-      return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <span className="ml-1.5 text-amber-600">Disconnected</span>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Not currently connected</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      );
+  // Function to get status badge text
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "connected":
+        return "Connected";
+      case "connecting":
+        return "Connecting";
+      case "disconnected":
+        return "Disconnected";
+      case "error":
+        return "Error";
+      case "failed":
+        return "Failed";
+      default:
+        return "Unknown";
+    }
+  };
+
+  // Function to get status icon
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "connected":
+        return <Check className="h-3.5 w-3.5" />;
+      case "connecting":
+        return <Clock className="h-3.5 w-3.5" />;
+      case "disconnected":
+      case "error":
+      case "failed":
+        return <X className="h-3.5 w-3.5" />;
+      default:
+        return <WifiOff className="h-3.5 w-3.5" />;
+    }
+  };
+
+  // Function to get circuit status description
+  const getCircuitStatusDescription = (status?: CircuitState) => {
+    switch (status) {
+      case "closed":
+        return "Normal operation";
+      case "half-open":
+        return "Trying to recover";
+      case "open":
+        return "Circuit open (too many failures)";
+      default:
+        return "Unknown circuit state";
+    }
+  };
+
+  // Function to get circuit status icon
+  const getCircuitStatusIcon = (status?: CircuitState) => {
+    switch (status) {
+      case "closed":
+        return <Wifi className="h-3.5 w-3.5 text-green-500" />;
+      case "half-open":
+        return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />;
+      case "open":
+        return <WifiOff className="h-3.5 w-3.5 text-red-500" />;
+      default:
+        return <Wifi className="h-3.5 w-3.5 text-gray-500" />;
     }
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm font-medium mb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2"
-          onClick={() => handleSortChange('url')}
-        >
-          URL <ArrowUpDown className={`ml-1 h-3 w-3 ${sortField === 'url' ? 'opacity-100' : 'opacity-30'}`} />
-        </Button>
-        
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => handleSortChange('score')}
-          >
-            Score <ArrowUpDown className={`ml-1 h-3 w-3 ${sortField === 'score' ? 'opacity-100' : 'opacity-30'}`} />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => handleSortChange('status')}
-          >
-            Status <ArrowUpDown className={`ml-1 h-3 w-3 ${sortField === 'status' ? 'opacity-100' : 'opacity-30'}`} />
-          </Button>
+    <div className="space-y-3">
+      {relays.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No relays configured. Add some relays to connect to the Nostr network.
         </div>
-      </div>
-
-      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-        {sortedRelays.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground">No relays found.</div>
-        ) : (
-          sortedRelays.map((relay) => (
-            <div
-              key={relay.url}
-              className={`
-                flex items-center justify-between p-3 rounded-md border
-                ${relay.status === 'connected' 
-                  ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900/50' 
-                  : relay.status === 'failed' || relay.circuitStatus === CircuitState.OPEN
-                    ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/50'
-                    : 'bg-background border-muted'}
-              `}
-            >
-              <div className="flex flex-col flex-1 mr-4 truncate">
-                <div className="flex items-center">
-                  <span className="truncate text-sm font-medium">{relay.url}</span>
-                  {relay.read && !relay.write && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 ml-1 text-blue-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Read-only relay</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+      ) : (
+        relays.map((relay, index) => (
+          <div 
+            key={relay.url} 
+            className={`
+              p-3 rounded-lg border 
+              ${relay.status === "connected" ? "bg-green-50/30 dark:bg-green-950/20 border-green-200 dark:border-green-900" : 
+               relay.status === "connecting" ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900" :
+               relay.status === "disconnected" || relay.status === "error" || relay.status === "failed" ? 
+               "bg-red-50/30 dark:bg-red-950/20 border-red-200 dark:border-red-900" : 
+               "bg-gray-50/30 dark:bg-gray-900/20"}
+            `}
+          >
+            <div className="flex justify-between items-center">
+              <div className="flex-grow">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium break-all">{relay.url}</h3>
+                  
+                  <Badge variant={getStatusVariant(relay.status) as any} className="ml-2 h-5 px-1.5">
+                    <span className="flex items-center gap-1">
+                      {getStatusIcon(relay.status)}
+                      <span className="text-[10px]">{getStatusText(relay.status)}</span>
+                    </span>
+                  </Badge>
+                  
+                  {relay.isRequired && (
+                    <Badge variant="outline" className="h-5 px-1.5">
+                      <span className="text-[10px]">Required</span>
+                    </Badge>
                   )}
-                  {renderRelayScore && renderRelayScore(relay)}
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          {getCircuitStatusIcon(relay.circuitStatus)}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs">
+                          Circuit status: {getCircuitStatusDescription(relay.circuitStatus)}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
+                <div className="flex items-center gap-4 mt-1">
+                  <div className="text-xs text-muted-foreground">
+                    {relay.read !== false && "Read"}
+                    {relay.read !== false && relay.write !== false && " / "}
+                    {relay.write !== false && "Write"}
+                  </div>
+                  
+                  {relay.score !== undefined && (
+                    <div className="text-xs text-muted-foreground">
+                      Score: {relay.score}/100
+                    </div>
+                  )}
+                  
+                  {relay.avgResponse !== undefined && (
+                    <div className="text-xs text-muted-foreground">
+                      Avg response: {Math.round(relay.avgResponse)}ms
+                    </div>
+                  )}
                 </div>
               </div>
-
-              <div className="flex items-center space-x-4">
-                {renderStatus(relay)}
-
-                {isCurrentUser && onRemoveRelay && (
+              
+              <div className="flex items-center space-x-2">
+                <a
+                  href={relay.url.startsWith("wss://") ? `https://${relay.url.substring(6)}` : relay.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 hover:bg-muted rounded"
+                >
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                </a>
+                
+                {isCurrentUser && !relay.isRequired && (
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
+                    size="icon"
+                    className="h-7 w-7"
                     onClick={() => onRemoveRelay(relay.url)}
                   >
-                    Remove
+                    <Trash2 className="h-4 w-4 text-destructive hover:text-destructive/80" />
                   </Button>
                 )}
               </div>
             </div>
-          ))
-        )}
-      </div>
+          </div>
+        ))
+      )}
     </div>
   );
-}
+};

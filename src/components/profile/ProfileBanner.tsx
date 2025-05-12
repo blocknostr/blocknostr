@@ -1,6 +1,4 @@
 
-import Image from 'next/image';
-
 interface ProfileBannerProps {
   bannerUrl?: string | null;
 }

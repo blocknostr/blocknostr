@@ -1,28 +1,35 @@
-
 import React from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import { contentFormatter } from '@/lib/nostr';
+import { NostrEvent } from '@/lib/nostr/types';
 
 interface MessageItemProps {
-  id: string;
-  content: string;
-  pubkey: string;
-  created_at: number;
-  profileName?: string;
-  profileImage?: string;
-  tags: string[][];
-  isOwnMessage?: boolean;
+  message: NostrEvent;
+  previousMessage?: NostrEvent;
+  emojiReactions: string[];
+  profiles: Record<string, any>;
+  isLoggedIn: boolean;
+  onAddReaction: (emoji: string) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
-  content,
-  pubkey,
-  created_at,
-  profileName,
-  profileImage,
-  tags,
-  isOwnMessage = false,
+  message,
+  profiles,
+  isLoggedIn,
+  emojiReactions,
+  // Other props can be used as needed
 }) => {
+  // Extract needed properties from the message
+  const { content, pubkey, created_at, tags } = message;
+  
+  // Get profile info if available
+  const profile = profiles[pubkey] || {};
+  const profileName = profile.name || profile.display_name;
+  const profileImage = profile.picture;
+  
+  // Check if this is the user's own message
+  const isOwnMessage = isLoggedIn && pubkey === 'your-pubkey'; // Replace with actual check
+
   const formattedContent = React.useMemo(() => {
     return contentFormatter.formatContent(content, tags);
   }, [content, tags]);

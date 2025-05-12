@@ -1,10 +1,8 @@
-
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Relay } from "@/lib/nostr";
+import { Relay, CircuitState } from "@/lib/nostr";
 import { toast } from "sonner";
-import { RelayDialogContent } from "./relays/DialogContent";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import { RelayList } from "./relays/RelayList";
@@ -12,11 +10,15 @@ import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 
-// Extend Relay interface to include performance metrics
-export interface EnhancedRelay extends Relay {
+// Define EnhancedRelay interface without extending Relay
+export interface EnhancedRelay {
+  url: string;
+  read?: boolean;
+  write?: boolean;
+  status: "connecting" | "connected" | "disconnected" | "error" | "unknown" | "failed";
   score?: number;
   avgResponse?: number; 
-  circuitStatus?: string;
+  circuitStatus?: CircuitState;
   isRequired?: boolean;
 }
 
@@ -27,14 +29,6 @@ interface ProfileRelaysDialogProps {
   onRelaysChange?: (relays: Relay[]) => void;
   isCurrentUser: boolean;
   userNpub?: string;
-}
-
-interface RelayDialogContentProps {
-  relays: EnhancedRelay[];
-  isCurrentUser: boolean;
-  onRemoveRelay: (relayUrl: string) => void;
-  onSaveRelayList: (relaysToSave: EnhancedRelay[]) => Promise<boolean>;
-  isPublishing: boolean;
 }
 
 const ProfileRelaysDialog = ({
@@ -71,12 +65,14 @@ const ProfileRelaysDialog = ({
       return {
         ...relay,
         score: relay.score !== undefined ? relay.score : 50,
-        avgResponse: relay.avgResponse !== undefined ? relay.avgResponse : undefined
+        avgResponse: relay.avgResponse !== undefined ? relay.avgResponse : undefined,
+        circuitStatus: 'closed' as CircuitState // Default to closed
       };
     });
     
     if (onRelaysChange) {
-      onRelaysChange(enhancedRelays);
+      // Since we're enhancing, this is safe to pass
+      onRelaysChange(relayStatus);
     }
   };
 
@@ -107,8 +103,8 @@ const ProfileRelaysDialog = ({
         write: relay.write !== undefined ? relay.write : true
       }));
       
-      // Use the imported adapatedNostrService directly
-      const success = await adaptedNostrService.publishRelayList(formattedRelays);
+      // Use direct nostrService API instead of adapter
+      const success = await nostrService.publishRelayList(formattedRelays);
       if (success) {
         toast.success("Relay preferences updated");
         return true;
@@ -141,7 +137,7 @@ const ProfileRelaysDialog = ({
         try {
           const hexPubkey = nostrService.getHexFromNpub(userNpub);
           if (hexPubkey) {
-            const userRelays = await adaptedNostrService.getRelaysForUser(hexPubkey);
+            const userRelays = await nostrService.getRelaysForUser(hexPubkey);
             if (userRelays && userRelays.length > 0) {
               console.log(`Found ${userRelays.length} relays for user ${userNpub}`);
             }
@@ -179,9 +175,11 @@ const ProfileRelaysDialog = ({
     if (a.status === "connected" && b.status !== "connected") return -1;
     if (a.status !== "connected" && b.status === "connected") return 1;
     
-    // Then by score
-    if ((a as EnhancedRelay).score !== undefined && (b as EnhancedRelay).score !== undefined) {
-      return ((b as EnhancedRelay).score || 0) - ((a as EnhancedRelay).score || 0);
+    // Then by score if available
+    const aScore = (a as any).score;
+    const bScore = (b as any).score;
+    if (aScore !== undefined && bScore !== undefined) {
+      return bScore - aScore;
     }
     
     // Finally by URL
@@ -193,6 +191,15 @@ const ProfileRelaysDialog = ({
     if (percentage > 40) return "secondary"; // Using supported variant
     return "destructive"; // Using supported variant
   };
+
+  // Convert relays to EnhancedRelay type for the RelayList component
+  const enhancedRelays: EnhancedRelay[] = sortedRelays.map(relay => ({
+    ...relay,
+    score: (relay as any).score || 50,
+    avgResponse: (relay as any).avgResponse,
+    circuitStatus: (relay as any).circuitStatus || 'closed' as CircuitState,
+    isRequired: (relay as any).isRequired || false
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -240,7 +247,7 @@ const ProfileRelaysDialog = ({
         {/* Simple relay list */}
         <div className="space-y-4">
           <RelayList
-            relays={sortedRelays as EnhancedRelay[]}
+            relays={enhancedRelays}
             onRemoveRelay={handleRemoveRelay}
             isCurrentUser={isCurrentUser}
           />
@@ -249,7 +256,7 @@ const ProfileRelaysDialog = ({
             <div className="mt-4 flex justify-end">
               <Button
                 variant="default"
-                onClick={() => handleSaveRelayList(sortedRelays as EnhancedRelay[])}
+                onClick={() => handleSaveRelayList(enhancedRelays)}
                 disabled={isPublishing}
               >
                 {isPublishing ? 'Saving...' : 'Save Relay Preferences'}

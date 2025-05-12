@@ -1,10 +1,12 @@
 
-import { CircuitState } from "../../types";
-
 /**
  * Circuit breaker implementation for handling relay connections
  * This helps prevent repeated connection attempts to failing relays
  */
+
+// Export the CircuitState type directly
+export type CircuitState = 'closed' | 'half-open' | 'open';
+
 export class CircuitBreaker {
   private state: CircuitState = 'closed';
   private failureCount: number = 0;
@@ -67,6 +69,3 @@ export class CircuitBreaker {
     return true;
   }
 }
-
-// Export CircuitState type for use throughout the application
-export type { CircuitState };

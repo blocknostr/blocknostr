@@ -93,7 +93,7 @@ class AdaptedNostrService {
 
   // Auth methods
   async login() {
-    const success = await (this.service.login?.() || false);
+    const success = await (this.service.login?.() || Promise.resolve(false));
     if (success && this.service.publicKey !== undefined) {
       this._publicKey = this.service.publicKey; // Update the cached value
     }
@@ -165,7 +165,7 @@ class AdaptedNostrService {
     return getHexFromNpub(npub);
   }
 
-  // Add more methods as needed from the NostrService interface
+  // Add the methods that were missing from the first implementation
   async getRelaysForUser(pubkey: string) {
     return this.service.getRelaysForUser?.(pubkey) || [];
   }
@@ -242,6 +242,33 @@ class AdaptedNostrService {
   
   async processPendingOperations() {
     return this.service.processPendingOperations?.() || false;
+  }
+
+  // Add missing methods used in the components
+  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
+    return this.service.publishRelayList?.(relays) || false;
+  }
+
+  async reactToPost(eventId: string, emoji: string): Promise<boolean> {
+    if (this.service.socialManager?.reactToPost) {
+      return this.service.socialManager.reactToPost(eventId, emoji);
+    }
+    return false;
+  }
+
+  async repostNote(eventId: string, pubkey: string): Promise<boolean> {
+    if (this.service.socialManager?.repostNote) {
+      return this.service.socialManager.repostNote(eventId, pubkey);
+    }
+    return false;
+  }
+
+  async addRelay(url: string, readWrite: boolean = true): Promise<boolean> {
+    return this.service.addRelay?.(url, readWrite) || false;
+  }
+
+  async removeRelay(url: string): Promise<boolean> {
+    return this.service.removeRelay?.(url) || false;
   }
 }
 
