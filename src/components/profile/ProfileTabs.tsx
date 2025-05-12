@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/note/NoteCard";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Loader2 } from "lucide-react";
 import { useProfileFetcher } from "../feed/hooks/use-profile-fetcher";
+import { extractFirstImageUrl } from "@/lib/nostr/utils";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -144,7 +144,7 @@ const ProfileTabs = ({
               {media.map(event => (
                 <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
                   <img 
-                    src={extractImageUrl(event.content || '')} 
+                    src={extractFirstImageUrl(event.content, event.tags) || ''}
                     alt="Media" 
                     className="h-full w-full object-cover transition-all hover:scale-105"
                     onClick={(e) => {

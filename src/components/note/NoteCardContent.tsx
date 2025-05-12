@@ -7,6 +7,7 @@ import HashtagButton from './HashtagButton';
 import EnhancedMediaContent from '../media/EnhancedMediaContent';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
+import { extractMediaUrls } from '@/lib/nostr/utils';
 
 interface NoteCardContentProps {
   content?: string;
@@ -48,28 +49,9 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags
+  // Extract media URLs from content and tags using our new utility
   const mediaUrls = useMemo(() => {
-    // Ensure tagsToUse is an array
-    if (!Array.isArray(tagsToUse)) return [];
-    
-    const urlsFromContent: string[] = [];
-    const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/gi;
-    let match;
-    
-    // Extract from content
-    while ((match = mediaRegex.exec(contentToUse)) !== null) {
-      urlsFromContent.push(match[0]);
-    }
-    
-    // Extract from tags - ensure tagsToUse is an array
-    const urlsFromTags = tagsToUse
-      .filter(tag => Array.isArray(tag) && tag.length >= 2 && (tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r'))
-      .map(tag => tag[1])
-      .filter(url => url && url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
-    
-    // Combine and deduplicate URLs
-    return [...new Set([...urlsFromContent, ...urlsFromTags])];
+    return extractMediaUrls(contentToUse, tagsToUse);
   }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
