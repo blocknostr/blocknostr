@@ -5,11 +5,13 @@
 // for the transition period while migrating
 
 import React from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname as nextUsePathname, useRouter, useSearchParams as nextUseSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 // Export Next.js App Router functionality with standard names
-export { usePathname, useSearchParams };
+// Rename imports to avoid circular reference
+export const usePathname = nextUsePathname;
+export const useSearchParams = nextUseSearchParams;
 
 // Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
@@ -47,8 +49,8 @@ export function generateMetadata({ title, description }: { title?: string; descr
 
 // For components that still rely on useLocation
 export function useLocation() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const pathname = nextUsePathname();
+  const searchParams = nextUseSearchParams();
   
   return {
     pathname,

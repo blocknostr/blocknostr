@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import PageHeader from "@/components/navigation/PageHeader";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "@/lib/next-app-router-shim";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface HeaderSectionProps {
