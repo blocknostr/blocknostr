@@ -1,3 +1,4 @@
+
 // src/components/you/profile/profileUtils.ts
 
 import { contentCache, nostrService } from '@/lib/nostr';
@@ -122,13 +123,24 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
   if (!nostrService.publicKey || !identifier.includes('@')) return false;
   const [name, domain] = identifier.split('@');
   try {
-    const resp = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
-    if (!resp.ok) return false;
-    const data = await resp.json();
-    const pubkey = data?.names?.[name];
-    const match = pubkey === nostrService.publicKey;
-    console.log(`[NIP-05] current‐user match: ${match}`);
-    return match;
+    // Use AbortController for timeout instead of the 'timeout' property
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+      const resp = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`, {
+        signal: controller.signal
+      });
+      
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      const pubkey = data?.names?.[name];
+      const match = pubkey === nostrService.publicKey;
+      console.log(`[NIP-05] current‐user match: ${match}`);
+      return match;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   } catch {
     return false;
   }
@@ -167,7 +179,7 @@ export async function publishProfileWithFallback(
   };
 
   // Compute ID
-  const id = getEventHash(full);
+  const eventId = getEventHash(full);
   
   try {
     console.log('[PUBLISH] Attempting to publish event with tryPublishWithRetries...');
@@ -175,7 +187,9 @@ export async function publishProfileWithFallback(
     // Try our enhanced publish function with retries
     const result = await tryPublishWithRetries({
       ...full,
-      id
+      // Do not include id property here as it's not part of UnsignedEvent
+      // Instead pass the computed hash separately
+      eventHash: eventId
     }, relayUrls);
     
     if (result.success) {
@@ -202,7 +216,7 @@ export async function publishProfileWithFallback(
  * Helper function to try different publishing strategies with retries
  */
 async function tryPublishWithRetries(
-  event: UnsignedEvent & { id: string },
+  event: UnsignedEvent & { eventHash: string },
   relayUrls: string[]
 ): Promise<{ success: boolean; error: string | null; eventId?: string }> {
   // First attempt: Try direct publishing to each relay individually
@@ -226,7 +240,7 @@ async function tryPublishWithRetries(
         let eventId: string | undefined;
         
         try {
-          // Try the first attempt
+          // Try the first attempt - use standard publishEvent method
           eventId = await nostrService.publishEvent({
             ...event
           });
