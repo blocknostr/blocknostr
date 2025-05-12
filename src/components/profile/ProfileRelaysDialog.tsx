@@ -1,26 +1,10 @@
 import { useState } from "react";
-import { nostrService } from "@/lib/nostr";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Relay, CircuitState } from "@/lib/nostr";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertTriangle } from "lucide-react";
-import { RelayList } from "./relays/RelayList";
-import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
-
-// Define EnhancedRelay interface without extending Relay to avoid conflicts
-export interface EnhancedRelay {
-  url: string;
-  status: "connecting" | "connected" | "disconnected" | "failed" | "unknown";
-  read?: boolean;
-  write?: boolean;
-  score?: number;
-  avgResponse?: number; 
-  circuitStatus?: CircuitState;
-  isRequired?: boolean;
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Check, Loader2, Network, Plus, Wifi, X } from "lucide-react";
+import { Relay, nostrService } from "@/lib/nostr";
+import { toast } from "sonner";
 
 interface ProfileRelaysDialogProps {
   open: boolean;
@@ -39,210 +23,183 @@ const ProfileRelaysDialog = ({
   isCurrentUser,
   userNpub
 }: ProfileRelaysDialogProps) => {
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Handle removing a relay
-  const handleRemoveRelay = (relayUrl: string) => {
-    // Remove from nostr service
-    nostrService.removeRelay(relayUrl);
+  const [newRelayUrl, setNewRelayUrl] = useState("");
+  const [isAddingRelay, setIsAddingRelay] = useState(false);
+  const [isImportingRelays, setIsImportingRelays] = useState(false);
+
+  const handleAddRelay = async () => {
+    if (!newRelayUrl.trim()) return;
     
+    setIsAddingRelay(true);
+    
+    try {
+      const success = await nostrService.addRelay(newRelayUrl);
+      if (success) {
+        toast.success(`Added relay: ${newRelayUrl}`);
+        setNewRelayUrl("");
+        // Update relay status
+        const relayStatus = nostrService.getRelayStatus();
+        if (onRelaysChange) {
+          onRelaysChange(relayStatus as Relay[]);
+        }
+      } else {
+        toast.error(`Failed to add relay: ${newRelayUrl}`);
+      }
+    } catch (error) {
+      console.error("Error adding relay:", error);
+      toast.error("Failed to add relay");
+    } finally {
+      setIsAddingRelay(false);
+    }
+  };
+  
+  const handleRemoveRelay = (relayUrl: string) => {
+    nostrService.removeRelay(relayUrl);
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
     if (onRelaysChange) {
-      onRelaysChange(relayStatus);
+      onRelaysChange(relayStatus as Relay[]);
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
 
-  // Handle relay changes
-  const handleRelayChange = () => {
-    const relayStatus = nostrService.getRelayStatus();
+  const handleImportRelays = async () => {
+    if (!userNpub || isCurrentUser) return;
     
-    if (onRelaysChange) {
-      // Since we're using standard Relay type in our API
-      onRelaysChange(relayStatus);
-    }
-  };
-
-  // Save relay list to NIP-65 event with improved error handling
-  const handleSaveRelayList = async (relaysToSave: Relay[]): Promise<boolean> => {
-    if (!isCurrentUser || relaysToSave.length === 0) return false;
-    
-    setIsPublishing(true);
+    setIsImportingRelays(true);
     
     try {
-      // Sort relays by performance score before saving
-      const sortedRelays = [...relaysToSave].sort((a, b) => {
-        // Sort by score if available
-        if ((a.score !== undefined) && (b.score !== undefined)) {
-          return b.score - a.score;
+      const userPubkey = nostrService.getHexFromNpub(userNpub);
+      // Try to find the user's relays
+      const userRelays = await nostrService.getRelaysForUser(userPubkey);
+      
+      if (userRelays.length === 0) {
+        toast.info("No relays found for this user");
+        setIsImportingRelays(false);
+        return;
+      }
+      
+      // Add all found relays
+      const successCount = await nostrService.addMultipleRelays(userRelays);
+      
+      // Check if any relays were added successfully
+      if (successCount > 0) {
+        toast.success(`Added ${successCount} relays from ${userNpub}`);
+        // Update relay status
+        const relayStatus = nostrService.getRelayStatus();
+        if (onRelaysChange) {
+          onRelaysChange(relayStatus as Relay[]);
         }
-        // Otherwise sort by status (connected first)
-        return a.status === 'connected' ? -1 : 1;
-      });
-      
-      // First ensure we're connected to relays
-      await nostrService.connectToUserRelays();
-      
-      // Format relays for publishing
-      const formattedRelays = sortedRelays.map(relay => ({
-        url: relay.url,
-        read: relay.read !== undefined ? relay.read : true,
-        write: relay.write !== undefined ? relay.write : true
-      }));
-      
-      // Use direct nostrService API instead of adapter
-      const success = await nostrService.publishRelayList(formattedRelays);
-      if (success) {
-        toast.success("Relay preferences updated");
-        return true;
       } else {
-        toast.error("Failed to update relay preferences");
-        return false;
+        toast.error("Failed to add any relays");
       }
     } catch (error) {
-      console.error("Error publishing relay list:", error);
-      toast.error("Failed to update relay preferences");
-      return false;
+      console.error("Error importing relays:", error);
+      toast.error("Failed to import relays");
     } finally {
-      setIsPublishing(false);
+      setIsImportingRelays(false);
     }
-  };
-  
-  // Handle refreshing relay connections
-  const handleRefreshRelays = async () => {
-    setIsRefreshing(true);
-    
-    try {
-      // Get current relay list
-      const currentRelays = relays.map(relay => relay.url);
-      
-      // First, ensure we're connected to some relays
-      await nostrService.connectToUserRelays();
-      
-      // If this is another user's profile, try to get their relay preferences
-      if (!isCurrentUser && userNpub) {
-        try {
-          const hexPubkey = nostrService.getHexFromNpub(userNpub);
-          if (hexPubkey) {
-            const userRelays = await nostrService.getRelaysForUser(hexPubkey);
-            if (userRelays && userRelays.length > 0) {
-              console.log(`Found ${userRelays.length} relays for user ${userNpub}`);
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching user relays:", err);
-        }
-      }
-      
-      // Update relay statuses
-      handleRelayChange();
-      
-      toast.success("Refreshed relay connections");
-    } catch (error) {
-      console.error("Error refreshing relays:", error);
-      toast.error("Failed to refresh relay connections");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Check if any relays have a "failed" status - Fixed comparison
-  const hasFailedRelays = relays.some(relay => 
-    relay.status === "disconnected" || relay.status === "failed"
-  );
-
-  // Calculate relay statistics
-  const connectedCount = relays.filter(relay => relay.status === "connected").length;
-  const totalCount = relays.length;
-  const percentConnected = totalCount > 0 ? Math.round((connectedCount / totalCount) * 100) : 0;
-
-  // Sort relays by performance metrics first
-  const sortedRelays = [...relays].sort((a, b) => {
-    // First by status (connected first)
-    if (a.status === "connected" && b.status !== "connected") return -1;
-    if (a.status !== "connected" && b.status === "connected") return 1;
-    
-    // Then by score if available
-    const aScore = a.score;
-    const bScore = b.score;
-    if (aScore !== undefined && bScore !== undefined) {
-      return bScore - aScore;
-    }
-    
-    // Finally by URL
-    return a.url.localeCompare(b.url);
-  });
-
-  const getBadgeVariant = (percentage: number) => {
-    if (percentage > 70) return "outline"; // Using supported variant
-    if (percentage > 40) return "secondary"; // Using supported variant
-    return "destructive"; // Using supported variant
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] bg-background/95 backdrop-blur-sm">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>Relay Connections</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant={getBadgeVariant(percentConnected)}>
-                {connectedCount}/{totalCount} Connected ({percentConnected}%)
-              </Badge>
-              
+          <DialogTitle>{isCurrentUser ? "Manage Your Relays" : "User Relays"}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          {isCurrentUser ? (
+            <div className="flex gap-2">
+              <Input
+                placeholder="wss://relay.example.com"
+                value={newRelayUrl}
+                onChange={(e) => setNewRelayUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isAddingRelay && newRelayUrl.trim()) {
+                    handleAddRelay();
+                  }
+                }}
+              />
               <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefreshRelays}
-                disabled={isRefreshing}
+                onClick={handleAddRelay}
+                disabled={isAddingRelay || !newRelayUrl.trim()}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Refresh
+                {isAddingRelay ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-2" />
+                )}
+                Add
               </Button>
             </div>
-          </div>
-          
-          {hasFailedRelays && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md text-amber-800 dark:text-amber-300 flex items-center text-sm">
-                    <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span>Some relays failed to connect. Try refreshing or check your connection.</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-xs">
-                    Relay connection failures can be caused by network issues, relay downtime, 
-                    or relay restrictions. Try adding more relays for better network stability.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </DialogHeader>
-
-        {/* Simple relay list */}
-        <div className="space-y-4">
-          <RelayList
-            relays={sortedRelays}
-            onRemoveRelay={handleRemoveRelay}
-            isCurrentUser={isCurrentUser}
-          />
+          ) : userNpub ? (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={handleImportRelays}
+                disabled={isImportingRelays}
+              >
+                {isImportingRelays ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Network className="h-4 w-4 mr-2" />
+                )}
+                Import These Relays
+              </Button>
+            </div>
+          ) : null}
           
           {isCurrentUser && (
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="default"
-                onClick={() => handleSaveRelayList(sortedRelays)}
-                disabled={isPublishing}
-              >
-                {isPublishing ? 'Saving...' : 'Save Relay Preferences'}
-              </Button>
+            <div className="text-xs text-muted-foreground">
+              Relay URLs should start with wss:// and be trusted by both you and your contacts
             </div>
           )}
+          
+          <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+            {relays.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Wifi className="h-8 w-8 mb-2 text-muted-foreground/50" />
+                <p>No relays connected</p>
+                <p className="text-xs mt-1">
+                  {isCurrentUser 
+                    ? "Add a relay above to start connecting" 
+                    : "This user hasn't shared their relay list"}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm font-medium text-center mb-2">
+                  Connected to {relays.filter(r => r.status === 'connected').length} of {relays.length} relays
+                </div>
+                {relays.map((relay) => (
+                  <div 
+                    key={relay.url} 
+                    className="flex items-center justify-between bg-muted/50 p-3 rounded hover:bg-muted/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${
+                        relay.status === 'connected' ? 'bg-green-500' : 
+                        relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}></span>
+                      <span className="text-sm font-mono truncate max-w-[300px]">{relay.url}</span>
+                    </div>
+                    {isCurrentUser && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100/10"
+                        onClick={() => handleRemoveRelay(relay.url)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove</span>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

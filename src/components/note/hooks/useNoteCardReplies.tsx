@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 
 interface UseNoteCardRepliesProps {
@@ -8,24 +8,12 @@ interface UseNoteCardRepliesProps {
 
 export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
   const [replyCount, setReplyCount] = useState(0);
-  const subscriptionRef = useRef<string | null>(null);
-  const isMounted = useRef(true);
   
   useEffect(() => {
-    // Set up the mounted ref
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-  
-  useEffect(() => {
-    // Guard clause - skip if no eventId
     if (!eventId) return;
     
-    let timeoutId: number | null = null;
-    
     // Count actual replies
-    const fetchReplyCount = () => {
+    const fetchReplyCount = async () => {
       let count = 0;
       
       const subId = nostrService.subscribe(
@@ -40,41 +28,20 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
             tag[0] === 'e' && tag[1] === eventId && (tag[3] === 'reply' || !tag[3])
           );
           
-          if (isReply && isMounted.current) {
+          if (isReply) {
             count++;
             setReplyCount(count);
           }
         }
       );
       
-      // Store the subscription ID for cleanup
-      subscriptionRef.current = subId;
-      
       // Cleanup subscription after a short time
-      timeoutId = window.setTimeout(() => {
-        if (subscriptionRef.current && isMounted.current) {
-          nostrService.unsubscribe(subscriptionRef.current);
-          subscriptionRef.current = null;
-        }
+      setTimeout(() => {
+        nostrService.unsubscribe(subId);
       }, 5000);
     };
     
-    // Start fetching replies
     fetchReplyCount();
-    
-    // Ensure we clean up when the component unmounts or when eventId changes
-    return () => {
-      // Clear the timeout if it exists
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      
-      // Clean up the subscription if it exists
-      if (subscriptionRef.current) {
-        nostrService.unsubscribe(subscriptionRef.current);
-        subscriptionRef.current = null;
-      }
-    };
   }, [eventId]);
 
   return {

@@ -1,201 +1,71 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { nostrService, adaptedNostrService, Relay } from '@/lib/nostr';
+import { useState, useEffect } from 'react';
+import { nostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
 
-export interface UseProfileRelaysReturn {
-  relays: Relay[];
-  loading: boolean;
-  error: string | null;
-  addRelay: (url: string) => Promise<boolean>;
-  removeRelay: (url: string) => void;
-  setRelays?: (relays: Relay[]) => void;
-  refreshRelays?: () => void;
-  loadError?: string | null;
+interface UseProfileRelaysProps {
+  isCurrentUser: boolean;
+  pubkey?: string;
 }
 
-export function useProfileRelays({ 
-  pubkey, 
-  isCurrentUser = false 
-}: {
-  pubkey: string | null;
-  isCurrentUser?: boolean;
-}): UseProfileRelaysReturn {
+export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProps) {
   const [relays, setRelays] = useState<Relay[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [healthCheckTimestamp, setHealthCheckTimestamp] = useState(Date.now());
   
-  // Refresh relay list
-  const refreshRelays = useCallback(async () => {
-    if (!pubkey) {
-      return;
+  // Function to refresh relay status
+  const refreshRelays = () => {
+    if (isCurrentUser) {
+      const relayStatus = nostrService.getRelayStatus();
+      setRelays(relayStatus);
     }
-    
+    // Trigger health check UI update
+    setHealthCheckTimestamp(Date.now());
+  };
+  
+  // Load initial relay status
+  useEffect(() => {
+    if (isCurrentUser) {
+      refreshRelays();
+      
+      // Set up periodic refresh every 10 seconds
+      const intervalId = setInterval(refreshRelays, 10000);
+      
+      return () => clearInterval(intervalId);
+    } else if (pubkey) {
+      // Load relays for another user
+      loadUserRelays(pubkey);
+    }
+  }, [isCurrentUser, pubkey]);
+  
+  // Function to load another user's relays
+  const loadUserRelays = async (userPubkey: string) => {
+    setIsLoading(true);
     try {
-      setLoading(true);
-      setError(null);
+      const userRelays = await nostrService.getRelaysForUser(userPubkey);
       
-      // Get relays from service
-      const currentRelays = nostrService.getRelayStatus();
-      
-      // Create properly typed relays with required status
-      const typedRelays: Relay[] = currentRelays.map(relay => ({
-        ...relay,
-        status: relay.status || 'unknown'
+      // Convert to Relay objects with disconnected status
+      const relayObjects: Relay[] = userRelays.map(url => ({
+        url,
+        status: 'disconnected',
+        read: true,
+        write: true
       }));
       
-      setRelays(typedRelays);
-      
-      // If this is the current user, we already have their relays
-      // Otherwise, try to fetch relays for this user from their metadata
-      if (!isCurrentUser && pubkey) {
-        try {
-          // If the service supports getRelaysForUser, use it
-          const userRelays = await adaptedNostrService.getRelaysForUser(pubkey);
-          
-          // If we got some relays, update our list with connection status "unknown"
-          if (userRelays && userRelays.length > 0) {
-            const newRelays: Relay[] = userRelays.map(url => ({
-              url,
-              status: 'unknown' as const, // Use const assertion to ensure the correct type
-              read: true,
-              write: true
-            }));
-            
-            // Combine with current relays, avoiding duplicates
-            const existingUrls = new Set(typedRelays.map(r => r.url));
-            const uniqueNewRelays = newRelays.filter(r => !existingUrls.has(r.url));
-            
-            setRelays([...typedRelays, ...uniqueNewRelays]);
-          }
-        } catch (err) {
-          console.warn("Couldn't fetch relays for user:", err);
-          // Don't set an error, just keep using the current relays
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching relay information:", err);
-      setError("Failed to load relay information");
+      setRelays(relayObjects);
+    } catch (error) {
+      console.error("Error loading user relays:", error);
+      toast.error("Failed to load user's relays");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [pubkey, isCurrentUser]);
-  
-  // Load user's relays on mount
-  useEffect(() => {
-    refreshRelays();
-  }, [refreshRelays]);
-  
-  // Add a relay for the current user
-  const addRelay = useCallback(async (url: string) => {
-    if (!isCurrentUser) {
-      toast.error("You can only modify your own relays");
-      return false;
-    }
-    
-    try {
-      setError(null);
-      const formattedUrl = url.trim();
-      
-      // Basic URL validation
-      if (!formattedUrl.startsWith('wss://')) {
-        toast.error("Relay URL must start with wss://");
-        return false;
-      }
-      
-      // Add the relay using nostrService directly
-      const success = await nostrService.addRelay(formattedUrl);
-      
-      if (success) {
-        // Get updated relay list
-        const updatedRelays = nostrService.getRelayStatus();
-        setRelays(updatedRelays.map(relay => ({
-          ...relay,
-          status: relay.status || 'unknown'
-        })));
-        
-        toast.success(`Added relay: ${formattedUrl}`);
-        
-        // Try to publish updated relay list using NIP-65
-        try {
-          const relayList = updatedRelays.map(relay => ({
-            url: relay.url,
-            read: relay.read !== false,
-            write: relay.write !== false
-          }));
-          
-          // This method might not exist in all implementations
-          if (nostrService.publishRelayList) {
-            nostrService.publishRelayList(relayList)
-              .catch(e => console.warn("Error publishing relay list:", e));
-          }
-        } catch (e) {
-          console.warn("Error publishing updated relay list:", e);
-        }
-        
-        return true;
-      } else {
-        toast.error("Failed to add relay");
-        return false;
-      }
-    } catch (err) {
-      console.error("Error adding relay:", err);
-      setError("Failed to add relay");
-      toast.error("Error adding relay");
-      return false;
-    }
-  }, [isCurrentUser]);
-  
-  // Remove a relay for the current user
-  const removeRelay = useCallback((url: string) => {
-    if (!isCurrentUser) {
-      toast.error("You can only modify your own relays");
-      return;
-    }
-    
-    try {
-      // Remove the relay using nostrService directly
-      nostrService.removeRelay(url);
-      
-      // Update the state
-      setRelays(prev => prev.filter(relay => relay.url !== url));
-      
-      toast.success(`Removed relay: ${url}`);
-      
-      // Get updated relay list for NIP-65
-      const updatedRelays = nostrService.getRelayStatus();
-      
-      // Try to publish updated relay list using NIP-65
-      try {
-        const relayList = updatedRelays.map(relay => ({
-          url: relay.url,
-          read: relay.read !== false,
-          write: relay.write !== false
-        }));
-        
-        // This method might not exist in all implementations
-        if (nostrService.publishRelayList) {
-          nostrService.publishRelayList(relayList)
-            .catch(e => console.warn("Error publishing relay list:", e));
-        }
-      } catch (e) {
-        console.warn("Error publishing updated relay list:", e);
-      }
-    } catch (err) {
-      console.error("Error removing relay:", err);
-      setError("Failed to remove relay");
-      toast.error("Error removing relay");
-    }
-  }, [isCurrentUser]);
+  };
 
-  return {
-    relays,
-    loading,
-    error,
-    addRelay,
-    removeRelay,
-    setRelays,
+  return { 
+    relays, 
+    setRelays, 
+    isLoading, 
     refreshRelays,
-    loadError: error
+    healthCheckTimestamp
   };
 }

@@ -1,10 +1,10 @@
 
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Filter } from './types';
+import { SimplePool, type Filter } from 'nostr-tools';
+import { NostrEvent, NostrFilter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -13,7 +13,7 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: Filter[],
+    filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     if (relays.length === 0) {
@@ -32,11 +32,7 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        // Convert our Filter type to be compatible with nostr-tools Filter type
-        // Clone the filter to avoid modifying the original
-        const nostrToolsFilter = { ...filter } as any;
-        
-        return this.pool.subscribe(relays, nostrToolsFilter, {
+        return this.pool.subscribe(relays, filter, {
           onevent: (event) => {
             onEvent(event as NostrEvent);
           }
@@ -68,25 +64,5 @@ export class SubscriptionManager {
         console.error(`Error unsubscribing from ${subId}:`, error);
       }
     }
-  }
-  
-  // New method to check if a subscription exists
-  hasSubscription(subId: string): boolean {
-    return this.subscriptions.has(subId);
-  }
-  
-  // New method to get all active subscription IDs
-  getActiveSubscriptionIds(): string[] {
-    return Array.from(this.subscriptions.keys());
-  }
-  
-  // New method to unsubscribe from all subscriptions
-  unsubscribeAll(): void {
-    this.getActiveSubscriptionIds().forEach(id => this.unsubscribe(id));
-  }
-  
-  // New method to get count of active subscriptions
-  getActiveSubscriptionCount(): number {
-    return this.subscriptions.size;
   }
 }

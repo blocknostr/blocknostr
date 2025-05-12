@@ -7,8 +7,6 @@ import { nostrService, Relay } from "@/lib/nostr";
 import FollowButton from "../FollowButton";
 import ProfileRelaysDialog from "./ProfileRelaysDialog";
 import { Link } from "react-router-dom";
-import { Loader2, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface ProfileStatsProps {
   followers: string[];
@@ -19,8 +17,6 @@ interface ProfileStatsProps {
   relays: Relay[];
   onRelaysChange?: (relays: Relay[]) => void;
   userNpub?: string;
-  isLoading?: boolean;
-  onRefresh?: () => void;
 }
 
 const ProfileStats = ({ 
@@ -31,24 +27,11 @@ const ProfileStats = ({
   isCurrentUser,
   relays,
   onRelaysChange,
-  userNpub,
-  isLoading = false,
-  onRefresh
+  userNpub
 }: ProfileStatsProps) => {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showRelays, setShowRelays] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  const handleRefresh = () => {
-    if (onRefresh) {
-      setIsRefreshing(true);
-      onRefresh();
-      
-      // Reset refreshing state after a timeout
-      setTimeout(() => setIsRefreshing(false), 3000);
-    }
-  };
   
   return (
     <Card className="mb-6 overflow-hidden">
@@ -56,41 +39,21 @@ const ProfileStats = ({
         <StatItem 
           label="Posts" 
           value={postsCount.toLocaleString()} 
-          isLoading={isLoading}
         />
         <StatItem 
           label="Following" 
           value={following.length.toLocaleString()}
-          onClick={() => !isLoading && following.length > 0 && setShowFollowing(true)} 
-          isLoading={isLoading}
+          onClick={() => setShowFollowing(true)} 
         />
         <StatItem 
           label="Followers" 
           value={followers.length.toLocaleString()} 
-          onClick={() => !isLoading && followers.length > 0 && setShowFollowers(true)}
-          isLoading={isLoading}
+          onClick={() => setShowFollowers(true)}
         />
         <StatItem 
           label="Relays" 
           value={relays.length.toLocaleString()} 
-          onClick={() => !isLoading && setShowRelays(true)}
-          isLoading={isLoading}
-          actionButton={
-            onRefresh && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-5 w-5 absolute top-1 right-1 text-muted-foreground hover:text-primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRefresh();
-                }}
-                disabled={isRefreshing || isLoading}
-              >
-                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            )
-          }
+          onClick={() => setShowRelays(true)}
         />
       </div>
       
@@ -160,26 +123,19 @@ interface StatItemProps {
   value: string;
   icon?: React.ReactNode;
   onClick?: () => void;
-  isLoading?: boolean;
-  actionButton?: React.ReactNode;
 }
 
-const StatItem = ({ label, value, icon, onClick, isLoading = false, actionButton }: StatItemProps) => {
+const StatItem = ({ label, value, icon, onClick }: StatItemProps) => {
   return (
     <div 
-      className={`flex flex-col items-center justify-center py-4 px-2 hover:bg-muted/50 transition-colors relative ${onClick && !isLoading ? 'cursor-pointer' : ''}`}
+      className={`flex flex-col items-center justify-center py-4 px-2 hover:bg-muted/50 transition-colors ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >
       <div className="flex items-center gap-1.5">
         {icon}
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        ) : (
-          <span className="font-semibold">{value}</span>
-        )}
+        <span className="font-semibold">{value}</span>
       </div>
       <span className="text-xs text-muted-foreground">{label}</span>
-      {actionButton}
     </div>
   );
 };
@@ -191,7 +147,6 @@ interface UserListItemProps {
 
 const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   const [profileData, setProfileData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const npub = nostrService.getNpubFromHex(pubkey);
   const shortNpub = `${npub.substring(0, 8)}...${npub.substring(npub.length - 5)}`;
   
@@ -199,15 +154,12 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        setIsLoading(true);
         const profile = await nostrService.getUserProfile(pubkey);
         if (profile) {
           setProfileData(profile);
         }
       } catch (e) {
         console.error('Failed to fetch profile metadata:', e);
-      } finally {
-        setIsLoading(false);
       }
     };
     
@@ -222,20 +174,12 @@ const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
     <div className="flex items-center justify-between">
       <Link to={`/profile/${npub}`} className="flex items-center gap-3 flex-1 hover:bg-muted/50 p-2 rounded-md">
         <Avatar className="h-10 w-10">
-          {isLoading ? (
-            <div className="h-full w-full flex items-center justify-center bg-muted">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : (
-            <>
-              <AvatarImage src={profileData?.picture} />
-              <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
-            </>
-          )}
+          <AvatarImage src={profileData?.picture} />
+          <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
         </Avatar>
         <div>
-          <div className="font-medium">{isLoading ? "Loading..." : name}</div>
-          <div className="text-sm text-muted-foreground">@{isLoading ? shortNpub : username}</div>
+          <div className="font-medium">{name}</div>
+          <div className="text-sm text-muted-foreground">@{username}</div>
         </div>
       </Link>
       

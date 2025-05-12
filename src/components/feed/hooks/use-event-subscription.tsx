@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { NostrEvent, nostrService, contentCache, CacheOptions } from "@/lib/nostr";
+import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
 
 interface UseEventSubscriptionProps {

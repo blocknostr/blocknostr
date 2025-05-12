@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { NostrEvent, nostrService, contentCache, CacheOptions } from "@/lib/nostr";
+import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
@@ -53,17 +53,14 @@ export function useFeedEvents({
     const loadFromCache = async () => {
       setLoadingFromCache(true);
       
-      // Create options object for cache
-      const cacheOptions: CacheOptions = {
+      // Check if we have this feed in cache
+      const cachedFeed = contentCache.getFeed(feedType, {
         authorPubkeys: following,
         hashtag: activeHashtag,
         since,
         until,
         mediaOnly
-      };
-      
-      // Check if we have this feed in cache
-      const cachedFeed = contentCache.getFeed(feedType, cacheOptions);
+      });
       
       if (cachedFeed && cachedFeed.length > 0) {
         // Use cached feed
@@ -71,7 +68,13 @@ export function useFeedEvents({
         setCacheHit(true);
         
         // Get cache timestamp
-        const cacheKey = contentCache.feedCache.generateCacheKey(feedType, cacheOptions);
+        const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
+          authorPubkeys: following,
+          hashtag: activeHashtag, 
+          since,
+          until,
+          mediaOnly
+        });
         
         const cacheEntry = contentCache.feedCache.getRawEntry(cacheKey);
         if (cacheEntry) {
@@ -96,7 +99,7 @@ export function useFeedEvents({
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, fetchProfileData]);
+  }, [feedType, following, activeHashtag, since, until, mediaOnly]);
   
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = () => {

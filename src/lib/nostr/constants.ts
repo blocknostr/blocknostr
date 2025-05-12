@@ -1,63 +1,38 @@
 
-/**
- * Standard Nostr event kinds according to NIPs
- */
-export enum EVENT_KINDS {
-  META = 0,              // NIP-01: Profile metadata
-  TEXT_NOTE = 1,         // NIP-01: Short text note
-  RECOMMENDED_SERVER = 2, // NIP-01: Recommended relay
-  CONTACTS = 3,          // NIP-02: Contact list
-  DM = 4,                // NIP-04: Encrypted direct message (deprecated)
-  DELETE = 5,            // NIP-09: Event deletion
-  REACTION = 7,          // NIP-25: Reaction
+export const EVENT_KINDS = {
+  META: 0, // Profile metadata (NIP-01)
+  METADATA: 0, // Alias for META for compatibility
+  TEXT_NOTE: 1, // Text note (NIP-01)
+  RECOMMEND_RELAY: 2, // Recommend relay (NIP-01)
+  CONTACTS: 3, // Contacts/Following list (NIP-02)
+  ENCRYPTED_DM: 4, // Encrypted direct message (NIP-04)
+  DELETE: 5, // Delete event (NIP-09)
+  REPOST: 6, // Repost event (NIP-18)
+  REACTION: 7, // Reaction event (NIP-25)
+  BADGE_AWARD: 8, // Badge award (NIP-58)
+  ENCRYPTED_DM_V2: 14, // Encrypted direct message v2 (NIP-44)
   
-  // Extended kinds
-  BOOKMARK = 30001,      // Bookmark
-  BOOKMARK_COLLECTIONS = 30003, // Bookmark collections
-  BOOKMARK_METADATA = 30004,    // Bookmark metadata
-  COMMUNITY = 34550,     // Community creation
-  PROPOSAL = 34551,      // Community proposal
-  VOTE = 34552,          // Vote on proposal
-  BADGE = 30008,         // Badge definition
+  // Parameterized replaceable events (NIP-33)
+  EVENT_APP: 30000, // Generic application-specific event
+  BOOKMARKS: 30001, // Bookmarks list (per NIP-51)
+  COMMUNITIES: 30002, // User communities
+  BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
+  BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
   
-  // Custom kinds for our application
-  PROFILE_LIST = 30000,  // Lists of profiles (following, muted, etc.)
-  COMMUNITY_CONFIG = 30017, // Community configuration
-  COMMUNITY_INVITE = 30018, // Community invitation
-  COMMUNITY_ROLE = 30019,  // Community role assignment
+  // Community-specific events (custom)
+  COMMUNITY: 34550, // Community definition event
+  PROPOSAL: 34551, // Community proposal event
+  VOTE: 34552, // Vote on a community proposal
+  BLOCK_LIST: 10000, // User block list
+  MUTE_LIST: 10001, // User mute list
   
-  // User lists
-  MUTE_LIST = 10000,     // NIP-51: Mute list
-  BLOCK_LIST = 10000,    // NIP-51: Block list (same kind as MUTE_LIST, different 'd' tag)
+  // Specialized events (NIP-22, NIP-40)
+  CHANNEL_CREATION: 40, // Channel creation
+  CHANNEL_METADATA: 41, // Channel metadata
+  CHANNEL_MESSAGE: 42, // Channel message
   
-  // Direct messaging and reposts
-  ENCRYPTED_DM = 4,      // Same as DM for backward compatibility
-  REPOST = 6,            // NIP-18: Repost
+  LONG_FORM: 30023, // Long-form content (NIP-23)
+  
+  ZAP_REQUEST: 9734, // Zap request (NIP-57)
+  ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
 }
-
-/**
- * Standard tag names used in Nostr
- */
-export const TAG_NAMES = {
-  EVENT: 'e',
-  PUBKEY: 'p',
-  TAG: 't',
-  REFERENCE: 'r',
-  HASHTAG: 't',
-  MENTION: 'p',
-  DELEGATION: 'delegation',
-  EXPIRATION: 'expiration',
-  SUBJECT: 'subject',
-  NONCE: 'nonce',
-};
-
-/**
- * Default relays to connect to if user has none configured
- */
-export const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://relay.nostr.band',
-  'wss://nos.lol',
-  'wss://nostr.wine',
-  'wss://relay.nostr.info'
-];

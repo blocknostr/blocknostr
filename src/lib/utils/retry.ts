@@ -1,58 +1,50 @@
 
 /**
- * Options for retry function
+ * Utility for retrying async operations with exponential backoff
  */
-export interface RetryOptions {
-  maxAttempts: number;
-  baseDelay: number;
-  onRetry?: (attempt: number) => void;
-  shouldRetry?: (error: Error) => boolean;
-}
+export type RetryOptions = {
+  maxAttempts?: number;
+  baseDelay?: number;
+  maxDelay?: number;
+  shouldRetry?: (error: unknown) => boolean;
+  onRetry?: (attempt: number, error: unknown) => void;
+};
 
-/**
- * Retry a function with exponential backoff
- * 
- * @param fn Function to retry
- * @param options Retry options
- * @returns Promise that resolves with the function result
- */
 export async function retry<T>(
-  fn: () => Promise<T>, 
-  options: RetryOptions
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
 ): Promise<T> {
-  const { maxAttempts, baseDelay, onRetry, shouldRetry } = options;
+  const {
+    maxAttempts = 3,
+    baseDelay = 1000,
+    maxDelay = 10000,
+    shouldRetry = () => true,
+    onRetry = () => {}
+  } = options;
+
+  let attempt = 0;
   
-  let lastError: Error | null = null;
-  
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  while (true) {
     try {
-      return await fn();
+      return await operation();
     } catch (error) {
-      lastError = error as Error;
+      attempt++;
       
-      // Check if we should retry this error
-      if (shouldRetry && !shouldRetry(lastError)) {
-        throw lastError;
+      if (attempt >= maxAttempts || !shouldRetry(error)) {
+        throw error;
       }
       
-      // If we've reached max attempts, throw the error
-      if (attempt >= maxAttempts) {
-        throw lastError;
-      }
-      
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt - 1);
+      // Calculate exponential backoff delay
+      const delayMs = Math.min(
+        maxDelay, 
+        baseDelay * Math.pow(2, attempt - 1) * (0.5 + Math.random() * 0.5)
+      );
       
       // Notify about retry
-      if (onRetry) {
-        onRetry(attempt);
-      }
+      onRetry(attempt, error);
       
-      // Wait before next attempt
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
-  
-  // This should never happen with the for loop condition, but TypeScript needs it
-  throw lastError || new Error('Retry failed');
 }

@@ -2,46 +2,57 @@
 import { nip19 } from 'nostr-tools';
 
 /**
- * Format a public key to either hex or npub format
+ * Format a hex pubkey to a human-readable format
+ * @param pubkey - Hex pubkey
+ * @returns Formatted pubkey (npub or shortened hex)
  */
-export function formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub'): string {
-  if (!pubkey) return '';
-  
-  try {
-    if (format === 'npub' && pubkey.length === 64) {
-      return nip19.npubEncode(pubkey);
-    } else if (format === 'hex' && pubkey.startsWith('npub1')) {
-      const { data } = nip19.decode(pubkey);
-      return data as string;
-    }
-  } catch (e) {
-    console.error('Error formatting pubkey:', e);
+export const formatPubkey = (pubkey: string): string => {
+  // If it's already in npub format, return it
+  if (pubkey.startsWith('npub1')) {
+    return pubkey;
   }
   
-  return pubkey;
-}
-
-/**
- * Convert a hex public key to npub format
- */
-export function getNpubFromHex(hex: string): string {
   try {
-    return nip19.npubEncode(hex);
-  } catch (e) {
-    console.error('Error encoding pubkey:', e);
-    return hex;
+    return nip19.npubEncode(pubkey);
+  } catch (error) {
+    // If encoding fails, return a shortened version of the hex
+    return pubkey.substring(0, 6) + '...' + pubkey.substring(pubkey.length - 6);
   }
-}
+};
 
 /**
- * Convert an npub public key to hex format
+ * Convert a hex pubkey to npub format
+ * @param hexPubkey - Hex pubkey
+ * @returns npub format
  */
-export function getHexFromNpub(npub: string): string {
+export const getNpubFromHex = (hexPubkey: string): string => {
+  if (hexPubkey.startsWith('npub1')) {
+    return hexPubkey;
+  }
+  
+  try {
+    return nip19.npubEncode(hexPubkey);
+  } catch (error) {
+    console.error('Error encoding npub:', error);
+    return hexPubkey;
+  }
+};
+
+/**
+ * Convert an npub pubkey to hex format
+ * @param npub - npub format pubkey
+ * @returns hex format
+ */
+export const getHexFromNpub = (npub: string): string => {
+  if (!npub.startsWith('npub1')) {
+    return npub;
+  }
+  
   try {
     const { data } = nip19.decode(npub);
     return data as string;
-  } catch (e) {
-    console.error('Error decoding npub:', e);
+  } catch (error) {
+    console.error('Error decoding npub:', error);
     return npub;
   }
-}
+};

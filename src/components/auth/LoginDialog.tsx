@@ -24,8 +24,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   const [connectStatus, setConnectStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
   const [animateIn, setAnimateIn] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"extension" | "manual">("extension");
-  const [relayConnected, setRelayConnected] = useState<boolean>(false);
-  const [connectionRetries, setConnectionRetries] = useState<number>(0);
 
   // Check for Nostr extension
   useEffect(() => {
@@ -53,56 +51,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       // Reset states when dialog closes
       setActiveTab("extension");
       setConnectStatus('idle');
-      setRelayConnected(false);
-      setConnectionRetries(0);
     }
   }, [open]);
-
-  // Helper function to connect to relays with retry logic
-  const connectToRelays = async (retries = 0): Promise<boolean> => {
-    console.log(`Attempting to connect to relays (attempt ${retries + 1})...`);
-    try {
-      // Attempt to connect to relays
-      await nostrService.connectToUserRelays();
-      
-      // Check if we have any successful connections
-      const relays = nostrService.getRelayStatus();
-      const connectedCount = relays.filter(r => r.status === 'connected').length;
-      
-      console.log(`Connected to ${connectedCount} relays out of ${relays.length}`);
-      
-      if (connectedCount > 0) {
-        setRelayConnected(true);
-        return true;
-      }
-      
-      // No connections yet, but still have retries left
-      if (retries < 2) {
-        console.log(`Retry ${retries + 1}: No relays connected yet, waiting before trying again...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return connectToRelays(retries + 1);
-      }
-      
-      // Try fallback to default relays
-      console.log("Trying default relays...");
-      await nostrService.connectToDefaultRelays();
-      
-      const relaysAfterDefault = nostrService.getRelayStatus();
-      const connectedCountAfterDefault = relaysAfterDefault.filter(r => r.status === 'connected').length;
-      
-      console.log(`Connected to ${connectedCountAfterDefault} relays after trying defaults`);
-      
-      if (connectedCountAfterDefault > 0) {
-        setRelayConnected(true);
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Error connecting to relays:", error);
-      return false;
-    }
-  };
 
   const handleConnect = async () => {
     if (!hasExtension) {
@@ -113,59 +63,23 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
     setConnectStatus('connecting');
     
     try {
-      // First attempt login to get the public key
       const success = await nostrService.login();
       
       if (success) {
-        // Now attempt to connect to relays before showing success
-        console.log("Login successful, attempting to connect to relays...");
-        
-        // Try to connect to relays
-        let relaySuccess = false;
-        setConnectionRetries(0);
-        
-        for (let i = 0; i < 3 && !relaySuccess; i++) {
-          setConnectionRetries(i);
-          relaySuccess = await connectToRelays();
-          if (relaySuccess) break;
-          
-          // Wait a bit before retrying
-          if (i < 2) {
-            console.log(`Relay connection attempt ${i+1} failed, retrying...`);
-            await new Promise(r => setTimeout(r, 1000));
-          }
-        }
-        
-        if (relaySuccess) {
-          console.log("Successfully connected to relays");
-        } else {
-          console.warn("Could not connect to any relays. Will try again after login...");
-        }
-        
-        // Store connection status in localStorage for persistence
-        localStorage.setItem('nostr_login_status', JSON.stringify({
-          connected: relaySuccess,
-          timestamp: Date.now(),
-          pubkey: nostrService.publicKey
-        }));
-        
         setConnectStatus('success');
         toast.success("Connected successfully", {
-          description: relaySuccess ? 
-            "Connected to Nostr network successfully" : 
-            "Connected to wallet, but relay connection is pending"
+          description: "Welcome to BlockNoster"
         });
         
         // Short delay to show success state before closing
         setTimeout(() => {
           onOpenChange(false);
           
-          // Don't reload the page immediately, allow some time for connections
+          // Reload the page to refresh content with logged in state
           setTimeout(() => {
-            // Now reload the page - we'll restore connections on page load
             window.location.reload();
-          }, 500);
-        }, 1000);
+          }, 300);
+        }, 700);
       } else {
         setConnectStatus('error');
         toast.error("Connection failed", {

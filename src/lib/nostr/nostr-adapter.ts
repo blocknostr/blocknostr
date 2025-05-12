@@ -1,269 +1,242 @@
 
-import { nostrService } from './service';
-import { NostrEvent, Relay, ProposalCategory } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { nostrService as originalNostrService } from './service';
 
 /**
- * This is a comprehensive implementation of the Nostr service adapter
- * that provides all the methods needed throughout the application.
+ * NostrAdapter adds compatibility methods to the original nostrService
+ * This ensures all components continue to work without changing their implementation
  */
-class AdaptedNostrService {
-  private service: typeof nostrService;
-  private _publicKey: string | null = null;
+class NostrAdapter {
+  private service: typeof originalNostrService;
   
-  constructor(service: typeof nostrService) {
+  constructor(service: typeof originalNostrService) {
     this.service = service;
-    // Cache the initial value - this prevents infinite recursion
-    this._publicKey = service.publicKey; 
-  }
-
-  /**
-   * Get relay connection status
-   * @returns Array of relay connection statuses
-   */
-  getRelayStatus() {
-    return this.service.getRelayStatus?.() || [];
-  }
-
-  /**
-   * Get relay URLs
-   * @returns Array of relay URLs
-   */
-  getRelayUrls() {
-    return this.service.getRelayUrls?.() || [];
-  }
-
-  /**
-   * Create batched fetchers for parallel data loading
-   * @param hexPubkey Hex-encoded public key
-   * @param options Filter options
-   * @returns Array of fetcher functions
-   */
-  createBatchedFetchers(hexPubkey: string, options: any) {
-    return this.service.createBatchedFetchers?.(hexPubkey, options) || [];
-  }
-
-  // Access to socialManager instance
-  get socialManager() {
-    return this.service.socialManager;
-  }
-
-  // Communities functionality
-  async createCommunity(name: string, description: string) {
-    return this.service.createCommunity?.(name, description) || false;
-  }
-
-  async createProposal(
-    communityId: string, 
-    title: string, 
-    description: string, 
-    options: string[], 
-    category: ProposalCategory
-  ) {
-    return this.service.createProposal?.(communityId, title, description, options, category) || false;
-  }
-
-  async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.service.voteOnProposal?.(proposalId, optionIndex) || false;
-  }
-
-  // Account creation date
-  async getAccountCreationDate(pubkey: string) {
-    return this.service.getAccountCreationDate?.(pubkey) || null;
-  }
-
-  // Access to following list - Return directly instead of using a getter
-  get following() {
-    return this.service.following || [];
-  }
-
-  // Profile caching
-  async getCachedProfile(pubkey: string) {
-    if (this.service.getUserProfile) {
-      return this.service.getUserProfile(pubkey);
-    }
-    return null;
-  }
-
-  // User Properties - Use cached value to avoid recursion
-  get publicKey() {
-    return this._publicKey;
   }
 
   // Auth methods
+  get publicKey() {
+    return this.service.publicKey;
+  }
+  
+  get following() {
+    return this.service.following;
+  }
+  
   async login() {
-    const success = await (this.service.login?.() || Promise.resolve(false));
-    if (success && this.service.publicKey !== undefined) {
-      this._publicKey = this.service.publicKey; // Update the cached value
-    }
-    return success;
+    return this.service.login();
   }
-
+  
   signOut() {
-    const result = this.service.signOut?.() || false;
-    this._publicKey = null; // Clear the cached value
-    return result;
+    return this.service.signOut();
   }
-
-  // Connection methods
-  async connectToUserRelays() {
-    return this.service.connectToUserRelays?.() || false;
-  }
-
-  async connectToDefaultRelays() {
-    return this.service.connectToDefaultRelays?.() || false;
-  }
-
-  // Subscription methods
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
-    return this.service.subscribe?.(filters, onEvent, relays) || "";
-  }
-
-  unsubscribe(subId: string) {
-    return this.service.unsubscribe?.(subId) || false;
-  }
-
-  // Event publishing
-  async publishEvent(event: Partial<NostrEvent>) {
-    return this.service.publishEvent?.(event) || null;
-  }
-
-  // Profile methods
-  async getUserProfile(pubkey: string) {
-    return this.service.getUserProfile?.(pubkey) || null;
-  }
-
-  // Following methods
+  
+  // Social methods
   isFollowing(pubkey: string) {
-    return this.service.isFollowing?.(pubkey) || false;
+    return this.service.isFollowing(pubkey);
   }
-
+  
   async followUser(pubkey: string) {
-    return this.service.followUser?.(pubkey) || false;
+    return this.service.followUser(pubkey);
   }
-
+  
   async unfollowUser(pubkey: string) {
-    return this.service.unfollowUser?.(pubkey) || false;
+    return this.service.unfollowUser(pubkey);
   }
-
-  // Direct messaging
+  
   async sendDirectMessage(recipientPubkey: string, content: string) {
-    return this.service.sendDirectMessage?.(recipientPubkey, content) || null;
+    return this.service.sendDirectMessage(recipientPubkey, content);
   }
 
-  // Utility methods
-  formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub') {
-    return formatPubkey(pubkey, format);
-  }
-
-  getNpubFromHex(hex: string) {
-    return getNpubFromHex(hex);
-  }
-
-  getHexFromNpub(npub: string) {
-    return getHexFromNpub(npub);
-  }
-
-  // Add the methods that were missing from the first implementation
-  async getRelaysForUser(pubkey: string) {
-    return this.service.getRelaysForUser?.(pubkey) || [];
-  }
-
-  async addMultipleRelays(relayUrls: string[]) {
-    return this.service.addMultipleRelays?.(relayUrls) || 0;
-  }
-  
-  async getEvents(filters: any[]) {
-    return this.service.getEvents?.(filters) || [];
-  }
-  
-  async getEventById(id: string) {
-    return this.service.getEventById?.(id) || null;
-  }
-  
-  async getProfilesByPubkeys(pubkeys: string[]) {
-    return this.service.getProfilesByPubkeys?.(pubkeys) || {};
-  }
-  
   // User moderation methods
   async muteUser(pubkey: string) {
-    return this.service.muteUser?.(pubkey) || false;
+    return this.service.muteUser(pubkey);
   }
   
   async unmuteUser(pubkey: string) {
-    return this.service.unmuteUser?.(pubkey) || false;
+    return this.service.unmuteUser(pubkey);
   }
   
   async isUserMuted(pubkey: string) {
-    return this.service.isUserMuted?.(pubkey) || false;
+    return this.service.isUserMuted(pubkey);
   }
   
   async blockUser(pubkey: string) {
-    return this.service.blockUser?.(pubkey) || false;
+    return this.service.blockUser(pubkey);
   }
   
   async unblockUser(pubkey: string) {
-    return this.service.unblockUser?.(pubkey) || false;
+    return this.service.unblockUser(pubkey);
   }
   
   async isUserBlocked(pubkey: string) {
-    return this.service.isUserBlocked?.(pubkey) || false;
+    return this.service.isUserBlocked(pubkey);
+  }
+
+  // Community methods
+  async createCommunity(name: string, description: string) {
+    return this.service.createCommunity(name, description);
+  }
+  
+  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
+    return this.service.createProposal(communityId, title, description, options, category as any);
+  }
+
+  // Added missing voteOnProposal method
+  async voteOnProposal(proposalId: string, optionIndex: number) {
+    return this.service.voteOnProposal(proposalId, optionIndex);
+  }
+
+  // Utilities
+  formatPubkey(pubkey: string) {
+    return formatPubkey(pubkey);
+  }
+  
+  getNpubFromHex(hexPubkey: string) {
+    return getNpubFromHex(hexPubkey);
+  }
+  
+  getHexFromNpub(npub: string) {
+    return getHexFromNpub(npub);
+  }
+  
+  // Relay methods
+  async addRelay(relayUrl: string, readWrite: boolean = true) {
+    return this.service.addRelay(relayUrl, readWrite);
+  }
+  
+  removeRelay(relayUrl: string) {
+    return this.service.removeRelay(relayUrl);
+  }
+  
+  getRelayStatus() {
+    return this.service.getRelayStatus();
+  }
+
+  // Add getRelayUrls method
+  getRelayUrls() {
+    return this.service.getRelayUrls();
+  }
+  
+  // Add getRelaysForUser method
+  async getRelaysForUser(pubkey: string) {
+    return this.service.getRelaysForUser(pubkey);
+  }
+  
+  async connectToDefaultRelays() {
+    return this.service.connectToUserRelays();
+  }
+  
+  async connectToUserRelays() {
+    return this.service.connectToUserRelays();
+  }
+  
+  async addMultipleRelays(relayUrls: string[]) {
+    return this.service.addMultipleRelays(relayUrls);
+  }
+
+  // Pass through all other methods directly
+  get socialManager() {
+    return {
+      ...this.service.socialManager,
+      likeEvent: (event: any) => {
+        return this.service.reactToPost(event.id);
+      },
+      repostEvent: (event: any) => {
+        return this.service.repostNote(event.id, event.pubkey);
+      },
+      // Add missing getReactionCounts method
+      getReactionCounts: (eventId: string) => {
+        // Implement a basic version that returns zeros
+        return Promise.resolve({
+          likes: 0,
+          reposts: 0
+        });
+      },
+      // Add missing reactToEvent method
+      reactToEvent: (eventId: string, emoji: string = "+") => {
+        return this.service.reactToPost(eventId, emoji);
+      }
+    };
+  }
+  
+  get relayManager() {
+    return this.service.relayManager;
+  }
+  
+  get communityManager() {
+    return this.service.communityManager;
+  }
+  
+  get bookmarkManager() {
+    return this.service.bookmarkManager;
+  }
+
+  // Pass through direct method calls
+  async publishEvent(event: any) {
+    return this.service.publishEvent(event);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string) {
+    return this.service.unsubscribe(subId);
+  }
+  
+  async getEventById(id: string) {
+    return this.service.getEventById(id);
+  }
+  
+  async getEvents(ids: string[]) {
+    return this.service.getEvents(ids);
+  }
+  
+  async getProfilesByPubkeys(pubkeys: string[]) {
+    return this.service.getProfilesByPubkeys(pubkeys);
+  }
+  
+  async getUserProfile(pubkey: string) {
+    return this.service.getUserProfile(pubkey);
+  }
+  
+  async verifyNip05(identifier: string, pubkey: string) {
+    return this.service.verifyNip05(identifier, pubkey);
   }
   
   // Bookmark methods
   async isBookmarked(eventId: string) {
-    return this.service.isBookmarked?.(eventId) || false;
+    return this.service.isBookmarked(eventId);
   }
   
   async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
-    return this.service.addBookmark?.(eventId, collectionId, tags, note) || false;
+    return this.service.addBookmark(eventId, collectionId, tags, note);
   }
   
   async removeBookmark(eventId: string) {
-    return this.service.removeBookmark?.(eventId) || false;
+    return this.service.removeBookmark(eventId);
   }
   
   async getBookmarks() {
-    return this.service.getBookmarks?.() || [];
+    return this.service.getBookmarks();
   }
   
   async getBookmarkCollections() {
-    return this.service.getBookmarkCollections?.() || [];
+    return this.service.getBookmarkCollections();
   }
   
   async getBookmarkMetadata() {
-    return this.service.getBookmarkMetadata?.() || {};
+    return this.service.getBookmarkMetadata();
   }
   
   async createBookmarkCollection(name: string, color?: string, description?: string) {
-    return this.service.createBookmarkCollection?.(name, color, description) || false;
+    return this.service.createBookmarkCollection(name, color, description);
   }
   
   async processPendingOperations() {
-    return this.service.processPendingOperations?.() || false;
-  }
-
-  // Add missing methods used in the components
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
-    return this.service.publishRelayList?.(relays) || false;
-  }
-
-  async reactToPost(eventId: string, emoji: string = "+"): Promise<boolean> {
-    return this.service.reactToPost?.(eventId, emoji) || false;
-  }
-
-  async repostNote(eventId: string, pubkey: string): Promise<boolean> {
-    return this.service.repostNote?.(eventId, pubkey) || false;
-  }
-
-  async addRelay(url: string, readWrite: boolean = true): Promise<boolean> {
-    return this.service.addRelay?.(url, readWrite) || false;
-  }
-
-  async removeRelay(url: string): Promise<boolean> {
-    return this.service.removeRelay?.(url) || false;
+    return this.service.processPendingOperations();
   }
 }
 
-// Create a singleton instance
-export const adaptedNostrService = new AdaptedNostrService(nostrService);
+// Create an adapted instance and export it to replace the original
+export const adaptedNostrService = new NostrAdapter(originalNostrService);

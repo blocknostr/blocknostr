@@ -1,7 +1,8 @@
 
 import { useCallback } from "react";
 import { NostrEvent } from "@/lib/nostr/types";
-import { nostrService, contentFormatter } from "@/lib/nostr";
+import { nostrService } from "@/lib/nostr";
+import { contentFormatter } from "@/lib/nostr";
 import { toast } from "sonner";
 
 const WORLD_CHAT_TAG = "world-chat";

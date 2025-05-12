@@ -1,29 +1,37 @@
 
-// Re-export types
-export * from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent, Relay } from './types';
+import { EVENT_KINDS } from './constants';
+import { contentCache } from './cache/content-cache';
+import { contentFormatter } from './format/content-formatter';
+import { NostrService } from './service';
+import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
-// Export constants
+// Re-export types from internal modules
+export type { NostrEvent, Relay } from './types';
+export type { NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
 
-// Export service
-export { nostrService } from './service';
-export { adaptedNostrService } from './nostr-adapter';
+// Re-export from social module
+export { SocialManager } from './social';
+export type { ReactionCounts, ContactList } from './social/types';
 
-// Export utils
-export { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+// Re-export from community module
+export type { ProposalCategory } from '@/types/community';
 
-// Export content cache
-export { contentCache } from './content-cache';
+// Export bookmark types for backward compatibility
+export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 
-// Export content formatter
-export { contentFormatter } from './content-formatter';
+// Export key utility functions
+export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
-// Export subscription manager
-export { SubscriptionManager } from './subscription-manager';
+// Export service instance and type
+export { nostrServiceInstance as nostrService };
+export type { NostrService };
 
-// Export circuit breaker
-export { CircuitBreaker } from './relay/circuit/circuit-breaker';
-export type { CircuitState } from './relay/circuit/circuit-breaker';
+// Export cache modules
+export { contentCache };
 
-// Export adapter
-export { NostrAdapter } from './adapter';
+// Export formatter
+export { contentFormatter };

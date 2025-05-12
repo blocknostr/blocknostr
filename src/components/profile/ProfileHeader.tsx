@@ -1,122 +1,120 @@
 
-import { useCallback, useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Pencil } from "lucide-react";
-import { ProfileAvatar } from './header/ProfileAvatar';
-import { ProfileBanner } from './header/ProfileBanner';
-import { ProfileSkeleton } from './header/ProfileSkeleton';
-import { nostrService } from '@/lib/nostr';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { nostrService } from "@/lib/nostr";
+import EditProfileDialog from "./EditProfileDialog";
+import ProfileBanner from "./header/ProfileBanner";
+import ProfileAvatar from "./header/ProfileAvatar";
+import ProfileName from "./header/ProfileName";
+import ProfileActions from "./header/ProfileActions";
+import ProfileIdentity from "./header/ProfileIdentity";
+import ProfileLinks from "./header/ProfileLinks";
+import { useProfileHeader } from "./header/useProfileHeader";
 
 interface ProfileHeaderProps {
-  profileData: {
-    name?: string;
-    display_name?: string;
-    picture?: string;
-    banner?: string;
-    about?: string;
-    nip05?: string;
-    website?: string;
-    lud16?: string;
-  };
+  profileData: any | null;
   npub: string;
   isCurrentUser: boolean;
-  isLoading: boolean;
 }
 
-const ProfileHeader = ({ 
-  profileData, 
-  npub,
-  isCurrentUser, 
-  isLoading 
-}: ProfileHeaderProps) => {
-  const [accountAge, setAccountAge] = useState<string | null>(null);
-  const [loadingAge, setLoadingAge] = useState(false);
+const ProfileHeader = ({ profileData, npub, isCurrentUser }: ProfileHeaderProps) => {
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profile, setProfile] = useState(profileData);
   
-  // Fetch account creation date
+  // Update local state when profileData prop changes
   useEffect(() => {
-    const fetchAccountAge = async () => {
-      if (!npub) return;
-      
+    setProfile(profileData);
+  }, [profileData]);
+  
+  const pubkeyHex = npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
+  
+  const {
+    nip05Verified,
+    verifyingNip05,
+    xVerified,
+    xVerifiedInfo,
+    shortNpub,
+    creationDate
+  } = useProfileHeader(profile, npub, pubkeyHex);
+  
+  const displayName = profile?.display_name || profile?.name || shortNpub;
+  const username = profile?.name || shortNpub;
+  
+  const handleProfileUpdated = async () => {
+    // Fetch fresh profile data after update
+    if (pubkeyHex) {
       try {
-        setLoadingAge(true);
-        const hexPubkey = nostrService.getHexFromNpub(npub);
-        const creationTimestamp = await nostrService.getAccountCreationDate(hexPubkey);
-        
-        if (creationTimestamp) {
-          const date = new Date(creationTimestamp * 1000);
-          setAccountAge(formatDistanceToNow(date, { addSuffix: true }));
-        } else {
-          setAccountAge('Unknown');
+        const freshProfile = await nostrService.getUserProfile(pubkeyHex);
+        if (freshProfile) {
+          setProfile(freshProfile);
         }
       } catch (error) {
-        console.error('Error fetching account age:', error);
-        setAccountAge('Unknown');
-      } finally {
-        setLoadingAge(false);
+        console.error("Error fetching updated profile:", error);
       }
-    };
-    
-    fetchAccountAge();
-  }, [npub]);
-
-  const handleEditProfile = useCallback(() => {
-    // This would open a profile edit modal
-    console.log('Edit profile clicked');
-  }, []);
-
-  if (isLoading && !profileData) {
-    return <ProfileSkeleton />;
-  }
-
-  const displayName = profileData?.display_name || profileData?.name || 'Anonymous';
-
+    }
+  };
+  
   return (
-    <div className="relative">
-      <ProfileBanner 
-        bannerUrl={profileData?.banner}
-      />
+    <div className="mb-6">
+      {/* Banner */}
+      <ProfileBanner bannerUrl={profile?.banner} />
       
-      <div className="relative px-4 pb-4">
-        <div className="flex justify-between items-start">
+      {/* Profile info */}
+      <Card className="border-none shadow-lg relative -mt-5">
+        <CardContent className="pt-6 relative">
           <ProfileAvatar 
-            pictureUrl={profileData?.picture} 
-            displayName={displayName} 
-            size="lg"
+            pictureUrl={profile?.picture}
+            displayName={displayName}
           />
           
-          {isCurrentUser && (
-            <Button 
-              onClick={handleEditProfile} 
-              size="sm" 
-              className="mt-4"
-              variant="outline"
-            >
-              <Pencil className="h-4 w-4 mr-2" /> Edit Profile
-            </Button>
-          )}
-        </div>
-        
-        <div className="mt-4">
-          <h1 className="text-2xl font-bold tracking-tight">{displayName}</h1>
-          
-          {profileData?.name && profileData.name !== profileData.display_name && (
-            <p className="text-muted-foreground">@{profileData.name}</p>
-          )}
-          
-          {profileData?.nip05 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              ✓ {profileData.nip05}
-            </p>
-          )}
-          
-          {accountAge && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Joined {accountAge}
-            </p>
-          )}
-        </div>
-      </div>
+          <div className="mt-16 md:mt-20">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start">
+              <div>
+                <ProfileName
+                  displayName={displayName}
+                  username={username}
+                  nip05={profile?.nip05}
+                  nip05Verified={nip05Verified}
+                />
+                
+                <ProfileIdentity 
+                  npub={npub}
+                  pubkeyHex={pubkeyHex}
+                  shortNpub={shortNpub}
+                />
+              </div>
+              
+              <ProfileActions
+                isCurrentUser={isCurrentUser}
+                onEditProfile={() => setIsEditProfileOpen(true)}
+                pubkeyHex={pubkeyHex}
+              />
+            </div>
+            
+            {profile?.about && (
+              <p className="my-4 whitespace-pre-wrap">{profile.about}</p>
+            )}
+            
+            <ProfileLinks
+              website={profile?.website}
+              twitter={profile?.twitter}
+              nip05={profile?.nip05}
+              nip05Verified={nip05Verified}
+              xVerified={xVerified}
+              xVerifiedInfo={xVerifiedInfo}
+              creationDate={creationDate}
+            />
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog
+        open={isEditProfileOpen}
+        onOpenChange={setIsEditProfileOpen}
+        profileData={profile}
+        onProfileUpdated={handleProfileUpdated}
+      />
     </div>
   );
 };
