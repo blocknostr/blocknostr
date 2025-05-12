@@ -171,14 +171,8 @@ export class ProfileService {
    * @returns True if the NIP-05 identifier resolves to the expected pubkey
    */
   async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    try {
-      // Fix: Use the correct parameter order and return value comparison
-      const isValid = await verifyNip05(identifier, expectedPubkey);
-      return isValid === true; // Ensure we're comparing boolean to boolean
-    } catch (error) {
-      console.error("Error verifying NIP-05:", error);
-      return false;
-    }
+    const pubkey = await verifyNip05(identifier);
+    return pubkey !== null && pubkey === expectedPubkey;
   }
 
   /**

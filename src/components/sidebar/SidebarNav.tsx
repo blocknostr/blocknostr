@@ -10,8 +10,7 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Crown,
-  UserCog
+  Crown 
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -69,12 +68,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Profile",
       icon: User,
       href: "/profile",
-      requiresAuth: true
-    },
-    {
-      name: "Edit Profile",
-      icon: UserCog,
-      href: "/settings/profile",
       requiresAuth: true
     },
     {

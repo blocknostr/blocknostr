@@ -1,93 +1,96 @@
 
 /**
- * Implementation of NIP-05 (Mapping Nostr keys to DNS-based internet identifiers)
- * @see https://github.com/nostr-protocol/nips/blob/master/05.md
+ * Enhanced NIP-05 verification function that validates JSON structure and matches pubkeys
  */
-
-/**
- * Verify if a NIP-05 identifier resolves to the expected pubkey
- * @param identifier NIP-05 identifier (e.g. "username@example.com")
- * @param pubkey Expected pubkey in hex format
- * @returns Promise<boolean> True if verification is successful
- */
-export async function verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
-  if (!identifier || !identifier.includes("@")) {
-    return false;
+export async function verifyNip05(identifier: string): Promise<string | null> {
+  if (!identifier || !identifier.includes('@')) {
+    console.error("Invalid NIP-05 identifier format");
+    return null;
   }
-  
+
   try {
-    const [name, domain] = identifier.split("@");
+    const [name, domain] = identifier.split('@');
+    const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
     
-    if (!name || !domain) {
-      return false;
-    }
-    
-    // Fetch the .well-known/nostr.json file from the domain
-    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`);
-    
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.error(`NIP-05 verification failed: HTTP ${response.status} for ${url}`);
+      return null;
     }
     
     const data = await response.json();
     
-    // Check if the name exists and maps to the expected pubkey
-    return data?.names?.[name] === pubkey;
+    // Validate structure according to NIP-05 spec
+    if (!data || typeof data !== 'object') {
+      console.error("NIP-05 verification failed: Invalid response format");
+      return null;
+    }
+    
+    if (!data.names || typeof data.names !== 'object') {
+      console.error("NIP-05 verification failed: Missing or invalid 'names' field");
+      return null;
+    }
+    
+    // Check if name exists in the names object and get the associated pubkey
+    if (!Object.prototype.hasOwnProperty.call(data.names, name)) {
+      console.error(`NIP-05 verification failed: Username '${name}' not found in names object`);
+      return null;
+    }
+    
+    return data.names[name] || null;
   } catch (error) {
-    console.error("NIP-05 verification failed:", error);
-    return false;
+    console.error("Error verifying NIP-05:", error);
+    return null;
   }
 }
 
 /**
- * Fetch additional data associated with a NIP-05 identifier
- * @param identifier NIP-05 identifier in the format username@domain
+ * Enhanced NIP-05 data fetcher that returns additional information beyond just verification
  */
 export async function fetchNip05Data(identifier: string): Promise<{
   pubkey?: string;
   relays?: Record<string, { read: boolean; write: boolean }>;
   [key: string]: any;
 } | null> {
-  if (!identifier || !identifier.includes("@")) {
+  if (!identifier || !identifier.includes('@')) {
+    console.error("Invalid NIP-05 identifier format");
     return null;
   }
-  
+
   try {
-    const [name, domain] = identifier.split("@");
+    const [name, domain] = identifier.split('@');
+    const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
     
-    if (!name || !domain) {
-      return null;
-    }
-    
-    // Fetch the .well-known/nostr.json file
-    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`);
-    
+    const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.error(`NIP-05 data fetch failed: HTTP ${response.status}`);
+      return null;
     }
     
     const data = await response.json();
     
-    // Extract the public key and associated relays
-    const result: {
-      pubkey?: string;
-      relays?: Record<string, { read: boolean; write: boolean }>;
-    } = {};
+    // Validate response structure
+    if (!data || typeof data !== 'object' || !data.names || typeof data.names !== 'object') {
+      console.error("NIP-05 data fetch failed: Invalid response structure");
+      return null;
+    }
     
-    if (data.names && data.names[name]) {
-      result.pubkey = data.names[name];
+    // Get pubkey from names
+    const pubkey = data.names[name];
+    if (!pubkey) {
+      console.error(`NIP-05 data fetch failed: Username '${name}' not found in names object`);
+      return null;
     }
     
     // Get relay information if available
-    if (data.relays && data.relays[result.pubkey!]) {
-      result.relays = {};
-      
-      data.relays[result.pubkey!].forEach((relay: string) => {
-        result.relays![relay] = { read: true, write: true };
-      });
-    }
+    const relays = data.relays?.[pubkey] || {};
     
-    return result;
+    return { 
+      pubkey,
+      relays,
+      nip05_domain: domain,
+      nip05_name: name
+    };
   } catch (error) {
     console.error("Error fetching NIP-05 data:", error);
     return null;

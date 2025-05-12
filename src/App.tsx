@@ -3,7 +3,6 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
 import ProfilePage from './pages/ProfilePage';
-import ProfileSettingsPage from './pages/ProfileSettingsPage';
 import SettingsPage from './pages/SettingsPage';
 import CommunitiesPage from './pages/CommunitiesPage';
 import CommunityPage from './pages/CommunityPage';
@@ -28,7 +27,6 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:pubkey" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/settings/profile" element={<ProfileSettingsPage />} />
               <Route path="/communities" element={<CommunitiesPage />} />
               <Route path="/communities/:id" element={<CommunityPage />} />
               <Route path="/messages" element={<MessagesPage />} />
