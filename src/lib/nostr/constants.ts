@@ -7,13 +7,14 @@ export enum EVENT_KINDS {
   TEXT_NOTE = 1,         // NIP-01: Short text note
   RECOMMENDED_SERVER = 2, // NIP-01: Recommended relay
   CONTACTS = 3,          // NIP-02: Contact list
-  DM = 4,                // NIP-04: Encrypted direct message
+  DM = 4,                // NIP-04: Encrypted direct message (deprecated)
   DELETE = 5,            // NIP-09: Event deletion
   REACTION = 7,          // NIP-25: Reaction
   
   // Extended kinds
   BOOKMARK = 30001,      // Bookmark
   BOOKMARK_COLLECTIONS = 30003, // Bookmark collections
+  BOOKMARK_METADATA = 30004,    // Bookmark metadata
   COMMUNITY = 34550,     // Community creation
   PROPOSAL = 34551,      // Community proposal
   VOTE = 34552,          // Vote on proposal
@@ -24,6 +25,14 @@ export enum EVENT_KINDS {
   COMMUNITY_CONFIG = 30017, // Community configuration
   COMMUNITY_INVITE = 30018, // Community invitation
   COMMUNITY_ROLE = 30019,  // Community role assignment
+  
+  // User lists
+  MUTE_LIST = 10000,     // NIP-51: Mute list
+  BLOCK_LIST = 10000,    // NIP-51: Block list (same kind as MUTE_LIST, different 'd' tag)
+  
+  // Direct messaging and reposts
+  ENCRYPTED_DM = 4,      // Same as DM for backward compatibility
+  REPOST = 6,            // NIP-18: Repost
 }
 
 /**

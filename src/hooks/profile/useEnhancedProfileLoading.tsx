@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { nostrService, EVENT_KINDS, NostrEvent } from "@/lib/nostr";
-import { ProfileRelaySelector } from "./profile-relay-selector";
 import { useRetry } from "@/lib/retry";
 import { toast } from "sonner";
 
@@ -11,20 +10,29 @@ import { toast } from "sonner";
  * 2. Background load for complete profile data
  * 3. Parallel requests to different relay groups
  */
-export function useEnhancedProfileLoading(pubkey: string | undefined) {
-  const [profile, setProfile] = useState<any>(null);
+export function useEnhancedProfileLoading({
+  npub,
+  currentUserPubkey
+}: {
+  npub: string | undefined;
+  currentUserPubkey: string | null;
+}) {
+  const [profileData, setProfileData] = useState<any>(null);
   const [events, setEvents] = useState<NostrEvent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [isEmpty, setIsEmpty] = useState(false);
-  const [phase, setPhase] = useState<'initial' | 'background' | 'complete'>('initial');
-  const [relaysStatus, setRelaysStatus] = useState<{connected: number, total: number}>({connected: 0, total: 0});
+  const [followers, setFollowers] = useState<string[]>([]);
+  const [following, setFollowing] = useState<string[]>([]);
+  const [metadataLoading, setMetadataLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [relationsLoading, setRelationsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [hexPubkey, setHexPubkey] = useState<string | null>(null);
+  const [isCurrentUser, setIsCurrentUser] = useState(false);
   
   // Track subscriptions to clean up
   const subscriptionIds = useRef<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
-  const relaySelector = useRef(new ProfileRelaySelector());
   
   // Cleanup function for subscriptions
   const cleanupSubscriptions = useCallback(() => {
@@ -49,66 +57,73 @@ export function useEnhancedProfileLoading(pubkey: string | undefined) {
     baseDelay: 1000,
   });
   
-  // Function to load profile data
-  const loadProfile = useCallback(async () => {
-    if (!pubkey) {
-      setIsLoading(false);
+  // Convert npub to hex pubkey
+  useEffect(() => {
+    if (!npub) {
+      setHexPubkey(null);
       return;
     }
     
-    setIsLoading(true);
-    setIsError(false);
+    try {
+      const hex = nostrService.getHexFromNpub(npub);
+      setHexPubkey(hex);
+      
+      // Check if this is the current user
+      if (currentUserPubkey && hex === currentUserPubkey) {
+        setIsCurrentUser(true);
+      } else {
+        setIsCurrentUser(false);
+      }
+    } catch (e) {
+      console.error("Error converting npub to hex:", e);
+      setError("Invalid profile identifier");
+    }
+  }, [npub, currentUserPubkey]);
+  
+  // Function to load profile data
+  const loadProfile = useCallback(async () => {
+    if (!hexPubkey) {
+      setLoading(false);
+      return false;
+    }
+    
+    setLoading(true);
+    setError(null);
+    setMetadataError(null);
+    setMetadataLoading(true);
     
     try {
       // Phase 1: Fast initial load - check cache first
       let cachedProfile = null;
       try {
-        cachedProfile = await nostrService.getUserProfile(pubkey);
+        cachedProfile = await nostrService.getUserProfile(hexPubkey);
       } catch (e) {
         console.error("Error loading cached profile:", e);
       }
 
       if (cachedProfile) {
-        setProfile(cachedProfile);
+        setProfileData(cachedProfile);
       }
 
       // Connect to relays
       await nostrService.connectToUserRelays();
       
-      // Get relay status
-      const relays = nostrService.getRelayStatus();
-      const connectedRelays = relays.filter(r => r.status === 'connected');
-      setRelaysStatus({
-        connected: connectedRelays.length,
-        total: relays.length
-      });
-      
-      if (connectedRelays.length === 0) {
-        console.warn("No connected relays available");
-        // Try to connect to default relays
-        await nostrService.connectToDefaultRelays();
-      }
-      
       // Set up abort controller for fetch operations
       abortControllerRef.current = new AbortController();
       
-      // Phase 2: Load profile metadata from multiple relay groups in parallel
-      setPhase('background');
-      
-      // Create batched fetchers for profile metadata
-      const fetchers = nostrService.createBatchedFetchers(pubkey, {
+      // Phase 2: Load profile metadata from relays
+      const metadataFetchers = nostrService.createBatchedFetchers(hexPubkey, {
         kinds: [EVENT_KINDS.META],
         limit: 5
       });
       
       // Execute all fetchers in parallel
-      const fetchPromises = fetchers.map(fetchFn => fetchFn());
-      
-      const fetchResults = await Promise.allSettled(fetchPromises);
+      const metadataPromises = metadataFetchers.map(fetchFn => fetchFn());
+      const metadataResults = await Promise.allSettled(metadataPromises);
       
       // Combine successful results
       const metadataEvents: NostrEvent[] = [];
-      fetchResults.forEach(result => {
+      metadataResults.forEach(result => {
         if (result.status === 'fulfilled') {
           metadataEvents.push(...result.value);
         }
@@ -121,26 +136,31 @@ export function useEnhancedProfileLoading(pubkey: string | undefined) {
         try {
           const parsedContent = JSON.parse(latestEvent.content);
           // Update profile with latest metadata
-          setProfile(parsedContent);
+          setProfileData(parsedContent);
+          setMetadataError(null);
         } catch (e) {
           console.error("Error parsing profile metadata:", e);
+          setMetadataError("Failed to parse profile data");
         }
+      } else if (!cachedProfile) {
+        setMetadataError("No profile data found");
       }
       
-      // Phase 3: Load user posts and other events in parallel
-      setPhase('complete');
+      setMetadataLoading(false);
       
-      // Set up filters for user posts
+      // Phase 3: Load user posts
+      setPostsLoading(true);
+      
+      // Subscribe to events from this author
       const postFilters = {
         kinds: [EVENT_KINDS.TEXT_NOTE],
-        authors: [pubkey],
+        authors: [hexPubkey],
         limit: 30
       };
       
-      // Subscribe to events from this author
       const postsSubId = nostrService.subscribe(
         [postFilters],
-        (event) => {
+        (event: NostrEvent) => {
           setEvents(prev => {
             // Check if we already have this event
             if (prev.some(e => e.id === event.id)) {
@@ -154,76 +174,97 @@ export function useEnhancedProfileLoading(pubkey: string | undefined) {
       
       subscriptionIds.current.push(postsSubId);
       
-      // Also check for mentions of this user
-      const mentionFilters = {
-        kinds: [EVENT_KINDS.TEXT_NOTE],
-        '#p': [pubkey],
-        limit: 20
-      };
-      
-      const mentionsSubId = nostrService.subscribe(
-        [mentionFilters],
-        (event) => {
-          setEvents(prev => {
-            // Check if we already have this event
-            if (prev.some(e => e.id === event.id)) {
-              return prev;
-            }
-            // Add new event and sort by timestamp
-            return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-          });
-        }
-      );
-      
-      subscriptionIds.current.push(mentionsSubId);
-      
-      // Check if we got any data
+      // Set up a timeout to mark posts as loaded after a reasonable delay
       setTimeout(() => {
-        if (events.length === 0) {
-          setIsEmpty(true);
-        }
-        setIsLoading(false);
+        setPostsLoading(false);
       }, 3000);
+      
+      // Phase 4: Load followers and following
+      setRelationsLoading(true);
+      
+      // Load followers (who lists this user in their contacts)
+      try {
+        const followerLists = await nostrService.getEvents([{
+          kinds: [EVENT_KINDS.CONTACTS],
+          "#p": [hexPubkey],
+          limit: 50
+        }]);
+        
+        const followerPubkeys = followerLists
+          .map(event => event.pubkey)
+          .filter(Boolean);
+        
+        setFollowers(followerPubkeys);
+      } catch (e) {
+        console.error("Error loading followers:", e);
+      }
+      
+      // Load following (who this user lists in their contacts)
+      try {
+        const followingLists = await nostrService.getEvents([{
+          kinds: [EVENT_KINDS.CONTACTS],
+          authors: [hexPubkey],
+          limit: 1
+        }]);
+        
+        if (followingLists.length > 0) {
+          const followingEvent = followingLists[0];
+          const followingPubkeys = followingEvent.tags
+            .filter(tag => tag[0] === 'p')
+            .map(tag => tag[1]);
+          
+          setFollowing(followingPubkeys);
+        }
+      } catch (e) {
+        console.error("Error loading following:", e);
+      }
+      
+      setRelationsLoading(false);
+      setLoading(false);
+      return true;
       
     } catch (error) {
       console.error("Error loading profile:", error);
-      setIsError(true);
-      setIsLoading(false);
-      
-      // Retry on error
-      retry(() => loadProfile());
+      setError("Failed to load profile data");
+      setMetadataLoading(false);
+      setPostsLoading(false);
+      setRelationsLoading(false);
+      setLoading(false);
+      return false;
     }
-  }, [pubkey, retry]);
+  }, [hexPubkey]);
 
   // Reload profile data
-  const refreshProfile = useCallback(() => {
+  const reload = useCallback(async () => {
     cleanupSubscriptions();
     setEvents([]);
-    setIsLoading(true);
-    setIsError(false);
-    setIsEmpty(false);
-    setPhase('initial');
-    
-    loadProfile();
+    return loadProfile();
   }, [cleanupSubscriptions, loadProfile]);
 
   // Initial load
   useEffect(() => {
-    loadProfile();
+    if (hexPubkey) {
+      loadProfile();
+    }
     
     return () => {
       cleanupSubscriptions();
     };
-  }, [pubkey, loadProfile, cleanupSubscriptions]);
+  }, [hexPubkey, loadProfile, cleanupSubscriptions]);
 
   return {
-    profile,
+    profileData,
     events,
-    isLoading: isLoading || isRetrying,
-    isError,
-    isEmpty,
-    refreshProfile,
-    phase,
-    relaysStatus
+    followers,
+    following,
+    metadataLoading,
+    postsLoading,
+    relationsLoading,
+    loading: loading || isRetrying,
+    error,
+    reload,
+    hexPubkey,
+    isCurrentUser,
+    metadataError
   };
 }

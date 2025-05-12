@@ -1,13 +1,12 @@
 
+import { NostrService } from './service';
+import { NostrEvent, Relay, NostrFilter } from './types';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+
 /**
  * This is a comprehensive implementation of the Nostr service adapter
  * that provides all the methods needed throughout the application.
  */
-
-import { NostrService } from './service';
-import { NostrEvent } from './types';
-import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
-
 class AdaptedNostrService {
   private service: NostrService;
   
@@ -21,12 +20,7 @@ class AdaptedNostrService {
    */
   getRelayStatus() {
     // Return the relay status information 
-    return this.service.getRelays().map(relay => ({
-      url: relay.url, 
-      status: relay.status || 'unknown',
-      read: true,
-      write: true
-    }));
+    return this.service.getRelayStatus();
   }
 
   /**
@@ -34,7 +28,7 @@ class AdaptedNostrService {
    * @returns Array of relay URLs
    */
   getRelayUrls() {
-    return this.service.getRelays().map(relay => relay.url);
+    return this.service.getRelayUrls();
   }
 
   /**
@@ -44,16 +38,7 @@ class AdaptedNostrService {
    * @returns Array of fetcher functions
    */
   createBatchedFetchers(hexPubkey: string, options: any) {
-    return [
-      async () => {
-        // Basic implementation that uses the existing nostrService
-        return await this.service.getEvents([{
-          kinds: options.kinds || [1],
-          authors: [hexPubkey],
-          limit: options.limit || 50
-        }]);
-      }
-    ];
+    return this.service.createBatchedFetchers(hexPubkey, options);
   }
 
   // Access to socialManager instance
@@ -98,6 +83,7 @@ class AdaptedNostrService {
 
   // User Properties
   get publicKey() {
+    // FIXED: Return the service.publicKey directly to avoid infinite recursion
     return this.service.publicKey;
   }
 
@@ -116,7 +102,7 @@ class AdaptedNostrService {
   }
 
   async connectToDefaultRelays() {
-    return this.service.connectToUserRelays(); // Alias for backward compatibility
+    return this.service.connectToDefaultRelays();
   }
 
   // Subscription methods
@@ -187,7 +173,7 @@ class AdaptedNostrService {
   }
 
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
-    return this.service.publishRelayList(relays);
+    return this.service.publishRelayList?.(relays) || false;
   }
 
   async getEventById(id: string) {
@@ -232,7 +218,7 @@ class AdaptedNostrService {
   }
 
   // Reactions
-  async reactToPost(eventId: string, reaction: string) {
+  async reactToPost(eventId: string, reaction: string = "+") {
     return this.service.reactToPost(eventId, reaction);
   }
 

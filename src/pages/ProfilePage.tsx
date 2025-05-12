@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
-import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();

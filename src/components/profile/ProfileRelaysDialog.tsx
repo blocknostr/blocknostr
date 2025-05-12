@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +12,14 @@ import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 
+// Extend Relay interface to include performance metrics
+export interface EnhancedRelay extends Relay {
+  score?: number;
+  avgResponse?: number; 
+  circuitStatus?: string;
+  isRequired?: boolean;
+}
+
 interface ProfileRelaysDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -18,6 +27,14 @@ interface ProfileRelaysDialogProps {
   onRelaysChange?: (relays: Relay[]) => void;
   isCurrentUser: boolean;
   userNpub?: string;
+}
+
+interface RelayDialogContentProps {
+  relays: EnhancedRelay[];
+  isCurrentUser: boolean;
+  onRemoveRelay: (relayUrl: string) => void;
+  onSaveRelayList: (relaysToSave: EnhancedRelay[]) => Promise<boolean>;
+  isPublishing: boolean;
 }
 
 const ProfileRelaysDialog = ({
@@ -49,7 +66,7 @@ const ProfileRelaysDialog = ({
     const relayStatus = nostrService.getRelayStatus();
     
     // Enhance with performance data if available
-    const enhancedRelays: Relay[] = relayStatus.map(relay => {
+    const enhancedRelays: EnhancedRelay[] = relayStatus.map(relay => {
       // Add defaults for extended properties
       return {
         ...relay,
@@ -64,7 +81,7 @@ const ProfileRelaysDialog = ({
   };
 
   // Save relay list to NIP-65 event with improved error handling
-  const handleSaveRelayList = async (relaysToSave: Relay[]): Promise<boolean> => {
+  const handleSaveRelayList = async (relaysToSave: EnhancedRelay[]): Promise<boolean> => {
     if (!isCurrentUser || relaysToSave.length === 0) return false;
     
     setIsPublishing(true);
@@ -163,13 +180,19 @@ const ProfileRelaysDialog = ({
     if (a.status !== "connected" && b.status === "connected") return 1;
     
     // Then by score
-    if (a.score !== undefined && b.score !== undefined) {
-      return b.score - a.score;
+    if ((a as EnhancedRelay).score !== undefined && (b as EnhancedRelay).score !== undefined) {
+      return ((b as EnhancedRelay).score || 0) - ((a as EnhancedRelay).score || 0);
     }
     
     // Finally by URL
     return a.url.localeCompare(b.url);
   });
+
+  const getBadgeVariant = (percentage: number) => {
+    if (percentage > 70) return "outline"; // Using supported variant
+    if (percentage > 40) return "secondary"; // Using supported variant
+    return "destructive"; // Using supported variant
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -178,7 +201,7 @@ const ProfileRelaysDialog = ({
           <div className="flex items-center justify-between">
             <DialogTitle>Relay Connections</DialogTitle>
             <div className="flex items-center gap-2">
-              <Badge variant={percentConnected > 70 ? "success" : percentConnected > 40 ? "warning" : "destructive"}>
+              <Badge variant={getBadgeVariant(percentConnected)}>
                 {connectedCount}/{totalCount} Connected ({percentConnected}%)
               </Badge>
               
@@ -214,15 +237,26 @@ const ProfileRelaysDialog = ({
           )}
         </DialogHeader>
 
-        {/* Relay management content */}
-        <RelayDialogContent 
-          relays={sortedRelays}
-          isCurrentUser={isCurrentUser}
-          onRelayChange={handleRelayChange}
-          onRemoveRelay={handleRemoveRelay}
-          onSaveRelayList={handleSaveRelayList}
-          isPublishing={isPublishing}
-        />
+        {/* Simple relay list */}
+        <div className="space-y-4">
+          <RelayList
+            relays={sortedRelays as EnhancedRelay[]}
+            onRemoveRelay={handleRemoveRelay}
+            isCurrentUser={isCurrentUser}
+          />
+          
+          {isCurrentUser && (
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="default"
+                onClick={() => handleSaveRelayList(sortedRelays as EnhancedRelay[])}
+                disabled={isPublishing}
+              >
+                {isPublishing ? 'Saving...' : 'Save Relay Preferences'}
+              </Button>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

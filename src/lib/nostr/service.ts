@@ -534,6 +534,7 @@ export class NostrService {
   }
   
   private getConnectedRelayUrls(): string[] {
+    // Fixed: Use the relay manager's status information
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
@@ -721,14 +722,18 @@ export class NostrService {
    * @param options Filter options
    * @returns Array of fetcher functions
    */
-  createBatchedFetchers(pubkey: string, options: { limit?: number, kinds?: number[] }): Array<() => Promise<any[]>> {
+  createBatchedFetchers(pubkey: string, options: { limit?: number, kinds?: number[] }): Array<() => Promise<NostrEvent[]>> {
     // Get connected relays  
-    const connectedRelays = this.relayManager.getConnectedRelayUrls();
+    const connectedRelays = this.getConnectedRelayUrls();
     if (connectedRelays.length === 0) {
       // Return a single fetcher that will connect to default relays
       return [async () => {
         await this.connectToDefaultRelays();
-        return this.getUserEvents(pubkey, options);
+        return this.getEvents([{
+          kinds: options.kinds || [1],
+          authors: [pubkey],
+          limit: options.limit || 50
+        }]);
       }];
     }
     
@@ -754,9 +759,9 @@ export class NostrService {
       }
       
       // Return promise that will resolve to events from this group
-      return new Promise<any[]>((resolve, reject) => {
+      return new Promise<NostrEvent[]>((resolve, reject) => {
         try {
-          const events: any[] = [];
+          const events: NostrEvent[] = [];
           const sub = this.pool.subscribeMany(
             relayGroup,
             [filter],

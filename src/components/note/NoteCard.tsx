@@ -1,97 +1,103 @@
 
-import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Heart, Repeat, Share, MoreHorizontal } from "lucide-react";
-import { formatDistance } from 'date-fns';
+import React, { useState } from 'react';
+import { NostrEvent, NostrProfileMetadata } from '@/lib/nostr';
+import { formatDistanceToNow } from 'date-fns';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { useAction } from './hooks/use-action';
-import { NoteCardProps } from '@/lib/nostr/types';
-import { nostrService } from '@/lib/nostr';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Heart, MessageSquare, RepeatIcon } from 'lucide-react';
 
-export function NoteCard({ event, showActionButtons = false }: NoteCardProps) {
-  const { id, pubkey, content, created_at } = event;
-  const [profileData, setProfileData] = React.useState<any>({});
-  const { handleLike, isLiking, handleRepost, isReposting } = useAction({ 
-    eventId: id, 
-    authorPubkey: pubkey,
+export interface NoteCardProps {
+  event: NostrEvent;
+  showActionButtons?: boolean;
+}
+
+export function NoteCard({ event, showActionButtons = true }: NoteCardProps) {
+  const [profile, setProfile] = useState<NostrProfileMetadata | null>(null);
+  const { handleLike, isLiking, handleRepost, isReposting } = useAction({
+    eventId: event.id,
+    authorPubkey: event.pubkey,
     event
   });
 
-  // Fetch profile data
-  React.useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const profile = await nostrService.getUserProfile(pubkey);
-        if (profile) {
-          setProfileData(profile);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-    };
+  // Format date
+  const formattedDate = formatDistanceToNow(new Date(event.created_at * 1000), {
+    addSuffix: true
+  });
 
-    fetchProfile();
-  }, [pubkey]);
+  // Format content (handle markdown, links, etc.)
+  const content = event.content;
 
-  const timeAgo = formatDistance(new Date(created_at * 1000), new Date(), { addSuffix: true });
-  const displayName = profileData.display_name || profileData.name || nostrService.formatPubkey(pubkey, 'npub').slice(0, 10) + '...';
-  const avatarUrl = profileData.picture || '';
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    if (profile?.name) {
+      return profile.name.substring(0, 2).toUpperCase();
+    }
+    if (profile?.display_name) {
+      return profile.display_name.substring(0, 2).toUpperCase();
+    }
+    return event.pubkey.substring(0, 2).toUpperCase();
+  };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="mb-4">
       <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-center space-x-3">
-          <Avatar>
-            <AvatarImage src={avatarUrl} alt={displayName} />
-            <AvatarFallback>{displayName.slice(0, 2)}</AvatarFallback>
+        <div className="flex gap-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={profile?.picture} />
+            <AvatarFallback>{getInitials()}</AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{displayName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {timeAgo} · {nostrService.formatPubkey(pubkey, 'npub').slice(0, 10)}...
-                </p>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
+          <div>
+            <p className="font-semibold text-sm">
+              {profile?.display_name || profile?.name || `${event.pubkey.substring(0, 8)}...`}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formattedDate}
+            </p>
           </div>
         </div>
       </CardHeader>
       <CardContent className="px-4 py-2">
-        <p className="whitespace-pre-wrap">{content}</p>
+        <div className="whitespace-pre-wrap">{content}</div>
       </CardContent>
+      
       {showActionButtons && (
-        <CardFooter className="px-4 pt-0 pb-3 flex justify-between">
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            <MessageSquare className="h-4 w-4 mr-1" /> 0
-          </Button>
+        <CardFooter className="px-4 py-3 border-t flex justify-between">
           <Button 
             variant="ghost" 
             size="sm" 
             className="text-muted-foreground" 
+            onClick={handleLike} 
+            disabled={isLiking}
+          >
+            <Heart className="h-4 w-4 mr-1" />
+            <span>Like</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground"
+          >
+            <MessageSquare className="h-4 w-4 mr-1" />
+            <span>Reply</span>
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground"
             onClick={handleRepost}
             disabled={isReposting}
           >
-            <Repeat className={`h-4 w-4 mr-1 ${isReposting ? 'animate-spin' : ''}`} /> 0
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-muted-foreground" 
-            onClick={handleLike}
-            disabled={isLiking}
-          >
-            <Heart className={`h-4 w-4 mr-1 ${isLiking ? 'animate-pulse' : ''}`} /> 0
-          </Button>
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            <Share className="h-4 w-4 mr-1" />
+            <RepeatIcon className="h-4 w-4 mr-1" />
+            <span>Repost</span>
           </Button>
         </CardFooter>
       )}
     </Card>
   );
 }
+
+export default NoteCard;

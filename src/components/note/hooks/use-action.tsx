@@ -73,8 +73,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       
       switch (actionType) {
         case "like":
-          // Use direct method instead of socialManager
-          const likeResult = await nostrService.reactToPost(event.id);
+          // Use direct method with default "+" reaction
+          const likeResult = await nostrService.reactToPost(event.id, "+");
           result = likeResult !== null;
           if (result) {
             toast.success("Post liked!");
@@ -83,7 +83,7 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           break;
           
         case "repost":
-          // Use direct method instead of socialManager
+          // Use direct method
           const repostResult = await nostrService.repostNote(event.id, event.pubkey);
           result = repostResult !== null;
           if (result) {
