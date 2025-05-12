@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 
@@ -163,5 +162,10 @@ export class NostrAdapter {
   
   unsubscribe = (subId: string) => {
     console.log(`Unsubscribing from ${subId}`);
+  }
+  
+  // Add unsubscribeAll method
+  unsubscribeAll = () => {
+    console.log("Unsubscribing all subscriptions");
   }
 }

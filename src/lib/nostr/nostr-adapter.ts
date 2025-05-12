@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -322,6 +321,16 @@ export class NostrAdapter extends BaseAdapter {
   
   get bookmarkManager() {
     return this.bookmarkAdapter.bookmarkManager;
+  }
+  
+  // Add unsubscribeAll method
+  unsubscribeAll(): void {
+    // Forward the call to the service
+    if (this.service.unsubscribeAll) {
+      this.service.unsubscribeAll();
+    } else {
+      console.warn('unsubscribeAll not implemented in the service');
+    }
   }
 }
 

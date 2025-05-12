@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -186,6 +185,11 @@ export class NostrService {
   
   public unsubscribe(subId: string): void {
     this.subscriptionManager.unsubscribe(subId);
+  }
+  
+  // Add the unsubscribeAll method that forwards the call to subscriptionManager
+  public unsubscribeAll(): void {
+    this.subscriptionManager.unsubscribeAll();
   }
   
   // Renew subscription
@@ -719,4 +723,3 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
-
