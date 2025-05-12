@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -144,8 +145,10 @@ export const PollComponent: React.FC<PollProps> = ({
                 <div className="flex items-center mt-1 text-xs">
                   <Progress
                     value={percentage}
-                    className="h-1 flex-grow"
-                    indicatorClassName={isSelected ? "bg-primary" : "bg-muted-foreground"}
+                    className={cn(
+                      "h-1 flex-grow",
+                      isSelected ? "bg-secondary [&>div]:bg-primary" : "bg-secondary [&>div]:bg-muted-foreground"
+                    )}
                   />
                   <span className="ml-2 text-muted-foreground font-medium w-12 text-right">
                     {percentage.toFixed(1)}%
