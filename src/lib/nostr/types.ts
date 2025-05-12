@@ -1,4 +1,17 @@
 
+/**
+ * Represents a Nostr relay with connection status
+ */
+export interface Relay {
+  url: string;
+  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown';
+  read?: boolean;
+  write?: boolean;
+}
+
+/**
+ * Represents a standard Nostr event
+ */
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -10,32 +23,9 @@ export interface NostrEvent {
 }
 
 /**
- * Extended Relay interface with performance metrics
+ * Represents a filter for querying Nostr events
  */
-export interface Relay {
-  url: string;
-  status: 'connected' | 'connecting' | 'disconnected' | 'failed';
-  read: boolean;
-  write: boolean;
-  score?: number;
-  avgResponse?: number;
-  supportedNips?: number[];
-  load?: number;
-}
-
-export interface NostrProfileMetadata {
-  name?: string;
-  display_name?: string;
-  about?: string;
-  picture?: string;
-  banner?: string;
-  nip05?: string;
-  lud16?: string;
-  website?: string;
-  [key: string]: any;
-}
-
-export type NostrFilter = {
+export interface NostrFilter {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
@@ -45,16 +35,19 @@ export type NostrFilter = {
   since?: number;
   until?: number;
   limit?: number;
-  [key: string]: any;
-};
+}
 
-export interface NostrSubscription {
-  sub: string;
-  filters: NostrFilter[];
-  relays: string[];
-  callbacks: {
-    onevent: (event: NostrEvent) => void;
-    onclose: () => void;
-  };
-  unsub?: () => void;
+/**
+ * Profile metadata as used in kind 0 events
+ */
+export interface NostrProfileMetadata {
+  name?: string;
+  about?: string;
+  picture?: string;
+  banner?: string;
+  nip05?: string;
+  lud16?: string;
+  website?: string;
+  display_name?: string;
+  [key: string]: any; // Allow for custom fields
 }

@@ -9,8 +9,7 @@ import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
-export type { NostrEvent, Relay } from './types';
-export type { NostrProfileMetadata } from './types';
+export type { NostrEvent, Relay, NostrFilter, NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
 
 // Re-export from social module
