@@ -3,17 +3,12 @@
 
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { useSwipeable } from "@/hooks/use-swipeable";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import { RightSidebarProvider } from "@/contexts/RightSidebarContext";
 import Sidebar from "@/components/Sidebar";
-import RightSidebar from "@/components/home/RightSidebar";
 import MobileSidebar from "@/components/MobileSidebar";
-import PageHeader from "@/components/navigation/PageHeader";
-import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 import FloatingLoginButton from "@/components/auth/FloatingLoginButton";
 import { Toaster } from "sonner";
 import "../src/index.css";
@@ -25,7 +20,6 @@ export default function RootLayout({
 }) {
   const { preferences } = useUserPreferences();
   const isMobile = useIsMobile();
-  const { triggerHaptic } = useHapticFeedback();
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
