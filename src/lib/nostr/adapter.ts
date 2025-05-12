@@ -9,7 +9,6 @@ export class NostrAdapter {
   private pool: SimplePool;
   private publicKey: string | null = null;
   private _relays: Relay[] = [];
-  private subscriptions: Map<string, any> = new Map();
   
   constructor() {
     this.pool = new SimplePool();
@@ -153,35 +152,16 @@ export class NostrAdapter {
   subscribeToEvents = (filters: any[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
     const sub = 'subscription-' + Math.random().toString(36).substring(2, 10);
     console.log(`Subscribing to events with filters:`, filters);
-    
-    // Store the subscription for later cleanup
-    this.subscriptions.set(sub, {
-      filters,
-      relays,
-      callbacks
-    });
-    
-    // Set timeout for simulating subscription close
     setTimeout(() => {
-      if (this.subscriptions.has(sub)) {
-        callbacks.onclose();
-      }
+      callbacks.onclose();
     }, 5000);
-    
     return {
       sub,
-      unsubscribe: () => this.unsubscribe(sub)
+      unsubscribe: () => console.log(`Unsubscribing from ${sub}`)
     };
   }
   
   unsubscribe = (subId: string) => {
     console.log(`Unsubscribing from ${subId}`);
-    this.subscriptions.delete(subId);
-  }
-  
-  // Add unsubscribeAll method that was missing
-  unsubscribeAll = () => {
-    console.log("Unsubscribing all subscriptions");
-    this.subscriptions.clear();
   }
 }

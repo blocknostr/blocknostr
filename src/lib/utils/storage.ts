@@ -1,10 +1,9 @@
 
 /**
- * src/lib/storage.ts
- * Safely interact with localStorage, including automatic JSON parsing
+ * Safely get an item from localStorage with error handling
+ * @param key Storage key
+ * @returns Stored value or null if not found/error
  */
-
-// Safely get a raw string from localStorage
 export const safeLocalStorageGet = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
@@ -14,7 +13,12 @@ export const safeLocalStorageGet = (key: string): string | null => {
   }
 };
 
-// Safely set a raw string into localStorage
+/**
+ * Safely set an item in localStorage with error handling
+ * @param key Storage key
+ * @param value Value to store
+ * @returns Boolean indicating success
+ */
 export const safeLocalStorageSet = (key: string, value: string): boolean => {
   try {
     localStorage.setItem(key, value);
@@ -25,7 +29,11 @@ export const safeLocalStorageSet = (key: string, value: string): boolean => {
   }
 };
 
-// Safely remove a key from localStorage
+/**
+ * Safely remove an item from localStorage with error handling
+ * @param key Storage key
+ * @returns Boolean indicating success
+ */
 export const safeLocalStorageRemove = (key: string): boolean => {
   try {
     localStorage.removeItem(key);
@@ -35,37 +43,3 @@ export const safeLocalStorageRemove = (key: string): boolean => {
     return false;
   }
 };
-
-/**
- * Safely parse JSON out of localStorage, clearing the key on parse errors.
- * @param key Storage key
- * @returns The parsed object, or undefined if missing or invalid
- */
-export function safeLocalStorageGetJson<T = any>(key: string): T | undefined {
-  const raw = safeLocalStorageGet(key);
-  if (raw === null) return undefined;
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    console.warn(`Invalid JSON in localStorage[${key}], clearing it:`, err);
-    safeLocalStorageRemove(key);
-    return undefined;
-  }
-}
-
-/**
- * Safely save JSON to localStorage, with proper stringification.
- * @param key Storage key
- * @param value Value to store
- * @returns Boolean indicating success
- */
-export function safeLocalStorageSetJson<T = any>(key: string, value: T): boolean {
-  try {
-    const json = JSON.stringify(value);
-    return safeLocalStorageSet(key, json);
-  } catch (err) {
-    console.warn(`Error stringifying to localStorage[${key}]:`, err);
-    return false;
-  }
-}

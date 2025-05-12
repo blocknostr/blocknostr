@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Edit, Share2 } from "lucide-react";
+import { Edit, MessageSquare } from "lucide-react";
 import FollowButton from "@/components/FollowButton";
+import { Link } from "react-router-dom";
 
 interface ProfileActionsProps {
   isCurrentUser: boolean;
@@ -11,29 +12,24 @@ interface ProfileActionsProps {
 }
 
 const ProfileActions = ({ isCurrentUser, onEditProfile, pubkeyHex }: ProfileActionsProps) => {
-  const [isCopied, setIsCopied] = useState(false);
-  
-  const handleCopyProfile = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-  
   return (
-    <div className="flex gap-2 mt-2 md:mt-0">
+    <div className="space-x-2 mt-4 md:mt-0">
       {isCurrentUser ? (
-        <Button onClick={onEditProfile} size="sm" className="flex items-center gap-1">
-          <Edit className="h-4 w-4" />
-          <span className="hidden sm:inline">Edit Profile</span>
+        <Button variant="outline" onClick={onEditProfile}>
+          <Edit className="h-4 w-4 mr-2" />
+          Edit profile
         </Button>
       ) : (
-        <FollowButton pubkey={pubkeyHex} />
+        <div className="flex gap-2">
+          <FollowButton pubkey={pubkeyHex} />
+          <Link to={`/messages/${pubkeyHex}`}>
+            <Button variant="outline" size="sm">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Message
+            </Button>
+          </Link>
+        </div>
       )}
-      
-      <Button variant="outline" size="sm" onClick={handleCopyProfile}>
-        <Share2 className="h-4 w-4 mr-0 sm:mr-1" />
-        <span className="hidden sm:inline">{isCopied ? "Copied!" : "Share"}</span>
-      </Button>
     </div>
   );
 };

@@ -9,7 +9,6 @@ export interface EventManager {
   getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
   getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null>;
   verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean>;
-  publishEventDirectly(event: any, relays: string[]): Promise<boolean>;
 }
 
 /**
@@ -111,46 +110,12 @@ export class NostrEventManager implements EventManager {
       if (!name || !domain) return false;
 
       const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
-      console.log(`[NIP-05] Verification response for ${name}@${domain}:`, response.status);
-      
       if (!response.ok) return false;
 
       const data = await response.json();
-      console.log(`[NIP-05] Parsed JSON data for ${name}@${domain}:`, data);
-      
-      const verified = data.names?.[name] === pubkey;
-      console.log(`[NIP-05] Verification result: ${verified} - Expected: ${pubkey}, Got: ${data.names?.[name]}`);
-      
-      return verified;
+      return data.names?.[name] === pubkey;
     } catch (error) {
       console.error("Error verifying NIP-05:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Publish an event directly to relays without requiring extension
-   * This is a fallback method when NIP-07 extension signing fails
-   */
-  async publishEventDirectly(event: any, relayUrls: string[]): Promise<boolean> {
-    if (!event || !relayUrls || relayUrls.length === 0) {
-      console.error("[DIRECT PUBLISH] Invalid params for direct publish");
-      return false;
-    }
-    
-    try {
-      console.log(`[DIRECT PUBLISH] Attempting to publish to ${relayUrls.length} relays`);
-      
-      // This is a simplified direct publish - in a real implementation, we would:
-      // 1. Get the private key from secure storage (if available)
-      // 2. Sign the event with the private key
-      // 3. Publish to relays
-      
-      // For now, we'll return false since we can't fully implement this without proper key management
-      console.log("[DIRECT PUBLISH] Direct publishing requires private key access which is not implemented");
-      return false;
-    } catch (error) {
-      console.error("[DIRECT PUBLISH] Error in direct publish:", error);
       return false;
     }
   }

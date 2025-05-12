@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import React from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ProfileAvatarProps {
   pictureUrl?: string;
@@ -8,15 +8,13 @@ interface ProfileAvatarProps {
 }
 
 const ProfileAvatar = ({ pictureUrl, displayName }: ProfileAvatarProps) => {
-  const initial = displayName ? displayName.charAt(0).toUpperCase() : '?';
-  
+  const avatarFallback = displayName.charAt(0).toUpperCase();
+
   return (
-    <Avatar className="h-24 w-24 md:h-32 md:w-32 absolute -top-12 left-4 border-4 border-background">
-      {pictureUrl ? (
-        <AvatarImage src={pictureUrl} alt={displayName} />
-      ) : null}
-      <AvatarFallback className="text-2xl bg-primary/10">
-        {initial}
+    <Avatar className="h-24 w-24 md:h-32 md:w-32 absolute -top-16 left-4 border-4 border-background shadow-xl">
+      <AvatarImage src={pictureUrl} />
+      <AvatarFallback className="text-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+        {avatarFallback}
       </AvatarFallback>
     </Avatar>
   );

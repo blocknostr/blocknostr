@@ -8,23 +8,18 @@ import { useProfileRelays } from './profile/useProfileRelays';
 import { useProfileReplies } from './profile/useProfileReplies';
 import { useProfileLikes } from './profile/useProfileLikes';
 import { nostrService } from '@/lib/nostr';
-import { useConnectionStatus } from './profile/useConnectionStatus';
-import { useProfileDebugInfo } from './profile/useProfileDebugInfo';
-import { useProfileRefresh } from './profile/useProfileRefresh';
 
 interface UseProfileDataProps {
   npub: string | undefined;
   currentUserPubkey: string | null;
-  debugMode?: boolean; // Add control flag to disable verbose logging
 }
 
-export function useProfileData({ 
-  npub, 
-  currentUserPubkey,
-  debugMode = false // Default to no debug logging
-}: UseProfileDataProps) {
+export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
   // State for tracking original post profiles (used in reposts)
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'failed' | null>(null);
   
   // Get profile metadata and loading state
   const { 
@@ -36,24 +31,43 @@ export function useProfileData({
     refetch: refetchProfile
   } = useProfileMetadata({ npub, currentUserPubkey });
   
-  // Use connection status hook
-  const { connectionStatus, errorMessage, setErrorMessage } = useConnectionStatus({
-    loading: metadataLoading,
-    error: metadataError,
-    profileData
-  });
+  // Track connection status
+  useEffect(() => {
+    if (metadataLoading) {
+      setConnectionStatus('connecting');
+    } else if (metadataError) {
+      setConnectionStatus('failed');
+      setError(metadataError);
+    } else if (profileData) {
+      setConnectionStatus('connected');
+      setError(null);
+    }
+  }, [metadataLoading, metadataError, profileData]);
   
-  // Use debug info hook with debug mode control
-  useProfileDebugInfo({ 
-    npub, 
-    hexNpub, 
-    loading: metadataLoading, 
-    profileData,
-    debugMode
-  });
-  
-  // Use refresh hook
-  const { refreshCounter, refreshProfile: refreshProfileBase } = useProfileRefresh();
+  // Log important information for debugging
+  useEffect(() => {
+    if (npub) {
+      console.log("Profile page for npub:", npub);
+      
+      try {
+        const hex = nostrService.getHexFromNpub(npub);
+        console.log("Converted to hex pubkey:", hex);
+      } catch (error) {
+        console.error("Error converting npub to hex:", error);
+        setError("Invalid profile identifier. Please check the URL.");
+      }
+    }
+    
+    if (hexNpub) {
+      console.log("Using hex pubkey for profile:", hexNpub);
+    }
+    
+    if (metadataLoading) {
+      console.log("Profile data loading...");
+    } else {
+      console.log("Profile data loaded:", profileData ? "success" : "not found");
+    }
+  }, [npub, hexNpub, metadataLoading, profileData]);
   
   // Get user's posts and media with improved error handling
   const { 
@@ -69,9 +83,9 @@ export function useProfileData({
   // Update error state if posts loading fails
   useEffect(() => {
     if (postsError && !metadataError) {
-      setErrorMessage(postsError);
+      setError(postsError);
     }
-  }, [postsError, metadataError, setErrorMessage]);
+  }, [postsError, metadataError]);
   
   // Get followers and following with improved error handling
   const { 
@@ -89,22 +103,24 @@ export function useProfileData({
   // Update error state if relations loading fails
   useEffect(() => {
     if (relationsHasError && !metadataError && !postsError) {
-      setErrorMessage(relationsError || "Failed to load profile connections");
+      setError(relationsError || "Failed to load profile connections");
     }
   }, [relationsHasError, relationsError, metadataError, postsError]);
   
-  // Only log followers/following counts in debug mode
+  // Log followers and following counts for debugging
   useEffect(() => {
-    if (!relationsLoading && debugMode) {
+    if (!relationsLoading) {
       console.log(`Profile relations: ${followers.length} followers, ${following.length} following`);
     }
-  }, [followers, following, relationsLoading, debugMode]);
+  }, [followers, following, relationsLoading]);
   
   // Get reposts and handle fetching original posts
   const { 
     reposts, 
     replies: repostReplies, 
-    fetchOriginalPost
+    fetchOriginalPost,
+    // Replace 'loading' property with renamed variable to avoid TypeScript error
+    // since this object doesn't have a 'loading' property
   } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
@@ -124,9 +140,9 @@ export function useProfileData({
   // Update error state if relays loading fails
   useEffect(() => {
     if (relaysError && !metadataError && !postsError && !relationsError) {
-      setErrorMessage(relaysError);
+      setError(relaysError);
     }
-  }, [relaysError, metadataError, postsError, relationsError, setErrorMessage]);
+  }, [relaysError, metadataError, postsError, relationsError]);
   
   // Get replies (NIP-10)
   const { replies } = useProfileReplies({
@@ -138,20 +154,55 @@ export function useProfileData({
     hexPubkey: hexNpub
   });
   
-  // Only log post counts in debug mode
+  // Log post counts for debugging
   useEffect(() => {
-    if ((events.length > 0 || reposts.length > 0) && debugMode) {
+    if (events.length > 0 || reposts.length > 0) {
       console.log(`Profile posts: ${events.length} posts, ${reposts.length} reposts`);
     }
-  }, [events, reposts, debugMode]);
+  }, [events, reposts]);
+  
+  // Set up listeners for refresh events
+  useEffect(() => {
+    const handleRefetchEvents = (e: Event) => {
+      console.log("Received refetch event");
+      setRefreshCounter(prev => prev + 1);
+      
+      // Clear any existing errors on refresh
+      setError(null);
+    };
+    
+    window.addEventListener('refetchProfile', handleRefetchEvents);
+    window.addEventListener('refetchPosts', handleRefetchEvents);
+    window.addEventListener('refetchRelations', handleRefetchEvents);
+    
+    return () => {
+      window.removeEventListener('refetchProfile', handleRefetchEvents);
+      window.removeEventListener('refetchPosts', handleRefetchEvents);
+      window.removeEventListener('refetchRelations', handleRefetchEvents);
+    };
+  }, []);
   
   // Determine overall loading state
   const loading = metadataLoading || (postsLoading && events.length === 0);
   
-  // Enhanced refresh function that calls all refresh methods
+  // Function to refresh all profile data
   const refreshProfile = useCallback(async () => {
+    console.log("Refreshing all profile data");
+    
     // Reset error state
-    setErrorMessage(null);
+    setError(null);
+    
+    // Ensure we're connected to relays
+    await nostrService.connectToUserRelays();
+    
+    // Add more popular relays to increase chances of success
+    await nostrService.addMultipleRelays([
+      "wss://relay.damus.io", 
+      "wss://nos.lol", 
+      "wss://relay.nostr.band",
+      "wss://relay.snort.social",
+      "wss://nostr.mutinywallet.com"
+    ]).catch(err => console.warn("Error adding additional relays:", err));
     
     // Refresh relays first
     if (refreshRelays) {
@@ -166,9 +217,12 @@ export function useProfileData({
     // Clear cached data
     setOriginalPostProfiles({});
     
-    // Call base refresh function
-    return refreshProfileBase();
-  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays, refreshProfileBase, setErrorMessage]);
+    // Update the refresh counter to trigger rerender
+    setRefreshCounter(prev => prev + 1);
+    
+    // Wait a bit to allow data to load
+    return new Promise<void>(resolve => setTimeout(resolve, 2000));
+  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays]);
   
   return {
     profileData,
@@ -177,7 +231,7 @@ export function useProfileData({
     media,
     reposts,
     loading,
-    error: errorMessage,
+    error,
     relays,
     setRelays,
     followers,

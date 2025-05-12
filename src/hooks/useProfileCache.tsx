@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache';
 
@@ -16,15 +16,13 @@ export function useProfileCache() {
   // Fetch profile with smart caching
   const fetchProfile = useCallback(async (pubkey: string, options?: { 
     force?: boolean,
-    important?: boolean,
-    verbose?: boolean
+    important?: boolean
   }) => {
     if (!pubkey) return null;
     
     const opts = {
       force: false,
       important: false,
-      verbose: false,
       ...options
     };
     
@@ -53,7 +51,6 @@ export function useProfileCache() {
           return updated;
         });
         
-        setLoading(prev => ({ ...prev, [pubkey]: false }));
         return cachedProfile;
       }
       
@@ -77,16 +74,16 @@ export function useProfileCache() {
           return updated;
         });
         
-        setLoading(prev => ({ ...prev, [pubkey]: false }));
         return profile;
       }
       
-      setLoading(prev => ({ ...prev, [pubkey]: false }));
       return null;
     } catch (error) {
       console.error(`Error fetching profile for ${pubkey}:`, error);
-      setLoading(prev => ({ ...prev, [pubkey]: false }));
       return null;
+    } finally {
+      // Mark as no longer loading
+      setLoading(prev => ({ ...prev, [pubkey]: false }));
     }
   }, [profiles, loading]);
   
@@ -145,15 +142,6 @@ export function useProfileCache() {
       
       // Return if all profiles were cached
       if (remainingPubkeys.length === 0) {
-        // Mark all as no longer loading
-        setLoading(prev => {
-          const updated = { ...prev };
-          uncachedPubkeys.forEach(pubkey => {
-            updated[pubkey] = false;
-          });
-          return updated;
-        });
-        
         return {
           ...cachedProfiles,
           ...uniquePubkeys
@@ -188,15 +176,6 @@ export function useProfileCache() {
         return updated;
       });
       
-      // Mark all as no longer loading
-      setLoading(prev => {
-        const updated = { ...prev };
-        uncachedPubkeys.forEach(pubkey => {
-          updated[pubkey] = false;
-        });
-        return updated;
-      });
-      
       return {
         ...fetchedProfiles,
         ...cachedProfiles,
@@ -209,7 +188,13 @@ export function useProfileCache() {
       };
     } catch (error) {
       console.error(`Error fetching profiles:`, error);
-      
+      return uniquePubkeys
+        .filter(pubkey => profiles[pubkey])
+        .reduce((acc, pubkey) => {
+          acc[pubkey] = profiles[pubkey];
+          return acc;
+        }, {} as Record<string, any>);
+    } finally {
       // Mark all as no longer loading
       setLoading(prev => {
         const updated = { ...prev };
@@ -218,13 +203,6 @@ export function useProfileCache() {
         });
         return updated;
       });
-      
-      return uniquePubkeys
-        .filter(pubkey => profiles[pubkey])
-        .reduce((acc, pubkey) => {
-          acc[pubkey] = profiles[pubkey];
-          return acc;
-        }, {} as Record<string, any>);
     }
   }, [profiles, loading]);
   

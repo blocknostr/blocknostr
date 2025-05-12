@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -539,44 +540,6 @@ export class NostrService {
       .map(relay => relay.url);
   }
   
-  /**
-   * Pings a relay to check if it is reachable.
-   * @param relayUrl - The URL of the relay to ping.
-   * @returns A promise that resolves to true if the relay is reachable, false otherwise.
-   */
-  public async pingRelay(relayUrl: string): Promise<boolean> {
-    try {
-      // Instead of getting a relay object and calling methods on it,
-      // we'll check if the relay is in our connected relays list
-      const relays = this.getRelayStatus();
-      const foundRelay = relays.find(r => r.url === relayUrl);
-      
-      if (foundRelay) {
-        // If we already have it in our list and it's connected, return true
-        if (foundRelay.status === 'connected') {
-          console.log(`[PING] Relay ${relayUrl} is already connected`);
-          return true;
-        }
-      }
-      
-      // If not connected, try to connect
-      console.log(`[PING] Attempting to connect to relay ${relayUrl}`);
-      const connected = await this.addRelay(relayUrl);
-      
-      // Check connection status
-      if (connected) {
-        console.log(`[PING] Successfully connected to ${relayUrl}`);
-        return true;
-      } else {
-        console.log(`[PING] Failed to connect to ${relayUrl}`);
-        return false;
-      }
-    } catch (error) {
-      console.error(`[PING] Error pinging relay ${relayUrl}:`, error);
-      return false;
-    }
-  }
-
   // User Moderation (NIP-51)
   public async muteUser(pubkey: string): Promise<boolean> {
     // Implementation for muting a user
@@ -756,3 +719,4 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
+

@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -12,7 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConnection";
+import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConnection"; 
 import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
 import { retry } from "@/lib/utils/retry";
 
@@ -21,18 +22,18 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
   const [refreshing, setRefreshing] = useState(false);
-
+  
   // Get the hex pubkey for the profile
   const hexPubkey = npub ? nostrService.getHexFromNpub(npub) : currentUserPubkey;
-
+  
   // Use our enhanced relay connection hook
-  const {
-    relays,
-    isConnecting,
-    connectToRelays,
-    refreshRelays
+  const { 
+    relays, 
+    isConnecting, 
+    connectToRelays, 
+    refreshRelays 
   } = useEnhancedRelayConnection(hexPubkey);
-
+  
   // Use our custom hook to manage profile data and state
   const {
     profileData,
@@ -51,78 +52,75 @@ const ProfilePage = () => {
     referencedEvents,
     refreshProfile
   } = useProfileData({ npub, currentUserPubkey });
-
+  
   // Handle connection to relays before loading data using smart selection
   useEffect(() => {
     if (loading && !isConnecting) {
       connectToRelays();
     }
   }, [loading, isConnecting, connectToRelays]);
-
-  // Updated relay connection handling and error handling logic
+  
+  // Handle manual refresh with improved feedback and relay selection
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
-
+    
     setRefreshing(true);
     toast.loading("Refreshing profile data...");
-
+    
     try {
-      // Ensure optimal relay connections with error handling
+      // First ensure we have optimal relay connections
+      await connectToRelays();
+      
+      // Use retry utility with exponential backoff for more resilient profile refresh
       await retry(
         async () => {
-          await connectToRelays();
-        },
-        {
-          maxAttempts: 3,
-          baseDelay: 2000,
-          onRetry: () => {
-            toast.info("Retrying relay connection...");
-          },
-        }
-      );
-
-      // Use retry utility for profile refresh with enhanced error handling
-      await retry(
-        async () => {
+          // Get best relays for read operations
           const readRelays = relaySelector.selectBestRelays(
-            relays.map((r) => r.url),
-            { operation: "read", count: 5 }
+            relays.map(r => r.url),
+            { operation: 'read', count: 5 }
           );
-
+          
+          // Add these read-optimized relays
           if (readRelays.length > 0) {
             await nostrService.addMultipleRelays(readRelays);
           }
-
+          
+          // Add popular relays as fallback
           await nostrService.addMultipleRelays([
-            "wss://relay.damus.io",
-            "wss://nos.lol",
+            "wss://relay.damus.io", 
+            "wss://nos.lol", 
             "wss://relay.nostr.band",
-            "wss://relay.snort.social",
+            "wss://relay.snort.social"
           ]);
-
+          
+          // Refresh relays status
           refreshRelays();
-
-          // Call refreshProfile without truthiness check
-          await refreshProfile();
+          
+          // Try to refresh profile data - fix the void return checking
+          const result = await refreshProfile();
+          
+          // Instead of checking truthiness, just consider the operation successful
+          // if it didn't throw an error
+          return true;
         },
         {
-          maxAttempts: 3,
+          maxAttempts: 2,
           baseDelay: 2000,
           onRetry: () => {
             toast.info("Retrying profile refresh...");
-          },
+          }
         }
       );
-
+      
       toast.success("Profile refreshed");
     } catch (err) {
-      console.error("Error during refresh:", err);
-      toast.error("Failed to refresh profile. Please try again later.");
+      console.error("Error refreshing profile:", err);
+      toast.error("Failed to refresh profile");
     } finally {
       setRefreshing(false);
     }
   }, [refreshing, connectToRelays, refreshRelays, refreshProfile, relays]);
-
+  
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
     if (!npub && currentUserPubkey) {
@@ -130,23 +128,23 @@ const ProfilePage = () => {
       navigate(`/profile/${formattedPubkey}`, { replace: true });
     }
   }, [npub, currentUserPubkey, navigate]);
-
+  
   if (loading) {
     return <ProfileLoading />;
   }
-
+  
   // Calculate connection status
   const connectedRelayCount = relays.filter(r => r.status === 'connected').length;
-
+  
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
-
+      
       <div className="flex-1 ml-0 md:ml-64">
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Profile</h1>
-
+            
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 {connectedRelayCount > 0 ? (
@@ -156,9 +154,9 @@ const ProfilePage = () => {
                 )}
                 <span>{connectedRelayCount} relays</span>
               </div>
-
-              <Button
-                variant="ghost"
+              
+              <Button 
+                variant="ghost" 
                 size="sm"
                 onClick={handleRefresh}
                 disabled={refreshing}
@@ -170,16 +168,16 @@ const ProfilePage = () => {
             </div>
           </div>
         </header>
-
+        
         <div className="max-w-3xl mx-auto px-4 py-4">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 {error}
-                <Button
-                  variant="link"
-                  className="p-0 h-auto ml-2"
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto ml-2" 
                   onClick={handleRefresh}
                 >
                   Try again
@@ -187,16 +185,16 @@ const ProfilePage = () => {
               </AlertDescription>
             </Alert>
           )}
-
+          
           {profileData ? (
             <>
-              <ProfileHeader
+              <ProfileHeader 
                 profileData={profileData}
                 npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
                 isCurrentUser={isCurrentUser}
               />
-
-              <ProfileStats
+              
+              <ProfileStats 
                 followers={followers}
                 following={following}
                 postsCount={events.length + reposts.length}
@@ -208,8 +206,8 @@ const ProfilePage = () => {
                 onRefresh={handleRefresh}
                 isLoading={refreshing}
               />
-
-              <ProfileTabs
+              
+              <ProfileTabs 
                 events={events}
                 media={media}
                 reposts={reposts}
@@ -219,7 +217,7 @@ const ProfilePage = () => {
                 reactions={reactions}
                 referencedEvents={referencedEvents}
               />
-
+              
               {events.length === 0 && reposts.length === 0 && !refreshing && (
                 <div className="text-center py-8 text-muted-foreground">
                   {isCurrentUser ? (
@@ -227,8 +225,8 @@ const ProfilePage = () => {
                   ) : (
                     <p>This user hasn't posted anything yet.</p>
                   )}
-                  <Button
-                    variant="outline"
+                  <Button 
+                    variant="outline" 
                     size="sm"
                     className="mt-4"
                     onClick={handleRefresh}
@@ -237,17 +235,6 @@ const ProfilePage = () => {
                     Refresh
                   </Button>
                 </div>
-              )}
-
-              {isCurrentUser && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => navigate('/you/edit-profile')}
-                >
-                  Edit Profile
-                </Button>
               )}
             </>
           ) : (

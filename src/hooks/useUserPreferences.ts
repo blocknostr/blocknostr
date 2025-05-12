@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageGetJson, safeLocalStorageSetJson } from '@/lib/utils/storage';
 
 export type FeedType = 'global' | 'following' | 'for-you' | 'media';
 
@@ -96,6 +95,58 @@ const decompressArray = (compressed: string): string[] => {
 // In-memory fallback when localStorage is unavailable
 const memoryStore = new Map<string, string>();
 
+// Safely save to localStorage with error handling and memory fallback
+const safeLocalStorageSave = (key: string, value: any): boolean => {
+  try {
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    
+    // First try browser localStorage
+    try {
+      localStorage.setItem(key, serialized);
+      return true;
+    } catch (error) {
+      // If localStorage fails, use memory storage as fallback
+      console.warn(`Using memory storage for key (${key}) due to: ${error}`);
+      memoryStore.set(key, serialized);
+      
+      // Mark storage as problematic
+      memoryStore.set(STORAGE_KEYS.STORAGE_STATUS, 'limited');
+      return false;
+    }
+  } catch (error) {
+    console.error(`Failed to serialize or save value (${key}):`, error);
+    return false;
+  }
+};
+
+// Safely load from storage with fallback to memory store
+const safeStorageLoad = <T>(key: string, defaultValue: T): T => {
+  try {
+    // Try localStorage first
+    let serialized: string | null = null;
+    try {
+      serialized = localStorage.getItem(key);
+    } catch (e) {
+      // If localStorage fails, try memory storage
+      console.warn(`Using memory storage for reading key (${key}) due to: ${e}`);
+      serialized = memoryStore.get(key) || null;
+    }
+    
+    if (serialized === null) return defaultValue;
+    
+    // If the value is a compressed array (starts with pipe or alphanumeric)
+    if (typeof defaultValue === 'object' && Array.isArray(defaultValue) && 
+        (typeof serialized === 'string' && /^[a-zA-Z0-9|]+$/.test(serialized))) {
+      return decompressArray(serialized) as unknown as T;
+    }
+    
+    return JSON.parse(serialized) as T;
+  } catch (error) {
+    console.error(`Failed to load from storage (${key}):`, error);
+    return defaultValue;
+  }
+};
+
 // Test if storage is available and has sufficient quota
 const testStorageAvailability = (): { available: boolean, quotaReached: boolean } => {
   try {
@@ -147,43 +198,28 @@ export function useUserPreferences() {
   useEffect(() => {
     try {
       // Load individual preference sections
-      // Use JSON parsing for all values to ensure proper handling
-      const defaultFeedRaw = safeLocalStorageGet(STORAGE_KEYS.DEFAULT_FEED);
-      let defaultFeed: FeedType = defaultPreferences.defaultFeed;
-      
-      if (defaultFeedRaw) {
-        try {
-          const parsed = JSON.parse(`"${defaultFeedRaw}"`); // Wrap in quotes to handle string values
-          if (parsed === "global" || parsed === "following" || parsed === "for-you" || parsed === "media") {
-            defaultFeed = parsed;
-          }
-        } catch (e) {
-          console.warn(`Invalid default feed value: ${defaultFeedRaw}, using default`);
-          // Fix the broken value by saving the correct JSON
-          safeLocalStorageSetJson(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
-        }
-      }
+      const defaultFeed = safeStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
       
       // Load feed filters except hidden users (which we'll handle separately)
-      const feedFilters = safeLocalStorageGetJson(STORAGE_KEYS.FEED_FILTERS) || {
+      const feedFilters = safeStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
         showReplies: defaultPreferences.feedFilters.showReplies,
         showReposted: defaultPreferences.feedFilters.showReposted,
-      };
+      });
       
       // Load hidden users array separately (could be large)
       let hideFromUsers: string[] = [];
       try {
-        const compressedUsers = safeLocalStorageGet(STORAGE_KEYS.HIDDEN_USERS) || '';
+        const compressedUsers = safeStorageLoad<string>(STORAGE_KEYS.HIDDEN_USERS, '');
         hideFromUsers = decompressArray(compressedUsers);
       } catch (e) {
         console.error('Failed to load hidden users:', e);
         hideFromUsers = [];
       }
       
-      const contentPreferences = safeLocalStorageGetJson(STORAGE_KEYS.CONTENT_PREFS) || defaultPreferences.contentPreferences;
-      const notificationPreferences = safeLocalStorageGetJson(STORAGE_KEYS.NOTIFICATION_PREFS) || defaultPreferences.notificationPreferences;
-      const relayPreferences = safeLocalStorageGetJson(STORAGE_KEYS.RELAY_PREFS) || defaultPreferences.relayPreferences;
-      const uiPreferences = safeLocalStorageGetJson(STORAGE_KEYS.UI_PREFS) || defaultPreferences.uiPreferences;
+      const contentPreferences = safeStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
+      const notificationPreferences = safeStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
+      const relayPreferences = safeStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
+      const uiPreferences = safeStorageLoad(STORAGE_KEYS.UI_PREFS, defaultPreferences.uiPreferences);
       
       // Merge all preferences with defaults for any missing properties
       const mergedPreferences: UserPreferences = {
@@ -194,22 +230,10 @@ export function useUserPreferences() {
           ...feedFilters,
           hideFromUsers,
         },
-        contentPreferences: {
-          ...defaultPreferences.contentPreferences,
-          ...contentPreferences
-        },
-        notificationPreferences: {
-          ...defaultPreferences.notificationPreferences,
-          ...notificationPreferences
-        },
-        relayPreferences: {
-          ...defaultPreferences.relayPreferences,
-          ...relayPreferences
-        },
-        uiPreferences: {
-          ...defaultPreferences.uiPreferences,
-          ...uiPreferences
-        }
+        contentPreferences,
+        notificationPreferences,
+        relayPreferences,
+        uiPreferences
       };
       
       setPreferences(mergedPreferences);
@@ -228,8 +252,8 @@ export function useUserPreferences() {
       // Track if any saves failed
       let anySaveFailed = false;
       
-      // Save default feed - always use JSON stringify now
-      const feedSuccess = safeLocalStorageSetJson(STORAGE_KEYS.DEFAULT_FEED, preferences.defaultFeed);
+      // Save default feed
+      const feedSuccess = safeLocalStorageSave(STORAGE_KEYS.DEFAULT_FEED, preferences.defaultFeed);
       if (!feedSuccess) anySaveFailed = true;
       
       // Save feed filters without the potentially large hideFromUsers array
@@ -237,27 +261,27 @@ export function useUserPreferences() {
         showReplies: preferences.feedFilters.showReplies,
         showReposted: preferences.feedFilters.showReposted
       };
-      const filtersSuccess = safeLocalStorageSetJson(STORAGE_KEYS.FEED_FILTERS, feedFilters);
+      const filtersSuccess = safeLocalStorageSave(STORAGE_KEYS.FEED_FILTERS, feedFilters);
       if (!filtersSuccess) anySaveFailed = true;
       
       // Save hidden users as compressed string
       if (preferences.feedFilters.hideFromUsers && preferences.feedFilters.hideFromUsers.length > 0) {
         const compressedUsers = compressArray(preferences.feedFilters.hideFromUsers);
-        const usersSuccess = safeLocalStorageSet(STORAGE_KEYS.HIDDEN_USERS, compressedUsers);
+        const usersSuccess = safeLocalStorageSave(STORAGE_KEYS.HIDDEN_USERS, compressedUsers);
         if (!usersSuccess) anySaveFailed = true;
       }
       
       // Save each section separately
-      const contentSuccess = safeLocalStorageSetJson(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
+      const contentSuccess = safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
       if (!contentSuccess) anySaveFailed = true;
       
-      const notifSuccess = safeLocalStorageSetJson(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
+      const notifSuccess = safeLocalStorageSave(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
       if (!notifSuccess) anySaveFailed = true;
       
-      const relaySuccess = safeLocalStorageSetJson(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
+      const relaySuccess = safeLocalStorageSave(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
       if (!relaySuccess) anySaveFailed = true;
       
-      const uiSuccess = safeLocalStorageSetJson(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
+      const uiSuccess = safeLocalStorageSave(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
       if (!uiSuccess) anySaveFailed = true;
 
       // Update storage quota reached state
@@ -275,7 +299,7 @@ export function useUserPreferences() {
       } else if (!anySaveFailed && storageQuotaReached) {
         // Storage working again, update status
         setStorageQuotaReached(false);
-        safeLocalStorageSet(STORAGE_KEYS.STORAGE_STATUS, 'ok');
+        safeLocalStorageSave(STORAGE_KEYS.STORAGE_STATUS, 'ok');
       }
     }
   }, [preferences, loaded, storageQuotaReached]);
