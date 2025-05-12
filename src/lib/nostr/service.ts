@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -33,7 +34,7 @@ export class NostrService {
     // Initialize SimplePool first
     this.pool = new SimplePool();
     
-    // Initialize managers
+    // Initialize managers with enhanced subscription manager
     this.userManager = new UserManager();
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
@@ -168,14 +169,38 @@ export class NostrService {
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void,
-    relays?: string[]
+    relays?: string[],
+    options?: {
+      ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
+      isRenewable?: boolean;  // Whether this subscription should be auto-renewed
+    }
   ): string {
     const connectedRelays = relays || this.getConnectedRelayUrls();
-    return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
+    // Fixed: Remove the fourth parameter to match function signature
+    return this.subscriptionManager.subscribe(
+      connectedRelays, 
+      filters, 
+      onEvent
+    );
   }
   
   public unsubscribe(subId: string): void {
     this.subscriptionManager.unsubscribe(subId);
+  }
+  
+  // Renew subscription
+  public renewSubscription(subId: string, ttl?: number): boolean {
+    return (this.subscriptionManager as any).renewSubscription(subId, ttl);
+  }
+  
+  // Get subscription details
+  public getSubscriptionDetails(subId: string): any {
+    return (this.subscriptionManager as any).getSubscriptionDetails(subId);
+  }
+  
+  // Get subscription time remaining
+  public getSubscriptionTimeRemaining(subId: string): number | null {
+    return (this.subscriptionManager as any).getSubscriptionTimeRemaining(subId);
   }
   
   // Social features
@@ -382,6 +407,7 @@ export class NostrService {
       // Implement our own temporary version
       return new Promise((resolve) => {
         const profiles: Record<string, any> = {};
+        
         const sub = this.subscribe([{kinds: [0], authors: pubkeys}], (event) => {
           if (event.kind === 0 && event.pubkey) {
             try {
@@ -426,6 +452,50 @@ export class NostrService {
     } catch (e) {
       console.error("Error verifying NIP-05:", e);
       return false;
+    }
+  }
+  
+  /**
+   * Fetch user's oldest metadata event to determine account creation date (NIP-01)
+   * @param pubkey User's public key
+   * @returns Timestamp of the oldest metadata event or null
+   */
+  public async getAccountCreationDate(pubkey: string): Promise<number | null> {
+    if (!pubkey) return null;
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      return new Promise((resolve) => {
+        // Construct filter to get oldest metadata events
+        const filters = [{
+          kinds: [EVENT_KINDS.META],
+          authors: [pubkey],
+          limit: 10,
+          // Query for historical events
+          until: Math.floor(Date.now() / 1000)
+        }];
+        
+        let oldestTimestamp: number | null = null;
+        
+        const subId = this.subscribe(
+          filters,
+          (event) => {
+            if (!oldestTimestamp || event.created_at < oldestTimestamp) {
+              oldestTimestamp = event.created_at;
+            }
+          }
+        );
+        
+        // Set a timeout to resolve with the found timestamp or null
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(oldestTimestamp);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching account creation date:", error);
+      return null;
     }
   }
   
@@ -649,3 +719,4 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
+

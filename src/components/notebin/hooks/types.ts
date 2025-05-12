@@ -1,36 +1,20 @@
 
+// Add or update the Note interface to include all required fields
 export interface Note {
   id: string;
-  title: string;
-  content: string;
-  language: string;
-  publishedAt: string;
   author: string;
-  event: any;
+  content: string;
+  title?: string;
+  language?: string;
+  publishedAt?: string;
   tags?: string[];
-  summary?: string;
-  image?: string;
-  slug?: string;
-  version?: number;
   encrypted?: boolean;
+  createdAt?: number; // Add this field for compatibility
+  event: any; // Make event required, not optional
+  slug?: string; // Add slug field for compatibility with notebin
   encryptionMetadata?: {
     contentSalt?: string;
     titleSalt?: string;
-    method: 'nip04' | 'password';
+    method?: string;
   };
-}
-
-// NIP-23 specific types
-export interface Nip23Note extends Note {
-  summary: string;
-  slug: string;
-  image?: string;
-}
-
-// NIP-33 versioning support
-export interface NoteVersion {
-  version: number;
-  content: string;
-  publishedAt: string;
-  summary?: string;
 }

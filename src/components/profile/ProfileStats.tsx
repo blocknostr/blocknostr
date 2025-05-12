@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,9 +7,8 @@ import { nostrService, Relay } from "@/lib/nostr";
 import FollowButton from "../FollowButton";
 import ProfileRelaysDialog from "./ProfileRelaysDialog";
 import { Link } from "react-router-dom";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useInView } from "@/components/shared/useInView";
-import { ProfileUtils } from "@/lib/nostr/utils/profileUtils";
+import { Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ProfileStatsProps {
   followers: string[];
@@ -20,6 +20,7 @@ interface ProfileStatsProps {
   onRelaysChange?: (relays: Relay[]) => void;
   userNpub?: string;
   isLoading?: boolean;
+  onRefresh?: () => void;
 }
 
 const ProfileStats = ({ 
@@ -31,37 +32,65 @@ const ProfileStats = ({
   relays,
   onRelaysChange,
   userNpub,
-  isLoading = false
+  isLoading = false,
+  onRefresh
 }: ProfileStatsProps) => {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showRelays, setShowRelays] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const handleRefresh = () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      onRefresh();
+      
+      // Reset refreshing state after a timeout
+      setTimeout(() => setIsRefreshing(false), 3000);
+    }
+  };
   
   return (
     <Card className="mb-6 overflow-hidden">
       <div className="grid grid-cols-4 divide-x">
         <StatItem 
           label="Posts" 
-          value={postsCount.toLocaleString()}
-          isLoading={isLoading} 
+          value={postsCount.toLocaleString()} 
+          isLoading={isLoading}
         />
         <StatItem 
           label="Following" 
           value={following.length.toLocaleString()}
-          onClick={() => following.length > 0 && setShowFollowing(true)}
+          onClick={() => !isLoading && following.length > 0 && setShowFollowing(true)} 
           isLoading={isLoading}
         />
         <StatItem 
           label="Followers" 
           value={followers.length.toLocaleString()} 
-          onClick={() => followers.length > 0 && setShowFollowers(true)}
+          onClick={() => !isLoading && followers.length > 0 && setShowFollowers(true)}
           isLoading={isLoading}
         />
         <StatItem 
           label="Relays" 
           value={relays.length.toLocaleString()} 
-          onClick={() => setShowRelays(true)}
+          onClick={() => !isLoading && setShowRelays(true)}
           isLoading={isLoading}
+          actionButton={
+            onRefresh && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 absolute top-1 right-1 text-muted-foreground hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefresh();
+                }}
+                disabled={isRefreshing || isLoading}
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            )
+          }
         />
       </div>
       
@@ -132,23 +161,25 @@ interface StatItemProps {
   icon?: React.ReactNode;
   onClick?: () => void;
   isLoading?: boolean;
+  actionButton?: React.ReactNode;
 }
 
-const StatItem = ({ label, value, icon, onClick, isLoading }: StatItemProps) => {
+const StatItem = ({ label, value, icon, onClick, isLoading = false, actionButton }: StatItemProps) => {
   return (
     <div 
-      className={`flex flex-col items-center justify-center py-4 px-2 hover:bg-muted/50 transition-colors ${onClick && !isLoading ? 'cursor-pointer' : ''}`}
-      onClick={!isLoading ? onClick : undefined}
+      className={`flex flex-col items-center justify-center py-4 px-2 hover:bg-muted/50 transition-colors relative ${onClick && !isLoading ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
     >
       <div className="flex items-center gap-1.5">
         {icon}
         {isLoading ? (
-          <Skeleton className="h-6 w-12" />
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         ) : (
           <span className="font-semibold">{value}</span>
         )}
       </div>
       <span className="text-xs text-muted-foreground">{label}</span>
+      {actionButton}
     </div>
   );
 };
@@ -159,65 +190,52 @@ interface UserListItemProps {
 }
 
 const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
-  const { ref, inView } = useInView({
-    triggerOnce: true, 
-    threshold: 0.1
-  });
   const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const npub = nostrService.getNpubFromHex(pubkey);
   const shortNpub = `${npub.substring(0, 8)}...${npub.substring(npub.length - 5)}`;
   
-  // Load profile data when in view
+  // Load profile data
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!inView) return;
-      
       try {
-        setLoading(true);
-        const profile = await ProfileUtils.fetchProfile(pubkey);
+        setIsLoading(true);
+        const profile = await nostrService.getUserProfile(pubkey);
         if (profile) {
           setProfileData(profile);
         }
-        setLoading(false);
       } catch (e) {
         console.error('Failed to fetch profile metadata:', e);
-        setLoading(false);
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    if (inView) {
-      fetchProfileData();
-    }
-  }, [pubkey, inView]);
+    fetchProfileData();
+  }, [pubkey]);
   
   const name = profileData?.display_name || profileData?.name || shortNpub;
   const username = profileData?.name || shortNpub;
   const avatarFallback = name.charAt(0).toUpperCase();
   
   return (
-    <div ref={ref} className="flex items-center justify-between">
+    <div className="flex items-center justify-between">
       <Link to={`/profile/${npub}`} className="flex items-center gap-3 flex-1 hover:bg-muted/50 p-2 rounded-md">
-        {loading ? (
-          <Skeleton className="h-10 w-10 rounded-full" />
-        ) : (
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={profileData?.picture} />
-            <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
-          </Avatar>
-        )}
-        <div>
-          {loading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-16" />
+        <Avatar className="h-10 w-10">
+          {isLoading ? (
+            <div className="h-full w-full flex items-center justify-center bg-muted">
+              <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : (
             <>
-              <div className="font-medium">{name}</div>
-              <div className="text-sm text-muted-foreground">@{username}</div>
+              <AvatarImage src={profileData?.picture} />
+              <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
             </>
           )}
+        </Avatar>
+        <div>
+          <div className="font-medium">{isLoading ? "Loading..." : name}</div>
+          <div className="text-sm text-muted-foreground">@{isLoading ? shortNpub : username}</div>
         </div>
       </Link>
       

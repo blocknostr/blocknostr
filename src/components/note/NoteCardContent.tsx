@@ -1,64 +1,70 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import EnhancedMediaContent from '../media/EnhancedMediaContent';
 import { cn } from '@/lib/utils';
+import { NostrEvent } from '@/lib/nostr';
+import { extractMediaUrls } from '@/lib/nostr/utils';
 
 interface NoteCardContentProps {
-  content: string;
+  content?: string;
   tags?: string[][];
   reachCount?: number;
+  event?: NostrEvent;
 }
 
 const NoteCardContent: React.FC<NoteCardContentProps> = ({
   content,
   tags = [],
-  reachCount
+  reachCount,
+  event
 }) => {
+  // Use content from props or from event if provided
+  const contentToUse = content || event?.content || '';
+  // Use tags from props or from event if provided, ensure it's an array
+  const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
+  
   const [expanded, setExpanded] = useState(false);
+  const isMounted = useRef(true);
+  
+  // Setup cleanup when component unmounts
+  React.useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   // Check if content is longer than 280 characters
-  const isLong = content.length > 280;
+  const isLong = contentToUse.length > 280;
   
   // Truncate content if necessary and not expanded
   const displayContent = (!expanded && isLong) 
-    ? content.substring(0, 277) + '...' 
-    : content;
+    ? contentToUse.substring(0, 277) + '...' 
+    : contentToUse;
   
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
-  // Extract hashtags from tags array
-  const hashtags = tags
-    .filter(tag => tag[0] === 't')
-    .map(tag => tag[1]);
+  // Extract hashtags from tags array - add null safety checks
+  const hashtags = useMemo(() => {
+    if (!Array.isArray(tagsToUse)) return [];
+    
+    return tagsToUse
+      .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 't')
+      .map(tag => tag[1]);
+  }, [tagsToUse]);
   
-  // Extract media URLs from content and tags
+  // Extract media URLs from content and tags using our new utility
   const mediaUrls = useMemo(() => {
-    const urlsFromContent: string[] = [];
-    const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/gi;
-    let match;
-    
-    // Extract from content
-    while ((match = mediaRegex.exec(content)) !== null) {
-      urlsFromContent.push(match[0]);
-    }
-    
-    // Extract from tags
-    const urlsFromTags = tags
-      .filter(tag => tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r')
-      .map(tag => tag[1])
-      .filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
-    
-    // Combine and deduplicate URLs
-    return [...new Set([...urlsFromContent, ...urlsFromTags])];
-  }, [content, tags]);
+    return extractMediaUrls(contentToUse, tagsToUse);
+  }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
-  const handleHashtagClick = (tag: string) => {
+  const handleHashtagClick = (e: React.MouseEvent, tag: string) => {
+    e.stopPropagation();
     // Dispatch custom event to be caught by parent components
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
@@ -70,7 +76,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       </div>
       
       {/* Media preview section */}
-      {mediaUrls.length > 0 && (
+      {mediaUrls && mediaUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
           mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
@@ -97,13 +103,16 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
           variant="link" 
           size="sm" 
           className="mt-1 p-0 h-auto text-primary"
-          onClick={() => setExpanded(!expanded)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
         >
           {expanded ? 'Show less' : 'Show more'}
         </Button>
       )}
       
-      {hashtags.length > 0 && (
+      {hashtags && hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
             <HashtagButton

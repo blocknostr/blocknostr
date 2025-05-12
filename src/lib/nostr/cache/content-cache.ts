@@ -8,6 +8,7 @@ import { FeedCache } from "./feed-cache";
 import { ListCache } from "./list-cache";
 import { CacheConfig } from "./types";
 import { EventFilter } from "./utils/event-filter";
+import { storageQuota } from "../utils/storage-quota";
 
 /**
  * Content cache service for Nostr events
@@ -53,6 +54,11 @@ export class ContentCache {
     // Set initial offline status
     this.offlineMode = !navigator.onLine;
     this.updateOfflineMode();
+    
+    // Log storage metrics on startup
+    setTimeout(() => {
+      storageQuota.logStorageMetrics();
+    }, 1000);
   }
   
   // Update offline mode status across all caches
@@ -79,7 +85,37 @@ export class ContentCache {
   }
   
   cacheEvents(events: NostrEvent[], important: boolean = false): void {
-    this.eventCache.cacheEvents(events, important);
+    // Check if approaching quota before caching large batches
+    storageQuota.isApproachingQuota(80).then(isApproaching => {
+      if (isApproaching && events.length > 10) {
+        console.warn(`Approaching storage quota. Limiting batch size.`);
+        // Just cache a subset if approaching quota
+        this.eventCache.cacheEvents(events.slice(0, 10), important);
+        return;
+      }
+
+      // Limit batch size to avoid quota issues
+      const batchSize = 50;
+      const batches = Math.ceil(events.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const start = i * batchSize;
+        const end = Math.min(start + batchSize, events.length);
+        const batch = events.slice(start, end);
+        
+        try {
+          this.eventCache.cacheEvents(batch, important);
+        } catch (error) {
+          console.error(`Error caching events batch ${i+1}/${batches}:`, error);
+          // Don't attempt to cache more if we hit an error
+          break;
+        }
+      }
+    }).catch(err => {
+      console.error("Error checking storage quota:", err);
+      // Attempt to cache despite error, but be conservative
+      this.eventCache.cacheEvents(events.slice(0, 10), important);
+    });
   }
   
   getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
@@ -88,7 +124,36 @@ export class ContentCache {
   
   // Profile cache methods
   cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
-    this.profileCache.cacheItem(pubkey, profileData, important);
+    if (!profileData) return;
+    
+    try {
+      // Add creation timestamp to profile data for account age
+      if (profileData && !profileData._createdAt && profileData.created_at) {
+        profileData._createdAt = profileData.created_at;
+      }
+      
+      this.profileCache.cacheItem(pubkey, profileData, important);
+    } catch (error) {
+      console.error(`Error caching profile for ${pubkey}:`, error);
+      
+      // If we hit a quota error, clear some space and try again
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        this.cleanupExpiredEntries();
+        try {
+          // Try again with only essential profile data
+          const essentialData = {
+            name: profileData.name,
+            display_name: profileData.display_name,
+            picture: profileData.picture,
+            nip05: profileData.nip05,
+            _createdAt: profileData._createdAt || profileData.created_at
+          };
+          this.profileCache.cacheItem(pubkey, essentialData, important);
+        } catch (retryError) {
+          console.error(`Failed to cache profile even with reduced data:`, retryError);
+        }
+      }
+    }
   }
   
   getProfile(pubkey: string): any | null {
@@ -97,7 +162,21 @@ export class ContentCache {
   
   // Thread cache methods
   cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
-    this.threadCache.cacheItem(rootId, events, important);
+    try {
+      this.threadCache.cacheItem(rootId, events, important);
+    } catch (error) {
+      console.error(`Error caching thread ${rootId}:`, error);
+      
+      // If error, try with smaller set
+      if (events.length > 5) {
+        try {
+          const essentialEvents = events.slice(0, 5);
+          this.threadCache.cacheItem(rootId, essentialEvents, important);
+        } catch (retryError) {
+          console.error(`Failed to cache thread with reduced data:`, retryError);
+        }
+      }
+    }
   }
   
   getThread(rootId: string): NostrEvent[] | null {
@@ -112,7 +191,47 @@ export class ContentCache {
     until?: number,
     mediaOnly?: boolean
   }, important: boolean = false): void {
-    this._feedCache.cacheFeed(feedType, events, options, important);
+    // Check storage quota before caching large feeds
+    storageQuota.isApproachingQuota(80).then(isApproaching => {
+      if (isApproaching) {
+        console.warn(`Approaching storage quota, limiting feed cache for ${feedType}`);
+        // Just cache a subset if approaching quota
+        try {
+          const limitedEvents = events.slice(0, 10);
+          this._feedCache.cacheFeed(feedType, limitedEvents, options, important);
+        } catch (error) {
+          console.error(`Error caching limited feed for ${feedType}:`, error);
+        }
+        return;
+      }
+
+      try {
+        this._feedCache.cacheFeed(feedType, events, options, important);
+      } catch (error) {
+        console.error(`Error caching feed ${feedType}:`, error);
+        this.cleanupExpiredEntries();
+        
+        // Try again with half the events
+        if (events.length > 5) {
+          const reducedEvents = events.slice(0, Math.floor(events.length / 2));
+          console.warn(`Retrying with ${reducedEvents.length} events (reduced from ${events.length})`);
+          
+          try {
+            this._feedCache.cacheFeed(feedType, reducedEvents, options, false);
+          } catch (retryError) {
+            console.error(`Failed to cache even with reduced events:`, retryError);
+          }
+        }
+      }
+    }).catch(err => {
+      console.error("Error checking storage quota:", err);
+      // Be conservative with caching on error
+      try {
+        this._feedCache.cacheFeed(feedType, events.slice(0, 5), options, false);
+      } catch (cacheError) {
+        console.error("Fallback caching failed:", cacheError);
+      }
+    });
   }
   
   getFeed(feedType: string, options: {
@@ -127,7 +246,11 @@ export class ContentCache {
   
   // Mute list methods
   cacheMuteList(pubkeys: string[]): void {
-    this.muteListCache.cacheList(pubkeys);
+    try {
+      this.muteListCache.cacheList(pubkeys);
+    } catch (error) {
+      console.error("Error caching mute list:", error);
+    }
   }
 
   getMuteList(): string[] | null {
@@ -136,7 +259,11 @@ export class ContentCache {
 
   // Block list methods
   cacheBlockList(pubkeys: string[]): void {
-    this.blockListCache.cacheList(pubkeys);
+    try {
+      this.blockListCache.cacheList(pubkeys);
+    } catch (error) {
+      console.error("Error caching block list:", error);
+    }
   }
 
   getBlockList(): string[] | null {
@@ -145,10 +272,14 @@ export class ContentCache {
   
   // Cleanup methods
   cleanupExpiredEntries(): void {
+    console.log("Cleaning up expired cache entries...");
     this.eventCache.cleanupExpiredEntries();
     this.profileCache.cleanupExpiredEntries();
     this.threadCache.cleanupExpiredEntries();
     this._feedCache.cleanupExpiredEntries();
+    
+    // Log storage metrics after cleanup
+    storageQuota.logStorageMetrics();
   }
   
   clearAll(): void {
@@ -172,4 +303,16 @@ export { contentCache };
 // Set up periodic cache cleanup
 setInterval(() => {
   contentCache.cleanupExpiredEntries();
-}, CACHE_EXPIRY);
+}, Math.min(CACHE_EXPIRY, 60000)); // Every minute or at cache expiry time, whichever is less
+
+// Set up periodic quota checking
+setInterval(() => {
+  storageQuota.isApproachingQuota(85).then(isApproaching => {
+    if (isApproaching) {
+      console.warn("Storage quota approaching limit, running proactive cleanup");
+      contentCache.cleanupExpiredEntries();
+    }
+  }).catch(err => {
+    console.error("Error checking quota:", err);
+  });
+}, 300000); // Every 5 minutes
