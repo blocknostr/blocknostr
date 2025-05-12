@@ -55,7 +55,7 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
         }
       }, 5000);
       
-      // Return a cleanup function that will be called when the component unmounts
+      // Return a cleanup function
       return () => {
         clearTimeout(timeoutId);
         if (subscriptionRef.current) {
@@ -65,20 +65,15 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
       };
     };
     
-    const cleanupFunction = fetchReplyCount();
+    // Call the fetch function but handle the cleanup separately
+    fetchReplyCount();
     
     // Ensure we clean up when the component unmounts or when eventId changes
     return () => {
-      if (cleanupFunction && typeof cleanupFunction === 'function') {
-        // Here we're properly handling the Promise returned by the async function
-        // Instead of trying to call it directly
-        Promise.resolve(cleanupFunction).then(cleanup => {
-          if (cleanup && typeof cleanup === 'function') {
-            cleanup();
-          }
-        }).catch(error => {
-          console.error("Error during cleanup:", error);
-        });
+      // Simply clean up the subscription if it exists
+      if (subscriptionRef.current) {
+        nostrService.unsubscribe(subscriptionRef.current);
+        subscriptionRef.current = null;
       }
     };
   }, [eventId]);
