@@ -94,16 +94,21 @@ export const parallelRetry = async <T>(
   options: RetryOptions,
   minSuccesses: number = 1
 ): Promise<T[]> => {
-  // Use a more precise type definition for the Promise.allSettled result
+  // Define the explicit type for the Promise.allSettled result
+  type SettledResult = PromiseSettledResult<T>;
+  
+  // Make sure we're working with the correct type throughout
   const results = await Promise.allSettled(
     fns.map(fn => retry(fn, options))
   );
   
-  // Fix the type predicate to properly filter only fulfilled results
-  // Use a more specific type guard function
-  const successes = results.filter(
-    (result): result is PromiseFulfilledResult<T> => result.status === 'fulfilled'
-  ).map(result => result.value);
+  // Create a proper type guard function that satisfies TypeScript
+  function isFulfilled(result: SettledResult): result is PromiseFulfilledResult<T> {
+    return result.status === 'fulfilled';
+  }
+  
+  // Use the type guard to filter and map results
+  const successes = results.filter(isFulfilled).map(result => result.value);
   
   if (successes.length >= minSuccesses) {
     return successes;
