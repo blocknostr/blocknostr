@@ -58,14 +58,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         tags: [] // Tags for NIP-39 would go here if implemented
       };
       
-      // If Twitter is provided, add NIP-39 tag
-      if (values.twitter) {
-        const username = values.twitter.replace('@', '').trim();
-        if (username) {
-          // NIP-39 format: ["i", "twitter:username", "proof"]
-          eventToPublish.tags.push(["i", `twitter:${username}`, ""]);
-        }
-      }
+      // Note: Twitter verification tag has been removed
       
       // Publish the event
       const success = await nostrService.publishEvent(eventToPublish);

@@ -12,15 +12,10 @@ import { ProfileFormValues } from './types';
 
 import ProfileBasicFields from './ProfileBasicFields';
 import ExternalLinksFields from './ExternalLinksFields';
-import XVerificationSection from './XVerificationSection';
 
 interface ProfileEditorProps {
   form: UseFormReturn<ProfileFormValues>;
   isSubmitting: boolean;
-  twitterVerified: boolean;
-  setTwitterVerified: (verified: boolean) => void;
-  setTweetId: (tweetId: string | null) => void;
-  setXUsername: (username: string | null) => void;
   onClose: () => void;
   onProfileUpdated: () => void;
 }
@@ -28,10 +23,6 @@ interface ProfileEditorProps {
 const ProfileEditor = ({
   form,
   isSubmitting,
-  twitterVerified,
-  setTwitterVerified,
-  setTweetId,
-  setXUsername,
   onClose,
   onProfileUpdated
 }: ProfileEditorProps) => {
@@ -57,19 +48,6 @@ const ProfileEditor = ({
         tags: []
       };
       
-      // Add NIP-39 "i" tag for Twitter verification if verified
-      if (twitterVerified && form.getValues('twitter')) {
-        const tweetId = localStorage.getItem('last_tweet_url');
-        const cleanUsername = values.twitter.replace('@', '');
-        
-        if (tweetId) {
-          eventToPublish.tags = [
-            // NIP-39 compliant format: ["i", "twitter:username", "tweetId"]
-            ["i", `twitter:${cleanUsername}`, tweetId]
-          ];
-        }
-      }
-      
       // Publish metadata to Nostr network
       const success = await nostrService.publishEvent(eventToPublish);
       
@@ -94,15 +72,6 @@ const ProfileEditor = ({
         
         {/* External links fields */}
         <ExternalLinksFields form={form} />
-
-        {/* X (Twitter) Account Verification */}
-        <XVerificationSection
-          form={form}
-          twitterVerified={twitterVerified}
-          setTwitterVerified={setTwitterVerified}
-          setTweetId={setTweetId}
-          setXUsername={setXUsername}
-        />
         
         <DialogFooter>
           <Button 

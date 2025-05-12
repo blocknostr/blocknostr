@@ -90,7 +90,7 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
     try {
       setIsNip05Verifying(true);
       
-      // Call the utility function with one argument (the identifier)
+      // Call the utility function to verify NIP-05
       const isValid = await verifyNip05Identifier(identifier);
       setIsNip05Verified(isValid);
       return isValid;

@@ -105,7 +105,7 @@ const SocialIdentityTab: React.FC<SocialIdentityTabProps> = ({
               </div>
             </FormControl>
             <FormDescription>
-              Will be used for NIP-39 verification
+              Your Twitter/X username
             </FormDescription>
             <FormMessage />
           </FormItem>
