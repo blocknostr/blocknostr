@@ -1,9 +1,9 @@
 
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "../NoteCard";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import OptimizedFeedList from "./OptimizedFeedList";
 
 interface FeedListProps {
   events: NostrEvent[];
@@ -12,6 +12,9 @@ interface FeedListProps {
   loadMoreRef: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void);
   loading: boolean;
   onRefresh?: () => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadMoreLoading?: boolean;
 }
 
 const FeedList: React.FC<FeedListProps> = ({
@@ -20,50 +23,23 @@ const FeedList: React.FC<FeedListProps> = ({
   repostData,
   loadMoreRef,
   loading,
-  onRefresh
+  onRefresh,
+  onLoadMore = () => {},
+  hasMore = true,
+  loadMoreLoading = false
 }) => {
+  // Use our optimized feed list component
   return (
-    <div className="space-y-4">
-      {/* Optional refresh button */}
-      {onRefresh && (
-        <div className="flex justify-center mb-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onRefresh}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Refresh Feed
-          </Button>
-        </div>
-      )}
-      
-      {/* Standard list rendering */}
-      <div className="space-y-4">
-        {events.map(event => (
-          <NoteCard 
-            key={event.id} 
-            event={event} 
-            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-            repostData={event.id && repostData[event.id] ? {
-              reposterPubkey: repostData[event.id].pubkey,
-              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-            } : undefined}
-          />
-        ))}
-        
-        {/* Loading indicator at the bottom */}
-        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-4 text-center">
-          {loading && events.length > 0 && (
-            <div className="text-muted-foreground text-sm">
-              Loading more posts...
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <OptimizedFeedList
+      events={events}
+      profiles={profiles}
+      repostData={repostData}
+      loading={loading}
+      onRefresh={onRefresh}
+      onLoadMore={onLoadMore}
+      hasMore={hasMore}
+      loadMoreLoading={loadMoreLoading}
+    />
   );
 };
 
