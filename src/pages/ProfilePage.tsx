@@ -5,17 +5,16 @@ import { nostrService } from "@/lib/nostr";
 import Sidebar from "@/components/Sidebar";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileStats from "@/components/profile/ProfileStats";
+import { ProfileContent } from "@/components/profile/ProfileContent";
 import ProfileLoading from "@/components/profile/ProfileLoading";
-import ProfileNotFound from "@/components/profile/ProfileNotFound";
-import ProfileTabs from "@/components/profile/ProfileTabs";
-import { useProfileData } from "@/hooks/useProfileData";
+import ProfileError from "@/components/profile/ProfileError";
+import { useEnhancedProfileLoading } from "@/hooks/profile/useEnhancedProfileLoading";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConnection"; 
+import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
 import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
-import { retry } from "@/lib/utils/retry";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -23,44 +22,48 @@ const ProfilePage = () => {
   const currentUserPubkey = nostrService.publicKey;
   const [refreshing, setRefreshing] = useState(false);
   
-  // Get the hex pubkey for the profile
-  const hexPubkey = npub ? nostrService.getHexFromNpub(npub) : currentUserPubkey;
-  
-  // Use our enhanced relay connection hook
-  const { 
-    relays, 
-    isConnecting, 
-    connectToRelays, 
-    refreshRelays 
-  } = useEnhancedRelayConnection(hexPubkey);
-  
-  // Use our custom hook to manage profile data and state
+  // Use our enhanced profile loading hook
   const {
     profileData,
     events,
-    replies,
-    media,
-    reposts,
-    loading,
-    error,
-    setRelays,
     followers,
     following,
-    originalPostProfiles,
+    metadataLoading,
+    postsLoading,
+    relationsLoading,
+    loading,
+    error,
+    reload,
+    hexPubkey,
     isCurrentUser,
-    reactions,
-    referencedEvents,
-    refreshProfile
-  } = useProfileData({ npub, currentUserPubkey });
+    metadataError
+  } = useEnhancedProfileLoading({
+    npub,
+    currentUserPubkey
+  });
   
-  // Handle connection to relays before loading data using smart selection
+  // Get relay stats for UI
+  const [relayStats, setRelayStats] = useState({ connected: 0, total: 0 });
+  
+  // Update relay stats periodically
   useEffect(() => {
-    if (loading && !isConnecting) {
-      connectToRelays();
-    }
-  }, [loading, isConnecting, connectToRelays]);
+    const updateRelayStats = () => {
+      const relays = adaptedNostrService.getRelayStatus();
+      setRelayStats({
+        connected: relays.filter(r => r.status === 'connected').length,
+        total: relays.length
+      });
+    };
+    
+    updateRelayStats();
+    const intervalId = setInterval(updateRelayStats, 5000);
+    
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
   
-  // Handle manual refresh with improved feedback and relay selection
+  // Handle manual refresh with improved feedback
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     
@@ -68,58 +71,20 @@ const ProfilePage = () => {
     toast.loading("Refreshing profile data...");
     
     try {
-      // First ensure we have optimal relay connections
-      await connectToRelays();
+      const success = await reload();
       
-      // Use retry utility with exponential backoff for more resilient profile refresh
-      await retry(
-        async () => {
-          // Get best relays for read operations
-          const readRelays = relaySelector.selectBestRelays(
-            relays.map(r => r.url),
-            { operation: 'read', count: 5 }
-          );
-          
-          // Add these read-optimized relays
-          if (readRelays.length > 0) {
-            await nostrService.addMultipleRelays(readRelays);
-          }
-          
-          // Add popular relays as fallback
-          await nostrService.addMultipleRelays([
-            "wss://relay.damus.io", 
-            "wss://nos.lol", 
-            "wss://relay.nostr.band",
-            "wss://relay.snort.social"
-          ]);
-          
-          // Refresh relays status
-          refreshRelays();
-          
-          // Try to refresh profile data - fix the void return checking
-          const result = await refreshProfile();
-          
-          // Instead of checking truthiness, just consider the operation successful
-          // if it didn't throw an error
-          return true;
-        },
-        {
-          maxAttempts: 2,
-          baseDelay: 2000,
-          onRetry: () => {
-            toast.info("Retrying profile refresh...");
-          }
-        }
-      );
-      
-      toast.success("Profile refreshed");
-    } catch (err) {
-      console.error("Error refreshing profile:", err);
-      toast.error("Failed to refresh profile");
+      if (success) {
+        toast.success("Profile refreshed");
+      } else {
+        toast.error("Failed to refresh profile");
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+      toast.error('Failed to refresh profile');
     } finally {
       setRefreshing(false);
     }
-  }, [refreshing, connectToRelays, refreshRelays, refreshProfile, relays]);
+  }, [refreshing, reload]);
   
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
@@ -129,12 +94,15 @@ const ProfilePage = () => {
     }
   }, [npub, currentUserPubkey, navigate]);
   
-  if (loading) {
+  // If we're in a completely loading state, show loading skeleton
+  if (loading && !profileData) {
     return <ProfileLoading />;
   }
   
-  // Calculate connection status
-  const connectedRelayCount = relays.filter(r => r.status === 'connected').length;
+  // Show error if we couldn't load profile metadata
+  if (metadataError && !profileData) {
+    return <ProfileError error={metadataError} onRetry={handleRefresh} />;
+  }
   
   return (
     <div className="flex min-h-screen bg-background">
@@ -147,12 +115,12 @@ const ProfilePage = () => {
             
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                {connectedRelayCount > 0 ? (
+                {relayStats.connected > 0 ? (
                   <Wifi className="h-3 w-3 text-green-500" />
                 ) : (
                   <WifiOff className="h-3 w-3 text-red-500" />
                 )}
-                <span>{connectedRelayCount} relays</span>
+                <span>{relayStats.connected}/{relayStats.total} relays</span>
               </div>
               
               <Button 
@@ -186,59 +154,36 @@ const ProfilePage = () => {
             </Alert>
           )}
           
-          {profileData ? (
+          {/* Progressive loading profile header - always show if we have profileData */}
+          {profileData && (
             <>
               <ProfileHeader 
                 profileData={profileData}
                 npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
                 isCurrentUser={isCurrentUser}
+                isLoading={metadataLoading}
               />
               
               <ProfileStats 
                 followers={followers}
                 following={following}
-                postsCount={events.length + reposts.length}
+                postsCount={events.length}
                 currentUserPubkey={currentUserPubkey}
                 isCurrentUser={isCurrentUser}
-                relays={relays}
-                onRelaysChange={setRelays}
-                userNpub={npub}
+                relays={adaptedNostrService.getRelayStatus()}
                 onRefresh={handleRefresh}
-                isLoading={refreshing}
+                isLoading={refreshing || relationsLoading}
               />
               
-              <ProfileTabs 
+              <ProfileContent
                 events={events}
-                media={media}
-                reposts={reposts}
                 profileData={profileData}
-                originalPostProfiles={originalPostProfiles}
-                replies={replies}
-                reactions={reactions}
-                referencedEvents={referencedEvents}
+                isLoading={postsLoading}
+                isEmpty={events.length === 0 && !postsLoading}
+                onRefresh={handleRefresh}
+                isCurrentUser={isCurrentUser}
               />
-              
-              {events.length === 0 && reposts.length === 0 && !refreshing && (
-                <div className="text-center py-8 text-muted-foreground">
-                  {isCurrentUser ? (
-                    <p>You haven't posted anything yet.</p>
-                  ) : (
-                    <p>This user hasn't posted anything yet.</p>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="mt-4"
-                    onClick={handleRefresh}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-              )}
             </>
-          ) : (
-            <ProfileNotFound />
           )}
         </div>
       </div>

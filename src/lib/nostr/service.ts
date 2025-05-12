@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -715,8 +714,79 @@ export class NostrService {
       return [];
     }
   }
+  
+  /**
+   * Create batched fetcher functions for parallel event retrieval
+   * @param pubkey User's public key
+   * @param options Filter options
+   * @returns Array of fetcher functions
+   */
+  createBatchedFetchers(pubkey: string, options: { limit?: number, kinds?: number[] }): Array<() => Promise<any[]>> {
+    // Get connected relays  
+    const connectedRelays = this.relayManager.getConnectedRelayUrls();
+    if (connectedRelays.length === 0) {
+      // Return a single fetcher that will connect to default relays
+      return [async () => {
+        await this.connectToDefaultRelays();
+        return this.getUserEvents(pubkey, options);
+      }];
+    }
+    
+    // Create groups of relays for batched fetching
+    const relayGroups: string[][] = [];
+    const batchSize = 3; // Number of relays per batch
+    
+    // Split relays into groups
+    for (let i = 0; i < connectedRelays.length; i += batchSize) {
+      relayGroups.push(connectedRelays.slice(i, i + batchSize));
+    }
+    
+    // Create a fetcher function for each group
+    return relayGroups.map(relayGroup => async () => {
+      // Create filter based on options
+      const filter: any = {
+        authors: [pubkey],
+        limit: options.limit || 20
+      };
+      
+      if (options.kinds) {
+        filter.kinds = options.kinds;
+      }
+      
+      // Return promise that will resolve to events from this group
+      return new Promise<any[]>((resolve, reject) => {
+        try {
+          const events: any[] = [];
+          const sub = this.pool.subscribeMany(
+            relayGroup,
+            [filter],
+            {
+              onevent: (event) => {
+                events.push(event);
+              },
+              onclose: () => {
+                resolve(events);
+              },
+              oneose: () => {
+                sub.close();
+                resolve(events);
+              }
+            }
+          );
+          
+          // Set timeout for this batch
+          setTimeout(() => {
+            sub.close();
+            resolve(events);
+          }, 5000);
+        } catch (error) {
+          console.error(`Error fetching from relay group:`, error);
+          resolve([]);
+        }
+      });
+    });
+  }
 }
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
-
