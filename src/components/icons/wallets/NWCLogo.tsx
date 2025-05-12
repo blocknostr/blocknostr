@@ -12,7 +12,16 @@ const NWCLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
       {...props}
     >
       <circle cx="32" cy="32" r="30" fill="#8B5CF6" />
-      <path d="M20 44V20l8 12 8-12v24h6V20c0-2.2-1.2-4.2-3.2-5.2-2-1-4.4-0.7-6.1 0.7L28 20l-4.7-4.5c-1.7-1.4-4.1-1.7-6.1-0.7C15.2 15.8 14 17.8 14 20v24h6z" fill="white" />
+      <text
+        x="32"
+        y="40"
+        fontSize="32"
+        fontWeight="bold"
+        textAnchor="middle"
+        fill="#FFFFFF"
+      >
+        N
+      </text>
     </svg>
   );
 };
