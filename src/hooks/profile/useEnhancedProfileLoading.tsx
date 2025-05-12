@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { nostrService, EVENT_KINDS, NostrEvent } from "@/lib/nostr";
+import { ProfileRelaySelector } from "./profile-relay-selector";
 import { useRetry } from "@/lib/retry";
 import { toast } from "sonner";
 
@@ -33,6 +34,7 @@ export function useEnhancedProfileLoading({
   // Track subscriptions to clean up
   const subscriptionIds = useRef<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const relaySelector = useRef(new ProfileRelaySelector());
   
   // Cleanup function for subscriptions
   const cleanupSubscriptions = useCallback(() => {
@@ -152,14 +154,14 @@ export function useEnhancedProfileLoading({
       setPostsLoading(true);
       
       // Subscribe to events from this author
-      const postFilters = {
+      const postFilters = [{
         kinds: [EVENT_KINDS.TEXT_NOTE],
         authors: [hexPubkey],
         limit: 30
-      };
+      }];
       
       const postsSubId = nostrService.subscribe(
-        [postFilters],
+        postFilters,
         (event: NostrEvent) => {
           setEvents(prev => {
             // Check if we already have this event

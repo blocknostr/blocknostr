@@ -5,7 +5,7 @@ interface ProfileBannerProps {
   bannerUrl?: string;
 }
 
-const ProfileBanner = ({ bannerUrl }: ProfileBannerProps) => {
+export const ProfileBanner = ({ bannerUrl }: ProfileBannerProps) => {
   return (
     <div 
       className="h-48 md:h-64 bg-gradient-to-r from-violet-500 to-fuchsia-500 w-full rounded-t-lg"

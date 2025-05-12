@@ -6,9 +6,10 @@ import NoteCard from '@/components/note/NoteCard';
 interface PostListProps {
   events: NostrEvent[];
   showActionButtons?: boolean;
+  profiles?: Record<string, any>; // Map of profiles by pubkey
 }
 
-export function PostList({ events, showActionButtons = false }: PostListProps) {
+export function PostList({ events, showActionButtons = false, profiles = {} }: PostListProps) {
   if (!events || events.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -23,7 +24,8 @@ export function PostList({ events, showActionButtons = false }: PostListProps) {
         <NoteCard 
           key={event.id} 
           event={event} 
-          showActionButtons={showActionButtons} 
+          showActionButtons={showActionButtons}
+          profileData={profiles[event.pubkey]}
         />
       ))}
     </div>

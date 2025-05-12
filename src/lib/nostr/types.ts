@@ -1,21 +1,7 @@
 
-/**
- * Represents a Nostr relay with connection status
- */
-export interface Relay {
-  url: string;
-  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown' | 'failed';
-  read?: boolean;
-  write?: boolean;
-  // Performance metrics
-  score?: number;
-  avgResponse?: number;
-  circuitStatus?: string;
-}
+// Extend or create the file with necessary types
 
-/**
- * Represents a standard Nostr event
- */
+// Basic Nostr event as per NIP-01
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -26,40 +12,53 @@ export interface NostrEvent {
   sig: string;
 }
 
-/**
- * Represents a filter for querying Nostr events
- */
-export interface NostrFilter {
-  ids?: string[];
-  authors?: string[];
-  kinds?: number[];
-  '#e'?: string[];
-  '#p'?: string[];
-  '#t'?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-}
-
-/**
- * Profile metadata as used in kind 0 events
- */
+// User profile metadata as per NIP-01
 export interface NostrProfileMetadata {
   name?: string;
+  display_name?: string;
   about?: string;
   picture?: string;
   banner?: string;
   nip05?: string;
   lud16?: string;
   website?: string;
-  display_name?: string;
-  [key: string]: any; // Allow for custom fields
+  [key: string]: any;
 }
 
-/**
- * Interface for NoteCard props
- */
-export interface NoteCardProps {
-  event: NostrEvent;
-  showActionButtons?: boolean;
+// Circuit breaker state for relay connections
+export type CircuitState = 'closed' | 'open' | 'half-open';
+
+// Relay connection information with additional performance metrics
+export interface Relay {
+  url: string;
+  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown' | 'failed';
+  read?: boolean; 
+  write?: boolean;
+  score?: number;
+  avgResponse?: number;
+  circuitStatus?: string;
+  isRequired?: boolean;
 }
+
+// Subscription filters as per NIP-01 and extensions
+export interface NostrFilter {
+  ids?: string[];
+  authors?: string[];
+  kinds?: number[];
+  since?: number;
+  until?: number;
+  limit?: number;
+  [key: `#${string}`]: string[]; // Tag filters like #e, #p, etc.
+}
+
+// Define types for the proposal category
+export type ProposalCategory = 
+  | 'general' 
+  | 'governance' 
+  | 'treasury' 
+  | 'technical' 
+  | 'marketing' 
+  | 'community' 
+  | 'other';
+
+// Add any additional types needed by the application

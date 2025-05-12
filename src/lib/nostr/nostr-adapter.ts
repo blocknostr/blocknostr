@@ -1,6 +1,6 @@
 
-import { NostrService } from './service';
-import { NostrEvent, Relay, NostrFilter } from './types';
+import { nostrService } from './service';
+import { NostrEvent, Relay, NostrProfile, NostrFilter } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 /**
@@ -8,9 +8,9 @@ import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
  * that provides all the methods needed throughout the application.
  */
 class AdaptedNostrService {
-  private service: NostrService;
+  private service: typeof nostrService;
   
-  constructor(service: NostrService) {
+  constructor(service: typeof nostrService) {
     this.service = service;
   }
 
@@ -70,20 +70,22 @@ class AdaptedNostrService {
     return this.service.getAccountCreationDate(pubkey);
   }
 
-  // Access to following list
+  // Access to following list - FIXED to avoid recursion
   get following() {
-    return this.service.following;
+    return this.service.following || [];
   }
 
   // Profile caching
   async getCachedProfile(pubkey: string) {
-    if (!this.service.getUserProfile) return null;
-    return this.service.getUserProfile(pubkey);
+    if (this.service.getUserProfile) {
+      return this.service.getUserProfile(pubkey);
+    }
+    return null;
   }
 
-  // User Properties
+  // User Properties - FIXED to avoid recursion
   get publicKey() {
-    // FIXED: Return the service.publicKey directly to avoid infinite recursion
+    // Return the service.publicKey directly to avoid infinite recursion
     return this.service.publicKey;
   }
 
@@ -173,7 +175,11 @@ class AdaptedNostrService {
   }
 
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
-    return this.service.publishRelayList?.(relays) || false;
+    // Make sure we have the method before calling it
+    if ('publishRelayList' in this.service && typeof this.service.publishRelayList === 'function') {
+      return this.service.publishRelayList(relays);
+    }
+    return false;
   }
 
   async getEventById(id: string) {
@@ -227,46 +233,13 @@ class AdaptedNostrService {
     return this.service.repostNote(eventId, authorPubkey);
   }
 
-  // Bookmark methods
-  async isBookmarked(eventId: string) {
-    return this.service.isBookmarked(eventId);
-  }
-
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
-    return this.service.addBookmark(eventId, collectionId, tags, note);
-  }
-
-  async removeBookmark(eventId: string) {
-    return this.service.removeBookmark(eventId);
-  }
-
-  async getBookmarks() {
-    return this.service.getBookmarks();
-  }
-
-  async getBookmarkCollections() {
-    return this.service.getBookmarkCollections();
-  }
-
-  async getBookmarkMetadata() {
-    return this.service.getBookmarkMetadata();
-  }
-
-  async createBookmarkCollection(name: string, color?: string, description?: string) {
-    return this.service.createBookmarkCollection(name, color, description);
-  }
-
-  async processPendingOperations() {
-    return this.service.processPendingOperations();
-  }
-
   // Profile updates
   async publishProfileMetadata(metadata: Record<string, any>) {
     return this.service.publishProfileMetadata(metadata);
   }
 }
 
-// Get the raw service instance (make sure this import path is correct)
+// Import the raw service instance
 import { nostrService as rawNostrService } from './service';
 
 // Create and export the adapted instance

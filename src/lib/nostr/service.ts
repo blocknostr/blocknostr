@@ -367,11 +367,35 @@ export class NostrService {
   }
   
   // Additional methods needed for other components
-  public async getEvents(ids: string[]): Promise<any[]> {
+  public async getEvents(filters: NostrFilter[]): Promise<NostrEvent[]> {
     const connectedRelays = this.getConnectedRelayUrls();
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays available");
+      await this.connectToDefaultRelays();
+    }
+    
     try {
-      // Fix by accessing methods directly from eventManager
-      return await Promise.all(ids.map(id => this.getEventById(id)));
+      // Convert filters to the format expected by SimplePool
+      const convertedFilters = filters.map(filter => {
+        const newFilter: Record<string, any> = { ...filter };
+        return newFilter;
+      });
+      
+      // Use all connected relays
+      const availableRelays = this.getConnectedRelayUrls();
+      
+      // Return empty array if no relays available
+      if (availableRelays.length === 0) {
+        return [];
+      }
+      
+      const events = await this.pool.queryManyAsync(
+        availableRelays,
+        convertedFilters as any[],
+        { timeout: 5000 }  // 5 second timeout
+      );
+      
+      return events;
     } catch (e) {
       console.error("Error getting events:", e);
       return [];

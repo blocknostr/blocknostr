@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
-import { ProfileAvatar } from './ProfileAvatar';
-import { ProfileBanner } from './ProfileBanner';
-import { ProfileSkeleton } from './ProfileSkeleton';
+import { ProfileAvatar } from './header/ProfileAvatar';
+import { ProfileBanner } from './header/ProfileBanner';
+import { ProfileSkeleton } from './header/ProfileSkeleton';
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -80,7 +80,7 @@ const ProfileHeader = ({
       <div className="relative px-4 pb-4">
         <div className="flex justify-between items-start">
           <ProfileAvatar 
-            avatarUrl={profileData?.picture} 
+            pictureUrl={profileData?.picture} 
             displayName={displayName} 
             size="lg"
           />

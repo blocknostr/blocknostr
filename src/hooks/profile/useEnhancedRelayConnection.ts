@@ -1,133 +1,197 @@
 
-import { useState, useCallback, useEffect } from 'react';
-import { nostrService } from '@/lib/nostr';
-import { relayPerformanceTracker } from '@/lib/nostr/relay/performance/relay-performance-tracker';
-import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
-import { circuitBreaker } from '@/lib/nostr/relay/circuit/circuit-breaker';
-import { CircuitState } from '@/lib/nostr/relay/circuit/circuit-breaker';
-import { toast } from 'sonner';
-import { Relay } from '@/lib/nostr';
+import { useState, useEffect, useCallback } from "react";
+import { Relay } from "@/lib/nostr/types";
+import { CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
+import { nostrService } from "@/lib/nostr";
+import { toast } from "sonner";
 
 /**
- * Enhanced hook for relay connections with smart selection and circuit breaker
+ * A hook for managing enhanced relay connections with circuit breaker
  */
-export function useEnhancedRelayConnection(pubkey?: string) {
+export function useEnhancedRelayConnection() {
   const [relays, setRelays] = useState<Relay[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [healthCheckTimestamp, setHealthCheckTimestamp] = useState(Date.now());
-  const [requiredRelays, setRequiredRelays] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
-  // Connect to user relays with smart selection
-  const connectToRelays = useCallback(async () => {
-    if (isConnecting) return;
+  // Load initial relays
+  useEffect(() => {
+    const loadRelays = () => {
+      try {
+        const currentRelays = nostrService.getRelayStatus();
+        
+        // Add any missing fields with defaults
+        const enhancedRelays = currentRelays.map(relay => ({
+          ...relay,
+          score: relay.score ?? 50,
+          avgResponse: relay.avgResponse ?? 500,
+          circuitStatus: (relay.circuitStatus as CircuitState) ?? 'closed',
+          isRequired: relay.isRequired ?? false,
+        }));
+        
+        setRelays(enhancedRelays);
+      } catch (err) {
+        console.error("Error loading relays:", err);
+        setError("Failed to load relay information");
+      }
+    };
     
-    setIsConnecting(true);
-    setIsLoading(true);
+    loadRelays();
     
+    // Set up interval to refresh relay status
+    const intervalId = setInterval(() => {
+      loadRelays();
+    }, 10000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Connect to relays
+  const connect = useCallback(async () => {
     try {
-      // First ensure we have a base set of relays
+      setIsConnecting(true);
+      setError(null);
+      
       await nostrService.connectToUserRelays();
       
-      // Get additional relays to try based on performance
-      const currentRelays = nostrService.getRelayStatus();
-      const currentUrls = currentRelays.map(r => r.url);
+      // Update relay statuses
+      const updatedRelays = nostrService.getRelayStatus();
       
-      // Calculate which relays to prioritize
-      const readRelays = relaySelector.selectBestRelays(currentUrls, {
-        operation: 'read',
-        count: 3,
-        minScore: 30
+      // Preserve additional metadata from existing relays
+      const enhancedRelays = updatedRelays.map(relay => {
+        const existingRelay = relays.find(r => r.url === relay.url);
+        return {
+          ...relay,
+          score: existingRelay?.score ?? 50,
+          avgResponse: existingRelay?.avgResponse ?? 500,
+          circuitStatus: (existingRelay?.circuitStatus as CircuitState) ?? 'closed',
+          isRequired: existingRelay?.isRequired ?? false,
+        };
       });
       
-      // Special case: if this is for a specific pubkey, try to get their relays
-      if (pubkey) {
-        try {
-          const userRelays = await nostrService.getRelaysForUser(pubkey);
-          if (userRelays && userRelays.length > 0) {
-            console.log(`Found ${userRelays.length} relays for user ${pubkey}`);
-            await nostrService.addMultipleRelays(userRelays);
-            setRequiredRelays(userRelays);
-          }
-        } catch (error) {
-          console.warn(`Failed to get relays for user ${pubkey}:`, error);
-        }
+      setRelays(enhancedRelays);
+      
+      const connectedCount = enhancedRelays.filter(r => r.status === 'connected').length;
+      if (connectedCount === 0) {
+        setError("Could not connect to any relays");
+        return false;
       }
       
-      // Always ensure we have some popular relays connected as fallback
-      const popularRelays = [
-        "wss://relay.damus.io", 
-        "wss://nos.lol", 
-        "wss://relay.nostr.band",
-        "wss://relay.snort.social"
-      ];
-      
-      // Filter out popular relays with open circuit breakers
-      const availablePopularRelays = popularRelays.filter(url => {
-        const state = circuitBreaker.getState(url);
-        return state !== CircuitState.OPEN;
-      });
-      
-      // Connect to popular relays as fallback
-      if (availablePopularRelays.length > 0) {
-        await nostrService.addMultipleRelays(availablePopularRelays);
-      }
-      
-      // Get updated relay status
-      refreshRelays();
-    } catch (error) {
-      console.error("Error connecting to relays:", error);
-      toast.error("Failed to connect to relays");
+      return true;
+    } catch (err) {
+      console.error("Error connecting to relays:", err);
+      setError("Failed to connect to relays");
+      return false;
     } finally {
       setIsConnecting(false);
-      setIsLoading(false);
     }
-  }, [isConnecting, pubkey]);
+  }, [relays]);
   
-  // Refresh relay status with performance data
-  const refreshRelays = useCallback(() => {
-    const relayStatus = nostrService.getRelayStatus();
-    
-    // Enhance with performance data
-    const enhancedRelays = relayStatus.map(relay => {
-      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
-      const circuitStatus = circuitBreaker.getState(relay.url);
+  // Update relay score based on performance
+  const updateRelayScore = useCallback((url: string, success: boolean, responseTime: number = 500) => {
+    setRelays(current => 
+      current.map(relay => {
+        if (relay.url !== url) return relay;
+        
+        // Calculate new score based on success/failure and response time
+        let newScore = relay.score ?? 50;
+        
+        if (success) {
+          // Reward fast responses
+          if (responseTime < 200) newScore += 2;
+          else if (responseTime < 500) newScore += 1;
+          else if (responseTime > 1000) newScore -= 1;
+        } else {
+          // Penalize failures
+          newScore -= 5;
+        }
+        
+        // Bound score between 0 and 100
+        newScore = Math.max(0, Math.min(100, newScore));
+        
+        // Update average response time
+        let avgResponse = relay.avgResponse ?? responseTime;
+        if (success) { // Only update avg on success
+          avgResponse = (avgResponse * 0.7) + (responseTime * 0.3); // Weighted average
+        }
+        
+        // Update circuit status
+        let circuitStatus = relay.circuitStatus as CircuitState ?? 'closed';
+        if (!success && circuitStatus === 'closed') {
+          circuitStatus = 'half-open';
+        } else if (!success && circuitStatus === 'half-open') {
+          circuitStatus = 'open';
+        } else if (success && circuitStatus !== 'closed') {
+          circuitStatus = 'half-open'; // Start recovery
+        }
+        
+        return {
+          ...relay,
+          score: newScore,
+          avgResponse,
+          circuitStatus
+        };
+      })
+    );
+  }, []);
+  
+  // Add a new relay with enhanced properties
+  const addRelay = useCallback(async (url: string) => {
+    try {
+      const success = await nostrService.addRelay(url);
       
-      // Check if this is a required relay (for a specific pubkey)
-      const isRequired = requiredRelays.includes(relay.url);
+      if (success) {
+        setRelays(current => [
+          ...current,
+          {
+            url,
+            status: 'connecting',
+            read: true,
+            write: true,
+            score: 50,
+            avgResponse: 500,
+            circuitStatus: 'closed',
+            isRequired: false
+          }
+        ]);
+        
+        toast.success(`Added relay: ${url}`);
+        return true;
+      } else {
+        toast.error(`Failed to add relay: ${url}`);
+        return false;
+      }
+    } catch (err) {
+      console.error(`Error adding relay ${url}:`, err);
+      toast.error(`Error adding relay: ${url}`);
+      return false;
+    }
+  }, []);
+  
+  // Remove relay
+  const removeRelay = useCallback((url: string) => {
+    try {
+      nostrService.removeRelay(url);
       
-      return {
-        ...relay,
-        score: perfData?.score || 50,
-        avgResponse: perfData?.avgResponseTime,
-        circuitStatus: circuitStatus,
-        isRequired
-      };
-    });
-    
-    setRelays(enhancedRelays);
-    setHealthCheckTimestamp(Date.now());
-  }, [requiredRelays]);
+      setRelays(current => 
+        current.filter(relay => relay.url !== url)
+      );
+      
+      toast.success(`Removed relay: ${url}`);
+      return true;
+    } catch (err) {
+      console.error(`Error removing relay ${url}:`, err);
+      toast.error(`Error removing relay: ${url}`);
+      return false;
+    }
+  }, []);
   
-  // Initial connection
-  useEffect(() => {
-    connectToRelays();
-    
-    // Set up interval to refresh status
-    const intervalId = setInterval(refreshRelays, 10000);
-    
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [connectToRelays, refreshRelays]);
-  
-  // Return needed values and functions
   return {
     relays,
-    isLoading,
     isConnecting,
-    healthCheckTimestamp,
-    connectToRelays,
-    refreshRelays
+    error,
+    connect,
+    updateRelayScore,
+    addRelay,
+    removeRelay
   };
 }
