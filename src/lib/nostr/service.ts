@@ -429,6 +429,50 @@ export class NostrService {
     }
   }
   
+  /**
+   * Fetch user's oldest metadata event to determine account creation date (NIP-01)
+   * @param pubkey User's public key
+   * @returns Timestamp of the oldest metadata event or null
+   */
+  public async getAccountCreationDate(pubkey: string): Promise<number | null> {
+    if (!pubkey) return null;
+    
+    try {
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      return new Promise((resolve) => {
+        // Construct filter to get oldest metadata events
+        const filters = [{
+          kinds: [EVENT_KINDS.META],
+          authors: [pubkey],
+          limit: 10,
+          // Query for historical events
+          until: Math.floor(Date.now() / 1000)
+        }];
+        
+        let oldestTimestamp: number | null = null;
+        
+        const subId = this.subscribe(
+          filters,
+          (event) => {
+            if (!oldestTimestamp || event.created_at < oldestTimestamp) {
+              oldestTimestamp = event.created_at;
+            }
+          }
+        );
+        
+        // Set a timeout to resolve with the found timestamp or null
+        setTimeout(() => {
+          this.unsubscribe(subId);
+          resolve(oldestTimestamp);
+        }, 5000);
+      });
+    } catch (error) {
+      console.error("Error fetching account creation date:", error);
+      return null;
+    }
+  }
+  
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
     
