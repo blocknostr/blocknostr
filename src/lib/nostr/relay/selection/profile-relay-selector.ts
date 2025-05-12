@@ -1,239 +1,162 @@
-
-import { relayPerformanceTracker } from '../performance/relay-performance-tracker';
-import { circuitBreaker, CircuitState } from '../circuit/circuit-breaker';
-import { safeLocalStorageGet, safeLocalStorageSet } from '@/lib/utils/storage';
-
 /**
- * Profile-specific relay selector with geographic and historical performance optimization
+ * Profile-specific relay selector
+ * Uses past performance data to select best relays for profile data
  */
-export class ProfileRelaySelector {
-  // Store which relays worked well for specific profiles
-  private profileRelaySuccessMap: Map<string, Map<string, number>> = new Map();
-  // In-memory cache for quick access
-  private profileBestRelaysCache: Map<string, string[]> = new Map();
-  // Storage keys
-  private readonly STORAGE_KEY_PREFIX = 'nostr_profile_relay_';
-  
-  constructor() {
-    this.loadProfileRelayData();
-  }
-  
+
+// In-memory storage for relay performance data
+const profileRelayScores: Map<string, Map<string, number>> = new Map();
+
+// Maximum number of relays to track per profile
+const MAX_RELAYS_PER_PROFILE = 10;
+
+// Default score for new relays
+const DEFAULT_SCORE = 0.5;
+
+// Score adjustment for successful/failed requests
+const SUCCESS_BOOST = 0.2;
+const FAILURE_PENALTY = 0.3;
+
+// Decay factor for older scores (applied every hour)
+const SCORE_DECAY_FACTOR = 0.95;
+
+// Last time decay was applied
+let lastDecayTime = Date.now();
+
+export const profileRelaySelector = {
   /**
-   * Get best relays for a specific profile
-   * @param pubkey User's public key
-   * @param availableRelays List of available relay URLs
-   * @param count Number of relays to return
-   * @returns Array of relay URLs optimized for this profile
-   */
-  getBestRelaysForProfile(
-    pubkey: string, 
-    availableRelays: string[], 
-    count: number = 5
-  ): string[] {
-    // First check cache for quick responses
-    const cachedRelays = this.profileBestRelaysCache.get(pubkey);
-    if (cachedRelays && cachedRelays.length >= count) {
-      // Filter out any with open circuit breakers
-      const filteredCached = cachedRelays.filter(url => 
-        circuitBreaker.getState(url) !== CircuitState.OPEN
-      );
-      
-      if (filteredCached.length >= count) {
-        return filteredCached.slice(0, count);
-      }
-    }
-    
-    // Get the success metrics for this profile
-    const profileMetrics = this.profileRelaySuccessMap.get(pubkey) || new Map();
-    
-    // Calculate scores for each relay
-    const scoredRelays = availableRelays.map(url => {
-      // Start with performance data
-      const perfData = relayPerformanceTracker.getRelayPerformance(url);
-      const baseScore = perfData?.score || 50;
-      
-      // Add profile-specific success metrics
-      const profileScore = profileMetrics.get(url) || 0;
-      
-      // Adjust score based on circuit breaker state
-      const cbState = circuitBreaker.getState(url);
-      const cbFactor = cbState === CircuitState.OPEN ? 0 : 
-                       cbState === CircuitState.HALF_OPEN ? 0.5 : 1;
-      
-      return {
-        url,
-        score: (baseScore + profileScore * 10) * cbFactor
-      };
-    });
-    
-    // Sort by score (higher is better)
-    scoredRelays.sort((a, b) => b.score - a.score);
-    
-    // Take top N relays
-    const bestRelays = scoredRelays
-      .filter(relay => relay.score > 0)  // Skip any with score of 0
-      .slice(0, count)
-      .map(relay => relay.url);
-    
-    // Save to cache for next time
-    this.profileBestRelaysCache.set(pubkey, bestRelays);
-    
-    return bestRelays;
-  }
-  
-  /**
-   * Record success or failure for a profile-relay combination
-   * @param pubkey User's public key
+   * Record result of using a relay for a profile
+   * @param profilePubkey Profile public key
    * @param relayUrl Relay URL
-   * @param success Whether the operation was successful
-   * @param weight Weight of this update (default: 1)
+   * @param success Whether the request was successful
    */
-  recordProfileRelayResult(
-    pubkey: string,
-    relayUrl: string,
-    success: boolean,
-    weight: number = 1
-  ): void {
-    // Get or create metrics for this profile
-    let profileMetrics = this.profileRelaySuccessMap.get(pubkey);
-    if (!profileMetrics) {
-      profileMetrics = new Map();
-      this.profileRelaySuccessMap.set(pubkey, profileMetrics);
+  recordProfileRelayResult(profilePubkey: string, relayUrl: string, success: boolean) {
+    // Apply score decay if needed
+    this.applyScoreDecay();
+    
+    // Get or create score map for this profile
+    let relayScores = profileRelayScores.get(profilePubkey);
+    if (!relayScores) {
+      relayScores = new Map();
+      profileRelayScores.set(profilePubkey, relayScores);
     }
     
-    // Update the score
-    const currentScore = profileMetrics.get(relayUrl) || 0;
-    const newScore = success 
-      ? Math.min(currentScore + weight, 10)  // Cap at 10
-      : Math.max(currentScore - weight, -5); // Floor at -5
+    // Get current score or use default
+    const currentScore = relayScores.get(relayUrl) || DEFAULT_SCORE;
     
-    profileMetrics.set(relayUrl, newScore);
+    // Update score based on success/failure
+    let newScore = currentScore;
+    if (success) {
+      // Success: boost the score, but cap at 1.0
+      newScore = Math.min(1.0, currentScore + SUCCESS_BOOST);
+    } else {
+      // Failure: reduce the score, but floor at 0.1
+      newScore = Math.max(0.1, currentScore - FAILURE_PENALTY);
+    }
     
-    // Invalidate cache
-    this.profileBestRelaysCache.delete(pubkey);
+    // Store updated score
+    relayScores.set(relayUrl, newScore);
     
-    // Save to storage (debounced)
-    this.debounceSaveProfileData(pubkey);
-  }
+    // Trim excess relays if needed
+    if (relayScores.size > MAX_RELAYS_PER_PROFILE) {
+      // Convert to array for sorting
+      const scoreArray = [...relayScores.entries()];
+      
+      // Sort by score (descending)
+      scoreArray.sort((a, b) => b[1] - a[1]);
+      
+      // Create new map with just the top relays
+      const trimmedMap = new Map(scoreArray.slice(0, MAX_RELAYS_PER_PROFILE));
+      profileRelayScores.set(profilePubkey, trimmedMap);
+    }
+  },
   
   /**
-   * Parse nprofile URI to extract pubkey and relay hints
-   * @param nprofileUri nprofile URI
-   * @returns Object containing pubkey and relays
+   * Apply decay to all scores periodically
    */
-  parseNprofileUri(nprofileUri: string): { pubkey: string; relays: string[] } | null {
+  applyScoreDecay() {
+    const now = Date.now();
+    const hoursPassed = (now - lastDecayTime) / (1000 * 60 * 60);
+    
+    // Only apply decay if at least an hour has passed
+    if (hoursPassed >= 1) {
+      // Calculate decay based on hours passed
+      const decayFactor = Math.pow(SCORE_DECAY_FACTOR, hoursPassed);
+      
+      // Apply decay to all scores
+      profileRelayScores.forEach((relayScores, profilePubkey) => {
+        relayScores.forEach((score, relayUrl) => {
+          // Apply decay but don't go below minimum
+          const decayedScore = Math.max(0.1, score * decayFactor);
+          relayScores.set(relayUrl, decayedScore);
+        });
+      });
+      
+      // Update last decay time
+      lastDecayTime = now;
+    }
+  },
+  
+  /**
+   * Get best relays for a profile
+   * @param profilePubkey Profile public key
+   * @param candidateRelays List of relay URLs to consider
+   * @param count Maximum number of relays to return
+   * @returns Array of relay URLs sorted by score
+   */
+  getBestRelaysForProfile(profilePubkey: string, candidateRelays: string[], count: number): string[] {
+    // Apply score decay
+    this.applyScoreDecay();
+    
+    // Get scores for this profile
+    const relayScores = profileRelayScores.get(profilePubkey);
+    
+    // Create array to hold [relayUrl, score] pairs
+    const scoredRelays: [string, number][] = [];
+    
+    // Score each candidate relay
+    for (const relayUrl of candidateRelays) {
+      // Use known score or default
+      const score = relayScores?.get(relayUrl) || DEFAULT_SCORE;
+      scoredRelays.push([relayUrl, score]);
+    }
+    
+    // Sort by score (highest first)
+    scoredRelays.sort((a, b) => b[1] - a[1]);
+    
+    // Extract just the URLs
+    return scoredRelays.slice(0, count).map(([url]) => url);
+  },
+  
+  /**
+   * Parse a nostr profile URI to extract pubkey and relay hints
+   * @param uri nprofile URI
+   * @returns Object with pubkey and relay hints, or null if invalid
+   */
+  parseNprofileUri(uri: string): { pubkey: string; relays: string[] } | null {
     try {
-      // Basic validation
-      if (!nprofileUri.startsWith('nprofile1')) {
+      // Check if it's an nprofile URI
+      if (!uri.startsWith('nprofile1')) {
         return null;
       }
       
-      // Extract components
-      const decoded = this.bech32ToObject(nprofileUri);
-      if (!decoded) {
-        return null;
-      }
-      
+      // Implement a basic version of the nprofile parsing
+      // In a real implementation, you would use TLV decoding here
+      // This is just a placeholder that returns dummy data
       return {
-        pubkey: decoded.pubkey,
-        relays: decoded.relays || []
+        pubkey: uri.substring(9, 73), // Simplified - not actual TLV parsing
+        relays: ["wss://relay.nostr.band", "wss://nos.lol"]
       };
     } catch (error) {
-      console.warn('Failed to parse nprofile URI:', error);
+      console.error("Error parsing nprofile URI:", error);
       return null;
     }
-  }
+  },
   
   /**
-   * Helper to convert bech32 to object
-   * Note: This is a simplified implementation
+   * Clear all stored relay data
+   * Mainly used for testing
    */
-  private bech32ToObject(bech32str: string): any {
-    // In a real implementation, this would use a proper bech32 decoder
-    // For now, we'll just handle a few test cases
-    if (bech32str === 'nprofile1qqsgzulku8zdnq3669w4q2r3mjwjckdfzr8jh042zc64t4gzujy2crcvc7c40') {
-      return {
-        pubkey: 'a734cca70ca3c08511e3c2d5a82be163769d2352da16b63af188a9b4c2b893d4',
-        relays: [
-          'wss://relay.primal.net',
-          'wss://relay.damus.io',
-          'wss://nos.lol'
-        ]
-      };
-    }
-    
-    // Default fallback for testing
-    return {
-      pubkey: bech32str.substring(9, 73), // Just a heuristic
-      relays: []
-    };
+  clearAllData() {
+    profileRelayScores.clear();
   }
-  
-  /**
-   * Save profile relay data to localStorage with debounce
-   */
-  private saveTimeouts: Record<string, number> = {};
-  
-  private debounceSaveProfileData(pubkey: string): void {
-    // Clear any existing timeout for this pubkey
-    if (this.saveTimeouts[pubkey]) {
-      window.clearTimeout(this.saveTimeouts[pubkey]);
-    }
-    
-    // Set new timeout
-    this.saveTimeouts[pubkey] = window.setTimeout(() => {
-      this.saveProfileData(pubkey);
-    }, 1000);
-  }
-  
-  /**
-   * Save profile relay data to localStorage
-   */
-  private saveProfileData(pubkey: string): void {
-    const profileMetrics = this.profileRelaySuccessMap.get(pubkey);
-    if (!profileMetrics) return;
-    
-    try {
-      const dataToSave = Object.fromEntries(profileMetrics);
-      safeLocalStorageSet(
-        `${this.STORAGE_KEY_PREFIX}${pubkey}`,
-        JSON.stringify(dataToSave)
-      );
-    } catch (error) {
-      console.warn(`Failed to save profile relay data for ${pubkey}:`, error);
-    }
-  }
-  
-  /**
-   * Load profile relay data from localStorage
-   */
-  private loadProfileRelayData(): void {
-    try {
-      // Find all profile relay data keys
-      const allKeys = Object.keys(localStorage);
-      const profileKeys = allKeys.filter(key => 
-        key.startsWith(this.STORAGE_KEY_PREFIX)
-      );
-      
-      // Load each profile's data
-      profileKeys.forEach(key => {
-        const pubkey = key.substring(this.STORAGE_KEY_PREFIX.length);
-        const data = safeLocalStorageGet(key);
-        if (data) {
-          try {
-            const parsedData = JSON.parse(data);
-            const metricsMap = new Map(Object.entries(parsedData));
-            this.profileRelaySuccessMap.set(pubkey, metricsMap);
-          } catch (e) {
-            console.warn(`Failed to parse profile relay data for ${pubkey}:`, e);
-          }
-        }
-      });
-    } catch (error) {
-      console.warn('Failed to load profile relay data:', error);
-    }
-  }
-}
-
-// Export singleton instance
-export const profileRelaySelector = new ProfileRelaySelector();
+};

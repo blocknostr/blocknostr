@@ -2,10 +2,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
-import { contentCache } from '@/lib/nostr/cache/content-cache';
 import { adaptedNostrService } from '@/lib/nostr/nostr-adapter';
 import { profileRelaySelector } from '@/lib/nostr/relay/selection/profile-relay-selector';
-import { retry } from '@/lib/utils/retry';
+import { retry, parallelRetry } from '@/lib/utils/retry';
 
 interface UseEnhancedProfileLoadingProps {
   pubkey?: string;
@@ -38,7 +37,6 @@ export function useEnhancedProfileLoading({
   const mountedRef = useRef(true);
   const abortControllersRef = useRef<AbortController[]>([]);
   const hexPubkeyRef = useRef<string | null>(null);
-  const retryCountRef = useRef<Record<string, number>>({});
   
   // Convert npub to hex if needed
   useEffect(() => {
@@ -80,7 +78,7 @@ export function useEnhancedProfileLoading({
     }
     
     // Start with cached data if available for immediate UI
-    const cachedProfile = contentCache.getProfile(hexPubkey);
+    const cachedProfile = nostrService.getCachedProfile?.(hexPubkey);
     if (cachedProfile) {
       console.log('Using cached profile data:', cachedProfile.name || cachedProfile.display_name);
       setProfileData(cachedProfile);
@@ -125,9 +123,6 @@ export function useEnhancedProfileLoading({
           setProfileData(profileMetadata);
           setMetadataLoading(false);
           
-          // Cache the profile
-          contentCache.cacheProfile(hexPubkey, profileMetadata, true);
-          
           // Record successful relays
           const connectedRelays = adaptedNostrService.getRelayStatus()
             .filter(r => r.status === 'connected')
@@ -158,7 +153,7 @@ export function useEnhancedProfileLoading({
         setMetadataLoading(false);
       }
     }
-  }, [npub, currentUserPubkey]);
+  }, [npub, profileData]);
 
   // Connect to the optimal relays for this profile
   const connectToOptimalRelays = async (
@@ -224,7 +219,7 @@ export function useEnhancedProfileLoading({
       }
       
       // Create parallel fetch functions
-      const fetchFunctions = nostrService.createBatchedFetchers(
+      const fetchFunctions = adaptedNostrService.createBatchedFetchers(
         hexPubkey,
         { limit: 50, kinds: [1] }
       );
@@ -281,9 +276,51 @@ export function useEnhancedProfileLoading({
     setRelationsError(null);
     
     try {
+      // Since we don't have direct access to getFollowing/getFollowers,
+      // we'll implement simplified versions here
+      const fetchFollowing = async () => {
+        try {
+          const followingEvents = await nostrService.getEvents([{
+            kinds: [3], // contact list events
+            authors: [hexPubkey],
+            limit: 1
+          }]);
+          
+          if (followingEvents.length > 0) {
+            // Extract pubkeys from the 'p' tags in the most recent contact list event
+            const contactEvent = followingEvents[0];
+            return contactEvent.tags
+              .filter(tag => tag[0] === 'p' && tag[1])
+              .map(tag => tag[1]);
+          }
+          return [];
+        } catch (error) {
+          console.error('Error fetching following:', error);
+          return [];
+        }
+      };
+      
+      const fetchFollowers = async () => {
+        try {
+          // This is more complex as we need to find all contact lists containing this pubkey
+          // Simplified implementation for now
+          const followerEvents = await nostrService.getEvents([{
+            kinds: [3], // contact list events
+            '#p': [hexPubkey], // events with tags containing this pubkey
+            limit: 50
+          }]);
+          
+          // Extract the authors of these events as they are followers
+          return [...new Set(followerEvents.map(event => event.pubkey))];
+        } catch (error) {
+          console.error('Error fetching followers:', error);
+          return [];
+        }
+      };
+      
       const [fetchedFollowing, fetchedFollowers] = await Promise.allSettled([
         retry(
-          () => nostrService.getFollowing(hexPubkey),
+          fetchFollowing,
           { 
             maxAttempts: 2, 
             baseDelay: 1000,
@@ -291,7 +328,7 @@ export function useEnhancedProfileLoading({
           }
         ),
         retry(
-          () => nostrService.getFollowers(hexPubkey),
+          fetchFollowers,
           { 
             maxAttempts: 2, 
             baseDelay: 1000,
@@ -360,7 +397,7 @@ export function useEnhancedProfileLoading({
       }
       
       // Then fetch data
-      fetchProfileData();
+      await fetchProfileData();
       
       return true;
     } catch (error) {
@@ -369,18 +406,6 @@ export function useEnhancedProfileLoading({
       return false;
     }
   }, [fetchProfileData]);
-  
-  // Handle the "nostr:profileData" method that isn't defined
-  // In a real implementation, this would be replaced with actual code
-  function parallelRetry(
-    fetchFunctions: Array<() => Promise<any[]>>,
-    options: any,
-    minSuccess: number
-  ): Promise<any[][]> {
-    // This is a placeholder until we implement the actual function
-    // In reality, you'd import and use the real parallelRetry function
-    return Promise.all(fetchFunctions.map(fn => fn()));
-  }
   
   return {
     // Data

@@ -1,14 +1,18 @@
 
 import React from 'react';
 import { Card } from "@/components/ui/card";
-import { Lightbox } from "@/components/ui/lightbox"; // This would need to be implemented
+import { Lightbox } from "@/components/ui/lightbox";
 
 interface MediaGridProps {
   images: { url: string; eventId: string; }[];
 }
 
 export function MediaGrid({ images }: MediaGridProps) {
-  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  const [open, setOpen] = React.useState(false);
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  
+  // Extract just the URLs for the lightbox
+  const imageUrls = images.map(img => img.url);
   
   return (
     <>
@@ -17,7 +21,10 @@ export function MediaGrid({ images }: MediaGridProps) {
           <Card 
             key={`${image.eventId}-${index}`}
             className="relative aspect-square overflow-hidden cursor-pointer"
-            onClick={() => setSelectedImage(image.url)}
+            onClick={() => {
+              setSelectedIndex(index);
+              setOpen(true);
+            }}
           >
             <img
               src={image.url}
@@ -33,19 +40,12 @@ export function MediaGrid({ images }: MediaGridProps) {
         ))}
       </div>
       
-      {/* This is a simplified placeholder - a real implementation would need a proper lightbox component */}
-      {selectedImage && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <img
-            src={selectedImage}
-            alt="Full size media"
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      )}
+      <Lightbox 
+        images={imageUrls}
+        initialIndex={selectedIndex}
+        isOpen={open}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }
