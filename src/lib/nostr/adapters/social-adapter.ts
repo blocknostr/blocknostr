@@ -24,38 +24,44 @@ export class SocialAdapter extends BaseAdapter {
 
   // User moderation methods
   async muteUser(pubkey: string) {
-    return this.service.muteUser(pubkey);
+    return this.service.muteUser?.(pubkey) || false;
   }
   
   async unmuteUser(pubkey: string) {
-    return this.service.unmuteUser(pubkey);
+    return this.service.unmuteUser?.(pubkey) || false;
   }
   
   async isUserMuted(pubkey: string) {
-    return this.service.isUserMuted(pubkey);
+    return this.service.isUserMuted?.(pubkey) || false;
   }
   
   async blockUser(pubkey: string) {
-    return this.service.blockUser(pubkey);
+    return this.service.blockUser?.(pubkey) || false;
   }
   
   async unblockUser(pubkey: string) {
-    return this.service.unblockUser(pubkey);
+    return this.service.unblockUser?.(pubkey) || false;
   }
   
   async isUserBlocked(pubkey: string) {
-    return this.service.isUserBlocked(pubkey);
+    return this.service.isUserBlocked?.(pubkey) || false;
   }
   
   // Social manager enhanced methods
   get socialManager() {
     return {
       ...this.service.socialManager,
-      likeEvent: (event: any) => {
-        return this.service.reactToPost(event.id);
+      likeEvent: async (event: any) => {
+        if (this.service.reactToPost) {
+          return this.service.reactToPost(event.id);
+        }
+        return false;
       },
-      repostEvent: (event: any) => {
-        return this.service.repostNote(event.id, event.pubkey);
+      repostEvent: async (event: any) => {
+        if (this.service.repostNote) {
+          return this.service.repostNote(event.id, event.pubkey);
+        }
+        return false;
       },
       getReactionCounts: (eventId: string) => {
         return Promise.resolve({
@@ -63,8 +69,11 @@ export class SocialAdapter extends BaseAdapter {
           reposts: 0
         });
       },
-      reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.service.reactToPost(eventId, emoji);
+      reactToEvent: async (eventId: string, emoji: string = "+") => {
+        if (this.service.reactToPost) {
+          return this.service.reactToPost(eventId, emoji);
+        }
+        return false;
       }
     };
   }

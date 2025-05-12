@@ -119,22 +119,22 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     reposts, 
     replies: repostReplies, 
     fetchOriginalPost,
-    // Replace 'loading' property with renamed variable to avoid TypeScript error
-    // since this object doesn't have a 'loading' property
   } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
   });
   
-  // Get relays information with improved error handling
+  // Get relays information with improved error handling - fix the argument passed to useProfileRelays
   const { 
     relays, 
+    addRelay,
+    removeRelay,
     setRelays,
     refreshRelays,
     loadError: relaysError
   } = useProfileRelays({ 
-    isCurrentUser,
-    pubkey: hexNpub
+    pubkey: hexNpub,
+    isCurrentUser
   });
   
   // Update error state if relays loading fails

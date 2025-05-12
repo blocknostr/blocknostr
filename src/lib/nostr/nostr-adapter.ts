@@ -22,7 +22,6 @@ class AdaptedNostrService {
    * @returns Array of relay connection statuses
    */
   getRelayStatus() {
-    // Return the relay status information 
     return this.service.getRelayStatus?.() || [];
   }
 
@@ -249,18 +248,12 @@ class AdaptedNostrService {
     return this.service.publishRelayList?.(relays) || false;
   }
 
-  async reactToPost(eventId: string, emoji: string): Promise<boolean> {
-    if (this.service.socialManager?.reactToPost) {
-      return this.service.socialManager.reactToPost(eventId, emoji);
-    }
-    return false;
+  async reactToPost(eventId: string, emoji: string = "+"): Promise<boolean> {
+    return this.service.reactToPost?.(eventId, emoji) || false;
   }
 
   async repostNote(eventId: string, pubkey: string): Promise<boolean> {
-    if (this.service.socialManager?.repostNote) {
-      return this.service.socialManager.repostNote(eventId, pubkey);
-    }
-    return false;
+    return this.service.repostNote?.(eventId, pubkey) || false;
   }
 
   async addRelay(url: string, readWrite: boolean = true): Promise<boolean> {

@@ -1,4 +1,3 @@
-
 import { NostrEvent } from "./types";
 import { UserManager } from "./user";
 import { RelayManager } from "./relay/relay-manager";
@@ -9,13 +8,12 @@ import { RelayManager } from "./relay/relay-manager";
 export class NostrService {
   publicKey: string | null = null;
   private userManager: UserManager;
-  // Fixed duplicate relayManager declaration
-  private relayManager: RelayManager;
+  private _relayManager: RelayManager;
   private _following: string[] = [];
   
   constructor() {
     this.userManager = new UserManager();
-    this.relayManager = new RelayManager();
+    this._relayManager = new RelayManager();
     
     // Initialize from user manager
     this.publicKey = this.userManager.publicKey;
@@ -69,7 +67,7 @@ export class NostrService {
    */
   async connectToUserRelays(): Promise<boolean> {
     try {
-      const success = await this.relayManager.connectToUserRelays();
+      const success = await this._relayManager.connectToUserRelays();
       return success === true;
     } catch (error) {
       console.error("Error connecting to user relays:", error);
@@ -83,7 +81,7 @@ export class NostrService {
    */
   async connectToDefaultRelays(): Promise<boolean> {
     try {
-      const success = await this.relayManager.connectToDefaultRelays();
+      const success = await this._relayManager.connectToDefaultRelays();
       return success === true;
     } catch (error) {
       console.error("Error connecting to default relays:", error);
@@ -96,7 +94,7 @@ export class NostrService {
    * @returns Array of relay status objects
    */
   getRelayStatus() {
-    return this.relayManager.getRelayStatus();
+    return this._relayManager.getRelayStatus();
   }
   
   /**
@@ -104,7 +102,7 @@ export class NostrService {
    * @returns Array of relay URLs
    */
   getRelayUrls() {
-    return this.relayManager.getRelayUrls();
+    return this._relayManager.getRelayUrls();
   }
   
   /**
@@ -115,7 +113,7 @@ export class NostrService {
    */
   async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     try {
-      const success = await this.relayManager.addRelay(relayUrl, readWrite);
+      const success = await this._relayManager.addRelay(relayUrl, readWrite);
       return success === true;
     } catch (error) {
       console.error("Error adding relay:", error);
@@ -129,17 +127,22 @@ export class NostrService {
    * @returns Number of successfully added relays
    */
   async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    try {
-      let successCount = 0;
-      for (const url of relayUrls) {
+    if (!relayUrls || !relayUrls.length) return 0;
+    
+    let successCount = 0;
+    
+    for (const url of relayUrls) {
+      try {
         const success = await this.addRelay(url);
-        if (success) successCount++;
+        if (success) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
       }
-      return successCount;
-    } catch (error) {
-      console.error("Error adding multiple relays:", error);
-      return 0;
     }
+    
+    return successCount; // Return number instead of boolean
   }
   
   /**
@@ -148,12 +151,9 @@ export class NostrService {
    * @returns Boolean indicating success
    */
   removeRelay(relayUrl: string): boolean {
-    try {
-      return this.relayManager.removeRelay(relayUrl);
-    } catch (error) {
-      console.error("Error removing relay:", error);
-      return false;
-    }
+    // Fix to return boolean instead of void
+    this._relayManager.removeRelay(relayUrl);
+    return true;
   }
   
   /**
@@ -165,7 +165,7 @@ export class NostrService {
    */
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
     try {
-      return this.relayManager.subscribe(filters, onEvent, relays);
+      return this._relayManager.subscribe(filters, onEvent, relays);
     } catch (error) {
       console.error("Error subscribing to events:", error);
       return "";
@@ -179,7 +179,7 @@ export class NostrService {
    */
   unsubscribe(subId: string): boolean {
     try {
-      return this.relayManager.unsubscribe(subId);
+      return this._relayManager.unsubscribe(subId);
     } catch (error) {
       console.error("Error unsubscribing:", error);
       return false;
@@ -194,7 +194,7 @@ export class NostrService {
   async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
     try {
       // Implementation would be in the relay manager
-      return await this.relayManager.publishEvent(event, this.publicKey);
+      return await this._relayManager.publishEvent(event, this.publicKey);
     } catch (error) {
       console.error("Error publishing event:", error);
       return null;
@@ -314,8 +314,8 @@ export class NostrService {
   // Get relays for user
   async getRelaysForUser(pubkey: string) {
     try {
-      if (this.relayManager.getRelaysForUser) {
-        return await this.relayManager.getRelaysForUser(pubkey);
+      if (this._relayManager.getRelaysForUser) {
+        return await this._relayManager.getRelaysForUser(pubkey);
       }
       return [];
     } catch (error) {
@@ -373,39 +373,53 @@ export class NostrService {
   }
   
   // Event and profile fetching
-  async getEventById(id: string): Promise<NostrEvent | null> {
-    try {
-      // Would be implemented in the relay manager
-      return null;
-    } catch (error) {
-      console.error("Error getting event by ID:", error);
-      return null;
-    }
+  async getEventById(id: string): Promise<any> {
+    return this._relayManager.getEvent(id);
   }
   
-  async getEvents(filters: any[]): Promise<NostrEvent[]> {
-    try {
-      // Would be implemented in the relay manager
-      return [];
-    } catch (error) {
-      console.error("Error getting events:", error);
-      return [];
-    }
+  async getEvents(filters: any[]): Promise<any[]> {
+    return this._relayManager.getEvents(filters);
   }
   
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
-    try {
-      // Would be implemented in the user manager
-      return {};
-    } catch (error) {
-      console.error("Error getting profiles by pubkeys:", error);
-      return {};
+    // Implementation for fetching profiles by pubkeys
+    const profiles: Record<string, any> = {};
+    
+    for (const pubkey of pubkeys) {
+      try {
+        const profile = await this.getUserProfile(pubkey);
+        if (profile) {
+          profiles[pubkey] = profile;
+        }
+      } catch (error) {
+        console.error(`Error fetching profile for ${pubkey}:`, error);
+      }
     }
+    
+    return profiles;
   }
   
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
     try {
-      // Would be implemented in the user manager
+      // Implementation for getting account creation date
+      // Look for the earliest event from this pubkey
+      const filters = [
+        {
+          authors: [pubkey],
+          kinds: [0, 1, 2, 3, 4], // Look for common event kinds
+          limit: 1,
+          until: Math.floor(Date.now() / 1000),
+          sorts: [{ key: "created_at", desc: true }]
+        }
+      ];
+      
+      const events = await this.getEvents(filters);
+      if (events && events.length > 0) {
+        // Sort by created_at to find the earliest event
+        events.sort((a, b) => a.created_at - b.created_at);
+        return events[0].created_at;
+      }
+      
       return null;
     } catch (error) {
       console.error("Error getting account creation date:", error);
@@ -483,8 +497,23 @@ export class NostrService {
   
   // Verification methods
   async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
-    console.log(`Verifying NIP-05 identifier: ${identifier} for pubkey: ${pubkey}`);
-    return true;
+    // Implementation for verifying NIP-05 identifiers
+    try {
+      const parts = identifier.split('@');
+      if (parts.length !== 2) return false;
+      
+      const [name, domain] = parts;
+      const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) return false;
+      
+      const data = await response.json();
+      return data?.names?.[name] === pubkey;
+    } catch (error) {
+      console.error("Error verifying NIP-05 identifier:", error);
+      return false;
+    }
   }
   
   // For adapter pattern
@@ -497,8 +526,8 @@ export class NostrService {
   }
   
   // Make relayManager accessible through a getter
-  get relayManagerInstance() {
-    return this.relayManager;
+  get relayManager() {
+    return this._relayManager;
   }
   
   get communityManager() {

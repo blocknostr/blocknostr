@@ -10,12 +10,12 @@ import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 
-// Define EnhancedRelay interface without extending Relay
+// Define EnhancedRelay interface without extending Relay to avoid conflicts
 export interface EnhancedRelay {
   url: string;
+  status: "connecting" | "connected" | "disconnected" | "error" | "unknown" | "failed";
   read?: boolean;
   write?: boolean;
-  status: "connecting" | "connected" | "disconnected" | "error" | "unknown" | "failed";
   score?: number;
   avgResponse?: number; 
   circuitStatus?: CircuitState;
@@ -61,9 +61,10 @@ const ProfileRelaysDialog = ({
     
     // Enhance with performance data if available
     const enhancedRelays: EnhancedRelay[] = relayStatus.map(relay => {
-      // Add defaults for extended properties
+      // Add defaults for extended properties and ensure status is provided
       return {
         ...relay,
+        status: relay.status || 'unknown', // Ensure status is required
         score: relay.score !== undefined ? relay.score : 50,
         avgResponse: relay.avgResponse !== undefined ? relay.avgResponse : undefined,
         circuitStatus: 'closed' as CircuitState // Default to closed
@@ -195,6 +196,7 @@ const ProfileRelaysDialog = ({
   // Convert relays to EnhancedRelay type for the RelayList component
   const enhancedRelays: EnhancedRelay[] = sortedRelays.map(relay => ({
     ...relay,
+    status: relay.status || 'unknown', // Ensure status is required
     score: (relay as any).score || 50,
     avgResponse: (relay as any).avgResponse,
     circuitStatus: (relay as any).circuitStatus || 'closed' as CircuitState,

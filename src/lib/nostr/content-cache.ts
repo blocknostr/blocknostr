@@ -1,16 +1,5 @@
 
-import { NostrEvent } from './types';
-
-/**
- * Interface for cache options
- */
-interface CacheOptions {
-  authorPubkeys?: string[];
-  hashtag?: string;
-  since?: number;
-  until?: number;
-  mediaOnly?: boolean;
-}
+import { NostrEvent, CacheOptions, ContentCache as IContentCache } from './types';
 
 /**
  * Interface for cached entries
@@ -62,7 +51,7 @@ class FeedCache {
   /**
    * Get a feed from cache by type and options
    */
-  getFeed(feedType: string, options: CacheOptions): NostrEvent[] {
+  getFeed(feedType: string, options: CacheOptions): NostrEvent[] | null {
     const key = this.generateCacheKey(feedType, options);
     const entry = this.cache.get(key);
     
@@ -70,7 +59,7 @@ class FeedCache {
       return entry.data;
     }
     
-    return [];
+    return null;
   }
 
   /**
@@ -141,6 +130,30 @@ class EventCache {
   }
   
   /**
+   * Cache multiple events at once
+   */
+  cacheEvents(events: NostrEvent[], important: boolean = false): void {
+    events.forEach(event => this.cacheEvent(event));
+  }
+  
+  /**
+   * Get all events by specific authors
+   */
+  getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
+    const pubkeySet = new Set(authorPubkeys);
+    const now = Date.now();
+    const results: NostrEvent[] = [];
+    
+    for (const [_, entry] of this.cache.entries()) {
+      if (now < entry.expiry && entry.data.pubkey && pubkeySet.has(entry.data.pubkey)) {
+        results.push(entry.data);
+      }
+    }
+    
+    return results;
+  }
+  
+  /**
    * Check if an event exists in cache
    */
   hasEvent(id: string): boolean {
@@ -161,52 +174,197 @@ class EventCache {
   clearAll(): void {
     this.cache.clear();
   }
+
+  /**
+   * Clean up expired entries
+   */
+  cleanupExpiredEntries(): void {
+    const now = Date.now();
+    for (const [id, entry] of this.cache.entries()) {
+      if (now >= entry.expiry) {
+        this.cache.delete(id);
+      }
+    }
+  }
+}
+
+/**
+ * Profile cache for user data
+ */
+class ProfileCache {
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  private defaultExpiry = 60 * 60 * 1000; // 60 minutes
+  
+  /**
+   * Cache a profile
+   */
+  cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
+    this.cache.set(pubkey, {
+      data: profileData,
+      timestamp: Date.now(),
+      expiry: Date.now() + this.defaultExpiry
+    });
+  }
+  
+  /**
+   * Get a profile by pubkey
+   */
+  getProfile(pubkey: string): any | null {
+    const entry = this.cache.get(pubkey);
+    
+    if (entry && Date.now() < entry.expiry) {
+      return entry.data;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Clean up expired entries
+   */
+  cleanupExpiredEntries(): void {
+    const now = Date.now();
+    for (const [pubkey, entry] of this.cache.entries()) {
+      if (now >= entry.expiry) {
+        this.cache.delete(pubkey);
+      }
+    }
+  }
+  
+  /**
+   * Clear all profiles
+   */
+  clearAll(): void {
+    this.cache.clear();
+  }
+}
+
+/**
+ * Thread cache for conversation threads
+ */
+class ThreadCache {
+  private cache: Map<string, CacheEntry<NostrEvent[]>> = new Map();
+  private defaultExpiry = 30 * 60 * 1000; // 30 minutes
+  
+  /**
+   * Cache a thread
+   */
+  cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
+    this.cache.set(rootId, {
+      data: events,
+      timestamp: Date.now(),
+      expiry: Date.now() + this.defaultExpiry
+    });
+  }
+  
+  /**
+   * Get a thread by root ID
+   */
+  getThread(rootId: string): NostrEvent[] | null {
+    const entry = this.cache.get(rootId);
+    
+    if (entry && Date.now() < entry.expiry) {
+      return entry.data;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Clean up expired entries
+   */
+  cleanupExpiredEntries(): void {
+    const now = Date.now();
+    for (const [rootId, entry] of this.cache.entries()) {
+      if (now >= entry.expiry) {
+        this.cache.delete(rootId);
+      }
+    }
+  }
+  
+  /**
+   * Clear all threads
+   */
+  clearAll(): void {
+    this.cache.clear();
+  }
 }
 
 /**
  * Content cache service for storing Nostr content
  */
-class ContentCache {
+export class ContentCache implements IContentCache {
   readonly feedCache: FeedCache;
-  readonly eventCache: EventCache;
+  private eventCache: EventCache;
+  private profileCache: ProfileCache;
+  private threadCache: ThreadCache;
   private offlineMode: boolean = false;
   
   constructor() {
     this.feedCache = new FeedCache();
     this.eventCache = new EventCache();
+    this.profileCache = new ProfileCache();
+    this.threadCache = new ThreadCache();
   }
   
-  /**
-   * Get a feed from cache
-   */
-  getFeed(feedType: string, options: CacheOptions): NostrEvent[] {
-    return this.feedCache.getFeed(feedType, options);
-  }
-  
-  /**
-   * Cache a feed
-   */
-  cacheFeed(feedType: string, options: CacheOptions, events: NostrEvent[], expiryMs?: number): void {
-    this.feedCache.cacheFeed(feedType, options, events, expiryMs);
-  }
-  
-  /**
-   * Get an event by ID
-   */
-  getEvent(id: string): NostrEvent | null {
-    return this.eventCache.getEvent(id);
-  }
-  
-  /**
-   * Cache an event
-   */
-  cacheEvent(event: NostrEvent): void {
+  // Event cache methods
+  cacheEvent(event: NostrEvent, important: boolean = false): void {
     this.eventCache.cacheEvent(event);
   }
   
-  /**
-   * Check if offline mode is enabled
-   */
+  getEvent(eventId: string): NostrEvent | null {
+    return this.eventCache.getEvent(eventId);
+  }
+  
+  cacheEvents(events: NostrEvent[], important: boolean = false): void {
+    this.eventCache.cacheEvents(events, important);
+  }
+  
+  getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
+    return this.eventCache.getEventsByAuthors(authorPubkeys);
+  }
+  
+  // Profile cache methods
+  cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
+    this.profileCache.cacheProfile(pubkey, profileData, important);
+  }
+  
+  getProfile(pubkey: string): any | null {
+    return this.profileCache.getProfile(pubkey);
+  }
+  
+  // Thread cache methods
+  cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
+    this.threadCache.cacheThread(rootId, events, important);
+  }
+  
+  getThread(rootId: string): NostrEvent[] | null {
+    return this.threadCache.getThread(rootId);
+  }
+  
+  // Feed cache methods
+  cacheFeed(feedType: string, events: NostrEvent[], options: CacheOptions, important: boolean = false): void {
+    this.feedCache.cacheFeed(feedType, options, events);
+  }
+  
+  getFeed(feedType: string, options: CacheOptions): NostrEvent[] | null {
+    return this.feedCache.getFeed(feedType, options);
+  }
+  
+  // Utility methods
+  cleanupExpiredEntries(): void {
+    this.eventCache.cleanupExpiredEntries();
+    this.profileCache.cleanupExpiredEntries();
+    this.threadCache.cleanupExpiredEntries();
+  }
+  
+  clearAll(): void {
+    this.eventCache.clearAll();
+    this.profileCache.clearAll();
+    this.threadCache.clearAll();
+    this.feedCache.clearAll();
+  }
+  
   isOffline(): boolean {
     return this.offlineMode;
   }
@@ -216,14 +374,6 @@ class ContentCache {
    */
   setOfflineMode(offline: boolean): void {
     this.offlineMode = offline;
-  }
-  
-  /**
-   * Clear all cached content
-   */
-  clearAll(): void {
-    this.feedCache.clearAll();
-    this.eventCache.clearAll();
   }
 }
 

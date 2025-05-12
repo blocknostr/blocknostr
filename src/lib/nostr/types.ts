@@ -1,5 +1,3 @@
-
-// Basic Nostr event as per NIP-01
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -10,89 +8,99 @@ export interface NostrEvent {
   sig: string;
 }
 
-// User profile metadata as per NIP-01
-export interface NostrProfileMetadata {
-  name?: string;
-  display_name?: string;
-  about?: string;
-  picture?: string;
-  banner?: string;
-  nip05?: string;
-  lud16?: string;
-  website?: string;
-  [key: string]: any;
-}
-
-// Complete user profile type
-export interface NostrProfile extends NostrProfileMetadata {
-  pubkey: string;
-  created_at?: number;
-  nip05Verified?: boolean;
-}
-
-// Circuit breaker state for relay connections
-export type CircuitState = 'closed' | 'open' | 'half-open';
-
-// Relay connection information with additional performance metrics
 export interface Relay {
   url: string;
-  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown' | 'failed';
-  read?: boolean; 
+  status: "connected" | "connecting" | "disconnected" | "error" | "failed" | "unknown";
+  read?: boolean;
   write?: boolean;
-  score?: number;
-  avgResponse?: number;
-  circuitStatus?: CircuitState;
-  isRequired?: boolean;
 }
 
-// Subscription filters as per NIP-01 and extensions
-export interface NostrFilter {
+export interface Filter {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
+  "#e"?: string[];
+  "#p"?: string[];
   since?: number;
   until?: number;
   limit?: number;
-  [key: `#${string}`]: string[]; // Tag filters like #e, #p, etc.
 }
 
-// Define types for the proposal category
-export type ProposalCategory = 
-  | 'general' 
-  | 'governance' 
-  | 'treasury' 
-  | 'technical' 
-  | 'marketing' 
-  | 'community' 
-  | 'other';
+export type EventDeDuplication = {
+  eventId: string;
+  createdAt: number;
+};
 
-// Note Card Props for the NoteCard component
-export interface NoteCardProps {
-  event: NostrEvent;
-  showActionButtons?: boolean;
-  profileData?: NostrProfileMetadata | null;
-  isReply?: boolean;
-  isDetailed?: boolean;
-  inThread?: boolean;
-}
+export type ProposalCategory =
+  | "text"
+  | "image"
+  | "video"
+  | "audio"
+  | "link"
+  | "file";
 
-// Bookmark types
 export interface BookmarkCollection {
   id: string;
   name: string;
   color?: string;
   description?: string;
-  count: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
-export interface BookmarkWithMetadata {
+export interface BookmarkMetadata {
   eventId: string;
-  title?: string;
-  url?: string;
-  note?: string;
-  tags?: string[];
   collectionId?: string;
-  addedAt: number;
+  tags?: string[];
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
-// Add any additional types needed by the application
+export interface BookmarkWithMetadata extends NostrEvent {
+  metadata: BookmarkMetadata;
+}
+
+// Add proper CacheOptions interface
+export interface CacheOptions {
+  authorPubkeys?: string[];
+  hashtag?: string;
+  since?: number;
+  until?: number;
+  mediaOnly?: boolean;
+}
+
+// Update ContentCache interface to include all required methods
+export interface ContentCache {
+  // Event methods
+  cacheEvent: (event: NostrEvent, important?: boolean) => void;
+  getEvent: (eventId: string) => NostrEvent | null;
+  cacheEvents: (events: NostrEvent[], important?: boolean) => void;
+  getEventsByAuthors: (authorPubkeys: string[]) => NostrEvent[];
+  
+  // Profile methods
+  cacheProfile: (pubkey: string, profileData: any, important?: boolean) => void;
+  getProfile: (pubkey: string) => any | null;
+  
+  // Thread methods
+  cacheThread: (rootId: string, events: NostrEvent[], important?: boolean) => void;
+  getThread: (rootId: string) => NostrEvent[] | null;
+  
+  // Feed methods
+  cacheFeed: (feedType: string, events: NostrEvent[], options: CacheOptions, important?: boolean) => void;
+  getFeed: (feedType: string, options: CacheOptions) => NostrEvent[] | null;
+  
+  // Feed cache access
+  feedCache: {
+    getFeed: (feedType: string, options: CacheOptions) => NostrEvent[] | null;
+    cacheFeed: (feedType: string, options: CacheOptions, events: NostrEvent[], expiryMs?: number) => void;
+    clearFeed: (feedType: string, options: CacheOptions) => void;
+    generateCacheKey: (feedType: string, options: CacheOptions) => string;
+    getRawEntry: (key: string) => any;
+  };
+  
+  // Utility methods
+  cleanupExpiredEntries: () => void;
+  clearAll: () => void;
+  isOffline: () => boolean;
+}

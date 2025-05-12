@@ -2,65 +2,88 @@ import { useState, useEffect, useCallback } from 'react';
 import { nostrService, adaptedNostrService, Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
 
-export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean = false) {
+export interface UseProfileRelaysReturn {
+  relays: Relay[];
+  loading: boolean;
+  error: string | null;
+  addRelay: (url: string) => Promise<boolean>;
+  removeRelay: (url: string) => void;
+  setRelays?: (relays: Relay[]) => void;
+  refreshRelays?: () => void;
+  loadError?: string | null;
+}
+
+export function useProfileRelays({ 
+  pubkey, 
+  isCurrentUser = false 
+}: {
+  pubkey: string | null;
+  isCurrentUser?: boolean;
+}): UseProfileRelaysReturn {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Load user's relays
-  useEffect(() => {
-    const fetchRelays = async () => {
-      if (!pubkey) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Get relays from service
-        const currentRelays = nostrService.getRelayStatus();
-        setRelays(currentRelays);
-        
-        // If this is the current user, we already have their relays
-        // Otherwise, try to fetch relays for this user from their metadata
-        if (!isCurrentUser && pubkey) {
-          try {
-            // If the service supports getRelaysForUser, use it
-            const userRelays = await adaptedNostrService.getRelaysForUser(pubkey);
-            
-            // If we got some relays, update our list with connection status "unknown"
-            if (userRelays && userRelays.length > 0) {
-              const newRelays = userRelays.map(url => ({
-                url,
-                status: 'unknown',
-                read: true,
-                write: true,
-                score: 50
-              }));
-              
-              // Combine with current relays, avoiding duplicates
-              const existingUrls = new Set(currentRelays.map(r => r.url));
-              const uniqueNewRelays = newRelays.filter(r => !existingUrls.has(r.url));
-              
-              setRelays([...currentRelays, ...uniqueNewRelays]);
-            }
-          } catch (err) {
-            console.warn("Couldn't fetch relays for user:", err);
-            // Don't set an error, just keep using the current relays
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching relay information:", err);
-        setError("Failed to load relay information");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Refresh relay list
+  const refreshRelays = useCallback(async () => {
+    if (!pubkey) {
+      return;
+    }
     
-    fetchRelays();
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Get relays from service
+      const currentRelays = nostrService.getRelayStatus();
+      
+      // Create properly typed relays with required status
+      const typedRelays: Relay[] = currentRelays.map(relay => ({
+        ...relay,
+        status: relay.status || 'unknown'
+      }));
+      
+      setRelays(typedRelays);
+      
+      // If this is the current user, we already have their relays
+      // Otherwise, try to fetch relays for this user from their metadata
+      if (!isCurrentUser && pubkey) {
+        try {
+          // If the service supports getRelaysForUser, use it
+          const userRelays = await adaptedNostrService.getRelaysForUser(pubkey);
+          
+          // If we got some relays, update our list with connection status "unknown"
+          if (userRelays && userRelays.length > 0) {
+            const newRelays: Relay[] = userRelays.map(url => ({
+              url,
+              status: 'unknown', // Fixed status to match type
+              read: true,
+              write: true
+            }));
+            
+            // Combine with current relays, avoiding duplicates
+            const existingUrls = new Set(typedRelays.map(r => r.url));
+            const uniqueNewRelays = newRelays.filter(r => !existingUrls.has(r.url));
+            
+            setRelays([...typedRelays, ...uniqueNewRelays]);
+          }
+        } catch (err) {
+          console.warn("Couldn't fetch relays for user:", err);
+          // Don't set an error, just keep using the current relays
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching relay information:", err);
+      setError("Failed to load relay information");
+    } finally {
+      setLoading(false);
+    }
   }, [pubkey, isCurrentUser]);
+  
+  // Load user's relays on mount
+  useEffect(() => {
+    refreshRelays();
+  }, [refreshRelays]);
   
   // Add a relay for the current user
   const addRelay = useCallback(async (url: string) => {
@@ -80,12 +103,15 @@ export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean =
       }
       
       // Add the relay
-      const success = await adaptedNostrService.addRelay(formattedUrl);
+      const success = await nostrService.addRelay(formattedUrl);
       
       if (success) {
         // Get updated relay list
         const updatedRelays = nostrService.getRelayStatus();
-        setRelays(updatedRelays);
+        setRelays(updatedRelays.map(relay => ({
+          ...relay,
+          status: relay.status || 'unknown'
+        })));
         
         toast.success(`Added relay: ${formattedUrl}`);
         
@@ -98,8 +124,8 @@ export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean =
           }));
           
           // This method might not exist in all implementations
-          if (adaptedNostrService.publishRelayList) {
-            adaptedNostrService.publishRelayList(relayList)
+          if (nostrService.publishRelayList) {
+            nostrService.publishRelayList(relayList)
               .catch(e => console.warn("Error publishing relay list:", e));
           }
         } catch (e) {
@@ -128,7 +154,7 @@ export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean =
     
     try {
       // Remove the relay
-      adaptedNostrService.removeRelay(url);
+      nostrService.removeRelay(url);
       
       // Update the state
       setRelays(prev => prev.filter(relay => relay.url !== url));
@@ -147,8 +173,8 @@ export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean =
         }));
         
         // This method might not exist in all implementations
-        if (adaptedNostrService.publishRelayList) {
-          adaptedNostrService.publishRelayList(relayList)
+        if (nostrService.publishRelayList) {
+          nostrService.publishRelayList(relayList)
             .catch(e => console.warn("Error publishing relay list:", e));
         }
       } catch (e) {
@@ -166,6 +192,9 @@ export function useProfileRelays(pubkey: string | null, isCurrentUser: boolean =
     loading,
     error,
     addRelay,
-    removeRelay
+    removeRelay,
+    setRelays,
+    refreshRelays,
+    loadError: error
   };
 }

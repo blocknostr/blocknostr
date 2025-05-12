@@ -1,200 +1,164 @@
 
-import React from "react";
-import { CircuitBreaker, CircuitState } from "@/lib/nostr";
-import { EnhancedRelay } from "../ProfileRelaysDialog";
+import React from 'react';
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, ExternalLink, AlertTriangle, Check, Clock, X, Wifi, WifiOff } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { EnhancedRelay } from "@/components/profile/ProfileRelaysDialog";
+import { WifiOff, Wifi, Clock, AlertTriangle } from "lucide-react";
+import { CircuitBreaker, CircuitStateValues } from "@/lib/nostr/relay/circuit/circuit-breaker";
 
 interface RelayListProps {
   relays: EnhancedRelay[];
-  onRemoveRelay: (url: string) => void;
+  onRemoveRelay?: (relayUrl: string) => void;
   isCurrentUser: boolean;
 }
 
-export const RelayList: React.FC<RelayListProps> = ({
-  relays,
-  onRemoveRelay,
-  isCurrentUser
-}) => {
-  // Function to get status badge variant
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "connected":
-        return "success";
-      case "connecting":
-        return "warning";
-      case "disconnected":
-      case "error":
-      case "failed":
-        return "destructive";
-      default:
-        return "secondary";
-    }
-  };
+// Helper function to get color based on status
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'connected':
+      return 'bg-green-500';
+    case 'connecting':
+      return 'bg-yellow-500';
+    case 'error':
+    case 'failed':
+      return 'bg-red-500';
+    case 'disconnected':
+      return 'bg-gray-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
 
-  // Function to get status badge text
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "connected":
-        return "Connected";
-      case "connecting":
-        return "Connecting";
-      case "disconnected":
-        return "Disconnected";
-      case "error":
-        return "Error";
-      case "failed":
-        return "Failed";
-      default:
-        return "Unknown";
-    }
-  };
+// Helper to get score badge variant
+const getScoreBadgeVariant = (score?: number): "default" | "secondary" | "outline" | "destructive" => {
+  if (!score) return "secondary";
+  if (score > 75) return "default";
+  if (score > 50) return "secondary";
+  if (score > 25) return "outline";
+  return "destructive";
+};
 
-  // Function to get status icon
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "connected":
-        return <Check className="h-3.5 w-3.5" />;
-      case "connecting":
-        return <Clock className="h-3.5 w-3.5" />;
-      case "disconnected":
-      case "error":
-      case "failed":
-        return <X className="h-3.5 w-3.5" />;
-      default:
-        return <WifiOff className="h-3.5 w-3.5" />;
-    }
-  };
+// Helper for circuit state badge variant
+const getCircuitBadgeVariant = (state?: string): "default" | "secondary" | "outline" | "destructive" => {
+  if (!state) return "secondary";
+  switch (state) {
+    case CircuitStateValues.CLOSED:
+      return "default";
+    case CircuitStateValues.HALF_OPEN:
+      return "outline";
+    case CircuitStateValues.OPEN:
+      return "destructive";
+    default:
+      return "secondary";
+  }
+};
 
-  // Function to get circuit status description
-  const getCircuitStatusDescription = (status?: CircuitState) => {
-    switch (status) {
-      case "closed":
-        return "Normal operation";
-      case "half-open":
-        return "Trying to recover";
-      case "open":
-        return "Circuit open (too many failures)";
-      default:
-        return "Unknown circuit state";
-    }
-  };
-
-  // Function to get circuit status icon
-  const getCircuitStatusIcon = (status?: CircuitState) => {
-    switch (status) {
-      case "closed":
-        return <Wifi className="h-3.5 w-3.5 text-green-500" />;
-      case "half-open":
-        return <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />;
-      case "open":
-        return <WifiOff className="h-3.5 w-3.5 text-red-500" />;
-      default:
-        return <Wifi className="h-3.5 w-3.5 text-gray-500" />;
-    }
-  };
-
+export const RelayList: React.FC<RelayListProps> = ({ relays, onRemoveRelay, isCurrentUser }) => {
+  if (!relays || relays.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <WifiOff className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-center text-muted-foreground">No relays connected</p>
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          Add relays to connect to the Nostr network
+        </p>
+      </div>
+    );
+  }
+  
+  // Group relays by status for better organization
+  const connectedRelays = relays.filter(r => r.status === 'connected');
+  const connectingRelays = relays.filter(r => r.status === 'connecting');
+  const errorRelays = relays.filter(r => ['error', 'failed', 'disconnected'].includes(r.status));
+  const unknownRelays = relays.filter(r => !['connected', 'connecting', 'error', 'failed', 'disconnected'].includes(r.status));
+  
+  // Combine in order of importance
+  const orderedRelays = [
+    ...connectedRelays,
+    ...connectingRelays,
+    ...unknownRelays,
+    ...errorRelays
+  ];
+  
   return (
-    <div className="space-y-3">
-      {relays.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          No relays configured. Add some relays to connect to the Nostr network.
-        </div>
-      ) : (
-        relays.map((relay, index) => (
-          <div 
-            key={relay.url} 
-            className={`
-              p-3 rounded-lg border 
-              ${relay.status === "connected" ? "bg-green-50/30 dark:bg-green-950/20 border-green-200 dark:border-green-900" : 
-               relay.status === "connecting" ? "bg-amber-50/30 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900" :
-               relay.status === "disconnected" || relay.status === "error" || relay.status === "failed" ? 
-               "bg-red-50/30 dark:bg-red-950/20 border-red-200 dark:border-red-900" : 
-               "bg-gray-50/30 dark:bg-gray-900/20"}
-            `}
+    <ScrollArea className="h-[50vh]">
+      <div className="space-y-2 pr-4">
+        {orderedRelays.map((relay) => (
+          <div
+            key={relay.url}
+            className="flex items-center justify-between bg-muted/50 p-2 rounded-md hover:bg-muted/80 transition-colors"
           >
-            <div className="flex justify-between items-center">
-              <div className="flex-grow">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium break-all">{relay.url}</h3>
-                  
-                  <Badge variant={getStatusVariant(relay.status) as any} className="ml-2 h-5 px-1.5">
-                    <span className="flex items-center gap-1">
-                      {getStatusIcon(relay.status)}
-                      <span className="text-[10px]">{getStatusText(relay.status)}</span>
-                    </span>
-                  </Badge>
-                  
-                  {relay.isRequired && (
-                    <Badge variant="outline" className="h-5 px-1.5">
-                      <span className="text-[10px]">Required</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex flex-col">
+                <div className="flex items-center">
+                  <span
+                    className={`h-2 w-2 rounded-full ${getStatusColor(relay.status)} mr-2`}
+                  />
+                  <span className="font-mono text-xs md:text-sm truncate max-w-[200px] md:max-w-[300px]">
+                    {relay.url}
+                  </span>
+                </div>
+                
+                <div className="flex items-center mt-1 space-x-2">
+                  {relay.circuitStatus && (
+                    <Badge 
+                      variant={getCircuitBadgeVariant(relay.circuitStatus)}
+                      className="text-[10px] px-1 py-0 h-4"
+                    >
+                      {relay.circuitStatus}
                     </Badge>
                   )}
                   
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div>
-                          {getCircuitStatusIcon(relay.circuitStatus)}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        <p className="text-xs">
-                          Circuit status: {getCircuitStatusDescription(relay.circuitStatus)}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                
-                <div className="flex items-center gap-4 mt-1">
-                  <div className="text-xs text-muted-foreground">
-                    {relay.read !== false && "Read"}
-                    {relay.read !== false && relay.write !== false && " / "}
-                    {relay.write !== false && "Write"}
-                  </div>
-                  
                   {relay.score !== undefined && (
-                    <div className="text-xs text-muted-foreground">
-                      Score: {relay.score}/100
-                    </div>
+                    <Badge 
+                      variant={getScoreBadgeVariant(relay.score)}
+                      className="text-[10px] px-1 py-0 h-4"
+                    >
+                      {relay.score}/100
+                    </Badge>
                   )}
                   
                   {relay.avgResponse !== undefined && (
-                    <div className="text-xs text-muted-foreground">
-                      Avg response: {Math.round(relay.avgResponse)}ms
-                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="text-[10px] px-1 py-0 h-4 flex items-center"
+                    >
+                      <Clock className="h-2.5 w-2.5 mr-1" />
+                      {Math.round(relay.avgResponse)}ms
+                    </Badge>
+                  )}
+                  
+                  {relay.isRequired && (
+                    <Badge className="text-[10px] px-1 py-0 h-4">
+                      Required
+                    </Badge>
                   )}
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <a
-                  href={relay.url.startsWith("wss://") ? `https://${relay.url.substring(6)}` : relay.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1 hover:bg-muted rounded"
-                >
-                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                </a>
-                
-                {isCurrentUser && !relay.isRequired && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onRemoveRelay(relay.url)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive hover:text-destructive/80" />
-                  </Button>
-                )}
+            </div>
+            
+            <div className="flex space-x-2">
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                {relay.read && <span>R</span>}
+                {relay.write && <span>W</span>}
               </div>
+              
+              {isCurrentUser && onRemoveRelay && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-100/10 h-7 px-2"
+                  onClick={() => onRemoveRelay(relay.url)}
+                  disabled={relay.isRequired}
+                >
+                  Remove
+                </Button>
+              )}
             </div>
           </div>
-        ))
-      )}
-    </div>
+        ))}
+      </div>
+    </ScrollArea>
   );
 };

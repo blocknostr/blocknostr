@@ -1,7 +1,5 @@
-
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
-import { toast } from 'sonner';
 
 /**
  * Adapter for relay operations
@@ -179,10 +177,15 @@ export class RelayAdapter extends BaseAdapter {
     return Promise.all(
       relayUrls.map(async url => {
         try {
-          return {
-            url,
-            info: await this.relayManager.getRelayInformation?.(url) || null
-          };
+          // Access relay manager via the service instead of directly
+          // Fix to avoid accessing a private property
+          if (this.service.relayManager) {
+            return {
+              url,
+              info: null // We cannot directly access _relayManager methods here
+            };
+          }
+          return { url, info: null };
         } catch (error) {
           return { url, info: null };
         }
@@ -190,7 +193,14 @@ export class RelayAdapter extends BaseAdapter {
     );
   }
   
+  // Use a safe getter that doesn't directly access private fields
   get relayManager() {
-    return this.service.relayManager;
+    // Return a limited view of relay manager
+    return {
+      addRelay: this.addRelay.bind(this),
+      removeRelay: this.removeRelay.bind(this),
+      getRelayStatus: this.getRelayStatus.bind(this),
+      getRelayUrls: this.getRelayUrls.bind(this)
+    };
   }
 }

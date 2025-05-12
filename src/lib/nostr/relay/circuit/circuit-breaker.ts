@@ -69,3 +69,10 @@ export class CircuitBreaker {
     return true;
   }
 }
+
+// Add CircuitState enum value for use in other files
+export const CircuitStateValues = {
+  CLOSED: 'closed' as CircuitState,
+  HALF_OPEN: 'half-open' as CircuitState,
+  OPEN: 'open' as CircuitState
+};
