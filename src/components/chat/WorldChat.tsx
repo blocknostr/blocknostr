@@ -5,10 +5,11 @@ import WorldChatHeader from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import LoginDialog from "../auth/LoginDialog";
+import { cn } from "@/lib/utils";
 
 // Lazy load the MessageList component to improve initial load performance
 const MessageList = lazy(() => import("./MessageList"));
@@ -40,21 +41,25 @@ const WorldChat = () => {
   // Show login prompt if not logged in
   if (!isLoggedIn) {
     return (
-      <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative">
+      <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm">
         <WorldChatHeader connectionStatus="disconnected" />
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-background to-muted/10">
           <div className="p-3 bg-primary/10 rounded-full mb-3 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
-            <Wallet className="h-10 w-10 text-primary relative z-10" />
+            <Shield className="h-10 w-10 text-primary relative z-10" />
           </div>
-          <h3 className="text-lg font-medium mb-2">Join the conversation</h3>
+          <h3 className="text-lg font-light tracking-tight mb-2">Join the conversation</h3>
           <p className="text-muted-foreground mb-4 max-w-xs">
             Connect your Nostr wallet to view messages and participate in the global chat.
           </p>
           <Button 
             onClick={handleLoginClick}
-            className="gap-2 bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70"
+            className={cn(
+              "gap-2 bg-gradient-to-r from-primary/90 to-primary/80",
+              "hover:from-primary/80 hover:to-primary/70 group relative overflow-hidden"
+            )}
           >
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
             <Wallet className="h-4 w-4" />
             Connect Wallet
           </Button>
@@ -73,7 +78,7 @@ const WorldChat = () => {
   }
 
   return (
-    <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative"> 
+    <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (

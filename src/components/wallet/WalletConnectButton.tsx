@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { Wallet, ExternalLink, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Wallet, ExternalLink, AlertCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -36,16 +36,20 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   return (
     <div className={cn("flex flex-col items-center", className)}>
       <div className="relative group">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/80 to-primary/60 rounded-full opacity-75 group-hover:opacity-100 blur group-hover:blur-md transition-all duration-300"></div>
-        <div className="relative p-6 rounded-full bg-gradient-to-br from-primary/90 via-primary/80 to-primary/70 shadow-lg group-hover:shadow-primary/30 transition-all duration-300">
-          <Wallet className="h-12 w-12 text-white" />
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/60 to-primary/40 rounded-full opacity-75 group-hover:opacity-100 blur group-hover:blur-md transition-all duration-300"></div>
+        <div className="relative p-6 rounded-full bg-gradient-to-br from-primary/80 via-primary/70 to-primary/60 shadow-lg group-hover:shadow-primary/30 transition-all duration-300">
+          <Shield className="h-12 w-12 text-white" />
         </div>
       </div>
       
       <Button
         onClick={handleConnect}
         size="lg"
-        className="bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 text-white font-medium py-6 px-8 mt-6 rounded-xl shadow-lg hover:shadow-primary/20 transition-all duration-300 w-full max-w-xs relative overflow-hidden"
+        className={cn(
+          "bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 text-white", 
+          "font-normal tracking-wide py-6 px-8 mt-6 rounded-xl shadow-lg hover:shadow-primary/20 transition-all",
+          "duration-300 w-full max-w-xs relative overflow-hidden"
+        )}
       >
         <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 hover:opacity-100 transition-opacity duration-300"></span>
         {hasNostrExtension ? (

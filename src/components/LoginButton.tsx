@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { LogOut, User, AlertCircle, Wallet } from "lucide-react";
+import { LogOut, User, AlertCircle, Wallet, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Tooltip, 
@@ -11,6 +11,7 @@ import {
   TooltipTrigger 
 } from "@/components/ui/tooltip";
 import LoginDialog from "./auth/LoginDialog";
+import { cn } from "@/lib/utils";
 
 const LoginButton = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -78,7 +79,7 @@ const LoginButton = () => {
                 onClick={() => { window.location.href = "/profile"; }}
               >
                 <User className="h-4 w-4 text-primary" />
-                <span>{shortNpub}</span>
+                <span className="font-normal">{shortNpub}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -121,13 +122,18 @@ const LoginButton = () => {
           <TooltipTrigger asChild>
             <Button 
               onClick={handleLogin} 
-              className="flex items-center gap-2 bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 transition-all"
+              className={cn(
+                "flex items-center gap-2",
+                hasExtension ? 
+                  "bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 transition-all" : 
+                  "bg-transparent border border-primary/20 hover:border-primary/30 hover:bg-primary/5"
+              )}
               variant={hasExtension ? "default" : "outline"}
             >
               {hasExtension ? (
                 <>
-                  <Wallet className="h-4 w-4" />
-                  <span>Connect Wallet</span>
+                  <Shield className="h-4 w-4" />
+                  <span>Connect</span>
                 </>
               ) : (
                 <>
