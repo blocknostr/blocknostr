@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { LogOut, User, AlertCircle, Wallet, Shield } from "lucide-react";
+import { LogOut, User, AlertCircle, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Tooltip, 
@@ -123,13 +123,17 @@ const LoginButton = () => {
             <Button 
               onClick={handleLogin} 
               className={cn(
-                "flex items-center gap-2",
+                "flex items-center gap-2 shadow-sm relative overflow-hidden",
+                "transition-all duration-300",
                 hasExtension ? 
-                  "bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 transition-all" : 
+                  "bg-gradient-to-r from-primary/90 via-primary/80 to-primary/70 hover:bg-primary hover:shadow" : 
                   "bg-transparent border border-primary/20 hover:border-primary/30 hover:bg-primary/5"
               )}
               variant={hasExtension ? "default" : "outline"}
             >
+              {/* Subtle inner shine effect */}
+              <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100"></span>
+              
               {hasExtension ? (
                 <>
                   <Shield className="h-4 w-4" />

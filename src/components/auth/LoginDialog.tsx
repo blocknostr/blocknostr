@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -5,7 +6,7 @@ import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-// Import our new components
+// Import our components
 import DialogHeader from "./login/DialogHeader";
 import DialogFooter from "./login/DialogFooter";
 import ExtensionTab from "./login/ExtensionTab";
@@ -47,21 +48,23 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
       return () => clearTimeout(timer);
     } else {
       setAnimateIn(false);
-      // Reset to extension tab when dialog closes
+      // Reset states when dialog closes
       setActiveTab("extension");
+      setConnectStatus('idle');
     }
   }, [open]);
 
   const handleConnect = async () => {
     if (!hasExtension) {
-      // If no extension, keep dialog open to guide installation
       return;
     }
 
     setIsLoggingIn(true);
     setConnectStatus('connecting');
+    
     try {
       const success = await nostrService.login();
+      
       if (success) {
         setConnectStatus('success');
         toast.success("Connected successfully", {
@@ -99,12 +102,14 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "sm:max-w-md bg-background/80 backdrop-blur-xl border-muted/20 shadow-lg p-5",
-        "animate-in fade-in-0 zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto",
+        "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-5",
+        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto",
         "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70"
       )}>
         <div className={cn(
-          "absolute inset-0 -z-10 bg-gradient-to-br from-background/40 to-background/60 rounded-lg opacity-80",
+          "absolute inset-0 -z-10 rounded-lg opacity-80",
+          "bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]",
+          "from-background/20 via-background/60 to-background/90",
           "transition-opacity duration-300 ease-in-out",
           animateIn ? "opacity-80" : "opacity-0"
         )}/>
@@ -113,7 +118,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         <DialogHeader animateIn={animateIn} />
 
         <div className={cn(
-          "transition-all duration-300 ease-in-out", 
+          "mt-3 transition-all duration-500 ease-out", 
           animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
         )}>
           {/* Success Connection Status */}
@@ -131,7 +136,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
                 <TabsTrigger 
                   value="extension" 
                   className={cn(
-                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary",
+                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
                     "transition-all"
                   )}
                 >
@@ -140,7 +145,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
                 <TabsTrigger 
                   value="manual" 
                   className={cn(
-                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary",
+                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
                     "transition-all"
                   )}
                 >
@@ -175,7 +180,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
             </Tabs>
           )}
           
-          <div className="pt-3">
+          <div className="pt-3 border-t border-border/20 mt-4">
             <p className="text-xs text-muted-foreground text-center">
               New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Learn more
