@@ -5,14 +5,16 @@
 // for the transition period while migrating
 
 import React from 'react';
-import { usePathname as nextUsePathname, useRouter as nextUseRouter, useSearchParams as nextUseSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
+// Rename imports to avoid naming conflicts
+const nextUsePathname = usePathname;
+const nextUseRouter = useRouter;
+const nextUseSearchParams = useSearchParams;
+
 // Export Next.js App Router functionality with standard names
-// Rename imports to avoid circular reference
-export const usePathname = nextUsePathname;
-export const useSearchParams = nextUseSearchParams;
-export const useRouter = nextUseRouter;
+export { usePathname, useRouter, useSearchParams };
 
 // Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
