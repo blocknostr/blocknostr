@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, ExternalLink, AlertCircle, Fingerprint, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { AlbyLogo, NWCLogo, Nos2xLogo, AlephiumLogo, SnortLogo } from "@/components/icons/wallets";
 
 interface ExtensionTabProps {
   hasExtension: boolean;
@@ -23,40 +24,35 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       id: "alby",
       name: "Alby",
       description: "Bitcoin & Nostr browser extension",
-      color: "bg-gradient-to-br from-amber-400 to-amber-500",
-      letter: "A",
+      logo: AlbyLogo,
       url: "https://getalby.com/"
     },
     {
       id: "nwc",
       name: "Nostr Wallet ID",
       description: "NIP-07 compatible wallet",
-      color: "bg-gradient-to-br from-purple-500 to-purple-600",
-      letter: "N",
+      logo: NWCLogo,
       url: "https://nwc.getalby.com/"
     },
     {
       id: "alephium",
       name: "Alephium",
       description: "BlockNoster-compatible wallet",
-      color: "bg-gradient-to-br from-green-500 to-green-600", 
-      letter: "A",
+      logo: AlephiumLogo,
       url: "https://alephium.org/#wallets"
     },
     {
       id: "nos2x",
       name: "nos2x",
       description: "Lightweight Nostr signer",
-      color: "bg-gradient-to-br from-blue-500 to-blue-600",
-      letter: "N",
+      logo: Nos2xLogo,
       url: "https://github.com/fiatjaf/nos2x"
     },
     {
       id: "snort",
       name: "Snort",
       description: "Web client with extension",
-      color: "bg-gradient-to-br from-purple-500 to-purple-600",
-      letter: "S",
+      logo: SnortLogo,
       url: "https://snort.social/"
     }
   ];
@@ -84,8 +80,8 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
                   rel="noopener noreferrer"
                   className="flex flex-col items-center p-2.5 border border-border/50 rounded-lg hover:bg-accent/20 transition-colors group h-full"
                 >
-                  <div className={`mb-1.5 h-9 w-9 rounded-full ${client.color} flex items-center justify-center text-white font-medium text-lg shadow-sm`}>
-                    {client.letter}
+                  <div className="mb-1.5 h-9 w-9 rounded-full flex items-center justify-center shadow-sm">
+                    <client.logo className="w-9 h-9" />
                   </div>
                   <div className="flex-1 text-center">
                     <p className="font-medium text-sm mb-0.5">{client.name}</p>
@@ -118,7 +114,7 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
             disabled={isLoggingIn || connectStatus === 'success'}
             className={cn(
               "relative overflow-hidden ml-2 px-3",
-              "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white",
+              "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white",
               "transition-all duration-300 h-7"
             )}
           >

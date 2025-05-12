@@ -2,6 +2,7 @@
 import React from "react";
 import { Shield, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AlbyLogo, NWCLogo, Nos2xLogo, AlephiumLogo } from "@/components/icons/wallets";
 
 interface WalletConnectButtonProps {
   className?: string;
@@ -52,7 +53,9 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
         >
-          <span className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/20 text-amber-500 mb-1.5 flex items-center justify-center font-medium">A</span>
+          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
+            <AlbyLogo className="w-8 h-8" />
+          </span>
           <span>Alby</span>
           <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
         </a>
@@ -63,7 +66,9 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
         >
-          <span className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/20 text-purple-500 mb-1.5 flex items-center justify-center font-medium">N</span>
+          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
+            <NWCLogo className="w-8 h-8" />
+          </span>
           <span>Nostr Wallet ID</span>
           <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
         </a>
@@ -74,7 +79,9 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
         >
-          <span className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-500 mb-1.5 flex items-center justify-center font-medium">N</span>
+          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
+            <Nos2xLogo className="w-8 h-8" />
+          </span>
           <span>Nos2x</span>
           <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
         </a>
@@ -85,7 +92,9 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group col-span-3"
         >
-          <span className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/20 text-green-500 mb-1.5 flex items-center justify-center font-medium">A</span>
+          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
+            <AlephiumLogo className="w-8 h-8" />
+          </span>
           <span>Alephium</span>
           <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
         </a>
