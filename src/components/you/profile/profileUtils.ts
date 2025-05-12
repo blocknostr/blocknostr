@@ -46,7 +46,7 @@ export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
     const relays = nostrService.getRelayStatus();
     if (!relays.some(r => r.status === 'connected')) {
       await nostrService.connectToDefaultRelays();
-      
+
       // Verify we have connections after attempt
       const updatedRelays = nostrService.getRelayStatus();
       if (!updatedRelays.some(r => r.status === 'connected')) {
@@ -68,12 +68,12 @@ export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
         tags: [],
       };
       contentCache.cacheEvent(evt as NostrEvent);
-      
+
       // Dispatch an event to notify other components that profile data was refreshed
-      window.dispatchEvent(new CustomEvent('profileRefreshed', { 
-        detail: { pubkey, profile: fresh } 
+      window.dispatchEvent(new CustomEvent('profileRefreshed', {
+        detail: { pubkey, profile: fresh }
       }));
-      
+
       return true;
     } else {
       console.warn('[PROFILE REFRESH] No data returned');
@@ -125,12 +125,12 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
     // Use AbortController for timeout instead of the 'timeout' property
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
+
     try {
       const resp = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`, {
         signal: controller.signal
       });
-      
+
       if (!resp.ok) return false;
       const data = await resp.json();
       const pubkey = data?.names?.[name];
@@ -179,47 +179,55 @@ export async function publishProfileWithFallback(
 
   // Compute ID
   const eventId = getEventHash(full);
-  
+
   try {
     console.log('[PUBLISH] Attempting to publish event with tryPublishWithRetries...');
-    
-    // Filter out relays that might require POW before attempting
-    const nonPowRelays = relayUrls.filter(url => 
-      !url.includes('pow') && 
-      !url.toLowerCase().includes('proof') &&
-      !url.includes('nostr.band')  // Known to require PoW
+
+    // Verify relay reachability before publishing
+    const reachableRelays = await Promise.all(
+      relayUrls.map(async (url) => {
+        try {
+          const isReachable = await nostrService.pingRelay(url);
+          if (isReachable) {
+            console.log(`[PUBLISH] Relay reachable: ${url}`);
+            return url;
+          } else {
+            console.warn(`[PUBLISH] Relay not reachable: ${url}`);
+            return null;
+          }
+        } catch (error) {
+          console.error(`[PUBLISH] Error pinging relay ${url}:`, error);
+          return null;
+        }
+      })
     );
-    
-    if (nonPowRelays.length === 0) {
-      // Add some known non-POW relays if all our relays might require POW
-      nonPowRelays.push(
-        "wss://relay.damus.io", 
-        "wss://nos.lol",
-        "wss://relay.snort.social",
-        "wss://nostr.mom",
-        "wss://relay.current.fyi"
-      );
+
+    const validRelays = reachableRelays.filter((url): url is string => url !== null);
+
+    if (validRelays.length === 0) {
+      console.error('[PUBLISH] No reachable relays available');
+      return { success: false, error: 'No reachable relays available' };
     }
-    
+
     // Try our enhanced publish function with retries
     const result = await tryPublishWithRetries({
       ...full,
       eventHash: eventId
-    }, nonPowRelays);
-    
+    }, validRelays);
+
     if (result.success) {
       // Dispatch event to notify listeners about successful publish
-      window.dispatchEvent(new CustomEvent('profilePublished', { 
-        detail: { eventId: result.eventId, pubkey: nostrService.publicKey } 
+      window.dispatchEvent(new CustomEvent('profilePublished', {
+        detail: { eventId: result.eventId, pubkey: nostrService.publicKey }
       }));
       return { success: true, error: null, eventId: result.eventId };
     }
-    
+
     // If we got here, all methods failed
-    return { 
-      success: false, 
-      error: result.error || 'Failed to publish after multiple attempts', 
-      eventId: result.eventId 
+    return {
+      success: false,
+      error: result.error || 'Failed to publish after multiple attempts',
+      eventId: result.eventId
     };
   } catch (e: any) {
     console.error('[PUBLISH] Unexpected error in publishProfileWithFallback:', e);
@@ -236,57 +244,68 @@ async function tryPublishWithRetries(
 ): Promise<{ success: boolean; error: string | null; eventId?: string }> {
   // First attempt: Try direct publishing to each relay individually
   console.log('[PUBLISH] Attempting direct publishing to individual relays first');
-  
-  // Try each relay with fresh connections
-  for (const url of relayUrls) {
+
+  // Filter out relays that might require POW
+  const nonPowRelays = relayUrls.filter(url =>
+    !url.includes('pow') &&
+    !url.toLowerCase().includes('proof') &&
+    !url.includes('nostr.band')  // Known to require PoW
+  );
+
+  // Try each non-POW relay
+  for (const url of nonPowRelays) {
     try {
       console.log(`[PUBLISH] Trying to publish to relay: ${url}`);
-      
-      // Ensure we have a fresh connection to this relay
-      try {
-        await nostrService.removeRelay(url);
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const relay = await nostrService.addRelay(url);
-        
-        if (!relay) {
-          console.warn(`[PUBLISH] Failed to connect to relay: ${url}`);
-          continue;
-        }
-        
-        // Wait a moment for the connection to establish properly
-        await new Promise(resolve => setTimeout(resolve, 500));
-      } catch (connError) {
-        console.warn(`[PUBLISH] Connection error to relay ${url}:`, connError);
-        continue;
-      }
-      
-      // Try publishing with a fresh subscription
-      try {
-        const eventId = await nostrService.publishEvent({
-          ...event
-        });
-        
-        if (eventId) {
-          console.log(`[PUBLISH] Successfully published to relay: ${url} with eventId: ${eventId}`);
-          return { success: true, error: null, eventId };
-        }
-      } catch (relayError: any) {
-        // Handle specific errors
-        if (relayError.message?.includes('no active subscription')) {
-          console.log(`[PUBLISH] No active subscription for ${url}, will try next relay`);
-          continue;
-        } else if (relayError.message?.includes('pow:') || relayError.message?.includes('proof-of-work')) {
-          console.warn(`[PUBLISH] Relay ${url} requires POW, skipping:`, relayError.message);
-          continue;
-        } else {
-          console.warn(`[PUBLISH] Error publishing to ${url}:`, relayError.message || relayError);
+
+      // Try publishing to this specific relay
+      const relay = await nostrService.addRelay(url);
+      if (relay) {
+        let eventId: string | undefined;
+
+        try {
+          // Try the first attempt - use standard publishEvent method
+          eventId = await nostrService.publishEvent({
+            ...event
+          });
+
+          if (eventId) {
+            console.log(`[PUBLISH] Successfully published to relay: ${url} with eventId: ${eventId}`);
+            return { success: true, error: null, eventId };
+          }
+        } catch (relayError: any) {
+          // Handle specific errors
+          if (relayError.message?.includes('no active subscription')) {
+            console.log(`[PUBLISH] No active subscription for ${url}, reconnecting...`);
+
+            // Try reconnecting to this relay
+            await nostrService.removeRelay(url);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await nostrService.addRelay(url);
+
+            // Try publishing again after reconnection
+            try {
+              eventId = await nostrService.publishEvent({
+                ...event
+              });
+
+              if (eventId) {
+                console.log(`[PUBLISH] Successfully published to relay: ${url} after reconnection`);
+                return { success: true, error: null, eventId };
+              }
+            } catch (retryError) {
+              console.warn(`[PUBLISH] Second attempt to ${url} failed:`, retryError);
+            }
+          } else if (relayError.message?.includes('pow:') || relayError.message?.includes('proof-of-work')) {
+            console.warn(`[PUBLISH] Relay ${url} requires POW, skipping:`, relayError.message);
+            continue;
+          }
         }
       }
     } catch (relayError: any) {
       console.warn(`[PUBLISH] Failed to publish to relay ${url}:`, relayError);
     }
   }
-  
+
   // Second attempt: Try global publish method with reconnection
   console.log('[PUBLISH] Trying global publish method');
   try {
@@ -295,33 +314,57 @@ async function tryPublishWithRetries(
     if (!relayStatus.some(r => r.status === 'connected')) {
       console.log('[PUBLISH] No connected relays, attempting to reconnect...');
       await nostrService.connectToDefaultRelays();
-      
-      // Wait a moment for connections to establish
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
+
     // Try global publish
     const eventId = await nostrService.publishEvent({
       ...event
     });
-    
+
     if (eventId) {
       console.log('[PUBLISH] Successfully published via global method');
       return { success: true, error: null, eventId };
     }
   } catch (globalError: any) {
     console.error('[PUBLISH] Global publish attempt failed:', globalError);
-    
-    // Handle specific errors
-    if (globalError.message?.includes('pow:') || globalError.message?.includes('proof-of-work')) {
-      return { success: false, error: 'Relay requires proof-of-work which is not supported. Try adding a non-POW relay.' };
-    } else if (globalError.message?.includes('no active subscription')) {
-      return { success: false, error: 'Connection to relay was lost. Try refreshing the page and adding different relays.' };
+
+    // Special case for subscription errors
+    if (globalError.message?.includes('no active subscription')) {
+      // Try reconnecting to all relays
+      console.log('[PUBLISH] No active subscription error, reconnecting to all relays...');
+      try {
+        await nostrService.connectToDefaultRelays();
+
+        // Wait a moment for connections to establish
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Try publishing once more
+        try {
+          const eventId = await nostrService.publishEvent({
+            ...event
+          });
+
+          if (eventId) {
+            console.log('[PUBLISH] Successfully published after reconnection');
+            return { success: true, error: null, eventId };
+          }
+        } catch (finalError: any) {
+          if (finalError.message?.includes('pow:')) {
+            return { success: false, error: 'Relay requires proof-of-work which is not supported' };
+          }
+          return { success: false, error: `Final attempt failed: ${finalError.message || finalError}` };
+        }
+      } catch (reconnectError) {
+        console.error('[PUBLISH] Reconnection failed:', reconnectError);
+        return { success: false, error: 'Failed to reconnect to relays' };
+      }
+    } else if (globalError.message?.includes('pow:')) {
+      return { success: false, error: 'Relay requires proof-of-work which is not supported' };
     }
   }
-  
+
   // If we got here, all methods failed
-  return { success: false, error: 'Failed to publish event after multiple attempts. Try adding more relays.' };
+  return { success: false, error: 'Failed to publish event after multiple attempts' };
 }
 
 /**
@@ -333,7 +376,7 @@ export function setupProfileEventListeners() {
   window.addEventListener('profilePublished', (e: any) => {
     const { pubkey, eventId } = e.detail;
     console.log(`[PROFILE] Profile published with event ID: ${eventId}`);
-    
+
     // Force refresh after a short delay to allow propagation
     if (pubkey) {
       setTimeout(() => {
@@ -341,12 +384,12 @@ export function setupProfileEventListeners() {
       }, 1500);
     }
   });
-  
+
   // Listen for profile refreshed events
   window.addEventListener('profileRefreshed', (e: any) => {
     const { pubkey, profile } = e.detail;
     console.log(`[PROFILE] Profile refreshed for ${pubkey}`);
-    
+
     // Dispatch a general UI refresh event
     window.dispatchEvent(new CustomEvent('refetchProfile'));
   });
