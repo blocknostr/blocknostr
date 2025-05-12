@@ -1,7 +1,14 @@
 
 import { Community } from "./CommunityCard";
-import CommunityGrid from "./CommunityGrid";
+import CommunityCard from "./CommunityCard";
 import { Users } from "lucide-react";
+import { 
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from "@/components/ui/carousel";
 
 interface UserCommunitiesSectionProps {
   communities: Community[];
@@ -23,11 +30,34 @@ const UserCommunitiesSection = ({ communities, currentUserPubkey }: UserCommunit
         </span>
       </div>
       
-      <CommunityGrid 
-        communities={communities}
-        isMemberView={true}
-        currentUserPubkey={currentUserPubkey}
-      />
+      <div className="relative">
+        <Carousel
+          opts={{
+            align: "start",
+            slidesToScroll: 4
+          }}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-4">
+            {communities.map(community => (
+              <CarouselItem key={community.id} className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                <CommunityCard 
+                  community={community}
+                  isMember={true}
+                  currentUserPubkey={currentUserPubkey}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          
+          {communities.length > 4 && (
+            <>
+              <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4" />
+              <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4" />
+            </>
+          )}
+        </Carousel>
+      </div>
     </div>
   );
 };
