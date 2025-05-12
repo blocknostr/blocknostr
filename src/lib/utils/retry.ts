@@ -94,16 +94,13 @@ export const parallelRetry = async <T>(
   options: RetryOptions,
   minSuccesses: number = 1
 ): Promise<T[]> => {
-  // Define the explicit type for the Promise.allSettled result
-  type SettledResult = PromiseSettledResult<T>;
-  
-  // Make sure we're working with the correct type throughout
+  // Define the explicit type for the Promise.allSettled result to ensure proper typing
   const results = await Promise.allSettled(
     fns.map(fn => retry(fn, options))
   );
   
   // Create a proper type guard function that satisfies TypeScript
-  function isFulfilled(result: SettledResult): result is PromiseFulfilledResult<T> {
+  function isFulfilled<T>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> {
     return result.status === 'fulfilled';
   }
   
