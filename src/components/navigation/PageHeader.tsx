@@ -45,9 +45,10 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               fallbackPath={fallbackPath} 
               showText={true} 
               forceHome={isHomePage}
+              className="text-primary hover:bg-primary/10"
             />
           )}
-          <h1 className="font-semibold">{title}</h1>
+          <h1 className="font-semibold bg-gradient-to-r from-blocknostr-purple to-blocknostr-light-purple bg-clip-text text-transparent">{title}</h1>
         </div>
         
         <div className="flex items-center space-x-2">

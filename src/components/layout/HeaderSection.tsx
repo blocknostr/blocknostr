@@ -94,7 +94,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
     if (path.startsWith("/premium")) return "Premium";
     if (path.startsWith("/post")) return "Post";
     
-    return "BlockNoster";
+    return "BlockNostr";
   };
 
   // Show back button on pages that aren't the home page
@@ -111,11 +111,12 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
   return (
     <div className={cn(
       "sticky top-0 z-50 w-full bg-background transition-all ios-spring duration-200 safe-top",
-      isScrolled ? "shadow-sm" : ""
+      isScrolled ? "shadow-sm backdrop-blur-sm bg-background/95" : ""
     )}>
       <PageHeader 
         title={getPageTitle(location.pathname)}
         showBackButton={shouldShowBackButton()}
+        className="bg-transparent border-b border-border/50"
       >
         {isMobile && (
           <button 
