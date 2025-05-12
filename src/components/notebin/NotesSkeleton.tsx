@@ -8,7 +8,7 @@ interface NotesSkeletonProps {
   view?: "grid" | "list";
 }
 
-export const NotesSkeleton = ({ count = 4, view = "grid" }: NotesSkeletonProps) => {
+const NotesSkeleton = ({ count = 4, view = "grid" }: NotesSkeletonProps) => {
   return (
     <div className={`grid gap-4 ${view === "grid" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
       {Array.from({ length: count }).map((_, index) => (
@@ -40,3 +40,5 @@ export const NotesSkeleton = ({ count = 4, view = "grid" }: NotesSkeletonProps) 
     </div>
   );
 };
+
+export default NotesSkeleton;

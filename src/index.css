@@ -1,167 +1,136 @@
 
+@import './styles/ios-optimizations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import './styles/ios-optimizations.css';
-
 @layer base {
   :root {
-    /* BlockNostr Light Theme colors */
-    --background: 226 30% 96%; /* #F0F2F8 */
-    --foreground: 222 47% 11%; /* #101628 */
-    --card: 0 0% 100%; /* #FFFFFF */
-    --card-foreground: 222 47% 11%; /* #101628 */
-    --popover: 0 0% 100%; /* #FFFFFF */
-    --popover-foreground: 222 47% 11%; /* #101628 */
-    --primary: 255 70% 75%; /* #9b87f5 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 210 40% 96%; /* #ECF1F9 */
-    --secondary-foreground: 222 47% 11%; /* #101628 */
-    --muted: 210 40% 96%; /* #ECF1F9 */
-    --muted-foreground: 215 16% 47%; /* #697386 */
-    --accent: 270 87% 75%; /* #C4B5FD */
-    --accent-foreground: 222 47% 11%; /* #101628 */
-    --destructive: 0 84% 60%; /* #EF4444 */
-    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
-    --border: 214 32% 91%; /* #E2E8F0 */
-    --input: 214 32% 91%; /* #E2E8F0 */
-    --ring: 255 70% 75%; /* #9b87f5 */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 261 60% 74%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
     
-    --sidebar-background: 222 47% 11%; /* #101628 */
-    --sidebar-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-primary: 255 70% 75%; /* #9b87f5 */
-    --sidebar-primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-accent: 270 87% 75%; /* #C4B5FD */
-    --sidebar-accent-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-border: 223 47% 20%; /* #1E293B */
-    --sidebar-ring: 255 70% 75%; /* #9b87f5 */
-    
-    --radius: 0.75rem;
+    /* Sidebar variables */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 261 60% 74%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 222.2 84% 4.9%;
   }
 
   .dark {
-    /* BlockNostr Dark Theme colors */
-    --background: 222 47% 11%; /* #101628 */
-    --foreground: 210 40% 98%; /* #F9FAFB */
-    --card: 223 47% 15%; /* #1A1F2C */
-    --card-foreground: 210 40% 98%; /* #F9FAFB */
-    --popover: 223 47% 15%; /* #1A1F2C */
-    --popover-foreground: 210 40% 98%; /* #F9FAFB */
-    --primary: 255 70% 75%; /* #9b87f5 */
-    --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --secondary: 222 47% 18%; /* #1E293B */
-    --secondary-foreground: 210 40% 98%; /* #F9FAFB */
-    --muted: 222 47% 18%; /* #1E293B */
-    --muted-foreground: 217 24% 65%; /* #94A3B8 */
-    --accent: 270 87% 75%; /* #C4B5FD */
-    --accent-foreground: 0 0% 100%; /* #FFFFFF */
-    --destructive: 0 74% 54%; /* #DC2626 */
-    --destructive-foreground: 210 40% 98%; /* #F9FAFB */
-    --border: 223 47% 20%; /* #1E293B */
-    --input: 223 47% 20%; /* #1E293B */
-    --ring: 255 70% 75%; /* #9b87f5 */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --sidebar-background: 223 47% 12%; /* #131925 */
-    --sidebar-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-primary: 255 70% 75%; /* #9b87f5 */
-    --sidebar-primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-accent: 270 87% 75%; /* #C4B5FD */
-    --sidebar-accent-foreground: 0 0% 100%; /* #FFFFFF */
-    --sidebar-border: 223 47% 20%; /* #1E293B */
-    --sidebar-ring: 255 70% 75%; /* #9b87f5 */
-  }
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-  /* Theme Transition Effect */
-  .color-theme-in-transition {
-    transition: all 1s ease-out !important;
-  }
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-  /* Radial theme change effect */
-  .color-theme-in-transition::before {
-    content: '';
-    display: block;
-    position: fixed;
-    top: var(--theme-change-y, 50vh);
-    left: var(--theme-change-x, 50vw);
-    width: 1px;
-    height: 1px;
-    background: var(--background);
-    border-radius: 50%;
-    z-index: 9999;
-    pointer-events: none;
-    transform-origin: center;
-    animation: theme-change 1s ease-out forwards;
-  }
+    --primary: 261 60% 74%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-  /* iOS-style spring transitions */
-  .ios-spring {
-    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-  }
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-  /* Fix for safe areas in iOS */
-  .safe-top {
-    padding-top: env(safe-area-inset-top, 0);
-  }
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-  .pb-safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    
+    /* Sidebar variables */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 261 60% 74%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
   }
 }
 
-/* Fix for overflow issues on iOS */
-.overflow-fix {
-  overscroll-behavior-y: none;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }
 
-/* Rubber style scrolling for iOS */
-.rubber-scroll {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Disable text selection when tapping quickly */
-.no-callout {
-  -webkit-touch-callout: none;
-  touch-callout: none;
-}
-
-/* Button ripple effect */
-.btn-ripple {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-ripple::after {
-  content: '';
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle, #fff 10%, transparent 10%);
-  background-repeat: no-repeat;
-  background-position: 50%;
-  transform: scale(10, 10);
-  opacity: 0;
-  transition: transform 0.5s, opacity 0.5s;
-}
-
-.btn-ripple:active::after {
-  transform: scale(0, 0);
-  opacity: 0.3;
-  transition: 0s;
-}
-
-/* BlockNostr specific classes */
+/* BlockNostr-specific styles */
 .bn-gradient-text {
-  @apply text-transparent bg-clip-text bg-gradient-to-r from-blocknostr-purple to-blocknostr-light-purple;
-}
-
-.bn-card {
-  @apply bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow;
+  @apply bg-gradient-to-r from-blocknostr-purple to-blocknostr-light-purple bg-clip-text text-transparent;
 }
 
 .bn-button {
-  @apply bg-blocknostr-purple text-white hover:bg-blocknostr-dark-purple transition-colors;
+  @apply bg-gradient-to-r from-blocknostr-purple to-blocknostr-dark-purple text-white transition-all hover:opacity-90 active:transform active:scale-95;
+}
+
+/* Additional UI enhancements */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-accent rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
 }

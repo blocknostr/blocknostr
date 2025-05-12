@@ -6,9 +6,9 @@ import NoteEditor from "./NoteEditor";
 import NotesGrid from "./NotesGrid";
 import NotesList from "./NotesList";
 import NotesListHeader from "./NotesListHeader";
-import SearchBar from "./SearchBar";
-import TagFilter from "./TagFilter";
-import ViewToggle from "./ViewToggle";
+import { SearchBar } from "./SearchBar";
+import { TagFilter } from "./TagFilter";
+import { ViewToggle } from "./ViewToggle";
 import { useNotebin } from "./hooks/useNotebin";
 import NotesEmptyState from "./NotesEmptyState";
 import NotesSkeleton from "./NotesSkeleton";
@@ -17,30 +17,22 @@ import { nostrService } from "@/lib/nostr";
 
 const NotebinContainer: React.FC = () => {
   const {
-    notes,
+    filteredNotes: notes,
     isLoading,
-    viewMode,
-    setViewMode,
-    searchTerm,
-    setSearchTerm,
-    tagFilter,
-    setTagFilter,
+    view,
+    handleViewToggle,
     sortOption,
-    setSortOption,
+    handleSortChange,
+    searchQuery,
+    handleSearch,
+    isLoggedIn,
+    handleNoteSaved,
+    viewNote,
+    setNoteToDelete,
+    handleDelete
   } = useNotebin();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
-
-  // Check if user is logged in
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      const publicKey = nostrService.publicKey;
-      setIsLoggedIn(!!publicKey);
-    };
-
-    checkLoginStatus();
-  }, []);
 
   const handleCreateNote = () => {
     setIsCreateMode(true);
@@ -60,20 +52,32 @@ const NotebinContainer: React.FC = () => {
   if (isCreateMode) {
     content = (
       <div className="bg-card border border-border rounded-xl shadow-sm p-4 md:p-6">
-        <NoteEditor onCancel={handleCancelCreate} onSaved={handleNoteCreated} />
+        <NoteEditor onNoteSaved={handleNoteSaved} />
       </div>
     );
   } else if (isLoading) {
-    content = <NotesSkeleton viewMode={viewMode} />;
+    content = <NotesSkeleton view={view} />;
   } else if (!isLoggedIn) {
     content = <NotesLoginPrompt />;
   } else if (notes.length === 0) {
     content = <NotesEmptyState onCreateNote={handleCreateNote} />;
   } else {
-    content = viewMode === "grid" ? (
-      <NotesGrid notes={notes} />
+    content = view === "grid" ? (
+      <NotesGrid 
+        notes={notes} 
+        onNoteClick={viewNote} 
+        onDeleteClick={(noteId) => setNoteToDelete(noteId)}
+        view={view}
+      />
     ) : (
-      <NotesList notes={notes} />
+      <NotesList 
+        isLoading={isLoading}
+        savedNotes={notes}
+        onNoteClick={viewNote}
+        onDeleteClick={(noteId) => setNoteToDelete(noteId)}
+        isLoggedIn={isLoggedIn}
+        view={view}
+      />
     );
   }
 
@@ -83,10 +87,10 @@ const NotebinContainer: React.FC = () => {
         {!isCreateMode && (
           <>
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-              <SearchBar value={searchTerm} onChange={setSearchTerm} />
+              <SearchBar onSearch={handleSearch} />
               
               <div className="flex items-center gap-2 self-end">
-                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                <ViewToggle currentView={view} onViewChange={handleViewToggle} />
                 {isLoggedIn && (
                   <button 
                     onClick={handleCreateNote}
@@ -101,19 +105,8 @@ const NotebinContainer: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex flex-wrap gap-2 items-center">
-              <TagFilter 
-                selectedTag={tagFilter} 
-                onTagSelect={setTagFilter} 
-              />
-            </div>
-            
             {notes.length > 0 && (
-              <NotesListHeader 
-                noteCount={notes.length} 
-                sortOption={sortOption}
-                onSortChange={setSortOption}
-              />
+              <NotesListHeader />
             )}
           </>
         )}
