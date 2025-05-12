@@ -8,16 +8,19 @@ import React from 'react';
 import * as NextNavigation from 'next/navigation';
 import Link from 'next/link';
 
-// Create internal named functions that wrap Next.js functions
+// Create internal named functions that directly call Next.js functions
 function internalUsePathname() {
+  // Direct call to Next.js function without any self-reference
   return NextNavigation.usePathname();
 }
 
 function internalUseRouter() {
+  // Direct call to Next.js function without any self-reference
   return NextNavigation.useRouter();
 }
 
 function internalUseSearchParams() {
+  // Direct call to Next.js function without any self-reference
   return NextNavigation.useSearchParams();
 }
 
@@ -35,7 +38,7 @@ export function useParams() {
 
 // Compatibility for React Router's Navigate component
 export function Navigate({ to, replace }: { to: string, replace?: boolean }) {
-  const router = internalUseRouter();
+  const router = NextNavigation.useRouter();
   
   React.useEffect(() => {
     if (replace) {
@@ -57,8 +60,8 @@ export function generateMetadata({ title, description }: { title?: string; descr
 
 // For components that still rely on useLocation
 export function useLocation() {
-  const pathname = internalUsePathname();
-  const searchParams = internalUseSearchParams();
+  const pathname = NextNavigation.usePathname();
+  const searchParams = NextNavigation.useSearchParams();
   
   return {
     pathname,
@@ -68,7 +71,7 @@ export function useLocation() {
 }
 
 export function useNavigate() {
-  const router = internalUseRouter();
+  const router = NextNavigation.useRouter();
   
   return (path: string, options?: { replace?: boolean }) => {
     if (options?.replace) {
