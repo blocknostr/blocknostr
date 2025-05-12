@@ -3,6 +3,7 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
 import { NostrEvent } from "@/lib/nostr";
+import FeedLoadingSkeleton from "../feed/FeedLoadingSkeleton";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -10,6 +11,7 @@ interface ProfileTabsProps {
   reposts: { originalEvent: NostrEvent; repostEvent: NostrEvent }[];
   profileData: any;
   originalPostProfiles: Record<string, any>;
+  isLoading?: boolean;
 }
 
 const ProfileTabs = ({ 
@@ -17,7 +19,8 @@ const ProfileTabs = ({
   media, 
   reposts, 
   profileData,
-  originalPostProfiles 
+  originalPostProfiles,
+  isLoading = false
 }: ProfileTabsProps) => {
   return (
     <div className="mt-6">
@@ -32,7 +35,9 @@ const ProfileTabs = ({
         
         {/* Posts Tab */}
         <TabsContent value="posts" className="mt-4">
-          {events.length === 0 ? (
+          {isLoading ? (
+            <FeedLoadingSkeleton count={3} />
+          ) : events.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No posts found.
             </div>
@@ -58,7 +63,9 @@ const ProfileTabs = ({
 
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
-          {reposts.length === 0 ? (
+          {isLoading ? (
+            <FeedLoadingSkeleton count={2} />
+          ) : reposts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
             </div>
@@ -81,7 +88,15 @@ const ProfileTabs = ({
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          {media.length === 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="aspect-square">
+                  <Skeleton className="h-full w-full rounded-md" />
+                </div>
+              ))}
+            </div>
+          ) : media.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No media found.
             </div>

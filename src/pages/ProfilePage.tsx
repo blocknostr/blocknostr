@@ -28,7 +28,8 @@ const ProfilePage = () => {
     followers,
     following,
     originalPostProfiles,
-    isCurrentUser
+    isCurrentUser,
+    refreshProfile
   } = useProfileData({ npub, currentUserPubkey });
   
   // Redirect to current user's profile if no npub is provided
@@ -39,7 +40,7 @@ const ProfilePage = () => {
     }
   }, [npub, currentUserPubkey, navigate]);
   
-  if (loading) {
+  if (loading && !profileData) {
     return <ProfileLoading />;
   }
   
@@ -61,6 +62,8 @@ const ProfilePage = () => {
                 profileData={profileData}
                 npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
                 isCurrentUser={isCurrentUser}
+                isLoading={loading}
+                onProfileUpdated={refreshProfile}
               />
               
               <ProfileStats 
@@ -72,6 +75,7 @@ const ProfilePage = () => {
                 relays={relays}
                 onRelaysChange={setRelays}
                 userNpub={npub}
+                isLoading={loading}
               />
               
               <ProfileTabs 
@@ -80,6 +84,7 @@ const ProfilePage = () => {
                 reposts={reposts}
                 profileData={profileData}
                 originalPostProfiles={originalPostProfiles}
+                isLoading={loading}
               />
             </>
           ) : (

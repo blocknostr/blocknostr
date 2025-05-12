@@ -1,7 +1,8 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
+import { ProfileUtils } from '@/lib/nostr/utils/profileUtils';
 
 interface UseProfileMetadataProps {
   npub: string | undefined;
@@ -16,6 +17,30 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
   // If npub starts with 'npub1', convert it to hex first for comparison
   const hexNpub = npub && npub.startsWith('npub1') ? nostrService.getHexFromNpub(npub) : npub;
   const isCurrentUser = currentUserPubkey && hexNpub === currentUserPubkey;
+  
+  // Function to refresh profile data
+  const refreshProfile = useCallback(async () => {
+    if (!hexNpub) return;
+    
+    try {
+      setLoading(true);
+      toast.loading("Refreshing profile data...");
+      
+      const freshProfile = await ProfileUtils.refreshProfile(hexNpub);
+      
+      if (freshProfile) {
+        setProfileData(freshProfile);
+        toast.success("Profile updated successfully");
+      } else {
+        toast.error("Could not update profile");
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+      toast.error("Failed to refresh profile");
+    } finally {
+      setLoading(false);
+    }
+  }, [hexNpub]);
   
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -44,8 +69,12 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
           return;
         }
         
-        // Fetch profile metadata directly
-        const profileMetadata = await nostrService.getUserProfile(hexPubkey);
+        // Fetch profile using enhanced utility with caching
+        const profileMetadata = await ProfileUtils.fetchProfile(hexPubkey, {
+          cachePriority: "high",
+          includeRelays: true
+        });
+        
         if (profileMetadata) {
           setProfileData(profileMetadata);
         } else {
@@ -71,6 +100,7 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
     profileData,
     loading,
     isCurrentUser,
-    hexNpub
+    hexNpub,
+    refreshProfile
   };
 }

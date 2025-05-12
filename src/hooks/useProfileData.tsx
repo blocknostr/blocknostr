@@ -1,10 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
 import { useProfileRelations } from './profile/useProfileRelations';
 import { useProfileReposts } from './profile/useProfileReposts';
 import { useProfileRelays } from './profile/useProfileRelays';
+import { ProfileUtils } from '@/lib/nostr/utils/profileUtils';
 
 interface UseProfileDataProps {
   npub: string | undefined;
@@ -20,30 +21,56 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     profileData, 
     loading, 
     isCurrentUser,
-    hexNpub
+    hexNpub,
+    refreshProfile
   } = useProfileMetadata({ npub, currentUserPubkey });
   
   // Get user's posts and media
-  const { events, media } = useProfilePosts({ 
+  const { events, media, isLoading: postsLoading } = useProfilePosts({ 
     hexPubkey: hexNpub 
   });
   
   // Get followers and following
-  const { followers, following } = useProfileRelations({ 
+  const { 
+    followers, 
+    following, 
+    isLoading: relationsLoading 
+  } = useProfileRelations({ 
     hexPubkey: hexNpub, 
     isCurrentUser 
   });
   
   // Get reposts and handle fetching original posts
-  const { reposts, replies, fetchOriginalPost } = useProfileReposts({ 
+  const { 
+    reposts, 
+    replies, 
+    fetchOriginalPost,
+    isLoading: repostsLoading 
+  } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
   });
   
   // Get relays information
-  const { relays, setRelays } = useProfileRelays({ 
-    isCurrentUser 
+  const { 
+    relays, 
+    setRelays,
+    isLoading: relaysLoading 
+  } = useProfileRelays({ 
+    isCurrentUser,
+    pubkey: hexNpub
   });
+  
+  // Function to fetch profile data for any pubkey with caching
+  const fetchProfileData = useCallback(async (pubkey: string) => {
+    return ProfileUtils.fetchProfile(pubkey, {
+      cachePriority: "normal",
+      includeRelays: false
+    });
+  }, []);
+  
+  // Determine if any data is still loading
+  const isLoading = loading || postsLoading || relationsLoading || repostsLoading || relaysLoading;
   
   return {
     profileData,
@@ -51,12 +78,14 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     replies,
     media,
     reposts,
-    loading,
+    loading: isLoading,
     relays,
     setRelays,
     followers,
     following,
     originalPostProfiles,
-    isCurrentUser
+    isCurrentUser,
+    fetchProfileData,
+    refreshProfile
   };
 }
