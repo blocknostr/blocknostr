@@ -3,10 +3,11 @@ import React, { useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Loader2, MessageSquare, Paperclip, Send } from "lucide-react";
+import { Loader2, MessageSquare, Paperclip, Send, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Contact, Message } from "./types";
 import { nostrService } from "@/lib/nostr";
+import { cn } from "@/lib/utils";
 
 interface MessageViewProps {
   activeContact: Contact | null;
@@ -56,7 +57,7 @@ const MessageView: React.FC<MessageViewProps> = ({
 
   if (!activeContact) {
     return (
-      <div className="w-2/3 flex flex-col h-full bg-background overflow-hidden">
+      <div className="w-full md:w-2/3 flex flex-col h-full bg-background overflow-hidden">
         <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-4">
           <div className="rounded-full bg-primary/10 p-6">
             <MessageSquare className="h-12 w-12 text-primary" />
@@ -64,7 +65,7 @@ const MessageView: React.FC<MessageViewProps> = ({
           <div>
             <p className="text-xl font-semibold">Your Messages</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-[300px]">
-              Send private messages to contacts using NostrDM with end-to-end encryption
+              Select a contact to start messaging or add a new contact to begin a conversation
             </p>
           </div>
         </div>
@@ -73,7 +74,7 @@ const MessageView: React.FC<MessageViewProps> = ({
   }
 
   return (
-    <div className="w-2/3 flex flex-col h-full bg-background overflow-hidden">
+    <div className="w-full md:w-2/3 flex flex-col h-full bg-background overflow-hidden">
       {/* Header */}
       <div className="p-3 border-b flex items-center gap-3 shadow-sm">
         <div className="relative">
@@ -85,61 +86,69 @@ const MessageView: React.FC<MessageViewProps> = ({
         </div>
         <div className="flex-1 overflow-hidden">
           <div className="font-semibold truncate">{getDisplayName(activeContact)}</div>
-          <div className="text-xs text-green-500">Active now</div>
+          <div className="text-xs text-green-500">Online</div>
         </div>
+        <Button variant="ghost" size="icon" className="rounded-full">
+          <Info className="h-4 w-4" />
+        </Button>
       </div>
       
-      {/* Messages with Telegram style bottom-to-top */}
-      <ScrollArea className="flex-1 px-4 py-2">
-        <div className="flex flex-col-reverse h-full">
-          {loading ? (
-            <div className="flex justify-center items-center h-full py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 gap-1 py-10">
-              <MessageSquare className="h-12 w-12 mb-2 text-primary/20" />
-              <p className="text-sm font-medium">No messages yet</p>
-              <p className="text-xs max-w-[250px]">Send a message to start the conversation with {getDisplayName(activeContact)}</p>
-            </div>
-          ) : (
-            <>
-              <div ref={messagesEndRef} />
-              {messages.map(message => {
-                const isCurrentUser = message.sender === currentUserPubkey;
-                
-                return (
+      {/* Messages area with improved animation and visuals */}
+      <ScrollArea className="flex-1 p-4">
+        {loading ? (
+          <div className="flex justify-center items-center h-full py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 gap-1 py-10">
+            <MessageSquare className="h-12 w-12 mb-2 text-primary/20" />
+            <p className="text-sm font-medium">No messages yet</p>
+            <p className="text-xs max-w-[250px]">Send a message to start the conversation with {getDisplayName(activeContact)}</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map(message => {
+              const isCurrentUser = message.sender === currentUserPubkey;
+              
+              return (
+                <div 
+                  key={message.id}
+                  className={cn(
+                    "flex animate-fade-in my-2",
+                    isCurrentUser ? 'justify-end' : 'justify-start'
+                  )}
+                >
+                  {!isCurrentUser && (
+                    <Avatar className="h-8 w-8 mr-2 mt-1 flex-shrink-0">
+                      <AvatarImage src={activeContact.profile?.picture} />
+                      <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
+                    </Avatar>
+                  )}
                   <div 
-                    key={message.id}
-                    className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-fade-in my-1.5`}
-                  >
-                    {!isCurrentUser && (
-                      <Avatar className="h-8 w-8 mr-2 mt-1 flex-shrink-0">
-                        <AvatarImage src={activeContact.profile?.picture} />
-                        <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
-                      </Avatar>
+                    className={cn(
+                      "max-w-[75%] px-4 py-2 rounded-2xl shadow-sm",
+                      isCurrentUser 
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        : 'bg-muted rounded-tl-sm'
                     )}
-                    <div 
-                      className={`max-w-[75%] px-4 py-2 rounded-2xl shadow-sm ${
-                        isCurrentUser 
-                          ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                          : 'bg-muted rounded-tl-sm'
-                      }`}
-                    >
-                      <div className="text-sm break-words">{message.content}</div>
-                      <div className={`text-[10px] ${isCurrentUser ? 'opacity-70 text-right' : 'text-muted-foreground text-left'} mt-1`}>
-                        {formatTime(message.created_at)}
-                      </div>
+                  >
+                    <div className="text-sm break-words">{message.content}</div>
+                    <div className={cn(
+                      "text-[10px] mt-1",
+                      isCurrentUser ? 'opacity-70 text-right' : 'text-muted-foreground text-left'
+                    )}>
+                      {formatTime(message.created_at)}
                     </div>
                   </div>
-                );
-              })}
-            </>
-          )}
-        </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </ScrollArea>
       
-      {/* Message input */}
+      {/* Message input with improved design */}
       <div className="p-3 border-t flex gap-2 bg-background shadow-sm">
         <Button 
           variant="ghost" 
@@ -165,7 +174,10 @@ const MessageView: React.FC<MessageViewProps> = ({
           />
           <Button 
             onClick={handleSendMessage}
-            className="h-8 w-8 absolute right-1 top-1 rounded-full p-0 flex items-center justify-center"
+            className={cn(
+              "h-8 w-8 absolute right-1 top-1 rounded-full p-0 flex items-center justify-center",
+              !newMessage.trim() || sendingMessage ? "opacity-50" : "opacity-100"
+            )}
             variant="default"
             disabled={!newMessage.trim() || sendingMessage}
           >

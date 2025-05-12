@@ -1,7 +1,6 @@
 
 import React from "react";
-import { MessageSquare } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MessageSquare, Lock } from "lucide-react";
 
 interface WelcomeViewProps {
   onLogin?: () => void;
@@ -18,9 +17,24 @@ const WelcomeView: React.FC<WelcomeViewProps> = () => {
       <p className="text-muted-foreground text-center max-w-md mb-4">
         Secure, encrypted messaging built on Nostr and Alephium blockchain
       </p>
-      <p className="text-center text-muted-foreground">
-        Connect your Nostr wallet using the button in the top right corner to access your encrypted messages.
-      </p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg">
+        <div className="flex flex-col items-center p-4 rounded-lg bg-background/80 border text-center">
+          <Lock className="h-6 w-6 mb-2 text-green-500" />
+          <h3 className="text-sm font-medium mb-1">End-to-End Encryption</h3>
+          <p className="text-xs text-muted-foreground">
+            All messages are encrypted using NIP-44 protocol
+          </p>
+        </div>
+        
+        <div className="flex flex-col items-center p-4 rounded-lg bg-background/80 border text-center">
+          <MessageSquare className="h-6 w-6 mb-2 text-blue-500" />
+          <h3 className="text-sm font-medium mb-1">Private Messaging</h3>
+          <p className="text-xs text-muted-foreground">
+            Connect your Nostr wallet to start messaging
+          </p>
+        </div>
+      </div>
       
       <p className="text-xs text-muted-foreground mt-4">
         Messages are encrypted using NIP-44 and signed with your keys
