@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -16,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 // Import directly from the utils/nip folder to avoid confusion with multiple implementations
-import { verifyNip05 } from '@/lib/nostr/utils/nip/nip05';
+import { verifyNip05 } from '@/lib/nostr/nip05';
 import { nostrService } from '@/lib/nostr';
 
 // Define form schema that follows NIP-01 metadata format
@@ -119,7 +118,7 @@ const ProfileSettingsPage = () => {
     setIsNip05Verified(null);
     
     try {
-      // Make sure to pass both parameters to match the function signature in utils/nip/nip05.ts
+      // Using the imported verifyNip05 from lib/nostr/nip05 which accepts two parameters
       const isValid = await verifyNip05(identifier, pubkey);
       setIsNip05Verified(isValid);
     } catch (error) {
