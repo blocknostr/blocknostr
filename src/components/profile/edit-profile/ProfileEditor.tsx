@@ -29,6 +29,15 @@ const ProfileEditor = ({
   
   const handleSubmit = async (values: ProfileFormValues) => {
     try {
+      // Check relay connections first
+      const relays = nostrService.getRelayStatus();
+      const connectedRelays = relays.filter(r => r.status === 'connected');
+      
+      if (connectedRelays.length === 0) {
+        console.log("No connected relays found, connecting to default relays...");
+        await nostrService.connectToDefaultRelays();
+      }
+      
       // Prepare metadata object
       const metadata: NostrProfileMetadata = {
         name: values.name,
@@ -48,15 +57,31 @@ const ProfileEditor = ({
         tags: []
       };
       
-      // Publish metadata to Nostr network
-      const success = await nostrService.publishEvent(eventToPublish);
-      
-      if (success) {
-        toast.success("Profile updated successfully");
-        onClose();
-        onProfileUpdated();
-      } else {
-        toast.error("Failed to update profile");
+      try {
+        // Publish metadata to Nostr network
+        const success = await nostrService.publishEvent(eventToPublish);
+        
+        if (success) {
+          toast.success("Profile updated successfully");
+          // Wait briefly for relays to process the update
+          setTimeout(() => {
+            onClose();
+            onProfileUpdated();
+          }, 1500);
+        } else {
+          toast.error("Failed to update profile");
+        }
+      } catch (publishError: any) {
+        console.error("Error publishing profile:", publishError);
+        
+        // Handle specific error types
+        if (publishError.message && publishError.message.includes('pow:')) {
+          toast.error('This relay requires proof-of-work which is not yet supported. Try connecting to different relays.');
+        } else if (publishError.message && publishError.message.includes('subscription')) {
+          toast.error('Connection to relay was lost. Please try again.');
+        } else {
+          toast.error("An error occurred while updating profile");
+        }
       }
     } catch (error) {
       console.error("Error updating profile:", error);

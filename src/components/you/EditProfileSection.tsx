@@ -42,7 +42,27 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
     console.log('Submitting profile form with values:', values);
 
     try {
-      // 1) Clean up values by removing empty strings
+      // 1) Ensure we're connected to relays before publishing
+      console.log("Checking relay connections before publishing profile update...");
+      const relays = nostrService.getRelayStatus();
+      const connectedRelays = relays.filter(r => r.status === 'connected');
+      
+      if (connectedRelays.length === 0) {
+        console.log("No connected relays found, connecting to default relays...");
+        await nostrService.connectToDefaultRelays();
+        
+        // Double-check we have connections after attempting to connect
+        const updatedRelays = nostrService.getRelayStatus();
+        const nowConnected = updatedRelays.filter(r => r.status === 'connected');
+        
+        if (nowConnected.length === 0) {
+          toast.error("Unable to connect to any relays. Please check your internet connection.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // 2) Clean up values by removing empty strings
       const cleanValues: Record<string, any> = {};
       Object.entries(values).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
@@ -50,16 +70,16 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       });
 
-      // 2) Map `about` → `bio` so your view picks it up
+      // 3) Map `about` → `bio` so your view picks it up
       if (cleanValues.about) {
         cleanValues.bio = cleanValues.about;
         delete cleanValues.about;
       }
 
-      // 3) Log it out for debugging
+      // 4) Log it out for debugging
       console.log('📤 cleanValues payload:', cleanValues);
 
-      // 4) Verify NIP-05 if provided
+      // 5) Verify NIP-05 if provided
       if (values.nip05) {
         const verified = await verifyNip05Identifier(values.nip05);
         if (!verified) {
@@ -69,28 +89,50 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       }
 
-      // 5) Build the NIP-01 metadata event
+      // 6) Build the NIP-01 metadata event
       const eventToPublish = {
         kind: 0,
         content: JSON.stringify(cleanValues),
         tags: [],
       };
 
-      // 6) Publish the event
-      const success = await nostrService.publishEvent(eventToPublish);
+      // 7) Publish the event with error handling for POW requirements
+      try {
+        console.log("Publishing profile update to connected relays...");
+        const success = await nostrService.publishEvent(eventToPublish);
 
-      if (success) {
-        toast.success('Profile updated successfully');
+        if (success) {
+          toast.success('Profile updated successfully');
 
-        // Delay briefly to allow relay propagation, then refresh
-        setTimeout(async () => {
-          if (nostrService.publicKey) {
-            await forceRefreshProfile(nostrService.publicKey);
-          }
-          onSaved();
-        }, 1500);
-      } else {
-        toast.error('Failed to update profile');
+          // Delay briefly to allow relay propagation, then refresh
+          setTimeout(async () => {
+            if (nostrService.publicKey) {
+              try {
+                await forceRefreshProfile(nostrService.publicKey);
+                onSaved();
+              } catch (refreshError) {
+                console.error("Error refreshing profile after update:", refreshError);
+                // Still call onSaved even if refresh fails
+                onSaved();
+              }
+            } else {
+              onSaved();
+            }
+          }, 2000);
+        } else {
+          toast.error('Failed to update profile');
+        }
+      } catch (publishError: any) {
+        console.error('Error publishing profile update:', publishError);
+        
+        // Handle specific errors
+        if (publishError.message && publishError.message.includes('pow:')) {
+          toast.error('This relay requires proof-of-work which is not yet supported. Try connecting to different relays.');
+        } else if (publishError.message && publishError.message.includes('subscription')) {
+          toast.error('Connection to relay was lost. Please try again.');
+        } else {
+          toast.error('An error occurred while updating profile');
+        }
       }
     } catch (error) {
       console.error('Error updating profile:', error);

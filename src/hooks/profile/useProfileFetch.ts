@@ -49,9 +49,21 @@ export function useProfileFetch() {
       }
       
       // Connect to relays
-      await connectToProfileRelays();
+      const connectedRelays = await connectToProfileRelays();
       
-      if (verbose) console.log("Connected to relays, fetching profile...");
+      if (verbose) {
+        console.log("Connected to relays:", connectedRelays ? `${connectedRelays.length} relays` : "Failed to connect"); 
+        console.log("Fetching profile...");
+      }
+      
+      // Check if any relays are connected before proceeding
+      const relayStatus = nostrService.getRelayStatus();
+      const hasConnectedRelays = relayStatus.some(r => r.status === 'connected');
+      
+      if (!hasConnectedRelays) {
+        if (verbose) console.log("No connected relays available, attempting to connect to default relays");
+        await nostrService.connectToDefaultRelays();
+      }
       
       // Fetch profile metadata directly
       const profileMetadata = await nostrService.getUserProfile(hexPubkey);
