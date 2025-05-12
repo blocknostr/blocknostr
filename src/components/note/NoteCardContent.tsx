@@ -23,8 +23,8 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
 }) => {
   // Use content from props or from event if provided
   const contentToUse = content || event?.content || '';
-  // Use tags from props or from event if provided
-  const tagsToUse = tags?.length > 0 ? tags : (event?.tags || []);
+  // Use tags from props or from event if provided, ensure it's an array
+  const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
   
@@ -40,7 +40,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const formattedContent = contentFormatter.formatContent(displayContent);
   
   // Extract hashtags from tags array
-  const hashtags = tagsToUse
+  const hashtags = (tagsToUse || [])
     .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 't')
     .map(tag => tag[1]);
   
@@ -55,11 +55,11 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       urlsFromContent.push(match[0]);
     }
     
-    // Extract from tags - add null check for tagsToUse
+    // Extract from tags - ensure tagsToUse is an array
     const urlsFromTags = (tagsToUse || [])
       .filter(tag => Array.isArray(tag) && tag.length >= 2 && (tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r'))
       .map(tag => tag[1])
-      .filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
+      .filter(url => url && url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
     
     // Combine and deduplicate URLs
     return [...new Set([...urlsFromContent, ...urlsFromTags])];
@@ -105,7 +105,10 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
           variant="link" 
           size="sm" 
           className="mt-1 p-0 h-auto text-primary"
-          onClick={() => setExpanded(!expanded)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
         >
           {expanded ? 'Show less' : 'Show more'}
         </Button>
@@ -117,7 +120,10 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={handleHashtagClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleHashtagClick(tag);
+              }}
               variant="small"
             />
           ))}

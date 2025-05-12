@@ -33,9 +33,9 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   useEffect(() => {
     if (profileData) {
       // First, check for NIP-39 "i" tags in the event
-      if (Array.isArray(profileData.tags)) {
+      if (profileData.tags && Array.isArray(profileData.tags)) {
         const twitterTag = profileData.tags.find((tag: any[]) => 
-          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
+          Array.isArray(tag) && tag.length >= 3 && tag[0] === 'i' && tag[1]?.startsWith('twitter:')
         );
         
         if (twitterTag) {
@@ -69,6 +69,13 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
       if (!pubkeyHex) return;
       
       try {
+        // Use cached profile timestamp if available
+        const cachedProfile = nostrService.contentCache?.getProfile?.(pubkeyHex);
+        if (cachedProfile && cachedProfile._createdAt) {
+          setCreationDate(new Date(cachedProfile._createdAt * 1000));
+          return;
+        }
+        
         // Subscribe to oldest metadata events to find creation date
         const subId = nostrService.subscribe(
           [
@@ -79,7 +86,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
             }
           ],
           (event) => {
-            if (event.created_at) {
+            if (event?.created_at) {
               const eventDate = new Date(event.created_at * 1000);
               setCreationDate(eventDate);
             }

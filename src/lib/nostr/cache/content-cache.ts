@@ -8,6 +8,7 @@ import { FeedCache } from "./feed-cache";
 import { ListCache } from "./list-cache";
 import { CacheConfig } from "./types";
 import { EventFilter } from "./utils/event-filter";
+import { storageQuota } from "@/lib/utils/storageQuotaManager";
 
 /**
  * Content cache service for Nostr events
@@ -53,6 +54,20 @@ export class ContentCache {
     // Set initial offline status
     this.offlineMode = !navigator.onLine;
     this.updateOfflineMode();
+    
+    // Register clean-up on quota warnings
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'storage-warning') {
+        console.log('Storage warning received, cleaning up cache');
+        this.cleanupExpiredEntries();
+      }
+    });
+    
+    // Check quota status on initialization
+    if (storageQuota.isApproachingQuota()) {
+      console.warn('Storage quota approaching limit on startup, cleaning up cache');
+      this.cleanupExpiredEntries();
+    }
   }
   
   // Update offline mode status across all caches
@@ -79,7 +94,24 @@ export class ContentCache {
   }
   
   cacheEvents(events: NostrEvent[], important: boolean = false): void {
-    this.eventCache.cacheEvents(events, important);
+    // Limit batch size to avoid quota issues
+    const batchSize = 50;
+    const batches = Math.ceil(events.length / batchSize);
+    
+    for (let i = 0; i < batches; i++) {
+      const start = i * batchSize;
+      const end = Math.min(start + batchSize, events.length);
+      const batch = events.slice(start, end);
+      
+      this.eventCache.cacheEvents(batch, important);
+      
+      // Check if we're approaching quota
+      if (storageQuota.isApproachingQuota()) {
+        // We're approaching quota, stop caching to avoid errors
+        console.warn(`Storage quota approaching limit, stopped caching at ${end}/${events.length} events`);
+        break;
+      }
+    }
   }
   
   getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
@@ -88,6 +120,11 @@ export class ContentCache {
   
   // Profile cache methods
   cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
+    // Add creation timestamp to profile data for account age
+    if (profileData && !profileData._createdAt && profileData.created_at) {
+      profileData._createdAt = profileData.created_at;
+    }
+    
     this.profileCache.cacheItem(pubkey, profileData, important);
   }
   
@@ -112,7 +149,31 @@ export class ContentCache {
     until?: number,
     mediaOnly?: boolean
   }, important: boolean = false): void {
-    this._feedCache.cacheFeed(feedType, events, options, important);
+    // Check storage quota before caching large feeds
+    if (storageQuota.isApproachingQuota() && events.length > 10) {
+      console.warn(`Storage quota approaching limit, skipping feed cache for ${feedType}`);
+      return;
+    }
+    
+    try {
+      this._feedCache.cacheFeed(feedType, events, options, important);
+    } catch (error) {
+      // If we hit storage limits, clean up and try again with fewer events
+      console.error(`Error caching feed ${feedType}:`, error);
+      this.cleanupExpiredEntries();
+      
+      // Try again with half the events
+      if (events.length > 5) {
+        const reducedEvents = events.slice(0, Math.floor(events.length / 2));
+        console.warn(`Retrying with ${reducedEvents.length} events (reduced from ${events.length})`);
+        
+        try {
+          this._feedCache.cacheFeed(feedType, reducedEvents, options, false);
+        } catch (retryError) {
+          console.error(`Failed to cache even with reduced events:`, retryError);
+        }
+      }
+    }
   }
   
   getFeed(feedType: string, options: {
@@ -172,4 +233,4 @@ export { contentCache };
 // Set up periodic cache cleanup
 setInterval(() => {
   contentCache.cleanupExpiredEntries();
-}, CACHE_EXPIRY);
+}, Math.min(CACHE_EXPIRY, 60000)); // Every minute or at cache expiry time, whichever is less

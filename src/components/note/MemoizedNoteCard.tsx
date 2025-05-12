@@ -54,9 +54,20 @@ const NoteCard = ({
     }
   });
 
-  const isCurrentUser = event?.pubkey === nostrService.publicKey;
+  // Ensure we have a valid event
+  if (!event) {
+    return null;
+  }
 
-  const handleCardClick = () => {
+  const isCurrentUser = event.pubkey === nostrService.publicKey;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // If the click is on a link or button, don't navigate
+    if ((e.target as HTMLElement).closest('a') || 
+        (e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    
     if (event?.id) {
       window.location.href = `/post/${event.id}`;
     }
@@ -64,7 +75,8 @@ const NoteCard = ({
   
   // Build card component with all the variations
   return (
-    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" onClick={handleCardClick}>
+    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
+          onClick={handleCardClick}>
       {/* Render repost header if this is a repost */}
       {repostData && (
         <NoteCardRepostHeader
@@ -101,7 +113,7 @@ const NoteCard = ({
         <div className="mt-2">
           <NoteCardContent 
             content={event?.content || ''}
-            tags={event?.tags || []}
+            tags={Array.isArray(event?.tags) ? event?.tags : []}
             event={event}
           />
         </div>

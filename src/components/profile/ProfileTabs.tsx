@@ -1,9 +1,10 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/note/NoteCard";
-import { NostrEvent } from "@/lib/nostr";
+import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Loader2 } from "lucide-react";
+import { useProfileFetcher } from "../feed/hooks/use-profile-fetcher";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -26,6 +27,32 @@ const ProfileTabs = ({
   reactions = [],
   referencedEvents = {}
 }: ProfileTabsProps) => {
+  const { profiles, fetchProfileData } = useProfileFetcher();
+  const [loadingReactionProfiles, setLoadingReactionProfiles] = useState(false);
+
+  // Fetch profiles for posts in the reactions tab
+  useEffect(() => {
+    const fetchReactionProfiles = async () => {
+      if (!reactions || !referencedEvents) return;
+      
+      setLoadingReactionProfiles(true);
+      
+      // Get unique author pubkeys from referenced events
+      const authorPubkeys = Object.values(referencedEvents || {})
+        .filter(event => !!event?.pubkey)
+        .map(event => event.pubkey);
+      
+      // Fetch profiles for all authors
+      for (const pubkey of authorPubkeys) {
+        await fetchProfileData(pubkey);
+      }
+      
+      setLoadingReactionProfiles(false);
+    };
+    
+    fetchReactionProfiles();
+  }, [reactions, referencedEvents]);
+  
   return (
     <div className="mt-6">
       <Tabs defaultValue="posts" className="w-full">
@@ -58,7 +85,7 @@ const ProfileTabs = ({
         
         {/* Replies Tab - Now implemented with NIP-10 */}
         <TabsContent value="replies" className="mt-4">
-          {replies.length === 0 ? (
+          {!replies || replies.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No replies found.
             </div>
@@ -78,7 +105,7 @@ const ProfileTabs = ({
 
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
-          {reposts.length === 0 ? (
+          {!reposts || reposts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
             </div>
@@ -101,7 +128,7 @@ const ProfileTabs = ({
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          {media.length === 0 ? (
+          {!media || media.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No media found.
             </div>
@@ -153,11 +180,14 @@ const ProfileTabs = ({
                   );
                 }
                 
+                // Get the profile data for the author of the original post
+                const originalAuthorProfileData = originalEvent.pubkey && profiles[originalEvent.pubkey];
+                
                 return (
                   <NoteCard 
                     key={reactionEvent.id}
                     event={originalEvent}
-                    profileData={undefined} // We need to fetch this separately
+                    profileData={originalAuthorProfileData}
                     reactionData={{
                       emoji: reactionEvent.content || '+',
                       reactionEvent: reactionEvent
@@ -175,9 +205,20 @@ const ProfileTabs = ({
 
 // Helper function to extract the first image URL from content
 const extractImageUrl = (content: string): string => {
-  const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif))/i;
+  // Check for URLs in content
+  const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i;
   const matches = content.match(urlRegex);
-  return matches ? matches[0] : '';
+  
+  if (matches && matches[0]) {
+    return matches[0];
+  }
+  
+  // If no match in content, check for other image patterns
+  const altUrlRegex = /(https?:\/\/[^\s]+)/i;
+  const altMatches = content.match(altUrlRegex);
+  
+  // Return any URL or empty string as fallback
+  return altMatches ? altMatches[0] : '';
 };
 
 export default ProfileTabs;
