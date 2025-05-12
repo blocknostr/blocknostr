@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -200,11 +201,11 @@ html.color-theme-in-transition {
     position: relative;
   }
   
-  /* Toast notification animations - updated for improved click interactions */
+  /* Toast notification animations */
   .nostr-toast {
     animation: toast-slide-in 0.2s ease-out;
     transition: all 0.3s ease-out;
-    user-select: none; /* Prevent text selection */
+    cursor: pointer;
   }
   
   @keyframes toast-slide-in {
@@ -231,11 +232,6 @@ html.color-theme-in-transition {
       transform: translateX(100%);
       opacity: 0;
     }
-  }
-  
-  /* Add subtle hover effect to reinforce clickability */
-  .nostr-toast:hover {
-    filter: brightness(1.05);
   }
 }
 
