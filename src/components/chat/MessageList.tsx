@@ -3,6 +3,7 @@ import React, { useRef, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
 import { NostrEvent } from "@/lib/nostr/types";
+import { Loader2, MessageSquare } from "lucide-react";
 
 interface MessageListProps {
   messages: NostrEvent[];
@@ -34,7 +35,10 @@ const MessageList: React.FC<MessageListProps> = ({
     return (
       <CardContent className="p-0 overflow-y-auto flex-1">
         <div className="flex items-center justify-center h-full">
-          <p className="text-sm text-muted-foreground">Loading messages...</p>
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary/50" />
+            <p className="text-sm text-muted-foreground">Loading messages...</p>
+          </div>
         </div>
       </CardContent>
     );
@@ -44,7 +48,14 @@ const MessageList: React.FC<MessageListProps> = ({
     return (
       <CardContent className="p-0 overflow-y-auto flex-1">
         <div className="flex items-center justify-center h-full">
-          <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
+          <div className="text-center">
+            <div className="rounded-full bg-primary/10 p-4 mx-auto mb-3">
+              <MessageSquare className="h-8 w-8 text-primary/50" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              No messages yet. Start the conversation!
+            </p>
+          </div>
         </div>
       </CardContent>
     );
@@ -52,7 +63,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <CardContent className="p-0 overflow-y-auto flex-1">
-      <div className="p-2 space-y-2">
+      <div className="p-2 space-y-1">
         {messages.map(message => (
           <MessageItem
             key={message.id}

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, Smile } from "lucide-react";
 import { toast } from "sonner";
 
 interface ChatInputProps {
@@ -31,39 +31,52 @@ const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessa
 
   if (!isLoggedIn) {
     return (
-      <div className="border-t p-2">
-        <p className="text-xs text-center text-muted-foreground p-1">
-          Login to join the conversation
-        </p>
+      <div className="border-t p-3">
+        <div className="bg-muted/50 rounded-full p-2 text-center">
+          <p className="text-xs text-muted-foreground">
+            Login to join the conversation
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="border-t p-2">
-      <div className="flex items-center gap-1">
-        <Input
-          placeholder={disabled ? "Disconnected from relays..." : "Send a message..."}
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          maxLength={maxChars * 2} // Allow typing past limit but show warning
-          className="text-xs h-8"
-          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+    <div className="border-t p-3">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full flex-shrink-0 hover:bg-accent"
           disabled={disabled}
-        />
-        <div className="flex items-center gap-1">
-          <span className={`text-[10px] ${newMessage.length > maxChars ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
-            {newMessage.length}/{maxChars}
-          </span>
-          <Button 
-            onClick={handleSend} 
-            disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
-            size="sm"
-            className="h-8 w-8 p-0"
-            variant={disabled ? "outline" : "default"}
-          >
-            <SendHorizontal className="h-4 w-4" />
-          </Button>
+        >
+          <Smile className="h-5 w-5 text-muted-foreground" />
+        </Button>
+        
+        <div className="relative flex-1">
+          <Input
+            placeholder={disabled ? "Disconnected from relays..." : "Send a message..."}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            maxLength={maxChars * 2} // Allow typing past limit but show warning
+            className="rounded-full pr-16 h-9 bg-muted/30"
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            disabled={disabled}
+          />
+          <div className="absolute right-1 top-1 flex items-center">
+            <span className={`text-[10px] mr-1 ${newMessage.length > maxChars ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+              {newMessage.length}/{maxChars}
+            </span>
+            <Button 
+              onClick={handleSend} 
+              disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
+              size="sm"
+              className="h-7 w-7 p-0 rounded-full"
+              variant={disabled ? "outline" : "default"}
+            >
+              <SendHorizontal className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
       {disabled && (

@@ -37,29 +37,29 @@ const MessageItem: React.FC<MessageItemProps> = ({
   };
 
   return (
-    <div className="flex items-start gap-1.5">
-      <Avatar className="h-6 w-6">
+    <div className="flex items-start gap-2 p-1.5 hover:bg-muted/50 rounded-md animate-fade-in">
+      <Avatar className="h-8 w-8">
         <AvatarImage src={getProfilePicture(message.pubkey)} />
-        <AvatarFallback className="text-xs">{getAvatarFallback(message.pubkey)}</AvatarFallback>
+        <AvatarFallback className="text-xs bg-primary/10">{getAvatarFallback(message.pubkey)}</AvatarFallback>
       </Avatar>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1">
-          <span className="font-medium text-xs truncate">{getDisplayName(message.pubkey)}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium text-sm truncate">{getDisplayName(message.pubkey)}</span>
           <span className="text-[10px] text-muted-foreground">
             {formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true })}
           </span>
         </div>
         
-        <div className="text-xs break-words whitespace-pre-wrap">
+        <div className="text-sm break-words whitespace-pre-wrap bg-muted/50 rounded-lg px-3 py-1.5 mt-1">
           {contentFormatter.formatContent(message.content)}
         </div>
         
         {/* Reactions */}
         {emojiReactions && emojiReactions.length > 0 && (
-          <div className="flex flex-wrap gap-0.5 mt-0.5">
+          <div className="flex flex-wrap gap-0.5 mt-1">
             {emojiReactions.map((emoji, idx) => (
-              <span key={idx} className="inline-flex items-center bg-muted px-1 rounded-full text-[10px]">
+              <span key={idx} className="inline-flex items-center bg-accent px-1.5 py-0.5 rounded-full text-xs shadow-sm">
                 {emoji}
               </span>
             ))}

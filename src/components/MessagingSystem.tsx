@@ -501,28 +501,28 @@ const MessagingSystem = () => {
   return (
     <div className="h-full flex flex-col">
       <div className="flex h-full">
-        {/* Contacts list - more compact */}
-        <div className="w-1/3 border-r overflow-hidden flex flex-col">
-          <div className="flex justify-between items-center p-2 border-b">
-            <h3 className="font-medium text-sm">Conversations</h3>
+        {/* Contacts list - Facebook Messenger style */}
+        <div className="w-1/3 border-r overflow-hidden flex flex-col bg-background shadow-sm">
+          <div className="flex justify-between items-center p-3 border-b">
+            <h3 className="font-semibold text-base">Chats</h3>
             <Button 
               size="sm" 
-              variant="outline"
-              className="h-7 text-xs"
+              variant="ghost"
+              className="h-8 w-8 p-0 rounded-full hover:bg-accent"
               onClick={() => setNewContactDialog(true)}
             >
-              New
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </Button>
           </div>
           
-          <div className="p-2">
+          <div className="p-3">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3 w-3" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input 
                 placeholder="Search conversations..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 py-1 h-7 text-xs bg-muted/40"
+                className="pl-10 py-2 h-9 text-sm bg-muted/40 rounded-full"
               />
             </div>
           </div>
@@ -546,17 +546,20 @@ const MessagingSystem = () => {
               filteredContacts.map(contact => (
                 <div 
                   key={contact.pubkey}
-                  className={`p-2 cursor-pointer border-b hover:bg-accent/50 flex items-center gap-2 transition-colors ${
+                  className={`p-3 cursor-pointer hover:bg-accent/30 flex items-center gap-3 transition-colors ${
                     activeContact?.pubkey === contact.pubkey ? "bg-accent" : ""
                   }`}
                   onClick={() => loadMessagesForContact(contact)}
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={contact.profile?.picture} />
-                    <AvatarFallback>{getAvatarFallback(contact)}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarImage src={contact.profile?.picture} />
+                      <AvatarFallback>{getAvatarFallback(contact)}</AvatarFallback>
+                    </Avatar>
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></span>
+                  </div>
                   <div className="overflow-hidden flex-1">
-                    <div className="font-medium text-sm truncate">{getDisplayName(contact)}</div>
+                    <div className="font-semibold text-sm truncate">{getDisplayName(contact)}</div>
                     {contact.lastMessage && (
                       <div className="text-xs text-muted-foreground truncate">
                         {contact.lastMessage}
@@ -574,36 +577,37 @@ const MessagingSystem = () => {
           </ScrollArea>
         </div>
             
-        {/* Message area - more compact */}
+        {/* Message area - Facebook Messenger style */}
         <div className="w-2/3 flex flex-col h-full bg-background overflow-hidden">
           {activeContact ? (
             <>
-              {/* Header - reduced height */}
-              <div className="p-2 border-b flex items-center gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarImage src={activeContact.profile?.picture} />
-                  <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
-                </Avatar>
+              {/* Header with FB Messenger style */}
+              <div className="p-3 border-b flex items-center gap-3 shadow-sm">
+                <div className="relative">
+                  <Avatar className="h-9 w-9 border">
+                    <AvatarImage src={activeContact.profile?.picture} />
+                    <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
+                  </Avatar>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background"></span>
+                </div>
                 <div className="flex-1 overflow-hidden">
-                  <div className="font-medium text-sm truncate">{getDisplayName(activeContact)}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {nostrService.getNpubFromHex(activeContact.pubkey).substring(0, 10)}...
-                  </div>
+                  <div className="font-semibold truncate">{getDisplayName(activeContact)}</div>
+                  <div className="text-xs text-green-500">Active now</div>
                 </div>
               </div>
               
-              {/* Messages - using ScrollArea for better space usage */}
-              <ScrollArea className="flex-1">
-                <div className="p-2 space-y-2">
+              {/* Messages with FB Messenger bubble style */}
+              <ScrollArea className="flex-1 px-4 py-2">
+                <div className="space-y-3">
                   {loading ? (
                     <div className="flex justify-center items-center h-full py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                   ) : messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 gap-1">
-                      <MessageSquare className="h-8 w-8 mb-1" />
-                      <p className="text-sm">No messages yet</p>
-                      <p className="text-xs">Send a message to start the conversation</p>
+                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-40 gap-1 py-10">
+                      <MessageSquare className="h-12 w-12 mb-2 text-primary/20" />
+                      <p className="text-sm font-medium">No messages yet</p>
+                      <p className="text-xs max-w-[250px]">Send a message to start the conversation with {getDisplayName(activeContact)}</p>
                     </div>
                   ) : (
                     <>
@@ -613,23 +617,23 @@ const MessagingSystem = () => {
                         return (
                           <div 
                             key={message.id}
-                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-fade-in`}
                           >
                             {!isCurrentUser && (
-                              <Avatar className="h-6 w-6 mr-1 mt-1 flex-shrink-0">
+                              <Avatar className="h-8 w-8 mr-2 mt-1 flex-shrink-0">
                                 <AvatarImage src={activeContact.profile?.picture} />
                                 <AvatarFallback>{getAvatarFallback(activeContact)}</AvatarFallback>
                               </Avatar>
                             )}
                             <div 
-                              className={`max-w-[75%] px-3 py-1.5 rounded-xl ${
+                              className={`max-w-[75%] px-4 py-2 rounded-2xl shadow-sm ${
                                 isCurrentUser 
-                                  ? 'bg-primary text-primary-foreground rounded-tr-none'
-                                  : 'bg-card border rounded-tl-none'
+                                  ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                                  : 'bg-muted rounded-tl-sm'
                               }`}
                             >
                               <div className="text-sm break-words">{message.content}</div>
-                              <div className={`text-[10px] ${isCurrentUser ? 'opacity-70' : 'text-muted-foreground'} mt-0.5 text-right`}>
+                              <div className={`text-[10px] ${isCurrentUser ? 'opacity-70 text-right' : 'text-muted-foreground text-left'} mt-1`}>
                                 {formatTime(message.created_at)}
                               </div>
                             </div>
@@ -642,76 +646,85 @@ const MessagingSystem = () => {
                 </div>
               </ScrollArea>
               
-              {/* Message input - reduced padding */}
-              <div className="p-2 border-t flex gap-1.5 bg-background">
+              {/* Message input with FB Messenger style */}
+              <div className="p-3 border-t flex gap-2 bg-background shadow-sm">
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="h-8 w-8 flex-shrink-0"
+                  className="h-10 w-10 flex-shrink-0 rounded-full hover:bg-accent"
                   disabled={sendingMessage}
                 >
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  <Paperclip className="h-5 w-5 text-primary" />
                 </Button>
-                <Input 
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="bg-muted/30 h-8"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  disabled={sendingMessage}
-                />
-                <Button 
-                  onClick={handleSendMessage}
-                  className="h-8 w-8 flex-shrink-0 p-0"
-                  variant="default"
-                  disabled={!newMessage.trim() || sendingMessage}
-                >
-                  {sendingMessage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
+                <div className="relative flex-1">
+                  <Input 
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="bg-muted/50 h-10 pl-4 pr-12 rounded-full"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    disabled={sendingMessage}
+                  />
+                  <Button 
+                    onClick={handleSendMessage}
+                    className="h-8 w-8 absolute right-1 top-1 rounded-full p-0 flex items-center justify-center"
+                    variant="default"
+                    disabled={!newMessage.trim() || sendingMessage}
+                  >
+                    {sendingMessage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2 p-4">
-              <MessageSquare className="h-10 w-10 mb-1" />
-              <p className="text-base font-medium">Select a conversation</p>
-              <p className="text-xs">Choose a contact to start messaging</p>
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 gap-4">
+              <div className="rounded-full bg-primary/10 p-6">
+                <MessageSquare className="h-12 w-12 text-primary" />
+              </div>
+              <div>
+                <p className="text-xl font-semibold">Your Messages</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-[300px]">
+                  Send private messages to contacts using NostrDM with end-to-end encryption
+                </p>
+              </div>
               <Button 
-                variant="outline"
-                className="mt-1 text-sm h-8"
+                variant="default"
+                className="mt-2"
                 onClick={() => setNewContactDialog(true)}
               >
-                New Conversation
+                Start a Conversation
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      {/* New Contact Dialog */}
+      {/* New Contact Dialog - Improved styling */}
       <Dialog open={newContactDialog} onOpenChange={setNewContactDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Contact</DialogTitle>
+            <DialogTitle>Start a new conversation</DialogTitle>
           </DialogHeader>
-          <div className="py-3">
-            <p className="text-sm text-muted-foreground mb-3">
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Enter a Nostr public key (npub) or hex key to add a new contact
             </p>
-            <div className="space-y-3">
-              <div className="grid gap-2">
+            <div className="space-y-4">
+              <div className="grid gap-3">
                 <Input
                   placeholder="npub1... or hex key"
                   value={newContactPubkey}
                   onChange={(e) => setNewContactPubkey(e.target.value)}
+                  className="rounded-md"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -724,7 +737,12 @@ const MessagingSystem = () => {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleAddNewContact}>Add Contact</Button>
+                <Button 
+                  onClick={handleAddNewContact}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Add Contact
+                </Button>
               </div>
             </div>
           </div>
