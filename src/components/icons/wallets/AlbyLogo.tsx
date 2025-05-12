@@ -12,7 +12,11 @@ const AlbyLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
       {...props}
     >
       <circle cx="32" cy="32" r="30" fill="#F5CD00" />
-      <path d="M32 12L18 36h28L32 12zm0 10l7 14H25l7-14z" fill="#FFFFFF" />
+      <path d="M32 18c-1.6 0-3 1-3.5 2.5-5.6 1-10 5.9-10 11.8 0 6.6 5.4 12 12 12h3c6.6 0 12-5.4 12-12 0-5.9-4.4-10.8-10-11.8-0.5-1.5-1.9-2.5-3.5-2.5z" fill="black" />
+      <circle cx="26" cy="32" r="3" fill="white" />
+      <circle cx="38" cy="32" r="3" fill="white" />
+      <path d="M20 24c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="black" strokeWidth="2" fill="transparent" />
+      <path d="M36 24c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="black" strokeWidth="2" fill="transparent" />
     </svg>
   );
 };
