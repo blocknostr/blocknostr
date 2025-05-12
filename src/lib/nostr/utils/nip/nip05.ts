@@ -1,4 +1,10 @@
 
+import { isValidHexString } from '@/lib/nostr/utils/keys';
+import { retry } from '@/lib/utils/retry';
+
+// Default timeout for fetch operations
+const FETCH_TIMEOUT = 10000; // 10 seconds
+
 /**
  * Enhanced NIP-05 verification function that validates JSON structure and resolves identifiers to pubkeys
  * Implementation follows https://github.com/nostr-protocol/nips/blob/master/05.md
@@ -14,6 +20,9 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     return null;
   }
 
+  // Normalize identifier to lowercase
+  identifier = identifier.trim().toLowerCase();
+
   try {
     // Split the identifier into local-part and domain
     const [name, domain] = identifier.split('@');
@@ -24,18 +33,39 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
       return null;
     }
     
-    // Make a GET request to the well-known URL
+    // Make a GET request to the well-known URL with timeout
     // As per NIP-05: https://<domain>/.well-known/nostr.json?name=<local-part>
-    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
+    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name.toLowerCase())}`;
     
-    // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
-    const response = await fetch(url, { redirect: 'error' });
+    // Use retry with timeout for better reliability
+    const fetchWithTimeout = async () => {
+      // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+      
+      try {
+        const response = await fetch(url, { 
+          redirect: 'error',
+          signal: controller.signal 
+        });
+        
+        // Check if the request was successful
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
     
-    // Check if the request was successful
-    if (!response.ok) {
-      console.error(`NIP-05 verification failed: HTTP ${response.status} for ${url}`);
-      return null;
-    }
+    // Use retry utility for resilience
+    const response = await retry(fetchWithTimeout, {
+      maxAttempts: 2,
+      baseDelay: 1000,
+      onRetry: (attempt) => console.log(`Retrying NIP-05 verification (${attempt})`)
+    });
     
     // Parse the response as JSON
     const data = await response.json();
@@ -53,13 +83,19 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
     }
     
     // Check if the name exists in the names object and get its pubkey
-    if (!Object.prototype.hasOwnProperty.call(data.names, name)) {
+    if (!Object.prototype.hasOwnProperty.call(data.names, name.toLowerCase())) {
       console.error(`NIP-05 verification failed: Username '${name}' not found in names object`);
       return null;
     }
     
     // Get the pubkey from the response
-    const responsePubkey = data.names[name];
+    const responsePubkey = data.names[name.toLowerCase()];
+    
+    // Validate that the returned pubkey is a valid hex string
+    if (!isValidHexString(responsePubkey)) {
+      console.error("NIP-05 verification failed: Invalid pubkey format");
+      return null;
+    }
     
     // If a pubkey was provided, verify it matches
     if (pubkeyHex) {
@@ -82,6 +118,12 @@ export async function verifyNip05(identifier: string, pubkeyHex?: string): Promi
  * @returns True if the identifier resolves to the specified pubkey, false otherwise
  */
 export async function verifyNip05ForPubkey(identifier: string, pubkeyHex: string): Promise<boolean> {
+  // Validate pubkey format
+  if (!isValidHexString(pubkeyHex)) {
+    console.error("Invalid pubkey format for NIP-05 verification");
+    return false;
+  }
+  
   const result = await verifyNip05(identifier, pubkeyHex);
   return result === pubkeyHex;
 }

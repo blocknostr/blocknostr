@@ -1,6 +1,7 @@
 
 import { nostrService } from '@/lib/nostr';
 import { verifyNip05 as nip05Verify, isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
+import { isValidHexString } from '@/lib/nostr/utils/keys';
 
 /**
  * Utilities for profile management
@@ -14,10 +15,13 @@ import { verifyNip05 as nip05Verify, isValidNip05Format } from '@/lib/nostr/util
 export async function verifyNip05Identifier(identifier: string): Promise<boolean> {
   if (!identifier) return false;
   
+  // Normalize the identifier to lowercase
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  
   try {
     // Verify using the general NIP-05 verification utility
-    const pubkeyHex = await nip05Verify(identifier);
-    return !!pubkeyHex; // Convert to boolean - true if a valid pubkey was returned
+    const pubkeyHex = await nip05Verify(normalizedIdentifier);
+    return pubkeyHex !== null; // Return true if a valid pubkey was returned
   } catch (error) {
     console.error("Error verifying NIP-05:", error);
     return false;
@@ -32,10 +36,15 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
 export async function verifyNip05ForCurrentUser(identifier: string): Promise<boolean> {
   if (!identifier || !nostrService.publicKey) return false;
   
+  // Normalize the identifier to lowercase
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  
   try {
-    const pubkeyHex = await nip05Verify(identifier);
-    // Fix the comparison - pubkeyHex will be a string (or null), not a boolean
-    return pubkeyHex !== null && pubkeyHex === nostrService.publicKey;
+    const pubkeyHex = await nip05Verify(normalizedIdentifier);
+    // Validate that pubkeyHex is a valid hex string and matches the current user's pubkey
+    return pubkeyHex !== null && 
+           isValidHexString(pubkeyHex) && 
+           pubkeyHex === nostrService.publicKey;
   } catch (error) {
     console.error("Error verifying NIP-05 for current user:", error);
     return false;

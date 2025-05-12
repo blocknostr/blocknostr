@@ -7,62 +7,9 @@
  * @returns The pubkey in hex format if verified, or null if verification fails
  */
 export async function verifyNip05(identifier: string): Promise<string | null> {
-  // Check if the identifier is valid (contains @)
-  if (!identifier || !identifier.includes('@')) {
-    console.error("Invalid NIP-05 identifier format");
-    return null;
-  }
-
-  try {
-    // Split the identifier into local-part and domain
-    const [name, domain] = identifier.split('@');
-    
-    // Format should be local-part@domain, as per NIP-05
-    if (!name || !domain) {
-      console.error("NIP-05 identifier must contain both name and domain parts");
-      return null;
-    }
-    
-    // Make a GET request to the well-known URL
-    // As per NIP-05: https://<domain>/.well-known/nostr.json?name=<local-part>
-    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
-    
-    // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
-    const response = await fetch(url, { redirect: 'error' });
-    
-    // Check if the request was successful
-    if (!response.ok) {
-      console.error(`NIP-05 verification failed: HTTP ${response.status} for ${url}`);
-      return null;
-    }
-    
-    // Parse the response as JSON
-    const data = await response.json();
-    
-    // Validate the response structure as per NIP-05 spec
-    if (!data || typeof data !== 'object') {
-      console.error("NIP-05 verification failed: Invalid response format");
-      return null;
-    }
-    
-    // Check if the response has a names object
-    if (!data.names || typeof data.names !== 'object') {
-      console.error("NIP-05 verification failed: Missing or invalid 'names' field");
-      return null;
-    }
-    
-    // Check if the name exists in the names object and get its pubkey
-    if (!Object.prototype.hasOwnProperty.call(data.names, name)) {
-      console.error(`NIP-05 verification failed: Username '${name}' not found in names object`);
-      return null;
-    }
-    
-    // Return the pubkey in hex format
-    return data.names[name] || null;
-  } catch (error) {
-    console.error("Error verifying NIP-05:", error);
-    return null;
-  }
+  // Import the implementation from utils to avoid duplication
+  const { verifyNip05 } = await import('@/lib/nostr/utils/nip/nip05');
+  return verifyNip05(identifier);
 }
 
 /**
@@ -74,28 +21,58 @@ export async function verifyNip05(identifier: string): Promise<string | null> {
  */
 export async function fetchNip05Data(identifier: string): Promise<{
   pubkey?: string;
-  // Update the relays type to match what profile-service.ts expects
+  // Both formats of relay data are preserved
   relays?: Record<string, { read: boolean; write: boolean }>;
+  rawRelays?: Record<string, string[]>; // Original format from the NIP-05 JSON
   nip05_domain?: string;
   nip05_name?: string;
   [key: string]: any;
 } | null> {
+  // Import for validation
+  const { isValidHexString } = await import('@/lib/nostr/utils/keys');
+  const { retry } = await import('@/lib/utils/retry');
+  
   if (!identifier || !identifier.includes('@')) {
     console.error("Invalid NIP-05 identifier format");
     return null;
   }
 
+  // Normalize identifier to lowercase
+  identifier = identifier.trim().toLowerCase();
+
   try {
     const [name, domain] = identifier.split('@');
-    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
+    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name.toLowerCase())}`;
     
-    // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
-    const response = await fetch(url, { redirect: 'error' });
+    // Use retry with timeout for better reliability
+    const fetchWithTimeout = async () => {
+      // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      try {
+        const response = await fetch(url, { 
+          redirect: 'error',
+          signal: controller.signal 
+        });
+        
+        // Check if the request was successful
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        return response;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
     
-    if (!response.ok) {
-      console.error(`NIP-05 data fetch failed: HTTP ${response.status}`);
-      return null;
-    }
+    // Use retry utility for resilience
+    const response = await retry(fetchWithTimeout, {
+      maxAttempts: 2,
+      baseDelay: 1000,
+      onRetry: (attempt) => console.log(`Retrying NIP-05 data fetch (${attempt})`)
+    });
     
     const data = await response.json();
     
@@ -106,16 +83,30 @@ export async function fetchNip05Data(identifier: string): Promise<{
     }
     
     // Get pubkey from names
-    const pubkey = data.names[name];
+    const pubkey = data.names[name.toLowerCase()];
     if (!pubkey) {
       console.error(`NIP-05 data fetch failed: Username '${name}' not found in names object`);
       return null;
     }
     
-    // Check for the recommended 'relays' object which maps pubkeys to arrays of relay URLs
-    // Transform the relay data to the format expected by profile-service.ts
+    // Validate pubkey format
+    if (!isValidHexString(pubkey)) {
+      console.error("NIP-05 data fetch failed: Invalid pubkey format");
+      return null;
+    }
+    
+    // Store both the original relay format and the transformed format
     let relays: Record<string, { read: boolean; write: boolean }> | undefined;
+    let rawRelays: Record<string, string[]> | undefined;
+    
+    // Check for the recommended 'relays' object which maps pubkeys to arrays of relay URLs
     if (data.relays && typeof data.relays === 'object' && data.relays[pubkey]) {
+      // Store the original format
+      rawRelays = {
+        [pubkey]: data.relays[pubkey]
+      };
+      
+      // Transform to expected format
       relays = {
         [pubkey]: {
           read: true,
@@ -127,6 +118,7 @@ export async function fetchNip05Data(identifier: string): Promise<{
     return { 
       pubkey,
       relays,
+      rawRelays, // Preserve the original format
       nip05_domain: domain,
       nip05_name: name
     };

@@ -1,4 +1,3 @@
-
 import { nip19 } from 'nostr-tools';
 
 /**
@@ -56,3 +55,16 @@ export const getHexFromNpub = (npub: string): string => {
     return npub;
   }
 };
+
+/**
+ * Checks if a string is a valid hexadecimal string
+ * @param str String to check
+ * @returns True if the string is a valid hex string
+ */
+export function isValidHexString(str: string | undefined | null): boolean {
+  if (!str) return false;
+  
+  // Check for hex string format (must start with optional 0x and contain only hex chars)
+  const hexRegex = /^(0x)?[0-9a-f]+$/i;
+  return hexRegex.test(str);
+}
