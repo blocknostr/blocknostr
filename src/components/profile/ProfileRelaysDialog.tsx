@@ -8,6 +8,7 @@ import { RelayDialogContent } from "./relays/DialogContent";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { RelayList } from "./relays/RelayList";
+import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
 
 interface ProfileRelaysDialogProps {
   open: boolean;
@@ -58,27 +59,14 @@ const ProfileRelaysDialog = ({
       // First ensure we're connected to relays
       await nostrService.connectToUserRelays();
       
-      // Use the adapted service for NIP-65 compliance
-      if ('adaptedNostrService' in nostrService) {
-        const success = await nostrService.adaptedNostrService.publishRelayList(relaysToSave);
-        if (success) {
-          toast.success("Relay preferences updated");
-          return true;
-        } else {
-          toast.error("Failed to update relay preferences");
-          return false;
-        }
+      // Use the imported adapatedNostrService directly
+      const success = await adaptedNostrService.publishRelayList(relaysToSave);
+      if (success) {
+        toast.success("Relay preferences updated");
+        return true;
       } else {
-        // Fallback to direct import
-        const { adaptedNostrService } = await import('@/lib/nostr/nostr-adapter');
-        const success = await adaptedNostrService.publishRelayList(relaysToSave);
-        if (success) {
-          toast.success("Relay preferences updated");
-          return true;
-        } else {
-          toast.error("Failed to update relay preferences");
-          return false;
-        }
+        toast.error("Failed to update relay preferences");
+        return false;
       }
     } catch (error) {
       console.error("Error publishing relay list:", error);
@@ -144,11 +132,12 @@ const ProfileRelaysDialog = ({
         
         {isCurrentUser ? (
           <RelayDialogContent
+            isCurrentUser={true}
             relays={relays}
             onRemoveRelay={handleRemoveRelay}
-            onAddRelay={handleRelayChange}
-            onSaveRelayList={handleSaveRelayList}
-            isPublishing={isPublishing}
+            onRelayAdded={handleRelayChange}
+            onPublishRelayList={handleSaveRelayList}
+            userNpub={userNpub}
           />
         ) : (
           <div className="space-y-4 py-4">

@@ -105,7 +105,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
         // Convert to Relay objects with disconnected status
         const relayObjects: Relay[] = relayUrls.map(url => ({
           url,
-          status: 'disconnected',
+          status: 'disconnected' as const, // Type assertion to ensure status is one of the allowed values
           read: true,
           write: true
         }));
@@ -126,14 +126,14 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
         toast.info("No relay preferences found for this user");
         
         // Use default relays as fallback
-        const defaultRelays = [
+        const defaultRelays: Relay[] = [
           "wss://relay.damus.io", 
           "wss://nos.lol", 
           "wss://relay.nostr.band",
           "wss://relay.snort.social"
         ].map(url => ({
           url,
-          status: 'disconnected',
+          status: 'disconnected' as const, // Type assertion for TypeScript
           read: true,
           write: true
         }));

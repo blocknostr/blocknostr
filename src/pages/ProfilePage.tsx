@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -46,13 +45,11 @@ const ProfilePage = () => {
     if (loading && !isConnecting) {
       setIsConnecting(true);
       
-      // Try to connect to relays and ensure connectivity
       nostrService.connectToUserRelays()
         .catch(err => console.error("Error connecting to user relays:", err))
         .finally(() => {
           setIsConnecting(false);
           
-          // Add more popular relays to increase chances of success
           nostrService.addMultipleRelays([
             "wss://relay.damus.io", 
             "wss://nos.lol", 
@@ -70,10 +67,8 @@ const ProfilePage = () => {
     setRefreshing(true);
     toast.info("Refreshing profile data...");
     
-    // First ensure we're connected to relays
     nostrService.connectToUserRelays()
       .then(() => {
-        // Add more popular relays to increase chances of success
         return nostrService.addMultipleRelays([
           "wss://relay.damus.io", 
           "wss://nos.lol", 
@@ -82,7 +77,6 @@ const ProfilePage = () => {
         ]);
       })
       .then(() => {
-        // Now refresh the profile
         return refreshProfile();
       })
       .then(() => {

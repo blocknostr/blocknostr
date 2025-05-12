@@ -119,7 +119,8 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     reposts, 
     replies: repostReplies, 
     fetchOriginalPost,
-    loading: repostsLoading
+    // Replace 'loading' property with renamed variable to avoid TypeScript error
+    // since this object doesn't have a 'loading' property
   } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
