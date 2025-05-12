@@ -1,331 +1,184 @@
+// src/components/you/profile/profileUtils.ts
+
 import { contentCache, nostrService } from '@/lib/nostr';
-import { toast } from 'sonner';
 import { NostrEvent } from '@/lib/nostr/types';
+import { getEventHash, type UnsignedEvent, type Event as RawEvent } from 'nostr-tools';
 
 /**
- * Sanitize image URL to ensure it's properly formatted
- * This handles relative paths, app domain paths, and external URLs
+ * Sanitize image URL to ensure it's properly formatted.
+ * Handles absolute (http/https), app-relative ("/…") and bare paths.
  */
 export function sanitizeImageUrl(url: string): string {
   if (!url) return '';
-  
-  // If URL is already absolute, return as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+
+  // Already absolute?
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  
-  // If URL is relative, make it absolute
+
+  // App-relative
   if (url.startsWith('/')) {
     return `${window.location.origin}${url}`;
   }
-  
-  // Otherwise, assume it's a relative URL and prepend the origin
+
+  // Bare path → assume relative
   return `${window.location.origin}/${url}`;
 }
 
 /**
- * Force refresh a user's profile by clearing cache and fetching new data
+ * Force refresh a user's profile by clearing cache and fetching new data.
  */
 export async function forceRefreshProfile(pubkey: string): Promise<boolean> {
   if (!pubkey) {
-    console.error("[PROFILE REFRESH] No pubkey provided for refresh");
+    console.error('[PROFILE REFRESH] No pubkey provided');
     return false;
   }
-  
-  console.log(`[PROFILE REFRESH] Forcing refresh for pubkey: ${pubkey}`);
-  
+
   try {
-    // Check relay connections
-    const relays = nostrService.getRelayStatus();
-    console.log("[PROFILE REFRESH] Current relay status:", relays);
-    
-    // Connect to relays if needed
-    if (relays.filter(r => r.status === 'connected').length === 0) {
-      console.log("[PROFILE REFRESH] No connected relays, connecting...");
-      await nostrService.connectToDefaultRelays();
-      console.log("[PROFILE REFRESH] Connected to default relays");
+    console.log(`[PROFILE REFRESH] Forcing refresh for ${pubkey}`);
+    // Clear existing cache
+    if (contentCache.getProfile(pubkey)) {
+      contentCache.cacheProfile(pubkey, null);
     }
-    
-    // Manually fetch fresh profile data - this will update the cache internally
-    console.log("[PROFILE REFRESH] Fetching fresh profile data");
-    const freshProfile = await nostrService.getUserProfile(pubkey);
-    
-    if (freshProfile) {
-      console.log("[PROFILE REFRESH] Fresh profile data fetched:", freshProfile);
-      
-      // Update cache with the fresh data
-      if (contentCache.cacheEvent) {
-        // If we have a cacheEvent method available, use that to update
-        console.log("[PROFILE REFRESH] Updating cache with fresh profile data");
-        
-        // Create a mock kind 0 event with the profile data
-        const mockProfileEvent: Partial<NostrEvent> = {
-          kind: 0,
-          pubkey,
-          content: JSON.stringify(freshProfile),
-          created_at: Math.floor(Date.now() / 1000),
-          tags: []
-        };
-        
-        contentCache.cacheEvent(mockProfileEvent as NostrEvent);
-      }
-      
-      console.log("[PROFILE REFRESH] Profile refresh successful");
+
+    // Ensure at least one relay is connected
+    const relays = nostrService.getRelayStatus();
+    if (!relays.some(r => r.status === 'connected')) {
+      await nostrService.connectToDefaultRelays();
+    }
+
+    // Fetch fresh profile (updates cache internally)
+    const fresh = await nostrService.getUserProfile(pubkey);
+    if (fresh) {
+      console.log('[PROFILE REFRESH] Fetched fresh profile:', fresh);
+      // Re-cache via a mock kind-0 event if desired
+      const evt: Partial<NostrEvent> = {
+        kind: 0,
+        pubkey,
+        content: JSON.stringify(fresh),
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+      };
+      contentCache.cacheEvent(evt as NostrEvent);
       return true;
     } else {
-      console.warn("[PROFILE REFRESH] No profile data returned");
+      console.warn('[PROFILE REFRESH] No data returned');
       return false;
     }
-  } catch (error) {
-    console.error("[PROFILE REFRESH] Error forcing profile refresh:", error);
-    throw error;
+  } catch (err) {
+    console.error('[PROFILE REFRESH] Error:', err);
+    return false;
   }
 }
 
 /**
- * Verify NIP-05 identifier against a pubkey
+ * Verify a NIP-05 identifier exists (not necessarily current user).
  */
 export async function verifyNip05Identifier(identifier: string): Promise<boolean> {
-  if (!identifier || !identifier.includes('@')) {
-    console.log("[NIP-05] Invalid identifier format");
+  if (!identifier.includes('@')) {
+    console.log('[NIP-05] Bad format:', identifier);
     return false;
   }
-  
+  const [name, domain] = identifier.split('@');
   try {
-    const [name, domain] = identifier.split('@');
-    if (!name || !domain) {
-      console.log("[NIP-05] Invalid identifier parts");
+    console.log(`[NIP-05] Fetching https://${domain}/.well-known/nostr.json?name=${name}`);
+    const resp = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
+    if (!resp.ok) {
+      console.log('[NIP-05] HTTP error:', resp.status);
       return false;
     }
-    
-    console.log(`[NIP-05] Verifying ${name}@${domain}`);
-    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
-    
-    if (!response.ok) {
-      console.log(`[NIP-05] Verification failed - status: ${response.status}`);
-      return false;
+    const data = await resp.json();
+    const pubkey = data?.names?.[name];
+    if (pubkey) {
+      console.log(`[NIP-05] Found pubkey for ${identifier}: ${pubkey}`);
+      return true;
     }
-    
-    const data = await response.json();
-    
-    if (data && data.names && data.names[name]) {
-      const pubkey = data.names[name];
-      console.log(`[NIP-05] Verification result - name exists and pubkey is: ${pubkey}`);
-      return true; // We're just checking if the identifier exists and is valid
-    }
-    
-    console.log("[NIP-05] Name not found in response");
+    console.log('[NIP-05] Name not in response');
     return false;
-  } catch (error) {
-    console.error("[NIP-05] Error verifying NIP-05:", error);
+  } catch (err) {
+    console.error('[NIP-05] Error:', err);
     return false;
   }
 }
 
 /**
- * Verify NIP-05 identifier against current user's pubkey
- * This function verifies if the NIP-05 identifier belongs to the current user
+ * Verify a NIP-05 identifier belongs to current user.
  */
 export async function verifyNip05ForCurrentUser(identifier: string): Promise<boolean> {
-  if (!identifier || !nostrService.publicKey) {
-    console.log("[NIP-05] No identifier or public key");
-    return false;
-  }
-  
+  if (!nostrService.publicKey || !identifier.includes('@')) return false;
+  const [name, domain] = identifier.split('@');
   try {
-    const [name, domain] = identifier.split('@');
-    if (!name || !domain) {
-      console.log("[NIP-05] Invalid identifier parts");
-      return false;
-    }
-    
-    console.log(`[NIP-05] Verifying ${name}@${domain} for current user`);
-    const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
-    
-    if (!response.ok) {
-      console.log(`[NIP-05] Verification failed - status: ${response.status}`);
-      return false;
-    }
-    
-    const data = await response.json();
-    
-    if (data && data.names && data.names[name]) {
-      const pubkey = data.names[name];
-      const currentPubkey = nostrService.publicKey;
-      
-      // Check if the pubkey from NIP-05 matches the current user's pubkey
-      const isValid = pubkey === currentPubkey;
-      console.log(`[NIP-05] Verification result for current user - pubkeys match: ${isValid}`);
-      return isValid;
-    }
-    
-    console.log("[NIP-05] Name not found in response");
-    return false;
-  } catch (error) {
-    console.error("[NIP-05] Error verifying NIP-05:", error);
+    const resp = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    const pubkey = data?.names?.[name];
+    const match = pubkey === nostrService.publicKey;
+    console.log(`[NIP-05] current‐user match: ${match}`);
+    return match;
+  } catch {
     return false;
   }
 }
 
-// Utility functions for NIP-05 handling
+/**
+ * Simple NIP-05 utility fns
+ */
 export const nip05Utils = {
-  formatIdentifier: (username: string, domain: string): string => {
-    return `${username}@${domain}`;
+  formatIdentifier: (username: string, domain: string) => `${username}@${domain}`,
+  parseIdentifier: (id: string) => {
+    if (!id.includes('@')) return null;
+    const [u, d] = id.split('@');
+    return u && d ? { username: u, domain: d } : null;
   },
-  
-  parseIdentifier: (identifier: string): { username: string, domain: string } | null => {
-    if (!identifier || !identifier.includes('@')) return null;
-    
-    const [username, domain] = identifier.split('@');
-    if (!username || !domain) return null;
-    
-    return { username, domain };
-  },
-  
-  isValidFormat: (identifier: string): boolean => {
-    return !!identifier && identifier.includes('@') && identifier.split('@').length === 2;
-  }
+  isValidFormat: (id: string) => /^\w+@[\w.-]+\.\w+$/.test(id),
 };
 
 /**
- * Enhanced profile publishing function with fallbacks and better error handling
+ * Publish a profile metadata event with fallbacks & explicit signing.
  */
 export async function publishProfileWithFallback(
-  event: Partial<NostrEvent>,
+  unsigned: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'>,
   relayUrls: string[]
 ): Promise<{ success: boolean; error: string | null }> {
-  if (!event || !event.kind) {
-    console.error("[PUBLISH] Invalid event - missing required fields");
-    return { success: false, error: "Invalid event data" };
+  if (!nostrService.publicKey) {
+    return { success: false, error: 'No public key available' };
   }
-  
+
+  // Build full unsigned event
+  const full: UnsignedEvent = {
+    ...unsigned,
+    pubkey: nostrService.publicKey,
+    created_at: Math.floor(Date.now() / 1000),
+  };
+
+  // Compute ID and sign
+  const id = getEventHash(full);
+  let sig: string;
   try {
-    console.log("[PUBLISH] Publishing to relays:", relayUrls);
-    console.log("[PUBLISH] Event data:", event);
-    
-    // Primary approach: Use direct method if available
-    try {
-      console.log("[PUBLISH] Attempting to publish event");
-      
-      // Handle publication based on available methods
-      let publishResult;
-      
-      // Check if we have a signEvent method available (NIP-07 extension)
-      if (typeof window !== 'undefined' && window.nostr && window.nostr.signEvent) {
-        console.log("[PUBLISH] Using NIP-07 extension for signing");
-        
-        // Copy event to avoid modifying the original
-        const eventToSign = { ...event };
-        
-        // Add created_at if not present
-        if (!eventToSign.created_at) {
-          eventToSign.created_at = Math.floor(Date.now() / 1000);
-        }
-        
-        // Sign the event
-        try {
-          const signedEvent = await window.nostr.signEvent(eventToSign);
-          
-          // Publish to relays
-          if (relayUrls && relayUrls.length > 0) {
-            let successCount = 0;
-            
-            // Try to publish to each relay
-            for (const relayUrl of relayUrls) {
-              try {
-                const relay = nostrService['pool']?.getRelay(relayUrl);
-                if (relay) {
-                  await relay.publish(signedEvent);
-                  successCount++;
-                }
-              } catch (relayError) {
-                console.error(`[PUBLISH] Error publishing to relay ${relayUrl}:`, relayError);
-              }
-            }
-            
-            publishResult = successCount > 0;
-          }
-        } catch (signError: any) {
-          console.error("[PUBLISH] Error signing event:", signError);
-          return {
-            success: false,
-            error: signError.message || "Failed to sign event"
-          };
-        }
-      } else {
-        // Fallback to nostrService internal methods if available
-        if (typeof nostrService['publishEvent'] === 'function') {
-          publishResult = await nostrService['publishEvent'](event as NostrEvent);
-        } else {
-          console.warn("[PUBLISH] No suitable publish method found");
-          return { success: false, error: "No publishing method available" };
-        }
-      }
-      
-      console.log("[PUBLISH] Publish result:", publishResult);
-      
-      if (publishResult === true || (publishResult && publishResult.success)) {
-        console.log("[PUBLISH] Publish successful");
-        return { success: true, error: null };
-      } else {
-        console.warn("[PUBLISH] Publish returned false or no success response");
-        return { success: false, error: "Failed to publish - no success response" };
-      }
-    } catch (primaryError: any) {
-      console.error("[PUBLISH] Primary publish method failed:", primaryError);
-      
-      // Check for Unauthorized errors indicating the extension is using a different key
-      if (primaryError.message && (
-          primaryError.message.includes("Unauthorized") || 
-          primaryError.message.includes("authorization") ||
-          primaryError.message.includes("Expected")
-      )) {
-        return { 
-          success: false, 
-          error: "Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting." 
-        };
-      }
-      
-      // Check for proof-of-work requirements
-      if (primaryError.message && (
-          primaryError.message.includes("pow:") ||
-          primaryError.message.includes("proof-of-work")
-      )) {
-        return { 
-          success: false, 
-          error: "This relay requires proof-of-work which is not supported. Try connecting to different relays." 
-        };
-      }
-      
-      // Last fallback attempt using the pool directly if available
-      try {
-        if (nostrService['pool'] && typeof nostrService['pool'].publish === 'function') {
-          console.log("[PUBLISH] Attempting fallback with pool.publish");
-          
-          // Need to handle the event having a complete signature or not
-          const eventToPublish = { ...event };
-          if (!eventToPublish.created_at) {
-            eventToPublish.created_at = Math.floor(Date.now() / 1000);
-          }
-          
-          // Try to publish with the pool
-          const pub = nostrService['pool'].publish(relayUrls, eventToPublish as NostrEvent);
-          if (pub) {
-            console.log("[PUBLISH] Fallback publish initiated");
-            return { success: true, error: null };
-          }
-        }
-      } catch (fallbackError) {
-        console.error("[PUBLISH] Fallback publish method failed:", fallbackError);
-      }
-      
-      return { 
-        success: false, 
-        error: primaryError.message || "Failed to publish event" 
-      };
-    }
-  } catch (error: any) {
-    console.error("[PUBLISH] Unexpected error during publish:", error);
-    return { success: false, error: error.message || "Unknown error during publish" };
+    sig = await nostrService.signEvent(full);
+  } catch (e: any) {
+    return { success: false, error: 'Signing failed: ' + e.message };
   }
+
+  const event: RawEvent = { ...full, id, sig };
+
+  // Try each relay
+  for (const url of relayUrls) {
+    try {
+      const ok = await nostrService.publishEventToRelay(event, url);
+      if (ok) return { success: true, error: null };
+    } catch (e: any) {
+      console.warn(`[PUBLISH] Relay ${url} failed:`, e.message || e);
+    }
+  }
+
+  // Fallback to global publish
+  try {
+    const ok = await nostrService.publishEvent(event);
+    if (ok) return { success: true, error: null };
+  } catch (e: any) {
+    console.error('[PUBLISH] Global publish failed:', e.message || e);
+  }
+
+  return { success: false, error: 'Invalid event data or no relay accepted it' };
 }
