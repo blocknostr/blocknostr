@@ -9,7 +9,7 @@ export default function PremiumPage() {
   return (
     <>
       <PageHeader 
-        title="Premium"
+        title="Premium" 
         showBackButton={true}
       />
       

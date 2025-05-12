@@ -2,7 +2,6 @@
 'use client';
 
 import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { nostrService } from "@/lib/nostr";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileStats from "@/components/profile/ProfileStats";
@@ -12,10 +11,8 @@ import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
 import PageHeader from "@/components/navigation/PageHeader";
 
-export default function ProfileDetailPage() {
-  const params = useParams();
-  const npub = params.pubkey as string;
-  const router = useRouter();
+export default function UserProfilePage({ params }: { params: { pubkey: string } }) {
+  const { pubkey } = params;
   const currentUserPubkey = nostrService.publicKey;
   
   // Use our custom hook to manage profile data and state
@@ -32,7 +29,7 @@ export default function ProfileDetailPage() {
     following,
     originalPostProfiles,
     isCurrentUser
-  } = useProfileData({ npub, currentUserPubkey });
+  } = useProfileData({ npub: pubkey, currentUserPubkey });
   
   if (loading) {
     return (
@@ -49,7 +46,7 @@ export default function ProfileDetailPage() {
   return (
     <>
       <PageHeader 
-        title={profileData?.display_name || profileData?.name || "Profile"}
+        title={profileData?.name || "Profile"}
         showBackButton={true}
       />
       
@@ -58,7 +55,7 @@ export default function ProfileDetailPage() {
           <>
             <ProfileHeader 
               profileData={profileData}
-              npub={npub}
+              npub={pubkey}
               isCurrentUser={isCurrentUser}
             />
             
@@ -70,7 +67,7 @@ export default function ProfileDetailPage() {
               isCurrentUser={isCurrentUser}
               relays={relays}
               onRelaysChange={setRelays}
-              userNpub={npub}
+              userNpub={pubkey}
             />
             
             <ProfileTabs 

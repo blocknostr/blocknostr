@@ -1,4 +1,6 @@
 
+'use client';
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -23,7 +25,8 @@ const BackButton: React.FC<BackButtonProps> = ({
 }) => {
   const router = useRouter();
   const { goBack, canGoBack, parentRoute } = useNavigation();
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isClient = typeof window !== 'undefined';
+  const pathname = isClient ? window.location.pathname : "/";
   const isHomePage = pathname === "/";
 
   const handleClick = () => {

@@ -24,7 +24,7 @@ export default function NotificationsPage() {
   return (
     <>
       <PageHeader 
-        title="Notifications"
+        title="Notifications" 
         showBackButton={true}
       />
       

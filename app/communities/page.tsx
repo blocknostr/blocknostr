@@ -9,7 +9,7 @@ export default function CommunitiesPage() {
   return (
     <>
       <PageHeader 
-        title="Communities"
+        title="Communities" 
         showBackButton={true}
       />
       

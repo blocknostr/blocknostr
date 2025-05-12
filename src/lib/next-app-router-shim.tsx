@@ -1,46 +1,70 @@
 
-// This file provides compatibility shims for Next.js App Router features
-// while still using React Router and Vite
+'use client';
+
+// This file provides compatibility shims between Next.js App Router and old React Router usage
+// for the transition period while migrating
 
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
-// Create a shim for next/navigation hooks
-export function usePathname() {
-  const location = useLocation();
-  return location.pathname;
-}
+// Export Next.js App Router functionality with standard names
+export { usePathname, useSearchParams };
 
-export function useSearchParams() {
-  const location = useLocation();
-  return new URLSearchParams(location.search);
-}
-
+// Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
-  // In a real implementation, this would use the React Router useParams
-  // For now, we'll return an empty object
+  // In Next.js App Router, params are passed as props to page components
+  // This is just a stub for transition purposes
   return {};
 }
 
-export function useRouter() {
-  const navigate = useNavigate();
-  const location = useLocation();
+// Export Next.js Router with exact API match for useRouter()
+export { useRouter };
+
+// Next.js Link component is already properly exported
+
+// Compatibility for React Router's Navigate component
+export function Navigate({ to, replace }: { to: string, replace?: boolean }) {
+  const router = useRouter();
+  
+  React.useEffect(() => {
+    if (replace) {
+      router.replace(to);
+    } else {
+      router.push(to);
+    }
+  }, [to, replace, router]);
+  
+  return null;
+}
+
+// Mock metadata helper for App Router
+export function generateMetadata({ title, description }: { title?: string; description?: string }) {
+  // This would normally be used in Server Components
+  // For client components, we're just returning the values
+  return { title, description };
+}
+
+// For components that still rely on useLocation
+export function useLocation() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   return {
-    push: (url: string) => navigate(url),
-    replace: (url: string) => navigate(url, { replace: true }),
-    back: () => navigate(-1),
-    pathname: location.pathname,
-    query: Object.fromEntries(new URLSearchParams(location.search)),
-    asPath: location.pathname + location.search,
+    pathname,
+    search: searchParams ? `?${searchParams.toString()}` : '',
+    hash: typeof window !== 'undefined' ? window.location.hash : '',
   };
 }
 
-// Next.js Link component shim is in src/components/Link.tsx
-
-// Mock metadata helper
-export function generateMetadata({ title, description }: { title?: string; description?: string }) {
-  // This would normally update the document head
-  // In a client-side only app, this is just a placeholder
-  return { title, description };
+export function useNavigate() {
+  const router = useRouter();
+  
+  return (path: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      router.replace(path);
+    } else {
+      router.push(path);
+    }
+  };
 }

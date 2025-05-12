@@ -12,12 +12,9 @@ import { useRouter } from 'next/navigation';
 import { nostrService } from '@/lib/nostr';
 import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
+import PageHeader from '@/components/navigation/PageHeader';
 
-export default function PostPage({
-  params
-}: {
-  params: { id: string }
-}) {
+export default function PostPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -146,82 +143,85 @@ export default function PostPage({
 
   if (isLoading) {
     return (
-      <div className="container py-6">
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" onClick={handleBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        </div>
+      <>
+        <PageHeader 
+          title="Post"
+          showBackButton={true}
+        />
         
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4 mb-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[200px]" />
-                <Skeleton className="h-4 w-[150px]" />
+        <div className="container py-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4 mb-4">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[200px]" />
+                  <Skeleton className="h-4 w-[150px]" />
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-2 mt-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              
+              <div className="space-y-2 mt-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   if (!currentNote) {
     return (
-      <div className="container py-6">
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" onClick={handleBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        </div>
+      <>
+        <PageHeader 
+          title="Post Not Found"
+          showBackButton={true}
+        />
         
-        <Card>
-          <CardContent className="p-6 text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Post not found</h2>
-            <p className="text-muted-foreground">The note you're looking for doesn't exist or has been deleted.</p>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="container py-6">
+          <Card>
+            <CardContent className="p-6 text-center py-12">
+              <h2 className="text-2xl font-bold mb-2">Post not found</h2>
+              <p className="text-muted-foreground">The note you're looking for doesn't exist or has been deleted.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="container py-6">
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" onClick={handleBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-      </div>
+    <>
+      <PageHeader 
+        title="Post"
+        showBackButton={true}
+      />
       
-      <Card className="mb-4">
-        <CardContent className="p-0">
-          <div className="p-4 md:p-6">
-            {/* Note header with author info */}
-            <NoteCardHeader 
-              pubkey={currentNote?.pubkey} 
-              createdAt={currentNote?.created_at} 
-              profileData={profileData || undefined}
-            />
-            
-            {/* Note content */}
-            <NoteCardContent 
-              content={currentNote?.content} 
-              tags={currentNote?.tags}
-            />
-          </div>
+      <div className="container py-6">
+        <Card className="mb-4">
+          <CardContent className="p-0">
+            <div className="p-4 md:p-6">
+              {/* Note header with author info */}
+              <NoteCardHeader 
+                pubkey={currentNote?.pubkey} 
+                createdAt={currentNote?.created_at} 
+                profileData={profileData || undefined}
+              />
+              
+              {/* Note content */}
+              <NoteCardContent 
+                content={currentNote?.content} 
+                tags={currentNote?.tags}
+              />
+            </div>
 
-          {/* Render stats */}
-          {renderStats()}
-        </CardContent>
-      </Card>
-    </div>
+            {/* Render stats */}
+            {renderStats()}
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

@@ -7,16 +7,14 @@ import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import PageHeader from "@/components/navigation/PageHeader";
-import { useRightSidebar } from "@/contexts/RightSidebarContext";
 
 export default function MessagesPage() {
   const [encryptionInfoShown, setEncryptionInfoShown] = useState(true);
-  const { activeHashtag, clearHashtag } = useRightSidebar();
 
   return (
     <>
       <PageHeader 
-        title="Messages"
+        title="Messages" 
         showBackButton={true}
       />
       

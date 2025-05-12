@@ -8,7 +8,7 @@ export default function NotebinPage() {
   return (
     <>
       <PageHeader 
-        title="Notebin"
+        title="Notebin" 
         showBackButton={true}
       />
       

@@ -1,55 +1,49 @@
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+'use client';
 
-// Next.js router compatibility layer
-export function useRouter() {
-  const navigate = useNavigate();
+import React from 'react';
+import { useRouter, usePathname, useSearchParams as useNextSearchParams } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+
+// Next.js router compatibility layer for old React Router code
+export function useReactRouterCompat() {
+  const nextRouter = useRouter();
+  const pathname = usePathname();
+  const searchParams = useNextSearchParams();
   
   return {
-    push: (url: string) => navigate(url),
-    replace: (url: string) => navigate(url, { replace: true }),
-    back: () => navigate(-1),
-    pathname: window.location.pathname,
-    query: Object.fromEntries(new URLSearchParams(window.location.search)),
+    navigate: (url: string, options?: { replace?: boolean }) => {
+      if (options?.replace) {
+        nextRouter.replace(url);
+      } else {
+        nextRouter.push(url);
+      }
+    },
+    location: {
+      pathname,
+      search: searchParams ? `?${searchParams.toString()}` : '',
+    }
   };
 }
 
-// Next.js Head compatibility component (simplified)
-export function Head({ children }: { children: React.ReactNode }) {
-  // This is a simplified version that just renders children
-  // In a real implementation, you would use react-helmet or similar
-  return <>{children}</>;
+// Export Next.js navigation hooks directly
+export { useRouter, usePathname, useNextSearchParams as useSearchParams };
+
+// Define a compatibility version of useNavigate
+export function useNavigate() {
+  const router = useRouter();
+  return (url: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      router.replace(url);
+    } else {
+      router.push(url);
+    }
+  };
 }
 
-// Define a Next.js compatible Image component
-export function Image({ 
-  src, 
-  alt, 
-  width, 
-  height,
-  className,
-  ...props 
-}: { 
-  src: string; 
-  alt: string; 
-  width?: number; 
-  height?: number;
-  className?: string;
-  [key: string]: any;
-}) {
-  return (
-    <img 
-      src={src} 
-      alt={alt} 
-      width={width} 
-      height={height} 
-      className={className}
-      loading="lazy"
-      {...props}
-    />
-  );
-}
+// Export Next.js Image and Link components
+export { Image, Link };
 
 // Mock Next.js environment variables
 if (typeof window !== 'undefined' && !window.process) {

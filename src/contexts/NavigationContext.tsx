@@ -1,4 +1,6 @@
 
+'use client';
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -65,6 +67,8 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Update history and parentRoute when location changes
   useEffect(() => {
+    if (!pathname) return;
+    
     setHistory(prev => {
       // Don't add duplicate entries for the same path
       if (prev.length > 0 && prev[prev.length - 1] === pathname) {
@@ -89,7 +93,7 @@ export const NavigationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       router.push(previousPage);
     } else {
       // If no previous page in history, go to parent route
-      const parent = getParentRoute(pathname);
+      const parent = getParentRoute(pathname || '/');
       router.push(parent);
     }
   };
