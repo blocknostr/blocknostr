@@ -1,6 +1,8 @@
 
 import { useState, useEffect } from 'react';
-import { nostrService, Relay } from '@/lib/nostr';
+import { nostrService } from '@/lib/nostr';
+import { adaptedNostrService } from '@/lib/nostr/nostr-adapter';
+import { Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
 import { parseRelayList } from '@/lib/nostr/utils/nip';
 
@@ -9,6 +11,9 @@ interface UseProfileRelaysProps {
   pubkey?: string;
 }
 
+/**
+ * Hook to manage profile relay preferences with improved type safety
+ */
 export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProps) {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +22,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   // Function to refresh relay status
   const refreshRelays = () => {
     if (isCurrentUser) {
-      const relayStatus = nostrService.getRelayStatus();
+      const relayStatus = adaptedNostrService.getRelayStatus();
       setRelays(relayStatus);
     }
     // Trigger health check UI update
@@ -44,7 +49,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     setIsLoading(true);
     try {
       // First try to get the relay list using the new NIP-65 compliant method
-      const relayUrls = await nostrService.getRelaysForUser(userPubkey);
+      const relayUrls = await adaptedNostrService.getRelaysForUser(userPubkey);
       
       if (relayUrls && relayUrls.length > 0) {
         // Convert to Relay objects with disconnected status
@@ -75,34 +80,9 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     if (!isCurrentUser) return false;
     
     try {
-      // Use the RelayAdapter's publishRelayList method if available
-      if ('publishRelayList' in nostrService) {
-        // Use type assertion to fix the TypeScript error
-        const success = await (nostrService as any).publishRelayList(relays);
-        if (success) {
-          toast.success("Relay preferences updated");
-          return true;
-        } else {
-          toast.error("Failed to update relay preferences");
-          return false;
-        }
-      }
-      
-      // Fallback implementation if the method isn't available
-      const event = {
-        kind: 10002,
-        content: '',
-        tags: relays.map(relay => {
-          const tag = ['r', relay.url];
-          if (relay.read) tag.push('read');
-          if (relay.write) tag.push('write');
-          return tag;
-        })
-      };
-      
-      // Use type assertion here to fix the TypeScript error
-      const eventId = await (nostrService as any).publishEvent(event);
-      if (eventId) {
+      // Use the adapter's publishRelayList method with proper typing
+      const success = await adaptedNostrService.publishRelayList(relays);
+      if (success) {
         toast.success("Relay preferences updated");
         return true;
       } else {

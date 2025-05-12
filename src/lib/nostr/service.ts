@@ -33,7 +33,7 @@ export class NostrService {
     // Initialize SimplePool first
     this.pool = new SimplePool();
     
-    // Initialize managers
+    // Initialize managers with enhanced subscription manager
     this.userManager = new UserManager();
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
@@ -168,14 +168,38 @@ export class NostrService {
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
     onEvent: (event: NostrEvent) => void,
-    relays?: string[]
+    relays?: string[],
+    options?: {
+      ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
+      isRenewable?: boolean;  // Whether this subscription should be auto-renewed
+    }
   ): string {
     const connectedRelays = relays || this.getConnectedRelayUrls();
-    return this.subscriptionManager.subscribe(connectedRelays, filters, onEvent);
+    return this.subscriptionManager.subscribe(
+      connectedRelays, 
+      filters, 
+      onEvent, 
+      options || {}
+    );
   }
   
   public unsubscribe(subId: string): void {
     this.subscriptionManager.unsubscribe(subId);
+  }
+  
+  // Renew subscription
+  public renewSubscription(subId: string, ttl?: number): boolean {
+    return (this.subscriptionManager as any).renewSubscription(subId, ttl);
+  }
+  
+  // Get subscription details
+  public getSubscriptionDetails(subId: string): any {
+    return (this.subscriptionManager as any).getSubscriptionDetails(subId);
+  }
+  
+  // Get subscription time remaining
+  public getSubscriptionTimeRemaining(subId: string): number | null {
+    return (this.subscriptionManager as any).getSubscriptionTimeRemaining(subId);
   }
   
   // Social features
