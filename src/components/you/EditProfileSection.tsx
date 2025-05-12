@@ -45,8 +45,8 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Use verifyNip05Identifier from profileUtils instead
-   const verified = await nip05Verify(normalizedIdentifier);
+        // Use verifyNip05Identifier from profileUtils
+        const verified = await verifyNip05Identifier(values.nip05);
         if (!verified) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");
         }
