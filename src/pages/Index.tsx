@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -140,7 +139,7 @@ const Index: React.FC = () => {
                 </span>
               </h2>
               <p className="text-muted-foreground">
-                Connect your Nostr wallet using the button in the top right corner to access the decentralized social network and interact with the Alephium blockchain.
+                Connect your Nostr wallet using the button in the top right corner to access the decentralized social network.
               </p>
               <div className="mt-3">
                 <a 

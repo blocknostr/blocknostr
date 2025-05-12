@@ -8,7 +8,7 @@ const WalletsPage = () => {
       <div className="flex flex-col items-center justify-center space-y-6 text-center">
         <h2 className="text-3xl font-bold tracking-tight">Connect Your Wallet</h2>
         <p className="text-muted-foreground max-w-md">
-          Connect your Alephium wallet to access exclusive features, post content, and interact with the BlockNoster community.
+          Connect your Nostr wallet to access exclusive features, post content, and interact with the BlockNoster community.
         </p>
         
         <div className="w-full max-w-md my-8">

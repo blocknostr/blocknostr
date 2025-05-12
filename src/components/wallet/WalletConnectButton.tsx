@@ -44,7 +44,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       </div>
       
       <div className="mt-4 text-sm text-muted-foreground text-center max-w-xs">
-        <p>Connect your {hasNostrExtension ? "Nostr wallet" : "Alephium wallet"} to access the BlockNoster decentralized ecosystem</p>
+        <p>Use the {hasNostrExtension ? "Connect Wallet button" : "button"} in the top right corner to access the BlockNoster ecosystem</p>
         <div className="flex flex-wrap justify-center gap-3 mt-2">
           <a 
             href="https://getalby.com/" 
@@ -63,7 +63,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
             Get nos2x <ExternalLink className="ml-1 h-3 w-3" />
           </a>
           <a
-            href="https://alephium.org/docs/wallet/browser-extension-wallet/"
+            href="https://alephium.org/#wallets"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center text-xs text-primary/70 hover:text-primary transition-colors"

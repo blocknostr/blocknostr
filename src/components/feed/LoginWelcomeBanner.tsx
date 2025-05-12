@@ -24,7 +24,7 @@ const LoginWelcomeBanner: React.FC<LoginWelcomeBannerProps> = () => {
               </span>
             </h2>
             <p className="mb-5 text-muted-foreground">
-              Connect your Nostr wallet using the button in the top right corner to access the decentralized social network and interact with the Alephium blockchain.
+              Connect your Nostr wallet using the button in the top right corner to access the decentralized social network.
             </p>
             
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
