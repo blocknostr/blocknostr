@@ -77,6 +77,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     try {
       // Use the RelayAdapter's publishRelayList method if available
       if ('publishRelayList' in nostrService) {
+        // Use type assertion to fix the TypeScript error
         const success = await (nostrService as any).publishRelayList(relays);
         if (success) {
           toast.success("Relay preferences updated");
