@@ -127,19 +127,14 @@ export class ProfileService {
               onevent: (event) => {
                 events.push(event);
               },
-              eose: () => {
-                // On end of stored events, process and resolve
+              onclose: () => {
+                // On end of subscription, process and resolve
                 if (events.length > 0) {
                   // Sort by creation time (oldest first)
                   events.sort((a, b) => a.created_at - b.created_at);
                   resolve(events[0].created_at);
                 } else {
                   resolve(null);
-                }
-                
-                // Close subscription
-                if (subscription) {
-                  subscription.close();
                 }
               }
             }
