@@ -1,53 +1,55 @@
 
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Index from './pages/Index';
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import CommunitiesPage from './pages/CommunitiesPage';
-import CommunityPage from './pages/CommunityPage';
-import MessagesPage from './pages/MessagesPage';
-import NotificationsPage from './pages/NotificationsPage';
-import PostPage from './pages/PostPage';
-import NotebinPage from './pages/NotebinPage';
-import NotFound from './pages/NotFound';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Inter } from "next/font/google";
+import { NavigationProvider } from "@/contexts/NavigationContext";
+import { RightSidebarProvider } from "@/contexts/RightSidebarContext";
+import AppLayout from "@/components/layout/AppLayout";
 import { Toaster } from "sonner";
-import WalletsPage from "./pages/WalletsPage";
-import PremiumPage from "./pages/PremiumPage";
-import { NavigationProvider } from './contexts/NavigationContext';
-import { RightSidebarProvider } from './contexts/RightSidebarContext';
-import AppLayout from './components/layout/AppLayout';
+
+// Import pages
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
+import MessagesPage from "@/pages/MessagesPage";
+import NotificationsPage from "@/pages/NotificationsPage";
+import ProfilePage from "@/pages/ProfilePage";
+import CommunitiesPage from "@/pages/CommunitiesPage";
+import NotebinPage from "@/pages/NotebinPage";
+import PremiumPage from "@/pages/PremiumPage";
+import SettingsPage from "@/pages/SettingsPage";
+import WalletsPage from "@/pages/WalletsPage";
+
+// Define the font
+const inter = Inter({ subsets: ["latin"] });
 
 function App() {
   return (
-    <BrowserRouter>
-      <NavigationProvider>
-        <RightSidebarProvider>
-          <div className="flex flex-col min-h-screen">
-            <main className="flex-1">
-              <AppLayout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/profile" element={<ProfilePage />} />
-                  <Route path="/profile/:pubkey" element={<ProfilePage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/communities" element={<CommunitiesPage />} />
-                  <Route path="/communities/:id" element={<CommunityPage />} />
-                  <Route path="/messages" element={<MessagesPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
-                  <Route path="/post/:id" element={<PostPage />} />
-                  <Route path="/notebin" element={<NotebinPage />} />
-                  <Route path="/wallets" element={<WalletsPage />} />
-                  <Route path="/premium" element={<PremiumPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AppLayout>
-            </main>
-            <Toaster position="bottom-right" closeButton />
-          </div>
-        </RightSidebarProvider>
-      </NavigationProvider>
-    </BrowserRouter>
+    <div className={`${inter.className} dark`}>
+      <Router>
+        <NavigationProvider>
+          <RightSidebarProvider>
+            <div className="flex flex-col min-h-screen">
+              <main className="flex-1">
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/messages" element={<MessagesPage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/communities" element={<CommunitiesPage />} />
+                    <Route path="/notebin" element={<NotebinPage />} />
+                    <Route path="/premium" element={<PremiumPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/wallets" element={<WalletsPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AppLayout>
+              </main>
+              <Toaster position="bottom-right" closeButton />
+            </div>
+          </RightSidebarProvider>
+        </NavigationProvider>
+      </Router>
+    </div>
   );
 }
 
