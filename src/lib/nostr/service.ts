@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -186,13 +185,6 @@ export class NostrService {
   
   public unsubscribe(subId: string): void {
     this.subscriptionManager.unsubscribe(subId);
-  }
-  
-  // Add the unsubscribeAll method that forwards the call to subscriptionManager
-  public unsubscribeAll(): void {
-    if (this.subscriptionManager && typeof this.subscriptionManager.unsubscribeAll === 'function') {
-      this.subscriptionManager.unsubscribeAll();
-    }
   }
   
   // Renew subscription
@@ -547,6 +539,32 @@ export class NostrService {
       .map(relay => relay.url);
   }
   
+  /**
+   * Pings a relay to check if it is reachable.
+   * @param relayUrl - The URL of the relay to ping.
+   * @returns A promise that resolves to true if the relay is reachable, false otherwise.
+   */
+  public async pingRelay(relayUrl: string): Promise<boolean> {
+    try {
+      const relay = this.relayManager.getRelay(relayUrl);
+      if (!relay) {
+        console.warn(`[PING] Relay not found: ${relayUrl}`);
+        return false;
+      }
+
+      // Attempt to open a connection to the relay
+      await relay.connect();
+
+      // Check if the relay is connected
+      const isConnected = relay.isConnected();
+      console.log(`[PING] Relay ${relayUrl} is ${isConnected ? 'reachable' : 'not reachable'}`);
+      return isConnected;
+    } catch (error) {
+      console.error(`[PING] Error pinging relay ${relayUrl}:`, error);
+      return false;
+    }
+  }
+
   // User Moderation (NIP-51)
   public async muteUser(pubkey: string): Promise<boolean> {
     // Implementation for muting a user
@@ -726,3 +744,4 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
+
