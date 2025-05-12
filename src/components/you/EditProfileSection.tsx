@@ -67,7 +67,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         
         // Force refresh cached profile data with a small delay to ensure relay propagation
         setTimeout(async () => {
-          await nostrService.getUserProfile(nostrService.publicKey, true);
+          await nostrService.getUserProfile(nostrService.publicKey);
           
           // Notify parent component to trigger UI refresh
           onSaved();

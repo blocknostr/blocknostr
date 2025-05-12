@@ -1,5 +1,6 @@
 
-import { useState, useEffect, useCallback, useMemo } from 'react';import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -51,7 +52,7 @@ const YouPage = () => {
       setRefreshing(true);
       await forceRefreshProfile(currentUserPubkey);
       // Refetch profile data using the hook's refetch method
-      profileData.refreshProfile();
+      await profileData.refreshProfile();
       toast.success("Profile refreshed successfully");
     } catch (error) {
       console.error("Error refreshing profile:", error);
@@ -60,6 +61,17 @@ const YouPage = () => {
       setRefreshing(false);
     }
   };
+
+  // Handle profile changes after saving
+  const handleProfileSaved = useCallback(async () => {
+    setIsEditing(false);
+    
+    // Force refresh to show latest changes
+    await handleRefreshProfile();
+    
+    // Show success message
+    toast.success("Your profile has been updated!");
+  }, []);
 
   if (loading) {
     return (
@@ -110,11 +122,7 @@ const YouPage = () => {
               {isEditing ? (
                 <EditProfileSection 
                   profileData={profileData.profileData} 
-                  onSaved={() => {
-                    setIsEditing(false);
-                    // Force profile refresh after saving changes
-                    handleRefreshProfile();
-                  }} 
+                  onSaved={handleProfileSaved} 
                 />
               ) : (
                 <div className="space-y-6">

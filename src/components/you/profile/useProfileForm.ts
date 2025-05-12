@@ -12,8 +12,8 @@ const profileFormSchema = z.object({
   name: z.string().optional(),
   display_name: z.string().optional(),
   about: z.string().optional(),
-  picture: z.string().url().optional().or(z.string().length(0)),
-  banner: z.string().url().optional().or(z.string().length(0)),
+  picture: z.string().optional(), // Updated to allow any string (for data URLs)
+  banner: z.string().optional(),  // Updated to allow any string (for data URLs)
   website: z.string().url().optional().or(z.string().length(0)),
   nip05: z.string().optional()
     .refine(val => !val || isValidNip05Format(val), {
@@ -54,6 +54,26 @@ export function useProfileForm({ profileData }: UseProfileFormProps) {
       nostr: profileData?.nostr || ''
     }
   });
+
+  // Reset form with new profile data when it changes
+  useEffect(() => {
+    if (profileData) {
+      form.reset({
+        name: profileData.name || '',
+        display_name: profileData.display_name || '',
+        about: profileData.about || '',
+        picture: profileData.picture || '',
+        banner: profileData.banner || '',
+        website: profileData.website || '',
+        nip05: profileData.nip05 || '',
+        lud16: profileData.lud16 || '',
+        twitter: profileData.twitter || '',
+        github: profileData.github || '',
+        mastodon: profileData.mastodon || '',
+        nostr: profileData.nostr || ''
+      });
+    }
+  }, [profileData, form]);
 
   // Handle nip05 verification when value changes
   const nip05Value = form.watch('nip05');
