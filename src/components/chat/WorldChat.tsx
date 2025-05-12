@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
 import MessageList from "./MessageList";
@@ -28,7 +28,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] border shadow-md overflow-hidden rounded-lg relative"> 
+    <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (

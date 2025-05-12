@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
 const WORLD_CHAT_TAG = "world-chat";
-const MAX_MESSAGES = 15;
+const MAX_MESSAGES = 100; // Increased from 15 to 100 messages
 
 /**
  * Hook to manage message subscriptions and state
@@ -39,7 +40,7 @@ export const useMessageSubscription = (
         {
           kinds: [EVENT_KINDS.TEXT_NOTE],
           '#t': [WORLD_CHAT_TAG], // Using '#t' for tag filtering
-          limit: 25
+          limit: 100 // Increased from 25 to 100
         } as NostrFilter
       ],
       (event) => {

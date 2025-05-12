@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
@@ -24,12 +25,16 @@ const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Custom scroll handling that doesn't affect page position
+  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0 && containerRef.current) {
-      // Set the scroll position directly instead of using scrollIntoView
-      // This keeps scrolling contained within the chat component
-      containerRef.current.scrollTop = 0;
+    if (messages.length > 0 && messagesEndRef.current && containerRef.current) {
+      const container = containerRef.current;
+      const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+      
+      // Only auto-scroll if the user is already near the bottom
+      if (isAtBottom) {
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [messages]);
 
@@ -68,11 +73,11 @@ const MessageList: React.FC<MessageListProps> = ({
       className="p-0 overflow-hidden flex-1 relative z-10" 
       ref={containerRef}
     >
-      <div className="p-2 flex flex-col-reverse overflow-y-auto h-full">
-        <div ref={messagesEndRef} />
-        {messages.map((message, index) => {
+      <div className="p-2 flex flex-col overflow-y-auto h-full">
+        {/* We display messages in chronological order (oldest first) */}
+        {[...messages].reverse().map((message, index) => {
           // Get previous message for grouping logic
-          const previousMessage = index < messages.length - 1 ? messages[index + 1] : undefined;
+          const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
           
           return (
             <MessageItem
@@ -86,6 +91,7 @@ const MessageList: React.FC<MessageListProps> = ({
             />
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
     </CardContent>
   );
