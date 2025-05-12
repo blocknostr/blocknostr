@@ -1,6 +1,7 @@
 
 /**
  * Enhanced NIP-05 verification function that validates JSON structure and matches pubkeys
+ * Implementation follows https://github.com/nostr-protocol/nips/blob/master/05.md
  */
 export async function verifyNip05(identifier: string): Promise<string | null> {
   if (!identifier || !identifier.includes('@')) {

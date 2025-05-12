@@ -22,9 +22,9 @@ export function isValidNip05Format(nip05: string): boolean {
  * @param expectedPubkey - The pubkey that should match the NIP-05 identifier
  * @returns True if the NIP-05 identifier resolves to the expected pubkey
  */
-export async function verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-  if (!identifier || !identifier.includes('@') || !expectedPubkey) {
-    console.log("Invalid NIP-05 identifier or missing pubkey");
+export async function verifyNip05(identifier: string, expectedPubkey?: string): Promise<boolean> {
+  if (!identifier || !identifier.includes('@')) {
+    console.log("Invalid NIP-05 identifier format");
     return false;
   }
 
@@ -52,15 +52,16 @@ export async function verifyNip05(identifier: string, expectedPubkey: string): P
       return false;
     }
     
-    // Get the pubkey and verify it matches
+    // Get the pubkey and verify it matches if expectedPubkey was provided
     const resolvedPubkey = data.names[name];
     
-    if (resolvedPubkey === expectedPubkey) {
-      return true;
-    } else {
-      console.error(`NIP-05 verification failed: Pubkey mismatch`);
-      return false;
+    if (expectedPubkey) {
+      // Only verify against expected pubkey if one was provided
+      return resolvedPubkey === expectedPubkey;
     }
+    
+    // If no expected pubkey provided, just check that we got a valid pubkey back
+    return !!resolvedPubkey;
   } catch (error) {
     console.error("NIP-05 verification error:", error);
     return false;
