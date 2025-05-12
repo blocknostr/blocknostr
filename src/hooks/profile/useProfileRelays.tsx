@@ -31,6 +31,8 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   
   // Load initial relay status
   useEffect(() => {
+    console.log("useProfileRelays: isCurrentUser =", isCurrentUser, "pubkey =", pubkey);
+    
     if (isCurrentUser) {
       refreshRelays();
       
@@ -48,10 +50,12 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   const loadUserRelays = async (userPubkey: string) => {
     setIsLoading(true);
     try {
+      console.log("Loading relays for pubkey:", userPubkey);
       // First try to get the relay list using the new NIP-65 compliant method
       const relayUrls = await adaptedNostrService.getRelaysForUser(userPubkey);
       
       if (relayUrls && relayUrls.length > 0) {
+        console.log("Found relay preferences:", relayUrls);
         // Convert to Relay objects with disconnected status
         const relayObjects: Relay[] = relayUrls.map(url => ({
           url,
@@ -63,6 +67,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
         setRelays(relayObjects);
       } else {
         // Fallback - let the user know we couldn't find relays
+        console.log("No relay preferences found for user");
         toast.info("No relay preferences found for this user");
         setRelays([]);
       }

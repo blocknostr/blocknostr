@@ -38,54 +38,69 @@ export function useProfilePosts({ hexPubkey }: UseProfilePostsProps) {
       return;
     }
     
+    console.log("Fetching posts for pubkey:", hexPubkey);
+    
+    // Cleanup previous subscription
+    if (subscriptionRef.current) {
+      nostrService.unsubscribe(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+    
     try {
-      // Subscribe to user's notes (kind 1)
-      const notesSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [1],
-            authors: [hexPubkey],
-            limit: 50
-          }
-        ],
-        (event) => {
-          if (!isMounted.current) return;
-          
-          try {
-            setEvents(prev => {
-              // Check if we already have this event
-              if (prev.some(e => e.id === event.id)) {
-                return prev;
-              }
+      // First make sure we're connected to relays
+      nostrService.connectToUserRelays().then(() => {
+        // Subscribe to user's notes (kind 1)
+        const notesSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [1],
+              authors: [hexPubkey],
+              limit: 50
+            }
+          ],
+          (event) => {
+            if (!isMounted.current) return;
+            
+            try {
+              console.log("Received post event:", event.id, "from", event.pubkey);
               
-              // Add new event and sort by creation time (newest first)
-              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-            });
-  
-            // Check if note contains media using our enhanced detection
-            const mediaUrls = extractMediaUrls(event.content, event.tags);
-            
-            // Validate the URLs to ensure they're proper media links
-            const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
-            
-            if (validMediaUrls.length > 0) {
-              setMedia(prev => {
-                if (prev.some(e => e.id === event.id)) return prev;
+              setEvents(prev => {
+                // Check if we already have this event
+                if (prev.some(e => e.id === event.id)) {
+                  return prev;
+                }
+                
+                // Add new event and sort by creation time (newest first)
                 return [...prev, event].sort((a, b) => b.created_at - a.created_at);
               });
+    
+              // Check if note contains media using our enhanced detection
+              const mediaUrls = extractMediaUrls(event.content, event.tags);
+              
+              // Validate the URLs to ensure they're proper media links
+              const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
+              
+              if (validMediaUrls.length > 0) {
+                setMedia(prev => {
+                  if (prev.some(e => e.id === event.id)) return prev;
+                  return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+                });
+              }
+            } catch (err) {
+              console.error("Error processing event in useProfilePosts:", err);
             }
-          } catch (err) {
-            console.error("Error processing event in useProfilePosts:", err);
           }
-        }
-      );
-      
-      // Store the subscription ID for cleanup
-      subscriptionRef.current = notesSubId;
+        );
+        
+        // Store the subscription ID for cleanup
+        subscriptionRef.current = notesSubId;
+        console.log("Created subscription:", notesSubId, "for posts");
+      });
       
       // Set a timeout to mark loading as complete even if few events arrive
       const timeoutId = setTimeout(() => {
         if (isMounted.current) {
+          console.log("Posts loading timeout - events found:", events.length);
           setLoading(false);
         }
       }, 5000);

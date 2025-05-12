@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { contentCache, nostrService } from "@/lib/nostr";
 import { useProfileCache } from "@/hooks/useProfileCache";
 
