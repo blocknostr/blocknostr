@@ -1,6 +1,5 @@
 
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo } from 'react';import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
 import { Loader2, RefreshCw } from "lucide-react";
