@@ -2,6 +2,7 @@
 import { nostrService } from '@/lib/nostr';
 import { verifyNip05 as nip05Verify, isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
 import { isValidHexString } from '@/lib/nostr/utils/keys';
+import { contentCache } from '@/lib/nostr/cache/content-cache';
 
 /**
  * Utilities for profile management
@@ -49,6 +50,31 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
   } catch (error) {
     console.error("Error verifying NIP-05 for current user:", error);
     return false;
+  }
+}
+
+/**
+ * Force refresh a user's profile data
+ * @param pubkey The public key of the profile to refresh
+ */
+export async function forceRefreshProfile(pubkey: string): Promise<void> {
+  if (!pubkey) return;
+  
+  try {
+    console.log(`Forcing profile refresh for: ${pubkey.substring(0, 8)}...`);
+    
+    // 1. Clear from cache
+    if (contentCache.getProfile(pubkey)) {
+      contentCache.cacheProfile(pubkey, null);
+    }
+    
+    // 2. Request fresh profile
+    await nostrService.getUserProfile(pubkey, true);
+    
+    console.log(`Profile refresh completed for: ${pubkey.substring(0, 8)}...`);
+  } catch (error) {
+    console.error(`Error refreshing profile for ${pubkey}:`, error);
+    throw error;
   }
 }
 

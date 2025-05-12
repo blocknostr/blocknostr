@@ -3,16 +3,19 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useProfileData } from "@/hooks/useProfileData";
 import YouHeader from "@/components/you/YouHeader";
 import EditProfileSection from "@/components/you/EditProfileSection";
 import ProfilePreview from "@/components/you/ProfilePreview";
 import Sidebar from "@/components/Sidebar";
+import { Button } from "@/components/ui/button";
+import { forceRefreshProfile } from "@/components/you/profile/profileUtils";
 
 const YouPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const currentUserPubkey = nostrService.publicKey;
   
   // Redirect to login if not authenticated
@@ -40,6 +43,24 @@ const YouPage = () => {
       toast.error(profileData.error);
     }
   }, [profileData.error]);
+  
+  // Function to manually refresh profile
+  const handleRefreshProfile = async () => {
+    if (!currentUserPubkey) return;
+    
+    try {
+      setRefreshing(true);
+      await forceRefreshProfile(currentUserPubkey);
+      // Refetch profile data using the hook's refetch method
+      profileData.refreshProfile();
+      toast.success("Profile refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+      toast.error("Failed to refresh profile");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -64,6 +85,15 @@ const YouPage = () => {
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b">
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Your Profile</h1>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleRefreshProfile}
+              disabled={refreshing || profileData.loading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh Profile
+            </Button>
           </div>
         </header>
 
@@ -80,8 +110,12 @@ const YouPage = () => {
             <div className="lg:col-span-3 space-y-6">
               {isEditing ? (
                 <EditProfileSection 
-                  profileData={profileData} 
-                  onSaved={() => setIsEditing(false)} 
+                  profileData={profileData.profileData} 
+                  onSaved={() => {
+                    setIsEditing(false);
+                    // Force profile refresh after saving changes
+                    handleRefreshProfile();
+                  }} 
                 />
               ) : (
                 <div className="space-y-6">
