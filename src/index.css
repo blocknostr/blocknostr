@@ -200,10 +200,11 @@ html.color-theme-in-transition {
     position: relative;
   }
   
-  /* Toast notification animations */
+  /* Toast notification animations - updated for improved click interactions */
   .nostr-toast {
     animation: toast-slide-in 0.2s ease-out;
     transition: all 0.3s ease-out;
+    user-select: none; /* Prevent text selection */
   }
   
   @keyframes toast-slide-in {
@@ -230,6 +231,11 @@ html.color-theme-in-transition {
       transform: translateX(100%);
       opacity: 0;
     }
+  }
+  
+  /* Add subtle hover effect to reinforce clickability */
+  .nostr-toast:hover {
+    filter: brightness(1.05);
   }
 }
 

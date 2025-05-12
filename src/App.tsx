@@ -41,17 +41,25 @@ function App() {
         </main>
         <Toaster 
           position="bottom-right" 
-          closeButton 
-          theme="dark"
+          closeButton={false}
+          theme="custom"
           richColors
           toastOptions={{
-            duration: 4000,
+            duration: 2500, // Reduced from 4000ms to 2500ms
             className: "nostr-toast",
             style: { 
               background: "hsl(var(--background))",
               border: "1px solid hsl(var(--border))",
               color: "hsl(var(--foreground))",
+              cursor: "pointer", // Indicating it's clickable
             },
+            // Make toast dismissible on click
+            onAutoClose: (t) => {
+              t.dismiss();
+            },
+            onClick: (t) => {
+              t.dismiss();
+            }
           }}
           // Configure the stacking behavior - newer toasts on top, oldest removed first
           offset="16px"
