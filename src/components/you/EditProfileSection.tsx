@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -70,7 +71,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
     setIsNip05Verified(null);
     
     try {
-      // Fix: The verifyNip05 function expects only one argument (the identifier)
+      // The verifyNip05 function expects only one argument (the identifier)
       // The function will return the verified pubkey or null
       const pubkey = await verifyNip05(identifier);
       
