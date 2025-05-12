@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -10,15 +11,28 @@ import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConnection"; 
+import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
+import { retry } from "@/lib/utils/retry";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
   const [refreshing, setRefreshing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  
+  // Get the hex pubkey for the profile
+  const hexPubkey = npub ? nostrService.getHexFromNpub(npub) : currentUserPubkey;
+  
+  // Use our enhanced relay connection hook
+  const { 
+    relays, 
+    isConnecting, 
+    connectToRelays, 
+    refreshRelays 
+  } = useEnhancedRelayConnection(hexPubkey);
   
   // Use our custom hook to manage profile data and state
   const {
@@ -29,7 +43,6 @@ const ProfilePage = () => {
     reposts,
     loading,
     error,
-    relays,
     setRelays,
     followers,
     following,
@@ -40,56 +53,73 @@ const ProfilePage = () => {
     refreshProfile
   } = useProfileData({ npub, currentUserPubkey });
   
-  // Handle connection to relays before loading data
+  // Handle connection to relays before loading data using smart selection
   useEffect(() => {
     if (loading && !isConnecting) {
-      setIsConnecting(true);
+      connectToRelays();
+    }
+  }, [loading, isConnecting, connectToRelays]);
+  
+  // Handle manual refresh with improved feedback and relay selection
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    toast.loading("Refreshing profile data...");
+    
+    try {
+      // First ensure we have optimal relay connections
+      await connectToRelays();
       
-      nostrService.connectToUserRelays()
-        .catch(err => console.error("Error connecting to user relays:", err))
-        .finally(() => {
-          setIsConnecting(false);
+      // Use retry utility with exponential backoff for more resilient profile refresh
+      await retry(
+        async () => {
+          // Get best relays for read operations
+          const readRelays = relaySelector.selectBestRelays(
+            relays.map(r => r.url),
+            { operation: 'read', count: 5 }
+          );
           
-          nostrService.addMultipleRelays([
+          // Add these read-optimized relays
+          if (readRelays.length > 0) {
+            await nostrService.addMultipleRelays(readRelays);
+          }
+          
+          // Add popular relays as fallback
+          await nostrService.addMultipleRelays([
             "wss://relay.damus.io", 
             "wss://nos.lol", 
             "wss://relay.nostr.band",
             "wss://relay.snort.social"
-          ]).catch(err => console.warn("Error adding additional relays:", err));
-        });
+          ]);
+          
+          // Refresh relays status
+          refreshRelays();
+          
+          // Try to refresh profile data
+          const result = await refreshProfile();
+          if (!result) {
+            throw new Error("Failed to fetch profile data");
+          }
+          return result;
+        },
+        {
+          maxAttempts: 2,
+          baseDelay: 2000,
+          onRetry: () => {
+            toast.info("Retrying profile refresh...");
+          }
+        }
+      );
+      
+      toast.success("Profile refreshed");
+    } catch (err) {
+      console.error("Error refreshing profile:", err);
+      toast.error("Failed to refresh profile");
+    } finally {
+      setRefreshing(false);
     }
-  }, [loading, isConnecting]);
-  
-  // Handle manual refresh with improved feedback
-  const handleRefresh = useCallback(() => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    toast.info("Refreshing profile data...");
-    
-    nostrService.connectToUserRelays()
-      .then(() => {
-        return nostrService.addMultipleRelays([
-          "wss://relay.damus.io", 
-          "wss://nos.lol", 
-          "wss://relay.nostr.band",
-          "wss://relay.snort.social"
-        ]);
-      })
-      .then(() => {
-        return refreshProfile();
-      })
-      .then(() => {
-        toast.success("Profile refreshed");
-      })
-      .catch(err => {
-        console.error("Error refreshing profile:", err);
-        toast.error("Failed to refresh profile");
-      })
-      .finally(() => {
-        setRefreshing(false);
-      });
-  }, [refreshing, refreshProfile]);
+  }, [refreshing, connectToRelays, refreshRelays, refreshProfile, relays]);
   
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
@@ -103,6 +133,9 @@ const ProfilePage = () => {
     return <ProfileLoading />;
   }
   
+  // Calculate connection status
+  const connectedRelayCount = relays.filter(r => r.status === 'connected').length;
+  
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -112,16 +145,27 @@ const ProfilePage = () => {
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Profile</h1>
             
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                {connectedRelayCount > 0 ? (
+                  <Wifi className="h-3 w-3 text-green-500" />
+                ) : (
+                  <WifiOff className="h-3 w-3 text-red-500" />
+                )}
+                <span>{connectedRelayCount} relays</span>
+              </div>
+              
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </header>
         

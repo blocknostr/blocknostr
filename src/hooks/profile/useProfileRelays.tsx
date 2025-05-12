@@ -1,10 +1,13 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { adaptedNostrService } from '@/lib/nostr/nostr-adapter';
 import { Relay } from '@/lib/nostr';
 import { toast } from 'sonner';
 import { parseRelayList } from '@/lib/nostr/utils/nip';
+import { relayPerformanceTracker } from '@/lib/nostr/relay/performance/relay-performance-tracker';
+import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
+import { circuitBreaker } from '@/lib/nostr/relay/circuit/circuit-breaker';
+import { retry } from '@/lib/utils/retry';
 
 interface UseProfileRelaysProps {
   isCurrentUser: boolean;
@@ -12,7 +15,7 @@ interface UseProfileRelaysProps {
 }
 
 /**
- * Hook to manage profile relay preferences with improved type safety and connection reliability
+ * Enhanced hook to manage profile relay preferences with performance tracking and smart selection
  */
 export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProps) {
   const [relays, setRelays] = useState<Relay[]>([]);
@@ -22,29 +25,51 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   
-  // Function to refresh relay status with improved connection reliability
+  // Function to refresh relay status with enhanced performance data
   const refreshRelays = useCallback(() => {
     if (isCurrentUser) {
       const relayStatus = adaptedNostrService.getRelayStatus();
-      setRelays(relayStatus);
-      console.log("Refreshed relay status:", relayStatus.length, "relays");
+      
+      // Enhance with performance data
+      const enhancedRelays = relayStatus.map(relay => {
+        const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
+        const circuitState = circuitBreaker.getState(relay.url);
+        
+        return {
+          ...relay,
+          score: perfData?.score || 50,
+          avgResponse: perfData?.avgResponseTime,
+          circuitState
+        };
+      });
+      
+      setRelays(enhancedRelays);
+      console.log("Refreshed relay status:", enhancedRelays.length, "relays");
       
       // Check if we have any connected relays
-      const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
+      const connectedCount = enhancedRelays.filter(r => r.status === 'connected').length;
       if (connectedCount === 0 && retryCount < MAX_RETRIES) {
         console.warn("No connected relays found, attempting to reconnect...");
         
         // Try to connect to default relays plus some popular ones
         nostrService.connectToDefaultRelays()
           .then(() => {
-            nostrService.addMultipleRelays([
+            // Use relay selector to pick best relays to try
+            const allRelays = [
               "wss://relay.damus.io", 
               "wss://nos.lol", 
               "wss://relay.nostr.band",
               "wss://relay.snort.social"
-            ]);
-            setRetryCount(prev => prev + 1);
+            ];
+            
+            const bestRelays = relaySelector.selectBestRelays(allRelays, {
+              operation: 'both',
+              count: 4  // Try all of them
+            });
+            
+            return nostrService.addMultipleRelays(bestRelays);
           })
+          .then(() => setRetryCount(prev => prev + 1))
           .catch(err => console.error("Failed to reconnect to relays:", err));
       }
     } else if (pubkey) {
@@ -78,7 +103,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     }
   }, [isCurrentUser, pubkey, refreshRelays]);
   
-  // Function to load another user's relays according to NIP-65 with improved resilience
+  // Function to load another user's relays according to NIP-65 with enhanced resilience
   const loadUserRelays = async (userPubkey: string) => {
     setIsLoading(true);
     setLoadError(null);
@@ -86,34 +111,65 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     try {
       console.log("Loading relays for pubkey:", userPubkey);
       
-      // First ensure we're connected to some relays to find the user's relay list
-      await nostrService.connectToUserRelays();
+      // Use retry utility for better resilience
+      const userRelays = await retry(
+        async () => {
+          // First ensure we're connected to some relays to find the user's relay list
+          await nostrService.connectToUserRelays();
+          
+          // Add more popular relays to increase chances of finding relay lists
+          await nostrService.addMultipleRelays([
+            "wss://relay.damus.io", 
+            "wss://nos.lol", 
+            "wss://relay.nostr.band",
+            "wss://relay.snort.social"
+          ]);
+          
+          // Use the enhanced adapter method to get user relays
+          const relayUrls = await adaptedNostrService.getRelaysForUser(userPubkey);
+          if (!relayUrls || relayUrls.length === 0) {
+            throw new Error("No relays found for user");
+          }
+          
+          return relayUrls;
+        },
+        {
+          maxAttempts: 2,
+          baseDelay: 2000,
+          onRetry: () => console.log("Retrying relay discovery...")
+        }
+      ).catch(() => {
+        // Return default relays as fallback
+        console.log("No relay preferences found for user - using defaults");
+        return [
+          "wss://relay.damus.io", 
+          "wss://nos.lol", 
+          "wss://relay.nostr.band",
+          "wss://relay.snort.social"
+        ];
+      });
       
-      // Add more popular relays to increase chances of finding relay lists
-      await nostrService.addMultipleRelays([
-        "wss://relay.damus.io", 
-        "wss://nos.lol", 
-        "wss://relay.nostr.band",
-        "wss://relay.snort.social"
-      ]);
-      
-      // First try to get the relay list using the new NIP-65 compliant method
-      const relayUrls = await adaptedNostrService.getRelaysForUser(userPubkey);
-      
-      if (relayUrls && relayUrls.length > 0) {
-        console.log("Found relay preferences:", relayUrls);
-        // Convert to Relay objects with disconnected status
-        const relayObjects: Relay[] = relayUrls.map(url => ({
+      if (userRelays && userRelays.length > 0) {
+        console.log("Found relay preferences:", userRelays);
+        
+        // Convert to Relay objects with initial disconnected status
+        const initialRelayObjects: Relay[] = userRelays.map(url => ({
           url,
-          status: 'disconnected' as const, // Type assertion to ensure status is one of the allowed values
+          status: 'disconnected' as const,
           read: true,
           write: true
         }));
         
-        setRelays(relayObjects);
+        setRelays(initialRelayObjects);
         
-        // Try connecting to these relays to get better data for this user
-        nostrService.addMultipleRelays(relayUrls)
+        // Use relay selector to prioritize which relays to connect to
+        const prioritizedRelays = relaySelector.selectBestRelays(
+          userRelays,
+          { operation: 'read', count: Math.min(4, userRelays.length) }
+        );
+        
+        // Try connecting to these prioritized relays
+        nostrService.addMultipleRelays(prioritizedRelays)
           .then(count => {
             console.log(`Connected to ${count} of user's preferred relays`);
             // Refresh relay status after connecting
@@ -133,15 +189,21 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
           "wss://relay.snort.social"
         ].map(url => ({
           url,
-          status: 'disconnected' as const, // Type assertion for TypeScript
+          status: 'disconnected' as const,
           read: true,
           write: true
         }));
         
         setRelays(defaultRelays);
         
-        // Try connecting to these default relays
-        nostrService.addMultipleRelays(defaultRelays.map(r => r.url))
+        // Use relay selector for fallback relays
+        const bestRelays = relaySelector.selectBestRelays(
+          defaultRelays.map(r => r.url),
+          { operation: 'read', count: 4 }
+        );
+        
+        // Try connecting to selected fallback relays
+        nostrService.addMultipleRelays(bestRelays)
           .catch(err => console.warn("Failed to connect to fallback relays:", err));
       }
     } catch (error) {
@@ -154,13 +216,23 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     }
   };
 
-  // Function to publish user's relay preferences (NIP-65)
+  // Function to publish user's relay preferences (NIP-65) with smart selection
   const publishRelayList = async (relays: Relay[]): Promise<boolean> => {
     if (!isCurrentUser) return false;
     
     try {
-      // Use the adapter's publishRelayList method with proper typing
-      const success = await adaptedNostrService.publishRelayList(relays);
+      // Sort relays by performance score before publishing
+      const sortedRelays = [...relays].sort((a, b) => {
+        // Sort by score if available
+        if (a.score !== undefined && b.score !== undefined) {
+          return b.score - a.score;
+        }
+        // Otherwise sort by status (connected first)
+        return a.status === 'connected' ? -1 : 1;
+      });
+      
+      // Use the enhanced adapter method
+      const success = await adaptedNostrService.publishRelayList(sortedRelays);
       if (success) {
         toast.success("Relay preferences updated");
         return true;

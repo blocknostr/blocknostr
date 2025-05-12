@@ -1,4 +1,3 @@
-
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -9,11 +8,18 @@ export interface NostrEvent {
   sig: string;
 }
 
+/**
+ * Extended Relay interface with performance metrics
+ */
 export interface Relay {
   url: string;
+  status: 'connected' | 'disconnected' | 'failed';
   read: boolean;
   write: boolean;
-  status: 'connected' | 'connecting' | 'disconnected' | 'error';
+  score?: number;
+  avgResponse?: number;
+  supportedNips?: number[];
+  load?: number;
 }
 
 export interface NostrProfileMetadata {
