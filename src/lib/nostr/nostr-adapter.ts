@@ -1,4 +1,3 @@
-
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { nostrService as originalNostrService } from './service';
 
@@ -235,6 +234,22 @@ class NostrAdapter {
   
   async processPendingOperations() {
     return this.service.processPendingOperations();
+  }
+  
+  /**
+   * Fetch user's oldest metadata event to determine account creation date (NIP-01)
+   * @param pubkey User's public key
+   * @returns Timestamp of the oldest metadata event or null
+   */
+  async getAccountCreationDate(pubkey: string): Promise<number | null> {
+    // Delegate to the underlying service implementation
+    if (this.service.getAccountCreationDate) {
+      return this.service.getAccountCreationDate(pubkey);
+    }
+    
+    // Fallback implementation if the service doesn't have this method
+    console.warn('getAccountCreationDate not implemented in underlying service');
+    return null;
   }
 }
 
