@@ -120,7 +120,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {  // Fix: Properly type the event parameter as React.MouseEvent
                 e.stopPropagation();
                 handleHashtagClick(tag);
               }}
