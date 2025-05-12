@@ -182,9 +182,30 @@ export class ProfileService {
    */
   async fetchNip05Data(identifier: string): Promise<{
     pubkey?: string;
+    // Fix the relays type to match the expected format
     relays?: Record<string, { read: boolean; write: boolean }>;
     [key: string]: any;
   } | null> {
-    return fetchNip05Data(identifier);
+    const data = await fetchNip05Data(identifier);
+    
+    // Transform the relays data to match the expected format
+    if (data && data.relays) {
+      const transformedRelays: Record<string, { read: boolean; write: boolean }> = {};
+      
+      // Convert array of relay URLs to the expected format with read/write properties
+      Object.entries(data.relays).forEach(([pubkey, urls]) => {
+        transformedRelays[pubkey] = {
+          read: true,  // Default to true for both read and write
+          write: true
+        };
+      });
+      
+      return {
+        ...data,
+        relays: transformedRelays
+      };
+    }
+    
+    return data;
   }
 }

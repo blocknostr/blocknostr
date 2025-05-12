@@ -11,7 +11,7 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
   if (!identifier || !nostrService.publicKey) return false;
   
   try {
-    // Call verifyNip05 with only one argument (the identifier)
+    // Call verifyNip05 to get the pubkey for the identifier
     const pubkey = await verifyNip05(identifier);
     
     // Check if the returned pubkey matches the current user's pubkey

@@ -74,7 +74,8 @@ export async function verifyNip05(identifier: string): Promise<string | null> {
  */
 export async function fetchNip05Data(identifier: string): Promise<{
   pubkey?: string;
-  relays?: Record<string, string[]>;  // Updated to match NIP-05 spec: array of relay URLs
+  // Update the relays type to match what profile-service.ts expects
+  relays?: Record<string, { read: boolean; write: boolean }>;
   nip05_domain?: string;
   nip05_name?: string;
   [key: string]: any;
@@ -112,10 +113,14 @@ export async function fetchNip05Data(identifier: string): Promise<{
     }
     
     // Check for the recommended 'relays' object which maps pubkeys to arrays of relay URLs
-    let relays: Record<string, string[]> | undefined;
+    // Transform the relay data to the format expected by profile-service.ts
+    let relays: Record<string, { read: boolean; write: boolean }> | undefined;
     if (data.relays && typeof data.relays === 'object' && data.relays[pubkey]) {
       relays = {
-        [pubkey]: data.relays[pubkey]
+        [pubkey]: {
+          read: true,
+          write: true
+        }
       };
     }
     

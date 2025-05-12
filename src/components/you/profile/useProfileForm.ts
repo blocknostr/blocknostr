@@ -53,7 +53,7 @@ export function useProfileForm(profileData: any) {
   useEffect(() => {
     if (nip05Value) {
       const timeoutId = setTimeout(async () => {
-        await verifyNip05Identifier(nip05Value);
+        await checkNip05(nip05Value);
       }, 1000);
       
       return () => clearTimeout(timeoutId);
@@ -63,8 +63,11 @@ export function useProfileForm(profileData: any) {
   }, [nip05Value]);
 
   // Function to verify NIP-05 identifier
-  async function verifyNip05Identifier(identifier: string) {
-    if (!identifier || !nostrService.publicKey) return false;
+  async function checkNip05(identifier: string) {
+    if (!identifier || !nostrService.publicKey) {
+      setIsNip05Verified(null);
+      return false;
+    }
     
     setIsNip05Verifying(true);
     setIsNip05Verified(null);
@@ -88,6 +91,6 @@ export function useProfileForm(profileData: any) {
     isNip05Verified,
     isNip05Verifying,
     setIsNip05Verified,
-    verifyNip05Identifier
+    verifyNip05Identifier: checkNip05 // Rename to prevent confusion with imported function
   };
 }
