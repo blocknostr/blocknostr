@@ -10,3 +10,6 @@ export {
   isImageUrl,
   isVideoUrl
 } from './media-extraction';
+
+// Export all NIP utilities
+export * from './nip';

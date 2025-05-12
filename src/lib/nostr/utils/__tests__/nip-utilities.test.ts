@@ -1,12 +1,10 @@
-
 import { 
   getAccountCreationDate,
   parseThreadTags,
   verifyNip05,
   checkXVerification,
   parseRelayList
-} from '../nip-utilities';
-import { NostrEvent } from '../../types';
+} from '../nip';
 
 describe('NIP-01: Account Creation Date', () => {
   test('should return null for empty events array', () => {

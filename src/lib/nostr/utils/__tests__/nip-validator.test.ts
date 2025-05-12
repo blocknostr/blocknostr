@@ -6,7 +6,7 @@ import {
   validateNip39Claim,
   validateNip65RelayList,
   isValidNip05Format
-} from '../nip-validator';
+} from '../nip';
 import { NostrEvent } from '../../types';
 
 describe('NIP-01 Event Validation', () => {
