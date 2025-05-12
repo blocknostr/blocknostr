@@ -1,4 +1,3 @@
-
 import { nostrService } from '@/lib/nostr';
 import { verifyNip05 as nip05Verify, isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
 import { isValidHexString } from '@/lib/nostr/utils/keys';
@@ -87,7 +86,8 @@ export async function forceRefreshProfile(pubkey: string): Promise<void> {
       ]);
       
       // 3. Request fresh profile with forced refresh parameter
-      const profile = await nostrService.getUserProfile(pubkey, true);
+      // Fix: Remove the second argument as the function only expects one
+      const profile = await nostrService.getUserProfile(pubkey);
       
       if (profile) {
         console.log(`Profile refresh completed for: ${pubkey.substring(0, 8)}...`);

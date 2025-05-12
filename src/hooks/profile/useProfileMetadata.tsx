@@ -121,8 +121,9 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
           
           console.log("Connected to relays, fetching profile...");
           
-          // Fetch profile metadata with force=true to ensure fresh data
-          const profileMetadata = await nostrService.getUserProfile(hexPubkey, true);
+          // Fix: Remove the second argument, as the function only expects one
+          const profileMetadata = await nostrService.getUserProfile(hexPubkey);
+          
           if (profileMetadata) {
             console.log("Profile found:", profileMetadata.name || profileMetadata.display_name || hexPubkey);
             
