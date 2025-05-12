@@ -211,18 +211,7 @@ export function RelayDialogContent({
         
         {isCurrentUser && (
           <div className="text-xs text-muted-foreground mt-2">
-            <p>
-              Publishing saves your relay preferences according to{" "}
-              <a
-                href="https://github.com/nostr-protocol/nips/blob/master/65.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                NIP-65
-              </a>
-              .
-            </p>
+            Publishing saves your relay preferences according to NIP-65
           </div>
         )}
       </div>

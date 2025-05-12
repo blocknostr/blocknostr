@@ -96,12 +96,12 @@ const ProfilePage = () => {
           // Refresh relays status
           refreshRelays();
           
-          // Try to refresh profile data
+          // Try to refresh profile data - fix the void return checking
           const result = await refreshProfile();
-          if (!result) {
-            throw new Error("Failed to fetch profile data");
-          }
-          return result;
+          
+          // Instead of checking truthiness, just consider the operation successful
+          // if it didn't throw an error
+          return true;
         },
         {
           maxAttempts: 2,

@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { relayPerformanceTracker } from '../performance/relay-performance-tracker';
 import { circuitBreaker } from '../circuit/circuit-breaker';
@@ -146,16 +147,16 @@ export class RelayDiscoverer {
       }, timeout);
       
       try {
-        const sub = this.pool.sub(relays, [filter]);
-        
-        sub.on('event', (event: any) => {
-          events.push(event);
-        });
-        
-        sub.on('eose', () => {
-          clearTimeout(timeoutId);
-          resolve(events);
-          sub.unsub();
+        // Use correct method for SimplePool - it's 'subscribeMany' not 'sub'
+        const subscription = this.pool.subscribeMany(relays, [filter], {
+          onevent: (event: any) => {
+            events.push(event);
+          },
+          oneose: () => {
+            clearTimeout(timeoutId);
+            resolve(events);
+            this.pool.close(subscription);
+          }
         });
       } catch (error) {
         console.error('Error fetching events:', error);

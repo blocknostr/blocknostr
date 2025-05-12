@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -198,17 +199,19 @@ const ProfileRelaysDialog = ({
   const renderRelayScore = (relay: Relay) => {
     if (relay.score === undefined) return null;
     
-    let variant = "default";
-    if (relay.score >= 80) variant = "default";
-    else if (relay.score >= 60) variant = "secondary";
-    else if (relay.score >= 40) variant = "outline";
-    else variant = "destructive";
+    // Fix the string variant to use proper badge variant types
+    let badgeVariant: "default" | "destructive" | "outline" | "secondary" = "default";
+    
+    if (relay.score >= 80) badgeVariant = "default";
+    else if (relay.score >= 60) badgeVariant = "secondary";
+    else if (relay.score >= 40) badgeVariant = "outline";
+    else badgeVariant = "destructive";
     
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant={variant} className="ml-2">
+            <Badge variant={badgeVariant} className="ml-2">
               {relay.score}
             </Badge>
           </TooltipTrigger>

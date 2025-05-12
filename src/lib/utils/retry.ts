@@ -98,6 +98,7 @@ export const parallelRetry = async <T>(
     fns.map(fn => retry(fn, options))
   );
   
+  // Fix the type predicate to match parameter type
   const successes = results
     .filter((result): result is PromiseFulfilledResult<T> => 
       result.status === 'fulfilled'
