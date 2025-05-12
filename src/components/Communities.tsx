@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -6,8 +5,6 @@ import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 
 const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -139,14 +136,6 @@ const Communities = () => {
   return (
     <div className="flex flex-col">
       <div className="mb-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Find Your Communities</h2>
-          <Button onClick={() => setIsDialogOpen(true)} size="sm" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Community
-          </Button>
-        </div>
-        
         <SearchBar 
           searchTerm={searchTerm} 
           setSearchTerm={setSearchTerm} 
