@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ExternalLink, AlertCircle, Fingerprint, Loader2 } from "lucide-react";
@@ -25,14 +24,14 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       name: "Alby",
       description: "Bitcoin & Nostr browser extension",
       logo: AlbyLogo,
-      url: "https://getalby.com/"
+      url: "https://getalby.com/products/browser-extension"
     },
     {
       id: "nwc",
       name: "Nostr Wallet ID",
       description: "NIP-07 compatible wallet",
       logo: NWCLogo,
-      url: "https://nwc.getalby.com/"
+      url: "https://chromewebstore.google.com/detail/nostr-wallet-id/ajgmkkifilepekpieppfhfkladjjgihn"
     },
     {
       id: "alephium",

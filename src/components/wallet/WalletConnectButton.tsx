@@ -48,7 +48,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       
       <div className="mt-4 grid grid-cols-3 gap-2 w-full max-w-xs">
         <a 
-          href="https://getalby.com/" 
+          href="https://getalby.com/products/browser-extension" 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
@@ -61,7 +61,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         </a>
         
         <a 
-          href="https://nwc.getalby.com/" 
+          href="https://chromewebstore.google.com/detail/nostr-wallet-id/ajgmkkifilepekpieppfhfkladjjgihn" 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
