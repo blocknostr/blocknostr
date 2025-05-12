@@ -18,6 +18,7 @@ export class CircuitBreaker {
   private successThreshold: number = 3;
   private failureThreshold: number = 5;
   private resetTimeout: number = 60000; // 1 minute in ms
+  private circuitStates: Map<string, CircuitState> = new Map();
   
   constructor(
     failureThreshold?: number,
@@ -44,6 +45,16 @@ export class CircuitBreaker {
   }
   
   /**
+   * Record success for a specific circuit by URL
+   */
+  recordSuccessFor(url: string): void {
+    const state = this.circuitStates.get(url) || CircuitState.CLOSED;
+    if (state === CircuitState.HALF_OPEN) {
+      this.circuitStates.set(url, CircuitState.CLOSED);
+    }
+  }
+  
+  /**
    * Track a failed operation
    */
   recordFailure(): void {
@@ -57,6 +68,18 @@ export class CircuitBreaker {
     } else if (this.state === CircuitState.HALF_OPEN) {
       this.state = CircuitState.OPEN;
       this.failureCount = this.failureThreshold; // Reset failure count
+    }
+  }
+  
+  /**
+   * Record failure for a specific circuit by URL
+   */
+  recordFailureFor(url: string): void {
+    const currentState = this.circuitStates.get(url) || CircuitState.CLOSED;
+    if (currentState === CircuitState.CLOSED) {
+      this.circuitStates.set(url, CircuitState.HALF_OPEN);
+    } else if (currentState === CircuitState.HALF_OPEN) {
+      this.circuitStates.set(url, CircuitState.OPEN);
     }
   }
   
@@ -84,10 +107,34 @@ export class CircuitBreaker {
   }
   
   /**
+   * Check if operations are allowed for a specific URL
+   */
+  isAllowedFor(url: string): boolean {
+    const state = this.circuitStates.get(url);
+    if (!state || state === CircuitState.CLOSED) {
+      return true;
+    }
+    
+    if (state === CircuitState.OPEN) {
+      return false;
+    }
+    
+    // Half-open state
+    return true;
+  }
+  
+  /**
    * Get the current state of the circuit
    */
   getState(): CircuitState {
     return this.state;
+  }
+  
+  /**
+   * Get the state for a specific URL
+   */
+  getState(url: string): CircuitState {
+    return this.circuitStates.get(url) || CircuitState.CLOSED;
   }
   
   /**
@@ -100,12 +147,26 @@ export class CircuitBreaker {
   }
   
   /**
+   * Reset a specific circuit by URL
+   */
+  resetFor(url: string): void {
+    this.circuitStates.delete(url);
+  }
+  
+  /**
    * Force the circuit to open
    */
   forceOpen(): void {
     this.state = CircuitState.OPEN;
     this.lastFailureTime = Date.now();
     this.failureCount = this.failureThreshold;
+  }
+  
+  /**
+   * Force a specific circuit to open by URL
+   */
+  forceOpenFor(url: string): void {
+    this.circuitStates.set(url, CircuitState.OPEN);
   }
   
   /**

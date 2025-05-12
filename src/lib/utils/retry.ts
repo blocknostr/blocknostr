@@ -1,91 +1,49 @@
 
 /**
- * Options for retry functionality
- */
-interface RetryOptions {
-  maxAttempts: number;
-  baseDelay: number;
-  backoffFactor?: number;
-  onRetry?: (attempt: number) => void;
-}
-
-/**
  * Retry a function with exponential backoff
  * @param fn Function to retry
  * @param options Retry options
- * @returns Promise resolving to the function result
+ * @returns Result of the function or null if max attempts exceeded
  */
 export async function retry<T>(
   fn: () => Promise<T>,
-  options: RetryOptions
+  options: {
+    maxAttempts?: number;
+    baseDelay?: number;
+    factor?: number;
+    onRetry?: (attempt: number) => void;
+  } = {}
 ): Promise<T> {
-  const { maxAttempts, baseDelay, backoffFactor = 2, onRetry } = options;
+  const { 
+    maxAttempts = 3, 
+    baseDelay = 1000, 
+    factor = 2,
+    onRetry = () => {} 
+  } = options;
   
-  let lastError: Error | null = null;
+  let attempt = 0;
   
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  while (attempt < maxAttempts) {
     try {
       return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+    } catch (err) {
+      attempt++;
       
-      // If this is the last attempt, don't wait, just throw
-      if (attempt === maxAttempts) {
-        throw lastError;
+      // If we've reached max attempts, throw the error
+      if (attempt >= maxAttempts) {
+        throw err;
       }
       
-      // Calculate delay with exponential backoff
-      const delay = baseDelay * Math.pow(backoffFactor, attempt - 1);
+      // Call the onRetry callback
+      onRetry(attempt);
       
-      // Call onRetry callback if provided
-      if (onRetry) {
-        onRetry(attempt);
-      }
+      // Calculate exponential backoff delay
+      const delay = baseDelay * Math.pow(factor, attempt - 1);
       
-      // Wait before next retry
+      // Wait before next attempt
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
-  // This should never happen, but TypeScript needs it
-  throw lastError || new Error('Retry failed');
-}
-
-/**
- * Execute multiple functions in parallel and succeed if at least minSuccess functions succeed
- * @param functions Array of functions to execute
- * @param options Retry options for individual functions
- * @param minSuccess Minimum number of successful executions required
- * @returns Promise resolving to array of results
- */
-export async function parallelRetry<T>(
-  functions: Array<() => Promise<T>>,
-  options: RetryOptions,
-  minSuccess: number
-): Promise<T[]> {
-  const results: T[] = [];
-  const errors: Error[] = [];
-  
-  // Execute all functions and collect results or errors
-  const promises = functions.map(async (fn) => {
-    try {
-      const result = await retry(fn, options);
-      results.push(result);
-      return result;
-    } catch (error) {
-      errors.push(error instanceof Error ? error : new Error(String(error)));
-      return null;
-    }
-  });
-  
-  // Wait for all promises to resolve
-  await Promise.all(promises);
-  
-  // Check if we have enough successes
-  if (results.length >= minSuccess) {
-    return results;
-  }
-  
-  // If not enough successes, throw an error with details
-  throw new Error(`ParallelRetry: Only ${results.length} of ${functions.length} succeeded, needed ${minSuccess}. Errors: ${errors.map(e => e.message).join(', ')}`);
+  throw new Error(`Max retry attempts (${maxAttempts}) exceeded`);
 }

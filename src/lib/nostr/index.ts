@@ -24,6 +24,7 @@ export {
   getNpubFromHex, 
   getHexFromNpub 
 } from './utils/keys';
+export { contentFormatter } from './utils/content-formatter';
 
 // Export content cache
 export { contentCache } from './content-cache';

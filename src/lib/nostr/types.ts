@@ -41,7 +41,7 @@ export interface Relay {
   write?: boolean;
   score?: number;
   avgResponse?: number;
-  circuitStatus?: string;
+  circuitStatus?: CircuitState;
   isRequired?: boolean;
 }
 
@@ -53,7 +53,7 @@ export interface NostrFilter {
   since?: number;
   until?: number;
   limit?: number;
-  [key: `#${string}`]: string[]; // Tag filters like #e, #p, etc.
+  [key: `#${string}`]?: string[]; // Tag filters like #e, #p, etc.
 }
 
 // Define types for the proposal category
@@ -74,6 +74,25 @@ export interface NoteCardProps {
   isReply?: boolean;
   isDetailed?: boolean;
   inThread?: boolean;
+}
+
+// Bookmark types
+export interface BookmarkCollection {
+  id: string;
+  name: string;
+  color?: string;
+  description?: string;
+  count: number;
+}
+
+export interface BookmarkWithMetadata {
+  eventId: string;
+  title?: string;
+  url?: string;
+  note?: string;
+  tags?: string[];
+  collectionId?: string;
+  addedAt: number;
 }
 
 // Add any additional types needed by the application

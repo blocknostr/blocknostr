@@ -59,7 +59,8 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
 
   // Render status indicator with tooltips
   const renderStatus = (relay: Relay) => {
-    const circuitState = circuitBreaker.getState(relay.url);
+    // Use the circuit breaker without url parameter for backward compatibility
+    const circuitState = relay.circuitStatus as CircuitState || 'closed';
     
     if (relay.status === 'connected') {
       return (
@@ -160,7 +161,7 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
                 flex items-center justify-between p-3 rounded-md border
                 ${relay.status === 'connected' 
                   ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900/50' 
-                  : relay.status === 'failed' || circuitBreaker.getState(relay.url) === CircuitState.OPEN
+                  : relay.status === 'failed' || relay.circuitStatus === CircuitState.OPEN
                     ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/50'
                     : 'bg-background border-muted'}
               `}

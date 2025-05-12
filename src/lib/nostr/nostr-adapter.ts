@@ -1,6 +1,6 @@
 
 import { nostrService } from './service';
-import { NostrEvent, Relay } from './types';
+import { NostrEvent, Relay, ProposalCategory } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 /**
@@ -58,7 +58,7 @@ class AdaptedNostrService {
     title: string, 
     description: string, 
     options: string[], 
-    category: string
+    category: ProposalCategory
   ) {
     return this.service.createProposal(communityId, title, description, options, category);
   }
@@ -182,8 +182,7 @@ class AdaptedNostrService {
   }
 
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
-    // Make sure we have the method before calling it
-    if ('publishRelayList' in this.service && typeof this.service.publishRelayList === 'function') {
+    if (this.service.publishRelayList) {
       return this.service.publishRelayList(relays);
     }
     return false;
