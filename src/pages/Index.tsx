@@ -4,7 +4,7 @@ import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, HardDriveX } from "lucide-react";
+import { AlertTriangle, Loader2, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // Lazy load MainFeed to improve initial page load
@@ -88,7 +88,7 @@ const Index: React.FC = () => {
         <div className="mb-4 p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-sm">
           <div className="flex flex-col space-y-3">
             <div className="flex items-start">
-              <HardDriveX className="h-5 w-5 flex-shrink-0 mr-2 mt-0.5" />
+              <HardDrive className="h-5 w-5 flex-shrink-0 mr-2 mt-0.5" />
               <div>
                 <p className="font-medium mb-1">Storage limit reached</p>
                 <p>
