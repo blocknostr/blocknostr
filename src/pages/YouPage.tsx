@@ -93,7 +93,7 @@ const YouPage = () => {
     }
   };
 
-  // Updated handleProfileSaved to address relay subscription and PoW issues
+  // Updated handleProfileSaved to address unauthorized address and 404 errors
   const handleProfileSaved = useCallback(async () => {
     console.log("[YOU PAGE] Profile saved, exiting edit mode");
     setIsEditing(false);
@@ -140,8 +140,13 @@ const YouPage = () => {
 
           setProfileKey(Date.now());
         } catch (error) {
-          console.error("[YOU PAGE] Error refreshing after save:", error);
-          toast.error("Failed to refresh profile. Please try again later.");
+          if (error.message.includes("Unauthorized address")) {
+            console.error("[YOU PAGE] Unauthorized address error:", error);
+            toast.error("Unauthorized address. Please check your signing credentials.");
+          } else {
+            console.error("[YOU PAGE] Error refreshing after save:", error);
+            toast.error("Failed to refresh profile. Please try again later.");
+          }
         } finally {
           setRefreshing(false);
         }
@@ -156,6 +161,11 @@ const YouPage = () => {
       }
     };
   }, []);
+
+  const handleImageError = (event) => {
+    event.target.src = "/placeholder.svg"; // Use a placeholder image
+    console.warn("[YOU PAGE] Image not found, using placeholder.");
+  };
 
   if (loading) {
     return (
