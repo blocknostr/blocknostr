@@ -118,7 +118,7 @@ const ProfileSettingsPage = () => {
     setIsNip05Verified(null);
     
     try {
-      // Fix: Only pass the identifier and pubkey to the verifyNip05 function
+      // Fix: Pass both parameters to verifyNip05 as it expects both
       const isValid = await verifyNip05(identifier, pubkey);
       setIsNip05Verified(isValid);
     } catch (error) {
