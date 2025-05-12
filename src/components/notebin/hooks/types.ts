@@ -12,4 +12,9 @@ export interface Note {
   createdAt?: number; // Add this field for compatibility
   event: any; // Make event required, not optional
   slug?: string; // Add slug field for compatibility with notebin
+  encryptionMetadata?: {
+    contentSalt?: string;
+    titleSalt?: string;
+    method?: string;
+  };
 }
