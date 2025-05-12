@@ -5,8 +5,9 @@ import GlobalSearch from "@/components/GlobalSearch";
 import TrendingTopics from "@/components/feed/TrendingTopics";
 import WorldChat from "@/components/chat/WorldChat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useLocation } from "react-router-dom";
 
-interface RightSidebarProps {
+interface GlobalSidebarProps {
   rightPanelOpen: boolean;
   setRightPanelOpen: (open: boolean) => void;
   onTopicClick: (topic: string) => void;
@@ -15,7 +16,7 @@ interface RightSidebarProps {
   onClearHashtag?: () => void;
 }
 
-const RightSidebar: React.FC<RightSidebarProps> = ({ 
+const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ 
   rightPanelOpen, 
   setRightPanelOpen, 
   onTopicClick,
@@ -24,22 +25,38 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   onClearHashtag
 }) => {
   const { preferences } = useUserPreferences();
+  const location = useLocation();
+  
+  // Check if we should hide trending on certain pages
+  const shouldShowTrending = () => {
+    // List of paths where we might want to hide trending
+    const hideTrendingPaths = [
+      '/messages', 
+      '/notebin'
+    ];
+    
+    return !hideTrendingPaths.some(path => location.pathname.startsWith(path));
+  };
   
   // Desktop right sidebar
-  if (!isMobile && preferences.uiPreferences.showTrending) {
+  if (!isMobile && preferences.uiPreferences?.showTrending) {
     return (
       <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
         <div className="flex flex-col h-full space-y-2">
           <div>
             <GlobalSearch />
           </div>
-          <div className="mb-0.5">
-            <TrendingTopics 
-              onTopicClick={onTopicClick} 
-              activeHashtag={activeHashtag}
-              onClearHashtag={onClearHashtag}
-            />
-          </div>
+          
+          {shouldShowTrending() && (
+            <div className="mb-0.5">
+              <TrendingTopics 
+                onTopicClick={onTopicClick} 
+                activeHashtag={activeHashtag}
+                onClearHashtag={onClearHashtag}
+              />
+            </div>
+          )}
+          
           <div className="flex-grow flex flex-col mt-1">
             <WorldChat />
           </div>
@@ -57,13 +74,17 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
             <div>
               <GlobalSearch />
             </div>
-            <div className="mb-0.5">
-              <TrendingTopics 
-                onTopicClick={onTopicClick} 
-                activeHashtag={activeHashtag}
-                onClearHashtag={onClearHashtag}
-              />
-            </div>
+            
+            {shouldShowTrending() && (
+              <div className="mb-0.5">
+                <TrendingTopics 
+                  onTopicClick={onTopicClick} 
+                  activeHashtag={activeHashtag}
+                  onClearHashtag={onClearHashtag}
+                />
+              </div>
+            )}
+            
             <div className="flex-grow flex flex-col mt-1">
               <WorldChat />
             </div>
@@ -76,4 +97,4 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   return null;
 };
 
-export default RightSidebar;
+export default GlobalSidebar;

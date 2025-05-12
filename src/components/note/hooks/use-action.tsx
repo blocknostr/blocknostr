@@ -1,58 +1,69 @@
 
-import React from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { NostrEvent, SocialManager } from "@/lib/nostr";
 import { nostrService } from "@/lib/nostr";
-import { Note } from '@/components/notebin/hooks/types';
 
-export interface UseActionProps {
-  eventId: string;
-  authorPubkey: string;
-  event: any; // Full event object
-}
+export function usePostAction(event: NostrEvent, actionType: "like" | "repost" | "reply" | "delete") {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [count, setCount] = useState(0);
 
-export function useAction(note: Note | UseActionProps) {
-  const [isLiking, setIsLiking] = React.useState(false);
-  const [isReposting, setIsReposting] = React.useState(false);
-
-  // Extract properties based on the input type
-  const eventId = 'eventId' in note ? note.eventId : note.id;
-  const authorPubkey = 'authorPubkey' in note ? note.authorPubkey : note.author;
-  const event = 'event' in note ? note.event : note;
-
-  const handleLike = async () => {
-    if (isLiking) return;
+  const performAction = async () => {
+    setIsLoading(true);
+    setIsError(false);
     
-    setIsLiking(true);
     try {
-      await nostrService.socialManager.likeEvent(event);
-      toast.success("Post liked");
+      let result = false;
+      
+      switch (actionType) {
+        case "like":
+          // Use reactToPost from nostrService instead of deprecated likeEvent
+          result = await nostrService.reactToPost(event.id);
+          if (result) {
+            toast.success("Post liked!");
+            setCount((prev) => prev + 1);
+          }
+          break;
+          
+        case "repost":
+          // Use repostNote which takes eventId and pubkey
+          result = await nostrService.repostNote(event.id, event.pubkey);
+          if (result) {
+            toast.success("Post reposted!");
+            setCount((prev) => prev + 1);
+          }
+          break;
+          
+        case "reply":
+          // Reply functionality should be handled separately
+          console.log("Reply action triggered");
+          result = true;
+          break;
+          
+        case "delete":
+          // Delete functionality
+          console.log("Delete action triggered");
+          result = true;
+          break;
+      }
+      
+      setIsSuccess(result);
     } catch (error) {
-      console.error("Error liking post:", error);
-      toast.error("Failed to like post");
+      console.error(`Error performing ${actionType} action:`, error);
+      setIsError(true);
+      toast.error(`Failed to ${actionType} post. Please try again.`);
     } finally {
-      setIsLiking(false);
-    }
-  };
-
-  const handleRepost = async () => {
-    if (isReposting) return;
-    
-    setIsReposting(true);
-    try {
-      await nostrService.socialManager.repostEvent(event);
-      toast.success("Post reposted");
-    } catch (error) {
-      console.error("Error reposting:", error);
-      toast.error("Failed to repost");
-    } finally {
-      setIsReposting(false);
+      setIsLoading(false);
     }
   };
 
   return {
-    handleLike,
-    handleRepost,
-    isLiking,
-    isReposting
+    isLoading,
+    isSuccess,
+    isError,
+    count,
+    performAction,
   };
 }

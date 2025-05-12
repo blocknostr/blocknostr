@@ -14,15 +14,15 @@ import NotFound from './pages/NotFound';
 import { Toaster } from "sonner";
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
-import { NavigationProvider } from './contexts/NavigationContext';
+import MainLayout from './layouts/MainLayout';
 
 function App() {
   return (
     <BrowserRouter>
-      <NavigationProvider>
-        <div className="flex flex-col min-h-screen">
-          <main className="flex-1">
-            <Routes>
+      <div className="flex flex-col min-h-screen">
+        <main className="flex-1">
+          <Routes>
+            <Route element={<MainLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/:pubkey" element={<ProfilePage />} />
@@ -36,11 +36,11 @@ function App() {
               <Route path="/wallets" element={<WalletsPage />} />
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Toaster position="bottom-right" closeButton />
-        </div>
-      </NavigationProvider>
+            </Route>
+          </Routes>
+        </main>
+        <Toaster position="bottom-right" closeButton />
+      </div>
     </BrowserRouter>
   );
 }

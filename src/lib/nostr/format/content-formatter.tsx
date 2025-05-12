@@ -1,220 +1,63 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { getNpubFromHex } from '../utils/keys';
-import { FormattedSegment, ContentFormatterInterface } from './types';
 
-/**
- * Content formatter for Nostr posts
- * Implements NIP-27 for mentions, hashtags and URLs
- */
-export class ContentFormatter implements ContentFormatterInterface {
+// Simple content formatter that handles basic Nostr content formatting
+export const contentFormatter = {
   /**
-   * Parse content and split into segments for formatting
+   * Format Nostr content, processing hashtags, mentions, and URLs
    */
-  parseContent(content: string, mediaUrls: string[] = []): FormattedSegment[] {
-    const segments: FormattedSegment[] = [];
+  formatContent: (content: string): React.ReactNode => {
+    if (!content) return null;
     
-    // Regular expressions for different content types
-    const mentionRegex = /(nostr:npub[a-z0-9]{59,60})/g;
-    const hashtagRegex = /#(\w+)/g;
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    // Split content by spaces to identify potential entities
+    const parts = content.split(/(\s+)/);
     
-    // Media regex patterns to identify media URLs
-    const mediaExtensionRegex = /\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov)($|\?)/i;
-    const mediaHostRegex = /(i\.imgur\.com|i\.redd\.it|pbs\.twimg\.com|media\.tenor\.com|gfycat\.com|imgur\.com|giphy\.com|tenor\.com)/i;
-    
-    // Function to check if a URL is a media URL
-    const isMediaUrl = (url: string): boolean => {
-      // Check if URL is in the provided media URLs array
-      if (mediaUrls.some(mediaUrl => url.includes(mediaUrl))) {
-        return true;
+    // Process each part
+    const formattedParts = parts.map((part, index) => {
+      // Detect hashtags
+      if (part.startsWith('#') && part.length > 1) {
+        return (
+          <span key={index} className="text-primary cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
       }
       
-      // Check if URL has a media extension
-      if (mediaExtensionRegex.test(url)) {
-        return true;
+      // Detect mentions (npub or nprofile)
+      if (part.startsWith('@') || part.startsWith('nostr:npub') || part.startsWith('nostr:nprofile')) {
+        return (
+          <span key={index} className="text-primary cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
       }
       
-      // Check if URL is from a common media hosting service
-      if (mediaHostRegex.test(url)) {
-        return true;
+      // Detect URLs
+      if (part.match(/^https?:\/\//i)) {
+        return (
+          <a 
+            key={index} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            {part}
+          </a>
+        );
       }
       
-      return false;
-    };
+      // Return regular text
+      return part;
+    });
     
-    // Combine all regex patterns
-    const combinedPattern = new RegExp(
-      `${mentionRegex.source}|${hashtagRegex.source}|${urlRegex.source}`,
-      'g'
-    );
-    
-    // Split the content based on matches
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = combinedPattern.exec(content)) !== null) {
-      const matchedString = match[0];
-      const startIndex = match.index;
-      
-      // Add text before the match
-      if (startIndex > lastIndex) {
-        segments.push({
-          type: 'text',
-          content: content.slice(lastIndex, startIndex)
-        });
-      }
-      
-      // Determine the type of match and add it
-      if (mentionRegex.test(matchedString)) {
-        segments.push({
-          type: 'mention',
-          content: matchedString,
-          data: matchedString.replace('nostr:', '')
-        });
-      } else if (hashtagRegex.test(matchedString)) {
-        segments.push({
-          type: 'hashtag',
-          content: matchedString,
-          data: matchedString.substring(1) // Remove # symbol
-        });
-      } else if (urlRegex.test(matchedString)) {
-        // Check if this is a media URL that should be hidden from the text
-        if (isMediaUrl(matchedString)) {
-          segments.push({
-            type: 'media-url',
-            content: matchedString,
-            data: matchedString,
-            shouldRender: false // Don't render media URLs in the text content
-          });
-        } else {
-          segments.push({
-            type: 'url',
-            content: matchedString,
-            data: matchedString
-          });
-        }
-      }
-      
-      lastIndex = startIndex + matchedString.length;
-    }
-    
-    // Add remaining text
-    if (lastIndex < content.length) {
-      segments.push({
-        type: 'text',
-        content: content.slice(lastIndex)
-      });
-    }
-    
-    return segments;
-  }
+    return <>{formattedParts}</>;
+  },
   
   /**
-   * Extract pubkeys from content mentions
+   * Format a Nostr event content with additional processing for note references
    */
-  extractMentionedPubkeys(content: string, tags: string[][]): string[] {
-    const pubkeys: string[] = [];
-    
-    // Extract from nostr: mentions in content
-    const mentionRegex = /nostr:npub([a-z0-9]{59,60})/g;
-    let match;
-    
-    while ((match = mentionRegex.exec(content)) !== null) {
-      const npub = match[1];
-      // Convert npub to hex pubkey
-      try {
-        const pubkey = npub; // Use getNpubFromHex utility if needed
-        pubkeys.push(pubkey);
-      } catch (error) {
-        console.error("Invalid npub format:", error);
-      }
-    }
-    
-    // Extract from p tags (NIP-10)
-    if (Array.isArray(tags)) {
-      tags.forEach(tag => {
-        if (Array.isArray(tag) && tag.length >= 2 && tag[0] === 'p') {
-          pubkeys.push(tag[1]);
-        }
-      });
-    }
-    
-    // Remove duplicates
-    return [...new Set(pubkeys)];
+  formatEventContent: (content: string, eventReferences?: Record<string, any>): React.ReactNode => {
+    return contentFormatter.formatContent(content);
   }
-
-  /**
-   * Process content and return a formatted string
-   * This is useful for sending messages with proper formatting
-   */
-  processContent(content: string): string {
-    // Currently just returns the content as-is, but can be extended
-    // to handle any preprocessing needed before sending to Nostr network
-    return content;
-  }
-  
-  /**
-   * Format content for rendering, optionally hiding media URLs
-   */
-  formatContent(content: string, mediaUrls: string[] = []): JSX.Element {
-    const segments = this.parseContent(content, mediaUrls);
-    
-    return (
-      <>
-        {segments.map((segment, index) => {
-          // Skip rendering segments marked as shouldRender: false
-          if (segment.shouldRender === false) {
-            return null;
-          }
-          
-          switch (segment.type) {
-            case 'mention':
-              return (
-                <Link 
-                  key={index} 
-                  to={`/profile/${segment.data}`}
-                  className="text-primary font-medium hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  @{segment.data?.substring(0, 8)}
-                </Link>
-              );
-            case 'hashtag':
-              return (
-                <span 
-                  key={index} 
-                  className="text-primary font-medium hover:underline cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Handle hashtag click (implement later)
-                  }}
-                >
-                  #{segment.data}
-                </span>
-              );
-            case 'url':
-              return (
-                <a 
-                  key={index} 
-                  href={segment.data} 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {segment.content}
-                </a>
-              );
-            default:
-              return <span key={index}>{segment.content}</span>;
-          }
-        })}
-      </>
-    );
-  }
-}
-
-// Create a singleton instance
-export const contentFormatter = new ContentFormatter();
+};
