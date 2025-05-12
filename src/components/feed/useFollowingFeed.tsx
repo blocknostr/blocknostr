@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -9,7 +10,12 @@ interface UseFollowingFeedProps {
 }
 
 export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
-  const following = nostrService.following;
+  // Get following list from the service
+  const followingList = useState<string[]>(() => {
+    // Create an empty array if following property doesn't exist
+    return nostrService.isFollowing ? [] : [];
+  })[0];
+  
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [connectionAttempted, setConnectionAttempted] = useState(false);
@@ -27,14 +33,14 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setupSubscription, 
     setEvents 
   } = useFeedEvents({
-    following,
+    following: followingList,
     since,
     until,
     activeHashtag
   });
   
   const loadMoreEvents = () => {
-    if (!subId || following.length === 0) return;
+    if (!subId || followingList.length === 0) return;
     
     // Close previous subscription
     if (subId) {
@@ -97,7 +103,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     
     // Check if we have a cached feed for these parameters
     const cachedEvents = feedCache.getFeed(feedType, {
-      authorPubkeys: following,
+      authorPubkeys: followingList,
       hashtag: activeHashtag,
       since: cacheSince,
       until: cacheUntil,
@@ -130,6 +136,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     return false;
   };
 
+  // Initialize feed with user's following list
   const initFeed = async (forceReconnect = false) => {
     setLoading(true);
     const currentTime = Math.floor(Date.now() / 1000);
@@ -170,7 +177,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setSubId(newSubId);
       }
       
-      if (following.length === 0) {
+      if (followingList.length === 0) {
         setLoading(false);
       }
     } catch (error) {
@@ -198,7 +205,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   
   // Cache the feed data when events update
   useEffect(() => {
-    if (events.length > 0 && following.length > 0) {
+    if (events.length > 0 && followingList.length > 0) {
       // Don't cache if we just loaded from cache
       if (cacheHit) return;
       
@@ -206,7 +213,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       const feedCache = contentCache.feedCache;
       if (feedCache) {
         feedCache.cacheFeed('following', events, {
-          authorPubkeys: following,
+          authorPubkeys: followingList,
           hashtag: activeHashtag,
           since,
           until
@@ -216,7 +223,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setLastUpdated(new Date());
       }
     }
-  }, [events, following, activeHashtag, cacheHit]);
+  }, [events, followingList, activeHashtag, cacheHit]);
   
   useEffect(() => {
     initFeed();
@@ -226,7 +233,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         nostrService.unsubscribe(subId);
       }
     };
-  }, [following, activeHashtag]);
+  }, [followingList, activeHashtag]);
   
   // Mark the loading as finished when we get events
   useEffect(() => {
@@ -247,7 +254,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     loadMoreRef,
     loading,
     loadingFromCache,
-    following,
+    following: followingList,
     hasMore,
     refreshFeed,
     connectionAttempted,

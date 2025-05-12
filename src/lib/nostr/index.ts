@@ -1,6 +1,6 @@
 
 import { SimplePool } from 'nostr-tools';
-import { NostrEvent, Relay } from './types';
+import { NostrEvent, Relay, NostrFilter, NostrProfileMetadata, NoteCardProps } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
@@ -9,7 +9,7 @@ import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
-export type { NostrEvent, Relay, NostrFilter, NostrProfileMetadata } from './types';
+export type { NostrEvent, Relay, NostrFilter, NostrProfileMetadata, NoteCardProps } from './types';
 export { EVENT_KINDS } from './constants';
 
 // Re-export from social module

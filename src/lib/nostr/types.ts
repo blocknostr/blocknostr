@@ -4,9 +4,13 @@
  */
 export interface Relay {
   url: string;
-  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown';
+  status?: 'connected' | 'connecting' | 'disconnected' | 'error' | 'unknown' | 'failed';
   read?: boolean;
   write?: boolean;
+  // Performance metrics
+  score?: number;
+  avgResponse?: number;
+  circuitStatus?: string;
 }
 
 /**
@@ -50,4 +54,12 @@ export interface NostrProfileMetadata {
   website?: string;
   display_name?: string;
   [key: string]: any; // Allow for custom fields
+}
+
+/**
+ * Interface for NoteCard props
+ */
+export interface NoteCardProps {
+  event: NostrEvent;
+  showActionButtons?: boolean;
 }

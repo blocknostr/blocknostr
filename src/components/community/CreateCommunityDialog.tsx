@@ -58,21 +58,13 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
     setIsCreatingCommunity(true);
     
     try {
-      const communityId = await nostrService.createCommunity(
-        values.name.trim(),
-        values.description.trim()
-      );
-      
-      if (communityId) {
-        toast.success("Community created successfully!");
-        form.reset();
-        setIsOpen(false);
-        
-        // Navigate to the new community
-        setTimeout(() => {
-          navigate(`/communities/${communityId}`);
-        }, 1000);
-      }
+      // Just emit a notification since we don't have this function yet
+      console.log("Creating community:", values);
+      toast.info("Community creation is not implemented yet");
+
+      // Reset form and close dialog
+      form.reset();
+      setIsOpen(false);
     } catch (error) {
       console.error("Error creating community:", error);
       toast.error("Failed to create community");

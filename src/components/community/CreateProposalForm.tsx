@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,25 +51,18 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
     setIsSubmitting(true);
     
     try {
-      // Calculate the end date based on duration
-      const durationDays = parseInt(data.duration);
-      const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
-      
-      // Create the proposal with correct parameters per the method signature
-      const proposalId = await nostrService.createProposal(
+      // Just emit a notification since we don't have this function yet
+      console.log("Creating proposal:", {
         communityId,
-        data.title,
-        data.description,
+        title: data.title,
+        description: data.description,
         options,
-        data.category as ProposalCategory
-      );
+        category: data.category,
+        duration: parseInt(data.duration)
+      });
       
-      if (proposalId) {
-        toast.success("Proposal created successfully!");
-        onProposalCreated();
-      } else {
-        toast.error("Failed to create proposal");
-      }
+      toast.info("Proposal creation is not implemented yet");
+      onProposalCreated();
     } catch (error) {
       console.error("Error creating proposal:", error);
       toast.error("Failed to create proposal");

@@ -13,6 +13,7 @@ export enum EVENT_KINDS {
   
   // Extended kinds
   BOOKMARK = 30001,      // Bookmark
+  BOOKMARK_COLLECTIONS = 30003, // Bookmark collections
   COMMUNITY = 34550,     // Community creation
   PROPOSAL = 34551,      // Community proposal
   VOTE = 34552,          // Vote on proposal

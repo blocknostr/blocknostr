@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,10 +8,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import { RelayList } from "./relays/RelayList";
 import { adaptedNostrService } from "@/lib/nostr/nostr-adapter";
-import { relayPerformanceTracker } from "@/lib/nostr/relay/performance/relay-performance-tracker";
-import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
-import { circuitBreaker } from "@/lib/nostr/relay/circuit/circuit-breaker";
-import { CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 
@@ -38,9 +33,6 @@ const ProfileRelaysDialog = ({
   
   // Handle removing a relay
   const handleRemoveRelay = (relayUrl: string) => {
-    // Record the removal in the circuit breaker system
-    circuitBreaker.reset(relayUrl);
-    
     // Remove from nostr service
     nostrService.removeRelay(relayUrl);
     
@@ -56,16 +48,13 @@ const ProfileRelaysDialog = ({
   const handleRelayChange = () => {
     const relayStatus = nostrService.getRelayStatus();
     
-    // Enhance with performance data
-    const enhancedRelays = relayStatus.map(relay => {
-      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
-      const circuitStatus = circuitBreaker.getState(relay.url);
-      
+    // Enhance with performance data if available
+    const enhancedRelays: Relay[] = relayStatus.map(relay => {
+      // Add defaults for extended properties
       return {
         ...relay,
-        score: perfData?.score || 50,
-        avgResponse: perfData?.avgResponseTime,
-        circuitStatus
+        score: relay.score !== undefined ? relay.score : 50,
+        avgResponse: relay.avgResponse !== undefined ? relay.avgResponse : undefined
       };
     });
     
@@ -94,19 +83,15 @@ const ProfileRelaysDialog = ({
       // First ensure we're connected to relays
       await nostrService.connectToUserRelays();
       
-      // Use the best relays for write operations
-      const bestWriteRelays = relaySelector.selectBestRelays(
-        sortedRelays.map(r => r.url),
-        { operation: 'write', count: 3, requireWriteSupport: true }
-      );
-      
-      // Add these write-optimized relays first
-      if (bestWriteRelays.length > 0) {
-        await adaptedNostrService.addMultipleRelays(bestWriteRelays);
-      }
+      // Format relays for publishing
+      const formattedRelays = sortedRelays.map(relay => ({
+        url: relay.url,
+        read: relay.read !== undefined ? relay.read : true,
+        write: relay.write !== undefined ? relay.write : true
+      }));
       
       // Use the imported adapatedNostrService directly
-      const success = await adaptedNostrService.publishRelayList(sortedRelays);
+      const success = await adaptedNostrService.publishRelayList(formattedRelays);
       if (success) {
         toast.success("Relay preferences updated");
         return true;
@@ -123,7 +108,7 @@ const ProfileRelaysDialog = ({
     }
   };
   
-  // Handle refreshing relay connections with smart selection
+  // Handle refreshing relay connections
   const handleRefreshRelays = async () => {
     setIsRefreshing(true);
     
@@ -134,26 +119,6 @@ const ProfileRelaysDialog = ({
       // First, ensure we're connected to some relays
       await nostrService.connectToUserRelays();
       
-      // Calculate which relays to prioritize
-      const prioritizedRelays = relaySelector.selectBestRelays(currentRelays, {
-        operation: 'both',
-        count: Math.min(5, currentRelays.length),
-        minScore: 0  // Include all relays since this is explicitly requested
-      });
-      
-      // Try to connect to prioritized relays first
-      if (prioritizedRelays.length > 0) {
-        const connectPromises = prioritizedRelays.map(relay => 
-          adaptedNostrService.addRelay(relay).catch(err => {
-            console.warn(`Failed to connect to relay ${relay}:`, err);
-            return false;
-          })
-        );
-        
-        // Wait for prioritized connections to complete
-        await Promise.allSettled(connectPromises);
-      }
-      
       // If this is another user's profile, try to get their relay preferences
       if (!isCurrentUser && userNpub) {
         try {
@@ -162,125 +127,102 @@ const ProfileRelaysDialog = ({
             const userRelays = await adaptedNostrService.getRelaysForUser(hexPubkey);
             if (userRelays && userRelays.length > 0) {
               console.log(`Found ${userRelays.length} relays for user ${userNpub}`);
-              
-              // Try connecting to these user-specific relays
-              await adaptedNostrService.addMultipleRelays(userRelays);
             }
           }
-        } catch (error) {
-          console.warn(`Failed to get relays for user ${userNpub}:`, error);
+        } catch (err) {
+          console.error("Error fetching user relays:", err);
         }
       }
       
-      // Get updated relay status with performance data
-      const updatedRelays = nostrService.getRelayStatus().map(relay => {
-        const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
-        return {
-          ...relay,
-          score: perfData?.score || 50,
-          avgResponse: perfData?.avgResponseTime
-        };
-      });
+      // Update relay statuses
+      handleRelayChange();
       
-      if (onRelaysChange) {
-        onRelaysChange(updatedRelays);
-      }
-      
-      toast.success("Relay connections refreshed");
+      toast.success("Refreshed relay connections");
     } catch (error) {
-      console.error("Error refreshing relay connections:", error);
+      console.error("Error refreshing relays:", error);
       toast.error("Failed to refresh relay connections");
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Render relay score as badge
-  const renderRelayScore = (relay: Relay) => {
-    if (relay.score === undefined) return null;
-    
-    // Fix the string variant to use proper badge variant types
-    let badgeVariant: "default" | "destructive" | "outline" | "secondary" = "default";
-    
-    if (relay.score >= 80) badgeVariant = "default";
-    else if (relay.score >= 60) badgeVariant = "secondary";
-    else if (relay.score >= 40) badgeVariant = "outline";
-    else badgeVariant = "destructive";
-    
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant={badgeVariant} className="ml-2">
-              {relay.score}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Relay performance score</p>
-            {relay.avgResponse !== undefined && (
-              <p className="text-xs">Avg. response: {Math.round(relay.avgResponse)}ms</p>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  };
+  // Check if any relays have a "failed" status
+  const hasFailedRelays = relays.some(relay => 
+    relay.status === "error" || relay.status === "disconnected" || relay.status === "failed"
+  );
 
-  // Check for circuit breaker status
-  const hasBlockedRelays = relays.some(relay => {
-    const state = circuitBreaker.getState(relay.url);
-    return state === CircuitState.OPEN;
+  // Calculate relay statistics
+  const connectedCount = relays.filter(relay => relay.status === "connected").length;
+  const totalCount = relays.length;
+  const percentConnected = totalCount > 0 ? Math.round((connectedCount / totalCount) * 100) : 0;
+
+  // Sort relays by performance metrics first
+  const sortedRelays = [...relays].sort((a, b) => {
+    // First by status (connected first)
+    if (a.status === "connected" && b.status !== "connected") return -1;
+    if (a.status !== "connected" && b.status === "connected") return 1;
+    
+    // Then by score
+    if (a.score !== undefined && b.score !== undefined) {
+      return b.score - a.score;
+    }
+    
+    // Finally by URL
+    return a.url.localeCompare(b.url);
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center">
-            {isCurrentUser ? "My Relays" : "User Relays"}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleRefreshRelays}
-              disabled={isRefreshing}
-              className="ml-2 h-7 px-2"
-            >
-              <RefreshCw className={`h-3 w-3 mr-1 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
-        
-        {hasBlockedRelays && (
-          <div className="flex items-center gap-2 p-2 rounded bg-yellow-50 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 text-xs">
-            <AlertTriangle className="h-3 w-3" />
-            <span>Some relays are temporarily disabled due to connection issues</span>
-          </div>
-        )}
-        
-        {isCurrentUser ? (
-          <RelayDialogContent
-            isCurrentUser={true}
-            relays={relays}
-            onRemoveRelay={handleRemoveRelay}
-            onRelayAdded={handleRelayChange}
-            onPublishRelayList={handleSaveRelayList}
-            userNpub={userNpub}
-            renderRelayScore={renderRelayScore}
-          />
-        ) : (
-          <div className="space-y-4 py-4">
-            <div className="text-sm text-muted-foreground mb-2">
-              Relays used by {userNpub ? userNpub.substring(0, 8) + "..." : "this user"}
+          <div className="flex items-center justify-between">
+            <DialogTitle>Relay Connections</DialogTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant={percentConnected > 70 ? "success" : percentConnected > 40 ? "warning" : "destructive"}>
+                {connectedCount}/{totalCount} Connected ({percentConnected}%)
+              </Badge>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefreshRelays}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
-            
-            <RelayList 
-              relays={relays} 
-              isCurrentUser={false}
-              renderRelayScore={renderRelayScore} 
-            />
           </div>
-        )}
+          
+          {hasFailedRelays && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md text-amber-800 dark:text-amber-300 flex items-center text-sm">
+                    <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span>Some relays failed to connect. Try refreshing or check your connection.</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">
+                    Relay connection failures can be caused by network issues, relay downtime, 
+                    or relay restrictions. Try adding more relays for better network stability.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </DialogHeader>
+
+        {/* Relay management content */}
+        <RelayDialogContent 
+          relays={sortedRelays}
+          isCurrentUser={isCurrentUser}
+          onRelayChange={handleRelayChange}
+          onRemoveRelay={handleRemoveRelay}
+          onSaveRelayList={handleSaveRelayList}
+          isPublishing={isPublishing}
+        />
       </DialogContent>
     </Dialog>
   );

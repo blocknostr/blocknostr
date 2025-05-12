@@ -17,8 +17,8 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleLike = async () => {
     setIsLiking(true);
     try {
-      // Use socialManager which has the right methods
-      const result = await nostrService.socialManager.reactToEvent(eventId, "+");
+      // Use direct method instead of socialManager
+      const result = await nostrService.reactToPost(eventId, "+");
       if (result) {
         toast.success("Post liked!");
       }
@@ -35,12 +35,8 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleRepost = async () => {
     setIsReposting(true);
     try {
-      // Use socialManager which has the right methods
-      const result = await nostrService.socialManager.repostEvent({
-        id: eventId,
-        pubkey: authorPubkey,
-        ...event
-      });
+      // Use direct method instead of socialManager
+      const result = await nostrService.repostNote(eventId, authorPubkey);
       if (result) {
         toast.success("Post reposted!");
       }
@@ -77,8 +73,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       
       switch (actionType) {
         case "like":
-          // Use socialManager which has the right methods
-          const likeResult = await nostrService.socialManager.reactToEvent(event.id);
+          // Use direct method instead of socialManager
+          const likeResult = await nostrService.reactToPost(event.id);
           result = likeResult !== null;
           if (result) {
             toast.success("Post liked!");
@@ -87,8 +83,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           break;
           
         case "repost":
-          // Use socialManager which has the right methods
-          const repostResult = await nostrService.socialManager.repostEvent(event);
+          // Use direct method instead of socialManager
+          const repostResult = await nostrService.repostNote(event.id, event.pubkey);
           result = repostResult !== null;
           if (result) {
             toast.success("Post reposted!");

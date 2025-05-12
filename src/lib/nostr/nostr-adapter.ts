@@ -4,33 +4,38 @@
  * that provides all the methods needed throughout the application.
  */
 
-import { nostrService } from '@/lib/nostr';
+import { NostrService } from './service';
 import { NostrEvent } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
-// Complete adapter that exposes all methods needed by our components
-export const adaptedNostrService = {
+class AdaptedNostrService {
+  private service: NostrService;
+  
+  constructor(service: NostrService) {
+    this.service = service;
+  }
+
   /**
    * Get relay connection status
    * @returns Array of relay connection statuses
    */
-  getRelayStatus: () => {
+  getRelayStatus() {
     // Return the relay status information 
-    return nostrService.getRelays().map(relay => ({
+    return this.service.getRelays().map(relay => ({
       url: relay.url, 
       status: relay.status || 'unknown',
       read: true,
       write: true
     }));
-  },
+  }
 
   /**
    * Get relay URLs
    * @returns Array of relay URLs
    */
-  getRelayUrls: () => {
-    return nostrService.getRelays().map(relay => relay.url);
-  },
+  getRelayUrls() {
+    return this.service.getRelays().map(relay => relay.url);
+  }
 
   /**
    * Create batched fetchers for parallel data loading
@@ -38,199 +43,245 @@ export const adaptedNostrService = {
    * @param options Filter options
    * @returns Array of fetcher functions
    */
-  createBatchedFetchers: (hexPubkey: string, options: any) => {
+  createBatchedFetchers(hexPubkey: string, options: any) {
     return [
       async () => {
         // Basic implementation that uses the existing nostrService
-        return await nostrService.getEvents([{
+        return await this.service.getEvents([{
           kinds: options.kinds || [1],
           authors: [hexPubkey],
           limit: options.limit || 50
         }]);
       }
     ];
-  },
+  }
+
+  // Access to socialManager instance
+  get socialManager() {
+    return this.service.socialManager;
+  }
+
+  // Communities functionality
+  async createCommunity(name: string, description: string) {
+    return this.service.createCommunity(name, description);
+  }
+
+  async createProposal(
+    communityId: string, 
+    title: string, 
+    description: string, 
+    options: string[], 
+    category: string
+  ) {
+    return this.service.createProposal(communityId, title, description, options, category);
+  }
+
+  async voteOnProposal(proposalId: string, optionIndex: number) {
+    return this.service.voteOnProposal(proposalId, optionIndex);
+  }
+
+  // Account creation date
+  async getAccountCreationDate(pubkey: string) {
+    return this.service.getAccountCreationDate(pubkey);
+  }
+
+  // Access to following list
+  get following() {
+    return this.service.following;
+  }
+
+  // Profile caching
+  async getCachedProfile(pubkey: string) {
+    if (!this.service.getUserProfile) return null;
+    return this.service.getUserProfile(pubkey);
+  }
 
   // User Properties
-  get publicKey(): string | null {
-    return nostrService.publicKey;
-  },
+  get publicKey() {
+    return this.service.publicKey;
+  }
 
   // Auth methods
-  async login(): Promise<boolean> {
-    return nostrService.login();
-  },
+  async login() {
+    return this.service.login();
+  }
 
-  signOut(): void {
-    return nostrService.signOut();
-  },
+  signOut() {
+    return this.service.signOut();
+  }
 
   // Connection methods
-  async connectToUserRelays(): Promise<void> {
-    return nostrService.connectToUserRelays();
-  },
+  async connectToUserRelays() {
+    return this.service.connectToUserRelays();
+  }
 
-  async connectToDefaultRelays(): Promise<void> {
-    return nostrService.connectToUserRelays(); // Alias for backward compatibility
-  },
+  async connectToDefaultRelays() {
+    return this.service.connectToUserRelays(); // Alias for backward compatibility
+  }
 
   // Subscription methods
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
-    return nostrService.subscribe(filters, onEvent, relays);
-  },
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
 
-  unsubscribe(subId: string): void {
-    return nostrService.unsubscribe(subId);
-  },
+  unsubscribe(subId: string) {
+    return this.service.unsubscribe(subId);
+  }
 
   // Event publishing
-  async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
-    return nostrService.publishEvent(event);
-  },
+  async publishEvent(event: Partial<NostrEvent>) {
+    return this.service.publishEvent(event);
+  }
 
   // Profile methods
-  async getUserProfile(pubkey: string): Promise<any> {
-    return nostrService.getUserProfile(pubkey);
-  },
+  async getUserProfile(pubkey: string) {
+    return this.service.getUserProfile(pubkey);
+  }
 
   // Following methods
-  isFollowing(pubkey: string): boolean {
-    return nostrService.isFollowing(pubkey);
-  },
+  isFollowing(pubkey: string) {
+    return this.service.isFollowing(pubkey);
+  }
 
-  async followUser(pubkey: string): Promise<boolean> {
-    return nostrService.followUser(pubkey);
-  },
+  async followUser(pubkey: string) {
+    return this.service.followUser(pubkey);
+  }
 
-  async unfollowUser(pubkey: string): Promise<boolean> {
-    return nostrService.unfollowUser(pubkey);
-  },
+  async unfollowUser(pubkey: string) {
+    return this.service.unfollowUser(pubkey);
+  }
 
   // Direct messaging
-  async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
-    return nostrService.sendDirectMessage(recipientPubkey, content);
-  },
+  async sendDirectMessage(recipientPubkey: string, content: string) {
+    return this.service.sendDirectMessage(recipientPubkey, content);
+  }
 
   // Utility methods
-  formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub'): string {
+  formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub') {
     return formatPubkey(pubkey, format);
-  },
+  }
 
-  getNpubFromHex(hex: string): string {
+  getNpubFromHex(hex: string) {
     return getNpubFromHex(hex);
-  },
+  }
 
-  getHexFromNpub(npub: string): string {
+  getHexFromNpub(npub: string) {
     return getHexFromNpub(npub);
-  },
+  }
 
   // Add more methods as needed from the NostrService interface
-  async getRelaysForUser(pubkey: string): Promise<string[]> {
-    return nostrService.getRelaysForUser(pubkey);
-  },
+  async getRelaysForUser(pubkey: string) {
+    return this.service.getRelaysForUser(pubkey);
+  }
 
-  async addMultipleRelays(relayUrls: string[]): Promise<void> {
-    return nostrService.addMultipleRelays(relayUrls);
-  },
+  async addMultipleRelays(relayUrls: string[]) {
+    return this.service.addMultipleRelays(relayUrls);
+  }
 
-  async addRelay(relayUrl: string, readWrite: boolean = true): Promise<void> {
-    return nostrService.addRelay(relayUrl, readWrite);
-  },
+  async addRelay(relayUrl: string, readWrite: boolean = true) {
+    return this.service.addRelay(relayUrl, readWrite);
+  }
 
-  removeRelay(relayUrl: string): void {
-    return nostrService.removeRelay(relayUrl);
-  },
+  removeRelay(relayUrl: string) {
+    return this.service.removeRelay(relayUrl);
+  }
 
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
-    return nostrService.publishRelayList(relays);
-  },
+  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
+    return this.service.publishRelayList(relays);
+  }
 
-  async getEventById(id: string): Promise<NostrEvent | null> {
-    return nostrService.getEventById(id);
-  },
+  async getEventById(id: string) {
+    return this.service.getEventById(id);
+  }
 
-  async getEvents(ids: string[]): Promise<NostrEvent[]> {
-    return nostrService.getEvents(ids);
-  },
+  async getEvents(filters: any) {
+    return this.service.getEvents(filters);
+  }
 
-  async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
-    return nostrService.getProfilesByPubkeys(pubkeys);
-  },
+  async getProfilesByPubkeys(pubkeys: string[]) {
+    return this.service.getProfilesByPubkeys(pubkeys);
+  }
 
-  async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
-    return nostrService.verifyNip05(identifier, pubkey);
-  },
+  async verifyNip05(identifier: string, pubkey: string) {
+    return this.service.verifyNip05(identifier, pubkey);
+  }
 
   // User moderation
-  async muteUser(pubkey: string): Promise<boolean> {
-    return nostrService.muteUser(pubkey);
-  },
+  async muteUser(pubkey: string) {
+    return this.service.muteUser(pubkey);
+  }
 
-  async unmuteUser(pubkey: string): Promise<boolean> {
-    return nostrService.unmuteUser(pubkey);
-  },
+  async unmuteUser(pubkey: string) {
+    return this.service.unmuteUser(pubkey);
+  }
 
-  async isUserMuted(pubkey: string): Promise<boolean> {
-    return nostrService.isUserMuted(pubkey);
-  },
+  async isUserMuted(pubkey: string) {
+    return this.service.isUserMuted(pubkey);
+  }
 
-  async blockUser(pubkey: string): Promise<boolean> {
-    return nostrService.blockUser(pubkey);
-  },
+  async blockUser(pubkey: string) {
+    return this.service.blockUser(pubkey);
+  }
 
-  async unblockUser(pubkey: string): Promise<boolean> {
-    return nostrService.unblockUser(pubkey);
-  },
+  async unblockUser(pubkey: string) {
+    return this.service.unblockUser(pubkey);
+  }
 
-  async isUserBlocked(pubkey: string): Promise<boolean> {
-    return nostrService.isUserBlocked(pubkey);
-  },
+  async isUserBlocked(pubkey: string) {
+    return this.service.isUserBlocked(pubkey);
+  }
 
   // Reactions
-  async reactToPost(eventId: string, reaction: string): Promise<string | null> {
-    return nostrService.reactToPost(eventId, reaction);
-  },
+  async reactToPost(eventId: string, reaction: string) {
+    return this.service.reactToPost(eventId, reaction);
+  }
 
   // Reposts
-  async repostNote(eventId: string, authorPubkey: string): Promise<string | null> {
-    return nostrService.repostNote(eventId, authorPubkey);
-  },
+  async repostNote(eventId: string, authorPubkey: string) {
+    return this.service.repostNote(eventId, authorPubkey);
+  }
 
   // Bookmark methods
-  async isBookmarked(eventId: string): Promise<boolean> {
-    return nostrService.isBookmarked(eventId);
-  },
+  async isBookmarked(eventId: string) {
+    return this.service.isBookmarked(eventId);
+  }
 
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
-    return nostrService.addBookmark(eventId, collectionId, tags, note);
-  },
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.service.addBookmark(eventId, collectionId, tags, note);
+  }
 
-  async removeBookmark(eventId: string): Promise<boolean> {
-    return nostrService.removeBookmark(eventId);
-  },
+  async removeBookmark(eventId: string) {
+    return this.service.removeBookmark(eventId);
+  }
 
-  async getBookmarks(): Promise<any[]> {
-    return nostrService.getBookmarks();
-  },
+  async getBookmarks() {
+    return this.service.getBookmarks();
+  }
 
-  async getBookmarkCollections(): Promise<any[]> {
-    return nostrService.getBookmarkCollections();
-  },
+  async getBookmarkCollections() {
+    return this.service.getBookmarkCollections();
+  }
 
-  async getBookmarkMetadata(): Promise<any> {
-    return nostrService.getBookmarkMetadata();
-  },
+  async getBookmarkMetadata() {
+    return this.service.getBookmarkMetadata();
+  }
 
-  async createBookmarkCollection(name: string, color?: string, description?: string): Promise<any> {
-    return nostrService.createBookmarkCollection(name, color, description);
-  },
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.service.createBookmarkCollection(name, color, description);
+  }
 
-  async processPendingOperations(): Promise<void> {
-    return nostrService.processPendingOperations();
-  },
+  async processPendingOperations() {
+    return this.service.processPendingOperations();
+  }
 
   // Profile updates
-  async publishProfileMetadata(metadata: Record<string, any>): Promise<string | null> {
-    return nostrService.publishProfileMetadata(metadata);
+  async publishProfileMetadata(metadata: Record<string, any>) {
+    return this.service.publishProfileMetadata(metadata);
   }
-};
+}
+
+// Get the raw service instance (make sure this import path is correct)
+import { nostrService as rawNostrService } from './service';
+
+// Create and export the adapted instance
+export const adaptedNostrService = new AdaptedNostrService(rawNostrService);

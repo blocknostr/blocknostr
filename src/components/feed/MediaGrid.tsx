@@ -1,51 +1,65 @@
 
-import React from 'react';
-import { Card } from "@/components/ui/card";
-import { Lightbox } from "@/components/ui/lightbox";
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
 
 interface MediaGridProps {
-  images: { url: string; eventId: string; }[];
+  images: string[];
 }
 
 export function MediaGrid({ images }: MediaGridProps) {
-  const [open, setOpen] = React.useState(false);
-  const [selectedIndex, setSelectedIndex] = React.useState(0);
-  
-  // Extract just the URLs for the lightbox
-  const imageUrls = images.map(img => img.url);
-  
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  if (images.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>No media found.</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-3 gap-2">
         {images.map((image, index) => (
-          <Card 
-            key={`${image.eventId}-${index}`}
-            className="relative aspect-square overflow-hidden cursor-pointer"
-            onClick={() => {
-              setSelectedIndex(index);
-              setOpen(true);
-            }}
+          <div 
+            key={`${image}-${index}`} 
+            className="aspect-square relative rounded-md overflow-hidden cursor-pointer"
+            onClick={() => setSelectedImage(image)}
           >
-            <img
-              src={image.url}
-              alt="Media content"
-              className="w-full h-full object-cover"
+            <img 
+              src={image} 
+              alt={`Media ${index + 1}`} 
+              className="object-cover w-full h-full hover:opacity-90 transition-opacity"
               loading="lazy"
-              onError={(e) => {
-                // Replace broken images with a placeholder
-                (e.target as HTMLImageElement).src = 'https://placehold.co/400x400?text=Error';
-              }}
             />
-          </Card>
+          </div>
         ))}
       </div>
       
-      <Lightbox 
-        images={imageUrls}
-        initialIndex={selectedIndex}
-        isOpen={open}
-        onClose={() => setOpen(false)}
-      />
+      {/* Lightbox */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <button 
+              className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 text-white"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Enlarged media" 
+              className="max-h-[90vh] max-w-full object-contain"
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }
