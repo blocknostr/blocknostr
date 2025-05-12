@@ -15,8 +15,7 @@ import BasicInfoTab from './profile/BasicInfoTab';
 import AppearanceTab from './profile/AppearanceTab';
 import SocialIdentityTab from './profile/SocialIdentityTab';
 import { useProfileForm } from './profile/useProfileForm';
-import { verifyNip05Identifier } from './profile/profileUtils';
-import { forceRefreshProfile } from './profile/profileUtils';
+import { verifyNip05Identifier, forceRefreshProfile, sanitizeImageUrl, publishProfileWithFallback } from './profile/profileUtils';
 
 interface EditProfileSectionProps {
   profileData: any;
@@ -75,17 +74,26 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
           cleanValues[key] = value;
         }
       });
+      
+      // 3) Sanitize image URLs
+      if (cleanValues.picture) {
+        cleanValues.picture = sanitizeImageUrl(cleanValues.picture);
+      }
+      
+      if (cleanValues.banner) {
+        cleanValues.banner = sanitizeImageUrl(cleanValues.banner);
+      }
 
-      // 3) Map `about` → `bio` so your view picks it up
+      // 4) Map `about` → `bio` so your view picks it up
       if (cleanValues.about) {
         cleanValues.bio = cleanValues.about;
         delete cleanValues.about;
       }
 
-      // 4) Log it out for debugging
+      // 5) Log it out for debugging
       console.log('[PROFILE UPDATE] Clean values payload:', cleanValues);
 
-      // 5) Verify NIP-05 if provided
+      // 6) Verify NIP-05 if provided
       if (values.nip05) {
         console.log("[PROFILE UPDATE] Verifying NIP-05 identifier:", values.nip05);
         const verified = await verifyNip05Identifier(values.nip05);
@@ -97,7 +105,7 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         }
       }
 
-      // 6) Build the NIP-01 metadata event
+      // 7) Build the NIP-01 metadata event
       const eventToPublish = {
         kind: 0,
         content: JSON.stringify(cleanValues),
@@ -105,58 +113,50 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
       };
 
       console.log("[PROFILE UPDATE] Event to publish:", eventToPublish);
+      
+      // Get relay URLs for potential fallback publishing
+      const relayUrls = connectedRelays.map(r => r.url);
 
-      // 7) Publish the event with error handling for POW requirements
-      try {
-        console.log("[PROFILE UPDATE] Publishing profile update to connected relays...");
-        const success = await nostrService.publishEvent(eventToPublish);
-        console.log("[PROFILE UPDATE] Publish result:", success ? "Success" : "Failed");
+      // 8) Use our enhanced publishing function with fallbacks
+      const { success, error } = await publishProfileWithFallback(eventToPublish, relayUrls);
+      
+      if (success) {
+        toast.success('Profile updated successfully');
 
-        if (success) {
-          toast.success('Profile updated successfully');
-
-          // Delay briefly to allow relay propagation, then refresh
-          console.log("[PROFILE UPDATE] Waiting for relay propagation before refreshing");
-          setTimeout(async () => {
-            if (nostrService.publicKey) {
-              try {
-                console.log("[PROFILE UPDATE] Forcing profile refresh after update");
-                await forceRefreshProfile(nostrService.publicKey);
-                console.log("[PROFILE UPDATE] Profile refresh completed, calling onSaved()");
-                onSaved();
-              } catch (refreshError) {
-                console.error("[PROFILE UPDATE] Error refreshing profile after update:", refreshError);
-                // Still call onSaved even if refresh fails
-                console.log("[PROFILE UPDATE] Calling onSaved() despite refresh error");
-                onSaved();
-              }
-            } else {
-              console.log("[PROFILE UPDATE] No public key available for refresh, calling onSaved()");
+        // Delay briefly to allow relay propagation, then refresh
+        console.log("[PROFILE UPDATE] Waiting for relay propagation before refreshing");
+        setTimeout(async () => {
+          if (nostrService.publicKey) {
+            try {
+              console.log("[PROFILE UPDATE] Forcing profile refresh after update");
+              await forceRefreshProfile(nostrService.publicKey);
+              console.log("[PROFILE UPDATE] Profile refresh completed, calling onSaved()");
+              onSaved();
+            } catch (refreshError) {
+              console.error("[PROFILE UPDATE] Error refreshing profile after update:", refreshError);
+              // Still call onSaved even if refresh fails
+              console.log("[PROFILE UPDATE] Calling onSaved() despite refresh error");
               onSaved();
             }
-          }, 2000);
-        } else {
-          console.error("[PROFILE UPDATE] Profile update failed - no success response");
-          toast.error('Failed to update profile');
-          setIsSubmitting(false);
-        }
-      } catch (publishError: any) {
-        console.error('[PROFILE UPDATE] Error publishing profile update:', publishError);
+          } else {
+            console.log("[PROFILE UPDATE] No public key available for refresh, calling onSaved()");
+            onSaved();
+          }
+        }, 2000);
+      } else {
+        // Display specific error if available
+        console.error("[PROFILE UPDATE] Profile update failed:", error);
         
-        // Handle specific errors
-        if (publishError.message && publishError.message.includes('pow:')) {
-          console.log("[PROFILE UPDATE] Detected POW requirement error");
-          toast.error('This relay requires proof-of-work which is not yet supported. Try connecting to different relays.');
-        } else if (publishError.message && publishError.message.includes('subscription')) {
-          console.log("[PROFILE UPDATE] Detected subscription error");
-          toast.error('Connection to relay was lost. Please try again.');
-        } else if (publishError.message && publishError.message.includes('timeout')) {
-          console.log("[PROFILE UPDATE] Detected timeout error");
-          toast.error('Connection to relay timed out. Please try again.');
+        if (error?.includes("authorization") || error?.includes("Unauthorized")) {
+          toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
+            duration: 6000
+          });
+        } else if (error?.includes("proof-of-work") || error?.includes("pow:")) {
+          toast.error("This relay requires proof-of-work which is not supported. Try connecting to different relays.");
         } else {
-          console.log("[PROFILE UPDATE] Unknown error type");
-          toast.error('An error occurred while updating profile');
+          toast.error(error || "Failed to update profile");
         }
+        
         setIsSubmitting(false);
       }
     } catch (error) {

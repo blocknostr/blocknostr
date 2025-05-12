@@ -9,6 +9,7 @@ import { nostrService } from '@/lib/nostr';
 import { Form } from "@/components/ui/form";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from './types';
+import { publishProfileWithFallback, sanitizeImageUrl } from '@/components/you/profile/profileUtils';
 
 import ProfileBasicFields from './ProfileBasicFields';
 import ExternalLinksFields from './ExternalLinksFields';
@@ -52,6 +53,17 @@ const ProfileEditor = ({
         console.log("[PROFILE EDITOR] Connected relays:", connectedRelays.map(r => r.url));
       }
       
+      // Process image URLs to fix any relative paths
+      if (values.picture) {
+        values.picture = sanitizeImageUrl(values.picture);
+        console.log("[PROFILE EDITOR] Sanitized picture URL:", values.picture);
+      }
+      
+      if (values.banner) {
+        values.banner = sanitizeImageUrl(values.banner);
+        console.log("[PROFILE EDITOR] Sanitized banner URL:", values.banner);
+      }
+      
       // Prepare metadata object
       const metadata: NostrProfileMetadata = {
         name: values.name,
@@ -61,7 +73,7 @@ const ProfileEditor = ({
         banner: values.banner,
         website: values.website,
         nip05: values.nip05,
-        twitter: values.twitter.replace('@', '') // Remove @ if present
+        twitter: values.twitter ? values.twitter.replace('@', '') : '' // Remove @ if present
       };
       
       console.log("[PROFILE EDITOR] Prepared metadata:", metadata);
@@ -75,41 +87,33 @@ const ProfileEditor = ({
       
       console.log("[PROFILE EDITOR] Event to publish:", eventToPublish);
       
-      try {
-        // Publish metadata to Nostr network
-        console.log("[PROFILE EDITOR] Publishing event to Nostr network...");
-        const success = await nostrService.publishEvent(eventToPublish);
-        console.log("[PROFILE EDITOR] Publish result:", success ? "Success" : "Failed");
+      // Get relay URLs for potential fallback publishing
+      const relayUrls = connectedRelays.map(r => r.url);
+      
+      // Use our enhanced publishing function with fallbacks
+      const { success, error } = await publishProfileWithFallback(eventToPublish, relayUrls);
+      
+      if (success) {
+        toast.success("Profile updated successfully");
+        // Wait briefly for relays to process the update
+        console.log("[PROFILE EDITOR] Waiting for relay propagation before refreshing...");
+        setTimeout(() => {
+          console.log("[PROFILE EDITOR] Calling onClose() and onProfileUpdated()");
+          onClose();
+          onProfileUpdated();
+        }, 1500);
+      } else {
+        // Display specific error if available
+        console.error("[PROFILE EDITOR] Profile update failed:", error);
         
-        if (success) {
-          toast.success("Profile updated successfully");
-          // Wait briefly for relays to process the update
-          console.log("[PROFILE EDITOR] Waiting for relay propagation before refreshing...");
-          setTimeout(() => {
-            console.log("[PROFILE EDITOR] Calling onClose() and onProfileUpdated()");
-            onClose();
-            onProfileUpdated();
-          }, 1500);
+        if (error?.includes("authorization") || error?.includes("Unauthorized")) {
+          toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
+            duration: 6000
+          });
+        } else if (error?.includes("proof-of-work") || error?.includes("pow:")) {
+          toast.error("This relay requires proof-of-work which is not supported. Try connecting to different relays.");
         } else {
-          console.error("[PROFILE EDITOR] Profile update failed - no success response");
-          toast.error("Failed to update profile");
-        }
-      } catch (publishError: any) {
-        console.error("[PROFILE EDITOR] Error publishing profile:", publishError);
-        
-        // Handle specific error types
-        if (publishError.message && publishError.message.includes('pow:')) {
-          console.log("[PROFILE EDITOR] Detected POW requirement error");
-          toast.error('This relay requires proof-of-work which is not yet supported. Try connecting to different relays.');
-        } else if (publishError.message && publishError.message.includes('subscription')) {
-          console.log("[PROFILE EDITOR] Detected subscription error");
-          toast.error('Connection to relay was lost. Please try again.');
-        } else if (publishError.message && publishError.message.includes('timeout')) {
-          console.log("[PROFILE EDITOR] Detected timeout error");
-          toast.error('Connection to relay timed out. Please try again.');
-        } else {
-          console.log("[PROFILE EDITOR] Unknown error type:", publishError.message);
-          toast.error("An error occurred while updating profile");
+          toast.error(error || "Failed to update profile");
         }
       }
     } catch (error) {
