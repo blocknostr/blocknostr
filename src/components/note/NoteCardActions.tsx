@@ -21,7 +21,14 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
   const [isActionLoading, setIsActionLoading] = useState<
     "reply" | "like" | "repost" | null
   >(null);
-  const { handleLike, handleRepost } = useAction(note);
+  
+  // Use the useAction hook with the correct props
+  const { handleLike, handleRepost, isLiking, isReposting } = useAction({
+    eventId: note.id,
+    authorPubkey: note.author,
+    event: note.event
+  });
+  
   const navigate = useNavigate();
   
   // Handler for preparing a reply
@@ -65,9 +72,9 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           variant="ghost"
           size="icon"
           onClick={handleLike}
-          disabled={isActionLoading === "like"}
+          disabled={isLiking || isActionLoading === "like"}
         >
-          {isActionLoading === "like" ? (
+          {isLiking || isActionLoading === "like" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Heart className="h-4 w-4" />
@@ -77,9 +84,9 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           variant="ghost"
           size="icon"
           onClick={handleRepost}
-          disabled={isActionLoading === "repost"}
+          disabled={isReposting || isActionLoading === "repost"}
         >
-          {isActionLoading === "repost" ? (
+          {isReposting || isActionLoading === "repost" ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Repeat className="h-4 w-4" />

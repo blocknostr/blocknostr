@@ -1,8 +1,66 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { NostrEvent, SocialManager } from "@/lib/nostr";
+import { NostrEvent } from "@/lib/nostr";
 import { nostrService } from "@/lib/nostr";
+
+interface UseActionProps {
+  eventId: string;
+  authorPubkey: string;
+  event: any;
+}
+
+export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
+  const [isLiking, setIsLiking] = useState(false);
+  const [isReposting, setIsReposting] = useState(false);
+
+  const handleLike = async () => {
+    setIsLiking(true);
+    try {
+      // Use socialManager which has the right methods
+      const result = await nostrService.socialManager.reactToEvent(eventId, "+");
+      if (result) {
+        toast.success("Post liked!");
+      }
+      return result;
+    } catch (error) {
+      console.error("Error liking post:", error);
+      toast.error("Failed to like post");
+      return false;
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  const handleRepost = async () => {
+    setIsReposting(true);
+    try {
+      // Use socialManager which has the right methods
+      const result = await nostrService.socialManager.repostEvent({
+        id: eventId,
+        pubkey: authorPubkey,
+        ...event
+      });
+      if (result) {
+        toast.success("Post reposted!");
+      }
+      return result;
+    } catch (error) {
+      console.error("Error reposting:", error);
+      toast.error("Failed to repost");
+      return false;
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
+  return {
+    handleLike,
+    isLiking,
+    handleRepost,
+    isReposting
+  };
+}
 
 export function usePostAction(event: NostrEvent, actionType: "like" | "repost" | "reply" | "delete") {
   const [isLoading, setIsLoading] = useState(false);
@@ -19,8 +77,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       
       switch (actionType) {
         case "like":
-          // Use reactToPost from nostrService instead of deprecated likeEvent
-          result = await nostrService.reactToPost(event.id);
+          // Use socialManager which has the right methods
+          result = await nostrService.socialManager.reactToEvent(event.id);
           if (result) {
             toast.success("Post liked!");
             setCount((prev) => prev + 1);
@@ -28,8 +86,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           break;
           
         case "repost":
-          // Use repostNote which takes eventId and pubkey
-          result = await nostrService.repostNote(event.id, event.pubkey);
+          // Use socialManager which has the right methods
+          result = await nostrService.socialManager.repostEvent(event);
           if (result) {
             toast.success("Post reposted!");
             setCount((prev) => prev + 1);
