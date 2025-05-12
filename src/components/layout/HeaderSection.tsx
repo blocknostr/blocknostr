@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import PageHeader from "@/components/navigation/PageHeader";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
-import { usePathname } from "@/lib/next-compat";
+import { usePathname } from "next/navigation";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface HeaderSectionProps {
