@@ -3,6 +3,7 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
 import { NostrEvent } from "@/lib/nostr";
+import { Loader2 } from "lucide-react";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -10,6 +11,9 @@ interface ProfileTabsProps {
   reposts: { originalEvent: NostrEvent; repostEvent: NostrEvent }[];
   profileData: any;
   originalPostProfiles: Record<string, any>;
+  replies?: NostrEvent[];
+  reactions?: NostrEvent[];
+  referencedEvents?: Record<string, NostrEvent>;
 }
 
 const ProfileTabs = ({ 
@@ -17,7 +21,10 @@ const ProfileTabs = ({
   media, 
   reposts, 
   profileData,
-  originalPostProfiles 
+  originalPostProfiles,
+  replies = [],
+  reactions = [],
+  referencedEvents = {}
 }: ProfileTabsProps) => {
   return (
     <div className="mt-6">
@@ -49,11 +56,24 @@ const ProfileTabs = ({
           )}
         </TabsContent>
         
-        {/* Replies Tab */}
+        {/* Replies Tab - Now implemented with NIP-10 */}
         <TabsContent value="replies" className="mt-4">
-          <div className="py-8 text-center text-muted-foreground">
-            Replies coming soon.
-          </div>
+          {replies.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              No replies found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {replies.map(event => (
+                <NoteCard 
+                  key={event.id} 
+                  event={event} 
+                  profileData={profileData || undefined}
+                  isReply={true}
+                />
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Reposts Tab */}
@@ -104,11 +124,44 @@ const ProfileTabs = ({
           )}
         </TabsContent>
         
-        {/* Likes Tab */}
+        {/* Likes Tab - Now implemented with NIP-25 */}
         <TabsContent value="likes" className="mt-4">
-          <div className="py-8 text-center text-muted-foreground">
-            Likes coming soon.
-          </div>
+          {reactions.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              No likes found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reactions.map(reactionEvent => {
+                const eventId = reactionEvent.tags?.find(tag => 
+                  Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+                )?.[1];
+                
+                const originalEvent = eventId ? referencedEvents[eventId] : undefined;
+                
+                if (!originalEvent) {
+                  return (
+                    <div key={reactionEvent.id} className="p-4 border rounded-md flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <span className="text-sm text-muted-foreground">Loading liked post...</span>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <NoteCard 
+                    key={reactionEvent.id}
+                    event={originalEvent}
+                    profileData={undefined} // We need to fetch this separately
+                    reactionData={{
+                      emoji: reactionEvent.content || '+',
+                      reactionEvent: reactionEvent
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

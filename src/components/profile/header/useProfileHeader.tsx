@@ -7,6 +7,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   const [verifyingNip05, setVerifyingNip05] = useState(false);
   const [xVerified, setXVerified] = useState(false);
   const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
+  const [creationDate, setCreationDate] = useState<Date>(new Date());
   
   // Verify NIP-05 identifier when profile data changes
   useEffect(() => {
@@ -62,12 +63,44 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
     }
   }, [profileData]);
   
+  // Get account creation timestamp from earliest metadata event (NIP-01)
+  useEffect(() => {
+    const fetchAccountCreationDate = async () => {
+      if (!pubkeyHex) return;
+      
+      try {
+        // Subscribe to oldest metadata events to find creation date
+        const subId = nostrService.subscribe(
+          [
+            {
+              kinds: [0], // Metadata events
+              authors: [pubkeyHex],
+              limit: 1
+            }
+          ],
+          (event) => {
+            if (event.created_at) {
+              const eventDate = new Date(event.created_at * 1000);
+              setCreationDate(eventDate);
+            }
+          }
+        );
+        
+        // Cleanup subscription after a short time
+        setTimeout(() => {
+          nostrService.unsubscribe(subId);
+        }, 5000);
+      } catch (error) {
+        console.error("Error fetching account creation date:", error);
+      }
+    };
+    
+    fetchAccountCreationDate();
+  }, [pubkeyHex]);
+  
   // Format profile data for display
   const formattedNpub = npub || '';
   const shortNpub = formattedNpub ? `${formattedNpub.substring(0, 8)}...${formattedNpub.substring(formattedNpub.length - 8)}` : '';
-  
-  // Get account creation date (using NIP-01 bech32 encoding timestamp)
-  const creationDate = new Date();
   
   return {
     nip05Verified,

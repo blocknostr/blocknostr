@@ -33,31 +33,119 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
       
       return () => clearInterval(intervalId);
     } else if (pubkey) {
-      // Load relays for another user
+      // Load relays for another user (NIP-65)
       loadUserRelays(pubkey);
     }
   }, [isCurrentUser, pubkey]);
   
-  // Function to load another user's relays
+  // Function to load another user's relays according to NIP-65
   const loadUserRelays = async (userPubkey: string) => {
     setIsLoading(true);
     try {
-      const userRelays = await nostrService.getRelaysForUser(userPubkey);
+      // Subscribe to relay list events (NIP-65)
+      const subId = nostrService.subscribe(
+        [
+          {
+            kinds: [10002], // Relay List Metadata (NIP-65)
+            authors: [userPubkey],
+            limit: 1
+          }
+        ],
+        (event) => {
+          if (event.kind === 10002) {
+            // Parse relay list from tags
+            const relayObjects: Relay[] = [];
+            
+            event.tags.forEach(tag => {
+              if (Array.isArray(tag) && tag[0] === 'r' && tag.length >= 2) {
+                const url = tag[1];
+                
+                // Check for read/write markers
+                let read = true;
+                let write = true;
+                
+                if (tag.length >= 3) {
+                  // Format is ["r", "wss://example.com", "read", "write"]
+                  read = tag.includes('read');
+                  write = tag.includes('write');
+                }
+                
+                relayObjects.push({
+                  url,
+                  status: 'disconnected',
+                  read,
+                  write
+                });
+              }
+            });
+            
+            setRelays(relayObjects);
+          }
+        }
+      );
       
-      // Convert to Relay objects with disconnected status
-      const relayObjects: Relay[] = userRelays.map(url => ({
-        url,
-        status: 'disconnected',
-        read: true,
-        write: true
-      }));
+      // If no results after 3 seconds, fall back to a default list
+      setTimeout(() => {
+        if (relays.length === 0) {
+          // Fallback to try default relays
+          nostrService.getRelaysForUser(userPubkey)
+            .then(userRelays => {
+              // Convert to Relay objects with disconnected status
+              const relayObjects: Relay[] = userRelays.map(url => ({
+                url,
+                status: 'disconnected',
+                read: true,
+                write: true
+              }));
+              
+              setRelays(relayObjects);
+            })
+            .catch(error => {
+              console.error("Error fetching default relays:", error);
+              setRelays([]);
+            });
+        }
+        
+        nostrService.unsubscribe(subId);
+        setIsLoading(false);
+      }, 3000);
       
-      setRelays(relayObjects);
     } catch (error) {
       console.error("Error loading user relays:", error);
       toast.error("Failed to load user's relays");
-    } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to publish user's relay preferences (NIP-65)
+  const publishRelayList = async (relays: Relay[]): Promise<boolean> => {
+    if (!isCurrentUser) return false;
+    
+    try {
+      // Create relay list event according to NIP-65
+      const event = {
+        kind: 10002,
+        content: '',
+        tags: relays.map(relay => {
+          const tag = ['r', relay.url];
+          if (relay.read) tag.push('read');
+          if (relay.write) tag.push('write');
+          return tag;
+        })
+      };
+      
+      const eventId = await nostrService.publishEvent(event);
+      if (eventId) {
+        toast.success("Relay preferences updated");
+        return true;
+      } else {
+        toast.error("Failed to update relay preferences");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error publishing relay list:", error);
+      toast.error("Failed to update relay preferences");
+      return false;
     }
   };
 
@@ -66,6 +154,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
     setRelays, 
     isLoading, 
     refreshRelays,
-    healthCheckTimestamp
+    healthCheckTimestamp,
+    publishRelayList
   };
 }

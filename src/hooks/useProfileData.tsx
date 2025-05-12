@@ -5,6 +5,8 @@ import { useProfilePosts } from './profile/useProfilePosts';
 import { useProfileRelations } from './profile/useProfileRelations';
 import { useProfileReposts } from './profile/useProfileReposts';
 import { useProfileRelays } from './profile/useProfileRelays';
+import { useProfileReplies } from './profile/useProfileReplies';
+import { useProfileLikes } from './profile/useProfileLikes';
 
 interface UseProfileDataProps {
   npub: string | undefined;
@@ -35,7 +37,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   });
   
   // Get reposts and handle fetching original posts
-  const { reposts, replies, fetchOriginalPost } = useProfileReposts({ 
+  const { reposts, replies: repostReplies, fetchOriginalPost } = useProfileReposts({ 
     originalPostProfiles, 
     setOriginalPostProfiles 
   });
@@ -43,6 +45,16 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   // Get relays information
   const { relays, setRelays } = useProfileRelays({ 
     isCurrentUser 
+  });
+  
+  // Get replies (NIP-10)
+  const { replies } = useProfileReplies({
+    hexPubkey: hexNpub
+  });
+  
+  // Get likes/reactions (NIP-25)
+  const { reactions, referencedEvents } = useProfileLikes({
+    hexPubkey: hexNpub
   });
   
   return {
@@ -57,6 +69,8 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     followers,
     following,
     originalPostProfiles,
-    isCurrentUser
+    isCurrentUser,
+    reactions,
+    referencedEvents
   };
 }

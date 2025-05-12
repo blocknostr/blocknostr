@@ -28,7 +28,9 @@ const ProfilePage = () => {
     followers,
     following,
     originalPostProfiles,
-    isCurrentUser
+    isCurrentUser,
+    reactions,
+    referencedEvents
   } = useProfileData({ npub, currentUserPubkey });
   
   // Redirect to current user's profile if no npub is provided
@@ -48,7 +50,7 @@ const ProfilePage = () => {
       <Sidebar />
       
       <div className="flex-1 ml-0 md:ml-64">
-        <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+        <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center h-14 px-4">
             <h1 className="font-semibold">Profile</h1>
           </div>
@@ -80,6 +82,9 @@ const ProfilePage = () => {
                 reposts={reposts}
                 profileData={profileData}
                 originalPostProfiles={originalPostProfiles}
+                replies={replies}
+                reactions={reactions}
+                referencedEvents={referencedEvents}
               />
             </>
           ) : (
