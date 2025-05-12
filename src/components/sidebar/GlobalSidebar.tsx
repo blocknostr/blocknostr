@@ -57,8 +57,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             </div>
           )}
           
-          <div className="flex-grow flex flex-col mt-1 overflow-hidden">
-            <WorldChat />
+          <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
+            <div className="h-[550px] relative">
+              <WorldChat />
+            </div>
           </div>
         </div>
       </aside>
@@ -85,8 +87,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
               </div>
             )}
             
-            <div className="flex-grow flex flex-col mt-1 overflow-hidden">
-              <WorldChat />
+            <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
+              <div className="h-[550px] relative">
+                <WorldChat />
+              </div>
             </div>
           </div>
         </SheetContent>

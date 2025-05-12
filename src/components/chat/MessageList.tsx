@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
@@ -25,20 +24,18 @@ const MessageList: React.FC<MessageListProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Improved scroll behavior - scroll only within the container
+  // Custom scroll handling that doesn't affect page position
   useEffect(() => {
-    if (messagesEndRef.current && containerRef.current) {
-      // Scroll the end element into view but within the container context
-      messagesEndRef.current.scrollIntoView({ 
-        behavior: "smooth", 
-        block: "start" 
-      });
+    if (messages.length > 0 && containerRef.current) {
+      // Set the scroll position directly instead of using scrollIntoView
+      // This keeps scrolling contained within the chat component
+      containerRef.current.scrollTop = 0;
     }
   }, [messages]);
 
   if (loading) {
     return (
-      <CardContent className="p-0 overflow-y-auto flex-1">
+      <CardContent className="p-0 overflow-hidden flex-1">
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin text-primary/50" />
@@ -51,7 +48,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   if (messages.length === 0) {
     return (
-      <CardContent className="p-0 overflow-y-auto flex-1">
+      <CardContent className="p-0 overflow-hidden flex-1">
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="rounded-full bg-primary/10 p-4 mx-auto mb-3">
@@ -67,8 +64,11 @@ const MessageList: React.FC<MessageListProps> = ({
   }
 
   return (
-    <CardContent className="p-0 overflow-y-auto flex-1 isolate" ref={containerRef}>
-      <div className="p-2 flex flex-col-reverse">
+    <CardContent 
+      className="p-0 overflow-hidden flex-1 relative z-10" 
+      ref={containerRef}
+    >
+      <div className="p-2 flex flex-col-reverse overflow-y-auto h-full">
         <div ref={messagesEndRef} />
         {messages.map((message, index) => {
           // Get previous message for grouping logic

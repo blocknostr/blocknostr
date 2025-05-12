@@ -28,7 +28,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] border shadow-md overflow-hidden rounded-lg"> 
+    <Card className="flex-grow flex flex-col h-[550px] border shadow-md overflow-hidden rounded-lg relative"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
@@ -76,14 +76,16 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      <MessageList
-        messages={messages}
-        profiles={profiles}
-        emojiReactions={emojiReactions}
-        loading={loading}
-        isLoggedIn={isLoggedIn}
-        onAddReaction={addReaction}
-      />
+      <div className="flex-grow overflow-hidden relative">
+        <MessageList
+          messages={messages}
+          profiles={profiles}
+          emojiReactions={emojiReactions}
+          loading={loading}
+          isLoggedIn={isLoggedIn}
+          onAddReaction={addReaction}
+        />
+      </div>
       
       <ChatInput
         isLoggedIn={isLoggedIn}
