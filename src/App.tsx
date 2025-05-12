@@ -1,47 +1,47 @@
 
-import React from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Index from './pages/Index';
-import ProfilePage from './pages/ProfilePage';
-import SettingsPage from './pages/SettingsPage';
-import CommunitiesPage from './pages/CommunitiesPage';
-import CommunityPage from './pages/CommunityPage';
-import MessagesPage from './pages/MessagesPage';
-import NotificationsPage from './pages/NotificationsPage';
-import PostPage from './pages/PostPage';
-import NotebinPage from './pages/NotebinPage';
-import NotFound from './pages/NotFound';
-import { Toaster } from "sonner";
-import WalletsPage from "./pages/WalletsPage";
-import PremiumPage from "./pages/PremiumPage";
-import { NavigationProvider } from './contexts/NavigationContext';
+import { ThemeProvider } from "@/components/theme-provider";
+import Home from '@/pages/Home';
+import { nostrService } from '@/lib/nostr';
+import NotFound from '@/pages/NotFound';
+import ProfilePage from '@/pages/ProfilePage';
+import CommunitiesPage from '@/pages/CommunitiesPage';
+import NotesList from '@/pages/Notes';
 
 function App() {
+  // Initialize nostr connection when app starts
+  useEffect(() => {
+    // Try to connect to relays on app initialization
+    const initializeNostr = async () => {
+      try {
+        // Check if user was previously logged in (has public key in storage)
+        if (localStorage.getItem('nostr_pubkey')) {
+          await nostrService.login();
+        }
+        
+        // Connect to default relays
+        await nostrService.connectToDefaultRelays();
+      } catch (error) {
+        console.error("Error initializing Nostr:", error);
+      }
+    };
+    
+    initializeNostr();
+  }, []);
+  
   return (
-    <BrowserRouter>
-      <NavigationProvider>
-        <div className="flex flex-col min-h-screen">
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/:pubkey" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/communities" element={<CommunitiesPage />} />
-              <Route path="/communities/:id" element={<CommunityPage />} />
-              <Route path="/messages" element={<MessagesPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/post/:id" element={<PostPage />} />
-              <Route path="/notebin" element={<NotebinPage />} />
-              <Route path="/wallets" element={<WalletsPage />} />
-              <Route path="/premium" element={<PremiumPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Toaster position="bottom-right" closeButton />
-        </div>
-      </NavigationProvider>
-    </BrowserRouter>
+    <ThemeProvider defaultTheme="dark">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/profile/:npub?" element={<ProfilePage />} />
+          <Route path="/communities/" element={<CommunitiesPage />} />
+          <Route path="/notes" element={<NotesList />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

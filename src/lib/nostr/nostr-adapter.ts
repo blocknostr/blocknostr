@@ -239,4 +239,5 @@ class NostrAdapter {
 }
 
 // Create an adapted instance and export it to replace the original
-export const adaptedNostrService = new NostrAdapter(originalNostrService);
+const adaptedNostrService = new NostrAdapter(originalNostrService);
+export { adaptedNostrService as nostrService };
