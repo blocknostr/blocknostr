@@ -1,90 +1,87 @@
+
 /**
- * Content formatter for processing Nostr content
- * Handles mentions, links, and other formatting features according to NIPs
+ * Utility class for formatting Nostr content
+ * Handles mentions, links, hashtags according to NIP-27
  */
-
-// Pattern to match potential mentions
-const mentionRegex = /(@npub[a-zA-Z0-9]{59})/g;
-// Pattern to match hashtags according to NIP-12
-const hashtagRegex = /#[^\s#]+/g;
-// Pattern to match URLs
-const urlRegex = /(https?:\/\/[^\s]+)/g;
-
 class ContentFormatter {
   /**
-   * Process content to convert mentions, links, and hashtags
-   * @param content The raw content string
-   * @returns Processed content string
+   * Process content to format mentions, links, etc.
+   * @param content Raw content
+   * @returns Processed content
    */
   processContent(content: string): string {
     if (!content) return '';
     
-    // Process everything in order: URLs, mentions, then hashtags
-    return content
-      .replace(urlRegex, (url) => {
-        try {
-          // Try to create a valid URL and extract relevant parts
-          const parsedUrl = new URL(url);
-          const displayUrl = `${parsedUrl.hostname}${parsedUrl.pathname.slice(0, 15)}${parsedUrl.pathname.length > 15 ? '...' : ''}`;
-          return url; // For now, just return the URL as is
-        } catch (e) {
-          return url;
-        }
-      })
-      .replace(mentionRegex, (match) => {
-        // Keep mentions for now
-        return match;
-      })
-      .replace(hashtagRegex, (hashtag) => {
-        // Keep hashtags for now
-        return hashtag;
-      });
+    // Format mentions - nostr:npub... or #[0]
+    const mentionFormatted = this.formatMentions(content);
+    
+    // Format links
+    const linkFormatted = this.formatLinks(mentionFormatted);
+    
+    // Format hashtags
+    const hashtagFormatted = this.formatHashtags(linkFormatted);
+    
+    return hashtagFormatted;
   }
 
   /**
-   * Render links from a piece of content
-   * @param content The content to render
-   * @returns The content with links rendered
+   * Format mentions in content
+   * @param content Content with raw mentions
+   * @returns Content with formatted mentions
    */
-  renderLinks(content: string): string {
-    if (!content) return '';
+  private formatMentions(content: string): string {
+    // Replace nostr: protocol mentions
+    let result = content.replace(
+      /nostr:(npub[a-z0-9]+)/gi, 
+      (match, npub) => `@${npub.substring(0, 8)}...`
+    );
     
-    return content.replace(urlRegex, (url) => {
-      try {
-        // Simple URL display
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-      } catch (e) {
-        return url;
-      }
-    });
+    // Replace #[index] mentions (would require tag context)
+    // This is a simplified implementation 
+    result = result.replace(
+      /#\[(\d+)\]/g,
+      (match, index) => `@user-${index}`
+    );
+    
+    return result;
   }
 
   /**
-   * Extract hashtags from content
-   * @param content The content to extract hashtags from
-   * @returns Array of hashtags without the # symbol
+   * Format links in content
+   * @param content Content with raw links
+   * @returns Content with formatted links
    */
-  extractHashtags(content: string): string[] {
-    if (!content) return [];
-    
-    const matches = content.match(hashtagRegex);
-    if (!matches) return [];
-    
-    return matches.map(tag => tag.slice(1));
+  private formatLinks(content: string): string {
+    // For now, just return the content as is
+    // In a real implementation, this would detect URLs and format them
+    return content;
   }
 
   /**
-   * Extract mentions from content
-   * @param content The content to extract mentions from
-   * @returns Array of mentioned pubkeys
+   * Format hashtags in content
+   * @param content Content with raw hashtags
+   * @returns Content with formatted hashtags
    */
-  extractMentions(content: string[]): string[] {
-    if (!content) return [];
+  private formatHashtags(content: string): string {
+    // Format hashtags like #nostr
+    return content.replace(
+      /(^|\s)#([a-z0-9_]+)/gi,
+      (match, space, tag) => `${space}#${tag}`
+    );
+  }
+
+  /**
+   * Safely truncate content to a specified length
+   * @param content Content to truncate
+   * @param length Maximum length
+   * @returns Truncated content
+   */
+  truncate(content: string, length: number = 100): string {
+    if (!content || content.length <= length) {
+      return content;
+    }
     
-    const matches = content.match(mentionRegex);
-    if (!matches) return [];
-    
-    return matches.map(mention => mention.slice(1)); // Remove @ symbol
+    return content.substring(0, length) + '...';
   }
 }
 

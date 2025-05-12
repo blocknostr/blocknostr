@@ -1,49 +1,58 @@
 
 /**
+ * Options for retry function
+ */
+export interface RetryOptions {
+  maxAttempts: number;
+  baseDelay: number;
+  onRetry?: (attempt: number) => void;
+  shouldRetry?: (error: Error) => boolean;
+}
+
+/**
  * Retry a function with exponential backoff
+ * 
  * @param fn Function to retry
  * @param options Retry options
- * @returns Result of the function or null if max attempts exceeded
+ * @returns Promise that resolves with the function result
  */
 export async function retry<T>(
-  fn: () => Promise<T>,
-  options: {
-    maxAttempts?: number;
-    baseDelay?: number;
-    factor?: number;
-    onRetry?: (attempt: number) => void;
-  } = {}
+  fn: () => Promise<T>, 
+  options: RetryOptions
 ): Promise<T> {
-  const { 
-    maxAttempts = 3, 
-    baseDelay = 1000, 
-    factor = 2,
-    onRetry = () => {} 
-  } = options;
+  const { maxAttempts, baseDelay, onRetry, shouldRetry } = options;
   
-  let attempt = 0;
+  let lastError: Error | null = null;
   
-  while (attempt < maxAttempts) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn();
-    } catch (err) {
-      attempt++;
+    } catch (error) {
+      lastError = error as Error;
+      
+      // Check if we should retry this error
+      if (shouldRetry && !shouldRetry(lastError)) {
+        throw lastError;
+      }
       
       // If we've reached max attempts, throw the error
       if (attempt >= maxAttempts) {
-        throw err;
+        throw lastError;
       }
       
-      // Call the onRetry callback
-      onRetry(attempt);
+      // Calculate delay with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt - 1);
       
-      // Calculate exponential backoff delay
-      const delay = baseDelay * Math.pow(factor, attempt - 1);
+      // Notify about retry
+      if (onRetry) {
+        onRetry(attempt);
+      }
       
       // Wait before next attempt
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
-  throw new Error(`Max retry attempts (${maxAttempts}) exceeded`);
+  // This should never happen with the for loop condition, but TypeScript needs it
+  throw lastError || new Error('Retry failed');
 }

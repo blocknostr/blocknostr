@@ -1,100 +1,137 @@
 
-import { SimplePool } from 'nostr-tools';
-import { NostrEvent, NostrFilter } from './types';
-import { EVENT_KINDS } from './constants';
+import { nostrService } from './service';
+
+interface SubscriptionOptions {
+  filters: any[];
+  onEvent: (event: any) => void;
+  relays?: string[];
+  autoRenew?: boolean;
+  ttl?: number; // Time to live in seconds
+}
 
 /**
- * Manages subscriptions to Nostr relays
- * Makes sure no subscription is left open indefinitely
+ * Manager for handling Nostr subscriptions
+ * Provides automatic renewal capabilities for subscriptions
  */
 export class SubscriptionManager {
-  private pool: SimplePool;
-  private active: Map<string, any> = new Map();
+  private subscriptions: Map<string, {
+    options: SubscriptionOptions;
+    startTime: number;
+    expiryTime?: number;
+  }> = new Map();
   
-  constructor(pool: SimplePool) {
-    this.pool = pool;
+  private renewalInterval?: NodeJS.Timer;
+
+  constructor() {
+    // Set up a renewal check interval
+    this.renewalInterval = setInterval(() => this.checkForRenewals(), 30000);
   }
 
   /**
-   * Subscribe to events from relays
-   * @param relayUrls Array of relay URLs to subscribe to
-   * @param filters Array of filters to apply
-   * @param onEvent Callback function for each event received
+   * Create a new subscription
+   * @param options Subscription options
    * @returns Subscription ID
    */
-  public subscribe(relayUrls: string[], filters: NostrFilter[], onEvent: (event: NostrEvent) => void): string {
-    const subId = `sub-${Math.random().toString(36).substring(2, 10)}`;
+  subscribe(options: SubscriptionOptions): string {
+    // Create the subscription
+    const subId = nostrService.subscribe(
+      options.filters,
+      options.onEvent,
+      options.relays
+    );
     
-    try {
-      // Convert NostrFilter to SimplePool Filter type
-      const convertedFilters = filters.map(filter => {
-        const newFilter: Record<string, any> = { ...filter };
-        // Handle tag filters dynamically
-        Object.keys(filter).forEach(key => {
-          if (key.startsWith('#')) {
-            newFilter[key] = filter[key as keyof NostrFilter];
-          }
-        });
-        return newFilter;
-      });
-      
-      // Create subscription
-      const sub = this.pool.subscribeMany(
-        relayUrls,
-        convertedFilters,
-        {
-          onevent: onEvent,
-          onclose: () => {
-            console.log(`Subscription ${subId} closed`);
-          }
-        }
-      );
-      
-      // Store subscription
-      this.active.set(subId, sub);
-      
-      return subId;
-    } catch (error) {
-      console.error("Error creating subscription:", error);
-      return subId;
-    }
+    // Store the subscription details
+    this.subscriptions.set(subId, {
+      options,
+      startTime: Date.now(),
+      expiryTime: options.ttl ? Date.now() + (options.ttl * 1000) : undefined
+    });
+    
+    return subId;
   }
 
   /**
    * Unsubscribe from a subscription
-   * @param subId The subscription ID to unsubscribe from
+   * @param subId Subscription ID
    */
-  public unsubscribe(subId: string): void {
-    const sub = this.active.get(subId);
-    if (sub) {
-      try {
-        sub.close();
-      } catch (error) {
-        console.error(`Error closing subscription ${subId}:`, error);
-      }
-      this.active.delete(subId);
+  unsubscribe(subId: string): void {
+    if (this.subscriptions.has(subId)) {
+      nostrService.unsubscribe(subId);
+      this.subscriptions.delete(subId);
     }
   }
 
   /**
-   * Get all active subscriptions
-   * @returns Map of all active subscriptions
+   * Unsubscribe from all subscriptions
    */
-  public getActive(): Map<string, any> {
-    return this.active;
+  unsubscribeAll(): void {
+    for (const subId of this.subscriptions.keys()) {
+      nostrService.unsubscribe(subId);
+    }
+    this.subscriptions.clear();
   }
-  
+
   /**
-   * Close all active subscriptions
+   * Check for subscriptions that need renewal and renew them
    */
-  public closeAll(): void {
-    this.active.forEach((sub, id) => {
-      try {
-        sub.close();
-      } catch (error) {
-        console.error(`Error closing subscription ${id}:`, error);
+  private checkForRenewals(): void {
+    const now = Date.now();
+    
+    for (const [subId, sub] of this.subscriptions.entries()) {
+      // Skip if not set to auto-renew or no expiry
+      if (!sub.options.autoRenew || !sub.expiryTime) {
+        continue;
       }
+      
+      // If expired or about to expire, renew
+      if (sub.expiryTime - now < 10000) { // Renew if less than 10s remaining
+        this.renewSubscription(subId);
+      }
+    }
+  }
+
+  /**
+   * Manually renew a subscription
+   * @param subId Subscription ID
+   * @returns Boolean indicating success
+   */
+  renewSubscription(subId: string): boolean {
+    const sub = this.subscriptions.get(subId);
+    if (!sub) {
+      return false;
+    }
+    
+    // Unsubscribe from the old subscription
+    nostrService.unsubscribe(subId);
+    
+    // Create a new subscription with the same options
+    const newSubId = nostrService.subscribe(
+      sub.options.filters,
+      sub.options.onEvent,
+      sub.options.relays
+    );
+    
+    // Update the subscription details
+    this.subscriptions.delete(subId);
+    this.subscriptions.set(newSubId, {
+      options: sub.options,
+      startTime: Date.now(),
+      expiryTime: sub.options.ttl ? Date.now() + (sub.options.ttl * 1000) : undefined
     });
-    this.active.clear();
+    
+    return true;
+  }
+
+  /**
+   * Clean up resources when manager is no longer needed
+   */
+  cleanup(): void {
+    if (this.renewalInterval) {
+      clearInterval(this.renewalInterval);
+    }
+    this.unsubscribeAll();
   }
 }
+
+// Can create a singleton instance if needed
+// export const subscriptionManager = new SubscriptionManager();

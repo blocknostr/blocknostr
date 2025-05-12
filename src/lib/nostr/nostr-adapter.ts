@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { NostrEvent, Relay, ProposalCategory } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
@@ -13,7 +12,8 @@ class AdaptedNostrService {
   
   constructor(service: typeof nostrService) {
     this.service = service;
-    this._publicKey = service.publicKey; // Cache the initial value
+    // Cache the initial value - this prevents infinite recursion
+    this._publicKey = service.publicKey; 
   }
 
   /**
@@ -85,7 +85,7 @@ class AdaptedNostrService {
     return null;
   }
 
-  // User Properties - FIXED: Use cached value to avoid recursion
+  // User Properties - Use cached value to avoid recursion
   get publicKey() {
     return this._publicKey;
   }
