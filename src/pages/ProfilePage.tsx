@@ -238,6 +238,17 @@ const ProfilePage = () => {
                   </Button>
                 </div>
               )}
+
+              {isCurrentUser && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4"
+                  onClick={() => navigate('/you/edit-profile')}
+                >
+                  Edit Profile
+                </Button>
+              )}
             </>
           ) : (
             <ProfileNotFound />
