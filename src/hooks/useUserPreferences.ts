@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 export type FeedType = 'global' | 'following' | 'for-you' | 'media';
 
@@ -67,68 +68,120 @@ const defaultPreferences: UserPreferences = {
   },
 };
 
+// Storage keys for splitting preferences into smaller chunks
+const STORAGE_KEYS = {
+  MAIN: 'blocknoster_preferences_main',
+  FEED_FILTERS: 'blocknoster_preferences_filters',
+  CONTENT_PREFS: 'blocknoster_preferences_content',
+  NOTIFICATION_PREFS: 'blocknoster_preferences_notifications',
+  RELAY_PREFS: 'blocknoster_preferences_relays',
+  UI_PREFS: 'blocknoster_preferences_ui'
+};
+
+// Safely save to localStorage with error handling
+const safeLocalStorageSave = (key: string, value: any): boolean => {
+  try {
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(key, serialized);
+    return true;
+  } catch (error) {
+    console.error(`Failed to save to localStorage (${key}):`, error);
+    
+    // Show error notification only once
+    if (key === STORAGE_KEYS.MAIN) {
+      toast.error("Unable to save preferences", {
+        description: "Storage limit reached. Some preferences may not persist."
+      });
+    }
+    
+    return false;
+  }
+};
+
+// Safely load from localStorage with error handling
+const safeLocalStorageLoad = <T>(key: string, defaultValue: T): T => {
+  try {
+    const serialized = localStorage.getItem(key);
+    if (serialized === null) return defaultValue;
+    return JSON.parse(serialized) as T;
+  } catch (error) {
+    console.error(`Failed to load from localStorage (${key}):`, error);
+    return defaultValue;
+  }
+};
+
 export function useUserPreferences() {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
   const [loaded, setLoaded] = useState(false);
+  const [storageAvailable, setStorageAvailable] = useState(true);
 
-  // Load preferences from localStorage
+  // Test if localStorage is available
   useEffect(() => {
-    const storedPrefs = localStorage.getItem('blocknoster_preferences');
-    if (storedPrefs) {
-      try {
-        // Parse stored preferences
-        const parsedPrefs = JSON.parse(storedPrefs);
-        
-        // Type check: ensure parsedPrefs is a valid object
-        if (parsedPrefs && typeof parsedPrefs === 'object' && !Array.isArray(parsedPrefs)) {
-          // Merge with defaults to ensure any new preferences are included
-          // Fix: explicitly create a new preferences object without using spread on parsedPrefs
-          const mergedPreferences: UserPreferences = {
-            ...defaultPreferences,
-            defaultFeed: parsedPrefs.defaultFeed || defaultPreferences.defaultFeed,
-            feedFilters: {
-              ...defaultPreferences.feedFilters,
-              ...(parsedPrefs.feedFilters && typeof parsedPrefs.feedFilters === 'object' ? parsedPrefs.feedFilters : {}),
-            },
-            contentPreferences: {
-              ...defaultPreferences.contentPreferences,
-              ...(parsedPrefs.contentPreferences && typeof parsedPrefs.contentPreferences === 'object' ? parsedPrefs.contentPreferences : {}),
-            },
-            notificationPreferences: {
-              ...defaultPreferences.notificationPreferences,
-              ...(parsedPrefs.notificationPreferences && typeof parsedPrefs.notificationPreferences === 'object' ? parsedPrefs.notificationPreferences : {}),
-            },
-            relayPreferences: {
-              ...defaultPreferences.relayPreferences,
-              ...(parsedPrefs.relayPreferences && typeof parsedPrefs.relayPreferences === 'object' ? parsedPrefs.relayPreferences : {}),
-            },
-            uiPreferences: {
-              ...defaultPreferences.uiPreferences,
-              ...(parsedPrefs.uiPreferences && typeof parsedPrefs.uiPreferences === 'object' ? parsedPrefs.uiPreferences : {}),
-            },
-          };
-          
-          setPreferences(mergedPreferences);
-        } else {
-          console.error('Stored preferences is not a valid object:', parsedPrefs);
-          // Use default preferences if stored data is invalid
-          setPreferences(defaultPreferences);
-        }
-      } catch (e) {
-        console.error('Failed to parse preferences:', e);
-        // Use default preferences in case of parsing error
-        setPreferences(defaultPreferences);
-      }
+    try {
+      const testKey = 'blocknoster_storage_test';
+      localStorage.setItem(testKey, 'test');
+      localStorage.removeItem(testKey);
+      setStorageAvailable(true);
+    } catch (e) {
+      console.error('localStorage not available:', e);
+      setStorageAvailable(false);
     }
-    setLoaded(true);
   }, []);
 
-  // Save preferences to localStorage whenever they change
+  // Load preferences from localStorage with chunked storage
   useEffect(() => {
-    if (loaded) {
-      localStorage.setItem('blocknoster_preferences', JSON.stringify(preferences));
+    if (!storageAvailable) {
+      setLoaded(true);
+      return;
     }
-  }, [preferences, loaded]);
+    
+    try {
+      // Load individual preference sections
+      const mainPrefs = safeLocalStorageLoad<Partial<UserPreferences>>(STORAGE_KEYS.MAIN, {});
+      const feedFilters = safeLocalStorageLoad(STORAGE_KEYS.FEED_FILTERS, defaultPreferences.feedFilters);
+      const contentPreferences = safeLocalStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
+      const notificationPreferences = safeLocalStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
+      const relayPreferences = safeLocalStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
+      const uiPreferences = safeLocalStorageLoad(STORAGE_KEYS.UI_PREFS, defaultPreferences.uiPreferences);
+      
+      // Merge all preferences with defaults for any missing properties
+      const mergedPreferences: UserPreferences = {
+        ...defaultPreferences,
+        ...mainPrefs,
+        feedFilters,
+        contentPreferences,
+        notificationPreferences,
+        relayPreferences,
+        uiPreferences
+      };
+      
+      setPreferences(mergedPreferences);
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+      // Fall back to defaults
+      setPreferences(defaultPreferences);
+    }
+    
+    setLoaded(true);
+  }, [storageAvailable]);
+
+  // Save preferences to localStorage with chunking to avoid quota issues
+  useEffect(() => {
+    if (loaded && storageAvailable) {
+      // Save main preferences (excluding nested objects which we'll save separately)
+      const mainPrefs = {
+        defaultFeed: preferences.defaultFeed
+      };
+      safeLocalStorageSave(STORAGE_KEYS.MAIN, mainPrefs);
+      
+      // Save each section separately to split storage
+      safeLocalStorageSave(STORAGE_KEYS.FEED_FILTERS, preferences.feedFilters);
+      safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
+      safeLocalStorageSave(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
+      safeLocalStorageSave(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
+      safeLocalStorageSave(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
+    }
+  }, [preferences, loaded, storageAvailable]);
 
   // Update specific preference
   const updatePreference = useCallback(<K extends keyof UserPreferences>(
@@ -154,8 +207,6 @@ export function useUserPreferences() {
       // Create a safe copy of the nested object with type checking
       const nestedObject = prev[key];
       
-      // Fix: The issue is here - nestedObject might not be typed correctly for spreading
-      // Instead of spreading directly, we'll create a proper typed object
       if (nestedObject && typeof nestedObject === 'object' && !Array.isArray(nestedObject)) {
         // Create a new object of the appropriate type using type assertion
         const updatedNested = { ...nestedObject as object } as UserPreferences[K];
@@ -190,6 +241,7 @@ export function useUserPreferences() {
     updatePreference,
     updateNestedPreference,
     resetPreferences,
-    loaded
+    loaded,
+    storageAvailable
   };
 }
