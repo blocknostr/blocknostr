@@ -10,7 +10,8 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Crown 
+  Crown,
+  UserCircle
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -27,6 +28,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Home,
       href: "/",
       requiresAuth: false
+    },
+    {
+      name: "You",
+      icon: UserCircle,
+      href: "/you",
+      requiresAuth: true
     },
     {
       name: "Wallets",
