@@ -28,7 +28,7 @@ const WorldChat = () => {
   } = useWorldChat();
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] mb-14 border shadow-md overflow-hidden rounded-lg"> 
+    <Card className="flex-grow flex flex-col h-[550px] border shadow-md overflow-hidden rounded-lg"> 
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (

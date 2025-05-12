@@ -41,8 +41,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   // Desktop right sidebar
   if (!isMobile && preferences.uiPreferences?.showTrending) {
     return (
-      <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)]">
-        <div className="flex flex-col h-full space-y-2">
+      <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] overflow-hidden">
+        <div className="flex flex-col h-full space-y-2 overflow-hidden">
           <div>
             <GlobalSearch />
           </div>
@@ -57,7 +57,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             </div>
           )}
           
-          <div className="flex-grow flex flex-col mt-1">
+          <div className="flex-grow flex flex-col mt-1 overflow-hidden">
             <WorldChat />
           </div>
         </div>
@@ -69,8 +69,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   if (isMobile) {
     return (
       <Sheet open={rightPanelOpen} onOpenChange={setRightPanelOpen}>
-        <SheetContent side="right" className="p-4 w-[80%] max-w-[300px] overflow-y-auto">
-          <div className="flex flex-col h-full space-y-2">
+        <SheetContent side="right" className="p-4 w-[80%] max-w-[300px] overflow-hidden">
+          <div className="flex flex-col h-full space-y-2 overflow-hidden">
             <div>
               <GlobalSearch />
             </div>
@@ -85,7 +85,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
               </div>
             )}
             
-            <div className="flex-grow flex flex-col mt-1">
+            <div className="flex-grow flex flex-col mt-1 overflow-hidden">
               <WorldChat />
             </div>
           </div>
