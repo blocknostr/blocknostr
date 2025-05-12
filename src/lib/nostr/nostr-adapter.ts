@@ -23,7 +23,7 @@ class AdaptedNostrService {
    */
   getRelayStatus() {
     // Return the relay status information 
-    return this.service.getRelayStatus();
+    return this.service.getRelayStatus?.() || [];
   }
 
   /**
@@ -31,7 +31,7 @@ class AdaptedNostrService {
    * @returns Array of relay URLs
    */
   getRelayUrls() {
-    return this.service.getRelayUrls();
+    return this.service.getRelayUrls?.() || [];
   }
 
   /**
@@ -41,7 +41,7 @@ class AdaptedNostrService {
    * @returns Array of fetcher functions
    */
   createBatchedFetchers(hexPubkey: string, options: any) {
-    return this.service.createBatchedFetchers(hexPubkey, options);
+    return this.service.createBatchedFetchers?.(hexPubkey, options) || [];
   }
 
   // Access to socialManager instance
@@ -51,7 +51,7 @@ class AdaptedNostrService {
 
   // Communities functionality
   async createCommunity(name: string, description: string) {
-    return this.service.createCommunity(name, description);
+    return this.service.createCommunity?.(name, description) || false;
   }
 
   async createProposal(
@@ -61,21 +61,21 @@ class AdaptedNostrService {
     options: string[], 
     category: ProposalCategory
   ) {
-    return this.service.createProposal(communityId, title, description, options, category);
+    return this.service.createProposal?.(communityId, title, description, options, category) || false;
   }
 
   async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.service.voteOnProposal(proposalId, optionIndex);
+    return this.service.voteOnProposal?.(proposalId, optionIndex) || false;
   }
 
   // Account creation date
   async getAccountCreationDate(pubkey: string) {
-    return this.service.getAccountCreationDate(pubkey);
+    return this.service.getAccountCreationDate?.(pubkey) || null;
   }
 
   // Access to following list - Return directly instead of using a getter
   get following() {
-    return this.service.following;
+    return this.service.following || [];
   }
 
   // Profile caching
@@ -93,63 +93,63 @@ class AdaptedNostrService {
 
   // Auth methods
   async login() {
-    const success = await this.service.login();
-    if (success) {
+    const success = await (this.service.login?.() || false);
+    if (success && this.service.publicKey !== undefined) {
       this._publicKey = this.service.publicKey; // Update the cached value
     }
     return success;
   }
 
   signOut() {
-    const result = this.service.signOut();
+    const result = this.service.signOut?.() || false;
     this._publicKey = null; // Clear the cached value
     return result;
   }
 
   // Connection methods
   async connectToUserRelays() {
-    return this.service.connectToUserRelays();
+    return this.service.connectToUserRelays?.() || false;
   }
 
   async connectToDefaultRelays() {
-    return this.service.connectToDefaultRelays();
+    return this.service.connectToDefaultRelays?.() || false;
   }
 
   // Subscription methods
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
-    return this.service.subscribe(filters, onEvent, relays);
+    return this.service.subscribe?.(filters, onEvent, relays) || "";
   }
 
   unsubscribe(subId: string) {
-    return this.service.unsubscribe(subId);
+    return this.service.unsubscribe?.(subId) || false;
   }
 
   // Event publishing
   async publishEvent(event: Partial<NostrEvent>) {
-    return this.service.publishEvent(event);
+    return this.service.publishEvent?.(event) || null;
   }
 
   // Profile methods
   async getUserProfile(pubkey: string) {
-    return this.service.getUserProfile(pubkey);
+    return this.service.getUserProfile?.(pubkey) || null;
   }
 
   // Following methods
   isFollowing(pubkey: string) {
-    return this.service.isFollowing(pubkey);
+    return this.service.isFollowing?.(pubkey) || false;
   }
 
   async followUser(pubkey: string) {
-    return this.service.followUser(pubkey);
+    return this.service.followUser?.(pubkey) || false;
   }
 
   async unfollowUser(pubkey: string) {
-    return this.service.unfollowUser(pubkey);
+    return this.service.unfollowUser?.(pubkey) || false;
   }
 
   // Direct messaging
   async sendDirectMessage(recipientPubkey: string, content: string) {
-    return this.service.sendDirectMessage(recipientPubkey, content);
+    return this.service.sendDirectMessage?.(recipientPubkey, content) || false;
   }
 
   // Utility methods
@@ -167,19 +167,19 @@ class AdaptedNostrService {
 
   // Add more methods as needed from the NostrService interface
   async getRelaysForUser(pubkey: string) {
-    return this.service.getRelaysForUser(pubkey);
+    return this.service.getRelaysForUser?.(pubkey) || [];
   }
 
   async addMultipleRelays(relayUrls: string[]) {
-    return this.service.addMultipleRelays(relayUrls);
+    return this.service.addMultipleRelays?.(relayUrls) || false;
   }
 
   async addRelay(relayUrl: string, readWrite: boolean = true) {
-    return this.service.addRelay(relayUrl, readWrite);
+    return this.service.addRelay?.(relayUrl, readWrite) || false;
   }
 
   removeRelay(relayUrl: string) {
-    return this.service.removeRelay(relayUrl);
+    return this.service.removeRelay?.(relayUrl) || false;
   }
 
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
@@ -190,59 +190,59 @@ class AdaptedNostrService {
   }
 
   async getEventById(id: string) {
-    return this.service.getEventById(id);
+    return this.service.getEventById?.(id) || null;
   }
 
   async getEvents(filters: any) {
-    return this.service.getEvents(filters);
+    return this.service.getEvents?.(filters) || [];
   }
 
   async getProfilesByPubkeys(pubkeys: string[]) {
-    return this.service.getProfilesByPubkeys(pubkeys);
+    return this.service.getProfilesByPubkeys?.(pubkeys) || {};
   }
 
   async verifyNip05(identifier: string, pubkey: string) {
-    return this.service.verifyNip05(identifier, pubkey);
+    return this.service.verifyNip05?.(identifier, pubkey) || false;
   }
 
   // User moderation
   async muteUser(pubkey: string) {
-    return this.service.muteUser(pubkey);
+    return this.service.muteUser?.(pubkey) || false;
   }
 
   async unmuteUser(pubkey: string) {
-    return this.service.unmuteUser(pubkey);
+    return this.service.unmuteUser?.(pubkey) || false;
   }
 
   async isUserMuted(pubkey: string) {
-    return this.service.isUserMuted(pubkey);
+    return this.service.isUserMuted?.(pubkey) || false;
   }
 
   async blockUser(pubkey: string) {
-    return this.service.blockUser(pubkey);
+    return this.service.blockUser?.(pubkey) || false;
   }
 
   async unblockUser(pubkey: string) {
-    return this.service.unblockUser(pubkey);
+    return this.service.unblockUser?.(pubkey) || false;
   }
 
   async isUserBlocked(pubkey: string) {
-    return this.service.isUserBlocked(pubkey);
+    return this.service.isUserBlocked?.(pubkey) || false;
   }
 
   // Reactions
   async reactToPost(eventId: string, reaction: string = "+") {
-    return this.service.reactToPost(eventId, reaction);
+    return this.service.reactToPost?.(eventId, reaction) || false;
   }
 
   // Reposts
   async repostNote(eventId: string, authorPubkey: string) {
-    return this.service.repostNote(eventId, authorPubkey);
+    return this.service.repostNote?.(eventId, authorPubkey) || false;
   }
 
   // Profile updates
   async publishProfileMetadata(metadata: Record<string, any>) {
-    return this.service.publishProfileMetadata(metadata);
+    return this.service.publishProfileMetadata?.(metadata) || false;
   }
   
   // Bookmark methods

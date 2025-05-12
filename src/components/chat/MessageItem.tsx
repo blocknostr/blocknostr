@@ -1,111 +1,77 @@
 
-import { useState } from 'react';
-import { NostrEvent, NostrProfileMetadata } from '@/lib/nostr/types';
-import { formatDistanceToNow } from 'date-fns';
-import { nostrService, contentFormatter } from '@/lib/nostr';
-import { Button } from '../ui/button';
-import { Smile, MoreHorizontal } from 'lucide-react';
+import React from 'react';
+import { Avatar } from '@/components/ui/avatar';
+import { contentFormatter } from '@/lib/nostr';
 
 interface MessageItemProps {
-  event: NostrEvent;
-  profile?: NostrProfileMetadata;
-  emojiReactions?: string[];
-  onReaction?: (emoji: string) => void;
-  showReactionPicker?: boolean;
+  id: string;
+  content: string;
+  pubkey: string;
+  created_at: number;
+  profileName?: string;
+  profileImage?: string;
+  tags: string[][];
+  isOwnMessage?: boolean;
 }
 
-export const MessageItem = ({
-  event,
-  profile,
-  emojiReactions = [],
-  onReaction,
-  showReactionPicker = true,
-}: MessageItemProps) => {
-  const [showEmojis, setShowEmojis] = useState(false);
-  const isCurrentUser = event.pubkey === nostrService.publicKey;
-  
-  const timeAgo = formatDistanceToNow(new Date(event.created_at * 1000), { addSuffix: true });
-  
-  // Emojis for quick reactions
-  const quickEmojis = ['👍', '❤️', '😂', '👏', '🎉', '🔥', '💡', '🙌'];
-  
-  // Rendered content with links
-  const renderedContent = contentFormatter.renderLinks(event.content);
-  
+export const MessageItem: React.FC<MessageItemProps> = ({
+  content,
+  pubkey,
+  created_at,
+  profileName,
+  profileImage,
+  tags,
+  isOwnMessage = false,
+}) => {
+  const formattedContent = React.useMemo(() => {
+    return contentFormatter.formatContent(content, tags);
+  }, [content, tags]);
+
+  const formattedTime = React.useMemo(() => {
+    return contentFormatter.formatDate(created_at);
+  }, [created_at]);
+
   return (
-    <div className={`flex mb-4 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
-      <div 
-        className={`
-          max-w-[80%] md:max-w-[70%] rounded-lg p-3
-          ${isCurrentUser 
-            ? 'bg-primary text-primary-foreground rounded-br-none' 
-            : 'bg-muted text-muted-foreground rounded-bl-none'}
-        `}
-      >
-        <div className="flex justify-between items-start mb-1">
-          <div className="font-semibold text-sm">
-            {profile?.name || profile?.display_name || event.pubkey.substring(0, 8)}
-          </div>
-          <div className="text-xs opacity-70">{timeAgo}</div>
+    <div className={`flex gap-3 mb-4 ${isOwnMessage ? 'flex-row-reverse' : ''}`}>
+      <div className="flex-shrink-0">
+        <Avatar className="h-8 w-8">
+          {profileImage ? (
+            <img
+              src={profileImage}
+              alt={profileName || pubkey.slice(0, 8)}
+              className="aspect-square h-full w-full"
+            />
+          ) : (
+            <div className="bg-primary/10 flex h-full w-full items-center justify-center rounded-full text-xs font-semibold uppercase text-primary">
+              {(profileName?.[0] || pubkey[0] || '?').toUpperCase()}
+            </div>
+          )}
+        </Avatar>
+      </div>
+      
+      <div className={`flex max-w-[80%] flex-col ${isOwnMessage ? 'items-end' : ''}`}>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium">
+            {profileName || pubkey.slice(0, 8)}
+          </span>
+          <span className="text-xs text-muted-foreground">{formattedTime}</span>
         </div>
         
-        <div 
-          className="text-sm"
-          dangerouslySetInnerHTML={{ __html: renderedContent }}
-        />
-        
-        {/* Reactions display */}
-        {emojiReactions && emojiReactions.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {emojiReactions.map((emoji, index) => (
-              <div 
-                key={`${emoji}-${index}`}
-                className={`
-                  text-xs px-1.5 py-0.5 rounded-full
-                  ${isCurrentUser 
-                    ? 'bg-primary-foreground/20 text-primary-foreground' 
-                    : 'bg-background text-foreground'}
-                `}
-              >
-                {emoji}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Reaction controls */}
-        {showReactionPicker && onReaction && (
-          <div className="flex justify-end mt-2">
-            <div className="relative">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0 rounded-full"
-                onClick={() => setShowEmojis(!showEmojis)}
-              >
-                {showEmojis ? <MoreHorizontal className="h-3 w-3" /> : <Smile className="h-3 w-3" />}
-              </Button>
-              
-              {showEmojis && (
-                <div className="absolute bottom-full right-0 mb-1 p-1 bg-background rounded shadow-md flex gap-1 border">
-                  {quickEmojis.map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        onReaction(emoji);
-                        setShowEmojis(false);
-                      }}
-                      className="hover:bg-muted p-1 rounded text-sm"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <div
+          className={`mt-1 rounded-lg px-4 py-2 ${
+            isOwnMessage
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted'
+          }`}
+        >
+          <div 
+            className="text-sm break-words"
+            dangerouslySetInnerHTML={{ __html: formattedContent }}
+          />
+        </div>
       </div>
     </div>
   );
 };
+
+export default MessageItem;

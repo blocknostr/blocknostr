@@ -15,6 +15,9 @@ export { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 // Export content cache
 export { contentCache } from './content-cache';
 
+// Export content formatter
+export { contentFormatter } from './content-formatter';
+
 // Export subscription manager
 export { SubscriptionManager } from './subscription-manager';
 

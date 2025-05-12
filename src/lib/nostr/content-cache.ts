@@ -136,6 +136,24 @@ class ContentCache {
     
     return events;
   }
+
+  // Add methods for feed caching
+  feedCache: Map<string, any[]> = new Map();
+
+  cacheFeed(key: string, events: any[], ttl: number = this.defaultTTL): void {
+    this.feedCache.set(key, events);
+    // Also set an expiration
+    this.set(`feed_expiry:${key}`, true, ttl);
+  }
+
+  getFeed(key: string): any[] | undefined {
+    // Check if expired
+    if (!this.has(`feed_expiry:${key}`)) {
+      this.feedCache.delete(key);
+      return undefined;
+    }
+    return this.feedCache.get(key);
+  }
 }
 
 // Export a singleton instance

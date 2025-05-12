@@ -1,93 +1,69 @@
 
-/**
- * Circuit states for the circuit breaker pattern
- */
-export enum CircuitState {
-  CLOSED = 'closed',   // Normal operation, requests allowed
-  OPEN = 'open',       // Failure threshold exceeded, requests blocked
-  HALF_OPEN = 'half-open' // Testing if system is recovered
-}
+import { CircuitState } from "../../types";
 
 /**
- * Simple circuit breaker implementation for relay connectivity
- * Helps prevent repeated connection attempts to failing relays
+ * Circuit breaker implementation for handling relay connections
+ * This helps prevent repeated connection attempts to failing relays
  */
 export class CircuitBreaker {
-  private failures: number = 0;
+  private state: CircuitState = 'closed';
+  private failureCount: number = 0;
   private lastFailureTime: number = 0;
-  private state: CircuitState = CircuitState.CLOSED;
-  private readonly failureThreshold: number;
-  private readonly resetTimeout: number;
-  
-  /**
-   * Create a new circuit breaker
-   * @param failureThreshold Number of failures before opening the circuit
-   * @param resetTimeout Time in milliseconds to wait before attempting reset
-   */
-  constructor(failureThreshold: number = 3, resetTimeout: number = 60000) {
-    this.failureThreshold = failureThreshold;
-    this.resetTimeout = resetTimeout;
-  }
-  
-  /**
-   * Record a successful operation
-   */
-  recordSuccess(): void {
-    if (this.state === CircuitState.HALF_OPEN) {
-      this.reset();
-    }
-  }
-  
-  /**
-   * Record a failed operation
-   */
-  recordFailure(): void {
-    this.failures++;
-    this.lastFailureTime = Date.now();
-    
-    if (this.failures >= this.failureThreshold) {
-      this.state = CircuitState.OPEN;
-    }
-  }
-  
-  /**
-   * Check if the circuit allows operations
-   * @returns boolean indicating if operations are allowed
-   */
-  isAllowed(): boolean {
-    if (this.state === CircuitState.CLOSED) {
-      return true;
-    }
-    
-    if (this.state === CircuitState.OPEN) {
-      const now = Date.now();
-      if (now - this.lastFailureTime > this.resetTimeout) {
-        // Try half-open state after timeout
-        this.state = CircuitState.HALF_OPEN;
-        return true;
-      }
-      return false;
-    }
-    
-    // In HALF_OPEN state, allow one request to test
-    return true;
-  }
+  private resetTimeout: number = 30000; // 30 seconds
+  private failureThreshold: number = 3;
   
   /**
    * Get the current state of the circuit
    */
   getState(): CircuitState {
+    this.checkReset();
     return this.state;
   }
   
   /**
-   * Reset the circuit to closed state
+   * Record a success, potentially closing the circuit
    */
-  reset(): void {
-    this.failures = 0;
-    this.state = CircuitState.CLOSED;
+  recordSuccess(): void {
+    if (this.state === 'half-open') {
+      this.state = 'closed';
+    }
+    
+    this.failureCount = 0;
+  }
+  
+  /**
+   * Record a failure, potentially opening the circuit
+   */
+  recordFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+    
+    if (this.failureCount >= this.failureThreshold && this.state === 'closed') {
+      this.state = 'open';
+    }
+  }
+  
+  /**
+   * Check if the circuit should be reset from open to half-open
+   */
+  private checkReset(): void {
+    if (this.state === 'open' && Date.now() > this.lastFailureTime + this.resetTimeout) {
+      this.state = 'half-open';
+    }
+  }
+  
+  /**
+   * Check if a request should be allowed through
+   * @returns Boolean indicating if request should proceed
+   */
+  canRequest(): boolean {
+    this.checkReset();
+    
+    if (this.state === 'open') {
+      return false;
+    }
+    
+    // In half-open state, allow a single request through
+    return true;
   }
 }
-
-// Create exported instance
-export const circuitBreaker = new CircuitBreaker();
