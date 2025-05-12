@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { LogIn, LogOut, User, AlertCircle, Wallet } from "lucide-react";
+import { LogOut, User, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Tooltip, 
@@ -74,10 +74,10 @@ const LoginButton = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 border-primary/20 hover:border-primary/30 hover:bg-primary/5 transition-colors"
                 onClick={() => { window.location.href = "/profile"; }}
               >
-                <User className="h-4 w-4" />
+                <User className="h-4 w-4 text-primary" />
                 <span>{shortNpub}</span>
               </Button>
             </TooltipTrigger>
@@ -93,7 +93,7 @@ const LoginButton = () => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-red-500" 
+                className="text-red-500 hover:bg-red-500/10 transition-colors" 
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4" />
@@ -121,25 +121,25 @@ const LoginButton = () => {
           <TooltipTrigger asChild>
             <Button 
               onClick={handleLogin} 
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70 transition-all"
               variant={hasExtension ? "default" : "outline"}
             >
               {hasExtension ? (
                 <>
                   <Wallet className="h-4 w-4" />
-                  <span>Sign in with Nostr</span>
+                  <span>Connect Wallet</span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <span>Install Nostr Extension</span>
+                  <span>Install Extension</span>
                 </>
               )}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
             {hasExtension ? 
-              "Sign in using your Nostr extension" : 
+              "Connect with your Nostr wallet" : 
               "Install Alby, nos2x or another Nostr extension"
             }
           </TooltipContent>

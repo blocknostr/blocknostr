@@ -5,7 +5,7 @@ import GlobalSearch from "@/components/GlobalSearch";
 import TrendingTopics from "@/components/feed/TrendingTopics";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
-import { Loader2, LogIn } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import LoginDialog from "@/components/auth/LoginDialog";
@@ -60,16 +60,20 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   const renderChatSection = () => {
     if (!isLoggedIn) {
       return (
-        <div className="flex-grow flex flex-col mt-1 overflow-hidden relative border rounded-md">
+        <div className="flex-grow flex flex-col mt-1 overflow-hidden relative border rounded-md bg-gradient-to-b from-background to-muted/10">
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-            <LogIn className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <div className="p-2 bg-primary/10 rounded-full mb-3">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
             <p className="text-sm text-muted-foreground mb-3">Connect to join the chat</p>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={handleLoginClick}
+              className="gap-1.5 border-primary/20 hover:border-primary/30 bg-transparent hover:bg-primary/5"
             >
-              Login
+              <Wallet className="h-3.5 w-3.5 text-primary" />
+              Connect
             </Button>
           </div>
         </div>

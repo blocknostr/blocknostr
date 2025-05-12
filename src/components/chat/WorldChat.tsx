@@ -5,7 +5,7 @@ import WorldChatHeader from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import LoginDialog from "../auth/LoginDialog";
@@ -42,15 +42,25 @@ const WorldChat = () => {
     return (
       <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative">
         <WorldChatHeader connectionStatus="disconnected" />
-        <div className="flex-grow flex flex-col items-center justify-center p-6 text-center">
-          <LogIn className="h-12 w-12 text-muted-foreground mb-3" />
-          <h3 className="text-lg font-medium mb-1">Connect to join the chat</h3>
-          <p className="text-muted-foreground mb-4">
-            Login with your Nostr extension to view messages and participate in the conversation.
+        <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-background to-muted/10">
+          <div className="p-3 bg-primary/10 rounded-full mb-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
+            <Wallet className="h-10 w-10 text-primary relative z-10" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Join the conversation</h3>
+          <p className="text-muted-foreground mb-4 max-w-xs">
+            Connect your Nostr wallet to view messages and participate in the global chat.
           </p>
-          <Button onClick={handleLoginClick}>
-            Connect
+          <Button 
+            onClick={handleLoginClick}
+            className="gap-2 bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70"
+          >
+            <Wallet className="h-4 w-4" />
+            Connect Wallet
           </Button>
+          <p className="text-xs text-muted-foreground mt-4">
+            New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Learn more</a>
+          </p>
         </div>
         
         {/* Login Dialog */}
