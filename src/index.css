@@ -199,39 +199,6 @@ html.color-theme-in-transition {
     @apply bg-muted/80 rounded-2xl;
     position: relative;
   }
-  
-  /* Toast notification animations - updated for smoother transitions with shorter duration */
-  .nostr-toast {
-    animation: toast-slide-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    cursor: pointer;
-  }
-  
-  @keyframes toast-slide-in {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
-  
-  .nostr-toast-exit {
-    animation: toast-slide-out 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  }
-  
-  @keyframes toast-slide-out {
-    from {
-      transform: translateX(0);
-      opacity: 1;
-    }
-    to {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-  }
 }
 
 @keyframes fade-in {
