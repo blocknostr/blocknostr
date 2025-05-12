@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -14,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-// Import directly from the utils/nip folder to avoid confusion with multiple implementations
+// Import the correct verifyNip05 function
 import { verifyNip05 } from '@/lib/nostr/nip05';
 import { nostrService } from '@/lib/nostr';
 
@@ -118,7 +119,7 @@ const ProfileSettingsPage = () => {
     setIsNip05Verified(null);
     
     try {
-      // Using the imported verifyNip05 from lib/nostr/nip05 which accepts two parameters
+      // Use the verifyNip05 function with the correct signature (from lib/nostr/nip05)
       const isValid = await verifyNip05(identifier, pubkey);
       setIsNip05Verified(isValid);
     } catch (error) {
