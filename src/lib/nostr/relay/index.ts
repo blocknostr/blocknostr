@@ -1,23 +1,14 @@
 
-export { ConnectionManager } from './connection-manager';
-export { HealthManager } from './health-manager';
-export { RelayInfoService, type RelayInfo } from './relay-info-service';
+import { RelayManager } from './relay-manager';
 
-// Export the RelayManager without re-declaration
-export { RelayManager } from './relay-manager';
+// Re-export the RelayManager
+export { RelayManager };
 
-// Import SimplePool - we need this for certain methods
-import { SimplePool } from 'nostr-tools';
+// Re-export types
+export type { RelayInfo } from './relay-info-service';
 
-// Extend the RelayManager interface to include all methods needed
-declare module './relay-manager' {
-  interface RelayManager {
-    connectToRelays(relayUrls: string[]): Promise<void>;
-    connectToRelay(relayUrl: string, retryCount?: number): Promise<boolean>;
-    addRelay(relayUrl: string, readWrite?: boolean): Promise<boolean>;
-    removeRelay(relayUrl: string): void;
-    addMultipleRelays(relayUrls: string[]): Promise<number>;
-    getRelayInformation(relayUrl: string): Promise<any | null>;
-    doesRelaySupport(relayUrl: string, nipNumber: number): Promise<boolean>;
-  }
-}
+// Export the CircuitBreaker and related types
+export { CircuitBreaker, CircuitState, CircuitStateValues, circuitBreaker } from './circuit/circuit-breaker';
+
+// No need for declaration merging here as it's causing issues
+// We'll properly implement these methods in the RelayManager class instead

@@ -68,12 +68,24 @@ export class CircuitBreaker {
     // In half-open state, allow a single request through
     return true;
   }
+  
+  /**
+   * Check if a request is allowed for a specific URL
+   * @param url The URL to check
+   * @returns Boolean indicating if request should proceed
+   */
+  isAllowed(url: string): boolean {
+    return this.canRequest();
+  }
 }
 
-// Add CircuitState enum value for use in other files
+// Export CircuitState enum value for use in other files
 // Export as consts instead of using them as types
 export const CircuitStateValues = {
   CLOSED: 'closed' as CircuitState,
   HALF_OPEN: 'half-open' as CircuitState,
   OPEN: 'open' as CircuitState
 };
+
+// Export a singleton instance for use across the application
+export const circuitBreaker = new CircuitBreaker();

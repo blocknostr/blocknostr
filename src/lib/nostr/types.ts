@@ -1,4 +1,6 @@
 
+import { CircuitState } from './relay/circuit/circuit-breaker';
+
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -30,6 +32,8 @@ export interface Filter {
   since?: number;
   until?: number;
   limit?: number;
+  // Add an index signature to make it compatible with nostr-tools Filter
+  [key: `#${string}`]: string[] | undefined;
 }
 
 // Add NostrFilter as an alias for Filter to maintain compatibility

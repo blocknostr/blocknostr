@@ -1,10 +1,10 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
-import { NostrEvent, NostrFilter } from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent, Filter, NostrFilter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: Filter[], subClosers: any[] }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -13,7 +13,7 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: NostrFilter[],
+    filters: Filter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     if (relays.length === 0) {
@@ -32,7 +32,9 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        return this.pool.subscribe(relays, filter, {
+        // Convert our Filter type to be compatible with nostr-tools Filter type
+        // by using type assertion
+        return this.pool.subscribe(relays, filter as any, {
           onevent: (event) => {
             onEvent(event as NostrEvent);
           }
