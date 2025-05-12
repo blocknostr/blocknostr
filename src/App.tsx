@@ -42,15 +42,17 @@ function App() {
         <Toaster 
           position="bottom-right"
           closeButton={false} 
-          dismissible={true}
           richColors
+          theme="dark"
           toastOptions={{
             duration: 2500,
             className: "nostr-toast",
+            dismissible: true,
             style: { 
               background: "hsl(var(--background))",
               border: "1px solid hsl(var(--border))",
               color: "hsl(var(--foreground))",
+              cursor: "pointer", // Make it obvious it's clickable
             },
           }}
           // Configure the stacking behavior - newer toasts on top, oldest removed first

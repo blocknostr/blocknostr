@@ -34,6 +34,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         style: {
           transition: "all 0.2s ease-out",
         },
+        ...props.toastOptions,
       }}
       {...props}
     />
