@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -15,76 +14,78 @@ import AppearanceTab from './profile/AppearanceTab';
 import SocialIdentityTab from './profile/SocialIdentityTab';
 import { useProfileForm } from './profile/useProfileForm';
 import { verifyNip05Identifier } from './profile/profileUtils';
+import { forceRefreshProfile } from './profile/profileUtils';
 
 interface EditProfileSectionProps {
   profileData: any;
   onSaved: () => void;
 }
 
-const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) => {
+const EditProfileSection: React.FC<EditProfileSectionProps> = ({
+  profileData,
+  onSaved,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({ profileData });
+  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({
+    profileData,
+  });
 
   const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
-      toast.error("You must be logged in to update your profile");
+      toast.error('You must be logged in to update your profile');
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       // Clean up values by removing empty strings
       const cleanValues: Record<string, any> = {};
-      
       Object.entries(values).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
           cleanValues[key] = value;
         }
       });
-      
-      console.log("Submitting profile update with values:", cleanValues);
-      
+
+      console.log('Submitting profile update with values:', cleanValues);
+
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Use verifyNip05Identifier from profileUtils
         const verified = await verifyNip05Identifier(values.nip05);
         if (!verified) {
-          toast.warning("NIP-05 identifier could not be verified, but will be saved");
+          toast.warning(
+            'NIP-05 identifier could not be verified, but will be saved'
+          );
         }
       }
-      
-      // Create the event object - follows NIP-01 metadata event format
+
+      // Create the NIP-01 metadata event
       const eventToPublish = {
-        kind: 0, // Metadata event kind per NIP-01
+        kind: 0,
         content: JSON.stringify(cleanValues),
-        tags: [] // Tags for NIP-39 would go here if implemented
+        tags: [],
       };
-      
+
       // Publish the event
       const success = await nostrService.publishEvent(eventToPublish);
-      
+
       if (success) {
-        toast.success("Profile updated successfully");
-        
-        // Force refresh cached profile data with a small delay to ensure relay propagation
+        toast.success('Profile updated successfully');
+
+        // small delay to allow relay propagation, then force-refresh
         setTimeout(async () => {
-          // Clear cache first
           if (nostrService.publicKey) {
-            console.log("Refreshing profile data after update");
-            // Force refresh with the second parameter set to true
-            await nostrService.getUserProfile(nostrService.publicKey, true);
+            console.log('Refreshing profile data after update');
+            await forceRefreshProfile(nostrService.publicKey);
           }
-          
-          // Notify parent component to trigger UI refresh
           onSaved();
-        }, 1000); // Extended timeout to ensure relay propagation
+        }, 1000);
       } else {
-        toast.error("Failed to update profile");
+        toast.error('Failed to update profile');
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
-      toast.error("An error occurred while updating profile");
+      console.error('Error updating profile:', error);
+      toast.error('An error occurred while updating profile');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,15 +105,15 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
                 <TabsTrigger value="appearance">Appearance</TabsTrigger>
                 <TabsTrigger value="social">Social & Identity</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="basic" className="space-y-4 pt-4">
                 <BasicInfoTab form={form} />
               </TabsContent>
-              
+
               <TabsContent value="appearance" className="space-y-4 pt-4">
                 <AppearanceTab form={form} />
               </TabsContent>
-              
+
               <TabsContent value="social" className="space-y-4 pt-4">
                 <SocialIdentityTab
                   form={form}
@@ -121,20 +122,17 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
                 />
               </TabsContent>
             </Tabs>
-            
+
             <div className="flex justify-end space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onSaved}
                 disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
