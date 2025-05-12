@@ -94,16 +94,16 @@ export const parallelRetry = async <T>(
   options: RetryOptions,
   minSuccesses: number = 1
 ): Promise<T[]> => {
+  // Use a more precise type definition for the Promise.allSettled result
   const results = await Promise.allSettled(
     fns.map(fn => retry(fn, options))
   );
   
-  // Fix the type predicate to match parameter type
-  const successes = results
-    .filter((result): result is PromiseFulfilledResult<T> => 
-      result.status === 'fulfilled'
-    )
-    .map(result => result.value);
+  // Fix the type predicate to properly filter only fulfilled results
+  // Use a more specific type guard function
+  const successes = results.filter(
+    (result): result is PromiseFulfilledResult<T> => result.status === 'fulfilled'
+  ).map(result => result.value);
   
   if (successes.length >= minSuccesses) {
     return successes;

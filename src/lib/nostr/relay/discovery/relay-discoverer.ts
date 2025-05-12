@@ -155,6 +155,7 @@ export class RelayDiscoverer {
           oneose: () => {
             clearTimeout(timeoutId);
             resolve(events);
+            // Fix: Pass subscription identifier directly, not as an array
             this.pool.close(subscription);
           }
         });
