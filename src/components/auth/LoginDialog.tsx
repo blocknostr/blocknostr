@@ -102,8 +102,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-5",
-        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[85vh] overflow-y-auto",
+        "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-4",
+        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh]",
         "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70"
       )}>
         <div className={cn(
@@ -118,7 +118,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         <DialogHeader animateIn={animateIn} />
 
         <div className={cn(
-          "mt-3 transition-all duration-500 ease-out", 
+          "mt-2 transition-all duration-500 ease-out", 
           animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
         )}>
           {/* Success Connection Status */}
@@ -132,7 +132,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
               onValueChange={(value) => setActiveTab(value as "extension" | "manual")}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-2 mb-4 w-full">
+              <TabsList className="grid grid-cols-2 mb-3 w-full">
                 <TabsTrigger 
                   value="extension" 
                   className={cn(
@@ -157,7 +157,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
               <TabsContent 
                 value="extension" 
                 className={cn(
-                  "space-y-4 transition-all duration-300",
+                  "transition-all duration-300",
                   activeTab === "extension" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                 )}
               >
@@ -173,7 +173,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
               <TabsContent 
                 value="manual" 
                 className={cn(
-                  "space-y-4 transition-all duration-300",
+                  "transition-all duration-300",
                   activeTab === "manual" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                 )}
               >
@@ -182,7 +182,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
             </Tabs>
           )}
           
-          <div className="pt-3 border-t border-border/20 mt-4">
+          <div className="pt-2 border-t border-border/20 mt-3">
             <p className="text-xs text-muted-foreground text-center">
               New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Learn more
