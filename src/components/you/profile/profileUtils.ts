@@ -195,7 +195,7 @@ export async function publishProfileWithFallback(
           const eventId = await nostrService.publishEvent({
             ...full,
             id
-          }, [url]);
+          });
           
           if (eventId) {
             console.log(`[PUBLISH] Successfully published to relay: ${url}`);
