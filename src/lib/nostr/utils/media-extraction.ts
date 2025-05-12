@@ -163,12 +163,31 @@ export const extractMediaUrls = (
 
 /**
  * Extract detailed media information including metadata from event
+ * Fixed to accept both direct params and event object
  */
-export const extractMediaItems = (event?: NostrEvent): MediaItem[] => {
-  if (!event) return [];
+export const extractMediaItems = (
+  eventOrContent: NostrEvent | string | { content?: string; tags?: string[][] },
+  maybeTags?: string[][]
+): MediaItem[] => {
+  let content: string | undefined;
+  let tags: string[][] | undefined;
   
-  const content = event.content;
-  const tags = event.tags;
+  // Handle different parameter formats
+  if (typeof eventOrContent === 'string') {
+    // Called with (content, tags)
+    content = eventOrContent;
+    tags = maybeTags;
+  } else if (eventOrContent && typeof eventOrContent === 'object') {
+    if ('content' in eventOrContent) {
+      // Called with object that has content property
+      content = eventOrContent.content;
+      tags = 'tags' in eventOrContent ? eventOrContent.tags : undefined;
+    } else {
+      // Assume it's a NostrEvent
+      content = (eventOrContent as NostrEvent).content;
+      tags = (eventOrContent as NostrEvent).tags;
+    }
+  }
   
   const mediaItems: MediaItem[] = [];
   const urls: Set<string> = new Set();

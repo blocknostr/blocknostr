@@ -12,5 +12,17 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'src/lib/nostr/utils/*.ts'
-  ]
+  ],
+  // Add TypeScript-specific configuration
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+    }],
+  },
+  // Add global support for Jest types
+  globals: {
+    'ts-jest': {
+      isolatedModules: true
+    }
+  }
 };

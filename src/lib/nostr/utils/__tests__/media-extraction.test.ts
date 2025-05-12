@@ -62,7 +62,8 @@ describe('Media URL Extraction', () => {
       ['image', 'https://example.com/tagged.png', 'alt text']
     ];
     
-    const items = extractMediaItems(content, tags);
+    // Fix this call - using event object instead of just content and tags
+    const items = extractMediaItems({ content, tags }); 
     
     expect(items.length).toBe(3);
     
