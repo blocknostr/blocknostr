@@ -68,8 +68,6 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         // Force refresh cached profile data
         await nostrService.getUserProfile(nostrService.publicKey, true);
         
-        // Trigger a refresh of the profile data
-        await profileData.refreshProfile();
         
         // Notify parent component
         onSaved();
