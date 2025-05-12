@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,54 +29,50 @@ const ProfileEditor = ({
   onProfileUpdated
 }: ProfileEditorProps) => {
   const [retryCount, setRetryCount] = useState(0);
-
-  const connectWithRetries = async (maxRetries = 3, delay = 2000) => {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`[PROFILE EDITOR] Attempt ${attempt} to connect to relays...`);
-      try {
-        await nostrService.connectToDefaultRelays();
-        const relays = nostrService.getRelayStatus();
-        const connectedRelays = relays.filter(r => r.status === 'connected');
-        if (connectedRelays.length > 0) {
-          console.log(`[PROFILE EDITOR] Connected to ${connectedRelays.length} relays:`, connectedRelays.map(r => r.url));
-          return connectedRelays;
-        }
-        console.log(`[PROFILE EDITOR] No relays connected on attempt ${attempt}`);
-      } catch (error) {
-        console.error(`[PROFILE EDITOR] Relay connection attempt ${attempt} failed:`, error);
-      }
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
-      }
-    }
-    throw new Error("Failed to connect to any relays after multiple attempts");
-  };
-
+  
   const handleSubmit = async (values: ProfileFormValues) => {
     try {
       console.log("[PROFILE EDITOR] Starting profile update with values:", values);
-
-      // Check and connect to relays
-      let connectedRelays;
-      try {
-        connectedRelays = await connectWithRetries();
-      } catch (error) {
-        console.error("[PROFILE EDITOR] Relay connection failed:", error);
-        toast.error("Cannot connect to relays. Please check your network and try again.");
-        return;
+      
+      // Check relay connections first
+      const relays = nostrService.getRelayStatus();
+      console.log("[PROFILE EDITOR] Current relay status:", relays);
+      const connectedRelays = relays.filter(r => r.status === 'connected');
+      
+      if (connectedRelays.length === 0) {
+        console.log("[PROFILE EDITOR] No connected relays found, connecting to default relays...");
+        try {
+          await nostrService.connectToDefaultRelays();
+          // Check connection status after attempt
+          const updatedRelays = nostrService.getRelayStatus();
+          console.log("[PROFILE EDITOR] Relay status after connection attempt:", updatedRelays);
+          
+          // Verify we have connections
+          if (!updatedRelays.some(r => r.status === 'connected')) {
+            toast.error("Unable to connect to relays. Please check your connection and try again.");
+            return;
+          }
+        } catch (connError) {
+          console.error("[PROFILE EDITOR] Failed to connect to relays:", connError);
+          toast.error("Unable to connect to relays. Please check your connection and try again.");
+          return;
+        }
+      } else {
+        console.log("[PROFILE EDITOR] Connected relays:", connectedRelays.map(r => r.url));
       }
-
-      // Sanitize image URLs
+      
+      // Process image URLs to fix any relative paths
       if (values.picture) {
         values.picture = sanitizeImageUrl(values.picture);
         console.log("[PROFILE EDITOR] Sanitized picture URL:", values.picture);
       }
+      
       if (values.banner) {
         values.banner = sanitizeImageUrl(values.banner);
         console.log("[PROFILE EDITOR] Sanitized banner URL:", values.banner);
       }
-
-      // Prepare metadata
+      
+      // Prepare metadata object
       const metadata: NostrProfileMetadata = {
         name: values.name,
         display_name: values.display_name,
@@ -84,40 +81,45 @@ const ProfileEditor = ({
         banner: values.banner,
         website: values.website,
         nip05: values.nip05,
-        twitter: values.twitter ? values.twitter.replace('@', '') : ''
+        twitter: values.twitter ? values.twitter.replace('@', '') : '' // Remove @ if present
       };
-
+      
       console.log("[PROFILE EDITOR] Prepared metadata:", metadata);
-
-      // Create event
+      
+      // Create the event object to publish - fix the type by making required properties explicit
       const eventToPublish: Pick<UnsignedEvent, 'kind' | 'content' | 'tags'> = {
         kind: 0,
         content: JSON.stringify(metadata),
         tags: []
       };
-
+      
       console.log("[PROFILE EDITOR] Event to publish:", eventToPublish);
-
-      // Get relay URLs
-      let relayUrls = connectedRelays.map(r => r.url);
+      
+      // Get relay URLs for potential fallback publishing
+      const relayUrls = connectedRelays.map(r => r.url);
+      
+      // Add some known good relays if we don't have many connections
       if (relayUrls.length < 3) {
         const additionalRelays = [
           "wss://relay.damus.io",
           "wss://nos.lol",
           "wss://relay.snort.social"
         ];
+        
         for (const url of additionalRelays) {
           if (!relayUrls.includes(url)) {
             relayUrls.push(url);
           }
         }
       }
-
-      // Publish with fallback
+      
+      // Use our enhanced publishing function with fallbacks
       const publishResult = await publishProfileWithFallback(eventToPublish, relayUrls);
-
+      
       if (publishResult.success) {
-        toast.success(`Profile updated successfully on ${publishResult.successfulRelays.length} relay(s)`);
+        toast.success("Profile updated successfully");
+        
+        // Trigger a custom event to notify components of the profile update
         if (nostrService.publicKey) {
           console.log("[PROFILE EDITOR] Broadcasting profilePublished event with eventId:", publishResult.eventId);
           window.dispatchEvent(new CustomEvent('profilePublished', { 
@@ -127,55 +129,83 @@ const ProfileEditor = ({
             } 
           }));
         }
+        
+        // Reset retry count on success
         setRetryCount(0);
+        
+        // Close dialog and refresh profile
         onClose();
         onProfileUpdated();
       } else {
-        console.error("[PROFILE EDITOR] Profile update failed:", publishResult);
-        if (publishResult.error?.includes('authorization') || publishResult.error?.includes('Unauthorized')) {
-          toast.error(
-            "Authentication failed. Please ensure your Nostr extension is connected to the correct account and try again.",
-            { duration: 8000 }
-          );
-        } else if (publishResult.error?.includes('proof-of-work') || publishResult.error?.includes('pow:')) {
-          toast.error(
-            "Some relays require proof-of-work, which is not supported. Retrying with other relays...",
-            { duration: 5000 }
-          );
-          if (retryCount < 2) {
-            setRetryCount(retryCount + 1);
-            setTimeout(() => handleSubmit(values), 1500);
+        // Display specific error if available
+        console.error("[PROFILE EDITOR] Profile update failed:", publishResult.error);
+        
+        if (publishResult.error?.includes("authorization") || publishResult.error?.includes("Unauthorized")) {
+          toast.error("Your Nostr extension doesn't match your current identity. Try disconnecting and reconnecting.", {
+            duration: 6000
+          });
+        } else if (publishResult.error?.includes("proof-of-work") || publishResult.error?.includes("pow:")) {
+          toast.error("This relay requires proof-of-work which is not supported. We'll try different relays automatically.", {
+            duration: 4000
+          });
+          
+          // Increment retry count
+          const newRetryCount = retryCount + 1;
+          setRetryCount(newRetryCount);
+          
+          // If we haven't tried too many times, attempt with different relays
+          if (newRetryCount <= 2) {
+            toast.loading("Trying alternative relays...");
+            
+            // Try with specifically non-POW relays
+            setTimeout(() => {
+              handleSubmit(values);
+            }, 1500);
             return;
           }
-        } else if (publishResult.error?.includes('no active subscription')) {
-          toast.error(
-            "Lost connection to relays. Attempting to reconnect...",
-            { duration: 5000 }
-          );
-          if (retryCount < 2) {
-            setRetryCount(retryCount + 1);
-            setTimeout(() => handleSubmit(values), 1500);
-            return;
+        } else if (publishResult.error?.includes("no active subscription")) {
+          toast.error("Connection to relays was lost. Reconnecting...", {
+            duration: 3000
+          });
+          
+          // Try reconnecting to relays and retry once
+          try {
+            await nostrService.connectToDefaultRelays();
+            
+            // Increment retry count
+            const newRetryCount = retryCount + 1;
+            setRetryCount(newRetryCount);
+            
+            // If we haven't tried too many times, retry
+            if (newRetryCount <= 2) {
+              setTimeout(() => {
+                handleSubmit(values);
+              }, 1500);
+              return;
+            }
+          } catch (reconnectError) {
+            console.error("[PROFILE EDITOR] Reconnection failed:", reconnectError);
+            toast.error("Failed to reconnect to relays");
           }
         } else {
-          toast.error(
-            publishResult.error || 
-            `Failed to update profile. Details: ${publishResult.failedRelays.map(r => `${r.url}: ${r.error}`).join(', ')}`,
-            { duration: 8000 }
-          );
+          toast.error(publishResult.error || "Failed to update profile");
         }
       }
     } catch (error) {
       console.error("[PROFILE EDITOR] Error updating profile:", error);
-      toast.error("An unexpected error occurred while updating profile", { duration: 8000 });
+      toast.error("An error occurred while updating profile");
     }
   };
-
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+        {/* Basic profile fields */}
         <ProfileBasicFields form={form} />
+        
+        {/* External links fields */}
         <ExternalLinksFields form={form} />
+        
         <DialogFooter>
           <Button 
             type="button" 
