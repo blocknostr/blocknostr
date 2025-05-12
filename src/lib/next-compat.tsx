@@ -2,22 +2,22 @@
 'use client';
 
 import React from 'react';
-import { useRouter as nextUseRouter, usePathname as nextUsePathname, useSearchParams as nextUseSearchParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
 // Next.js router compatibility layer for old React Router code
 export function useReactRouterCompat() {
-  const nextRouter = nextUseRouter();
-  const pathname = nextUsePathname();
-  const searchParams = nextUseSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   return {
     navigate: (url: string, options?: { replace?: boolean }) => {
       if (options?.replace) {
-        nextRouter.replace(url);
+        router.replace(url);
       } else {
-        nextRouter.push(url);
+        router.push(url);
       }
     },
     location: {
@@ -28,20 +28,18 @@ export function useReactRouterCompat() {
 }
 
 // Export Next.js navigation hooks directly
-export const useRouter = nextUseRouter;
-export const usePathname = nextUsePathname;
-export const useSearchParams = nextUseSearchParams;
+export { useRouter, usePathname, useSearchParams };
 
 // Define a compatibility version of useNavigate
 export function useNavigate() {
-  const router = nextUseRouter();
-  return (url: string, options?: { replace?: boolean }) => {
+  const router = useRouter();
+  return React.useCallback((url: string, options?: { replace?: boolean }) => {
     if (options?.replace) {
       router.replace(url);
     } else {
       router.push(url);
     }
-  };
+  }, [router]);
 }
 
 // Export Next.js Image and Link components

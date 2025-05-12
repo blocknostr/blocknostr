@@ -1,9 +1,10 @@
+
 'use client';
 
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/lib/next-compat";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface BackButtonProps {

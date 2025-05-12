@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import PageHeader from "@/components/navigation/PageHeader";
 import PageBreadcrumbs from "@/components/navigation/PageBreadcrumbs";
 import { useHapticFeedback } from "@/hooks/use-haptic-feedback";
-import { useLocation } from "@/lib/next-app-router-shim";
+import { usePathname } from "@/lib/next-compat";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface HeaderSectionProps {
@@ -16,7 +16,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
   isMobile,
   setLeftPanelOpen,
 }) => {
-  const location = useLocation();
+  const pathname = usePathname();
   const { parentRoute, getParentRoute } = useNavigation();
   const { triggerHaptic } = useHapticFeedback();
   const [breadcrumbs, setBreadcrumbs] = useState<Array<{label: string; path: string; isCurrentPage?: boolean}>>([]);
@@ -36,7 +36,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
 
   // Generate breadcrumbs based on current location
   useEffect(() => {
-    const path = location.pathname;
+    const path = pathname || '/';
     const newBreadcrumbs = [];
     
     // Skip breadcrumbs for home page
@@ -71,7 +71,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
     });
     
     setBreadcrumbs(newBreadcrumbs);
-  }, [location.pathname, parentRoute, getParentRoute]);
+  }, [pathname, parentRoute, getParentRoute]);
 
   // Determine page title based on current route
   const getPageTitle = (path: string) => {
@@ -98,7 +98,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
   };
 
   // Show back button on pages that aren't the home page
-  const shouldShowBackButton = () => location.pathname !== '/';
+  const shouldShowBackButton = () => pathname !== '/';
 
   // Show breadcrumbs only on deeper pages, not top-level sections
   const shouldShowBreadcrumbs = () => breadcrumbs.length > 1;
@@ -114,7 +114,7 @@ const HeaderSection: React.FC<HeaderSectionProps> = ({
       isScrolled ? "shadow-sm backdrop-blur-sm bg-background/95" : ""
     )}>
       <PageHeader 
-        title={getPageTitle(location.pathname)}
+        title={getPageTitle(pathname || '/')}
         showBackButton={shouldShowBackButton()}
         className="bg-transparent border-b border-border/50"
       >
