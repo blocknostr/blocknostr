@@ -1,8 +1,5 @@
 
 import React, { useState } from 'react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
@@ -26,7 +23,7 @@ interface EditProfileSectionProps {
 
 const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { form, isNip05Verified, isNip05Verifying, setIsNip05Verified } = useProfileForm(profileData);
+  const { form, isNip05Verified, isNip05Verifying } = useProfileForm({ profileData });
 
   const onSubmit = async (values: any) => {
     if (!nostrService.publicKey) {
@@ -48,7 +45,6 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
-        // Fix: Call verifyNip05Identifier with only one argument
         const isValid = await verifyNip05Identifier(values.nip05);
         if (!isValid) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");
@@ -62,7 +58,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         tags: [] // Tags for NIP-39 would go here if implemented
       };
       
-      // If Twitter is provided, add NIP-39 tag (basic implementation)
+      // If Twitter is provided, add NIP-39 tag
       if (values.twitter) {
         const username = values.twitter.replace('@', '').trim();
         if (username) {

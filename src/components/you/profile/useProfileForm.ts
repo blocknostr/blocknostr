@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { nostrService } from '@/lib/nostr';
-import { verifyNip05Identifier } from './profileUtils';
+import { verifyNip05Identifier, nip05Utils } from './profileUtils';
+import { isValidNip05Format } from '@/lib/nostr/utils/nip/nip05';
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -14,9 +15,12 @@ const profileFormSchema = z.object({
   picture: z.string().url().optional().or(z.string().length(0)),
   banner: z.string().url().optional().or(z.string().length(0)),
   website: z.string().url().optional().or(z.string().length(0)),
-  nip05: z.string().optional(),
+  nip05: z.string().optional()
+    .refine(val => !val || isValidNip05Format(val), {
+      message: "Invalid NIP-05 format. Should be username@domain.tld"
+    }),
   lud16: z.string().optional(), // Lightning address
-  twitter: z.string().optional(),
+  twitter: z.string().optional(), // Twitter without @
   github: z.string().optional(),
   mastodon: z.string().optional(),
   nostr: z.string().optional()
@@ -24,7 +28,11 @@ const profileFormSchema = z.object({
 
 export type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-export function useProfileForm(profileData: any) {
+interface UseProfileFormProps {
+  profileData: any;
+}
+
+export function useProfileForm({ profileData }: UseProfileFormProps) {
   const [isNip05Verified, setIsNip05Verified] = useState<boolean | null>(null);
   const [isNip05Verifying, setIsNip05Verifying] = useState(false);
 
@@ -32,18 +40,18 @@ export function useProfileForm(profileData: any) {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: profileData.profileData?.name || '',
-      display_name: profileData.profileData?.display_name || '',
-      about: profileData.profileData?.about || '',
-      picture: profileData.profileData?.picture || '',
-      banner: profileData.profileData?.banner || '',
-      website: profileData.profileData?.website || '',
-      nip05: profileData.profileData?.nip05 || '',
-      lud16: profileData.profileData?.lud16 || '',
-      twitter: profileData.profileData?.twitter || '',
-      github: profileData.profileData?.github || '',
-      mastodon: profileData.profileData?.mastodon || '',
-      nostr: profileData.profileData?.nostr || ''
+      name: profileData?.name || '',
+      display_name: profileData?.display_name || '',
+      about: profileData?.about || '',
+      picture: profileData?.picture || '',
+      banner: profileData?.banner || '',
+      website: profileData?.website || '',
+      nip05: profileData?.nip05 || '',
+      lud16: profileData?.lud16 || '',
+      twitter: profileData?.twitter || '',
+      github: profileData?.github || '',
+      mastodon: profileData?.mastodon || '',
+      nostr: profileData?.nostr || ''
     }
   });
 
@@ -51,28 +59,37 @@ export function useProfileForm(profileData: any) {
   const nip05Value = form.watch('nip05');
   
   useEffect(() => {
+    let timeoutId: number | null = null;
+    
     if (nip05Value) {
-      const timeoutId = setTimeout(async () => {
-        await checkNip05(nip05Value);
-      }, 1000);
-      
-      return () => clearTimeout(timeoutId);
+      // Only verify if the format is valid
+      if (isValidNip05Format(nip05Value)) {
+        setIsNip05Verifying(true);
+        timeoutId = window.setTimeout(async () => {
+          await verifyNip05ForCurrentUser(nip05Value);
+        }, 800); // Debounce verification
+      } else {
+        setIsNip05Verified(false);
+      }
     } else {
       setIsNip05Verified(null);
     }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [nip05Value]);
 
   // Function to verify NIP-05 identifier
-  async function checkNip05(identifier: string) {
+  async function verifyNip05ForCurrentUser(identifier: string) {
     if (!identifier || !nostrService.publicKey) {
       setIsNip05Verified(null);
       return false;
     }
     
-    setIsNip05Verifying(true);
-    setIsNip05Verified(null);
-    
     try {
+      setIsNip05Verifying(true);
+      
       // Call the utility function with one argument (the identifier)
       const isValid = await verifyNip05Identifier(identifier);
       setIsNip05Verified(isValid);
@@ -91,6 +108,6 @@ export function useProfileForm(profileData: any) {
     isNip05Verified,
     isNip05Verifying,
     setIsNip05Verified,
-    verifyNip05Identifier: checkNip05 // Rename to prevent confusion with imported function
+    verifyNip05: verifyNip05ForCurrentUser
   };
 }

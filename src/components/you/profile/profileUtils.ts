@@ -1,5 +1,5 @@
 
-import { verifyNip05 } from '@/lib/nostr/nip05';
+import { verifyNip05, verifyNip05ForPubkey, isValidNip05Format, formatNip05 } from '@/lib/nostr/utils/nip/nip05';
 import { nostrService } from '@/lib/nostr';
 
 /**
@@ -11,13 +11,20 @@ export async function verifyNip05Identifier(identifier: string): Promise<boolean
   if (!identifier || !nostrService.publicKey) return false;
   
   try {
-    // Call verifyNip05 to get the pubkey for the identifier
-    const pubkey = await verifyNip05(identifier);
-    
-    // Check if the returned pubkey matches the current user's pubkey
-    return pubkey === nostrService.publicKey;
+    // Verify that the NIP-05 identifier resolves to the current user's pubkey
+    return await verifyNip05ForPubkey(identifier, nostrService.publicKey);
   } catch (error) {
     console.error("Error verifying NIP-05:", error);
     return false;
   }
 }
+
+/**
+ * Provides utility functions for working with NIP-05 identifiers
+ */
+export const nip05Utils = {
+  isValidFormat: isValidNip05Format,
+  format: formatNip05,
+  verify: verifyNip05,
+  verifyForCurrentUser: verifyNip05Identifier
+};

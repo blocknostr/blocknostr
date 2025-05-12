@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { checkXVerification } from "@/lib/nostr/utils/nip/nip39";
 import { isValidNip05Format } from "@/lib/nostr/utils/nip/nip05";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface YouHeaderProps {
   profileData: any;
@@ -47,6 +48,9 @@ const YouHeader = ({ profileData, isEditing, toggleEditing }: YouHeaderProps) =>
   }
 
   const displayName = profile?.display_name || profile?.name || "Your Profile";
+  const npubShort = profileData.hexNpub ? 
+    `${profileData.hexNpub.substring(0, 6)}...${profileData.hexNpub.substring(profileData.hexNpub.length - 6)}` : 
+    'npub...';
   
   return (
     <Card className="border shadow-md bg-card">
@@ -57,34 +61,61 @@ const YouHeader = ({ profileData, isEditing, toggleEditing }: YouHeaderProps) =>
               <img 
                 src={profile.picture} 
                 alt={displayName}
-                className="h-14 w-14 rounded-full object-cover border border-border"
+                className="h-16 w-16 rounded-full object-cover border border-border"
               />
             ) : (
-              <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center text-lg font-medium">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-xl font-medium">
                 {displayName[0]?.toUpperCase()}
               </div>
             )}
             
             <div className="ml-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-xl font-semibold">{displayName}</h2>
                 <div className="flex gap-1.5">
                   {hasValidNip05 && (
-                    <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                      {nip05Identifier}
-                    </Badge>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                            {nip05Identifier}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Verified NIP-05 identifier</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                   
                   {xVerified && (
-                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/30">
-                      X Verified
-                    </Badge>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/30">
+                            X Verified
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>X/Twitter account verified via NIP-39</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
               </div>
-              <p className="text-muted-foreground text-sm">
-                {profileData.hexNpub}
-              </p>
+              <div className="mt-1 flex items-center">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-muted-foreground text-sm cursor-help">{npubShort}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="font-mono text-xs">{profileData.hexNpub}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </div>
           
@@ -93,9 +124,9 @@ const YouHeader = ({ profileData, isEditing, toggleEditing }: YouHeaderProps) =>
               variant="outline" 
               size="sm"
               onClick={handleRefresh}
-              disabled={loading}
+              disabled={loading || profileData.connectionStatus === 'connecting'}
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             

@@ -1,11 +1,13 @@
 
 import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, Info } from 'lucide-react';
 import { ProfileFormValues } from './useProfileForm';
+import { formatNip05 } from '@/lib/nostr/utils/nip/nip05';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SocialIdentityTabProps {
   form: UseFormReturn<ProfileFormValues>;
@@ -19,18 +21,43 @@ const SocialIdentityTab: React.FC<SocialIdentityTabProps> = ({
   isNip05Verifying 
 }) => {
   const nip05Value = form.watch('nip05');
+  const formattedNip05 = nip05Value ? formatNip05(nip05Value) : null;
 
   return (
-    <>
+    <div className="space-y-4">
+      <div className="mb-4">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Add identity verification to your profile
+        </h3>
+      </div>
+
       <FormField
         control={form.control}
         name="nip05"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>NIP-05 Identifier</FormLabel>
+            <FormLabel>
+              <span className="flex items-center gap-1">
+                NIP-05 Identifier
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-80">
+                      <p>NIP-05 links your Nostr public key to a human-readable identifier (similar to an email address).</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </span>
+            </FormLabel>
             <FormControl>
               <div className="relative">
-                <Input placeholder="you@example.com" {...field} />
+                <Input 
+                  placeholder="you@example.com" 
+                  {...field} 
+                  className={isNip05Verified === true ? "pr-8 border-green-500/50" : "pr-8"} 
+                />
                 {nip05Value && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     {isNip05Verifying ? (
@@ -44,8 +71,11 @@ const SocialIdentityTab: React.FC<SocialIdentityTabProps> = ({
                 )}
               </div>
             </FormControl>
+            <FormDescription>
+              Provides human-readable verification for your profile
+            </FormDescription>
             {isNip05Verified === false && nip05Value && (
-              <Alert variant="warning" className="py-2">
+              <Alert variant="warning" className="py-2 mt-2">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   This NIP-05 identifier cannot be verified
@@ -64,8 +94,19 @@ const SocialIdentityTab: React.FC<SocialIdentityTabProps> = ({
           <FormItem>
             <FormLabel>Twitter/X Username</FormLabel>
             <FormControl>
-              <Input placeholder="username (without @)" {...field} />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
+                <Input 
+                  placeholder="username (without @)" 
+                  {...field} 
+                  value={field.value?.replace('@', '') || ''} 
+                  className="pl-8" 
+                />
+              </div>
             </FormControl>
+            <FormDescription>
+              Will be used for NIP-39 verification
+            </FormDescription>
             <FormMessage />
           </FormItem>
         )}
@@ -98,7 +139,7 @@ const SocialIdentityTab: React.FC<SocialIdentityTabProps> = ({
           </FormItem>
         )}
       />
-    </>
+    </div>
   );
 };
 

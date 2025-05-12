@@ -33,6 +33,13 @@ const YouPage = () => {
 
   // Track edit mode state locally
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Handle connection errors
+  useEffect(() => {
+    if (profileData.error) {
+      toast.error(profileData.error);
+    }
+  }, [profileData.error]);
 
   if (loading) {
     return (
@@ -54,7 +61,7 @@ const YouPage = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex-1 ml-0 md:ml-64">
-        <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+        <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b">
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Your Profile</h1>
           </div>
@@ -68,9 +75,9 @@ const YouPage = () => {
             toggleEditing={() => setIsEditing(!isEditing)} 
           />
 
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left side: Edit form or profile stats based on mode */}
-            <div>
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
+            {/* Left side: Edit form or profile stats based on mode (takes 3/5 of grid) */}
+            <div className="lg:col-span-3 space-y-6">
               {isEditing ? (
                 <EditProfileSection 
                   profileData={profileData} 
@@ -107,8 +114,8 @@ const YouPage = () => {
               )}
             </div>
             
-            {/* Right side: Always show profile preview */}
-            <div>
+            {/* Right side: Always show profile preview (takes 2/5 of grid) */}
+            <div className="lg:col-span-2">
               <ProfilePreview profileData={profileData} />
             </div>
           </div>
