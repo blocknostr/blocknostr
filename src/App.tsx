@@ -39,7 +39,27 @@ function App() {
             </Route>
           </Routes>
         </main>
-        <Toaster position="bottom-right" closeButton />
+        <Toaster 
+          position="bottom-right" 
+          closeButton 
+          theme="dark"
+          richColors
+          toastOptions={{
+            duration: 4000,
+            className: "nostr-toast",
+            style: { 
+              background: "hsl(var(--background))",
+              border: "1px solid hsl(var(--border))",
+              color: "hsl(var(--foreground))",
+            },
+          }}
+          // Configure the stacking behavior - newer toasts on top, oldest removed first
+          offset="16px"
+          gap={8}
+          // Ensure smooth animations when toasts move up as older ones disappear
+          visibleToasts={5}
+          expand={false}
+        />
       </div>
     </BrowserRouter>
   );
