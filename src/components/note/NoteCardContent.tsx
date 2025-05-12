@@ -39,14 +39,20 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
-  // Extract hashtags from tags array
-  const hashtags = (tagsToUse || [])
-    .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 't')
-    .map(tag => tag[1]);
+  // Extract hashtags from tags array - add null safety checks
+  const hashtags = useMemo(() => {
+    if (!Array.isArray(tagsToUse)) return [];
+    
+    return tagsToUse
+      .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 't')
+      .map(tag => tag[1]);
+  }, [tagsToUse]);
   
   // Extract media URLs from content and tags
   const mediaUrls = useMemo(() => {
-    // ... keep existing code (media URL extraction logic)
+    // Ensure tagsToUse is an array
+    if (!Array.isArray(tagsToUse)) return [];
+    
     const urlsFromContent: string[] = [];
     const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/gi;
     let match;
@@ -57,7 +63,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     }
     
     // Extract from tags - ensure tagsToUse is an array
-    const urlsFromTags = (tagsToUse || [])
+    const urlsFromTags = tagsToUse
       .filter(tag => Array.isArray(tag) && tag.length >= 2 && (tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r'))
       .map(tag => tag[1])
       .filter(url => url && url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
@@ -67,7 +73,8 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
-  const handleHashtagClick = (tag: string) => {
+  const handleHashtagClick = (e: React.MouseEvent, tag: string) => {
+    e.stopPropagation();
     // Dispatch custom event to be caught by parent components
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
@@ -121,9 +128,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={(_, clickedTag) => {
-                handleHashtagClick(clickedTag);
-              }}
+              onClick={handleHashtagClick}
               variant="small"
             />
           ))}

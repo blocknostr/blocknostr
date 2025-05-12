@@ -33,7 +33,10 @@ const ProfileTabs = ({
   // Fetch profiles for posts in the reactions tab
   useEffect(() => {
     const fetchReactionProfiles = async () => {
-      if (!reactions || !referencedEvents) return;
+      // Add null checks for reactions and referencedEvents
+      if (!reactions || !Array.isArray(reactions) || reactions.length === 0 || !referencedEvents) {
+        return;
+      }
       
       setLoadingReactionProfiles(true);
       
@@ -44,14 +47,18 @@ const ProfileTabs = ({
       
       // Fetch profiles for all authors
       for (const pubkey of authorPubkeys) {
-        await fetchProfileData(pubkey);
+        try {
+          await fetchProfileData(pubkey);
+        } catch (error) {
+          console.error(`Error fetching profile for ${pubkey}:`, error);
+        }
       }
       
       setLoadingReactionProfiles(false);
     };
     
     fetchReactionProfiles();
-  }, [reactions, referencedEvents]);
+  }, [reactions, referencedEvents, fetchProfileData]);
   
   return (
     <div className="mt-6">
@@ -153,16 +160,16 @@ const ProfileTabs = ({
         
         {/* Likes Tab - Now implemented with NIP-25 */}
         <TabsContent value="likes" className="mt-4">
-          {!reactions || reactions.length === 0 ? (
+          {!reactions || !Array.isArray(reactions) || reactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No likes found.
             </div>
           ) : (
             <div className="space-y-4">
               {reactions.map(reactionEvent => {
-                // Safely extract the eventId from tags
+                // Safely extract the eventId from tags with null checks
                 let eventId = '';
-                if (reactionEvent.tags && Array.isArray(reactionEvent.tags)) {
+                if (reactionEvent && reactionEvent.tags && Array.isArray(reactionEvent.tags)) {
                   const eTag = reactionEvent.tags.find(tag => 
                     Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
                   );
@@ -180,8 +187,8 @@ const ProfileTabs = ({
                   );
                 }
                 
-                // Get the profile data for the author of the original post
-                const originalAuthorProfileData = originalEvent.pubkey && profiles[originalEvent.pubkey];
+                // Get the profile data for the author of the original post with null checks
+                const originalAuthorProfileData = originalEvent.pubkey && profiles ? profiles[originalEvent.pubkey] : undefined;
                 
                 return (
                   <NoteCard 

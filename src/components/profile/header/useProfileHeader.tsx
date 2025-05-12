@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr/cache/content-cache'; 
 import { verifyNip05, checkXVerification } from '@/lib/nostr/utils/nip-utilities';
+import { toast } from 'sonner';
 
 export function useProfileHeader(profileData: any, npub: string, pubkeyHex: string) {
   const [nip05Verified, setNip05Verified] = useState<boolean | null>(null);
@@ -34,6 +35,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   // Check for X verification status from profile according to NIP-39
   useEffect(() => {
     if (profileData) {
+      // Add null check for tags before processing
       const verification = checkXVerification(profileData);
       setXVerified(verification.xVerified);
       setXVerifiedInfo(verification.xVerifiedInfo);
@@ -53,47 +55,27 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
           return;
         }
         
-        // Subscribe to oldest metadata events to find creation date
-        const subId = nostrService.subscribe(
-          [
-            {
-              kinds: [0], // Metadata events
-              authors: [pubkeyHex],
-              limit: 10,
-              // Request oldest events first
-              until: Math.floor(Date.now() / 1000)
-            }
-          ],
-          (events) => {
-            // If we received multiple events, sort them to find the oldest
-            if (Array.isArray(events)) {
-              events.sort((a, b) => a.created_at - b.created_at);
-              if (events.length > 0) {
-                const oldestEvent = events[0];
-                setCreationDate(new Date(oldestEvent.created_at * 1000));
-                
-                // Cache this timestamp for future reference
-                if (contentCache.getProfile(pubkeyHex)) {
-                  const existingProfile = contentCache.getProfile(pubkeyHex);
-                  contentCache.cacheProfile(pubkeyHex, {
-                    ...existingProfile,
-                    _createdAt: oldestEvent.created_at
-                  });
-                }
-              }
-            } else if (events?.created_at) {
-              // Single event response
-              setCreationDate(new Date(events.created_at * 1000));
-            }
-          }
-        );
+        // Use the ProfileService for fetching account creation date
+        const creationTimestamp = await nostrService.getAccountCreationDate(pubkeyHex);
         
-        // Cleanup subscription after a short time
-        setTimeout(() => {
-          nostrService.unsubscribe(subId);
-        }, 5000);
+        if (creationTimestamp) {
+          setCreationDate(new Date(creationTimestamp * 1000));
+          
+          // Cache this timestamp for future reference
+          if (contentCache.getProfile(pubkeyHex)) {
+            const existingProfile = contentCache.getProfile(pubkeyHex);
+            contentCache.cacheProfile(pubkeyHex, {
+              ...existingProfile,
+              _createdAt: creationTimestamp
+            });
+          }
+        } else {
+          // If no creation date found, use current timestamp as fallback
+          console.warn('No account creation date found for', pubkeyHex);
+        }
       } catch (error) {
         console.error("Error fetching account creation date:", error);
+        toast.error("Could not determine account age");
       }
     };
     
