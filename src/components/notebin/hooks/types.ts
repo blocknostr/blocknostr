@@ -1,5 +1,5 @@
 
-// Add or update the Note interface to include createdAt
+// Add or update the Note interface to include all required fields
 export interface Note {
   id: string;
   author: string;
@@ -10,5 +10,6 @@ export interface Note {
   tags?: string[];
   encrypted?: boolean;
   createdAt?: number; // Add this field for compatibility
-  event?: any; // Add event field to store the original NostrEvent
+  event: any; // Make event required, not optional
+  slug?: string; // Add slug field for compatibility with notebin
 }

@@ -24,7 +24,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   // Use content from props or from event if provided
   const contentToUse = content || event?.content || '';
   // Use tags from props or from event if provided
-  const tagsToUse = tags.length > 0 ? tags : (event?.tags || []);
+  const tagsToUse = tags?.length > 0 ? tags : (event?.tags || []);
   
   const [expanded, setExpanded] = useState(false);
   
@@ -41,7 +41,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   
   // Extract hashtags from tags array
   const hashtags = tagsToUse
-    .filter(tag => tag[0] === 't')
+    .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 't')
     .map(tag => tag[1]);
   
   // Extract media URLs from content and tags
@@ -55,9 +55,9 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       urlsFromContent.push(match[0]);
     }
     
-    // Extract from tags
-    const urlsFromTags = tagsToUse
-      .filter(tag => tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r')
+    // Extract from tags - add null check for tagsToUse
+    const urlsFromTags = (tagsToUse || [])
+      .filter(tag => Array.isArray(tag) && tag.length >= 2 && (tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r'))
       .map(tag => tag[1])
       .filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
     
@@ -78,7 +78,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       </div>
       
       {/* Media preview section */}
-      {mediaUrls.length > 0 && (
+      {mediaUrls && mediaUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
           mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
@@ -111,7 +111,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {hashtags.length > 0 && (
+      {hashtags && hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
             <HashtagButton

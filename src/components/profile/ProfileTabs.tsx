@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import NoteCard from "@/components/NoteCard";
+import NoteCard from "@/components/note/NoteCard";
 import { NostrEvent } from "@/lib/nostr";
 import { Loader2 } from "lucide-react";
 
@@ -17,11 +17,11 @@ interface ProfileTabsProps {
 }
 
 const ProfileTabs = ({ 
-  events, 
-  media, 
-  reposts, 
+  events = [], 
+  media = [], 
+  reposts = [], 
   profileData,
-  originalPostProfiles,
+  originalPostProfiles = {},
   replies = [],
   reactions = [],
   referencedEvents = {}
@@ -88,7 +88,7 @@ const ProfileTabs = ({
                 <NoteCard 
                   key={originalEvent.id} 
                   event={originalEvent} 
-                  profileData={originalEvent.pubkey ? originalPostProfiles[originalEvent.pubkey] : undefined}
+                  profileData={originalEvent.pubkey && originalPostProfiles[originalEvent.pubkey] ? originalPostProfiles[originalEvent.pubkey] : undefined}
                   repostData={{
                     reposterPubkey: repostEvent.pubkey || '',
                     reposterProfile: profileData
@@ -110,7 +110,7 @@ const ProfileTabs = ({
               {media.map(event => (
                 <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
                   <img 
-                    src={extractImageUrl(event.content)} 
+                    src={extractImageUrl(event.content || '')} 
                     alt="Media" 
                     className="h-full w-full object-cover transition-all hover:scale-105"
                     onClick={(e) => {
@@ -126,18 +126,23 @@ const ProfileTabs = ({
         
         {/* Likes Tab - Now implemented with NIP-25 */}
         <TabsContent value="likes" className="mt-4">
-          {reactions.length === 0 ? (
+          {!reactions || reactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No likes found.
             </div>
           ) : (
             <div className="space-y-4">
               {reactions.map(reactionEvent => {
-                const eventId = reactionEvent.tags?.find(tag => 
-                  Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
-                )?.[1];
+                // Safely extract the eventId from tags
+                let eventId = '';
+                if (reactionEvent.tags && Array.isArray(reactionEvent.tags)) {
+                  const eTag = reactionEvent.tags.find(tag => 
+                    Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+                  );
+                  eventId = eTag ? eTag[1] : '';
+                }
                 
-                const originalEvent = eventId ? referencedEvents[eventId] : undefined;
+                const originalEvent = eventId && referencedEvents ? referencedEvents[eventId] : undefined;
                 
                 if (!originalEvent) {
                   return (

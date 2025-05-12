@@ -9,15 +9,10 @@ import NoteCardRepostHeader from './NoteCardRepostHeader';
 import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { NostrEvent, nostrService } from '@/lib/nostr';
+import { Heart } from 'lucide-react';
 
-// Update the Note type to include createdAt
-interface Note {
-  id: string;
-  author: string;
-  content: string;
-  event: NostrEvent;
-  createdAt?: number; // Make this optional so it works with existing code
-}
+// Import the Note type from the shared location
+import { Note } from '@/components/notebin/hooks/types';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -42,7 +37,7 @@ const NoteCard = ({
   isReply = false,
   reactionData
 }: NoteCardProps) => {
-  // Set up local state
+  // Set up local state with the correct type
   const [activeReply, setActiveReply] = useState<Note | null>(null);
   
   // Use custom hook for delete dialog
@@ -59,10 +54,10 @@ const NoteCard = ({
     }
   });
 
-  const isCurrentUser = event.pubkey === nostrService.publicKey;
+  const isCurrentUser = event?.pubkey === nostrService.publicKey;
 
   const handleCardClick = () => {
-    if (event.id) {
+    if (event?.id) {
       window.location.href = `/post/${event.id}`;
     }
   };
@@ -97,14 +92,18 @@ const NoteCard = ({
       <CardContent className="p-4">
         {/* Note Header */}
         <NoteCardHeader
-          pubkey={event.pubkey}
-          createdAt={event.created_at}
+          pubkey={event?.pubkey || ''}
+          createdAt={event?.created_at || 0}
           profileData={profileData}
         />
         
         {/* Note Content */}
         <div className="mt-2">
-          <NoteCardContent event={event} />
+          <NoteCardContent 
+            content={event?.content || ''}
+            tags={event?.tags || []}
+            event={event}
+          />
         </div>
         
         {/* Note Actions */}
@@ -112,13 +111,13 @@ const NoteCard = ({
           <div className="mt-3">
             <NoteCardActions
               note={{
-                id: event.id || '',
-                author: event.pubkey || '',
-                content: event.content || '',
-                createdAt: event.created_at || 0,
+                id: event?.id || '',
+                author: event?.pubkey || '',
+                content: event?.content || '',
+                createdAt: event?.created_at || 0,
                 event: event
               }}
-              setActiveReply={setActiveReply}
+              setActiveReply={(note) => setActiveReply(note)}
             />
           </div>
         )}
@@ -134,8 +133,5 @@ const NoteCard = ({
     </Card>
   );
 };
-
-// Import the Heart icon that was missing
-import { Heart } from 'lucide-react';
 
 export default React.memo(NoteCard);
