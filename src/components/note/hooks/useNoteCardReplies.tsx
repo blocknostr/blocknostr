@@ -65,12 +65,20 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
       };
     };
     
-    const cleanup = fetchReplyCount();
+    const cleanupFunction = fetchReplyCount();
     
     // Ensure we clean up when the component unmounts or when eventId changes
     return () => {
-      if (cleanup && typeof cleanup === 'function') {
-        cleanup();
+      if (cleanupFunction && typeof cleanupFunction === 'function') {
+        // Here we're properly handling the Promise returned by the async function
+        // Instead of trying to call it directly
+        Promise.resolve(cleanupFunction).then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
+          }
+        }).catch(error => {
+          console.error("Error during cleanup:", error);
+        });
       }
     };
   }, [eventId]);
