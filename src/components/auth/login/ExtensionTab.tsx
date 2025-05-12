@@ -1,17 +1,22 @@
 
 import React from "react";
-import { CheckCircle, ExternalLink, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle, ExternalLink, AlertCircle, Fingerprint, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 
 interface ExtensionTabProps {
   hasExtension: boolean;
   connectStatus: 'idle' | 'connecting' | 'success' | 'error';
+  onConnect: () => void;
+  isLoggingIn: boolean;
 }
 
 const ExtensionTab: React.FC<ExtensionTabProps> = ({ 
   hasExtension, 
-  connectStatus
+  connectStatus,
+  onConnect,
+  isLoggingIn
 }) => {
   const clientOptions = [
     {
@@ -21,6 +26,14 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       color: "bg-gradient-to-br from-amber-400 to-amber-500",
       letter: "A",
       url: "https://getalby.com/"
+    },
+    {
+      id: "nwc",
+      name: "Nostr Wallet ID",
+      description: "NIP-07 compatible wallet",
+      color: "bg-gradient-to-br from-purple-500 to-purple-600",
+      letter: "N",
+      url: "https://nwc.getalby.com/"
     },
     {
       id: "alephium",
@@ -51,9 +64,39 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
   return (
     <div className="space-y-4">
       {hasExtension ? (
-        <div className="flex items-center p-3 bg-green-50/50 dark:bg-green-900/20 rounded-lg text-green-700 dark:text-green-300 border border-green-100 dark:border-green-800/30">
-          <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-          <span>Nostr extension detected</span>
+        <div className="flex items-center justify-between p-3 bg-green-50/50 dark:bg-green-900/20 rounded-lg text-green-700 dark:text-green-300 border border-green-100 dark:border-green-800/30">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+            <span>Nostr extension detected</span>
+          </div>
+          
+          <Button
+            onClick={onConnect}
+            size="sm"
+            disabled={isLoggingIn || connectStatus === 'success'}
+            className={cn(
+              "relative overflow-hidden ml-2 px-4",
+              "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white",
+              "transition-all duration-300 h-8"
+            )}
+          >
+            {isLoggingIn ? (
+              <div className="flex items-center">
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                <span className="text-xs">Connecting...</span>
+              </div>
+            ) : connectStatus === 'success' ? (
+              <div className="flex items-center">
+                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                <span className="text-xs">Connected</span>
+              </div>
+            ) : (
+              <div className="flex items-center">
+                <Fingerprint className="h-3.5 w-3.5 mr-1.5" />
+                <span className="text-xs">Connect</span>
+              </div>
+            )}
+          </Button>
         </div>
       ) : (
         <div className="flex items-center p-3 bg-amber-50/50 dark:bg-amber-900/20 rounded-lg text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-800/30">
@@ -63,7 +106,7 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       )}
 
       <p className="text-sm text-center text-muted-foreground mb-3">
-        {hasExtension ? "Select Connect to authorize access" : "Install one of these extensions to connect"}
+        {hasExtension ? "Select Nostr-compatible wallet to authorize access" : "Install one of these extensions to connect"}
       </p>
 
       <div className="px-1">
@@ -76,7 +119,7 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
         >
           <CarouselContent className="-ml-1">
             {clientOptions.map(client => (
-              <CarouselItem key={client.id} className="pl-1 basis-1/2 md:basis-1/2">
+              <CarouselItem key={client.id} className="pl-1 basis-1/2 md:basis-1/3">
                 <a 
                   href={client.url}
                   target="_blank" 

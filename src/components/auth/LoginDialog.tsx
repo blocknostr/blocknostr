@@ -103,7 +103,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
         "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-5",
-        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto",
+        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[85vh] overflow-y-auto",
         "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70"
       )}>
         <div className={cn(
@@ -164,6 +164,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
                 <ExtensionTab 
                   hasExtension={hasExtension} 
                   connectStatus={connectStatus} 
+                  onConnect={handleConnect}
+                  isLoggingIn={isLoggingIn}
                 />
               </TabsContent>
               
@@ -191,7 +193,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
 
         {/* Dialog Footer */}
         <DialogFooter 
-          onCancel={() => onOpenChange(false)}
           onConnect={handleConnect}
           activeTab={activeTab}
           isLoggingIn={isLoggingIn}
