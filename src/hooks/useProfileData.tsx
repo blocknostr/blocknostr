@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
 import { useProfileRelations } from './profile/useProfileRelations';
@@ -17,13 +17,15 @@ interface UseProfileDataProps {
 export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
   // State for tracking original post profiles (used in reposts)
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
+  const [refreshCounter, setRefreshCounter] = useState(0);
   
   // Get profile metadata and loading state
   const { 
     profileData, 
     loading, 
     isCurrentUser,
-    hexNpub
+    hexNpub,
+    refetch: refetchProfile
   } = useProfileMetadata({ npub, currentUserPubkey });
   
   // Log important information for debugging
@@ -51,12 +53,21 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   }, [npub, hexNpub, loading, profileData]);
   
   // Get user's posts and media
-  const { events, media } = useProfilePosts({ 
+  const { 
+    events, 
+    media, 
+    refetch: refetchPosts 
+  } = useProfilePosts({ 
     hexPubkey: hexNpub 
   });
   
   // Get followers and following
-  const { followers, following, isLoading: relationsLoading } = useProfileRelations({ 
+  const { 
+    followers, 
+    following, 
+    isLoading: relationsLoading,
+    refetch: refetchRelations
+  } = useProfileRelations({ 
     hexPubkey: hexNpub, 
     isCurrentUser 
   });
@@ -75,7 +86,11 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
   });
   
   // Get relays information
-  const { relays, setRelays } = useProfileRelays({ 
+  const { 
+    relays, 
+    setRelays,
+    refreshRelays
+  } = useProfileRelays({ 
     isCurrentUser,
     pubkey: hexNpub
   });
@@ -97,6 +112,51 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     }
   }, [events, reposts]);
   
+  // Set up listeners for refresh events
+  useEffect(() => {
+    const handleRefetchEvents = (e: Event) => {
+      console.log("Received refetch event");
+      setRefreshCounter(prev => prev + 1);
+    };
+    
+    window.addEventListener('refetchProfile', handleRefetchEvents);
+    window.addEventListener('refetchPosts', handleRefetchEvents);
+    window.addEventListener('refetchRelations', handleRefetchEvents);
+    
+    return () => {
+      window.removeEventListener('refetchProfile', handleRefetchEvents);
+      window.removeEventListener('refetchPosts', handleRefetchEvents);
+      window.removeEventListener('refetchRelations', handleRefetchEvents);
+    };
+  }, []);
+  
+  // Function to refresh all profile data
+  const refreshProfile = useCallback(async () => {
+    console.log("Refreshing all profile data");
+    
+    // Ensure we're connected to relays
+    await nostrService.connectToUserRelays();
+    
+    // Refresh relays first
+    if (refreshRelays) {
+      refreshRelays();
+    }
+    
+    // Trigger the individual refresh functions
+    if (refetchProfile) refetchProfile();
+    if (refetchPosts) refetchPosts();
+    if (refetchRelations) refetchRelations();
+    
+    // Clear cached data
+    setOriginalPostProfiles({});
+    
+    // Update the refresh counter to trigger rerender
+    setRefreshCounter(prev => prev + 1);
+    
+    // Wait a bit to allow data to load
+    return new Promise<void>(resolve => setTimeout(resolve, 1000));
+  }, [refetchProfile, refetchPosts, refetchRelations, refreshRelays]);
+  
   return {
     profileData,
     events,
@@ -111,6 +171,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     originalPostProfiles,
     isCurrentUser,
     reactions,
-    referencedEvents
+    referencedEvents,
+    refreshProfile
   };
 }

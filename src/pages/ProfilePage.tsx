@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import Sidebar from "@/components/Sidebar";
@@ -9,11 +9,15 @@ import ProfileLoading from "@/components/profile/ProfileLoading";
 import ProfileNotFound from "@/components/profile/ProfileNotFound";
 import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
+  const [refreshing, setRefreshing] = useState(false);
   
   // Use our custom hook to manage profile data and state
   const {
@@ -30,8 +34,26 @@ const ProfilePage = () => {
     originalPostProfiles,
     isCurrentUser,
     reactions,
-    referencedEvents
+    referencedEvents,
+    refreshProfile
   } = useProfileData({ npub, currentUserPubkey });
+  
+  // Handle manual refresh
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    toast.info("Refreshing profile data...");
+    
+    refreshProfile().then(() => {
+      toast.success("Profile refreshed");
+    }).catch(err => {
+      console.error("Error refreshing profile:", err);
+      toast.error("Failed to refresh profile");
+    }).finally(() => {
+      setRefreshing(false);
+    });
+  }, [refreshing, refreshProfile]);
   
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
@@ -51,8 +73,19 @@ const ProfilePage = () => {
       
       <div className="flex-1 ml-0 md:ml-64">
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex items-center h-14 px-4">
+          <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Profile</h1>
+            
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
         </header>
         
@@ -74,6 +107,7 @@ const ProfilePage = () => {
                 relays={relays}
                 onRelaysChange={setRelays}
                 userNpub={npub}
+                onRefresh={handleRefresh}
               />
               
               <ProfileTabs 

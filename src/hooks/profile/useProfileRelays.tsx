@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { adaptedNostrService } from '@/lib/nostr/nostr-adapter';
 import { Relay } from '@/lib/nostr';
@@ -20,14 +20,19 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
   const [healthCheckTimestamp, setHealthCheckTimestamp] = useState(Date.now());
   
   // Function to refresh relay status
-  const refreshRelays = () => {
+  const refreshRelays = useCallback(() => {
     if (isCurrentUser) {
       const relayStatus = adaptedNostrService.getRelayStatus();
       setRelays(relayStatus);
+      console.log("Refreshed relay status:", relayStatus.length, "relays");
+    } else if (pubkey) {
+      // Reload relays for another user
+      loadUserRelays(pubkey);
     }
+    
     // Trigger health check UI update
     setHealthCheckTimestamp(Date.now());
-  };
+  }, [isCurrentUser, pubkey]);
   
   // Load initial relay status
   useEffect(() => {
@@ -44,7 +49,7 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
       // Load relays for another user (NIP-65)
       loadUserRelays(pubkey);
     }
-  }, [isCurrentUser, pubkey]);
+  }, [isCurrentUser, pubkey, refreshRelays]);
   
   // Function to load another user's relays according to NIP-65
   const loadUserRelays = async (userPubkey: string) => {
