@@ -1,5 +1,6 @@
+
 import type { Event } from 'nostr-tools';
-import { CircuitState } from './relay/circuit/circuit-breaker';
+import type { CircuitState } from './relay/circuit/circuit-breaker';
 
 export interface NostrEvent extends Event {
   id: string;
@@ -119,4 +120,5 @@ export interface ContentCache {
   isOffline: () => boolean;
 }
 
-export { CircuitState };
+// Fix: Use export type for re-exporting CircuitState
+export type { CircuitState };

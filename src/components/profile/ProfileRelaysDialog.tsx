@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 // Define EnhancedRelay interface without extending Relay to avoid conflicts
 export interface EnhancedRelay {
   url: string;
-  status: "connecting" | "connected" | "disconnected" | "error" | "unknown" | "failed";
+  status: "connecting" | "connected" | "disconnected" | "failed" | "unknown";
   read?: boolean;
   write?: boolean;
   score?: number;
@@ -148,9 +148,9 @@ const ProfileRelaysDialog = ({
     }
   };
 
-  // Check if any relays have a "failed" status
+  // Check if any relays have a "failed" status - Fixed comparison
   const hasFailedRelays = relays.some(relay => 
-    relay.status === "error" || relay.status === "disconnected" || relay.status === "failed"
+    relay.status === "disconnected" || relay.status === "failed"
   );
 
   // Calculate relay statistics

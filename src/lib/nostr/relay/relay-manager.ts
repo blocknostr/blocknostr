@@ -78,7 +78,8 @@ export class RelayManager {
         if (result.status === 'fulfilled' && result.value) {
           relay.status = 'connected';
         } else {
-          relay.status = 'error';
+          // Fixed: Use 'failed' instead of 'error'
+          relay.status = 'failed';
         }
         
         this.relays.set(url, relay);
@@ -110,7 +111,8 @@ export class RelayManager {
         if (result.status === 'fulfilled' && result.value) {
           relay.status = 'connected';
         } else {
-          relay.status = 'error';
+          // Fixed: Use 'failed' instead of 'error'
+          relay.status = 'failed';
         }
         
         this.relays.set(url, relay);
@@ -149,10 +151,10 @@ export class RelayManager {
     } catch (error) {
       console.error(`Error connecting to relay ${url}:`, error);
       
-      // Update status
+      // Update status - Fixed: Use 'failed' instead of 'error'
       const relay = this.relays.get(url);
       if (relay) {
-        relay.status = 'error';
+        relay.status = 'failed';
         this.relays.set(url, relay);
       }
       
