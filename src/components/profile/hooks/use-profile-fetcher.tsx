@@ -8,8 +8,10 @@ export function useProfileFetcher() {
   const { profiles, fetchProfile, fetchProfiles } = useProfileCache();
   const [fetchingProfiles, setFetchingProfiles] = useState<Record<string, boolean>>({});
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [retryAttempts, setRetryAttempts] = useState<Record<string, number>>({});
+  const MAX_RETRIES = 3;
   
-  // Enhanced profile fetcher with better error handling and tracking
+  // Enhanced profile fetcher with better error handling, retries and tracking
   const fetchProfileData = async (pubkey: string) => {
     if (!pubkey) return;
     
@@ -24,13 +26,44 @@ export function useProfileFetcher() {
         
       console.log(`Profile ${pubkey} converted to hex:`, hexPubkey);
       
+      // First try to connect to relays to ensure we're ready to receive data
+      await nostrService.connectToUserRelays();
+      
+      // Add more popular relays to increase chances of finding profile data
+      await nostrService.addMultipleRelays([
+        "wss://relay.damus.io", 
+        "wss://nos.lol", 
+        "wss://relay.nostr.band",
+        "wss://relay.snort.social",
+        "wss://nostr.mutinywallet.com"
+      ]);
+      
       // Mark important profiles (like currently viewed profiles) as important for caching
       const profile = await fetchProfile(hexPubkey, { important: true });
       
       if (profile) {
         console.log("Profile fetched successfully:", profile.name || profile.display_name || hexPubkey);
+        
+        // Reset retry attempts on success
+        setRetryAttempts(prev => {
+          const updated = { ...prev };
+          delete updated[pubkey];
+          return updated;
+        });
       } else {
         console.warn("No profile data returned for:", hexPubkey);
+        
+        // Implement retry logic for failed fetches
+        const currentAttempts = retryAttempts[pubkey] || 0;
+        if (currentAttempts < MAX_RETRIES) {
+          setRetryAttempts(prev => ({ ...prev, [pubkey]: currentAttempts + 1 }));
+          
+          console.log(`Retry attempt ${currentAttempts + 1}/${MAX_RETRIES} for profile ${pubkey}`);
+          
+          // Wait a bit before retrying with exponential backoff
+          const delay = Math.min(1000 * Math.pow(2, currentAttempts), 8000);
+          setTimeout(() => fetchProfileData(pubkey), delay);
+        }
       }
       
       // Clear any previous errors
@@ -47,7 +80,18 @@ export function useProfileFetcher() {
         ...prev, 
         [pubkey]: error instanceof Error ? error.message : "Failed to fetch profile"
       }));
-      toast.error(`Couldn't load profile data`);
+      
+      const currentAttempts = retryAttempts[pubkey] || 0;
+      if (currentAttempts < MAX_RETRIES) {
+        toast.error(`Retrying profile data load (${currentAttempts + 1}/${MAX_RETRIES})`);
+        
+        // Wait before retrying with exponential backoff
+        const delay = Math.min(1000 * Math.pow(2, currentAttempts), 8000);
+        setTimeout(() => fetchProfileData(pubkey), delay);
+      } else {
+        toast.error(`Couldn't load profile data after ${MAX_RETRIES} attempts`);
+      }
+      
       return null;
     } finally {
       setFetchingProfiles(prev => ({ ...prev, [pubkey]: false }));
@@ -61,12 +105,27 @@ export function useProfileFetcher() {
     console.log(`Fetching ${pubkeys.length} profiles in batch`);
     
     try {
+      // Ensure we're connected to relays before batch fetching
+      await nostrService.connectToUserRelays();
+      
+      // Add more popular relays to increase chances of finding profiles
+      await nostrService.addMultipleRelays([
+        "wss://relay.damus.io", 
+        "wss://nos.lol", 
+        "wss://relay.nostr.band",
+        "wss://relay.snort.social"
+      ]);
+      
       const uniquePubkeys = [...new Set(pubkeys)];
       const results = await fetchProfiles(uniquePubkeys);
       
       // Log success rate
       const successCount = Object.keys(results).length;
       console.log(`Batch profile fetch: ${successCount}/${uniquePubkeys.length} profiles loaded`);
+      
+      if (successCount < uniquePubkeys.length * 0.5) {
+        console.warn("Less than 50% of profiles loaded, may indicate relay connection issues");
+      }
       
       return results;
     } catch (error) {

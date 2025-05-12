@@ -11,13 +11,15 @@ import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
   const [refreshing, setRefreshing] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   
   // Use our custom hook to manage profile data and state
   const {
@@ -27,6 +29,7 @@ const ProfilePage = () => {
     media,
     reposts,
     loading,
+    error,
     relays,
     setRelays,
     followers,
@@ -38,21 +41,60 @@ const ProfilePage = () => {
     refreshProfile
   } = useProfileData({ npub, currentUserPubkey });
   
-  // Handle manual refresh
+  // Handle connection to relays before loading data
+  useEffect(() => {
+    if (loading && !isConnecting) {
+      setIsConnecting(true);
+      
+      // Try to connect to relays and ensure connectivity
+      nostrService.connectToUserRelays()
+        .catch(err => console.error("Error connecting to user relays:", err))
+        .finally(() => {
+          setIsConnecting(false);
+          
+          // Add more popular relays to increase chances of success
+          nostrService.addMultipleRelays([
+            "wss://relay.damus.io", 
+            "wss://nos.lol", 
+            "wss://relay.nostr.band",
+            "wss://relay.snort.social"
+          ]).catch(err => console.warn("Error adding additional relays:", err));
+        });
+    }
+  }, [loading, isConnecting]);
+  
+  // Handle manual refresh with improved feedback
   const handleRefresh = useCallback(() => {
     if (refreshing) return;
     
     setRefreshing(true);
     toast.info("Refreshing profile data...");
     
-    refreshProfile().then(() => {
-      toast.success("Profile refreshed");
-    }).catch(err => {
-      console.error("Error refreshing profile:", err);
-      toast.error("Failed to refresh profile");
-    }).finally(() => {
-      setRefreshing(false);
-    });
+    // First ensure we're connected to relays
+    nostrService.connectToUserRelays()
+      .then(() => {
+        // Add more popular relays to increase chances of success
+        return nostrService.addMultipleRelays([
+          "wss://relay.damus.io", 
+          "wss://nos.lol", 
+          "wss://relay.nostr.band",
+          "wss://relay.snort.social"
+        ]);
+      })
+      .then(() => {
+        // Now refresh the profile
+        return refreshProfile();
+      })
+      .then(() => {
+        toast.success("Profile refreshed");
+      })
+      .catch(err => {
+        console.error("Error refreshing profile:", err);
+        toast.error("Failed to refresh profile");
+      })
+      .finally(() => {
+        setRefreshing(false);
+      });
   }, [refreshing, refreshProfile]);
   
   // Redirect to current user's profile if no npub is provided
@@ -90,6 +132,22 @@ const ProfilePage = () => {
         </header>
         
         <div className="max-w-3xl mx-auto px-4 py-4">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto ml-2" 
+                  onClick={handleRefresh}
+                >
+                  Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
           {profileData ? (
             <>
               <ProfileHeader 
@@ -108,6 +166,7 @@ const ProfilePage = () => {
                 onRelaysChange={setRelays}
                 userNpub={npub}
                 onRefresh={handleRefresh}
+                isLoading={refreshing}
               />
               
               <ProfileTabs 
@@ -120,6 +179,25 @@ const ProfilePage = () => {
                 reactions={reactions}
                 referencedEvents={referencedEvents}
               />
+              
+              {events.length === 0 && reposts.length === 0 && !refreshing && (
+                <div className="text-center py-8 text-muted-foreground">
+                  {isCurrentUser ? (
+                    <p>You haven't posted anything yet.</p>
+                  ) : (
+                    <p>This user hasn't posted anything yet.</p>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="mt-4"
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <ProfileNotFound />
