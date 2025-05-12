@@ -40,12 +40,12 @@ function App() {
           </Routes>
         </main>
         <Toaster 
-          position="bottom-right" 
-          closeButton 
-          theme="dark"
+          position="bottom-right"
+          closeButton={false} 
+          dismissible={true}
           richColors
           toastOptions={{
-            duration: 4000,
+            duration: 2500,
             className: "nostr-toast",
             style: { 
               background: "hsl(var(--background))",
