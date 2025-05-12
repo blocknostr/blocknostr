@@ -12,8 +12,7 @@ const AlephiumLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
       {...props}
     >
       <circle cx="32" cy="32" r="30" fill="#10B981" />
-      <path d="M32 15L19 36h26L32 15zm0 9l6 12H26l6-12z" fill="white" />
-      <path d="M27 40h10v6H27v-6z" fill="white" />
+      <path d="M44 20H20v24h24V20zm-18 6h6v6h-6v-6zm0 12h6v-6h-6v6zm12 0h6v-6h-6v6zm6-12h-6v6h6v-6z" fill="white" />
     </svg>
   );
 };

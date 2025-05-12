@@ -11,8 +11,8 @@ const AlbyLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
       fill="currentColor"
       {...props}
     >
-      <path d="M32 2C15.432 2 2 15.432 2 32s13.432 30 30 30 30-13.432 30-30S48.568 2 32 2zm12.93 32.42L32 44.75 19.07 34.92 32 11.792l12.93 22.628z" fill="#FFB300"/>
-      <path d="M32 23.509L26.062 34.35h11.876L32 23.509z" fill="#FFF2CC"/>
+      <circle cx="32" cy="32" r="30" fill="#F5CD00" />
+      <path d="M32 12L18 36h28L32 12zm0 10l7 14H25l7-14z" fill="#FFFFFF" />
     </svg>
   );
 };
