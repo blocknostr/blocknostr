@@ -1,65 +1,40 @@
-/**
- * NIP-05: DNS-based identifier verification and discovery
- * Implements https://github.com/nostr-protocol/nips/blob/master/05.md
- */
-import { nip19 } from 'nostr-tools';
 
 /**
- * Tests if a string conforms to the NIP-05 identifier format (local-part@domain.tld)
- * As per NIP-05, local-part should be restricted to a-z0-9-_. (case-insensitive)
- */
-export function isValidNip05Format(nip05: string): boolean {
-  if (!nip05) return false;
-  
-  // NIP-05 format is local-part@domain.tld
-  const parts = nip05.split('@');
-  if (parts.length !== 2) return false;
-  
-  const [localPart, domain] = parts;
-  
-  // Check if localPart is empty or domain is invalid
-  if (!localPart || !domain || !domain.includes('.')) return false;
-  
-  // Check if localPart follows recommended character restrictions (a-z0-9-_.)
-  const localPartRegex = /^[a-z0-9\-_.]+$/i;
-  if (!localPartRegex.test(localPart)) return false;
-  
-  // Basic domain validation
-  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
-  return domainRegex.test(domain);
-}
-
-/**
- * Verify a NIP-05 identifier and resolve to a pubkey
+ * Enhanced NIP-05 verification function that validates JSON structure and resolves identifiers to pubkeys
+ * Implementation follows https://github.com/nostr-protocol/nips/blob/master/05.md
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.tld
- * @returns The pubkey in hex format if verified, or null if verification fails
+ * @param pubkeyHex - Optional hexadecimal public key to verify against
+ * @returns True if verified (pubkey matches if provided), false if verification fails
  */
-export async function verifyNip05(identifier: string): Promise<string | null> {
-  if (!isValidNip05Format(identifier)) {
+export async function verifyNip05(identifier: string, pubkeyHex?: string): Promise<boolean> {
+  // Check if the identifier is valid (contains @)
+  if (!identifier || !identifier.includes('@')) {
     console.error("Invalid NIP-05 identifier format");
-    return null;
+    return false;
   }
 
   try {
+    // Split the identifier into local-part and domain
     const [name, domain] = identifier.split('@');
+    
+    // Format should be local-part@domain, as per NIP-05
+    if (!name || !domain) {
+      console.error("NIP-05 identifier must contain both name and domain parts");
+      return false;
+    }
     
     // Make a GET request to the well-known URL
     // As per NIP-05: https://<domain>/.well-known/nostr.json?name=<local-part>
     const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
     
     // Per NIP-05: "Fetchers MUST ignore any HTTP redirects"
-    const response = await fetch(url, { 
-      redirect: 'error',
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
+    const response = await fetch(url, { redirect: 'error' });
     
     // Check if the request was successful
     if (!response.ok) {
       console.error(`NIP-05 verification failed: HTTP ${response.status} for ${url}`);
-      return null;
+      return false;
     }
     
     // Parse the response as JSON
@@ -68,152 +43,70 @@ export async function verifyNip05(identifier: string): Promise<string | null> {
     // Validate the response structure as per NIP-05 spec
     if (!data || typeof data !== 'object') {
       console.error("NIP-05 verification failed: Invalid response format");
-      return null;
+      return false;
     }
     
     // Check if the response has a names object
     if (!data.names || typeof data.names !== 'object') {
       console.error("NIP-05 verification failed: Missing or invalid 'names' field");
-      return null;
+      return false;
     }
     
     // Check if the name exists in the names object and get its pubkey
     if (!Object.prototype.hasOwnProperty.call(data.names, name)) {
       console.error(`NIP-05 verification failed: Username '${name}' not found in names object`);
-      return null;
+      return false;
     }
     
-    // Return the pubkey in hex format
-    return data.names[name] || null;
+    // Get the pubkey from the response
+    const responsePubkey = data.names[name];
+    
+    // If a pubkey was provided, verify it matches
+    if (pubkeyHex) {
+      return responsePubkey === pubkeyHex;
+    }
+    
+    // If no pubkey was provided, just check if there's a value
+    return !!responsePubkey;
   } catch (error) {
     console.error("Error verifying NIP-05:", error);
-    return null;
+    return false;
   }
 }
 
 /**
- * Enhanced NIP-05 data fetcher that returns additional information beyond just verification
- * Including the recommended 'relays' information as specified in NIP-05
+ * Verifies that a NIP-05 identifier resolves to a specific public key
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.tld
- * @returns Object containing pubkey, relays, and metadata if successful, null otherwise
+ * @param pubkeyHex - Hexadecimal public key to verify
+ * @returns True if the identifier resolves to the specified pubkey, false otherwise
  */
-export async function fetchNip05Data(identifier: string): Promise<{
-  pubkey?: string;
-  relays?: Record<string, { read: boolean; write: boolean }>;
-  nip05_domain?: string;
-  nip05_name?: string;
-  [key: string]: any;
-} | null> {
-  if (!isValidNip05Format(identifier)) {
-    console.error("Invalid NIP-05 identifier format");
-    return null;
-  }
-
-  try {
-    const [name, domain] = identifier.split('@');
-    const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
-    
-    const response = await fetch(url, { 
-      redirect: 'error',
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error(`NIP-05 data fetch failed: HTTP ${response.status}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    // Validate response structure
-    if (!data || typeof data !== 'object' || !data.names || typeof data.names !== 'object') {
-      console.error("NIP-05 data fetch failed: Invalid response structure");
-      return null;
-    }
-    
-    // Get pubkey from names
-    const pubkey = data.names[name];
-    if (!pubkey) {
-      console.error(`NIP-05 data fetch failed: Username '${name}' not found in names object`);
-      return null;
-    }
-    
-    // Process relays data according to the NIP-05 spec
-    let relays: Record<string, { read: boolean; write: boolean }> = {};
-    
-    if (data.relays && typeof data.relays === 'object' && data.relays[pubkey]) {
-      // Per NIP-05: relays should be a map of pubkeys to arrays of relay URLs
-      if (Array.isArray(data.relays[pubkey])) {
-        const relayUrls = data.relays[pubkey];
-        
-        // Transform array format to object with read/write props
-        relays[pubkey] = {
-          read: true,
-          write: true
-        };
-      }
-    }
-    
-    return { 
-      pubkey,
-      relays,
-      nip05_domain: domain,
-      nip05_name: name
-    };
-  } catch (error) {
-    console.error("Error fetching NIP-05 data:", error);
-    return null;
-  }
+export async function verifyNip05ForPubkey(identifier: string, pubkeyHex: string): Promise<boolean> {
+  return await verifyNip05(identifier, pubkeyHex);
 }
 
 /**
- * Check if a NIP-05 identifier resolves to the expected pubkey
+ * Checks if a string is in valid NIP-05 format (username@domain.tld)
  * 
- * @param identifier - NIP-05 identifier
- * @param expectedPubkey - The pubkey that should match (optional)
- * @returns True if verification is successful and matches expectedPubkey if provided
+ * @param identifier - String to check
+ * @returns True if the string is a valid NIP-05 identifier
  */
-export async function verifyNip05ForPubkey(identifier: string, expectedPubkey?: string): Promise<boolean> {
-  const pubkey = await verifyNip05(identifier);
+export function isValidNip05Format(identifier: string): boolean {
+  if (!identifier) return false;
   
-  if (!pubkey) return false;
-  
-  // If expectedPubkey is provided, check that it matches the resolved pubkey
-  if (expectedPubkey) {
-    return pubkey === expectedPubkey;
-  }
-  
-  // Otherwise, just return true if we got a valid pubkey
-  return true;
+  // Simple regex to check for username@domain.tld format
+  const nip05Regex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return nip05Regex.test(identifier);
 }
 
 /**
- * Format a NIP-05 identifier with proper styling and validation
+ * Formats a NIP-05 identifier to ensure it's in the correct format
+ * Removes any extraneous whitespace and ensures lowercase
  * 
- * @param identifier - NIP-05 identifier
- * @returns Object containing the formatted parts and validation status
+ * @param identifier - NIP-05 identifier to format
+ * @returns Formatted NIP-05 identifier
  */
-export function formatNip05(identifier: string): {
-  localPart: string;
-  domain: string;
-  isValid: boolean;
-  display: string;
-} {
-  const isValid = isValidNip05Format(identifier);
-  let localPart = '';
-  let domain = '';
-  
-  if (identifier && identifier.includes('@')) {
-    [localPart, domain] = identifier.split('@');
-  }
-  
-  return {
-    localPart,
-    domain,
-    isValid,
-    display: isValid ? identifier : ''
-  };
+export function formatNip05(identifier: string): string {
+  if (!identifier) return '';
+  return identifier.trim().toLowerCase();
 }
