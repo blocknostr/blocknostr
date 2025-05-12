@@ -5,13 +5,13 @@
 // for the transition period while migrating
 
 import React from 'react';
-import { usePathname as nextPathname, useRouter as nextRouter, useSearchParams as nextSearchParams } from 'next/navigation';
+import * as NextNavigation from 'next/navigation';
 import Link from 'next/link';
 
-// Export functions with proper names to avoid circular references
-export const usePathname = nextPathname;
-export const useRouter = nextRouter;
-export const useSearchParams = nextSearchParams;
+// Export functions by directly referencing the imported module
+export const usePathname = NextNavigation.usePathname;
+export const useRouter = NextNavigation.useRouter;
+export const useSearchParams = NextNavigation.useSearchParams;
 
 // Compatibility: create a useParams hook that returns params from React Router format
 export function useParams() {
@@ -22,7 +22,7 @@ export function useParams() {
 
 // Compatibility for React Router's Navigate component
 export function Navigate({ to, replace }: { to: string, replace?: boolean }) {
-  const router = nextRouter();
+  const router = NextNavigation.useRouter();
   
   React.useEffect(() => {
     if (replace) {
@@ -44,8 +44,8 @@ export function generateMetadata({ title, description }: { title?: string; descr
 
 // For components that still rely on useLocation
 export function useLocation() {
-  const pathname = nextPathname();
-  const searchParams = nextSearchParams();
+  const pathname = NextNavigation.usePathname();
+  const searchParams = NextNavigation.useSearchParams();
   
   return {
     pathname,
@@ -55,7 +55,7 @@ export function useLocation() {
 }
 
 export function useNavigate() {
-  const router = nextRouter();
+  const router = NextNavigation.useRouter();
   
   return (path: string, options?: { replace?: boolean }) => {
     if (options?.replace) {
