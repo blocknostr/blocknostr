@@ -1,11 +1,14 @@
 
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
 import TrendingTopics from "@/components/feed/TrendingTopics";
-import WorldChat from "@/components/chat/WorldChat";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+
+// Lazy load WorldChat to improve initial sidebar load
+const WorldChat = lazy(() => import("@/components/chat/WorldChat"));
 
 interface GlobalSidebarProps {
   rightPanelOpen: boolean;
@@ -32,6 +35,12 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   const shouldShowTrending = () => {
     return true; // Always show trending section on all pages
   };
+
+  const chatFallback = (
+    <div className="h-full flex items-center justify-center">
+      <Loader2 className="h-6 w-6 text-primary/50 animate-spin" />
+    </div>
+  );
   
   // Desktop right sidebar
   if (!isMobile && preferences.uiPreferences?.showTrending) {
@@ -53,7 +62,9 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           )}
           
           <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
-            <WorldChat />
+            <Suspense fallback={chatFallback}>
+              <WorldChat />
+            </Suspense>
           </div>
         </div>
       </aside>
@@ -81,7 +92,9 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             )}
             
             <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
-              <WorldChat />
+              <Suspense fallback={chatFallback}>
+                <WorldChat />
+              </Suspense>
             </div>
           </div>
         </SheetContent>

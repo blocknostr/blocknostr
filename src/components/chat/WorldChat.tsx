@@ -1,13 +1,15 @@
 
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
-import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Lazy load the MessageList component to improve initial load performance
+const MessageList = lazy(() => import("./MessageList"));
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -77,14 +79,20 @@ const WorldChat = () => {
       )}
       
       <div className="flex-grow overflow-hidden relative">
-        <MessageList
-          messages={messages}
-          profiles={profiles}
-          emojiReactions={emojiReactions}
-          loading={loading}
-          isLoggedIn={isLoggedIn}
-          onAddReaction={addReaction}
-        />
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-full">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary/50" />
+          </div>
+        }>
+          <MessageList
+            messages={messages}
+            profiles={profiles}
+            emojiReactions={emojiReactions}
+            loading={loading}
+            isLoggedIn={isLoggedIn}
+            onAddReaction={addReaction}
+          />
+        </Suspense>
       </div>
       
       <ChatInput
