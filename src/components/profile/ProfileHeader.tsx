@@ -1,3 +1,4 @@
+
 // src/components/profile/ProfileHeader.tsx
 
 import React, { useState, useEffect } from "react";
@@ -42,10 +43,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     xVerified,
     xVerifiedInfo,
     shortNpub,
-    creationDate, // this is a string coming from the hook
+    creationDate, // this is now a string from the hook
   } = useProfileHeader(profile, npub, pubkeyHex);
 
-  // Wrap the returned creationDate string in a Date object
+  // Create a Date object from the ISO string if it exists
   const creationDateObj = creationDate ? new Date(creationDate) : undefined;
 
   const displayName = profile?.display_name || profile?.name || shortNpub;
@@ -104,7 +105,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               nip05Verified={nip05Verified}
               xVerified={xVerified}
               xVerifiedInfo={xVerifiedInfo}
-              creationDate={creationDateObj}            // <-- pass a Date here
+              creationDate={creationDateObj}
             />
           </div>
         </CardContent>

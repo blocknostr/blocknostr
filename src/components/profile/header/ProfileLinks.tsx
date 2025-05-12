@@ -23,14 +23,23 @@ const ProfileLinks = ({
   xVerifiedInfo,
   creationDate
 }: ProfileLinksProps) => {
-  // Format the date as a string if it exists
-  const formattedDate = creationDate 
-    ? creationDate.toLocaleDateString('en-US', { 
+  // Format the date as a string if it exists, with proper null check and try/catch
+  const formattedDate = React.useMemo(() => {
+    if (!creationDate || !(creationDate instanceof Date)) {
+      return null;
+    }
+    
+    try {
+      return creationDate.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric' 
-      })
-    : null;
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return null;
+    }
+  }, [creationDate]);
 
   return (
     <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mt-2">

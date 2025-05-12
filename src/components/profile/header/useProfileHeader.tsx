@@ -10,7 +10,7 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
   const [verifyingNip05, setVerifyingNip05] = useState(false);
   const [xVerified, setXVerified] = useState(false);
   const [xVerifiedInfo, setXVerifiedInfo] = useState<{ username: string, tweetId: string } | null>(null);
-  const [creationDate, setCreationDate] = useState<Date | null>(null);
+  const [creationDate, setCreationDate] = useState<string | null>(null);
   
   // Track if the component is mounted to avoid state updates after unmount
   const isMounted = useRef(true);
@@ -114,7 +114,9 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
         const cachedProfile = contentCache.getProfile(pubkeyHex);
         if (cachedProfile && cachedProfile._createdAt) {
           if (isMounted.current) {
-            setCreationDate(new Date(cachedProfile._createdAt * 1000));
+            // Store the formatted date string directly
+            const date = new Date(cachedProfile._createdAt * 1000);
+            setCreationDate(date.toISOString());
           }
           return;
         }
@@ -123,7 +125,8 @@ export function useProfileHeader(profileData: any, npub: string, pubkeyHex: stri
         const creationTimestamp = await nostrService.getAccountCreationDate(pubkeyHex);
         
         if (creationTimestamp && isMounted.current) {
-          setCreationDate(new Date(creationTimestamp * 1000));
+          const date = new Date(creationTimestamp * 1000);
+          setCreationDate(date.toISOString());
           
           // Cache this timestamp for future reference
           if (contentCache.getProfile(pubkeyHex)) {
