@@ -16,6 +16,7 @@ const YouPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profileKey, setProfileKey] = useState(() => Date.now());
+  const [showDebug, setShowDebug] = useState(false);
   const currentUserPubkey = nostrService.publicKey;
   const refreshTimeoutRef = useRef<number | null>(null);
   const profileSavedTimeRef = useRef<number | null>(null);
@@ -23,48 +24,36 @@ const YouPage = () => {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!currentUserPubkey) {
-      toast.error("You must be logged in to view your profile");
+      toast.error("You must be logged in to view your profile", { duration: 8000 });
       navigate("/");
       return;
     }
     setLoading(false);
   }, [currentUserPubkey, navigate]);
 
-  // Use the existing profile data hook but specifically for the current user
-  // Pass debugMode=false to prevent console.log spam
+  // Profile data hook
   const profileData = useProfileData({
     npub: currentUserPubkey ? nostrService.formatPubkey(currentUserPubkey) : undefined,
     currentUserPubkey,
     debugMode: false
   });
 
-  // Track edit mode state locally
   const [isEditing, setIsEditing] = useState(false);
   
-  // Listen for profile refresh events with improved handling
+  // Event listeners
   useEffect(() => {
     const handleProfileRefreshed = (e: CustomEvent) => {
       console.log("[YOU PAGE] Received profileRefreshed event", e.detail);
-      // Force re-render by updating the key
       setProfileKey(Date.now());
     };
     
     const handleProfilePublished = (e: CustomEvent) => {
       console.log("[YOU PAGE] Received profilePublished event", e.detail);
-      
-      // Store the timestamp when profile was published
       profileSavedTimeRef.current = Date.now();
-      
-      // Since we might get the event with undefined eventId, check for it
       const eventId = e.detail?.eventId;
-      
       if (eventId) {
         console.log(`[YOU PAGE] Profile published with event ID: ${eventId}`);
-      } else {
-        console.log("[YOU PAGE] Profile published but no event ID provided");
       }
-      
-      // We'll handle refresh separately via the handleProfileSaved mechanism
     };
     
     window.addEventListener('profileRefreshed', handleProfileRefreshed as EventListener);
@@ -75,15 +64,15 @@ const YouPage = () => {
       window.removeEventListener('profilePublished', handleProfilePublished as EventListener);
     };
   }, []);
-  
+
   // Handle connection errors
   useEffect(() => {
     if (profileData.error) {
-      toast.error(profileData.error);
+      toast.error(profileData.error, { duration: 8000 });
     }
   }, [profileData.error]);
   
-  // Function to manually refresh profile with improved error handling
+  // Manual refresh
   const handleRefreshProfile = async () => {
     if (!currentUserPubkey) {
       console.log("[YOU PAGE] No current user pubkey, cannot refresh profile");
@@ -94,68 +83,55 @@ const YouPage = () => {
       setRefreshing(true);
       console.log(`[YOU PAGE] Starting manual profile refresh for: ${currentUserPubkey}`);
       
-      // Get relay status before refresh
       const relaysBefore = nostrService.getRelayStatus();
       console.log("[YOU PAGE] Relay status before refresh:", relaysBefore);
       
-      // Force refresh profile
       const refreshResult = await forceRefreshProfile(currentUserPubkey);
       
       if (!refreshResult) {
         console.log("[YOU PAGE] Profile refresh failed, attempting to reconnect relays");
-        
-        // Try reconnecting to relays first
         await nostrService.connectToDefaultRelays();
-        
-        // Try refresh again after reconnection
         await forceRefreshProfile(currentUserPubkey);
       }
       
-      // Refetch profile data using the hook's refetch method
       console.log("[YOU PAGE] Calling profile data refresh method");
       await profileData.refreshProfile();
       
-      // Force re-render by updating the key
       console.log("[YOU PAGE] Updating profile key to force re-render");
       setProfileKey(Date.now());
       
       toast.success("Profile refreshed successfully");
     } catch (error) {
       console.error("[YOU PAGE] Error refreshing profile:", error);
-      toast.error("Failed to refresh profile");
+      toast.error("Failed to refresh profile", { duration: 8000 });
     } finally {
       setRefreshing(false);
     }
   };
 
-  // Handle profile changes after saving with improved refresh
+  // Handle profile save
   const handleProfileSaved = useCallback(async () => {
     console.log("[YOU PAGE] Profile saved, exiting edit mode");
     setIsEditing(false);
     
-    // Only force a refresh if it's been at least 2 seconds since we got a profilePublished event
     const shouldRefresh = !profileSavedTimeRef.current || 
-                          (Date.now() - profileSavedTimeRef.current) > 2000;
+                         (Date.now() - profileSavedTimeRef.current) > 2000;
     
     if (shouldRefresh) {
       console.log("[YOU PAGE] Setting timeout to refresh profile after save");
       
-      // Clear any existing timeout
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
       
-      // Set new timeout with a longer delay to allow relay propagation
       refreshTimeoutRef.current = window.setTimeout(async () => {
         try {
           console.log("[YOU PAGE] Starting profile refresh after save");
           setRefreshing(true);
           
-          // Wait a bit longer for relay propagation
           console.log("[YOU PAGE] Waiting for relay propagation before refreshing");
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 3000));
           
-          // Ensure cache is cleared and fresh profile is fetched
           if (currentUserPubkey) {
             console.log(`[YOU PAGE] Forcing refresh for pubkey: ${currentUserPubkey}`);
             const refreshResult = await forceRefreshProfile(currentUserPubkey);
@@ -163,28 +139,25 @@ const YouPage = () => {
             if (!refreshResult) {
               console.log("[YOU PAGE] Initial refresh failed, trying to reconnect relays");
               await nostrService.connectToDefaultRelays();
-              
-              // Try one more time after reconnection
               await forceRefreshProfile(currentUserPubkey);
             }
             
             console.log("[YOU PAGE] Force refresh completed, refreshing profile data");
             await profileData.refreshProfile();
             console.log("[YOU PAGE] Profile data refresh completed");
-          } else {
-            console.log("[YOU PAGE] No current user pubkey, skipping refresh");
           }
           
-          // Force re-render of the profile preview
           console.log("[YOU PAGE] Updating profile key to force re-render");
           setProfileKey(Date.now());
+          toast.success("Profile updated and refreshed successfully");
         } catch (error) {
           console.error("[YOU PAGE] Error refreshing after save:", error);
+          toast.error("Profile saved but failed to refresh. Try refreshing manually.", { duration: 8000 });
         } finally {
           setRefreshing(false);
           console.log("[YOU PAGE] Profile refresh after save completed");
         }
-      }, 2500);  // Increased timeout to allow for relay propagation
+      }, 3000);
     } else {
       console.log("[YOU PAGE] Skipping refresh as we just received a profilePublished event");
     }
@@ -196,7 +169,7 @@ const YouPage = () => {
     };
   }, [profileData, currentUserPubkey]);
 
-  // Cleanup timeouts on unmount
+  // Cleanup timeouts
   useEffect(() => {
     return () => {
       if (refreshTimeoutRef.current) {
@@ -218,7 +191,7 @@ const YouPage = () => {
   }
 
   if (!currentUserPubkey) {
-    return null; // This shouldn't happen due to the redirect above
+    return null;
   }
 
   return (
@@ -228,20 +201,28 @@ const YouPage = () => {
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b">
           <div className="flex items-center justify-between h-14 px-4">
             <h1 className="font-semibold">Your Profile</h1>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleRefreshProfile}
-              disabled={refreshing || profileData.loading}
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing || profileData.loading ? 'animate-spin' : ''}`} />
-              Refresh Profile
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleRefreshProfile}
+                disabled={refreshing || profileData.loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing || profileData.loading ? 'animate-spin' : ''}`} />
+                Refresh Profile
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowDebug(!showDebug)}
+              >
+                {showDebug ? 'Hide Debug' : 'Show Debug'}
+              </Button>
+            </div>
           </div>
         </header>
 
         <div className="max-w-4xl mx-auto px-4 py-6">
-          {/* Header with basic info and toggle for edit mode */}
           <YouHeader 
             profileData={profileData} 
             isEditing={isEditing} 
@@ -249,7 +230,6 @@ const YouPage = () => {
           />
 
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
-            {/* Left side: Edit form or profile stats based on mode (takes 3/5 of grid) */}
             <div className="lg:col-span-3 space-y-6">
               {isEditing ? (
                 <EditProfileSection 
@@ -258,14 +238,12 @@ const YouPage = () => {
                 />
               ) : (
                 <div className="space-y-6">
-                  {/* Display profile content when not editing */}
                   {profileData.profileData?.about && (
                     <div className="bg-card rounded-lg p-6 shadow">
                       <h2 className="text-lg font-medium mb-2">About</h2>
                       <p className="whitespace-pre-wrap text-card-foreground">{profileData.profileData.about}</p>
                     </div>
                   )}
-                  
                   <div className="bg-card rounded-lg p-6 shadow">
                     <h2 className="text-lg font-medium mb-4">Stats</h2>
                     <div className="grid grid-cols-3 gap-4 text-center">
@@ -286,12 +264,23 @@ const YouPage = () => {
                 </div>
               )}
             </div>
-            
-            {/* Right side: Always show profile preview (takes 2/5 of grid) */}
             <div className="lg:col-span-2">
               <ProfilePreview profileData={{...profileData, key: profileKey}} />
             </div>
           </div>
+
+          {showDebug && (
+            <div className="bg-card p-4 rounded-lg shadow mt-4">
+              <h2 className="text-lg font-medium mb-2">Debug Info</h2>
+              <pre className="text-sm overflow-auto">
+                {JSON.stringify({
+                  relayStatus: nostrService.getRelayStatus(),
+                  recentErrors: profileData.error || 'None',
+                  profileData: profileData.profileData,
+                }, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       </div>
     </div>
