@@ -5,7 +5,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import MainContent from "@/components/home/MainContent";
 import { useRightSidebar } from "@/contexts/RightSidebarContext";
 
-const Index: React.FC = () => {
+export const Index: React.FC = () => {
   const { preferences } = useUserPreferences();
   const { activeHashtag, clearHashtag } = useRightSidebar();
   

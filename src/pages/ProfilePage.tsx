@@ -1,6 +1,6 @@
 
 import { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { nostrService } from "@/lib/nostr";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileStats from "@/components/profile/ProfileStats";
@@ -9,9 +9,8 @@ import ProfileNotFound from "@/components/profile/ProfileNotFound";
 import ProfileTabs from "@/components/profile/ProfileTabs";
 import { useProfileData } from "@/hooks/useProfileData";
 
-const ProfilePage = () => {
-  const { npub } = useParams<{ npub: string }>();
-  const navigate = useNavigate();
+export const ProfilePage = () => {
+  const router = useRouter();
   const currentUserPubkey = nostrService.publicKey;
   
   // Use our custom hook to manage profile data and state
@@ -28,15 +27,15 @@ const ProfilePage = () => {
     following,
     originalPostProfiles,
     isCurrentUser
-  } = useProfileData({ npub, currentUserPubkey });
+  } = useProfileData({ npub: undefined, currentUserPubkey });
   
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
-    if (!npub && currentUserPubkey) {
+    if (currentUserPubkey) {
       const formattedPubkey = nostrService.formatPubkey(currentUserPubkey);
-      navigate(`/profile/${formattedPubkey}`, { replace: true });
+      router.replace(`/profile/${formattedPubkey}`);
     }
-  }, [npub, currentUserPubkey, navigate]);
+  }, [currentUserPubkey, router]);
   
   if (loading) {
     return <ProfileLoading />;
@@ -48,7 +47,7 @@ const ProfilePage = () => {
         <>
           <ProfileHeader 
             profileData={profileData}
-            npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
+            npub={nostrService.formatPubkey(currentUserPubkey || '')}
             isCurrentUser={isCurrentUser}
           />
           
@@ -60,7 +59,7 @@ const ProfilePage = () => {
             isCurrentUser={isCurrentUser}
             relays={relays}
             onRelaysChange={setRelays}
-            userNpub={npub}
+            userNpub={undefined}
           />
           
           <ProfileTabs 

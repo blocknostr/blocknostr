@@ -1,5 +1,4 @@
 
-import { useParams } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { useCommunity } from "@/hooks/useCommunity";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,9 +13,7 @@ import CommunityGuidelines from "@/components/community/CommunityGuidelines";
 import CommunitySettings from "@/components/community/CommunitySettings";
 import CommunityInvites from "@/components/community/CommunityInvites";
 
-const CommunityPage = () => {
-  const { id } = useParams();
-  
+export const CommunityPage = ({ id }: { id?: string }) => {
   const {
     community,
     proposals,

@@ -6,7 +6,7 @@ import NotificationTabs from "@/components/notification/NotificationTabs";
 import LoginPrompt from "@/components/notification/LoginPrompt";
 import { nostrService } from "@/lib/nostr";
 
-const NotificationsPage = () => {
+export const NotificationsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("mentions");
   const isMobile = useIsMobile();
   const { 

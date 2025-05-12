@@ -1,7 +1,7 @@
 
 import NotebinContainer from "@/components/notebin/NotebinContainer";
 
-const NotebinPage = () => {
+export const NotebinPage = () => {
   return (
     <div className="flex-1">
       <NotebinContainer />

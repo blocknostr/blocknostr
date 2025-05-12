@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-const MessagesPage = () => {
+export const MessagesPage = () => {
   const [encryptionInfoShown, setEncryptionInfoShown] = useState(true);
 
   return (

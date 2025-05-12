@@ -7,7 +7,7 @@ import { nostrService } from "@/lib/nostr";
 import { CheckCircle2, Loader, Lock, Zap, Layers } from "lucide-react";
 import { toast } from "sonner";
 
-const WalletsPage = () => {
+export const WalletsPage = () => {
   const { triggerHaptic } = useHapticFeedback();
   const [isConnected, setIsConnected] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -83,7 +83,7 @@ const WalletsPage = () => {
                 </div>
                 <div className="text-left">
                   <h3 className="font-medium mb-1">Secure Transactions</h3>
-                  <p className="text-sm text-muted-foreground">All transactions are secured by Alephium's PoLW consensus mechanism</p>
+                  <p className="text-sm text-muted-foreground">All transactions are secured by Alephium&apos;s PoLW consensus mechanism</p>
                 </div>
               </div>
             </Card>
@@ -113,7 +113,7 @@ const WalletsPage = () => {
                 </div>
                 <div className="text-left">
                   <h3 className="font-medium mb-1">Low Fees</h3>
-                  <p className="text-sm text-muted-foreground">Benefit from Alephium's high throughput and low transaction costs</p>
+                  <p className="text-sm text-muted-foreground">Benefit from Alephium&apos;s high throughput and low transaction costs</p>
                 </div>
               </div>
             </Card>

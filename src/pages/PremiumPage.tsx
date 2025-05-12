@@ -2,7 +2,7 @@
 import React from "react";
 import PremiumSubscribeButton from "@/components/premium/PremiumSubscribeButton";
 
-const PremiumPage = () => {
+export const PremiumPage = () => {
   return (
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 py-12">
