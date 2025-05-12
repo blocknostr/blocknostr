@@ -87,7 +87,9 @@ const ProfileRelaysDialog = ({
       
       // Try to connect to all relays in the list
       const connectPromises = relays.map(relay => 
-        nostrService.connectToRelay(relay.url).catch(err => {
+        // Instead of using connectToRelay which doesn't exist in the adapter,
+        // use addRelay which does exist and provides similar functionality
+        adaptedNostrService.addRelay(relay.url).catch(err => {
           console.warn(`Failed to connect to relay ${relay.url}:`, err);
           return false;
         })
