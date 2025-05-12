@@ -22,7 +22,7 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
       if (result) {
         toast.success("Post liked!");
       }
-      return result;
+      return result !== null; // Convert string/null to boolean
     } catch (error) {
       console.error("Error liking post:", error);
       toast.error("Failed to like post");
@@ -44,7 +44,7 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
       if (result) {
         toast.success("Post reposted!");
       }
-      return result;
+      return result !== null; // Convert string/null to boolean
     } catch (error) {
       console.error("Error reposting:", error);
       toast.error("Failed to repost");
@@ -78,7 +78,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       switch (actionType) {
         case "like":
           // Use socialManager which has the right methods
-          result = await nostrService.socialManager.reactToEvent(event.id);
+          const likeResult = await nostrService.socialManager.reactToEvent(event.id);
+          result = likeResult !== null;
           if (result) {
             toast.success("Post liked!");
             setCount((prev) => prev + 1);
@@ -87,7 +88,8 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           
         case "repost":
           // Use socialManager which has the right methods
-          result = await nostrService.socialManager.repostEvent(event);
+          const repostResult = await nostrService.socialManager.repostEvent(event);
+          result = repostResult !== null;
           if (result) {
             toast.success("Post reposted!");
             setCount((prev) => prev + 1);
