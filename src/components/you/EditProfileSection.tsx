@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -70,7 +71,12 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
     setIsNip05Verified(null);
     
     try {
-      const isValid = await verifyNip05(identifier, nostrService.publicKey);
+      // Fix: The verifyNip05 function expects only one argument (the identifier)
+      // The function will return the verified pubkey or null
+      const pubkey = await verifyNip05(identifier);
+      
+      // Check if the returned pubkey matches the current user's pubkey
+      const isValid = pubkey === nostrService.publicKey;
       setIsNip05Verified(isValid);
       return isValid;
     } catch (error) {
@@ -116,6 +122,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
       
       // Verify NIP-05 if provided
       if (values.nip05) {
+        // Fix: Pass only one argument to verifyNip05Identifier
         const isValid = await verifyNip05Identifier(values.nip05);
         if (!isValid) {
           toast.warning("NIP-05 identifier could not be verified, but will be saved");
@@ -294,7 +301,7 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
                         </div>
                       </FormControl>
                       {isNip05Verified === false && nip05Value && (
-                        <Alert variant="destructive" className="py-2">
+                        <Alert variant="warning" className="py-2">
                           <AlertCircle className="h-4 w-4" />
                           <AlertDescription>
                             This NIP-05 identifier cannot be verified
