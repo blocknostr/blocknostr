@@ -13,7 +13,9 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const retryRef = useRef<number>(0);
   const mountedRef = useRef(true);
+  const MAX_RETRIES = 3;
   
   // Keep track of component mounting state
   useEffect(() => {
@@ -62,6 +64,9 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
       timeoutRef.current = null;
     }
     
+    // Reset retry counter when pubkey changes
+    retryRef.current = 0;
+    
     const fetchProfileData = async () => {
       if (!npub && !currentUserPubkey) return;
       
@@ -105,13 +110,19 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
           await nostrService.connectToUserRelays();
           
           // Add some popular relays to increase chances of finding the profile
-          const additionalRelays = ["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"];
+          const additionalRelays = [
+            "wss://relay.damus.io", 
+            "wss://relay.nostr.band", 
+            "wss://nos.lol",
+            "wss://nostr-pub.wellorder.net",
+            "wss://relay.nostr.info"
+          ];
           await nostrService.addMultipleRelays(additionalRelays);
           
           console.log("Connected to relays, fetching profile...");
           
-          // Fetch profile metadata directly
-          const profileMetadata = await nostrService.getUserProfile(hexPubkey);
+          // Fetch profile metadata with force=true to ensure fresh data
+          const profileMetadata = await nostrService.getUserProfile(hexPubkey, true);
           if (profileMetadata) {
             console.log("Profile found:", profileMetadata.name || profileMetadata.display_name || hexPubkey);
             
@@ -128,14 +139,28 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
           } else {
             console.warn("No profile data returned for pubkey:", hexPubkey);
             
-            // If no profile found, set minimal data
-            if (mountedRef.current && !profileData) {
-              const minimalData = {
-                pubkey: hexPubkey,
-                created_at: Math.floor(Date.now() / 1000)
-              };
+            // Implement retry logic
+            if (retryRef.current < MAX_RETRIES) {
+              retryRef.current++;
+              const delay = Math.min(1000 * Math.pow(2, retryRef.current), 8000);
+              console.log(`Retry attempt ${retryRef.current}/${MAX_RETRIES} in ${delay}ms`);
               
-              setProfileData(minimalData);
+              timeoutRef.current = window.setTimeout(() => {
+                if (mountedRef.current) {
+                  fetchProfileData();
+                }
+              }, delay);
+            } else {
+              // If no profile found after max retries, set minimal data
+              if (mountedRef.current && !profileData) {
+                const minimalData = {
+                  pubkey: hexPubkey,
+                  created_at: Math.floor(Date.now() / 1000)
+                };
+                
+                setProfileData(minimalData);
+                console.log("Using minimal profile data after max retries");
+              }
             }
           }
         } catch (connectionError) {
@@ -203,6 +228,7 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
       if (mountedRef.current) {
         setLoading(true);
         setError(null);
+        retryRef.current = 0; // Reset retry counter on manual refresh
         
         // Force a refetch by triggering a custom event
         const event = new CustomEvent('refetchProfile', { 
