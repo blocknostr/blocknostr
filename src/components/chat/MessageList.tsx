@@ -24,7 +24,7 @@ const MessageList: React.FC<MessageListProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom when new messages arrive
+  // Scroll to bottom (which is now the top in reversed layout) when new messages arrive
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -63,7 +63,8 @@ const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <CardContent className="p-0 overflow-y-auto flex-1">
-      <div className="p-2 space-y-1">
+      <div className="p-2 flex flex-col-reverse">
+        <div ref={messagesEndRef} />
         {messages.map(message => (
           <MessageItem
             key={message.id}
@@ -74,7 +75,6 @@ const MessageList: React.FC<MessageListProps> = ({
             onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
           />
         ))}
-        <div ref={messagesEndRef} />
       </div>
     </CardContent>
   );

@@ -37,7 +37,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
   };
 
   return (
-    <div className="flex items-start gap-2 p-1.5 hover:bg-muted/50 rounded-md animate-fade-in">
+    <div className="flex items-start gap-2 p-1.5 hover:bg-muted/50 rounded-md animate-fade-in my-1">
       <Avatar className="h-8 w-8">
         <AvatarImage src={getProfilePicture(message.pubkey)} />
         <AvatarFallback className="text-xs bg-primary/10">{getAvatarFallback(message.pubkey)}</AvatarFallback>
