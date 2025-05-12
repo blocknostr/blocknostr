@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -175,11 +176,11 @@ export class NostrService {
     }
   ): string {
     const connectedRelays = relays || this.getConnectedRelayUrls();
+    // Fixed: Remove the fourth parameter to match function signature
     return this.subscriptionManager.subscribe(
       connectedRelays, 
       filters, 
-      onEvent, 
-      options || {}
+      onEvent
     );
   }
   
@@ -406,6 +407,7 @@ export class NostrService {
       // Implement our own temporary version
       return new Promise((resolve) => {
         const profiles: Record<string, any> = {};
+        
         const sub = this.subscribe([{kinds: [0], authors: pubkeys}], (event) => {
           if (event.kind === 0 && event.pubkey) {
             try {
@@ -717,3 +719,4 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
+
