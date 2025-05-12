@@ -1,9 +1,6 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { toast } from "sonner";
-import { nostrService } from "@/lib/nostr";
-import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import CommunityHeaderImage from "./CommunityHeaderImage";
 import CommunityDescription from "./CommunityDescription";
@@ -27,20 +24,20 @@ interface CommunityHeaderProps {
   currentUserPubkey: string | null;
   userRole: 'creator' | 'moderator' | 'member' | null;
   onLeaveCommunity: () => void;
+  onDeleteCommunity?: () => Promise<void>;
+  isCreatorOnlyMember?: boolean;
 }
 
 const CommunityHeader = ({ 
   community, 
   currentUserPubkey, 
   userRole,
-  onLeaveCommunity
+  onLeaveCommunity,
+  onDeleteCommunity,
+  isCreatorOnlyMember = false
 }: CommunityHeaderProps) => {
-  const navigate = useNavigate();
-
-  const handleLeaveCommunity = async () => {
-    await onLeaveCommunity();
-    navigate('/communities');
-  };
+  // Determine if the user can delete the community (creator and only member)
+  const canDelete = userRole === 'creator' && isCreatorOnlyMember && !!onDeleteCommunity;
   
   return (
     <Card>
@@ -48,6 +45,8 @@ const CommunityHeader = ({
         id={community.id}
         name={community.name}
         image={community.image}
+        showDeleteButton={canDelete}
+        onDelete={onDeleteCommunity}
       />
       
       <CardContent className="pt-6 space-y-4">
@@ -69,7 +68,7 @@ const CommunityHeader = ({
         
         {userRole === 'member' && (
           <LeaveCommunityButton 
-            onLeave={handleLeaveCommunity} 
+            onLeave={onLeaveCommunity} 
             communityName={community.name} 
           />
         )}

@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
@@ -87,6 +86,8 @@ const CommunityPage = () => {
                 currentUserPubkey={currentUserPubkey}
                 userRole={userRole}
                 onLeaveCommunity={handleLeaveCommunity}
+                onDeleteCommunity={handleDeleteCommunity}
+                isCreatorOnlyMember={isCreatorOnlyMember}
               />
               
               <Tabs defaultValue="proposals" className="w-full">

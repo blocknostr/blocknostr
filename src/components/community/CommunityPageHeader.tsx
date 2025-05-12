@@ -1,7 +1,6 @@
 
 import { Button } from "@/components/ui/button";
 import { UserPlus, Lock } from "lucide-react";
-import DeleteCommunityButton from "./DeleteCommunityButton";
 import { useNavigate } from "react-router-dom";
 import BackButton from "@/components/navigation/BackButton";
 
@@ -21,11 +20,8 @@ const CommunityPageHeader = ({
   name,
   isMember,
   isCreator,
-  isCreatorOnlyMember = false,
   currentUserPubkey,
   onJoinCommunity,
-  onLeaveCommunity,
-  onDeleteCommunity,
   isPrivate = false
 }: CommunityPageHeaderProps) => {
   const navigate = useNavigate();
@@ -54,13 +50,6 @@ const CommunityPageHeader = ({
             <UserPlus className="h-4 w-4" />
             Join Community
           </Button>
-        )}
-        
-        {isCreator && isCreatorOnlyMember && onDeleteCommunity && (
-          <DeleteCommunityButton 
-            communityName={name}
-            onDelete={onDeleteCommunity}
-          />
         )}
       </div>
     </header>
