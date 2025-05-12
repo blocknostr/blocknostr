@@ -23,14 +23,6 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       url: "https://getalby.com/"
     },
     {
-      id: "nwid",
-      name: "Nostr Wallet ID",
-      description: "Nostr authentication protocol",
-      color: "bg-gradient-to-br from-violet-500 to-violet-600", 
-      letter: "N",
-      url: "https://github.com/nostr-protocol/nips/blob/master/46.md"
-    },
-    {
       id: "alephium",
       name: "Alephium",
       description: "BlockNoster-compatible wallet",
@@ -71,7 +63,7 @@ const ExtensionTab: React.FC<ExtensionTabProps> = ({
       )}
 
       <p className="text-sm text-center text-muted-foreground mb-3">
-        {hasExtension ? "Select Connect to authorize access" : "Select Nostr-compatible wallet"}
+        {hasExtension ? "Select Connect to authorize access" : "Install one of these extensions to connect"}
       </p>
 
       <div className="px-1">

@@ -41,7 +41,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         <p className="text-sm text-muted-foreground">
           {hasNostrExtension ? 
            "Your Nostr extension is ready to connect" : 
-           "Select Nostr-compatible wallet"}
+           "Install a Nostr-compatible extension to continue"}
         </p>
       </div>
       
@@ -58,13 +58,13 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         </a>
         
         <a 
-          href="https://github.com/nostr-protocol/nips/blob/master/46.md" 
+          href="https://github.com/fiatjaf/nos2x" 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex flex-col items-center justify-center p-3 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
         >
-          <span className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/20 text-violet-500 mb-1.5 flex items-center justify-center font-medium">N</span>
-          <span>NWID</span>
+          <span className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-500 mb-1.5 flex items-center justify-center font-medium">N</span>
+          <span>Nos2x</span>
           <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
         </a>
         
