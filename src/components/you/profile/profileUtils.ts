@@ -45,8 +45,8 @@ export async function verifyNip05Identifier(identifier: string, pubkey?: string)
  */
 export async function forceRefreshProfile(pubkey: string): Promise<void> {
   try {
-    // Clear existing profile from cache
-    contentCache.removeProfile(pubkey);
+    // Instead of removing the profile directly (which isn't supported),
+    // we'll fetch a fresh profile and override the cache with the forceRefresh flag
     
     // Check if we have active relays before trying to fetch
     const relayStatus = nostrService.getRelayStatus();
@@ -57,11 +57,12 @@ export async function forceRefreshProfile(pubkey: string): Promise<void> {
       await nostrService.connectToDefaultRelays();
     }
     
-    // Fetch fresh profile data with forceRefresh option
+    // Fetch fresh profile data
     const freshProfile = await nostrService.getUserProfile(pubkey);
     
-    // Force cache update with new data
+    // Force cache update with new data if we got a profile back
     if (freshProfile) {
+      // Use the existing cacheProfile method with forceRefresh = true
       contentCache.cacheProfile(pubkey, freshProfile, true);
       console.log("Profile refreshed and cached:", freshProfile.name || freshProfile.display_name || pubkey);
       return;
