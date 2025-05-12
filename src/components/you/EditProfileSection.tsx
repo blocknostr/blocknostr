@@ -77,12 +77,39 @@ const EditProfileSection: React.FC<EditProfileSectionProps> = ({
         console.log('[PROFILE UPDATE] Already connected to relays:', connectedRelays.map(r => r.url));
       }
 
+      // Safe handling of values and URLs
       const cleanValues: ProfileData = {};
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') {
-          cleanValues[key] = value;
-        }
-      });
+      
+      try {
+        Object.entries(values).forEach(([key, value]) => {
+          if (value !== undefined && value !== '') {
+            // Special handling for URLs
+            if (key === 'picture' || key === 'banner') {
+              const sanitized = sanitizeImageUrl(value);
+              
+              // Only include valid URLs
+              if (sanitized && (
+                  sanitized.startsWith('http://') || 
+                  sanitized.startsWith('https://') || 
+                  sanitized.startsWith('data:') ||
+                  sanitized.startsWith('/') ||
+                  sanitized.startsWith(window.location.origin)
+              )) {
+                cleanValues[key] = sanitized;
+              } else {
+                console.warn(`[PROFILE UPDATE] Excluding invalid ${key} URL:`, value);
+              }
+            } else {
+              cleanValues[key] = value;
+            }
+          }
+        });
+      } catch (valuesError) {
+        console.error('[PROFILE UPDATE] Error processing profile values:', valuesError);
+        toast.error('Error processing profile data');
+        setIsSubmitting(false);
+        return;
+      }
 
       console.log('[PROFILE UPDATE] Cleaned profile values:', cleanValues);
 

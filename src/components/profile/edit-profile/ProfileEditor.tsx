@@ -64,15 +64,34 @@ const ProfileEditor = ({
         console.log("[PROFILE EDITOR] Connected relays:", connectedRelays.map(r => r.url));
       }
       
-      // Process image URLs to fix any relative paths
-      if (values.picture) {
-        values.picture = sanitizeImageUrl(values.picture);
-        console.log("[PROFILE EDITOR] Sanitized picture URL:", values.picture);
-      }
-      
-      if (values.banner) {
-        values.banner = sanitizeImageUrl(values.banner);
-        console.log("[PROFILE EDITOR] Sanitized banner URL:", values.banner);
+      // Process image URLs to fix any relative paths - with extra validation
+      try {
+        if (values.picture) {
+          values.picture = sanitizeImageUrl(values.picture);
+          console.log("[PROFILE EDITOR] Sanitized picture URL:", values.picture);
+          
+          // Validate URL format
+          if (values.picture && !values.picture.match(/^(https?:\/\/|data:|\/|$)/)) {
+            console.warn("[PROFILE EDITOR] Potentially invalid picture URL format:", values.picture);
+            values.picture = ''; // Clear invalid URL
+          }
+        }
+        
+        if (values.banner) {
+          values.banner = sanitizeImageUrl(values.banner);
+          console.log("[PROFILE EDITOR] Sanitized banner URL:", values.banner);
+          
+          // Validate URL format
+          if (values.banner && !values.banner.match(/^(https?:\/\/|data:|\/|$)/)) {
+            console.warn("[PROFILE EDITOR] Potentially invalid banner URL format:", values.banner);
+            values.banner = ''; // Clear invalid URL
+          }
+        }
+      } catch (urlError) {
+        console.error("[PROFILE EDITOR] Error processing image URLs:", urlError);
+        // Continue with empty image URLs rather than failing
+        values.picture = '';
+        values.banner = '';
       }
       
       // Clean up empty values

@@ -5,24 +5,51 @@ import { NostrEvent } from '@/lib/nostr/types';
 import { getEventHash, type UnsignedEvent, type Event as RawEvent } from 'nostr-tools';
 
 /**
+ * Safely encodes URI components to prevent malformed URI errors
+ */
+function safeEncodeURIComponent(component: string): string {
+  try {
+    return encodeURIComponent(component);
+  } catch (error) {
+    console.error('[URL ENCODING] Error encoding component:', component, error);
+    return '';
+  }
+}
+
+/**
  * Sanitize image URL to ensure it's properly formatted.
  * Handles absolute (http/https), app-relative ("/…") and bare paths.
+ * Includes additional safety for malformed URIs.
  */
 export function sanitizeImageUrl(url: string): string {
   if (!url) return '';
 
-  // Already absolute?
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url;
-  }
+  try {
+    // Already absolute?
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      // Verify it's a valid URL by attempting to construct a URL object
+      try {
+        new URL(url);
+        return url;
+      } catch (e) {
+        console.warn('[URL SANITIZE] Invalid absolute URL:', url);
+        return '';
+      }
+    }
 
-  // App-relative
-  if (url.startsWith('/')) {
-    return `${window.location.origin}${url}`;
-  }
+    // App-relative
+    if (url.startsWith('/')) {
+      return `${window.location.origin}${url}`;
+    }
 
-  // Bare path → assume relative
-  return `${window.location.origin}/${url}`;
+    // Bare path → assume relative
+    // Handle potential special characters by encoding the path portion
+    const safePath = safeEncodeURIComponent(url).replace(/%2F/g, '/');
+    return `${window.location.origin}/${safePath}`;
+  } catch (error) {
+    console.error('[URL SANITIZE] Error processing URL:', url, error);
+    return '';
+  }
 }
 
 /**
@@ -170,17 +197,42 @@ export async function publishProfileWithFallback(
     return { success: false, error: 'No public key available' };
   }
 
-  // Build full unsigned event
-  const full: UnsignedEvent = {
-    ...unsignedEvent,
-    pubkey: nostrService.publicKey,
-    created_at: Math.floor(Date.now() / 1000),
-  };
-
-  // Compute ID
-  const eventId = getEventHash(full);
-
   try {
+    // Validate content before publishing
+    // Check if content is valid JSON for kind 0 events
+    if (unsignedEvent.kind === 0) {
+      try {
+        const contentObj = JSON.parse(unsignedEvent.content);
+        
+        // Sanitize URLs in the profile data
+        if (contentObj.picture) {
+          contentObj.picture = sanitizeImageUrl(contentObj.picture);
+        }
+        if (contentObj.banner) {
+          contentObj.banner = sanitizeImageUrl(contentObj.banner);
+        }
+        
+        // Update content with sanitized values
+        unsignedEvent = {
+          ...unsignedEvent,
+          content: JSON.stringify(contentObj)
+        };
+      } catch (e) {
+        console.error('[PUBLISH] Invalid JSON in event content:', e);
+        return { success: false, error: 'Invalid profile data format' };
+      }
+    }
+
+    // Build full unsigned event
+    const full: UnsignedEvent = {
+      ...unsignedEvent,
+      pubkey: nostrService.publicKey,
+      created_at: Math.floor(Date.now() / 1000),
+    };
+
+    // Compute ID
+    const eventId = getEventHash(full);
+
     console.log('[PUBLISH] Attempting to publish event with tryPublishWithRetries...');
 
     // Verify relay reachability before publishing
