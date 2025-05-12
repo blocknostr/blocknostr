@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
