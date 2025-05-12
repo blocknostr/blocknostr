@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { getHexPubkey, isCurrentUserProfile } from './utils/pubkeyUtils';
@@ -6,9 +7,14 @@ import { useProfileFetch } from './useProfileFetch';
 interface UseProfileMetadataProps {
   npub: string | undefined;
   currentUserPubkey: string | null;
+  debugMode?: boolean;  // Add debug mode flag to control console logging
 }
 
-export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetadataProps) {
+export function useProfileMetadata({ 
+  npub, 
+  currentUserPubkey,
+  debugMode = false  // Default to no debug logging
+}: UseProfileMetadataProps) {
   const [profileData, setProfileData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +70,8 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
           return;
         }
         
-        // Use the fetchProfile function from the useProfileFetch hook
-        const profile = await fetchProfile(pubkeyToUse);
+        // Use the fetchProfile function with debug mode flag
+        const profile = await fetchProfile(pubkeyToUse, { verbose: debugMode });
         
         // Update state if component is still mounted
         if (mountedRef.current) {
@@ -92,7 +98,7 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
     // Set a timeout to ensure loading state doesn't hang indefinitely
     timeoutRef.current = window.setTimeout(() => {
       if (mountedRef.current && loading) {
-        console.log("Profile metadata loading timeout");
+        if (debugMode) console.log("Profile metadata loading timeout");
         setLoading(false);
         
         if (!profileData) {
@@ -108,7 +114,7 @@ export function useProfileMetadata({ npub, currentUserPubkey }: UseProfileMetada
         timeoutRef.current = null;
       }
     };
-  }, [npub, currentUserPubkey, fetchProfile, fetchError, loading, profileData]);
+  }, [npub, currentUserPubkey, fetchProfile, fetchError, loading, profileData, debugMode]);
 
   return {
     profileData,

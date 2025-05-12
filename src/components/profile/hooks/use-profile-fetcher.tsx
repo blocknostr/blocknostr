@@ -12,11 +12,14 @@ export function useProfileFetcher() {
   const MAX_RETRIES = 3;
   
   // Enhanced profile fetcher with better error handling, retries and tracking
-  const fetchProfileData = async (pubkey: string) => {
+  // Added options for verbose logging control
+  const fetchProfileData = async (pubkey: string, options: { verbose?: boolean } = {}) => {
     if (!pubkey) return;
     
+    const verbose = options.verbose ?? false;
+    
     try {
-      console.log("Fetching profile data for:", pubkey);
+      if (verbose) console.log("Fetching profile data for:", pubkey);
       setFetchingProfiles(prev => ({ ...prev, [pubkey]: true }));
       
       // Check if pubkey is in npub format and convert if needed
@@ -24,7 +27,7 @@ export function useProfileFetcher() {
         ? nostrService.getHexFromNpub(pubkey) 
         : pubkey;
         
-      console.log(`Profile ${pubkey} converted to hex:`, hexPubkey);
+      if (verbose) console.log(`Profile ${pubkey} converted to hex:`, hexPubkey);
       
       // First try to connect to relays to ensure we're ready to receive data
       await nostrService.connectToUserRelays();
@@ -39,10 +42,13 @@ export function useProfileFetcher() {
       ]);
       
       // Mark important profiles (like currently viewed profiles) as important for caching
-      const profile = await fetchProfile(hexPubkey, { important: true });
+      const profile = await fetchProfile(hexPubkey, { 
+        important: true,
+        verbose: verbose
+      });
       
       if (profile) {
-        console.log("Profile fetched successfully:", profile.name || profile.display_name || hexPubkey);
+        if (verbose) console.log("Profile fetched successfully:", profile.name || profile.display_name || hexPubkey);
         
         // Reset retry attempts on success
         setRetryAttempts(prev => {
@@ -51,18 +57,18 @@ export function useProfileFetcher() {
           return updated;
         });
       } else {
-        console.warn("No profile data returned for:", hexPubkey);
+        if (verbose) console.warn("No profile data returned for:", hexPubkey);
         
         // Implement retry logic for failed fetches
         const currentAttempts = retryAttempts[pubkey] || 0;
         if (currentAttempts < MAX_RETRIES) {
           setRetryAttempts(prev => ({ ...prev, [pubkey]: currentAttempts + 1 }));
           
-          console.log(`Retry attempt ${currentAttempts + 1}/${MAX_RETRIES} for profile ${pubkey}`);
+          if (verbose) console.log(`Retry attempt ${currentAttempts + 1}/${MAX_RETRIES} for profile ${pubkey}`);
           
           // Wait a bit before retrying with exponential backoff
           const delay = Math.min(1000 * Math.pow(2, currentAttempts), 8000);
-          setTimeout(() => fetchProfileData(pubkey), delay);
+          setTimeout(() => fetchProfileData(pubkey, options), delay);
         }
       }
       
@@ -87,7 +93,7 @@ export function useProfileFetcher() {
         
         // Wait before retrying with exponential backoff
         const delay = Math.min(1000 * Math.pow(2, currentAttempts), 8000);
-        setTimeout(() => fetchProfileData(pubkey), delay);
+        setTimeout(() => fetchProfileData(pubkey, options), delay);
       } else {
         toast.error(`Couldn't load profile data after ${MAX_RETRIES} attempts`);
       }
@@ -99,10 +105,13 @@ export function useProfileFetcher() {
   };
   
   // Enhanced method to fetch multiple profiles at once with parallel processing
-  const fetchMultipleProfiles = async (pubkeys: string[]) => {
+  // Added options for verbose logging control
+  const fetchMultipleProfiles = async (pubkeys: string[], options: { verbose?: boolean } = {}) => {
     if (!pubkeys.length) return {};
     
-    console.log(`Fetching ${pubkeys.length} profiles in batch`);
+    const verbose = options.verbose ?? false;
+    
+    if (verbose) console.log(`Fetching ${pubkeys.length} profiles in batch`);
     
     try {
       // Ensure we're connected to relays before batch fetching
@@ -119,12 +128,14 @@ export function useProfileFetcher() {
       const uniquePubkeys = [...new Set(pubkeys)];
       const results = await fetchProfiles(uniquePubkeys);
       
-      // Log success rate
-      const successCount = Object.keys(results).length;
-      console.log(`Batch profile fetch: ${successCount}/${uniquePubkeys.length} profiles loaded`);
-      
-      if (successCount < uniquePubkeys.length * 0.5) {
-        console.warn("Less than 50% of profiles loaded, may indicate relay connection issues");
+      // Log success rate only in verbose mode
+      if (verbose) {
+        const successCount = Object.keys(results).length;
+        console.log(`Batch profile fetch: ${successCount}/${uniquePubkeys.length} profiles loaded`);
+        
+        if (successCount < uniquePubkeys.length * 0.5) {
+          console.warn("Less than 50% of profiles loaded, may indicate relay connection issues");
+        }
       }
       
       return results;

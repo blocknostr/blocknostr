@@ -18,7 +18,7 @@ export function useProfileFetch() {
    */
   const fetchProfile = useCallback(async (
     pubkeyInput: string | undefined, 
-    options: { forceRefresh?: boolean } = {}
+    options: { forceRefresh?: boolean, verbose?: boolean } = {}
   ) => {
     if (!pubkeyInput) {
       setError("No profile identifier provided");
@@ -26,6 +26,7 @@ export function useProfileFetch() {
     }
     
     const hexPubkey = getHexPubkey(pubkeyInput);
+    const verbose = options.verbose ?? false;
     
     if (!hexPubkey) {
       setError("Invalid profile identifier");
@@ -33,7 +34,7 @@ export function useProfileFetch() {
       return null;
     }
     
-    console.log("Fetching profile for hex pubkey:", hexPubkey);
+    if (verbose) console.log("Fetching profile for hex pubkey:", hexPubkey);
     setLoading(true);
     setError(null);
     
@@ -42,7 +43,7 @@ export function useProfileFetch() {
       const cachedProfile = !options.forceRefresh ? contentCache.getProfile(hexPubkey) : null;
       
       if (cachedProfile) {
-        console.log("Found cached profile:", cachedProfile.name || cachedProfile.display_name || hexPubkey);
+        if (verbose) console.log("Found cached profile:", cachedProfile.name || cachedProfile.display_name || hexPubkey);
         setLoading(false);
         return cachedProfile;
       }
@@ -50,13 +51,13 @@ export function useProfileFetch() {
       // Connect to relays
       await connectToProfileRelays();
       
-      console.log("Connected to relays, fetching profile...");
+      if (verbose) console.log("Connected to relays, fetching profile...");
       
       // Fetch profile metadata directly
       const profileMetadata = await nostrService.getUserProfile(hexPubkey);
       
       if (profileMetadata) {
-        console.log("Profile found:", profileMetadata.name || profileMetadata.display_name || hexPubkey);
+        if (verbose) console.log("Profile found:", profileMetadata.name || profileMetadata.display_name || hexPubkey);
         
         // Cache the profile
         try {
@@ -68,7 +69,7 @@ export function useProfileFetch() {
         setLoading(false);
         return profileMetadata;
       } else {
-        console.warn("No profile data returned for pubkey:", hexPubkey);
+        if (verbose) console.warn("No profile data returned for pubkey:", hexPubkey);
         
         // If no profile found, create minimal data
         const minimalData = {
@@ -86,7 +87,7 @@ export function useProfileFetch() {
       const cachedProfile = contentCache.getProfile(hexPubkey);
       
       if (cachedProfile) {
-        console.log("Using cached profile data due to connection error");
+        if (verbose) console.log("Using cached profile data due to connection error");
         setLoading(false);
         return cachedProfile;
       }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
@@ -30,9 +29,11 @@ const YouPage = () => {
   }, [currentUserPubkey, navigate]);
 
   // Use the existing profile data hook but specifically for the current user
+  // Pass debugMode=false to prevent console.log spam
   const profileData = useProfileData({
     npub: currentUserPubkey ? nostrService.formatPubkey(currentUserPubkey) : undefined,
-    currentUserPubkey
+    currentUserPubkey,
+    debugMode: false
   });
 
   // Track edit mode state locally
@@ -84,8 +85,6 @@ const YouPage = () => {
         
         // Force re-render of the profile preview
         setProfileKey(Date.now());
-        
-        console.log("Profile updated and refreshed successfully");
       } catch (error) {
         console.error("Error refreshing after save:", error);
       } finally {

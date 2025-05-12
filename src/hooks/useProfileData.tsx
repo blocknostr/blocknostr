@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useProfileMetadata } from './profile/useProfileMetadata';
 import { useProfilePosts } from './profile/useProfilePosts';
@@ -14,9 +15,14 @@ import { useProfileRefresh } from './profile/useProfileRefresh';
 interface UseProfileDataProps {
   npub: string | undefined;
   currentUserPubkey: string | null;
+  debugMode?: boolean; // Add control flag to disable verbose logging
 }
 
-export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps) {
+export function useProfileData({ 
+  npub, 
+  currentUserPubkey,
+  debugMode = false // Default to no debug logging
+}: UseProfileDataProps) {
   // State for tracking original post profiles (used in reposts)
   const [originalPostProfiles, setOriginalPostProfiles] = useState<Record<string, any>>({});
   
@@ -37,12 +43,13 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     profileData
   });
   
-  // Use debug info hook
+  // Use debug info hook with debug mode control
   useProfileDebugInfo({ 
     npub, 
     hexNpub, 
     loading: metadataLoading, 
-    profileData 
+    profileData,
+    debugMode
   });
   
   // Use refresh hook
@@ -86,12 +93,12 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     }
   }, [relationsHasError, relationsError, metadataError, postsError]);
   
-  // Log followers and following counts for debugging
+  // Only log followers/following counts in debug mode
   useEffect(() => {
-    if (!relationsLoading) {
+    if (!relationsLoading && debugMode) {
       console.log(`Profile relations: ${followers.length} followers, ${following.length} following`);
     }
-  }, [followers, following, relationsLoading]);
+  }, [followers, following, relationsLoading, debugMode]);
   
   // Get reposts and handle fetching original posts
   const { 
@@ -119,7 +126,7 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     if (relaysError && !metadataError && !postsError && !relationsError) {
       setErrorMessage(relaysError);
     }
-  }, [relaysError, metadataError, postsError, relationsError]);
+  }, [relaysError, metadataError, postsError, relationsError, setErrorMessage]);
   
   // Get replies (NIP-10)
   const { replies } = useProfileReplies({
@@ -131,12 +138,12 @@ export function useProfileData({ npub, currentUserPubkey }: UseProfileDataProps)
     hexPubkey: hexNpub
   });
   
-  // Log post counts for debugging
+  // Only log post counts in debug mode
   useEffect(() => {
-    if (events.length > 0 || reposts.length > 0) {
+    if ((events.length > 0 || reposts.length > 0) && debugMode) {
       console.log(`Profile posts: ${events.length} posts, ${reposts.length} reposts`);
     }
-  }, [events, reposts]);
+  }, [events, reposts, debugMode]);
   
   // Determine overall loading state
   const loading = metadataLoading || (postsLoading && events.length === 0);

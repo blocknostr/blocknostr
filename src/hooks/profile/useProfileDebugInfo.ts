@@ -7,11 +7,21 @@ interface UseProfileDebugInfoProps {
   hexNpub: string | null;
   loading: boolean;
   profileData: any | null;
+  debugMode?: boolean; // Add debug mode flag to control logging
 }
 
-export function useProfileDebugInfo({ npub, hexNpub, loading, profileData }: UseProfileDebugInfoProps) {
-  // Log important information for debugging
+export function useProfileDebugInfo({ 
+  npub, 
+  hexNpub, 
+  loading, 
+  profileData,
+  debugMode = false // Default to no debug logging
+}: UseProfileDebugInfoProps) {
+  // Only log when in debug mode
   useEffect(() => {
+    // Skip logging unless explicitly in debug mode
+    if (!debugMode) return;
+    
     if (npub) {
       console.log("Profile page for npub:", npub);
       
@@ -32,5 +42,5 @@ export function useProfileDebugInfo({ npub, hexNpub, loading, profileData }: Use
     } else {
       console.log("Profile data loaded:", profileData ? "success" : "not found");
     }
-  }, [npub, hexNpub, loading, profileData]);
+  }, [npub, hexNpub, loading, profileData, debugMode]);
 }
