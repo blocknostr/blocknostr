@@ -47,7 +47,6 @@ function App() {
           toastOptions={{
             duration: 2500,
             className: "nostr-toast",
-            dismissible: true,
             style: { 
               background: "hsl(var(--background))",
               border: "1px solid hsl(var(--border))",
