@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -155,6 +154,7 @@ html.color-theme-in-transition {
     @apply relative transition-all duration-200;
   }
   
+  /* Original message bubbles with points */
   .message-bubble-sent {
     @apply bg-primary text-primary-foreground rounded-2xl rounded-tr-sm;
     position: relative;
@@ -187,6 +187,17 @@ html.color-theme-in-transition {
     background: hsl(var(--muted) / 0.8);
     border-radius: 0 0 10px 0;
     clip-path: polygon(100% 0, 0 0, 100% 100%);
+  }
+  
+  /* New message bubbles without points */
+  .message-bubble-sent-no-point {
+    @apply bg-primary text-primary-foreground rounded-2xl;
+    position: relative;
+  }
+  
+  .message-bubble-received-no-point {
+    @apply bg-muted/80 rounded-2xl;
+    position: relative;
   }
 }
 

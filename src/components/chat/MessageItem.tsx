@@ -87,8 +87,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
               className={clsx(
                 "inline-block text-sm break-words whitespace-pre-wrap px-3 py-1.5 rounded-2xl shadow-sm max-w-full",
                 isCurrentUser 
-                  ? "bg-primary text-primary-foreground rounded-tr-sm message-bubble-sent"
-                  : "bg-muted/80 rounded-tl-sm message-bubble-received",
+                  ? "bg-primary text-primary-foreground rounded-tr-2xl message-bubble-sent-no-point"
+                  : "bg-muted/80 rounded-tl-2xl message-bubble-received-no-point",
                 {
                   "rounded-tr-2xl": isCurrentUser && shouldGroupWithPrevious,
                   "rounded-tl-2xl": !isCurrentUser && shouldGroupWithPrevious
