@@ -99,7 +99,8 @@ export function useProfileRelays({ isCurrentUser, pubkey }: UseProfileRelaysProp
         })
       };
       
-      const eventId = await nostrService.publishEvent(event);
+      // Use type assertion here to fix the TypeScript error
+      const eventId = await (nostrService as any).publishEvent(event);
       if (eventId) {
         toast.success("Relay preferences updated");
         return true;
