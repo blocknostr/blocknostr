@@ -1,137 +1,97 @@
 
-import { nostrService } from './service';
-
-interface SubscriptionOptions {
-  filters: any[];
-  onEvent: (event: any) => void;
-  relays?: string[];
-  autoRenew?: boolean;
-  ttl?: number; // Time to live in seconds
-}
+import { NostrEvent } from "./types";
 
 /**
- * Manager for handling Nostr subscriptions
- * Provides automatic renewal capabilities for subscriptions
+ * Manages subscriptions to Nostr events
  */
 export class SubscriptionManager {
   private subscriptions: Map<string, {
-    options: SubscriptionOptions;
-    startTime: number;
-    expiryTime?: number;
+    filters: any[];
+    callbacks: ((event: NostrEvent) => void)[];
+    relays?: string[];
   }> = new Map();
   
-  private renewalInterval?: NodeJS.Timer;
-
-  constructor() {
-    // Set up a renewal check interval
-    this.renewalInterval = setInterval(() => this.checkForRenewals(), 30000);
-  }
-
   /**
-   * Create a new subscription
-   * @param options Subscription options
-   * @returns Subscription ID
+   * Add a subscription
+   * @param id Subscription ID
+   * @param filters Nostr filters
+   * @param callback Callback function for events
+   * @param relays Optional array of relay URLs
    */
-  subscribe(options: SubscriptionOptions): string {
-    // Create the subscription
-    const subId = nostrService.subscribe(
-      options.filters,
-      options.onEvent,
-      options.relays
-    );
-    
-    // Store the subscription details
-    this.subscriptions.set(subId, {
-      options,
-      startTime: Date.now(),
-      expiryTime: options.ttl ? Date.now() + (options.ttl * 1000) : undefined
-    });
-    
-    return subId;
-  }
-
-  /**
-   * Unsubscribe from a subscription
-   * @param subId Subscription ID
-   */
-  unsubscribe(subId: string): void {
-    if (this.subscriptions.has(subId)) {
-      nostrService.unsubscribe(subId);
-      this.subscriptions.delete(subId);
+  addSubscription(
+    id: string,
+    filters: any[],
+    callback: (event: NostrEvent) => void,
+    relays?: string[]
+  ): void {
+    if (this.subscriptions.has(id)) {
+      // Add callback to existing subscription
+      const sub = this.subscriptions.get(id)!;
+      sub.callbacks.push(callback);
+    } else {
+      // Create new subscription
+      this.subscriptions.set(id, {
+        filters,
+        callbacks: [callback],
+        relays
+      });
     }
   }
-
+  
   /**
-   * Unsubscribe from all subscriptions
+   * Remove a subscription
+   * @param id Subscription ID
+   * @param callback Optional callback to remove (if not provided, removes all)
+   * @returns Boolean indicating if subscription was fully removed
    */
-  unsubscribeAll(): void {
-    for (const subId of this.subscriptions.keys()) {
-      nostrService.unsubscribe(subId);
-    }
-    this.subscriptions.clear();
-  }
-
-  /**
-   * Check for subscriptions that need renewal and renew them
-   */
-  private checkForRenewals(): void {
-    const now = Date.now();
-    
-    for (const [subId, sub] of this.subscriptions.entries()) {
-      // Skip if not set to auto-renew or no expiry
-      if (!sub.options.autoRenew || !sub.expiryTime) {
-        continue;
-      }
-      
-      // If expired or about to expire, renew
-      if (sub.expiryTime - now < 10000) { // Renew if less than 10s remaining
-        this.renewSubscription(subId);
-      }
-    }
-  }
-
-  /**
-   * Manually renew a subscription
-   * @param subId Subscription ID
-   * @returns Boolean indicating success
-   */
-  renewSubscription(subId: string): boolean {
-    const sub = this.subscriptions.get(subId);
-    if (!sub) {
+  removeSubscription(id: string, callback?: (event: NostrEvent) => void): boolean {
+    if (!this.subscriptions.has(id)) {
       return false;
     }
     
-    // Unsubscribe from the old subscription
-    nostrService.unsubscribe(subId);
+    const sub = this.subscriptions.get(id)!;
     
-    // Create a new subscription with the same options
-    const newSubId = nostrService.subscribe(
-      sub.options.filters,
-      sub.options.onEvent,
-      sub.options.relays
-    );
-    
-    // Update the subscription details
-    this.subscriptions.delete(subId);
-    this.subscriptions.set(newSubId, {
-      options: sub.options,
-      startTime: Date.now(),
-      expiryTime: sub.options.ttl ? Date.now() + (sub.options.ttl * 1000) : undefined
-    });
-    
-    return true;
-  }
-
-  /**
-   * Clean up resources when manager is no longer needed
-   */
-  cleanup(): void {
-    if (this.renewalInterval) {
-      clearInterval(this.renewalInterval);
+    if (callback) {
+      // Remove specific callback
+      sub.callbacks = sub.callbacks.filter(cb => cb !== callback);
+      
+      // If no callbacks left, remove subscription
+      if (sub.callbacks.length === 0) {
+        this.subscriptions.delete(id);
+        return true;
+      }
+      
+      return false;
+    } else {
+      // Remove entire subscription
+      this.subscriptions.delete(id);
+      return true;
     }
-    this.unsubscribeAll();
+  }
+  
+  /**
+   * Get a subscription by ID
+   * @param id Subscription ID
+   * @returns Subscription or undefined
+   */
+  getSubscription(id: string) {
+    return this.subscriptions.get(id);
+  }
+  
+  /**
+   * Get all subscription IDs
+   * @returns Array of subscription IDs
+   */
+  getSubscriptionIds(): string[] {
+    return Array.from(this.subscriptions.keys());
+  }
+  
+  /**
+   * Check if a subscription exists
+   * @param id Subscription ID
+   * @returns Boolean indicating if subscription exists
+   */
+  hasSubscription(id: string): boolean {
+    return this.subscriptions.has(id);
   }
 }
-
-// Can create a singleton instance if needed
-// export const subscriptionManager = new SubscriptionManager();

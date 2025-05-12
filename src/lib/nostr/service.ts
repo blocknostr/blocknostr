@@ -8,7 +8,6 @@ export class NostrService {
   // Add other methods here...
   publicKey: string | null = null;
   
-  // Add the publishRelayList method to the NostrService class
   /**
    * Publish a list of relays according to NIP-65
    * @param relays Array of relay objects with url, read, and write properties

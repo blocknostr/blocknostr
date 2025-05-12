@@ -53,7 +53,7 @@ export interface NostrFilter {
   since?: number;
   until?: number;
   limit?: number;
-  [key: `#${string}`]?: string[]; // Tag filters like #e, #p, etc.
+  [key: `#${string}`]: string[]; // Tag filters like #e, #p, etc.
 }
 
 // Define types for the proposal category

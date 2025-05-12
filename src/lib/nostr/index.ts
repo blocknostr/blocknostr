@@ -1,15 +1,6 @@
 
 // Re-export types
-export type {
-  NostrEvent,
-  NostrProfileMetadata,
-  NostrProfile,
-  Relay,
-  NostrFilter,
-  CircuitState,
-  ProposalCategory,
-  NoteCardProps
-} from './types';
+export * from './types';
 
 // Export constants
 export { EVENT_KINDS } from './constants';
@@ -19,15 +10,16 @@ export { nostrService } from './service';
 export { adaptedNostrService } from './nostr-adapter';
 
 // Export utils
-export { 
-  formatPubkey, 
-  getNpubFromHex, 
-  getHexFromNpub 
-} from './utils/keys';
-export { contentFormatter } from './utils/content-formatter';
+export { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Export content cache
 export { contentCache } from './content-cache';
 
 // Export subscription manager
 export { SubscriptionManager } from './subscription-manager';
+
+// Export circuit breaker
+export { CircuitBreaker } from './relay/circuit/circuit-breaker';
+
+// Export adapter
+export { NostrAdapter } from './adapter';

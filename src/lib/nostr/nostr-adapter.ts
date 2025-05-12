@@ -1,3 +1,4 @@
+
 import { nostrService } from './service';
 import { NostrEvent, Relay, ProposalCategory } from './types';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
@@ -72,7 +73,7 @@ class AdaptedNostrService {
     return this.service.getAccountCreationDate(pubkey);
   }
 
-  // Access to following list - FIXED: Return directly instead of using a getter
+  // Access to following list - Return directly instead of using a getter
   get following() {
     return this.service.following;
   }
