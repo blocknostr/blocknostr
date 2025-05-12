@@ -14,6 +14,8 @@ export interface UserPreferences {
     showSensitiveContent: boolean;
     showMediaByDefault: boolean;
     showPreviewImages: boolean;
+    dataSaverMode: boolean;
+    preferredQuality: 'low' | 'medium' | 'high';
   };
   notificationPreferences: {
     notifyOnMentions: boolean;
@@ -28,6 +30,8 @@ export interface UserPreferences {
     compactMode: boolean;
     fontSize: 'small' | 'medium' | 'large';
     showTrending: boolean;
+    layoutView: 'standard' | 'compact' | 'comfortable';
+    theme: 'system' | 'light' | 'dark';
   };
 }
 
@@ -42,6 +46,8 @@ const defaultPreferences: UserPreferences = {
     showSensitiveContent: false,
     showMediaByDefault: true,
     showPreviewImages: true,
+    dataSaverMode: false,
+    preferredQuality: 'high',
   },
   notificationPreferences: {
     notifyOnMentions: true,
@@ -56,6 +62,8 @@ const defaultPreferences: UserPreferences = {
     compactMode: false,
     fontSize: 'medium',
     showTrending: true,
+    layoutView: 'standard',
+    theme: 'system',
   },
 };
 

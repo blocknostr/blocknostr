@@ -1,9 +1,11 @@
 
-import React, { useState } from 'react';
-import { MessageSquare, ExternalLink } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
-// Remove import for formatRelativeTime since it's not used in this component
+import HashtagButton from './HashtagButton';
+import EnhancedMediaContent from '../media/EnhancedMediaContent';
+import { cn } from '@/lib/utils';
 
 interface NoteCardContentProps {
   content: string;
@@ -29,16 +31,66 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
-  // Find hashtags in the content
+  // Extract hashtags from tags array
   const hashtags = tags
     .filter(tag => tag[0] === 't')
     .map(tag => tag[1]);
+  
+  // Extract media URLs from content and tags
+  const mediaUrls = useMemo(() => {
+    const urlsFromContent: string[] = [];
+    const mediaRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/gi;
+    let match;
+    
+    // Extract from content
+    while ((match = mediaRegex.exec(content)) !== null) {
+      urlsFromContent.push(match[0]);
+    }
+    
+    // Extract from tags
+    const urlsFromTags = tags
+      .filter(tag => tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'r')
+      .map(tag => tag[1])
+      .filter(url => url.match(/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?.*)?$/i));
+    
+    // Combine and deduplicate URLs
+    return [...new Set([...urlsFromContent, ...urlsFromTags])];
+  }, [content, tags]);
+  
+  // Handle hashtag click
+  const handleHashtagClick = (tag: string) => {
+    // Dispatch custom event to be caught by parent components
+    window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
+  };
   
   return (
     <div className="mt-2">
       <div className="prose max-w-none dark:prose-invert text-sm">
         {formattedContent}
       </div>
+      
+      {/* Media preview section */}
+      {mediaUrls.length > 0 && (
+        <div className={cn(
+          "mt-3 grid gap-2",
+          mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
+        )}>
+          {mediaUrls.slice(0, 4).map((url, index) => (
+            <EnhancedMediaContent 
+              key={`${url}-${index}`}
+              url={url}
+              alt={`Post media ${index + 1}`}
+              index={index}
+              totalItems={mediaUrls.length}
+            />
+          ))}
+          {mediaUrls.length > 4 && (
+            <div className="col-span-2 text-center text-sm text-muted-foreground mt-1">
+              +{mediaUrls.length - 4} more media items
+            </div>
+          )}
+        </div>
+      )}
       
       {isLong && (
         <Button 
@@ -54,12 +106,12 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       {hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
-            <span 
+            <HashtagButton
               key={index}
-              className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground hover:text-primary cursor-pointer"
-            >
-              #{tag}
-            </span>
+              tag={tag}
+              onClick={handleHashtagClick}
+              variant="small"
+            />
           ))}
         </div>
       )}
