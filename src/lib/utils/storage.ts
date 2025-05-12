@@ -1,9 +1,9 @@
-
 /**
- * Safely get an item from localStorage with error handling
- * @param key Storage key
- * @returns Stored value or null if not found/error
+ * src/lib/storage.ts
+ * Safely interact with localStorage, including automatic JSON parsing
  */
+
+// Safely get a raw string from localStorage
 export const safeLocalStorageGet = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
@@ -13,12 +13,7 @@ export const safeLocalStorageGet = (key: string): string | null => {
   }
 };
 
-/**
- * Safely set an item in localStorage with error handling
- * @param key Storage key
- * @param value Value to store
- * @returns Boolean indicating success
- */
+// Safely set a raw string into localStorage
 export const safeLocalStorageSet = (key: string, value: string): boolean => {
   try {
     localStorage.setItem(key, value);
@@ -29,11 +24,7 @@ export const safeLocalStorageSet = (key: string, value: string): boolean => {
   }
 };
 
-/**
- * Safely remove an item from localStorage with error handling
- * @param key Storage key
- * @returns Boolean indicating success
- */
+// Safely remove a key from localStorage
 export const safeLocalStorageRemove = (key: string): boolean => {
   try {
     localStorage.removeItem(key);
@@ -43,3 +34,21 @@ export const safeLocalStorageRemove = (key: string): boolean => {
     return false;
   }
 };
+
+/**
+ * Safely parse JSON out of localStorage, clearing the key on parse errors.
+ * @param key Storage key
+ * @returns The parsed object, or undefined if missing or invalid
+ */
+export function safeLocalStorageGetJson<T = any>(key: string): T | undefined {
+  const raw = safeLocalStorageGet(key);
+  if (raw === null) return undefined;
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    console.warn(`Invalid JSON in localStorage[${key}], clearing it:`, err);
+    safeLocalStorageRemove(key);
+    return undefined;
+  }
+}
