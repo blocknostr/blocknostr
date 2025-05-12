@@ -41,7 +41,7 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
   const normalizedIdentifier = identifier.trim().toLowerCase();
 
   try {
-    // ✅ FIX: remove second argument from nip05Verify call
+    // Fix: Call nip05Verify with just one argument - passing the identifier
     const verified = await nip05Verify(normalizedIdentifier);
     return (
       verified !== null &&

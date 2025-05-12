@@ -16,6 +16,7 @@ const YouPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [profileKey, setProfileKey] = useState(Date.now());
   const currentUserPubkey = nostrService.publicKey;
   
   // Redirect to login if not authenticated
@@ -51,8 +52,13 @@ const YouPage = () => {
     try {
       setRefreshing(true);
       await forceRefreshProfile(currentUserPubkey);
+      
       // Refetch profile data using the hook's refetch method
       await profileData.refreshProfile();
+      
+      // Force re-render by updating the key
+      setProfileKey(Date.now());
+      
       toast.success("Profile refreshed successfully");
     } catch (error) {
       console.error("Error refreshing profile:", error);
@@ -68,6 +74,9 @@ const YouPage = () => {
     
     // Force refresh to show latest changes
     await handleRefreshProfile();
+    
+    // Force re-render of the profile preview
+    setProfileKey(Date.now());
     
     // Show success message
     toast.success("Your profile has been updated!");
@@ -157,7 +166,7 @@ const YouPage = () => {
             
             {/* Right side: Always show profile preview (takes 2/5 of grid) */}
             <div className="lg:col-span-2">
-              <ProfilePreview profileData={profileData} />
+              <ProfilePreview profileData={{...profileData, key: profileKey}} />
             </div>
           </div>
         </div>

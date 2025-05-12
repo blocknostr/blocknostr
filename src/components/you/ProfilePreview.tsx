@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,15 @@ interface ProfilePreviewProps {
 }
 
 const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
-  const { profileData: profile, loading } = profileData;
+  const { profileData: profile, loading, refreshProfile } = profileData;
+  const [key, setKey] = useState(Date.now());
+  
+  // Force re-render when profile data changes
+  useEffect(() => {
+    if (profile) {
+      setKey(Date.now());
+    }
+  }, [profile]);
   
   if (loading || !profile) {
     return (
@@ -51,7 +59,10 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
   const nip05Identifier = profile.nip05;
   const hasValidNip05 = nip05Identifier && isValidNip05Format(nip05Identifier);
   
-  const { xVerified, xVerifiedInfo } = checkXVerification(profile);
+  // Use safe checking since checkXVerification might not be available
+  const { xVerified, xVerifiedInfo } = typeof checkXVerification === 'function' 
+    ? checkXVerification(profile) 
+    : { xVerified: false, xVerifiedInfo: null };
 
   // Format created_at date if available
   const formattedDate = profile.created_at 
@@ -67,7 +78,7 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
   const username = profile.name || "";
   
   return (
-    <Card className="border shadow">
+    <Card className="border shadow" key={key}>
       <CardHeader>
         <CardTitle>Profile Preview</CardTitle>
       </CardHeader>
@@ -79,6 +90,7 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
               src={profile.banner} 
               alt="Banner" 
               className="h-full w-full object-cover"
+              key={`banner-${key}`}
             />
           )}
           <div className="absolute -bottom-10 left-6">
@@ -87,6 +99,7 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
                 src={profile.picture} 
                 alt={displayName}
                 className="h-20 w-20 rounded-full object-cover border-4 border-background"
+                key={`avatar-${key}`}
               />
             ) : (
               <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-medium border-4 border-background">
@@ -127,7 +140,7 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
               <div className="flex items-center gap-1">
                 <Globe className="h-3 w-3" />
                 <a 
-                  href={profile.website} 
+                  href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
@@ -183,6 +196,14 @@ const ProfilePreview = ({ profileData }: ProfilePreviewProps) => {
             </Button>
             <Button variant="outline" size="sm" disabled className="opacity-50">
               Message
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => profileData.refreshProfile?.()}
+              className="ml-auto"
+            >
+              Refresh
             </Button>
           </div>
         </div>

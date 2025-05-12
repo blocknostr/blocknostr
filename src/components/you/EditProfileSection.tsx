@@ -43,6 +43,8 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         }
       });
       
+      console.log("Submitting profile update with values:", cleanValues);
+      
       // Verify NIP-05 if provided
       if (values.nip05) {
         // Use verifyNip05Identifier from profileUtils
@@ -67,11 +69,16 @@ const EditProfileSection = ({ profileData, onSaved }: EditProfileSectionProps) =
         
         // Force refresh cached profile data with a small delay to ensure relay propagation
         setTimeout(async () => {
-          await nostrService.getUserProfile(nostrService.publicKey);
+          // Clear cache first
+          if (nostrService.publicKey) {
+            console.log("Refreshing profile data after update");
+            // Force refresh with the second parameter set to true
+            await nostrService.getUserProfile(nostrService.publicKey, true);
+          }
           
           // Notify parent component to trigger UI refresh
           onSaved();
-        }, 500);
+        }, 1000); // Extended timeout to ensure relay propagation
       } else {
         toast.error("Failed to update profile");
       }
