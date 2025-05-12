@@ -42,7 +42,7 @@ export async function verifyNip05ForCurrentUser(identifier: string): Promise<boo
   const normalizedIdentifier = identifier.trim().toLowerCase();
   
   try {
-    const verified = await nip05Verify(normalizedIdentifier);
+const verified = await nip05Verify(normalizedIdentifier);
     // Validate that pubkeyHex is a valid hex string and matches the current user's pubkey
     return verified !== null && 
            isValidHexString(verified) && 
