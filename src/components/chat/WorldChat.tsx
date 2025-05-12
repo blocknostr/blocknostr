@@ -58,7 +58,7 @@ const WorldChat = () => {
   }, [connectionStatus, isLoggedIn, reconnect]);
 
   return (
-    <Card className="flex-grow flex flex-col h-[550px] mb-14 overflow-hidden border-muted">
+    <Card className="flex flex-col h-[400px] overflow-hidden border-muted">
       <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (

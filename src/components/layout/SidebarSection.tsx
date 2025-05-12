@@ -48,7 +48,7 @@ const SidebarSection: React.FC<SidebarSectionProps> = ({
       {/* Mobile sidebar - shown based on state */}
       <MobileSidebar isOpen={leftPanelOpen} onOpenChange={setLeftPanelOpen} />
       
-      {/* Right sidebar - conditionally rendered based on device */}
+      {/* Right sidebar with trending topics and world chat */}
       <RightSidebar
         rightPanelOpen={rightPanelOpen}
         setRightPanelOpen={setRightPanelOpen}

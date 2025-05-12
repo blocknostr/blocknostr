@@ -24,18 +24,18 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
 }) => {
   // Content to display in both mobile and desktop sidebars
   const sidebarContent = (
-    <div className="flex flex-col h-full space-y-2">
+    <div className="flex flex-col h-full space-y-4 py-2">
       <div>
         <GlobalSearch />
       </div>
-      <div className="mb-0.5">
+      <div className="mb-2">
         <TrendingTopics 
           onTopicClick={onTopicClick} 
           activeHashtag={activeHashtag}
           onClearHashtag={onClearHashtag}
         />
       </div>
-      <div className="flex-grow flex flex-col mt-1">
+      <div className="flex-grow">
         <WorldChat />
       </div>
     </div>
@@ -56,7 +56,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
   
   // Desktop right sidebar - fixed positioning for proper layout
   return (
-    <aside className="hidden md:block w-80 p-4 sticky top-0 h-screen overflow-y-auto border-l">
+    <aside className="hidden md:block w-80 px-4 py-2 sticky top-0 h-screen overflow-y-auto border-l">
       {sidebarContent}
     </aside>
   );
