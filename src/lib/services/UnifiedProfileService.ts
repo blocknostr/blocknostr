@@ -9,7 +9,7 @@ import { cacheManager } from "@/lib/utils/cacheManager";
 class UnifiedProfileService {
   private profileCache: Map<string, any> = new Map();
   private fetchingProfiles: Set<string> = new Set();
-  private prefetchQueue: string[] = new Set();
+  private prefetchQueue: string[] = []; // Changed from Set to array
   
   /**
    * Get profile data with unified caching strategy
