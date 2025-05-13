@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
@@ -10,7 +10,6 @@ import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { Heart } from 'lucide-react';
-import NoteCardContainer from './NoteCardContainer';
 
 // Import the Note type from the shared location
 import { Note } from '@/components/notebin/hooks/types';
@@ -28,7 +27,6 @@ interface NoteCardProps {
     emoji: string;
     reactionEvent: NostrEvent;
   };
-  feedVariant?: "virtualized" | "standard";
 }
 
 const NoteCard = ({
@@ -37,8 +35,7 @@ const NoteCard = ({
   hideActions = false,
   repostData,
   isReply = false,
-  reactionData,
-  feedVariant = "standard"
+  reactionData
 }: NoteCardProps) => {
   // Set up local state with the correct type
   const [activeReply, setActiveReply] = useState<Note | null>(null);
@@ -78,12 +75,8 @@ const NoteCard = ({
   
   // Build card component with all the variations
   return (
-    <NoteCardContainer 
-      eventId={event.id} 
-      className="hover:shadow transition-shadow cursor-pointer" 
-      onClick={handleCardClick}
-      feedVariant={feedVariant}
-    >
+    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
+          onClick={handleCardClick}>
       {/* Render repost header if this is a repost */}
       {repostData && (
         <NoteCardRepostHeader
@@ -94,21 +87,21 @@ const NoteCard = ({
       
       {/* Render reaction header if this is a reaction */}
       {reactionData && (
-        <div className="bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
-          <Heart className="h-3 w-3" />
+        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
+          <Heart className="h-3.5 w-3.5" />
           <span>Liked this post</span>
         </div>
       )}
       
       {/* Render reply indicator if this is a reply */}
       {isReply && (
-        <div className="bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
           <span>Reply to a post</span>
         </div>
       )}
       
       {/* Main Card Content */}
-      <CardContent className={`p-4 ${feedVariant === "virtualized" ? "pb-3" : "pb-4"}`}>
+      <CardContent className="p-4">
         {/* Note Header */}
         <NoteCardHeader
           pubkey={event?.pubkey || ''}
@@ -149,7 +142,7 @@ const NoteCard = ({
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
-    </NoteCardContainer>
+    </Card>
   );
 };
 

@@ -4,7 +4,6 @@ import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
 import { NostrEvent } from "@/lib/nostr/types";
 import { Loader2, MessageSquare } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MessageListProps {
   messages: NostrEvent[];
@@ -72,32 +71,28 @@ const MessageList: React.FC<MessageListProps> = ({
   return (
     <CardContent 
       className="p-0 overflow-hidden flex-1 relative z-10" 
+      ref={containerRef}
     >
-      <ScrollArea className="h-full">
-        <div 
-          className="p-2 flex flex-col h-full custom-scrollbar" 
-          ref={containerRef}
-        >
-          {/* We display messages in chronological order (oldest first) */}
-          {[...messages].reverse().map((message, index) => {
-            // Get previous message for grouping logic
-            const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
-            
-            return (
-              <MessageItem
-                key={message.id}
-                message={message}
-                previousMessage={previousMessage}
-                emojiReactions={emojiReactions[message.id] || []}
-                profiles={profiles}
-                isLoggedIn={isLoggedIn}
-                onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
-              />
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+      <div className="p-2 flex flex-col overflow-y-auto h-full">
+        {/* We display messages in chronological order (oldest first) */}
+        {[...messages].reverse().map((message, index) => {
+          // Get previous message for grouping logic
+          const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
+          
+          return (
+            <MessageItem
+              key={message.id}
+              message={message}
+              previousMessage={previousMessage}
+              emojiReactions={emojiReactions[message.id] || []}
+              profiles={profiles}
+              isLoggedIn={isLoggedIn}
+              onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
+            />
+          );
+        })}
+        <div ref={messagesEndRef} />
+      </div>
     </CardContent>
   );
 };

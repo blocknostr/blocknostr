@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -8,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
+import ProfileLoadingSkeleton from '@/components/profile/ProfileLoadingSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const ProfilePage = () => {
@@ -15,6 +15,7 @@ const ProfilePage = () => {
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
   const { profiles, fetchProfileData } = useProfileFetcher();
+  const [headerVisible, setHeaderVisible] = useState(false);
   
   // Convert npub to hex pubkey
   useEffect(() => {
@@ -40,6 +41,13 @@ const ProfilePage = () => {
     limit: 10 // Only load first 10 posts initially
   });
   
+  // Show header as soon as possible
+  useEffect(() => {
+    if (profile && !profileLoading) {
+      setHeaderVisible(true);
+    }
+  }, [profile, profileLoading]);
+
   if (!npub || !hexPubkey) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -49,57 +57,52 @@ const ProfilePage = () => {
     );
   }
   
-  // Show the profile header as soon as profile data is loaded
-  // Only show full loading state when both profile and posts are loading
-  const isLoading = profileLoading || (postsLoading && events.length === 0);
-  
-  // Show a skeleton state while posts are loading but profile is ready
-  const showPostsSkeleton = !profileLoading && postsLoading && events.length === 0;
+  const isLoading = profileLoading && !profile;
+  const isPostsLoading = postsLoading && events.length === 0;
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
+      {/* Always show header as soon as profile data is available */}
+      {headerVisible ? (
+        <ProfileHeader 
+          profile={profile} 
+          npub={npub} 
+          hexPubkey={hexPubkey} 
+        />
+      ) : (
+        <div className="mb-6">
+          <div className="h-40 bg-muted w-full rounded-t-lg" />
+          <div className="px-4 pb-4 border-b">
+            <div className="flex justify-between items-start relative">
+              <Skeleton className="h-24 w-24 rounded-full -mt-12 border-4 border-background" />
+              <div className="mt-4">
+                <Skeleton className="h-9 w-28" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <Skeleton className="h-6 w-1/3 mb-2" />
+              <Skeleton className="h-4 w-1/4 mb-4" />
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-5/6" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-10">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
           <p className="text-muted-foreground">Loading profile...</p>
         </div>
       ) : (
         <>
-          <ProfileHeader 
-            profile={profile} 
-            npub={npub} 
-            hexPubkey={hexPubkey} 
-          />
-          
-          {showPostsSkeleton ? (
-            <div className="mt-6 space-y-4">
-              {/* Tab skeleton */}
-              <div className="border-b pb-2 flex space-x-4">
-                <Skeleton className="h-8 w-16" />
-                <Skeleton className="h-8 w-16" />
-                <Skeleton className="h-8 w-16" />
+          {/* Show skeleton while posts are loading */}
+          {isPostsLoading ? (
+            <div className="mt-6">
+              <div className="flex justify-between items-center mb-4 px-1">
+                <Skeleton className="h-10 w-full rounded-md" />
               </div>
-              
-              {/* Post skeletons */}
-              <div className="space-y-4 mt-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-24 w-full" />
-                    <div className="flex space-x-4">
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                      <Skeleton className="h-4 w-16" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ProfileLoadingSkeleton count={3} />
             </div>
           ) : (
             <ProfileTabs 

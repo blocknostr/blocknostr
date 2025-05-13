@@ -1,13 +1,11 @@
 
-import React, { useRef, useMemo } from "react";
+import React, { useCallback } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "@/components/NoteCard"; 
+import NoteCard from "../note/MemoizedNoteCard"; // Use our new memoized component
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useInView } from "../shared/useInView";
-import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useInView } from "../shared/useInView"; // We'll create this hook
+import FeedLoadingSkeleton from "./FeedLoadingSkeleton"; // We'll create this component
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -30,75 +28,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   hasMore,
   loadMoreLoading = false
 }) => {
-  // Use our custom hook for intersection observer (for load more)
+  // Use our custom hook for intersection observer
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.5,
     triggerOnce: false
-  });
-
-  // Reference to the scrollable parent container
-  const parentRef = useRef<HTMLDivElement>(null);
-  
-  // Keep track of measured sizes
-  const sizesCache = useRef<Record<string, number>>({});
-  
-  // CSS variables for consistent spacing
-  const itemGap = 8; // Space between items
-  
-  // Set up virtualization with dynamic size measurement
-  const rowVirtualizer = useVirtualizer({
-    count: events.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: (index) => {
-      const event = events[index];
-      // Return cached size if available, otherwise use estimations based on content
-      if (event.id && sizesCache.current[event.id]) {
-        return sizesCache.current[event.id];
-      }
-      
-      // Improved base size estimate with better spacing
-      let estimatedSize = 140; // Increased from 120 to account for spacing
-      
-      // Add more height for longer content with more precise estimates
-      if (event.content) {
-        const contentLength = event.content.length;
-        if (contentLength < 100) {
-          estimatedSize += 20;
-        } else if (contentLength < 280) {
-          estimatedSize += 40;
-        } else {
-          estimatedSize += Math.min(60, contentLength / 10);
-        }
-      }
-      
-      // Better detection for images with more precise height estimates
-      if (event.content?.match(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i)) {
-        estimatedSize += 250; // More accurate height for images
-      }
-      
-      // Add fixed height for hashtags
-      if (Array.isArray(event.tags) && event.tags.some(tag => tag[0] === 't')) {
-        estimatedSize += 26;
-      }
-      
-      // Add consistent spacing between posts
-      return estimatedSize + itemGap;
-    },
-    overscan: 3, // Reduced overscan for better performance
-    measureElement: (element) => {
-      // Get the actual rendered height
-      const height = element.getBoundingClientRect().height;
-      
-      // Get the event ID from the data attribute
-      const eventId = element.getAttribute('data-event-id');
-      
-      // Store the measured height in our cache
-      if (eventId) {
-        sizesCache.current[eventId] = height + itemGap; // Add consistent spacing
-      }
-      
-      return height + itemGap;
-    }
   });
 
   // Load more content when the load more element comes into view
@@ -130,83 +63,52 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         </div>
       )}
       
-      {/* Virtualized list with ScrollArea */}
-      <ScrollArea
-        className="h-[calc(100vh-200px)] min-h-[400px]"
-        style={{ 
-          // Enable GPU acceleration for smooth scrolling
-          willChange: 'transform',
-          // Add subtle background contrast for better separation
-          background: 'var(--background)' 
-        }}
-      >
-        <div 
-          ref={parentRef} 
-          className="custom-scrollbar"
-        >
-          {/* Define the container size based on virtualizer */}
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {/* Only render the visible items */}
-            {rowVirtualizer.getVirtualItems().map(virtualRow => {
-              const event = events[virtualRow.index];
-              return (
-                <div
-                  key={event.id || virtualRow.index}
-                  data-event-id={event.id}
-                  style={{
-                    position: 'absolute',
-                    top: `${virtualRow.start}px`,
-                    left: 0,
-                    width: '100%',
-                    height: `${virtualRow.size}px`,
-                    padding: '0',
-                    boxSizing: 'border-box',
-                  }}
-                  className="animate-fade-in"
-                >
-                  <NoteCard 
-                    event={event} 
-                    profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                    repostData={event.id && repostData[event.id] ? {
-                      reposterPubkey: repostData[event.id].pubkey,
-                      reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                    } : undefined}
-                    feedVariant="virtualized"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </ScrollArea>
-      
-      {/* Loading indicator at the bottom that triggers more content */}
-      {hasMore && (
-        <div 
-          ref={loadMoreRef} 
-          className="py-4 text-center"
-        >
-          {loadMoreLoading && (
-            <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading more posts...
+      {/* Staggered rendering for improved perceived performance */}
+      <div className="space-y-4">
+        {events.map((event, index) => (
+          <React.Fragment key={event.id || index}>
+            {/* Add staggered animation delay based on index */}
+            <div 
+              className="animate-fade-in" 
+              style={{ 
+                animationDelay: `${Math.min(index * 50, 500)}ms`,
+                animationFillMode: 'both'
+              }}
+            >
+              <NoteCard 
+                event={event} 
+                profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                repostData={event.id && repostData[event.id] ? {
+                  reposterPubkey: repostData[event.id].pubkey,
+                  reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                } : undefined}
+              />
             </div>
-          )}
-        </div>
-      )}
-      
-      {/* End of feed message */}
-      {!hasMore && events.length > 0 && (
-        <div className="text-center py-8 text-muted-foreground border-t">
-          You've reached the end of your feed
-        </div>
-      )}
+          </React.Fragment>
+        ))}
+        
+        {/* Loading indicator at the bottom that triggers more content */}
+        {hasMore && (
+          <div 
+            ref={loadMoreRef} 
+            className="py-4 text-center"
+          >
+            {loadMoreLoading && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more posts...
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* End of feed message */}
+        {!hasMore && events.length > 0 && (
+          <div className="text-center py-8 text-muted-foreground border-t">
+            You've reached the end of your feed
+          </div>
+        )}
+      </div>
     </div>
   );
 };

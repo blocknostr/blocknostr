@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +9,7 @@ import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SocialManager } from '@/lib/nostr/social';
+import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
 
 const PostPage = () => {
@@ -27,7 +26,7 @@ const PostPage = () => {
     zapAmount: 0
   });
 
-  // Create SocialManager instance - no parameters needed now
+  // Create SocialManager instance
   const socialManager = new SocialManager();
   
   // Define default relays if nostrService.relays is not available
@@ -48,14 +47,9 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          // Update to use correct number of arguments
-          const sub = nostrService.subscribe(
-            filters,
-            (event) => {
-              handleEvent(event);
-            },
-            defaultRelays // Only pass defaultRelays as the third argument
-          );
+          const sub = nostrService.subscribe(filters, (event) => {
+            handleEvent(event);
+          }, defaultRelays); // Pass defaultRelays as the third argument
           
           // Cleanup subscription
           return () => {
@@ -107,15 +101,9 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts using the updated method name
-      const counts = await socialManager.getInteractionCounts(eventId, defaultRelays) || {
-        likes: 0,
-        reposts: 0,
-        replies: 0,
-        zaps: 0,
-        zapAmount: 0
-      };
-      
+      // Get reaction counts from the social manager
+      // Pass the eventId and relays to the SocialManager getReactionCounts method
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
@@ -212,7 +200,7 @@ const PostPage = () => {
       <Card className="mb-4">
         <CardContent className="p-0">
           <div className="p-4 md:p-6">
-            {/* Note header with author info - fixed to use timestamp instead of createdAt */}
+            {/* Note header with author info */}
             <NoteCardHeader 
               pubkey={currentNote?.pubkey} 
               createdAt={currentNote?.created_at} 
