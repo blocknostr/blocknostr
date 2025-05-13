@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -139,56 +140,33 @@ html.color-theme-in-transition {
   }
 }
 
-/* Premium neon text effect */
-@keyframes premium-neon-glow {
+/* Premium subtle and hover effects */
+@keyframes premium-shimmer {
   0% {
-    text-shadow: 0 0 5px rgba(0, 120, 255, 0.8), 0 0 10px rgba(0, 120, 255, 0.5);
-    color: #0078FF; /* Primary Blue */
-  }
-  33% {
-    text-shadow: 0 0 7px rgba(123, 104, 238, 0.8), 0 0 14px rgba(123, 104, 238, 0.5);
-    color: #7B68EE; /* Royal Purple */
-  }
-  66% {
-    text-shadow: 0 0 7px rgba(255, 215, 0, 0.8), 0 0 14px rgba(255, 215, 0, 0.5);
-    color: #FFD700; /* Gold */
+    background-position: -200% center;
   }
   100% {
-    text-shadow: 0 0 5px rgba(0, 120, 255, 0.8), 0 0 10px rgba(0, 120, 255, 0.5);
-    color: #0078FF; /* Primary Blue */
+    background-position: 200% center;
   }
 }
 
-@keyframes premium-pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
+/* Subtle premium-text style by default */
 .premium-text {
-  animation: premium-neon-glow 3s infinite ease-in-out, premium-pulse 2s infinite ease-in-out;
   font-weight: 600;
-  background-image: linear-gradient(90deg, #0078FF, #7B68EE, #FFD700, #0078FF);
+  background: linear-gradient(90deg, #7B68EE, #0078FF);
   -webkit-background-clip: text;
   background-clip: text;
-  background-size: 300% 100%;
-  animation: premium-neon-glow 3s infinite ease-in-out, premium-pulse 2s infinite ease-in-out, premium-gradient 4s infinite linear;
-  text-shadow: 0 0 5px rgba(0, 120, 255, 0.5);
+  color: transparent;
+  transition: all 0.3s ease;
 }
 
-@keyframes premium-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 100% 50%;
-  }
+/* Enhanced effects on hover */
+.group:hover .premium-text {
+  background: linear-gradient(90deg, #0078FF, #7B68EE, #FFD700, #0078FF);
+  background-size: 300% 100%;
+  animation: premium-shimmer 4s linear infinite;
+  text-shadow: 0 0 3px rgba(123, 104, 238, 0.4);
+  transform: scale(1.03);
 }
 
 /* Mobile optimizations */
