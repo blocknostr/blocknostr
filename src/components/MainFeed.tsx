@@ -80,64 +80,75 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
 
   return (
     <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
-      {isOffline && (
-        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
-          <span>You're currently offline. Viewing cached content.</span>
+      {/* Fixed header container for both CreateNoteForm and Tabs */}
+      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md pb-1 shadow-sm">
+        {/* Offline banner */}
+        {isOffline && (
+          <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
+            <span>You're currently offline. Viewing cached content.</span>
+          </div>
+        )}
+        
+        {/* Create Note Form */}
+        <div className="mb-4 pt-4 px-2 sm:px-0">
+          <CreateNoteForm />
         </div>
-      )}
-      
-      <CreateNoteForm />
-      
-      <Tabs 
-        value={activeTab} 
-        onValueChange={handleTabChange}
-        className="mt-4 relative"
-      >
-        {/* Fixed tabs bar with sticky positioning and backdrop blur */}
+        
+        {/* Tabs navigation */}
         <div className={cn(
-          "sticky top-14 z-20 bg-background/80 backdrop-blur-md py-1",
-          "transition-shadow duration-300",
-          scrolledDown ? "shadow-md" : "",
-          "border-b border-border/50"
+          "border-b border-border/50",
+          scrolledDown ? "shadow-sm" : ""
         )}>
-          <TabsList className={cn(
-            "w-full",
-            isMobile ? "grid grid-cols-5" : "flex"
-          )}>
-            <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
-            <TabsTrigger 
-              value="following" 
-              className="flex-1" 
-              disabled={!isLoggedIn}
-            >
-              Following
-            </TabsTrigger>
-            <TabsTrigger value="for-you" className="flex-1">
-              For You
-            </TabsTrigger>
-            <TabsTrigger value="media" className="flex-1">
-              <Image className="h-4 w-4 mr-1" />
-              Media
-            </TabsTrigger>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setIsCustomizationDialogOpen(true)}
-              title="Customize feed"
-              className="size-10"
-            >
-              <Settings size={18} />
-            </Button>
-          </TabsList>
+          <Tabs 
+            value={activeTab} 
+            onValueChange={handleTabChange}
+            className="relative"
+          >
+            <TabsList className={cn(
+              "w-full",
+              isMobile ? "grid grid-cols-5" : "flex"
+            )}>
+              <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
+              <TabsTrigger 
+                value="following" 
+                className="flex-1" 
+                disabled={!isLoggedIn}
+              >
+                Following
+              </TabsTrigger>
+              <TabsTrigger value="for-you" className="flex-1">
+                For You
+              </TabsTrigger>
+              <TabsTrigger value="media" className="flex-1">
+                <Image className="h-4 w-4 mr-1" />
+                Media
+              </TabsTrigger>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setIsCustomizationDialogOpen(true)}
+                title="Customize feed"
+                className="size-10"
+              >
+                <Settings size={18} />
+              </Button>
+            </TabsList>
+          </Tabs>
         </div>
-        
-        {/* Connection Status Banner - Below the tabs */}
-        <div className="pt-4">
-          {isLoggedIn && <ConnectionStatusBanner />}
-        </div>
-        
-        {/* Feed content with padding to account for fixed tabs */}
-        <div className="mt-2">
+      </div>
+      
+      {/* Connection Status Banner - Below the fixed header */}
+      <div className="pt-4">
+        {isLoggedIn && <ConnectionStatusBanner />}
+      </div>
+      
+      {/* Feed content that will scroll under the fixed header */}
+      <div className="mt-2">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={handleTabChange}
+          className="relative"
+        >
           <TabsContent value="global">
             <GlobalFeed activeHashtag={activeHashtag} />
           </TabsContent>
@@ -159,8 +170,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           <TabsContent value="media">
             <MediaFeed activeHashtag={activeHashtag} />
           </TabsContent>
-        </div>
-      </Tabs>
+        </Tabs>
+      </div>
 
       {/* Customization Dialog */}
       <FeedCustomizationDialog 
