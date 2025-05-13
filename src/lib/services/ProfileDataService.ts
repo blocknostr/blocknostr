@@ -120,6 +120,7 @@ export class ProfileDataService extends BrowserEventEmitter {
     
     // Track current pubkey for refresh operations
     this.currentPubkey = hexPubkey;
+    this.dataManager.setCurrentPubkey(hexPubkey);
     
     // Get or initialize profile data
     const isCurrentUser = hexPubkey === currentUserPubkey;
@@ -208,6 +209,7 @@ export class ProfileDataService extends BrowserEventEmitter {
     // Clean up subscriptions and references
     this.removeAllListeners();
     this.currentPubkey = null;
+    this.dataManager.setCurrentPubkey(null);
   }
 }
 

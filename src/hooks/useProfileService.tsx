@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ProfileData, profileDataService } from '@/lib/services/ProfileDataService';
 import { toast } from 'sonner';
@@ -201,13 +202,14 @@ export function useProfileService({ npub, currentUserPubkey }: UseProfileService
       isMounted.current = false;
       clearTimeout(timeoutId);
       
-      profileDataService.removeListener('metadata-updated', handleMetadataUpdated);
-      profileDataService.removeListener('posts-updated', handlePostsUpdated);
-      profileDataService.removeListener('media-updated', handleMediaUpdated);
-      profileDataService.removeListener('relations-updated', handleRelationsUpdated);
-      profileDataService.removeListener('relays-updated', handleRelaysUpdated);
-      profileDataService.removeListener('reactions-updated', handleReactionsUpdated);
-      profileDataService.removeListener('loading-state-changed', handleLoadingStateChanged);
+      // Use off instead of removeListener for compatibility with BrowserEventEmitter
+      profileDataService.off('metadata-updated', handleMetadataUpdated);
+      profileDataService.off('posts-updated', handlePostsUpdated);
+      profileDataService.off('media-updated', handleMediaUpdated);
+      profileDataService.off('relations-updated', handleRelationsUpdated);
+      profileDataService.off('relays-updated', handleRelaysUpdated);
+      profileDataService.off('reactions-updated', handleReactionsUpdated);
+      profileDataService.off('loading-state-changed', handleLoadingStateChanged);
     };
   }, [npub, currentUserPubkey, hexNpub]);
   
