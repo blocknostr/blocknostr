@@ -2,4 +2,14 @@
 export { EventFilter } from '../utils/event-filter';
 export { EventDeduplication } from './event-deduplication';
 export { ContentWarningUtils } from './content-warning';
-export { extractMediaUrls, extractMediaItems, extractFirstImageUrl } from './media-extraction';
+export { 
+  extractMediaUrls, 
+  extractMediaItems, 
+  extractFirstImageUrl,
+  isValidMediaUrl,
+  isImageUrl,
+  isVideoUrl
+} from './media-extraction';
+
+// Export all NIP utilities
+export * from './nip';

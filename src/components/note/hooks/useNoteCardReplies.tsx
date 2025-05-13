@@ -19,10 +19,13 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
   }, []);
   
   useEffect(() => {
+    // Guard clause - skip if no eventId
     if (!eventId) return;
     
+    let timeoutId: number | null = null;
+    
     // Count actual replies
-    const fetchReplyCount = async () => {
+    const fetchReplyCount = () => {
       let count = 0;
       
       const subId = nostrService.subscribe(
@@ -48,29 +51,28 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
       subscriptionRef.current = subId;
       
       // Cleanup subscription after a short time
-      const timeoutId = setTimeout(() => {
-        if (subscriptionRef.current) {
+      timeoutId = window.setTimeout(() => {
+        if (subscriptionRef.current && isMounted.current) {
           nostrService.unsubscribe(subscriptionRef.current);
           subscriptionRef.current = null;
         }
       }, 5000);
-      
-      // Return a cleanup function that will be called when the component unmounts
-      return () => {
-        clearTimeout(timeoutId);
-        if (subscriptionRef.current) {
-          nostrService.unsubscribe(subscriptionRef.current);
-          subscriptionRef.current = null;
-        }
-      };
     };
     
-    const cleanup = fetchReplyCount();
+    // Start fetching replies
+    fetchReplyCount();
     
     // Ensure we clean up when the component unmounts or when eventId changes
     return () => {
-      if (cleanup && typeof cleanup === 'function') {
-        cleanup();
+      // Clear the timeout if it exists
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      
+      // Clean up the subscription if it exists
+      if (subscriptionRef.current) {
+        nostrService.unsubscribe(subscriptionRef.current);
+        subscriptionRef.current = null;
       }
     };
   }, [eventId]);
