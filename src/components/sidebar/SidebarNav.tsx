@@ -60,7 +60,8 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Premium",
       icon: Crown,
       href: "/premium",
-      requiresAuth: false
+      requiresAuth: false,
+      isPremium: true // Add this flag to identify the premium item
     }
   ];
 
@@ -81,6 +82,7 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
               icon={item.icon}
               href={item.href}
               isActive={isActive}
+              isPremium={item.isPremium}
             />
           );
         })}
