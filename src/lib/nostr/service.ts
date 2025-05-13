@@ -38,8 +38,13 @@ export class NostrService {
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
     this.eventManager = new EventManager();
-    // Fix: Pass the SimplePool instance to SocialManager instead of EventManager
-    this.socialManagerInstance = new SocialManager(this.pool, {});
+    
+    // Initialize SocialManager with pool and pass EventManager and UserManager
+    this.socialManagerInstance = new SocialManager(this.pool, {
+      eventManager: this.eventManager,
+      userManager: this.userManager
+    });
+    
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManagerFacade();
     
@@ -209,23 +214,73 @@ export class NostrService {
   }
   
   public async followUser(pubkey: string): Promise<boolean> {
+    console.log(`NostrService.followUser called for: ${pubkey}`);
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManagerInstance.followUser(
+    
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays found, attempting to connect to default relays");
+      await this.connectToDefaultRelays();
+    }
+    
+    // Get updated relays list after connection attempt
+    const updatedRelays = this.getConnectedRelayUrls();
+    if (updatedRelays.length === 0) {
+      console.error("No relays available for follow operation");
+      toast.error("Cannot follow user: No relays connected");
+      return false;
+    }
+    
+    console.log(`Using relays for follow operation: ${updatedRelays.join(', ')}`);
+    
+    const result = await this.socialManagerInstance.followUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
-      connectedRelays
+      updatedRelays
     );
+    
+    if (result) {
+      // Update local following list
+      this.userManager.addFollowing(pubkey);
+      console.log(`User ${pubkey} added to local following list`);
+    }
+    
+    return result;
   }
   
   public async unfollowUser(pubkey: string): Promise<boolean> {
+    console.log(`NostrService.unfollowUser called for: ${pubkey}`);
     const connectedRelays = this.getConnectedRelayUrls();
-    return this.socialManagerInstance.unfollowUser(
+    
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays found, attempting to connect to default relays");
+      await this.connectToDefaultRelays();
+    }
+    
+    // Get updated relays list after connection attempt
+    const updatedRelays = this.getConnectedRelayUrls();
+    if (updatedRelays.length === 0) {
+      console.error("No relays available for unfollow operation");
+      toast.error("Cannot unfollow user: No relays connected");
+      return false;
+    }
+    
+    console.log(`Using relays for unfollow operation: ${updatedRelays.join(', ')}`);
+    
+    const result = await this.socialManagerInstance.unfollowUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
-      connectedRelays
+      updatedRelays
     );
+    
+    if (result) {
+      // Update local following list
+      this.userManager.removeFollowing(pubkey);
+      console.log(`User ${pubkey} removed from local following list`);
+    }
+    
+    return result;
   }
   
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {

@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import FollowButton from "@/components/FollowButton";
 
 const WhoToFollow = () => {
   // This would be fetched from Nostr in a real implementation
@@ -35,6 +35,15 @@ const WhoToFollow = () => {
             const shortNpub = `${user.npub.substring(0, 8)}...`;
             const avatarFallback = user.name.charAt(0).toUpperCase();
             
+            // Convert npub to hex pubkey for the FollowButton
+            let hexPubkey = "";
+            try {
+              const { nostrService } = require("@/lib/nostr");
+              hexPubkey = nostrService.getHexFromNpub(user.npub);
+            } catch (error) {
+              console.error(`Failed to convert npub to hex: ${user.npub}`, error);
+            }
+            
             return (
               <div key={user.npub} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -47,9 +56,7 @@ const WhoToFollow = () => {
                     <div className="text-sm text-muted-foreground">{shortNpub}</div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="rounded-full">
-                  Follow
-                </Button>
+                <FollowButton pubkey={hexPubkey} variant="outline" size="sm" />
               </div>
             );
           })}

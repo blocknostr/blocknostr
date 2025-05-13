@@ -12,6 +12,7 @@ export class ContactsManager {
   constructor(eventManager: EventManager, userManager: UserManager) {
     this.eventManager = eventManager;
     this.userManager = userManager;
+    console.log("ContactsManager initialized");
   }
   
   /**
@@ -23,8 +24,12 @@ export class ContactsManager {
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<boolean> {
+    console.log(`ContactsManager.followUser called for: ${pubkeyToFollow}`);
     const publicKey = this.userManager.publicKey;
-    if (!publicKey) return false;
+    if (!publicKey) {
+      console.error("No public key available, cannot follow user");
+      return false;
+    }
     
     try {
       // Get current contact list
@@ -32,6 +37,7 @@ export class ContactsManager {
       
       // Check if already following
       if (contactList.following.includes(pubkeyToFollow)) {
+        console.log(`Already following ${pubkeyToFollow}`);
         return true; // Already following
       }
       
@@ -47,7 +53,15 @@ export class ContactsManager {
         tags: updatedTags
       };
       
+      console.log(`Publishing CONTACTS event (kind ${EVENT_KINDS.CONTACTS}) to ${relayUrls.length} relays`);
       const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      
+      if (eventId) {
+        console.log(`Successfully published follow event with ID: ${eventId}`);
+      } else {
+        console.error("Failed to publish follow event");
+      }
+      
       return !!eventId;
     } catch (error) {
       console.error("Error following user:", error);
@@ -64,8 +78,12 @@ export class ContactsManager {
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<boolean> {
+    console.log(`ContactsManager.unfollowUser called for: ${pubkeyToUnfollow}`);
     const publicKey = this.userManager.publicKey;
-    if (!publicKey) return false;
+    if (!publicKey) {
+      console.error("No public key available, cannot unfollow user");
+      return false;
+    }
     
     try {
       // Get current contact list
@@ -73,6 +91,7 @@ export class ContactsManager {
       
       // Check if actually following
       if (!contactList.following.includes(pubkeyToUnfollow)) {
+        console.log(`Not following ${pubkeyToUnfollow}, nothing to unfollow`);
         return true; // Not following, nothing to do
       }
       
@@ -88,7 +107,15 @@ export class ContactsManager {
         tags: updatedTags
       };
       
+      console.log(`Publishing CONTACTS event (kind ${EVENT_KINDS.CONTACTS}) to ${relayUrls.length} relays`);
       const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      
+      if (eventId) {
+        console.log(`Successfully published unfollow event with ID: ${eventId}`);
+      } else {
+        console.error("Failed to publish unfollow event");
+      }
+      
       return !!eventId;
     } catch (error) {
       console.error("Error unfollowing user:", error);
@@ -105,6 +132,7 @@ export class ContactsManager {
     pubkey: string,
     relayUrls: string[]
   ): Promise<ContactList> {
+    console.log(`Getting contact list for ${pubkey} from ${relayUrls.length} relays`);
     return new Promise((resolve) => {
       const defaultResult: ContactList = {
         following: [],
@@ -116,6 +144,12 @@ export class ContactsManager {
         content: ''
       };
       
+      if (relayUrls.length === 0) {
+        console.warn("No relay URLs provided for getContactList");
+        resolve(defaultResult);
+        return;
+      }
+      
       // Create a filter for contact list events
       const filter: Filter = {
         kinds: [EVENT_KINDS.CONTACTS],
@@ -123,12 +157,17 @@ export class ContactsManager {
         limit: 1
       };
       
+      console.log(`Subscribing to CONTACTS events (kind ${EVENT_KINDS.CONTACTS}) for ${pubkey}`);
+      
       // Using a single filter now, not an array
       const sub = pool.subscribe(relayUrls, filter, {
         onevent: (event) => {
+          console.log(`Received contact list event for ${pubkey}:`, event);
           // Extract p tags (pubkeys) and other tags
           const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
           const pubkeys = pTags.map(tag => tag[1]);
+          
+          console.log(`Found ${pubkeys.length} contacts for ${pubkey}`);
           
           resolve({
             following: pubkeys,  // Set extracted pubkeys as following
@@ -145,6 +184,7 @@ export class ContactsManager {
       // Set a timeout to ensure we resolve even if no contact list is found
       setTimeout(() => {
         sub.close();
+        console.log(`Timeout reached while getting contact list for ${pubkey}`);
         resolve(defaultResult);
       }, 5000);
     });
