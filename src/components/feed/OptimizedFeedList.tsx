@@ -1,6 +1,7 @@
+
 import React, { useRef, useMemo } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "@/components/NoteCard"; // Use our memoized component
+import NoteCard from "@/components/NoteCard"; 
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useInView } from "../shared/useInView";
@@ -52,29 +53,35 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         return sizesCache.current[event.id];
       }
       
-      // Base size estimate
-      let estimatedSize = 150;
+      // Improved base size estimate - consistent with iris.to approach
+      let estimatedSize = 120;
       
-      // Add more height for longer content
+      // Add more height for longer content with more precise estimates
       if (event.content) {
-        estimatedSize += Math.min(30 + event.content.length / 5, 150);
+        const contentLength = event.content.length;
+        if (contentLength < 100) {
+          estimatedSize += 20;
+        } else if (contentLength < 280) {
+          estimatedSize += 40;
+        } else {
+          estimatedSize += Math.min(60, contentLength / 10);
+        }
       }
       
-      // Add height for images (from content)
-      if (event.content?.includes(".jpg") || 
-          event.content?.includes(".png") || 
-          event.content?.includes(".gif")) {
-        estimatedSize += 150;
+      // Better detection for images with more precise height estimates
+      if (event.content?.match(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i)) {
+        estimatedSize += 250; // More accurate height for images
       }
       
-      // Add height for hashtags
+      // Add fixed height for hashtags
       if (Array.isArray(event.tags) && event.tags.some(tag => tag[0] === 't')) {
-        estimatedSize += 30;
+        estimatedSize += 26;
       }
       
-      return estimatedSize;
+      // Add consistent spacing between posts
+      return estimatedSize + 8; // 8px for spacing
     },
-    overscan: 5, // Number of items to render beyond visible area
+    overscan: 3, // Reduced overscan for better performance
     measureElement: (element) => {
       // Get the actual rendered height
       const height = element.getBoundingClientRect().height;
@@ -84,10 +91,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       // Store the measured height in our cache
       if (eventId) {
-        sizesCache.current[eventId] = height + 10; // Add a small buffer
+        sizesCache.current[eventId] = height + 8; // Add consistent 8px spacing
       }
       
-      return height + 10; // Add a small buffer to prevent tight spacing
+      return height + 8; // Return with consistent 8px spacing
     }
   });
 
@@ -149,7 +156,8 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
                     left: 0,
                     width: '100%',
                     height: `${virtualRow.size}px`,
-                    padding: '4px 0',
+                    padding: '0',
+                    marginBottom: '0', // Remove any margin to ensure consistent spacing
                   }}
                 >
                   <NoteCard 

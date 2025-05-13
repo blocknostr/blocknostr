@@ -16,8 +16,8 @@ const NoteCardContainer = forwardRef<HTMLDivElement, NoteCardContainerProps>(
     return (
       <Card 
         className={cn(
-          "hover:bg-accent/10 transition-colors border-accent/10 shadow-sm overflow-hidden relative",
-          feedVariant === "standard" && "mb-4", // Only apply margin-bottom for standard (non-virtualized) lists
+          "border-b border-accent/10 hover:bg-accent/5 transition-colors overflow-hidden relative",
+          // Remove variable margins - we'll control spacing at the list level
           className
         )}
         ref={ref}

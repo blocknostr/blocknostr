@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import NoteCard from '@/components/NoteCard';
@@ -35,29 +36,35 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
         return sizesCache.current[post.id];
       }
       
-      // Base size estimate
-      let estimatedSize = 150;
+      // Improved base size estimate - consistent with other feed components
+      let estimatedSize = 120;
       
-      // Add more height for longer content
+      // Add more height for longer content with more precise estimates
       if (post.content) {
-        estimatedSize += Math.min(30 + post.content.length / 5, 150);
+        const contentLength = post.content.length;
+        if (contentLength < 100) {
+          estimatedSize += 20;
+        } else if (contentLength < 280) {
+          estimatedSize += 40;
+        } else {
+          estimatedSize += Math.min(60, contentLength / 10);
+        }
       }
       
-      // Add height for images
-      if (post.content?.includes(".jpg") || 
-          post.content?.includes(".png") || 
-          post.content?.includes(".gif")) {
-        estimatedSize += 150;
+      // Better detection for images with more precise height estimates
+      if (post.content?.match(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i)) {
+        estimatedSize += 250;
       }
       
       // Add height for hashtags
       if (Array.isArray(post.tags) && post.tags.some(tag => tag[0] === 't')) {
-        estimatedSize += 30;
+        estimatedSize += 26;
       }
       
-      return estimatedSize;
+      // Add consistent spacing between posts
+      return estimatedSize + 8;
     },
-    overscan: 5,
+    overscan: 3, // Reduced overscan for better performance
     measureElement: (element) => {
       // Get the actual rendered height
       const height = element.getBoundingClientRect().height;
@@ -67,10 +74,10 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
       
       // Store the measured height in our cache
       if (postId) {
-        sizesCache.current[postId] = height + 10; // Add a small buffer
+        sizesCache.current[postId] = height + 8; // Add consistent 8px spacing
       }
       
-      return height + 10; // Add a small buffer to prevent tight spacing
+      return height + 8;
     }
   });
   
@@ -135,7 +142,8 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
                   left: 0,
                   width: '100%',
                   height: `${virtualRow.size}px`,
-                  padding: '4px 0',
+                  padding: '0',
+                  marginBottom: '0', // Remove any margin to ensure consistent spacing
                 }}
               >
                 <NoteCard 

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
@@ -80,7 +80,7 @@ const NoteCard = ({
   return (
     <NoteCardContainer 
       eventId={event.id} 
-      className="shadow-sm hover:shadow transition-shadow cursor-pointer" 
+      className="hover:shadow transition-shadow cursor-pointer" 
       onClick={handleCardClick}
       feedVariant={feedVariant}
     >
@@ -94,21 +94,21 @@ const NoteCard = ({
       
       {/* Render reaction header if this is a reaction */}
       {reactionData && (
-        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
-          <Heart className="h-3.5 w-3.5" />
+        <div className="bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+          <Heart className="h-3 w-3" />
           <span>Liked this post</span>
         </div>
       )}
       
       {/* Render reply indicator if this is a reply */}
       {isReply && (
-        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
+        <div className="bg-muted/30 px-4 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
           <span>Reply to a post</span>
         </div>
       )}
       
       {/* Main Card Content */}
-      <CardContent className="p-4">
+      <CardContent className={`p-4 ${feedVariant === "virtualized" ? "pb-3" : "pb-4"}`}>
         {/* Note Header */}
         <NoteCardHeader
           pubkey={event?.pubkey || ''}

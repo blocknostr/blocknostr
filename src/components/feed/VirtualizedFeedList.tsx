@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/NoteCard";
@@ -35,29 +36,35 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
         return sizesCache.current[event.id];
       }
       
-      // Base size estimate
-      let estimatedSize = 150;
+      // Improved base size estimate - consistent with OptimizedFeedList
+      let estimatedSize = 120;
       
-      // Add more height for longer content
+      // Add more height for longer content with more precise estimates
       if (event.content) {
-        estimatedSize += Math.min(30 + event.content.length / 5, 150);
+        const contentLength = event.content.length;
+        if (contentLength < 100) {
+          estimatedSize += 20;
+        } else if (contentLength < 280) {
+          estimatedSize += 40;
+        } else {
+          estimatedSize += Math.min(60, contentLength / 10);
+        }
       }
       
-      // Add height for images
-      if (event.content?.includes(".jpg") || 
-          event.content?.includes(".png") || 
-          event.content?.includes(".gif")) {
-        estimatedSize += 150;
+      // Better detection for images with more precise height estimates
+      if (event.content?.match(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i)) {
+        estimatedSize += 250;
       }
       
       // Add height for hashtags
       if (Array.isArray(event.tags) && event.tags.some(tag => tag[0] === 't')) {
-        estimatedSize += 30;
+        estimatedSize += 26;
       }
       
-      return estimatedSize;
+      // Add fixed spacing between posts
+      return estimatedSize + 8;
     },
-    overscan: 5,
+    overscan: 3, // Reduced overscan for better performance 
     measureElement: (element) => {
       // Get the actual rendered height
       const height = element.getBoundingClientRect().height;
@@ -67,15 +74,15 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
       
       // Store the measured height in our cache
       if (eventId) {
-        sizesCache.current[eventId] = height + 10; // Add a small buffer
+        sizesCache.current[eventId] = height + 8; // Add consistent 8px spacing
       }
       
-      return height + 10; // Add a small buffer to prevent tight spacing
+      return height + 8;
     }
   });
   
   return (
-    <div className="space-y-4 relative">
+    <div className="relative">
       <ScrollArea className="h-[calc(100vh-200px)]">
         <div 
           ref={parentRef} 
@@ -98,7 +105,8 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
                     left: 0,
                     width: '100%',
                     height: `${virtualRow.size}px`,
-                    padding: '4px 0',
+                    padding: '0',
+                    marginBottom: '0', // Remove any margin to ensure consistent spacing
                   }}
                 >
                   <NoteCard 
