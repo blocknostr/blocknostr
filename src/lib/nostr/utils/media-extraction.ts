@@ -8,16 +8,19 @@ import { NostrEvent } from '../types';
 
 /**
  * Regular expressions for detecting different types of media URLs
+ * Enhanced patterns to capture more URL variations
  */
 const mediaRegex = {
-  // Image URLs (jpg, jpeg, png, gif, webp)
-  image: /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi,
-  // Video URLs (mp4, webm, mov)
-  video: /(https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?)/gi,
-  // Audio URLs (mp3, wav, ogg)
-  audio: /(https?:\/\/[^\s]+\.(mp3|wav|ogg)(\?[^\s]*)?)/gi,
+  // Image URLs (jpg, jpeg, png, gif, webp, avif) with better query param handling
+  image: /(https?:\/\/[^\s'"]+\.(jpg|jpeg|png|gif|webp|avif)(\?[^\s'"]*)?)/gi,
+  // Video URLs (mp4, webm, mov, m4v) with better query param handling
+  video: /(https?:\/\/[^\s'"]+\.(mp4|webm|mov|m4v)(\?[^\s'"]*)?)/gi,
+  // Audio URLs (mp3, wav, ogg, flac) with better query param handling
+  audio: /(https?:\/\/[^\s'"]+\.(mp3|wav|ogg|flac)(\?[^\s'"]*)?)/gi,
+  // Common image hosting domains
+  imageHosts: /(https?:\/\/(i\.imgur\.com|pbs\.twimg\.com|i\.ibb\.co|images\.unsplash\.com|media\.nostr\.build)\/[^\s'"]+)/gi,
   // General URLs - lower priority, used as fallback
-  url: /(https?:\/\/[^\s]+)/gi
+  url: /(https?:\/\/[^\s'"]+)/gi
 };
 
 export interface MediaItem {
@@ -33,25 +36,35 @@ export interface MediaItem {
 }
 
 /**
- * Extracts media URLs from content text
+ * Extracts media URLs from content text with improved patterns
  */
 const extractUrlsFromContent = (content: string): string[] => {
   if (!content) return [];
 
   const urls: string[] = [];
   
-  // Extract image URLs
-  let match;
-  const combinedRegex = new RegExp(
-    mediaRegex.image.source + '|' + 
-    mediaRegex.video.source + '|' + 
-    mediaRegex.audio.source,
-    'gi'
-  );
-  
   try {
+    // First check for image hosting domains (higher priority)
+    let match;
+    while ((match = mediaRegex.imageHosts.exec(content)) !== null) {
+      if (match[0] && !urls.includes(match[0])) {
+        urls.push(match[0]);
+      }
+    }
+    
+    // Reset the regex index
+    mediaRegex.imageHosts.lastIndex = 0;
+    
+    // Extract standard media types
+    const combinedRegex = new RegExp(
+      mediaRegex.image.source + '|' + 
+      mediaRegex.video.source + '|' + 
+      mediaRegex.audio.source,
+      'gi'
+    );
+    
     while ((match = combinedRegex.exec(content)) !== null) {
-      if (match[0]) {
+      if (match[0] && !urls.includes(match[0])) {
         urls.push(match[0]);
       }
     }
@@ -260,6 +273,7 @@ export const extractFirstImageUrl = (content?: string, tags?: string[][]): strin
 
 /**
  * Validates a URL to make sure it's properly formed
+ * Enhanced to handle more edge cases
  * @param url The URL to validate
  * @returns Boolean indicating if the URL is valid
  */
@@ -267,31 +281,96 @@ export const isValidMediaUrl = (url: string): boolean => {
   if (!url) return false;
   
   try {
+    // Check for common issues first
+    if (url.includes(' ') || url.includes('\n')) return false;
+    
     // Basic URL validation
-    new URL(url);
+    const parsedUrl = new URL(url);
     
     // Additional checks for media URLs
-    return (
-      url.startsWith('http://') || 
-      url.startsWith('https://')
-    );
+    const isHttp = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+    
+    // Check for common image hosts
+    const isCommonMediaHost = [
+      'imgur.com', 'i.imgur.com',
+      'pbs.twimg.com',
+      'i.ibb.co',
+      'media.nostr.build',
+      'images.unsplash.com',
+      'cloudfront.net',
+      'imgproxy.snort.social'
+    ].some(host => parsedUrl.hostname.includes(host));
+    
+    // Check for media file extensions
+    const hasMediaExtension = /\.(jpg|jpeg|png|gif|webp|avif|mp4|webm|mov|m4v|mp3|wav|ogg|flac)(\?.*)?$/i.test(parsedUrl.pathname);
+    
+    return isHttp && (isCommonMediaHost || hasMediaExtension);
   } catch (error) {
     return false;
   }
 };
 
 /**
- * Tests if a URL is an image by extension
+ * Tests if a URL is an image by extension or host
+ * Enhanced to check more image hosts and handle edge cases
  */
 export const isImageUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+  
+  try {
+    const parsedUrl = new URL(url);
+    
+    // Check file extension
+    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(parsedUrl.pathname);
+    
+    // Check common image hosts that might not have extensions
+    const isImageHost = [
+      'imgur.com', 'i.imgur.com',
+      'pbs.twimg.com',
+      'i.ibb.co',
+      'media.nostr.build',
+      'images.unsplash.com',
+      'imgproxy.snort.social'
+    ].some(host => parsedUrl.hostname.includes(host));
+    
+    // Check for proxy services with image hints in query params
+    const hasImageQueryParams = parsedUrl.search.includes('format=jpg') || 
+                               parsedUrl.search.includes('format=png') ||
+                               parsedUrl.search.includes('type=image');
+    
+    return hasImageExtension || isImageHost || hasImageQueryParams;
+  } catch (error) {
+    return false;
+  }
 };
 
 /**
- * Tests if a URL is a video by extension
+ * Tests if a URL is a video by extension or host
+ * Enhanced to check more video hosts
  */
 export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
+  
+  try {
+    const parsedUrl = new URL(url);
+    
+    // Check file extension
+    const hasVideoExtension = /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(parsedUrl.pathname);
+    
+    // Check common video hosts
+    const isVideoHost = [
+      'youtube.com', 'youtu.be',
+      'vimeo.com',
+      'twitch.tv',
+      'streamable.com',
+    ].some(host => parsedUrl.hostname.includes(host));
+    
+    // Check for proxy services with video hints
+    const hasVideoQueryParams = parsedUrl.search.includes('format=mp4') || 
+                               parsedUrl.search.includes('type=video');
+    
+    return hasVideoExtension || isVideoHost || hasVideoQueryParams;
+  } catch (error) {
+    return false;
+  }
 };

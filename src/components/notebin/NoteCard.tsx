@@ -1,8 +1,8 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Trash2, Clock, Lock } from "lucide-react";
+import { Copy, Trash2, Clock, Lock, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,8 @@ interface NoteCardProps {
 }
 
 const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => {
+  const [imageError, setImageError] = useState(false);
+  
   const handleCopyContent = (e: React.MouseEvent, content: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(content)
@@ -65,10 +67,19 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
     return gradients[language.toLowerCase()] || gradients.text;
   };
 
+  // Detect if note likely contains media
+  const hasMediaContent = () => {
+    if (!note.content) return false;
+    
+    // Simple check for image URLs and markdown image syntax
+    return /https?:\/\/.*\.(jpg|jpeg|png|gif|webp)|!\[.*?\]\(.*?\)/i.test(note.content);
+  };
+
   const timeAgo = getTimeAgo(note.publishedAt);
   const isRecent = isRecentNote(note.publishedAt);
   const cardGradient = getCardGradient(note.language);
   const isEncrypted = note.encrypted || false;
+  const likelyHasMedia = hasMediaContent();
             
   return (
     <Card 
@@ -80,6 +91,9 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
           <div className="flex items-center gap-1">
             {isEncrypted && (
               <Lock className="h-3 w-3 text-green-600 dark:text-green-400" />
+            )}
+            {likelyHasMedia && (
+              <ImageIcon className="h-3 w-3 text-blue-600 dark:text-blue-400 ml-1" />
             )}
             <h3 className="font-medium truncate">
               {note.title}

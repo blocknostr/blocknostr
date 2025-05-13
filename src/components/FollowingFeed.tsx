@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import FeedEmptyState from "./feed/FeedEmptyState";
 import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { useProfileFetcher } from "./feed/hooks/use-profile-fetcher";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
@@ -16,7 +17,6 @@ interface FollowingFeedProps {
 const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
   const {
     events,
-    profiles,
     repostData,
     loadMoreRef,
     loading,
@@ -26,6 +26,32 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     cacheHit,
     loadingFromCache,
   } = useFollowingFeed({ activeHashtag });
+  
+  // Use our enhanced profile fetcher
+  const { profiles, fetchMultipleProfiles } = useProfileFetcher();
+  
+  // Fetch profiles for authors when events load or change
+  useEffect(() => {
+    if (events.length > 0) {
+      // Collect all pubkeys that need profiles
+      const pubkeysToFetch = new Set<string>();
+      
+      // Add authors of posts
+      events.forEach(event => {
+        pubkeysToFetch.add(event.pubkey);
+      });
+      
+      // Add reposters
+      Object.values(repostData || {}).forEach(data => {
+        if (data.reposterPubkey) {
+          pubkeysToFetch.add(data.reposterPubkey);
+        }
+      });
+      
+      // Fetch profiles in batch
+      fetchMultipleProfiles(Array.from(pubkeysToFetch));
+    }
+  }, [events, repostData, fetchMultipleProfiles]);
 
   return (
     <>

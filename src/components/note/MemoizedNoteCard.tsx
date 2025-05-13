@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
@@ -19,6 +19,7 @@ import {
   AccordionItem, 
   AccordionTrigger 
 } from "@/components/ui/accordion";
+import { extractMediaItems } from '@/lib/nostr/utils/media-extraction';
 
 // Import the Note type from the shared location
 import { Note } from '@/components/notebin/hooks/types';
@@ -46,11 +47,20 @@ const NoteCard = ({
   isReply = false,
   reactionData
 }: NoteCardProps) => {
-  // Set up local state with the correct type
+  // Set up local state
   const [activeReply, setActiveReply] = useState<Note | null>(null);
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyUpdated, setReplyUpdated] = useState(0);
+  const [hasMedia, setHasMedia] = useState(false);
+  
+  // Check for media content on mount
+  useEffect(() => {
+    if (event) {
+      const mediaItems = extractMediaItems(event);
+      setHasMedia(mediaItems.length > 0);
+    }
+  }, [event]);
   
   // Use the reply count hook
   const { replyCount } = useNoteCardReplies({ 
@@ -105,8 +115,10 @@ const NoteCard = ({
   
   // Build card component with all the variations
   return (
-    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
-          onClick={handleCardClick}>
+    <Card 
+      className={`shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden ${hasMedia ? 'has-media' : ''}`}
+      onClick={handleCardClick}
+    >
       {/* Render repost header if this is a repost */}
       {repostData && (
         <NoteCardRepostHeader
