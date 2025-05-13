@@ -13,6 +13,17 @@ export type { NostrEvent, Relay } from './types';
 export type { NostrProfileMetadata } from './types';
 export { EVENT_KINDS } from './constants';
 
+// Export adapter interfaces
+export type {
+  NostrAdapterInterface,
+  SocialAdapterInterface,
+  RelayAdapterInterface,
+  DataAdapterInterface,
+  CommunityAdapterInterface,
+  BookmarkAdapterInterface,
+  BaseAdapterInterface
+} from './types/adapter';
+
 // Re-export from social module
 export { SocialManager } from './social';
 export type { ReactionCounts, ContactList } from './social/types';
@@ -35,3 +46,6 @@ export { contentCache };
 
 // Export formatter
 export { contentFormatter };
+
+// Export NIP utilities
+export * from './utils/nip';

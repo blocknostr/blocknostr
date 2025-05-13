@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { NostrEvent } from "@/lib/nostr/types";

@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -6,13 +5,15 @@ import { RelayAdapter } from './adapters/relay-adapter';
 import { DataAdapter } from './adapters/data-adapter';
 import { CommunityAdapter } from './adapters/community-adapter';
 import { BookmarkAdapter } from './adapters/bookmark-adapter';
+import { MessagingAdapter } from './adapters/messaging-adapter';
 import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
 import { relaySelector } from './relay/selection/relay-selector';
 import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
 
 /**
- * Main NostrAdapter that implements all functionality through composition
- * This ensures all components continue to work without changing their implementation
+ * Main NostrAdapter that implements all functionality through domain-specific adapters
+ * This class exposes both the structured approach (domain properties) and direct methods
+ * for backward compatibility during transition
  */
 export class NostrAdapter extends BaseAdapter {
   private socialAdapter: SocialAdapter;
@@ -20,6 +21,7 @@ export class NostrAdapter extends BaseAdapter {
   private dataAdapter: DataAdapter;
   private communityAdapter: CommunityAdapter;
   private bookmarkAdapter: BookmarkAdapter;
+  private messagingAdapter: MessagingAdapter;
   
   constructor(service: typeof nostrService) {
     super(service);
@@ -30,8 +32,34 @@ export class NostrAdapter extends BaseAdapter {
     this.dataAdapter = new DataAdapter(service);
     this.communityAdapter = new CommunityAdapter(service);
     this.bookmarkAdapter = new BookmarkAdapter(service);
+    this.messagingAdapter = new MessagingAdapter(service);
   }
 
+  // Domain-specific property accessors
+  get social() {
+    return this.socialAdapter;
+  }
+  
+  get relay() {
+    return this.relayAdapter;
+  }
+  
+  get data() {
+    return this.dataAdapter;
+  }
+  
+  get community() {
+    return this.communityAdapter;
+  }
+  
+  get bookmark() {
+    return this.bookmarkAdapter;
+  }
+  
+  get messaging() {
+    return this.messagingAdapter;
+  }
+  
   // Forward methods to appropriate adapters
   
   // Social methods

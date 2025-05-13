@@ -1,5 +1,6 @@
 
 import { BaseAdapter } from './base-adapter';
+import { EVENT_KINDS } from '../constants';
 
 /**
  * Adapter for social interactions (following, messaging, moderation)
@@ -24,27 +25,45 @@ export class SocialAdapter extends BaseAdapter {
 
   // User moderation methods
   async muteUser(pubkey: string) {
-    return this.service.muteUser(pubkey);
+    if (this.service.muteUser) {
+      return this.service.muteUser(pubkey);
+    }
+    return false;
   }
   
   async unmuteUser(pubkey: string) {
-    return this.service.unmuteUser(pubkey);
+    if (this.service.unmuteUser) {
+      return this.service.unmuteUser(pubkey);
+    }
+    return false;
   }
   
   async isUserMuted(pubkey: string) {
-    return this.service.isUserMuted(pubkey);
+    if (this.service.isUserMuted) {
+      return this.service.isUserMuted(pubkey);
+    }
+    return false;
   }
   
   async blockUser(pubkey: string) {
-    return this.service.blockUser(pubkey);
+    if (this.service.blockUser) {
+      return this.service.blockUser(pubkey);
+    }
+    return false;
   }
   
   async unblockUser(pubkey: string) {
-    return this.service.unblockUser(pubkey);
+    if (this.service.unblockUser) {
+      return this.service.unblockUser(pubkey);
+    }
+    return false;
   }
   
   async isUserBlocked(pubkey: string) {
-    return this.service.isUserBlocked(pubkey);
+    if (this.service.isUserBlocked) {
+      return this.service.isUserBlocked(pubkey);
+    }
+    return false;
   }
   
   // Social manager enhanced methods
