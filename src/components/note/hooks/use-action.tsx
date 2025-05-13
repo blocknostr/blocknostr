@@ -17,8 +17,16 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleLike = async () => {
     setIsLiking(true);
     try {
-      // Use socialManager which has the right methods
-      const result = await nostrService.socialManager.reactToEvent(eventId, "+");
+      // Use socialManager which has the right methods - updated with correct parameters
+      // Passing required "+" reaction, null references (that aren't used internally anyway), and current timestamp
+      const result = await nostrService.socialManager.reactToEvent(
+        eventId, 
+        "+", 
+        null, 
+        null, 
+        null,
+        Math.floor(Date.now() / 1000)
+      );
       if (result) {
         toast.success("Post liked!");
       }
@@ -35,12 +43,21 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleRepost = async () => {
     setIsReposting(true);
     try {
-      // Use socialManager which has the right methods
-      const result = await nostrService.socialManager.repostEvent({
-        id: eventId,
-        pubkey: authorPubkey,
-        ...event
-      });
+      // Use socialManager which has the right methods - updated with correct parameters
+      // Adding required parameters: reference to original event, a null tag for root (not used), current timestamp,
+      // client name, null for relays (uses defaults), and a null for additionalTags
+      const result = await nostrService.socialManager.repostEvent(
+        {
+          id: eventId,
+          pubkey: authorPubkey,
+          ...event
+        }, 
+        null, 
+        Math.floor(Date.now() / 1000),
+        "BlockNoster", 
+        null,
+        null
+      );
       if (result) {
         toast.success("Post reposted!");
       }
@@ -77,8 +94,15 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       
       switch (actionType) {
         case "like":
-          // Use socialManager which has the right methods
-          const likeResult = await nostrService.socialManager.reactToEvent(event.id);
+          // Use socialManager which has the right methods - updated with correct parameters
+          const likeResult = await nostrService.socialManager.reactToEvent(
+            event.id, 
+            "+", 
+            null, 
+            null, 
+            null,
+            Math.floor(Date.now() / 1000)
+          );
           result = likeResult !== null;
           if (result) {
             toast.success("Post liked!");
@@ -87,8 +111,15 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           break;
           
         case "repost":
-          // Use socialManager which has the right methods
-          const repostResult = await nostrService.socialManager.repostEvent(event);
+          // Use socialManager which has the right methods - updated with correct parameters
+          const repostResult = await nostrService.socialManager.repostEvent(
+            event,
+            null,
+            Math.floor(Date.now() / 1000),
+            "BlockNoster", 
+            null,
+            null
+          );
           result = repostResult !== null;
           if (result) {
             toast.success("Post reposted!");

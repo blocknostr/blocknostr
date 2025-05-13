@@ -4,9 +4,9 @@ import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
 import { HealthManager } from './health-manager';
 import { RelayInfoService } from './relay-info-service';
-import { RelayPerformanceTracker, relayPerformanceTracker } from './performance/relay-performance-tracker';
-import { RelaySelector, relaySelector } from './selection/relay-selector';
-import { CircuitBreaker, circuitBreaker, CircuitState } from './circuit/circuit-breaker';
+import { relayPerformanceTracker } from './performance/relay-performance-tracker';
+import { relaySelector } from './selection/relay-selector';
+import { circuitBreaker, CircuitState } from './circuit/circuit-breaker';
 import { RelayDiscoverer } from './discovery/relay-discoverer';
 
 /**
@@ -25,7 +25,7 @@ export class EnhancedRelayManager {
   ];
   private relayInfoService: RelayInfoService;
   private relayDiscoverer: RelayDiscoverer;
-  private performanceTracker: RelayPerformanceTracker = relayPerformanceTracker;
+  private performanceTracker = relayPerformanceTracker;
   private discoveryRunning: boolean = false;
   
   constructor(pool: SimplePool) {
@@ -82,8 +82,8 @@ export class EnhancedRelayManager {
    * @returns Promise resolving to boolean indicating connection success
    */
   async connectToRelay(relayUrl: string, retryCount: number = 0): Promise<boolean> {
-    // Check circuit breaker first
-    if (!circuitBreaker.isAllowed(relayUrl)) {
+    // Check circuit breaker first - fixed to use getState instead of isAllowed
+    if (circuitBreaker.getState(relayUrl) === CircuitState.OPEN) {
       console.log(`Circuit breaker preventing connection to ${relayUrl}`);
       return false;
     }

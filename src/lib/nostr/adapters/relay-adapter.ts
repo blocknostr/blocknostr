@@ -40,11 +40,17 @@ export class RelayAdapter extends BaseAdapter {
   
   /**
    * Publish relay list according to NIP-65
+   * Note: Implementation stub since the base service doesn't have this method yet
    */
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]) {
-    if (this.service.publishRelayList) {
-      return this.service.publishRelayList(relays);
+    console.warn('publishRelayList is not fully implemented in the service yet');
+    
+    // If the service has the method, use it
+    if (this.service.relayManager?.publishRelayList) {
+      return this.service.relayManager.publishRelayList(relays);
     }
+    
+    // Return false as default for compatibility
     return false;
   }
   

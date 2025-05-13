@@ -14,20 +14,30 @@ export class MessagingAdapter extends BaseAdapter {
   
   /**
    * Get direct messages for the current user
+   * Note: Implementation stub since the base service doesn't have this method yet
    */
   async getDirectMessages() {
-    if (this.service.getDirectMessages) {
-      return this.service.getDirectMessages();
+    // Stub implementation until the service implements this method
+    console.warn('getDirectMessages is not fully implemented in the service yet');
+    
+    // If the service has the method, use it
+    if (this.service.socialManager?.getDirectMessages) {
+      return this.service.socialManager.getDirectMessages();
     }
     return [];
   }
   
   /**
    * Get direct message conversation with a specific user
+   * Note: Implementation stub since the base service doesn't have this method yet
    */
   async getConversation(pubkey: string) {
-    if (this.service.getConversation) {
-      return this.service.getConversation(pubkey);
+    // Stub implementation until the service implements this method
+    console.warn('getConversation is not fully implemented in the service yet');
+    
+    // If the service has the method, use it
+    if (this.service.socialManager?.getConversation) {
+      return this.service.socialManager.getConversation(pubkey);
     }
     return [];
   }

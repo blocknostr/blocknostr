@@ -1,7 +1,7 @@
 
 import { SimplePool } from 'nostr-tools';
 import { relayPerformanceTracker } from '../performance/relay-performance-tracker';
-import { circuitBreaker } from '../circuit/circuit-breaker';
+import { circuitBreaker, CircuitState } from '../circuit/circuit-breaker';
 
 /**
  * Interface for discovered relay information
@@ -229,8 +229,8 @@ export class RelayDiscoverer {
     try {
       const startTime = performance.now();
       
-      // Avoid testing relays that are in open circuit state
-      if (circuitBreaker.getState(url) === 1 /* CircuitState.OPEN */) {
+      // Avoid testing relays that are in open circuit state - fixed enum comparison
+      if (circuitBreaker.getState(url) === CircuitState.OPEN) {
         return false;
       }
       
@@ -289,8 +289,8 @@ export class RelayDiscoverer {
     // Get all discovered relays not in the exclude list
     const availableRelays = Array.from(this.discoveredRelays.values())
       .filter(relay => !excludeSet.has(relay.url))
-      // Don't recommend relays with open circuit breakers
-      .filter(relay => circuitBreaker.getState(relay.url) !== 1 /* CircuitState.OPEN */);
+      // Don't recommend relays with open circuit breakers - fixed enum comparison
+      .filter(relay => circuitBreaker.getState(relay.url) !== CircuitState.OPEN);
     
     if (availableRelays.length === 0) {
       return [];

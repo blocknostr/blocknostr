@@ -17,3 +17,10 @@ export interface CircuitData {
   lastFailure: number;
   lastSuccess: number;
 }
+
+// Add the CircuitState enum that was missing
+export enum CircuitState {
+  CLOSED = 0,
+  OPEN = 1,
+  HALF_OPEN = 2
+}
