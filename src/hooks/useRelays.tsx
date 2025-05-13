@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
@@ -15,7 +16,8 @@ export function useRelays() {
     
     const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
     setConnectionStatus(
-      connectedCount === 0 ? 'disconnected' : 'connected'
+      connectedCount === 0 ? 'disconnected' : 
+      connectedCount < relayStatus.length ? 'connected' : 'connected'
     );
   }, []);
 
@@ -71,9 +73,13 @@ export function useRelays() {
     // Initial relay status
     refreshRelays();
     
+    // Set up periodic refresh
+    const intervalId = setInterval(refreshRelays, 10000);
+    
     return () => {
       eventBus.off(EVENTS.RELAY_CONNECTED, handleRelayConnected);
       eventBus.off(EVENTS.RELAY_DISCONNECTED, handleRelayDisconnected);
+      clearInterval(intervalId);
     };
   }, [refreshRelays]);
 

@@ -7,6 +7,8 @@ import { useTheme } from "@/hooks/use-theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileMenu from "@/components/home/MobileMenu";
 import { useLocation } from "react-router-dom";
+import HeaderRelayStatus from "@/components/header/HeaderRelayStatus";
+import { nostrService } from "@/lib/nostr";
 
 interface GlobalHeaderProps {
   leftPanelOpen: boolean;
@@ -28,6 +30,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const { darkMode, toggleDarkMode } = useTheme();
   const isMobile = useIsMobile();
   const location = useLocation();
+  const isLoggedIn = !!nostrService.publicKey;
 
   // Function to get the appropriate title based on the current route
   const getPageTitle = () => {
@@ -83,6 +86,8 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
         </div>
         
         <div className="flex items-center space-x-2">
+          {/* Add relay status indicator when logged in */}
+          {isLoggedIn && <HeaderRelayStatus />}
           <Button 
             variant="ghost"
             size="icon"
