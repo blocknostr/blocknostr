@@ -43,7 +43,7 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
   MAX_NOTE_LENGTH
 }) => {
   return (
-    <div className="flex-1 flex flex-col w-full">
+    <div className="flex-1 flex flex-col">
       <div className="flex-grow">
         <NoteComposer 
           content={content}
@@ -57,7 +57,7 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         />
         
         {detectedHashtags.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
+          <div className="mt-1.5 flex flex-wrap gap-1">
             {detectedHashtags.map(tag => (
               <span 
                 key={tag} 
@@ -76,7 +76,8 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
       
       <div className={cn(
-        "border-t mt-1 pt-1.5 border-border/50",
+        "border-t mt-2 pt-2 border-border/50",
+        mediaUrls.length > 0 ? "mt-1" : "mt-2"
       )}>
         <NoteFormFooter
           textareaRef={textareaRef}
