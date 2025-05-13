@@ -9,6 +9,8 @@ export function useSidebarProfile() {
     display_name?: string;
     picture?: string;
     nip05?: string;
+    about?: string;
+    created_at?: number;
   }>({});
   const [isLoading, setIsLoading] = React.useState(false);
   
@@ -23,12 +25,31 @@ export function useSidebarProfile() {
           await nostrService.connectToUserRelays();
           
           const profile = await nostrService.getUserProfile(nostrService.publicKey);
+          
           if (profile) {
+            // Get account creation date if not already in profile
+            let creationDate = profile._event?.created_at || profile.created_at;
+            if (!creationDate) {
+              try {
+                const profileService = nostrService.getProfileService();
+                if (profileService) {
+                  const date = await profileService.getAccountCreationDate(nostrService.publicKey);
+                  if (date) {
+                    creationDate = date;
+                  }
+                }
+              } catch (e) {
+                console.warn("Could not fetch account creation date:", e);
+              }
+            }
+            
             setUserProfile({
               name: profile.name,
               display_name: profile.display_name,
               picture: profile.picture,
-              nip05: profile.nip05
+              nip05: profile.nip05,
+              about: profile.about,
+              created_at: creationDate
             });
           }
         } catch (error) {
