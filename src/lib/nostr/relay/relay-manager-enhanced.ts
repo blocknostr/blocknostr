@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
@@ -8,6 +7,9 @@ import { relayPerformanceTracker } from './performance/relay-performance-tracker
 import { relaySelector } from './selection/relay-selector';
 import { CircuitBreaker, circuitBreaker, CircuitState } from './circuit/circuit-breaker';
 import { RelayDiscoverer } from './discovery/relay-discoverer';
+
+// Import the type definition from the tracker file
+import type { RelayMetrics } from './performance/relay-performance-tracker';
 
 /**
  * Enhanced relay manager that incorporates performance tracking and smart selection
@@ -25,7 +27,7 @@ export class EnhancedRelayManager {
   ];
   private relayInfoService: RelayInfoService;
   private relayDiscoverer: RelayDiscoverer;
-  private performanceTracker: RelayPerformanceTracker = relayPerformanceTracker;
+  private performanceTracker = relayPerformanceTracker;
   private discoveryRunning: boolean = false;
   
   constructor(pool: SimplePool) {

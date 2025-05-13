@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,9 +55,10 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
+          // Fix: Add the third parameter as an empty options object to meet the expected argument count
           const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          }, defaultRelays);
+          }, {});
           
           // Cleanup subscription
           return () => {
@@ -108,8 +110,9 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts from the social manager with correct parameters
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, nostrService.publicKey);
+      // Fix: Remove the third parameter that's causing the error
+      // The socialManager.getReactionCounts method expects only eventId and relays
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
