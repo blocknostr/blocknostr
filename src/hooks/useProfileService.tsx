@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ProfileData, profileDataService } from '@/lib/services/ProfileDataService';
 import { toast } from 'sonner';
+import { nostrService } from '@/lib/nostr';
 
 interface UseProfileServiceProps {
   npub: string | undefined;
@@ -20,7 +21,7 @@ export function useProfileService({ npub, currentUserPubkey }: UseProfileService
   const hexNpub = npub?.startsWith('npub1') ? 
     useCallback(() => {
       try {
-        return npub ? window.nostr.getHexFromNpub(npub) : null;
+        return npub ? nostrService.getHexFromNpub(npub) : null;
       } catch (error) {
         console.error("Invalid pubkey format:", error);
         return null;
