@@ -159,7 +159,7 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      <div className="flex-grow overflow-hidden relative">
+ <div className="flex-grow overflow-y-auto relative">
         <Suspense fallback={
           <div className="flex items-center justify-center h-full">
             <RefreshCw className="h-6 w-6 animate-spin text-primary/50" />
