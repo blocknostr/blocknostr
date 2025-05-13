@@ -56,7 +56,7 @@ const WhoToFollow = () => {
                     <div className="text-sm text-muted-foreground">{shortNpub}</div>
                   </div>
                 </div>
-                <FollowButton pubkey={hexPubkey} variant="outline" size="sm" />
+                <FollowButton pubkey={hexPubkey} variant="outline" className="text-xs" />
               </div>
             );
           })}

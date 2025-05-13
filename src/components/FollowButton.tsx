@@ -9,9 +9,10 @@ interface FollowButtonProps {
   pubkey: string;
   className?: string;
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  size?: "default" | "sm" | "lg" | "icon";
 }
 
-const FollowButton = ({ pubkey, className, variant = "default" }: FollowButtonProps) => {
+const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: FollowButtonProps) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const currentUserPubkey = nostrService.publicKey;
@@ -67,7 +68,7 @@ const FollowButton = ({ pubkey, className, variant = "default" }: FollowButtonPr
   return (
     <Button
       variant={isFollowing ? "outline" : variant}
-      size="sm"
+      size={size}
       className={className}
       onClick={handleFollowToggle}
       disabled={loading}
