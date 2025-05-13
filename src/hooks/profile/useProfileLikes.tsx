@@ -30,7 +30,7 @@ export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesPr
     setLoading(true);
     
     // Clean up previous subscriptions if any
-    subscriptionsRef.forEach(subId => {
+    subscriptionsRef.current.forEach(subId => {
       nostrService.unsubscribe(subId);
     });
     subscriptionsRef.current.clear();
