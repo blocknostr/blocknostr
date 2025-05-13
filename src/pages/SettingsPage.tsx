@@ -9,14 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
-
-// ✅ Use the real wallet hook
 import { useWallet } from "@alephium/web3-react";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const { account } = useWallet(); // ✅ real account
+  const { account } = useWallet();
 
   const pubkey = nostrService.publicKey;
   const npub = pubkey ? nostrService.getNpubFromHex(pubkey) : "";
@@ -43,6 +41,7 @@ const SettingsPage = () => {
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         <SettingsTabs />
 
+        {/* Always show the card if logged in */}
         {isLoggedIn && (
           <Card>
             <CardContent className="pt-6 space-y-4">
