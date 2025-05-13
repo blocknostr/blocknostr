@@ -27,7 +27,7 @@ const PostPage = () => {
     zapAmount: 0
   });
 
-  // Create SocialManager instance
+  // Create SocialManager instance - no parameters needed now
   const socialManager = new SocialManager();
   
   // Define default relays if nostrService.relays is not available
@@ -48,9 +48,14 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          const sub = nostrService.subscribe(filters, (event) => {
-            handleEvent(event);
-          }, defaultRelays, "post_page"); // Pass both defaultRelays and a subscription name
+          // Update to use correct number of arguments
+          const sub = nostrService.subscribe(
+            filters,
+            (event) => {
+              handleEvent(event);
+            },
+            defaultRelays // Only pass defaultRelays as the third argument
+          );
           
           // Cleanup subscription
           return () => {
@@ -102,9 +107,8 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts using the interactions API from socialManager
-      // The internal implementation handles this differently than getReactionCounts
-      const counts = await socialManager.interactions?.getInteractionCounts(eventId, defaultRelays) || {
+      // Get reaction counts using the updated method name
+      const counts = await socialManager.getInteractionCounts(eventId, defaultRelays) || {
         likes: 0,
         reposts: 0,
         replies: 0,
@@ -208,10 +212,10 @@ const PostPage = () => {
       <Card className="mb-4">
         <CardContent className="p-0">
           <div className="p-4 md:p-6">
-            {/* Note header with author info */}
+            {/* Note header with author info - fixed to use timestamp instead of createdAt */}
             <NoteCardHeader 
               pubkey={currentNote?.pubkey} 
-              timestamp={currentNote?.created_at} 
+              createdAt={currentNote?.created_at} 
               profileData={profileData || undefined}
             />
             

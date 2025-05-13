@@ -7,11 +7,12 @@ import { Link } from 'react-router-dom';
 
 interface NoteCardHeaderProps {
   pubkey: string;
-  createdAt: number;
+  createdAt?: number;
+  timestamp?: number; // Add timestamp as an alternative to createdAt
   profileData?: Record<string, any>;
 }
 
-const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps) => {
+const NoteCardHeader = ({ pubkey, createdAt, timestamp, profileData }: NoteCardHeaderProps) => {
   const hexPubkey = pubkey || '';
   const npub = nostrService.getNpubFromHex(hexPubkey);
   
@@ -26,10 +27,13 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   // Get the first character of the display name for the avatar fallback
   const avatarFallback = displayName ? displayName.charAt(0).toUpperCase() : 'N';
   
-  const timeAgo = formatDistanceToNow(
-    new Date(createdAt * 1000),
-    { addSuffix: true }
-  );
+  // Use timestamp as fallback if createdAt is not provided
+  const eventTime = createdAt || timestamp || 0;
+  
+  // Add a check to prevent issues with invalid dates
+  const timeAgo = eventTime > 0 
+    ? formatDistanceToNow(new Date(eventTime * 1000), { addSuffix: true })
+    : 'unknown time';
 
   return (
     <div className="flex justify-between">

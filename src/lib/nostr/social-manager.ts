@@ -32,10 +32,9 @@ export class SocialManager {
    * @param relays Optional array of relay URLs
    * @param options Optional configuration options
    */
-  async getReactionCounts(
+  async getInteractionCounts(
     eventId: string,
-    relays: string[] = [],
-    options: any = {}
+    relays: string[] = []
   ): Promise<{ 
     likes: number, 
     reposts: number, 
@@ -60,10 +59,10 @@ export class SocialManager {
    * React to an event (NIP-25)
    */
   async reactToEvent(
-    event: any, 
+    eventId: string, 
     reaction: string = '+'
   ): Promise<string> {
-    console.log(`Reacting to event ${event?.id} with: ${reaction}`);
-    return Promise.resolve(event?.id || '');
+    console.log(`Reacting to event ${eventId} with: ${reaction}`);
+    return Promise.resolve(eventId || '');
   }
 }
