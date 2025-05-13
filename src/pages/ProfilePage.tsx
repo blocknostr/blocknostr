@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -8,7 +9,6 @@ import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
 import ProfileLoadingSkeleton from '@/components/profile/ProfileLoadingSkeleton';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
