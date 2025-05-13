@@ -31,12 +31,10 @@ export function useSidebarProfile() {
             let creationDate = profile._event?.created_at || profile.created_at;
             if (!creationDate) {
               try {
-                const profileService = nostrService.getProfileService();
-                if (profileService) {
-                  const date = await profileService.getAccountCreationDate(nostrService.publicKey);
-                  if (date) {
-                    creationDate = date;
-                  }
+                // Direct call to the getAccountCreationDate method instead of using getProfileService()
+                const date = await nostrService.getAccountCreationDate(nostrService.publicKey);
+                if (date) {
+                  creationDate = date;
                 }
               } catch (e) {
                 console.warn("Could not fetch account creation date:", e);
