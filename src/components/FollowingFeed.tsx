@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { NipProtectionBanner } from "./feed/NipComplianceFeatures";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
@@ -31,6 +32,9 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
   return (
     <>
       <ConnectionStatusBanner />
+      
+      {/* NIP Compliance Protection Banner */}
+      <NipProtectionBanner />
       
       {/* Show cache status if we're showing cached content */}
       {cacheHit && lastUpdated && (

@@ -1,34 +1,59 @@
 
-export interface ReactionCounts {
-  likes: number;
-  reposts: number;
-  zaps: number;
-  zapAmount: number;
-  replies: number;
-  userHasLiked: boolean;
-  userHasReposted: boolean;
-  userHasZapped: boolean;
-  likers: string[];
-  reposters: string[];
-  zappers: string[];
-}
+import { NostrEvent } from "../types";
 
-export interface ContactList {
-  pubkeys: string[];
-  tags: string[][];
-  content: string;
-}
+/**
+ * Social interaction types for Nostr-compliant social features
+ */
 
-export interface QuickReply {
-  id: string;
-  text: string;
-  category: 'greeting' | 'thanks' | 'discussion' | 'custom';
-  usageCount: number;
-}
-
-export interface ZapInfo {
+// NIP-25 Reaction types
+export interface ReactionEvent {
+  eventId: string;
+  reaction: string;
   pubkey: string;
-  amount: number;
-  content?: string;
-  timestamp: number;
+  createdAt: number;
+}
+
+// NIP-01 Text Note types
+export interface TextNoteOptions {
+  content: string;
+  tags?: string[][];
+  createdAt?: number;
+  kind?: number;
+}
+
+// NIP-10 Reply types
+export interface ReplyOptions {
+  rootId?: string;
+  replyId: string;
+  content: string;
+  mentions?: string[];
+}
+
+// NIP-02 Contact list types
+export interface ContactListItem {
+  pubkey: string;
+  relay?: string;
+  petname?: string;
+}
+
+// NIP-36 Content Warning types
+export type ContentWarningType = 
+  | "nudity" 
+  | "sexual" 
+  | "gore" 
+  | "self-harm" 
+  | "violence" 
+  | string;
+
+/**
+ * Interface for event validation results
+ */
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+export interface EventValidation {
+  compliant: boolean;
+  results: Record<string, ValidationResult>;
 }
