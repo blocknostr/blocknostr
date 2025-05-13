@@ -26,7 +26,7 @@ const SettingsPage = () => {
   
   return (
     <div className="flex-1">
-      <PageHeader title="Settings" />
+      <PageHeader title="" />
       
       <div className="max-w-3xl mx-auto px-4 py-6">
         <SettingsTabs />
