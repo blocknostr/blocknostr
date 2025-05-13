@@ -92,6 +92,21 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         {formattedContent}
       </div>
       
+      {/* Show more/less button - Moved above media content */}
+      {isLong && (
+        <Button 
+          variant="link" 
+          size="sm" 
+          className="mt-1 mb-2 p-0 h-auto text-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </Button>
+      )}
+      
       {/* Media preview section */}
       {mediaUrls && mediaUrls.length > 0 && (
         <div className={cn(
@@ -130,20 +145,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             </div>
           )}
         </div>
-      )}
-      
-      {isLong && (
-        <Button 
-          variant="link" 
-          size="sm" 
-          className="mt-1 p-0 h-auto text-primary"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(!expanded);
-          }}
-        >
-          {expanded ? 'Show less' : 'Show more'}
-        </Button>
       )}
       
       {hashtags && hashtags.length > 0 && (

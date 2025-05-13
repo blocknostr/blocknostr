@@ -45,6 +45,18 @@ const OptimizedNoteCardContent = memo(({
         {formattedContent}
       </div>
       
+      {/* Show more/less button - Moved above media content */}
+      {isLong && (
+        <Button 
+          variant="link" 
+          size="sm" 
+          className="mt-1 mb-2 p-0 h-auto text-primary"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </Button>
+      )}
+      
       {/* Render media with standardized component */}
       {mediaUrls.length > 0 && (
         <div className={cn(
@@ -67,17 +79,6 @@ const OptimizedNoteCardContent = memo(({
             </div>
           )}
         </div>
-      )}
-      
-      {isLong && (
-        <Button 
-          variant="link" 
-          size="sm" 
-          className="mt-1 p-0 h-auto text-primary"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? 'Show less' : 'Show more'}
-        </Button>
       )}
       
       {hashtags.length > 0 && (
