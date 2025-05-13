@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -7,13 +8,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useWallet } from "@alephium/web3-react";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const { account } = useWallet();
-
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  
   useEffect(() => {
     const checkAuth = () => {
       const pubkey = nostrService.publicKey;
@@ -23,8 +23,15 @@ const SettingsPage = () => {
         toast.error("You need to log in to access settings");
         navigate("/");
       }
+      
+      // In a real implementation, we would fetch the wallet address from Alephium
+      // For now, we'll just mock it if the user is logged in with Nostr
+      if (pubkey) {
+        // This is a mock address - in a real implementation, this would come from Alephium
+        setWalletAddress("1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH");
+      }
     };
-
+    
     checkAuth();
   }, [navigate]);
 
@@ -44,14 +51,14 @@ const SettingsPage = () => {
         <SettingsTabs />
 
         {/* Connected Wallet Info */}
-        {account?.address && (
+        {walletAddress && (
           <Card>
             <CardContent className="pt-6 space-y-4">
               <div>
                 <Label className="text-sm">Alephium Wallet Address</Label>
                 <Input
                   readOnly
-                  value={account.address}
+                  value={walletAddress}
                   onClick={copyAndSelect}
                   className="cursor-pointer"
                 />
