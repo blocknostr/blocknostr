@@ -2,9 +2,19 @@
 export { ConnectionManager } from './connection-manager';
 export { HealthManager } from './health-manager';
 export { RelayInfoService, type RelayInfo } from './relay-info-service';
-
-// Export the RelayManager without re-declaration
 export { RelayManager } from './relay-manager';
+
+// Export circuit breaker functionality
+export { circuitBreaker, CircuitState } from './circuit';
+export type { CircuitOptions } from './circuit/types';
+
+// Export relay performance functionality
+export { relayPerformanceTracker } from './performance';
+export type { RelayPerformanceData } from './performance/types';
+
+// Export relay selection functionality
+export { relaySelector } from './selection';
+export type { RelaySelectionOptions } from './selection/types';
 
 // Import SimplePool - we need this for certain methods
 import { SimplePool } from 'nostr-tools';

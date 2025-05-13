@@ -1,9 +1,8 @@
 
 import { BaseAdapter } from './base-adapter';
-import { EVENT_KINDS } from '../constants';
 
 /**
- * Adapter for social interactions (following, messaging, moderation)
+ * Adapter for social operations (following, muting, blocking, etc.)
  */
 export class SocialAdapter extends BaseAdapter {
   // Social methods
@@ -25,66 +24,38 @@ export class SocialAdapter extends BaseAdapter {
 
   // User moderation methods
   async muteUser(pubkey: string) {
-    if (this.service.muteUser) {
-      return this.service.muteUser(pubkey);
-    }
-    return false;
+    return this.service.muteUser(pubkey);
   }
   
   async unmuteUser(pubkey: string) {
-    if (this.service.unmuteUser) {
-      return this.service.unmuteUser(pubkey);
-    }
-    return false;
+    return this.service.unmuteUser(pubkey);
   }
   
   async isUserMuted(pubkey: string) {
-    if (this.service.isUserMuted) {
-      return this.service.isUserMuted(pubkey);
-    }
-    return false;
+    return this.service.isUserMuted(pubkey);
   }
   
   async blockUser(pubkey: string) {
-    if (this.service.blockUser) {
-      return this.service.blockUser(pubkey);
-    }
-    return false;
+    return this.service.blockUser(pubkey);
   }
   
   async unblockUser(pubkey: string) {
-    if (this.service.unblockUser) {
-      return this.service.unblockUser(pubkey);
-    }
-    return false;
+    return this.service.unblockUser(pubkey);
   }
   
   async isUserBlocked(pubkey: string) {
-    if (this.service.isUserBlocked) {
-      return this.service.isUserBlocked(pubkey);
-    }
-    return false;
+    return this.service.isUserBlocked(pubkey);
   }
   
-  // Social manager enhanced methods
+  async reactToPost(eventId: string, emoji: string = '+') {
+    return this.service.reactToPost(eventId, emoji);
+  }
+  
+  async repostNote(eventId: string, authorPubkey: string) {
+    return this.service.repostNote(eventId, authorPubkey);
+  }
+  
   get socialManager() {
-    return {
-      ...this.service.socialManager,
-      likeEvent: (event: any) => {
-        return this.service.reactToPost(event.id);
-      },
-      repostEvent: (event: any) => {
-        return this.service.repostNote(event.id, event.pubkey);
-      },
-      getReactionCounts: (eventId: string) => {
-        return Promise.resolve({
-          likes: 0,
-          reposts: 0
-        });
-      },
-      reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.service.reactToPost(eventId, emoji);
-      }
-    };
+    return this.service.socialManager;
   }
 }

@@ -1,3 +1,4 @@
+
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -6,9 +7,9 @@ import { DataAdapter } from './adapters/data-adapter';
 import { CommunityAdapter } from './adapters/community-adapter';
 import { BookmarkAdapter } from './adapters/bookmark-adapter';
 import { MessagingAdapter } from './adapters/messaging-adapter';
-import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
-import { relaySelector } from './relay/selection/relay-selector';
-import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
+import { relayPerformanceTracker } from './relay/performance';
+import { relaySelector } from './relay/selection';
+import { circuitBreaker, CircuitState } from './relay/circuit';
 
 /**
  * Main NostrAdapter that implements all functionality through domain-specific adapters
@@ -61,7 +62,6 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   // Forward methods to appropriate adapters
-  
   // Social methods
   isFollowing(pubkey: string) {
     return this.socialAdapter.isFollowing(pubkey);
