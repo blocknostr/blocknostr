@@ -4,7 +4,7 @@ import {
   getContentWarningReasons,
   addContentWarning,
   validateNip36ContentWarning
-} from '../nip/nip36';
+} from '../nip';
 import { NostrEvent } from "../../types";
 
 describe('NIP-36: Content Warning Tests', () => {
