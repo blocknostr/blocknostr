@@ -5,6 +5,59 @@ import { NostrEvent } from "../../types";
  * NIP-36: Sensitive/NSFW content and content warnings
  * https://github.com/nostr-protocol/nips/blob/master/36.md
  */
+
+/**
+ * Check if an event has a content warning tag
+ * @param event Nostr event to check
+ * @returns Boolean indicating if event has content warning
+ */
+export function hasContentWarning(event: NostrEvent): boolean {
+  if (!event || !event.tags) return false;
+  return event.tags.some(tag => tag.length >= 1 && tag[0] === 'content-warning');
+}
+
+/**
+ * Get content warning reasons from an event
+ * @param event Nostr event to check
+ * @returns Array of content warning reasons or empty array if none
+ */
+export function getContentWarningReasons(event: NostrEvent): string[] {
+  if (!event || !event.tags) return [];
+  
+  return event.tags
+    .filter(tag => tag.length >= 2 && tag[0] === 'content-warning')
+    .map(tag => tag[1]);
+}
+
+/**
+ * Add content warning tag to event
+ * @param event Event to modify
+ * @param reason Optional reason for the content warning
+ * @returns Modified event with content warning
+ */
+export function addContentWarning(event: NostrEvent, reason?: string): NostrEvent {
+  if (!event) return event;
+  
+  const updatedEvent = { ...event };
+  
+  // Create a deep copy of tags
+  updatedEvent.tags = [...(event.tags || [])];
+  
+  // Add content warning tag
+  if (reason) {
+    updatedEvent.tags.push(['content-warning', reason]);
+  } else {
+    updatedEvent.tags.push(['content-warning']);
+  }
+  
+  return updatedEvent;
+}
+
+/**
+ * Validate the content warning tags on an event
+ * @param event Event to validate
+ * @returns Validation result with errors if any
+ */
 export function validateNip36ContentWarning(event: NostrEvent): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   

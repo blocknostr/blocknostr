@@ -1,5 +1,9 @@
 
-import { validateNip65RelayList, parseRelayList, getRelayUrls } from '../nip';
+import { 
+  validateNip65RelayList,
+  parseRelayList,
+  getRelayUrls
+} from '../nip';
 import { NostrEvent } from "../../types";
 
 describe('NIP-65 Relay List Validation', () => {

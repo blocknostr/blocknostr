@@ -1,242 +1,154 @@
-import { NostrEvent } from "../types";
-import { nostrService } from "../service";
-import { validateEvent } from "../utils/nip/validator";
 
-export interface SocialManager {
-  // NIP-25: Reactions
-  reactToEvent(eventId: string, reaction?: string): Promise<string | null>;
-  
-  // NIP-18: Reposts (combination with Kind 6)
-  repostEvent(event: NostrEvent): Promise<string | null>;
-  
-  // NIP-10: Thread replies 
-  replyToEvent(event: NostrEvent, content: string): Promise<string | null>;
-  
-  // NIP-01: Basic events - text notes
-  publishTextNote(content: string, tags?: string[][]): Promise<string | null>;
-  
-  // NIP-36: Content warnings
-  publishWithContentWarning(content: string, warningType: string): Promise<string | null>;
-  
-  // Follow functionality
-  followUser(pubkey: string): Promise<boolean>;
-  unfollowUser(pubkey: string): Promise<boolean>;
-  isFollowing(pubkey: string): boolean;
-  
-  // User list management (followers/following)
-  getFollowingList(): string[];
-  getFollowersList(): Promise<string[]>;
-  
-  // Validation method
-  validateInteraction(event: NostrEvent): { valid: boolean, errors: Record<string, string[]> };
-  
-  // NIP-04: Direct Messages
-  sendDirectMessage(recipient: string, content: string): Promise<string | null>;
-}
+import { EventManager } from '../event';
+import { UserManager } from '../user';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent } from '../types';
+import { EVENT_KINDS } from '../constants';
+import { InteractionManager } from './interactions';
+import { ContactManager } from './contacts';
+import { MessageManager } from './messages';
 
-export class SocialManager implements SocialManager {
-  constructor(private service: typeof nostrService) {}
+/**
+ * Social Manager class to handle all social interactions
+ * Implements all NIPs related to social interactions
+ * including NIP-04, NIP-25, NIP-26, etc.
+ */
+export class SocialManager {
+  private eventManager: EventManager;
+  private userManager: UserManager;
+  private interactionManager: InteractionManager;
+  private contactManager: ContactManager;
+  private messageManager: MessageManager;
   
-  // Implement methods according to NIP standards
-  async reactToEvent(eventId: string, reaction: string = "+"): Promise<string | null> {
-    if (!this.service.publicKey) return null;
-    
-    try {
-      // Get the event we're reacting to
-      const event = await this.service.getEventById(eventId);
-      if (!event) return null;
-      
-      // Create a NIP-25 compliant reaction
-      const reactionEvent = {
-        kind: 7, // Reaction kind as per NIP-25
-        content: reaction,
-        tags: [
-          ["e", eventId], // Reference to the event
-          ["p", event.pubkey] // Reference to the original author
-        ]
-      };
-      
-      // Publish the reaction
-      return await this.service.publishEvent(reactionEvent);
-    } catch (error) {
-      console.error("Error creating reaction:", error);
-      return null;
-    }
+  constructor(eventManager: EventManager, userManager: UserManager) {
+    this.eventManager = eventManager;
+    this.userManager = userManager;
+    this.interactionManager = new InteractionManager(this.eventManager);
+    this.contactManager = new ContactManager(this.userManager);
+    this.messageManager = new MessageManager(this.eventManager);
   }
   
-  async repostEvent(event: NostrEvent): Promise<string | null> {
-    if (!this.service.publicKey) return null;
+  /**
+   * Follow a user (NIP-02)
+   * @param pool SimplePool to use for publishing
+   * @param pubkeyToFollow Public key to follow
+   * @param privateKey Private key to sign with (optional)
+   * @param relays Relays to publish to
+   * @returns Promise resolving to boolean indicating success
+   */
+  public async followUser(pool: SimplePool, pubkeyToFollow: string, privateKey: string | null = null, relays: string[] = []): Promise<boolean> {
+    const userPubkey = this.userManager.publicKey;
+    if (!userPubkey) return false;
     
     try {
-      // Create a Kind 6 repost as commonly used (though not formally part of a NIP)
-      const repostEvent = {
-        kind: 6, // Repost
-        content: event.content, // Include original content
-        tags: [
-          ["e", event.id, "", "root"], // Reference to the event with root marker per NIP-10
-          ["p", event.pubkey] // Reference to the original author
-        ]
-      };
+      // Forward to contact manager
+      const success = await this.contactManager.addContact(pubkeyToFollow);
       
-      // Publish the repost
-      return await this.service.publishEvent(repostEvent);
-    } catch (error) {
-      console.error("Error reposting event:", error);
-      return null;
-    }
-  }
-  
-  async replyToEvent(event: NostrEvent, content: string): Promise<string | null> {
-    if (!this.service.publicKey || !content.trim()) return null;
-    
-    try {
-      // Create a proper reply event according to NIP-10
-      const tags: string[][] = [
-        // Root event reference - find actual root or use current event
-        ["e", event.id, "", "root"]
-      ];
-      
-      // Add reference to the event we're directly replying to
-      tags.push(["e", event.id, "", "reply"]);
-      
-      // Always include author reference
-      tags.push(["p", event.pubkey]);
-      
-      // Create the reply event
-      const replyEvent = {
-        kind: 1, // Text note
-        content,
-        tags
-      };
-      
-      // Publish the reply
-      return await this.service.publishEvent(replyEvent);
-    } catch (error) {
-      console.error("Error creating reply:", error);
-      return null;
-    }
-  }
-  
-  async publishTextNote(content: string, tags: string[][] = []): Promise<string | null> {
-    if (!this.service.publicKey || !content.trim()) return null;
-    
-    try {
-      // Create a NIP-01 compliant text note
-      const noteEvent = {
-        kind: 1, // Text note
-        content,
-        tags
-      };
-      
-      // Publish the note
-      return await this.service.publishEvent(noteEvent);
-    } catch (error) {
-      console.error("Error publishing note:", error);
-      return null;
-    }
-  }
-  
-  async publishWithContentWarning(content: string, warningType: string = ""): Promise<string | null> {
-    if (!this.service.publicKey || !content.trim()) return null;
-    
-    try {
-      // Create tags with content warning according to NIP-36
-      const tags: string[][] = [["content-warning", warningType]];
-      
-      // Create the note with content warning
-      const noteEvent = {
-        kind: 1, // Text note
-        content,
-        tags
-      };
-      
-      // Publish the note
-      return await this.service.publishEvent(noteEvent);
-    } catch (error) {
-      console.error("Error publishing note with content warning:", error);
-      return null;
-    }
-  }
-  
-  // Follow functionality
-  async followUser(pubkey: string): Promise<boolean> {
-    // Update to use nostrService methods
-    try {
-      if (this.service.followUser) {
-        return await this.service.followUser(pubkey);
+      if (success) {
+        // Update local following list
+        this.userManager.addToFollowing(pubkeyToFollow);
       }
-      return false;
+      
+      return success;
     } catch (error) {
       console.error("Error following user:", error);
       return false;
     }
   }
   
-  async unfollowUser(pubkey: string): Promise<boolean> {
-    // Update to use nostrService methods
+  /**
+   * Unfollow a user (NIP-02)
+   * @param pool SimplePool to use for publishing
+   * @param pubkeyToUnfollow Public key to unfollow
+   * @param privateKey Private key to sign with (optional)
+   * @param relays Relays to publish to
+   * @returns Promise resolving to boolean indicating success
+   */
+  public async unfollowUser(pool: SimplePool, pubkeyToUnfollow: string, privateKey: string | null = null, relays: string[] = []): Promise<boolean> {
+    const userPubkey = this.userManager.publicKey;
+    if (!userPubkey) return false;
+    
     try {
-      if (this.service.unfollowUser) {
-        return await this.service.unfollowUser(pubkey);
+      // Forward to contact manager
+      const success = await this.contactManager.removeContact(pubkeyToUnfollow);
+      
+      if (success) {
+        // Update local following list
+        this.userManager.removeFromFollowing(pubkeyToUnfollow);
       }
-      return false;
+      
+      return success;
     } catch (error) {
       console.error("Error unfollowing user:", error);
       return false;
     }
   }
   
-  isFollowing(pubkey: string): boolean {
-    return this.service.following?.includes(pubkey) || false;
+  /**
+   * React to an event (NIP-25)
+   * @param pool SimplePool to use for publishing
+   * @param eventId ID of event to react to
+   * @param emoji Emoji to react with (default: '+')
+   * @param pubkey Public key of reactor (optional, default: current user)
+   * @param privateKey Private key to sign with (optional)
+   * @param relays Relays to publish to
+   * @returns Promise resolving to reaction event ID or null
+   */
+  public async reactToEvent(
+    pool: SimplePool,
+    eventId: string,
+    emoji: string = "+",
+    pubkey?: string | null,
+    privateKey: string | null = null,
+    relays: string[] = []
+  ): Promise<string | null> {
+    // Forward to interaction manager
+    return this.interactionManager.reactToEvent(eventId, emoji, pubkey, privateKey);
   }
   
-  // User list management
-  getFollowingList(): string[] {
-    return this.service.following || [];
+  /**
+   * Repost an event (NIP-18)
+   * @param pool SimplePool to use for publishing
+   * @param eventId ID of event to repost
+   * @param authorPubkey Author of original event
+   * @param relayHint Relay hint for the original event
+   * @param pubkey Public key of reposter (optional, default: current user)
+   * @param privateKey Private key to sign with (optional)
+   * @param relays Relays to publish to
+   * @returns Promise resolving to repost event ID or null
+   */
+  public async repostEvent(
+    pool: SimplePool,
+    eventId: string,
+    authorPubkey: string,
+    relayHint: string | null,
+    pubkey?: string | null,
+    privateKey: string | null = null,
+    relays: string[] = []
+  ): Promise<string | null> {
+    // Forward to interaction manager
+    return this.interactionManager.repostEvent(eventId, authorPubkey, relayHint);
   }
   
-  async getFollowersList(): Promise<string[]> {
-    // This would usually require querying other users' contact lists
-    // Implementation would depend on relay querying capabilities
-    return [];
-  }
-  
-  // Validation method
-  validateInteraction(event: NostrEvent): { valid: boolean, errors: Record<string, string[]> } {
-    const validationResults = validateEvent(event);
-    
-    // Convert validation results to required format
-    const errors: Record<string, string[]> = {};
-    let valid = true;
-    
-    for (const [nip, result] of Object.entries(validationResults)) {
-      if (!result.valid) {
-        errors[nip] = result.errors;
-        valid = false;
-      }
-    }
-    
-    return { valid, errors };
-  }
-  
-  // NIP-04: Direct Messages
-  async sendDirectMessage(recipient: string, content: string): Promise<string | null> {
-    if (!this.service.publicKey || !content.trim()) return null;
-    
-    try {
-      // Create a direct message event according to NIP-04
-      const messageEvent = {
-        kind: 4, // Direct message
-        content: content, // In a real implementation, this would be encrypted
-        tags: [
-          ["p", recipient] // Recipient's pubkey
-        ]
-      };
-      
-      // Publish the message
-      return await this.service.publishEvent(messageEvent);
-    } catch (error) {
-      console.error("Error sending direct message:", error);
-      return null;
-    }
+  /**
+   * Send a direct message to a user (NIP-04/NIP-44)
+   * @param pool SimplePool to use for publishing
+   * @param recipientPubkey Recipient's public key
+   * @param content Message content to send
+   * @param senderPubkey Sender's public key (default: current user)
+   * @param privateKey Private key to sign with (optional)
+   * @param relays Relays to publish to
+   * @returns Promise resolving to message event ID or null
+   */
+  public async sendDirectMessage(
+    pool: SimplePool,
+    recipientPubkey: string,
+    content: string,
+    senderPubkey?: string | null,
+    privateKey: string | null = null,
+    relays: string[] = []
+  ): Promise<string | null> {
+    // Forward to message manager
+    return this.messageManager.sendMessage(recipientPubkey, content);
   }
 }

@@ -2,103 +2,35 @@
 import { NostrEvent } from "../types";
 
 /**
- * Social interaction types for Nostr-compliant social features
+ * Types for the social manager
  */
 
-// NIP-25 Reaction types
-export interface ReactionEvent {
-  eventId: string;
-  reaction: string;
-  pubkey: string;
-  createdAt: number;
-}
-
-// NIP-01 Text Note types
-export interface TextNoteOptions {
-  content: string;
-  tags?: string[][];
-  createdAt?: number;
-  kind?: number;
-}
-
-// NIP-10 Reply types
-export interface ReplyOptions {
-  rootId?: string;
-  replyId: string;
-  content: string;
-  mentions?: string[];
-}
-
-// NIP-02 Contact list types
-export interface ContactListItem {
-  pubkey: string;
-  relay?: string;
-  petname?: string;
-}
-
-// Contact list type with all required properties for compatibility
 export interface ContactList {
-  contacts: ContactListItem[];
-  lastUpdated?: number;
-  // Additional properties needed for compatibility with existing code
-  pubkeys?: string[];
-  tags?: string[][];
-  content?: string;
+  pubkeys: string[];
+  tags: string[][];
+  content: string;
 }
 
-// For reaction counts
 export interface ReactionCounts {
   likes: number;
   reposts: number;
-  zaps: number;
   replies: number;
-  // Additional properties needed for compatibility
-  zapAmount?: number;
-  userHasLiked?: boolean;
-  userHasReposted?: boolean;
-  userHasZapped?: boolean;
-  likers?: string[];
-  reposters?: string[];
-  zappers?: string[];
+  zaps: number;
+  zapAmount: number;
+  events: Record<string, NostrEvent[]>;
 }
 
-// NIP-36 Content Warning types
-export type ContentWarningType = 
-  | "nudity" 
-  | "sexual" 
-  | "gore" 
-  | "self-harm" 
-  | "violence" 
-  | string;
-
-// For Zaps (NIP-57)
 export interface ZapInfo {
   amount: number;
-  content?: string;
-  zapRequest?: NostrEvent;
-  zapReceipt?: NostrEvent;
-  sender?: string;
-  receiver?: string;
-  timestamp?: number;
+  sender: string;
+  receiver: string;
+  timestamp: number;
+  eventId?: string;
 }
 
-// Quick Reply type for convenient messaging
 export interface QuickReply {
   id: string;
-  text: string;
-  category: 'greeting' | 'thanks' | 'discussion' | 'custom';
-  usageCount: number;
-}
-
-/**
- * Interface for event validation results
- */
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-export interface EventValidation {
-  compliant: boolean;
-  results: Record<string, ValidationResult>;
+  content: string;
+  category: string;
+  userCreated: boolean;
 }
