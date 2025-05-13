@@ -1,8 +1,5 @@
+// Export NIP-related utilities
+export * from './nip';
 
-// Re-export all utilities
-export * from './event-deduplication';
-export * from './event-filtering';
-export * from './helper-functions';
-export * from './nip05-verification';
-export * from './media-extraction';
-
+// Re-export common media utilities
+export { extractMediaUrls, extractLinkPreviewUrls } from './media/media-detection';

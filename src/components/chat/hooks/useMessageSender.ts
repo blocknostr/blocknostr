@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { NostrEvent } from "@/lib/nostr/types";
 import { nostrService } from "@/lib/nostr";
 import { contentFormatter } from "@/lib/nostr";
+import { extractMentions } from "@/lib/nostr/utils/nip/nip27";
 import { toast } from "sonner";
 
 const MAX_MESSAGES = 15;
@@ -31,14 +32,42 @@ export const useMessageSender = (
 
     try {
       // Process mentions and links according to NIP-27
-      // Use the new processContent method which returns a string
       const processedContent = contentFormatter.processContent(messageContent);
       
-      // Create a message with the specified chat tag
+      // Extract mentions to add as tags
+      const mentions = extractMentions(messageContent);
+      const tags = [['t', chatTag]];
+      
+      // Iterate through mentions and add as tags
+      if (mentions && mentions.length > 0) {
+        mentions.forEach(mention => {
+          if (mention.startsWith('@')) {
+            // Skip simple @ mentions for now as we don't have a way to resolve them to pubkeys
+            // In a full implementation, you would query a directory or your contacts
+            return;
+          }
+          
+          if (mention.startsWith('nostr:npub1') || mention.startsWith('nostr:nprofile1')) {
+            // Add p tag for profile mentions
+            const pubkey = mention.split(':')[1];
+            if (pubkey) {
+              tags.push(['p', pubkey]);
+            }
+          } else if (mention.startsWith('nostr:note1') || mention.startsWith('nostr:nevent1')) {
+            // Add e tag for event mentions
+            const eventId = mention.split(':')[1];
+            if (eventId) {
+              tags.push(['e', eventId]);
+            }
+          }
+        });
+      }
+      
+      // Create a message with the specified chat tag and any mention tags
       const eventId = await nostrService.publishEvent({
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
         content: processedContent,
-        tags: [['t', chatTag]]
+        tags: tags
       });
       
       if (!eventId) {
@@ -52,7 +81,7 @@ export const useMessageSender = (
         pubkey: nostrService.publicKey!,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
-        tags: [['t', chatTag]],
+        tags: tags,
         content: messageContent,
         sig: ''
       };

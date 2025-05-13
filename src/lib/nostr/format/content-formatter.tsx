@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ContentFormatterInterface } from './types';
+import { isNostrUrl, getHexFromNostrUrl, getProfileUrl, getEventUrl, shortenIdentifier } from '../utils/nip/nip27';
 
 // Simple content formatter that handles basic Nostr content formatting
 export const contentFormatter: ContentFormatterInterface = {
@@ -15,17 +16,46 @@ export const contentFormatter: ContentFormatterInterface = {
     
     // Process each part
     const formattedParts = parts.map((part, index) => {
-      // Detect hashtags
-      if (part.startsWith('#') && part.length > 1) {
+      // Detect nostr: URLs (NIP-27)
+      if (part.startsWith('nostr:')) {
+        const identifier = part.substring(6); // Remove 'nostr:'
+        
+        if (identifier.startsWith('npub') || identifier.startsWith('nprofile')) {
+          // Profile mention
+          return (
+            <a 
+              key={index} 
+              href={getProfileUrl(identifier)}
+              className="text-primary font-medium hover:underline"
+            >
+              @{shortenIdentifier(identifier)}
+            </a>
+          );
+        } else if (identifier.startsWith('note') || identifier.startsWith('nevent')) {
+          // Event mention
+          return (
+            <a 
+              key={index} 
+              href={getEventUrl(identifier)}
+              className="text-primary font-medium hover:underline"
+            >
+              #{shortenIdentifier(identifier)}
+            </a>
+          );
+        }
+      }
+      
+      // Detect @ mentions
+      if (part.startsWith('@') && part.length > 1) {
         return (
-          <span key={index} className="text-primary cursor-pointer hover:underline">
+          <span key={index} className="text-primary font-medium cursor-pointer hover:underline">
             {part}
           </span>
         );
       }
       
-      // Detect mentions (npub or nprofile)
-      if (part.startsWith('@') || part.startsWith('nostr:npub') || part.startsWith('nostr:nprofile')) {
+      // Detect hashtags
+      if (part.startsWith('#') && part.length > 1) {
         return (
           <span key={index} className="text-primary cursor-pointer hover:underline">
             {part}
@@ -67,8 +97,9 @@ export const contentFormatter: ContentFormatterInterface = {
    * This is used for plain text operations like sending messages
    */
   processContent: (content: string): string => {
-    // Just return the content as is for now - this could be enhanced later
-    // to strip formatting markers or add processing
+    // For now, we'll just return the content as is
+    // In a more advanced implementation, we could add automatic tagging
+    // based on @mentions in the content
     return content;
   },
 
@@ -78,8 +109,52 @@ export const contentFormatter: ContentFormatterInterface = {
   parseContent: (content: string, mediaUrls?: string[]) => {
     if (!content) return [];
     
-    // Basic implementation that just returns text segments
-    return [{
+    // Extract mentions from content
+    const segments = [];
+    let remainingContent = content;
+    
+    // Find all nostr: URLs and @ mentions
+    const mentionRegex = /(@\w+|nostr:(npub|note|nevent|nprofile)1[a-z0-9]+)/gi;
+    let match;
+    let lastIndex = 0;
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+      // Add text segment before the current match
+      if (match.index > lastIndex) {
+        segments.push({
+          type: 'text',
+          content: content.substring(lastIndex, match.index)
+        });
+      }
+      
+      // Add mention segment
+      const mention = match[0];
+      if (mention.startsWith('@')) {
+        segments.push({
+          type: 'mention',
+          content: mention,
+          data: mention.substring(1) // Remove @ symbol
+        });
+      } else if (mention.startsWith('nostr:')) {
+        segments.push({
+          type: 'mention',
+          content: mention,
+          data: mention // Keep full nostr: URL
+        });
+      }
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text
+    if (lastIndex < content.length) {
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex)
+      });
+    }
+    
+    return segments.length > 0 ? segments : [{
       type: 'text',
       content: content
     }];
@@ -89,7 +164,7 @@ export const contentFormatter: ContentFormatterInterface = {
    * Extract mentioned pubkeys from content and tags
    */
   extractMentionedPubkeys: (content: string, tags: string[][]) => {
-    // Simple implementation that returns pubkeys from p tags
+    // First get pubkeys from p tags
     const pubkeys: string[] = [];
     
     if (tags && Array.isArray(tags)) {
@@ -98,6 +173,21 @@ export const contentFormatter: ContentFormatterInterface = {
           pubkeys.push(tag[1]);
         }
       });
+    }
+    
+    // Then extract pubkeys from nostr: URLs in content
+    if (content) {
+      const nostrRegex = /nostr:npub1[a-z0-9]+/gi;
+      const matches = content.match(nostrRegex);
+      
+      if (matches) {
+        matches.forEach(match => {
+          const pubkey = getHexFromNostrUrl(match);
+          if (pubkey && !pubkeys.includes(pubkey)) {
+            pubkeys.push(pubkey);
+          }
+        });
+      }
     }
     
     return pubkeys;
