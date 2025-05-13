@@ -22,63 +22,12 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
   // Reference to the scrollable parent container
   const parentRef = useRef<HTMLDivElement>(null);
   
-  // Keep track of measured sizes
-  const sizesCache = useRef<Record<string, number>>({});
-  
-  // Set up virtualization with dynamic size measurement
+  // Set up virtualization
   const rowVirtualizer = useVirtualizer({
     count: posts.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (index) => {
-      const post = posts[index];
-      // Return cached size if available, otherwise use estimations based on content
-      if (post.id && sizesCache.current[post.id]) {
-        return sizesCache.current[post.id];
-      }
-      
-      // Improved base size estimate - consistent with other feed components
-      let estimatedSize = 120;
-      
-      // Add more height for longer content with more precise estimates
-      if (post.content) {
-        const contentLength = post.content.length;
-        if (contentLength < 100) {
-          estimatedSize += 20;
-        } else if (contentLength < 280) {
-          estimatedSize += 40;
-        } else {
-          estimatedSize += Math.min(60, contentLength / 10);
-        }
-      }
-      
-      // Better detection for images with more precise height estimates
-      if (post.content?.match(/https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i)) {
-        estimatedSize += 250;
-      }
-      
-      // Add height for hashtags
-      if (Array.isArray(post.tags) && post.tags.some(tag => tag[0] === 't')) {
-        estimatedSize += 26;
-      }
-      
-      // Add consistent spacing between posts
-      return estimatedSize + 8;
-    },
-    overscan: 3, // Reduced overscan for better performance
-    measureElement: (element) => {
-      // Get the actual rendered height
-      const height = element.getBoundingClientRect().height;
-      
-      // Get the post ID from the data attribute
-      const postId = element.getAttribute('data-event-id');
-      
-      // Store the measured height in our cache
-      if (postId) {
-        sizesCache.current[postId] = height + 8; // Add consistent 8px spacing
-      }
-      
-      return height + 8;
-    }
+    estimateSize: () => 200, // Estimated height of each post
+    overscan: 5, // Number of items to render beyond visible area
   });
   
   // Loading state
@@ -135,22 +84,20 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
             return (
               <div
                 key={post.id}
-                data-event-id={post.id}
                 style={{
                   position: 'absolute',
-                  top: `${virtualRow.start}px`,
+                  top: 0,
                   left: 0,
                   width: '100%',
-                  height: `${virtualRow.size}px`,
-                  padding: '0',
-                  marginBottom: '0', // Remove any margin to ensure consistent spacing
+                  transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                <NoteCard 
-                  event={post} 
-                  profileData={profileData}
-                  feedVariant="virtualized" 
-                />
+                <div className="py-2">
+                  <NoteCard 
+                    event={post} 
+                    profileData={profileData} 
+                  />
+                </div>
               </div>
             );
           })}
