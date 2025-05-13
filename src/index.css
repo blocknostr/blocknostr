@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -113,6 +114,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Smooth scrolling for whole page */
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Theme transition classes - updated with shorter duration */
@@ -206,6 +212,15 @@ html.color-theme-in-transition {
   .message-bubble-received-no-point {
     @apply bg-muted/80 rounded-2xl;
     position: relative;
+  }
+  
+  /* Fixed tab bar styles */
+  .fixed-tab-bar {
+    @apply sticky top-14 z-20 bg-background/80 backdrop-blur-md transition-shadow;
+  }
+  
+  .scrolled .fixed-tab-bar {
+    @apply shadow-md;
   }
   
   /* Custom scrollbar styles for browsers that support it (mainly webkit) */

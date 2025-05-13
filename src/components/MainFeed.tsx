@@ -25,6 +25,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const { preferences } = useUserPreferences();
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
+  const [scrolledDown, setScrolledDown] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
@@ -35,6 +36,19 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       setActiveTab(preferences.defaultFeed);
     }
   }, [preferences.defaultFeed]);
+
+  // Track scroll position to add shadow effect when scrolled
+  useEffect(() => {
+    const handleScroll = () => {
+      const position = window.scrollY;
+      setScrolledDown(position > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const handleTopicClick = (topic: string) => {
     if (onClearHashtag) {
@@ -77,62 +91,75 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       <Tabs 
         value={activeTab} 
         onValueChange={handleTabChange}
-        className="mt-4"
+        className="mt-4 relative"
       >
-        <TabsList className={cn(
-          "w-full mb-4",
-          isMobile ? "grid grid-cols-5" : "flex"
+        {/* Fixed tabs bar with sticky positioning and backdrop blur */}
+        <div className={cn(
+          "sticky top-14 z-20 bg-background/80 backdrop-blur-md py-1",
+          "transition-shadow duration-300",
+          scrolledDown ? "shadow-md" : "",
+          "border-b border-border/50"
         )}>
-          <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
-          <TabsTrigger 
-            value="following" 
-            className="flex-1" 
-            disabled={!isLoggedIn}
-          >
-            Following
-          </TabsTrigger>
-          <TabsTrigger value="for-you" className="flex-1">
-            For You
-          </TabsTrigger>
-          <TabsTrigger value="media" className="flex-1">
-            <Image className="h-4 w-4 mr-1" />
-            Media
-          </TabsTrigger>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => setIsCustomizationDialogOpen(true)}
-            title="Customize feed"
-            className="size-10"
-          >
-            <Settings size={18} />
-          </Button>
-        </TabsList>
+          <TabsList className={cn(
+            "w-full",
+            isMobile ? "grid grid-cols-5" : "flex"
+          )}>
+            <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
+            <TabsTrigger 
+              value="following" 
+              className="flex-1" 
+              disabled={!isLoggedIn}
+            >
+              Following
+            </TabsTrigger>
+            <TabsTrigger value="for-you" className="flex-1">
+              For You
+            </TabsTrigger>
+            <TabsTrigger value="media" className="flex-1">
+              <Image className="h-4 w-4 mr-1" />
+              Media
+            </TabsTrigger>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setIsCustomizationDialogOpen(true)}
+              title="Customize feed"
+              className="size-10"
+            >
+              <Settings size={18} />
+            </Button>
+          </TabsList>
+        </div>
         
-        {/* Connection Status Banner - Moved here, below the tabs navigation */}
-        {isLoggedIn && <ConnectionStatusBanner />}
+        {/* Connection Status Banner - Below the tabs */}
+        <div className="pt-4">
+          {isLoggedIn && <ConnectionStatusBanner />}
+        </div>
         
-        <TabsContent value="global">
-          <GlobalFeed activeHashtag={activeHashtag} />
-        </TabsContent>
-        
-        <TabsContent value="following">
-          {!isLoggedIn ? (
-            <div className="py-8 text-center text-muted-foreground">
-              You need to log in to see posts from people you follow.
-            </div>
-          ) : (
-            <FollowingFeed activeHashtag={activeHashtag} />
-          )}
-        </TabsContent>
-        
-        <TabsContent value="for-you">
-          <ForYouFeed activeHashtag={activeHashtag} />
-        </TabsContent>
-        
-        <TabsContent value="media">
-          <MediaFeed activeHashtag={activeHashtag} />
-        </TabsContent>
+        {/* Feed content with padding to account for fixed tabs */}
+        <div className="mt-2">
+          <TabsContent value="global">
+            <GlobalFeed activeHashtag={activeHashtag} />
+          </TabsContent>
+          
+          <TabsContent value="following">
+            {!isLoggedIn ? (
+              <div className="py-8 text-center text-muted-foreground">
+                You need to log in to see posts from people you follow.
+              </div>
+            ) : (
+              <FollowingFeed activeHashtag={activeHashtag} />
+            )}
+          </TabsContent>
+          
+          <TabsContent value="for-you">
+            <ForYouFeed activeHashtag={activeHashtag} />
+          </TabsContent>
+          
+          <TabsContent value="media">
+            <MediaFeed activeHashtag={activeHashtag} />
+          </TabsContent>
+        </div>
       </Tabs>
 
       {/* Customization Dialog */}
