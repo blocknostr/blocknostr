@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Trash2 } from 'lucide-react';
+import { Trash2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import {
@@ -232,38 +231,47 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommen
 
   return (
     <>
-      <div className="px-5 pb-4 pt-3">
+      <div className="px-4 pb-3 pt-2">
         {nostrService.publicKey && (
-          <div className="flex gap-2 mb-4">
-            <Avatar className="h-8 w-8 shrink-0">
+          <div className="flex gap-2 mb-3">
+            <Avatar className="h-7 w-7 shrink-0">
               <AvatarFallback>U</AvatarFallback>
             </Avatar>
-            <div className="flex-1 flex flex-col gap-2">
-              <Textarea
-                placeholder="Write a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[80px] resize-none"
-              />
-              <Button 
-                onClick={handleSubmitComment}
-                disabled={!newComment.trim() || commentSubmitting}
-                className="self-end"
-                size="sm"
-              >
-                {commentSubmitting ? "Posting..." : "Reply"}
-              </Button>
+            <div className="flex-1 flex flex-col gap-1">
+              <div className="flex items-center">
+                <Textarea
+                  placeholder="Write a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="min-h-[42px] max-h-[120px] resize-none flex-1 py-2 px-3 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmitComment();
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={handleSubmitComment}
+                  disabled={!newComment.trim() || commentSubmitting}
+                  className="h-[42px] ml-1"
+                  size="icon"
+                  variant="ghost"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         )}
         
-        <div className="space-y-4 mt-2">
+        <div className="space-y-3 mt-2">
           {isLoading && comments.length === 0 ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
+            <div className="text-xs text-center py-3 text-muted-foreground">
               Loading comments...
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
+            <div className="text-xs text-center py-3 text-muted-foreground">
               No comments yet. Be the first to comment!
             </div>
           ) : (
@@ -276,46 +284,46 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommen
               );
               
               return (
-                <div key={comment.id} className="flex items-start gap-2 group">
+                <div key={comment.id} className="flex items-start gap-1.5 group">
                   <Link 
                     to={`/profile/${comment.author}`} 
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-6 w-6">
                       <AvatarImage src={picture} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
                         {name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </Link>
                   
                   <div className="flex-1">
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <div className="flex items-baseline gap-1.5 mb-1">
+                    <div className="bg-muted/40 p-2 rounded-lg">
+                      <div className="flex items-baseline gap-1 mb-0.5">
                         <Link 
                           to={`/profile/${comment.author}`} 
-                          className="font-medium text-sm hover:underline"
+                          className="font-medium text-xs hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {name}
                         </Link>
-                        <span className="text-xs text-muted-foreground">@{shortNpub}</span>
-                        <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                        <span className="text-[10px] text-muted-foreground">@{shortNpub}</span>
+                        <span className="text-[10px] text-muted-foreground">·</span>
+                        <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
                       </div>
-                      <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+                      <p className="text-xs whitespace-pre-wrap break-words">{comment.content}</p>
                     </div>
                     
                     {isAuthor && comment.id && (
-                      <div className="flex justify-end mt-1">
+                      <div className="flex justify-end mt-0.5">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-6 px-2 py-0 text-xs"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-5 px-1.5 py-0 text-[10px]"
                           onClick={() => handleDeleteClick(comment.id)}
                         >
-                          <Trash2 className="h-3 w-3 mr-1" />
+                          <Trash2 className="h-2.5 w-2.5 mr-1" />
                           Delete
                         </Button>
                       </div>
