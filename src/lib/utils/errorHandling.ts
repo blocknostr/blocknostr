@@ -6,6 +6,7 @@ export interface ErrorConfig {
   logMessage?: string;
   retry?: () => Promise<void>;
   maxRetries?: number;
+  silent?: boolean;
 }
 
 /**
@@ -19,14 +20,15 @@ export async function handleError(
     toastMessage = 'An error occurred',
     logMessage = 'Error',
     retry,
-    maxRetries = 3
+    maxRetries = 3,
+    silent = false
   } = config;
   
   // Log the error
   console.error(`${logMessage}:`, error);
   
-  // Show toast if enabled
-  if (toastMessage) {
+  // Show toast if enabled and not silent
+  if (toastMessage && !silent) {
     toast.error(toastMessage);
   }
   
@@ -49,9 +51,44 @@ export async function handleError(
       }
     }
     
-    // If we exhaust all retries
-    if (!success) {
+    // If we exhaust all retries and not silent
+    if (!success && !silent) {
       toast.error(`Failed after ${maxRetries} attempts`);
     }
+  }
+}
+
+/**
+ * Safely execute a function that might throw, returning a default value on error
+ */
+export function safeExecute<T>(
+  fn: () => T,
+  defaultValue: T,
+  errorConfig: ErrorConfig = { silent: true }
+): T {
+  try {
+    return fn();
+  } catch (error) {
+    handleError(error, errorConfig);
+    return defaultValue;
+  }
+}
+
+/**
+ * Execute a function with proper error handling for UI operations
+ */
+export function tryCatchWithToast(
+  fn: () => void,
+  successMessage?: string,
+  errorMessage = 'Operation failed'
+): void {
+  try {
+    fn();
+    if (successMessage) {
+      toast.success(successMessage);
+    }
+  } catch (error) {
+    console.error('Operation failed:', error);
+    toast.error(errorMessage);
   }
 }
