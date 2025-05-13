@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/NoteCard";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface VirtualizedFeedListProps {
   events: NostrEvent[];
@@ -38,40 +37,39 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
   
   return (
     <div className="space-y-4 relative">
-      <ScrollArea className="h-[calc(100vh-200px)]">
-        <div 
-          ref={parentRef} 
-          className="custom-scrollbar w-full"
-        >
-          {/* Total height spacer */}
-          <div style={{ height: totalHeight }}>
-            {/* Only render visible posts */}
-            {virtualItems.map(virtualRow => {
-              const event = events[virtualRow.index];
-              return (
-                <div
-                  key={event.id}
-                  className="absolute w-full"
-                  style={{
-                    top: virtualRow.start,
-                    height: virtualRow.size,
-                  }}
-                >
-                  <NoteCard 
-                    key={event.id} 
-                    event={event} 
-                    profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                    repostData={event.id && repostData[event.id] ? {
-                      reposterPubkey: repostData[event.id].pubkey,
-                      reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                    } : undefined}
-                  />
-                </div>
-              );
-            })}
-          </div>
+      <div 
+        ref={parentRef} 
+        className="overflow-auto" 
+        style={{ height: "calc(100vh - 200px)" }}
+      >
+        {/* Total height spacer */}
+        <div style={{ height: totalHeight }}>
+          {/* Only render visible posts */}
+          {virtualItems.map(virtualRow => {
+            const event = events[virtualRow.index];
+            return (
+              <div
+                key={event.id}
+                className="absolute w-full"
+                style={{
+                  top: virtualRow.start,
+                  height: virtualRow.size,
+                }}
+              >
+                <NoteCard 
+                  key={event.id} 
+                  event={event} 
+                  profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                  repostData={event.id && repostData[event.id] ? {
+                    reposterPubkey: repostData[event.id].pubkey,
+                    reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                  } : undefined}
+                />
+              </div>
+            );
+          })}
         </div>
-      </ScrollArea>
+      </div>
       
       {/* Loading indicator at the bottom */}
       <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className="py-4 text-center">

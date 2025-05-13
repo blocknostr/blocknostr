@@ -1,3 +1,277 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Main CSS file - imports all styles from src/styles */
-@import './styles/index.css';
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 211 100% 50%; /* Facebook Messenger blue */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Theme change variables */
+    --theme-change-x: 50%;
+    --theme-change-y: 50%;
+  }
+
+  .dark {
+    /* Updated dark mode theme with black, gray, and white tones */
+    --background: 0 0% 7%; /* Near black */
+    --foreground: 0 0% 95%; /* Off-white */
+
+    --card: 0 0% 10%; /* Dark gray */
+    --card-foreground: 0 0% 95%; /* Off-white */
+
+    --popover: 0 0% 10%; /* Dark gray */
+    --popover-foreground: 0 0% 95%; /* Off-white */
+
+    --primary: 211 100% 50%; /* Facebook Messenger blue */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 0 0% 15%; /* Gray */
+    --secondary-foreground: 0 0% 95%; /* Off-white */
+
+    --muted: 0 0% 20%; /* Medium gray */
+    --muted-foreground: 0 0% 70%; /* Light gray */
+
+    --accent: 0 0% 25%; /* Gray */
+    --accent-foreground: 0 0% 95%; /* Off-white */
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 95%; /* Off-white */
+
+    --border: 0 0% 20%; /* Medium gray */
+    --input: 0 0% 20%; /* Medium gray */
+    --ring: 0 0% 70%; /* Light gray */
+    
+    /* Sidebar related colors */
+    --sidebar-background: 0 0% 10%; /* Dark gray */
+    --sidebar-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-primary: 0 0% 95%; /* Off-white */
+    --sidebar-primary-foreground: 0 0% 7%; /* Near black */
+    --sidebar-accent: 0 0% 15%; /* Gray */
+    --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
+    --sidebar-border: 0 0% 20%; /* Medium gray */
+    --sidebar-ring: 0 0% 40%; /* Gray */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Theme transition classes - updated with shorter duration */
+.color-theme-in-transition,
+.color-theme-in-transition *,
+.color-theme-in-transition *:before,
+.color-theme-in-transition *:after {
+  transition: all 1s ease-out !important;
+  transition-delay: 0 !important;
+}
+
+/* Radial effect for theme transition */
+html.color-theme-in-transition {
+  background-image: radial-gradient(
+    circle at var(--theme-change-x) var(--theme-change-y),
+    hsl(var(--background)) 0%,
+    hsl(var(--background)) 10%,
+    transparent 70%
+  );
+  background-position: center;
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  animation: theme-ripple 1s ease-out forwards;
+}
+
+@keyframes theme-ripple {
+  0% {
+    background-size: 0% 0%;
+  }
+  100% {
+    background-size: 300% 300%;
+  }
+}
+
+/* Mobile optimizations */
+@layer utilities {
+  .touch-action-none {
+    touch-action: none;
+  }
+  
+  /* FB Messenger style message animations */
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+  
+  .message-bubble {
+    @apply relative transition-all duration-200;
+  }
+  
+  /* Original message bubbles with points */
+  .message-bubble-sent {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-tr-sm;
+    position: relative;
+  }
+  
+  .message-bubble-sent:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -6px;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--primary));
+    border-radius: 0 0 0 10px;
+    clip-path: polygon(0 0, 0% 100%, 100% 0);
+  }
+  
+  .message-bubble-received {
+    @apply bg-muted rounded-2xl rounded-tl-sm;
+    position: relative;
+  }
+  
+  .message-bubble-received:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    background: hsl(var(--muted) / 0.8);
+    border-radius: 0 0 10px 0;
+    clip-path: polygon(100% 0, 0 0, 100% 100%);
+  }
+  
+  /* New message bubbles without points */
+  .message-bubble-sent-no-point {
+    @apply bg-primary text-primary-foreground rounded-2xl;
+    position: relative;
+  }
+  
+  .message-bubble-received-no-point {
+    @apply bg-muted/80 rounded-2xl;
+    position: relative;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ensure proper tap targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .card {
+    @apply mx-auto max-w-[95%];
+  }
+  
+  /* Allow smaller heights for specific UI elements that need it */
+  .h-auto,
+  .min-h-auto,
+  button.h-auto,
+  button.min-h-auto {
+    min-height: auto;
+  }
+}
+
+/* Improve swipe gesture detection */
+.sheet-open {
+  overflow: hidden;
+}
+
+/* Ensure the content area fills available space */
+.app-content {
+  @apply flex-1 min-h-screen w-full;
+}
+
+/* Theme toggle button styles */
+.theme-toggle-button {
+  position: relative;
+  z-index: 10;
+}
+
+/* Facebook Messenger specific styles */
+.fb-message-transition {
+  transition: all 0.2s ease;
+}
+
+.contact-item {
+  @apply transition-colors duration-200 hover:bg-accent/30 rounded-md;
+}
+
+.contact-item-active {
+  @apply bg-accent;
+}
+
+.messenger-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.message-input {
+  @apply rounded-full bg-muted/30 focus-within:ring-1 focus-within:ring-primary/50;
+}
+
+.online-indicator {
+  @apply absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background;
+}
