@@ -26,7 +26,7 @@ const Sidebar = () => {
         </SidebarHeader>
         
         <SidebarContent>
-          <SidebarNav />
+          <SidebarNav isLoggedIn={isLoggedIn} />
         </SidebarContent>
         
         <SidebarFooter>
