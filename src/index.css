@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -53,6 +54,10 @@
     /* Theme change variables */
     --theme-change-x: 50%;
     --theme-change-y: 50%;
+    
+    /* Custom scrollbar colors */
+    --scrollbar-thumb: 215 20% 65%; 
+    --scrollbar-track: 210 20% 98%;
   }
 
   .dark {
@@ -94,6 +99,10 @@
     --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
     --sidebar-border: 0 0% 20%; /* Medium gray */
     --sidebar-ring: 0 0% 40%; /* Gray */
+    
+    /* Custom scrollbar colors for dark mode */
+    --scrollbar-thumb: 215 20% 50%;
+    --scrollbar-track: 215 20% 15%;
   }
 }
 
@@ -198,6 +207,36 @@ html.color-theme-in-transition {
   .message-bubble-received-no-point {
     @apply bg-muted/80 rounded-2xl;
     position: relative;
+  }
+  
+  /* Custom scrollbar styles for browsers that support it (mainly webkit) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--scrollbar-track));
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--scrollbar-thumb));
+    border-radius: 4px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+  
+  /* Make radix scrollbar more visible */
+  [data-radix-scroll-area-scrollbar-thumb] {
+    background-color: hsl(var(--scrollbar-thumb)) !important;
+    min-height: 40px;
+  }
+  
+  [data-radix-scroll-area-scrollbar]:hover [data-radix-scroll-area-scrollbar-thumb] {
+    background-color: hsl(var(--primary)) !important;
   }
 }
 

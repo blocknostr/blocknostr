@@ -24,18 +24,26 @@ const MessageList: React.FC<MessageListProps> = ({
   onAddReaction
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Removed ref from ScrollArea as it's not directly needed
+  
+  // Create a ref we can use with DOM methods
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0 && messagesEndRef.current && scrollAreaRef.current) {
-      const container = scrollAreaRef.current;
-      // Check if user is near the bottom (within 100px)
-      const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+    if (messages.length > 0 && messagesEndRef.current && scrollContainerRef.current) {
+      // Find the actual scroll container (viewport) which is the div inside ScrollArea
+      const scrollContainer = scrollContainerRef.current.querySelector('[data-radix-scroll-area-viewport]');
       
-      // Only auto-scroll if the user is already near the bottom
-      if (isAtBottom) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      if (scrollContainer) {
+        // Check if user is near the bottom (within 100px)
+        const isAtBottom = 
+          scrollContainer.scrollHeight - scrollContainer.clientHeight <= scrollContainer.scrollTop + 100;
+        
+        // Only auto-scroll if the user is already near the bottom
+        if (isAtBottom) {
+          messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
       }
     }
   }, [messages]);
@@ -72,32 +80,33 @@ const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <CardContent className="p-0 overflow-hidden flex-1 relative z-10">
-      <ScrollArea 
-        className="h-full"
-        ref={scrollAreaRef}
-        scrollHideDelay={100} // Shorter delay before hiding the scrollbar
-      >
-        <div className="p-2 flex flex-col h-full">
-          {/* We display messages in chronological order (oldest first) */}
-          {[...messages].reverse().map((message, index) => {
-            // Get previous message for grouping logic
-            const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
-            
-            return (
-              <MessageItem
-                key={message.id}
-                message={message}
-                previousMessage={previousMessage}
-                emojiReactions={emojiReactions[message.id] || []}
-                profiles={profiles}
-                isLoggedIn={isLoggedIn}
-                onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
-              />
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
+      <div ref={scrollContainerRef} className="h-full">
+        <ScrollArea 
+          className="h-full"
+          scrollHideDelay={1500} // Increased delay before hiding the scrollbar
+        >
+          <div className="p-2 flex flex-col h-full">
+            {/* We display messages in chronological order (oldest first) */}
+            {[...messages].reverse().map((message, index) => {
+              // Get previous message for grouping logic
+              const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
+              
+              return (
+                <MessageItem
+                  key={message.id}
+                  message={message}
+                  previousMessage={previousMessage}
+                  emojiReactions={emojiReactions[message.id] || []}
+                  profiles={profiles}
+                  isLoggedIn={isLoggedIn}
+                  onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
+                />
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </div>
     </CardContent>
   );
 };
