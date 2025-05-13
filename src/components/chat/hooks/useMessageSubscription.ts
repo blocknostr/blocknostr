@@ -45,12 +45,19 @@ export const useMessageSubscription = (
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   
   const isLoggedIn = !!nostrService.publicKey;
+
+  // Reset messages when chat tag changes
+  useEffect(() => {
+    setMessages([]);
+    setLoading(true);
+  }, [chatTag]);
   
-  // Try to load cached messages on initial load to avoid empty state
+  // Try to load cached messages on initial load or chat tag change
   useEffect(() => {
     try {
       const storageKey = `${chatTag}_messages`;
       const cachedMessages = safeLocalStorageGet(storageKey);
+      
       if (cachedMessages) {
         const parsedMessages = JSON.parse(cachedMessages);
         if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
@@ -65,7 +72,7 @@ export const useMessageSubscription = (
         }
       }
     } catch (error) {
-      console.warn("Error loading cached messages:", error);
+      console.warn(`Error loading cached messages for ${chatTag}:`, error);
     }
   }, [fetchProfile, chatTag]);
   
@@ -76,8 +83,6 @@ export const useMessageSubscription = (
       return;
     }
 
-    setLoading(true);
-    
     // Clean up any existing subscriptions
     subscriptions.forEach(subId => {
       if (subId) nostrService.unsubscribe(subId);
@@ -101,7 +106,7 @@ export const useMessageSubscription = (
           const storageKey = `${chatTag}_messages`;
           safeLocalStorageSet(storageKey, JSON.stringify(limitedMessages));
         } catch (e) {
-          console.warn("Failed to cache messages:", e);
+          console.warn(`Failed to cache messages for ${chatTag}:`, e);
         }
         
         return limitedMessages;
@@ -113,7 +118,7 @@ export const useMessageSubscription = (
       );
     };
     
-    // Subscribe to world chat messages with a smaller batch size and throttled updates
+    // Subscribe to chat messages with the specific tag
     const messagesSub = nostrService.subscribe(
       [
         {

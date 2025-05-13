@@ -17,6 +17,11 @@ export const useReactionHandler = (
   
   const isLoggedIn = !!nostrService.publicKey;
   
+  // Reset reactions when chat tag changes
+  useEffect(() => {
+    setEmojiReactions({});
+  }, [chatTag]);
+  
   // Handle reactions with improved error handling
   const handleReaction = useCallback((event: NostrEvent) => {
     try {
@@ -27,6 +32,13 @@ export const useReactionHandler = (
       if (!eventTag) return;
       
       const targetId = eventTag[1];
+      
+      // Verify this reaction belongs to our chat channel
+      const chatTagMatch = event.tags.find(tag => 
+        tag.length >= 2 && tag[0] === 't' && tag[1] === chatTag
+      );
+      
+      if (!chatTagMatch) return;
       
       setEmojiReactions(prev => {
         const existingReactions = prev[targetId] || [];
@@ -42,7 +54,7 @@ export const useReactionHandler = (
     } catch (error) {
       console.error("Error processing reaction:", error);
     }
-  }, []);
+  }, [chatTag]);
 
   // Setup reaction subscription
   useEffect(() => {
@@ -56,7 +68,7 @@ export const useReactionHandler = (
       if (subId) nostrService.unsubscribe(subId);
     });
     
-    // Subscribe to reactions (NIP-25)
+    // Subscribe to reactions (NIP-25) for this specific chat tag
     const reactionsSub = nostrService.subscribe(
       [
         {
@@ -101,7 +113,7 @@ export const useReactionHandler = (
         return prev;
       });
       
-      // Send reaction to Nostr relays per NIP-25
+      // Send reaction to Nostr relays per NIP-25 with channel tag
       await nostrService.publishEvent({
         kind: EVENT_KINDS.REACTION,
         content: emoji,

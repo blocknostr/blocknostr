@@ -1,6 +1,7 @@
-import React, { lazy, Suspense, useState } from "react";
+
+import React, { lazy, Suspense, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import WorldChatHeader from "./WorldChatHeader";
+import WorldChatHeader, { WORLD_CHAT_CHANNELS, ChatChannel } from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,17 +17,14 @@ const MessageList = lazy(() => import("./MessageList"));
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
 
-// Chat tag options
-const CHAT_TAGS = {
-  DEFAULT: "world-chat",
-  BITCOIN: "bitcoin-world-chat",
-  ALEPHIUM: "alephium-world-chat",
-  ERGO: "ergo-world-chat"
-};
+// Default chat tag
+const DEFAULT_CHAT_TAG = "world-chat";
 
 const WorldChat = () => {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const [currentChatTag, setCurrentChatTag] = useState(CHAT_TAGS.DEFAULT);
+  const [currentChatTag, setCurrentChatTag] = useState(DEFAULT_CHAT_TAG);
+  // Add a state to track channel switches for UI feedback
+  const [isChangingChannel, setIsChangingChannel] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
 
   const {
@@ -42,6 +40,22 @@ const WorldChat = () => {
     isReconnecting
   } = useWorldChat(currentChatTag);
 
+  // Handle chat channel selection
+  const handleChannelSelect = (channel: ChatChannel) => {
+    if (channel.tag === currentChatTag) return;
+    
+    // Set changing channel state to show loading indicator
+    setIsChangingChannel(true);
+    setCurrentChatTag(channel.tag);
+  };
+
+  // Reset the changing channel state once messages are loaded
+  useEffect(() => {
+    if (!loading && isChangingChannel) {
+      setIsChangingChannel(false);
+    }
+  }, [loading, isChangingChannel]);
+
   const handleLoginClick = () => {
     setLoginDialogOpen(true);
   };
@@ -50,7 +64,11 @@ const WorldChat = () => {
   if (!isLoggedIn) {
     return (
       <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm">
-        <WorldChatHeader connectionStatus="disconnected" />
+        <WorldChatHeader 
+          connectionStatus="disconnected" 
+          currentChatTag={currentChatTag} 
+          onChannelSelect={handleChannelSelect}
+        />
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-background to-muted/10">
           <div className="p-3 bg-primary/10 rounded-full mb-3 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
@@ -85,9 +103,16 @@ const WorldChat = () => {
     );
   }
 
+  // Determine if we should show loading state
+  const showLoading = loading || isChangingChannel;
+
   return (
     <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
-      <WorldChatHeader connectionStatus={connectionStatus} />
+      <WorldChatHeader 
+        connectionStatus={connectionStatus}
+        currentChatTag={currentChatTag}
+        onChannelSelect={handleChannelSelect}
+      />
       
       {error && (
         <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1.5 rounded-md">
@@ -144,7 +169,7 @@ const WorldChat = () => {
             messages={messages}
             profiles={profiles}
             emojiReactions={emojiReactions}
-            loading={loading}
+            loading={showLoading}
             isLoggedIn={isLoggedIn}
             onAddReaction={addReaction}
           />
