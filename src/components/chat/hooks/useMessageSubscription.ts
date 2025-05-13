@@ -2,12 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
-import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/storage";
 
 const WORLD_CHAT_TAG = "world-chat";
 const MAX_MESSAGES = 100; // Keep at 100 messages
 const INITIAL_LOAD_LIMIT = 50; // Initial batch size
-const MUTE_PREFERENCE_KEY = "world_chat_muted";
 
 /**
  * Safely get an item from localStorage with error handling
@@ -39,8 +37,7 @@ const safeLocalStorageSet = (key: string, value: string): boolean => {
  */
 export const useMessageSubscription = (
   connectionStatus: 'connected' | 'connecting' | 'disconnected',
-  fetchProfile: (pubkey: string) => Promise<void>,
-  isMuted: boolean
+  fetchProfile: (pubkey: string) => Promise<void>
 ) => {
   const [messages, setMessages] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +69,8 @@ export const useMessageSubscription = (
   
   // Setup message subscription
   useEffect(() => {
-    // Skip subscription if muted or not connected
-    if (connectionStatus !== 'connected' || isMuted) {
+    // Only attempt to subscribe if we are connected
+    if (connectionStatus !== 'connected') {
       return;
     }
 
@@ -133,7 +130,7 @@ export const useMessageSubscription = (
     return () => {
       if (messagesSub) nostrService.unsubscribe(messagesSub);
     };
-  }, [connectionStatus, fetchProfile, isMuted]);
+  }, [connectionStatus, fetchProfile]);
 
   return {
     messages,

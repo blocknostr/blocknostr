@@ -31,9 +31,7 @@ const WorldChat = () => {
     error,
     connectionStatus,
     reconnect,
-    isReconnecting,
-    isMuted,
-    toggleMute
+    isReconnecting
   } = useWorldChat();
 
   const handleLoginClick = () => {
@@ -44,11 +42,7 @@ const WorldChat = () => {
   if (!isLoggedIn) {
     return (
       <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm">
-        <WorldChatHeader 
-          connectionStatus="disconnected"
-          isMuted={false}
-          onToggleMute={() => {}}
-        />
+        <WorldChatHeader connectionStatus="disconnected" />
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-background to-muted/10">
           <div className="p-3 bg-primary/10 rounded-full mb-3 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
@@ -85,11 +79,7 @@ const WorldChat = () => {
 
   return (
     <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
-      <WorldChatHeader 
-        connectionStatus={connectionStatus} 
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-      />
+      <WorldChatHeader connectionStatus={connectionStatus} />
       
       {error && (
         <Alert variant="destructive" className="mx-2 mt-1 mb-0 py-1.5 rounded-md">
@@ -136,17 +126,6 @@ const WorldChat = () => {
         </Alert>
       )}
       
-      {isMuted && (
-        <Alert className="mx-2 mt-1 mb-0 py-1.5 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 rounded-md">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
-            <AlertDescription className="text-xs text-orange-700 dark:text-orange-400">
-              Chat is muted. Click the indicator to unmute.
-            </AlertDescription>
-          </div>
-        </Alert>
-      )}
-      
       <div className="flex-grow overflow-hidden relative">
         <Suspense fallback={
           <div className="flex items-center justify-center h-full">
@@ -168,7 +147,7 @@ const WorldChat = () => {
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
         onSendMessage={sendMessage}
-        disabled={connectionStatus === 'disconnected' || isMuted}
+        disabled={connectionStatus === 'disconnected'}
       />
     </Card>
   );
