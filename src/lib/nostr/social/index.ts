@@ -3,14 +3,20 @@ import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { ReactionCounts, SocialManagerOptions } from './types';
 import { InteractionsManager } from './interactions';
+import { ContactsManager } from './contacts';
 
 export class SocialManager {
   private pool: SimplePool;
   private options: SocialManagerOptions;
   private interactionsManager: InteractionsManager;
+  private contactsManager: ContactsManager;
+  private eventManager: any;
+  private userManager: any;
 
-  constructor(pool: SimplePool, options: SocialManagerOptions = {}) {
+  constructor(pool: SimplePool, eventManager: any, userManager: any, options: SocialManagerOptions = {}) {
     this.pool = pool;
+    this.eventManager = eventManager;
+    this.userManager = userManager;
     this.options = {
       cacheExpiration: 5 * 60 * 1000, // 5 minutes
       maxCacheSize: 1000,
@@ -18,9 +24,10 @@ export class SocialManager {
       ...options
     };
     this.interactionsManager = new InteractionsManager(pool, {});
+    this.contactsManager = new ContactsManager(eventManager, userManager);
   }
 
-  // Implement methods needed for service.ts
+  // Implement follow functionality using ContactsManager
   async followUser(
     pool: SimplePool,
     pubkey: string,
@@ -28,7 +35,13 @@ export class SocialManager {
     relays: string[]
   ): Promise<boolean> {
     console.log(`Following user: ${pubkey}`);
-    return true; // Placeholder implementation
+    try {
+      const success = await this.contactsManager.followUser(pool, pubkey, privateKey, relays);
+      return success;
+    } catch (error) {
+      console.error("Error in SocialManager.followUser:", error);
+      return false;
+    }
   }
 
   async unfollowUser(
@@ -38,7 +51,13 @@ export class SocialManager {
     relays: string[]
   ): Promise<boolean> {
     console.log(`Unfollowing user: ${pubkey}`);
-    return true; // Placeholder implementation
+    try {
+      const success = await this.contactsManager.unfollowUser(pool, pubkey, privateKey, relays);
+      return success;
+    } catch (error) {
+      console.error("Error in SocialManager.unfollowUser:", error);
+      return false;
+    }
   }
 
   async sendDirectMessage(
@@ -50,7 +69,8 @@ export class SocialManager {
     relays: string[]
   ): Promise<string | null> {
     console.log(`Sending direct message to: ${recipientPubkey}`);
-    return "message-id"; // Placeholder implementation
+    // Placeholder implementation for backward compatibility
+    return "message-id";
   }
 
   async reactToEvent(
@@ -62,7 +82,8 @@ export class SocialManager {
     relays: string[]
   ): Promise<string | null> {
     console.log(`Reacting to event ${eventId} with ${emoji}`);
-    return "reaction-id"; // Placeholder implementation
+    // Placeholder implementation for backward compatibility
+    return "reaction-id";
   }
 
   async repostEvent(
@@ -75,7 +96,8 @@ export class SocialManager {
     relays: string[]
   ): Promise<string | null> {
     console.log(`Reposting event ${eventId}`);
-    return "repost-id"; // Placeholder implementation
+    // Placeholder implementation for backward compatibility
+    return "repost-id";
   }
 
   // Method to get reaction counts
@@ -88,5 +110,26 @@ export class SocialManager {
       zaps: 0,
       zapAmount: 0
     };
+  }
+  
+  // For messages that need to be implemented for the messaging adapter
+  async getDirectMessages(
+    pool: SimplePool,
+    pubkey: string,
+    otherPubkey: string | null,
+    relays: string[]
+  ): Promise<NostrEvent[]> {
+    // Placeholder implementation
+    return [];
+  }
+  
+  async getConversation(
+    pool: SimplePool,
+    pubkey: string,
+    otherPubkey: string,
+    relays: string[]
+  ): Promise<NostrEvent[]> {
+    // Placeholder implementation
+    return [];
   }
 }

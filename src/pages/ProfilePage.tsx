@@ -28,16 +28,8 @@ const ProfilePage = () => {
   }, [npub]);
   
   // Fetch posts with limited initial count
-  const {
-    events,
-    media,
-    loading: postsLoading,
-    error,
-    refetch
-  } = useProfilePosts({ 
-    hexPubkey,
-    limit: 10 // Only load first 10 posts initially
-  });
+  const { posts, events = [], media = [], loading: postsLoading, error = null, refetch = () => {} } = 
+    hexPubkey ? useProfilePosts({ hexPubkey, limit: 10 }) : { posts: [], events: [], media: [], loading: false };
   
   if (!npub || !hexPubkey) {
     return (
