@@ -41,43 +41,63 @@ const HeaderSkeleton = () => (
 );
 
 const MyCubePage = () => {
-  const currentUserPubkey = nostrService.publicKey;
+  // Get current user's pubkey - make sure we handle cases where it might be undefined
+  const currentUserPubkey = nostrService?.publicKey || null;
   const { connectToRelays, connectionStatus } = useRelays();
   const [activeTab, setActiveTab] = useState("posts");
   
   useEffect(() => {
     // Connect to relays when component mounts
-    connectToRelays().catch(err => 
-      console.error("Failed to connect to relays:", err)
-    );
+    if (connectToRelays) {
+      connectToRelays().catch(err => 
+        console.error("Failed to connect to relays:", err)
+      );
+    }
   }, [connectToRelays]);
+  
+  // Log the current user's pubkey to help debug
+  useEffect(() => {
+    console.log("Current user pubkey:", currentUserPubkey);
+  }, [currentUserPubkey]);
+  
+  // Initialize profileData with default values
+  const defaultProfileData = {
+    metadata: {},
+    posts: [],
+    media: [],
+    followers: [],
+    following: [],
+    relays: [],
+    isCurrentUser: true,
+  };
   
   // Use profileService with current user's pubkey
   const {
-    profileData,
-    loading,
+    profileData = defaultProfileData,
+    loading = true,
     error,
-    refreshing,
-    refreshProfile
+    refreshing = false,
+    refreshProfile = () => console.log("Refresh function not available")
   } = useProfileService({ 
     npub: currentUserPubkey ? nostrService.getNpubFromHex(currentUserPubkey) : undefined, 
     currentUserPubkey 
-  });
+  }) || {};
 
-  // Extract relevant profile data
+  // Extract relevant profile data with fallbacks
   const {
-    metadata,
-    posts,
-    media,
-    followers,
-    following,
-    relays,
-    isCurrentUser,
-  } = profileData;
+    metadata = {},
+    posts = [],
+    media = [],
+    followers = [],
+    following = [],
+    relays = [],
+    isCurrentUser = true,
+  } = profileData || defaultProfileData;
 
+  // Handle the case where user is not logged in
   if (!currentUserPubkey) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md">
           <CardContent className="py-8 text-center">
             <h2 className="text-2xl font-bold mb-4">Login Required</h2>
@@ -88,6 +108,23 @@ const MyCubePage = () => {
               Login with Nostr
             </Button>
           </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Add more error handling
+  if (error) {
+    console.error("Profile service error:", error);
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        <PageHeader title="MyCube" />
+        <Card className="p-6">
+          <h2 className="text-xl font-bold mb-4">Error Loading Profile</h2>
+          <p className="text-muted-foreground mb-4">
+            There was an error loading your profile data. Please try refreshing.
+          </p>
+          <Button onClick={refreshProfile}>Refresh</Button>
         </Card>
       </div>
     );
@@ -142,10 +179,10 @@ const MyCubePage = () => {
         <ErrorBoundary>
           <Suspense fallback={<Skeleton className="h-24 w-full" />}>
             <MyCubeStats
-              postsCount={posts.length}
-              followersCount={followers.length}
-              followingCount={following.length}
-              relaysCount={relays.length}
+              postsCount={posts?.length || 0}
+              followersCount={followers?.length || 0}
+              followingCount={following?.length || 0}
+              relaysCount={relays?.length || 0}
             />
           </Suspense>
         </ErrorBoundary>
@@ -158,12 +195,12 @@ const MyCubePage = () => {
               <TabsTrigger value="posts" className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
                 <span className="hidden sm:inline">Posts</span>
-                <Badge variant="outline" className="ml-1">{posts.length}</Badge>
+                <Badge variant="outline" className="ml-1">{posts?.length || 0}</Badge>
               </TabsTrigger>
               <TabsTrigger value="media" className="flex items-center gap-2">
                 <Image className="h-4 w-4" />
                 <span className="hidden sm:inline">Media</span>
-                <Badge variant="outline" className="ml-1">{media.length}</Badge>
+                <Badge variant="outline" className="ml-1">{media?.length || 0}</Badge>
               </TabsTrigger>
               <TabsTrigger value="network" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -184,7 +221,7 @@ const MyCubePage = () => {
           <TabsContent value="posts" className="mt-4">
             <ErrorBoundary>
               <Suspense fallback={<div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>}>
-                <MyCubePosts posts={posts} loading={loading} refreshing={refreshing} />
+                <MyCubePosts posts={posts || []} loading={loading} refreshing={refreshing} />
               </Suspense>
             </ErrorBoundary>
           </TabsContent>
@@ -192,7 +229,7 @@ const MyCubePage = () => {
           <TabsContent value="media" className="mt-4">
             <ErrorBoundary>
               <Suspense fallback={<div className="grid grid-cols-3 gap-4">{[...Array(6)].map((_, i) => <Skeleton key={i} className="aspect-square w-full" />)}</div>}>
-                <MyCubeMedia media={media} loading={loading} />
+                <MyCubeMedia media={media || []} loading={loading} />
               </Suspense>
             </ErrorBoundary>
           </TabsContent>
@@ -201,9 +238,9 @@ const MyCubePage = () => {
             <ErrorBoundary>
               <Suspense fallback={<Skeleton className="h-64 w-full" />}>
                 <MyCubeNetwork 
-                  followers={followers}
-                  following={following}
-                  relays={relays}
+                  followers={followers || []}
+                  following={following || []}
+                  relays={relays || []}
                 />
               </Suspense>
             </ErrorBoundary>
