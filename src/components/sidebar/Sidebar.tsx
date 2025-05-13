@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -10,45 +11,29 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 const Sidebar = () => {
   const isMobile = useIsMobile();
   const { isLoggedIn, userProfile, isLoading } = useSidebarProfile();
-
+  
   return (
-    <aside
-      className={cn(
-        "border-r h-full py-4 bg-background",
-        isMobile ? "w-full" : "w-64 fixed left-0 top-0 hidden md:block"
-      )}
-    >
+    <aside className={cn(
+      "border-r h-full py-4 bg-background",
+      isMobile ? "w-full" : "w-64 fixed left-0 top-0 hidden md:block"
+    )}>
       <div className="flex flex-col h-full px-4">
-        {/* Centered logo with white glow */}
-        <div className="mb-6 flex items-center justify-center">
-          <Link to="/">
-            <img
-              src="/BlockNostr_Transparent.png"
-              alt="BlockNostr Logo"
-              className="
-                w-32 h-auto
-                hover:opacity-80 transition-opacity
-                shadow-[0_0_8px_rgba(255,255,255,0.8)]
-              "
-            />
+        <div className="mb-6">
+          <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
+            BlockNostr
           </Link>
         </div>
-
+        
         <SidebarNav isLoggedIn={isLoggedIn} />
-
+        
         <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (
-            <ErrorBoundary
-              fallback={
-                <div className="p-2 text-sm text-muted-foreground">
-                  Failed to load profile
-                </div>
-              }
-            >
-              <SidebarUserProfile
-                userProfile={userProfile}
-                isLoading={isLoading}
-              />
+            <ErrorBoundary fallback={
+              <div className="p-2 text-sm text-muted-foreground">
+                Failed to load profile
+              </div>
+            }>
+              <SidebarUserProfile userProfile={userProfile} isLoading={isLoading} />
             </ErrorBoundary>
           )}
         </div>
