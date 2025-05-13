@@ -4,10 +4,9 @@ import { NostrEvent, nostrService, contentCache } from '@/lib/nostr';
 
 interface UseProfileLikesProps {
   hexPubkey: string | undefined;
-  enabled?: boolean;
 }
 
-export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesProps) {
+export function useProfileLikes({ hexPubkey }: UseProfileLikesProps) {
   const [reactions, setReactions] = useState<NostrEvent[]>([]);
   const [referencedEvents, setReferencedEvents] = useState<Record<string, NostrEvent>>({});
   const [loading, setLoading] = useState(false);
@@ -23,17 +22,9 @@ export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesPr
   }, []);
   
   useEffect(() => {
-    // Only fetch data if enabled and we have a pubkey
-    if (!enabled || !hexPubkey) return;
+    if (!hexPubkey) return;
     
-    console.log("Fetching likes for profile:", hexPubkey);
     setLoading(true);
-    
-    // Clean up previous subscriptions if any
-    subscriptionsRef.current.forEach(subId => {
-      nostrService.unsubscribe(subId);
-    });
-    subscriptionsRef.current.clear();
     
     // Subscribe to user's reactions (kind 7 - NIP-25)
     const reactionsSubId = nostrService.subscribe(
@@ -91,7 +82,7 @@ export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesPr
         timeoutRef.current = null;
       }
     };
-  }, [hexPubkey, enabled]);
+  }, [hexPubkey]);
   
   // Helper to extract event ID from NIP-25 reaction
   const getReactedToEventId = (event: NostrEvent): string | null => {
@@ -164,11 +155,13 @@ export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesPr
     
     // Cleanup subscription after a short time
     const timeoutId = window.setTimeout(() => {
-      if (subscriptionsRef.current.has(subId) && isMounted.current) {
+      if (subscriptionsRef.current.has(subId)) {
         nostrService.unsubscribe(subId);
         subscriptionsRef.current.delete(subId);
       }
     }, 2000);
+    
+    // If component unmounts before timeout, we'll clean up in the effect's return function
   };
 
   return { 

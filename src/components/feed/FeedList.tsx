@@ -1,6 +1,8 @@
 
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import OptimizedFeedList from "./OptimizedFeedList";
 
 interface FeedListProps {
@@ -26,7 +28,7 @@ const FeedList: React.FC<FeedListProps> = ({
   hasMore = true,
   loadMoreLoading = false
 }) => {
-  // Use our optimized feed list component with virtualization
+  // Use our optimized feed list component
   return (
     <OptimizedFeedList
       events={events}

@@ -7,10 +7,9 @@ import { contentCache } from '@/lib/nostr';
 
 interface UseProfilePostsProps {
   hexPubkey: string | undefined;
-  limit?: number;
 }
 
-export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps) {
+export function useProfilePosts({ hexPubkey }: UseProfilePostsProps) {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [media, setMedia] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,9 +80,6 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         if (postsEvents.length > 0) {
           setHasEvents(true);
           eventCountRef.current = postsEvents.length;
-          
-          // We can shorten loading time if we have cached events
-          setLoading(false);
         }
       }
     } catch (err) {
@@ -107,14 +103,14 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
             {
               kinds: [1],
               authors: [hexPubkey],
-              limit: limit
+              limit: 50
             }
           ],
           (event) => {
             if (!isMounted.current) return;
             
             try {
-              console.log("Received post event:", event.id.substring(0, 8), "from", event.pubkey.substring(0, 8));
+              console.log("Received post event:", event.id, "from", event.pubkey);
               eventCountRef.current += 1;
               
               setEvents(prev => {
@@ -159,7 +155,6 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         console.log("Created subscription:", notesSubId, "for posts");
         
         // Set a timeout to check if we got any events and mark loading as complete
-        // Reduced from 15s to 5s for better user experience
         timeoutRef.current = window.setTimeout(() => {
           if (!isMounted.current) return;
           
@@ -173,14 +168,14 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
               setError("No posts found");
             }
           }
-        }, 5000); // Reduced timeout for better UX
+        }, 15000); // Longer timeout for better chance of success
         
         // Add a quick-feedback timeout to show initial results faster
         setTimeout(() => {
           if (isMounted.current && eventCountRef.current > 0) {
             setLoading(false);
           }
-        }, 2000); // Even quicker feedback if we have events
+        }, 3000);
       } catch (err) {
         console.error("Error in useProfilePosts:", err);
         if (isMounted.current) {
@@ -206,7 +201,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         timeoutRef.current = null;
       }
     };
-  }, [hexPubkey, limit]);
+  }, [hexPubkey]);
 
   return { 
     events, 

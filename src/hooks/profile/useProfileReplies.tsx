@@ -4,10 +4,9 @@ import { NostrEvent, nostrService } from '@/lib/nostr';
 
 interface UseProfileRepliesProps {
   hexPubkey: string | undefined;
-  enabled?: boolean;
 }
 
-export function useProfileReplies({ hexPubkey, enabled = true }: UseProfileRepliesProps) {
+export function useProfileReplies({ hexPubkey }: UseProfileRepliesProps) {
   const [replies, setReplies] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const subscriptionRef = useRef<string | null>(null);
@@ -22,17 +21,9 @@ export function useProfileReplies({ hexPubkey, enabled = true }: UseProfileRepli
   }, []);
   
   useEffect(() => {
-    // Only fetch data if enabled and we have a pubkey
-    if (!enabled || !hexPubkey) return;
+    if (!hexPubkey) return;
     
-    console.log("Fetching replies for profile:", hexPubkey);
     setLoading(true);
-    
-    // Clean up previous subscription if any
-    if (subscriptionRef.current) {
-      nostrService.unsubscribe(subscriptionRef.current);
-      subscriptionRef.current = null;
-    }
     
     // Subscribe to user's notes that are replies (have e tags - NIP-10)
     const repliesSubId = nostrService.subscribe(
@@ -40,7 +31,7 @@ export function useProfileReplies({ hexPubkey, enabled = true }: UseProfileRepli
         {
           kinds: [1],
           authors: [hexPubkey],
-          limit: 30
+          limit: 50
         }
       ],
       (event) => {
@@ -88,7 +79,7 @@ export function useProfileReplies({ hexPubkey, enabled = true }: UseProfileRepli
         timeoutRef.current = null;
       }
     };
-  }, [hexPubkey, enabled]);
+  }, [hexPubkey]);
 
   return { replies, loading };
 }
