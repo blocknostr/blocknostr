@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { contentCache, nostrService } from "@/lib/nostr";
+import { profileDataService } from "@/lib/services/ProfileDataService";
 
 export function useProfileFetcher() {
   const [profiles, setProfiles] = React.useState<Record<string, any>>({});
@@ -8,26 +8,15 @@ export function useProfileFetcher() {
   const fetchProfileData = React.useCallback(async (pubkey: string) => {
     if (!pubkey || profiles[pubkey]) return;
     
-    // Check cache first
-    const cachedProfile = contentCache.getProfile(pubkey);
-    if (cachedProfile) {
-      setProfiles(prev => ({
-        ...prev,
-        [pubkey]: cachedProfile
-      }));
-      return;
-    }
-    
     try {
-      const profile = await nostrService.getUserProfile(pubkey);
-      if (profile) {
+      // This will trigger the profile data service to load the data
+      const data = await profileDataService.loadProfileData(pubkey, null);
+      
+      if (data && data.metadata) {
         setProfiles(prev => ({
           ...prev,
-          [pubkey]: profile
+          [pubkey]: data.metadata
         }));
-        
-        // Cache the profile
-        contentCache.cacheProfile(pubkey, profile);
       }
     } catch (error) {
       console.error(`Error fetching profile for ${pubkey}:`, error);

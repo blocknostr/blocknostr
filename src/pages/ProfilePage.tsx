@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import Sidebar from "@/components/Sidebar";
@@ -8,118 +8,40 @@ import ProfileStats from "@/components/profile/ProfileStats";
 import ProfileLoading from "@/components/profile/ProfileLoading";
 import ProfileNotFound from "@/components/profile/ProfileNotFound";
 import ProfileTabs from "@/components/profile/ProfileTabs";
-import { useProfileData } from "@/hooks/useProfileData";
-import { toast } from "sonner";
+import { useProfileService } from "@/hooks/useProfileService";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useEnhancedRelayConnection } from "@/hooks/profile/useEnhancedRelayConnection"; 
-import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
-import { retry } from "@/lib/utils/retry";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
-  const [refreshing, setRefreshing] = useState(false);
   
-  // Get the hex pubkey for the profile
-  const hexPubkey = npub ? nostrService.getHexFromNpub(npub) : currentUserPubkey;
-  
-  // Use our enhanced relay connection hook
-  const { 
-    relays, 
-    isConnecting, 
-    connectToRelays, 
-    refreshRelays 
-  } = useEnhancedRelayConnection(hexPubkey);
-  
-  // Use our custom hook to manage profile data and state
+  // Use our new simplified profile service
   const {
     profileData,
-    events,
-    replies,
-    media,
-    reposts,
     loading,
     error,
-    setRelays,
+    refreshing,
+    refreshProfile
+  } = useProfileService({ npub, currentUserPubkey });
+  
+  // Extract all necessary data
+  const {
+    metadata,
+    posts,
+    media,
+    reposts,
+    replies,
     followers,
     following,
-    originalPostProfiles,
-    isCurrentUser,
+    relays,
     reactions,
     referencedEvents,
-    refreshProfile
-  } = useProfileData({ npub, currentUserPubkey });
-  
-  // Handle connection to relays before loading data using smart selection
-  useEffect(() => {
-    if (loading && !isConnecting) {
-      connectToRelays();
-    }
-  }, [loading, isConnecting, connectToRelays]);
-  
-  // Handle manual refresh with improved feedback and relay selection
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
-    
-    setRefreshing(true);
-    toast.loading("Refreshing profile data...");
-    
-    try {
-      // First ensure we have optimal relay connections
-      await connectToRelays();
-      
-      // Use retry utility with exponential backoff for more resilient profile refresh
-      await retry(
-        async () => {
-          // Get best relays for read operations
-          const readRelays = relaySelector.selectBestRelays(
-            relays.map(r => r.url),
-            { operation: 'read', count: 5 }
-          );
-          
-          // Add these read-optimized relays
-          if (readRelays.length > 0) {
-            await nostrService.addMultipleRelays(readRelays);
-          }
-          
-          // Add popular relays as fallback
-          await nostrService.addMultipleRelays([
-            "wss://relay.damus.io", 
-            "wss://nos.lol", 
-            "wss://relay.nostr.band",
-            "wss://relay.snort.social"
-          ]);
-          
-          // Refresh relays status
-          refreshRelays();
-          
-          // Try to refresh profile data - fix the void return checking
-          const result = await refreshProfile();
-          
-          // Instead of checking truthiness, just consider the operation successful
-          // if it didn't throw an error
-          return true;
-        },
-        {
-          maxAttempts: 2,
-          baseDelay: 2000,
-          onRetry: () => {
-            toast.info("Retrying profile refresh...");
-          }
-        }
-      );
-      
-      toast.success("Profile refreshed");
-    } catch (err) {
-      console.error("Error refreshing profile:", err);
-      toast.error("Failed to refresh profile");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, connectToRelays, refreshRelays, refreshProfile, relays]);
+    originalPostProfiles,
+    isCurrentUser,
+  } = profileData;
   
   // Redirect to current user's profile if no npub is provided
   useEffect(() => {
@@ -134,7 +56,7 @@ const ProfilePage = () => {
   }
   
   // Calculate connection status
-  const connectedRelayCount = relays.filter(r => r.status === 'connected').length;
+  const connectedRelayCount = relays?.filter(r => r.status === 'connected').length || 0;
   
   return (
     <div className="flex min-h-screen bg-background">
@@ -158,7 +80,7 @@ const ProfilePage = () => {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={handleRefresh}
+                onClick={refreshProfile}
                 disabled={refreshing}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -178,7 +100,7 @@ const ProfilePage = () => {
                 <Button 
                   variant="link" 
                   className="p-0 h-auto ml-2" 
-                  onClick={handleRefresh}
+                  onClick={refreshProfile}
                 >
                   Try again
                 </Button>
@@ -186,10 +108,10 @@ const ProfilePage = () => {
             </Alert>
           )}
           
-          {profileData ? (
+          {metadata ? (
             <>
               <ProfileHeader 
-                profileData={profileData}
+                profileData={metadata}
                 npub={npub || nostrService.formatPubkey(currentUserPubkey || '')}
                 isCurrentUser={isCurrentUser}
               />
@@ -197,28 +119,31 @@ const ProfilePage = () => {
               <ProfileStats 
                 followers={followers}
                 following={following}
-                postsCount={events.length + reposts.length}
+                postsCount={posts.length + reposts.length}
                 currentUserPubkey={currentUserPubkey}
                 isCurrentUser={isCurrentUser}
                 relays={relays}
-                onRelaysChange={setRelays}
+                onRelaysChange={(updatedRelays) => {
+                  // This would now be handled via profileDataService
+                  console.log('Relay preferences updated:', updatedRelays);
+                }}
                 userNpub={npub}
-                onRefresh={handleRefresh}
+                onRefresh={refreshProfile}
                 isLoading={refreshing}
               />
               
               <ProfileTabs 
-                events={events}
+                events={posts}
                 media={media}
                 reposts={reposts}
-                profileData={profileData}
+                profileData={metadata}
                 originalPostProfiles={originalPostProfiles}
                 replies={replies}
                 reactions={reactions}
                 referencedEvents={referencedEvents}
               />
               
-              {events.length === 0 && reposts.length === 0 && !refreshing && (
+              {posts.length === 0 && reposts.length === 0 && !refreshing && (
                 <div className="text-center py-8 text-muted-foreground">
                   {isCurrentUser ? (
                     <p>You haven't posted anything yet.</p>
@@ -229,7 +154,7 @@ const ProfilePage = () => {
                     variant="outline" 
                     size="sm"
                     className="mt-4"
-                    onClick={handleRefresh}
+                    onClick={refreshProfile}
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
