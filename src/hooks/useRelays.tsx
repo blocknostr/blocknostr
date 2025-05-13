@@ -1,9 +1,7 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
 import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
-import { circuitBreaker } from '@/lib/nostr/relay/circuit/circuit-breaker';
 
 export function useRelays() {
   const [relays, setRelays] = useState<any[]>([]);
@@ -32,18 +30,9 @@ export function useRelays() {
       // First connect to user's relays
       await nostrService.connectToUserRelays();
       
-      // If custom relays provided, filter out problematic ones and add the rest
+      // If custom relays provided, add those too
       if (customRelays && customRelays.length > 0) {
-        // Filter out relays with open circuit breakers
-        const goodRelays = customRelays.filter(url => !circuitBreaker.isCircuitOpen(url));
-        
-        // Use relay selector to pick best ones based on historical performance
-        const bestRelays = relaySelector.selectBestRelays(goodRelays, {
-          operation: 'both',
-          count: Math.min(3, goodRelays.length)
-        });
-        
-        await nostrService.addMultipleRelays(bestRelays);
+        await nostrService.addMultipleRelays(customRelays);
       } else {
         // Otherwise use our default set of reliable relays
         const defaultRelays = [

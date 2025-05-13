@@ -4,7 +4,6 @@ import { NostrEvent, nostrService } from '@/lib/nostr';
 import { extractMediaUrls, isValidMediaUrl } from '@/lib/nostr/utils';
 import { toast } from 'sonner';
 import { contentCache } from '@/lib/nostr';
-import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector'; 
 
 interface UseProfilePostsProps {
   hexPubkey: string | undefined;
@@ -96,14 +95,9 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         // First make sure we're connected to relays
         await nostrService.connectToUserRelays();
         
-        // Use relay selector for optimal relays
-        const bestRelays = relaySelector.selectBestRelays(
-          ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"], 
-          { operation: 'read', count: 3 }
-        );
-        
-        // Add selected relays to increase chances of success
-        await nostrService.addMultipleRelays(bestRelays);
+        // Add default relays to increase chances of success
+        const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
+        await nostrService.addMultipleRelays(defaultRelays);
         
         console.log("Connected to relays, subscribing to posts");
         
