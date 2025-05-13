@@ -1,109 +1,116 @@
 
-import { useEffect, useState } from 'react';
-import { nostrService } from '@/lib/nostr';
-import { contentCache } from '@/lib/nostr/cache/content-cache';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState } from "react";
+import { nostrService } from "@/lib/nostr";
+import { Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function ConnectionStatusBanner() {
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [connectedRelays, setConnectedRelays] = useState(0);
-  const [totalRelays, setTotalRelays] = useState(0);
-  const [showBanner, setShowBanner] = useState(false);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  
+  const [status, setStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
+  const [relayCount, setRelayCount] = useState<{ total: number; connected: number }>({ total: 0, connected: 0 });
+  const [visible, setVisible] = useState(true);
+
   useEffect(() => {
-    const updateConnectionStatus = () => {
-      // Check if we're offline at browser level
-      setIsOffline(!navigator.onLine);
+    const checkConnectionStatus = () => {
+      const relayStatus = nostrService.getRelayStatus();
+      const total = relayStatus.length;
+      const connected = relayStatus.filter(r => r.status === "connected").length;
       
-      // Check relay connections
-      const relays = nostrService.getRelayStatus();
-      const connected = relays.filter(r => r.status === 'connected').length;
-      setConnectedRelays(connected);
-      setTotalRelays(relays.length);
-      
-      // Show banner if offline or not enough relays connected
-      setShowBanner(!navigator.onLine || (relays.length > 0 && connected === 0));
-    };
-    
-    // Update immediately
-    updateConnectionStatus();
-    
-    // Set interval to check periodically
-    const interval = setInterval(updateConnectionStatus, 10000);
-    
-    // Listen for online/offline events
-    window.addEventListener('online', updateConnectionStatus);
-    window.addEventListener('offline', updateConnectionStatus);
-    
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('online', updateConnectionStatus);
-      window.removeEventListener('offline', updateConnectionStatus);
-    };
-  }, []);
-  
-  if (!showBanner) return null;
-  
-  const handleReconnect = async () => {
-    if (isReconnecting || isOffline) return;
-    
-    try {
-      setIsReconnecting(true);
-      toast.loading("Reconnecting to relays...");
-      await nostrService.connectToUserRelays();
-      
-      // Check if connected after attempt
-      const relays = nostrService.getRelayStatus();
-      const connected = relays.filter(r => r.status === 'connected').length;
+      setRelayCount({ total, connected });
       
       if (connected > 0) {
-        toast.success(`Connected to ${connected} relays`);
-        setShowBanner(false);
+        setStatus("connected");
+      } else if (total > 0) {
+        setStatus("disconnected");
       } else {
-        toast.error("Couldn't connect to any relays");
+        setStatus("connecting");
       }
-    } catch (error) {
-      console.error("Reconnection error:", error);
-      toast.error("Failed to reconnect to relays");
-    } finally {
-      setIsReconnecting(false);
+    };
+
+    // Check initially
+    checkConnectionStatus();
+
+    // Setup interval to check periodically
+    const intervalId = setInterval(checkConnectionStatus, 5000);
+
+    // Setup event listener for relay connection changes
+    const handleRelayStatusChange = () => {
+      checkConnectionStatus();
+    };
+    
+    window.addEventListener('relay-status-change', handleRelayStatusChange);
+    
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('relay-status-change', handleRelayStatusChange);
+    };
+  }, []);
+
+  // Hide the banner for connected status after 3 seconds
+  useEffect(() => {
+    if (status === "connected") {
+      const timeoutId = setTimeout(() => {
+        setVisible(false);
+      }, 3000);
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setVisible(true);
     }
-  };
-  
+  }, [status]);
+
+  // Don't render anything if connected and not visible
+  if (status === "connected" && !visible) {
+    return null;
+  }
+
   return (
-    <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4">
+    <Alert 
+      variant={status === "connected" ? "default" : "destructive"} 
+      className={cn(
+        "mb-4 transition-all duration-300",
+        status === "connected" ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800/30" : 
+        status === "disconnected" ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/30" :
+        "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800/30"
+      )}
+    >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {isOffline ? (
-            <WifiOff className="h-4 w-4" />
+        <div className="flex items-center">
+          {status === "connected" ? (
+            <Wifi className="h-4 w-4 text-green-600 dark:text-green-400 mr-2" />
+          ) : status === "disconnected" ? (
+            <WifiOff className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
           ) : (
-            <Wifi className="h-4 w-4" />
+            <Loader2 className="h-4 w-4 text-yellow-600 dark:text-yellow-400 animate-spin mr-2" />
           )}
-          <AlertDescription>
-            {isOffline 
-              ? "You're offline. Showing cached content only." 
-              : `Not connected to relays (0/${totalRelays}). Limited functionality available.`}
-          </AlertDescription>
+          
+          <div>
+            <AlertTitle className="text-sm font-medium">
+              {status === "connected" ? "Connected" : 
+               status === "disconnected" ? "Disconnected" : 
+               "Connecting..."}
+            </AlertTitle>
+            <AlertDescription className="text-xs">
+              {status === "connected" ? 
+                `Connected to ${relayCount.connected} of ${relayCount.total} relays` : 
+               status === "disconnected" ? 
+                "Unable to connect to relays. Check your connection." : 
+                "Connecting to Nostr relays..."}
+            </AlertDescription>
+          </div>
         </div>
-        <Button 
-          size="sm" 
-          onClick={handleReconnect}
-          disabled={isOffline || isReconnecting}
-          variant={isOffline ? "outline" : "secondary"}
-        >
-          {isReconnecting ? (
-            <>
-              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-              Reconnecting
-            </>
-          ) : (
-            "Reconnect"
-          )}
-        </Button>
+        
+        {status === "disconnected" && (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => nostrService.connectToUserRelays()}
+            className="h-8 text-xs"
+          >
+            Retry
+          </Button>
+        )}
       </div>
     </Alert>
   );

@@ -26,7 +26,6 @@ const FeedList: React.FC<FeedListProps> = ({
   hasMore = true,
   loadMoreLoading = false
 }) => {
-  // Use our optimized feed list component with virtualization
   return (
     <OptimizedFeedList
       events={events}

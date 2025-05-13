@@ -1,36 +1,55 @@
 
 import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
+import { NipCompliance } from './NipCompliance';
+import { Shield, AlertTriangle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { InfoIcon, ShieldCheck } from 'lucide-react';
 
-export const NipComplianceBadge = ({ event }: { event: NostrEvent }) => {
-  // In a real app, you would validate against real NIP requirements
-  // This is a simplified version
-  const isNipCompliant = event && event.id && event.pubkey && event.created_at && event.kind;
+export const NipComplianceBadge: React.FC<{ event: NostrEvent }> = ({ event }) => {
+  const compliance = new NipCompliance(event);
+  const complianceLevel = compliance.getComplianceLevel();
   
-  if (!isNipCompliant) return null;
+  if (!complianceLevel || complianceLevel === 'unknown') return null;
+  
+  const colorMap = {
+    high: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800/30",
+    medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800/30",
+    low: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800/30"
+  };
   
   return (
-    <Badge 
-      variant="outline" 
-      className="text-xs py-0 h-4 bg-green-500/10 text-green-600 hover:bg-green-500/20"
-    >
-      <ShieldCheck className="h-3 w-3 mr-1" />
-      NIP Compliant
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className={`text-[10px] py-0 px-2 font-medium ${colorMap[complianceLevel]}`}>
+            <Shield className="h-2.5 w-2.5 mr-1" />
+            NIP {compliance.getImplementedNips().join(', ')}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs">
+            This post follows Nostr Implementation Possibilities (NIPs): {compliance.getImplementedNips().join(', ')}
+          </p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
-export const NipProtectionBanner = () => {
+export const NipProtectionBanner: React.FC = () => {
   return (
-    <Alert variant="default" className="mb-4 bg-green-500/10 border-green-300">
-      <ShieldCheck className="h-4 w-4 text-green-600" />
-      <AlertTitle className="text-green-600">NIP Compliance Enabled</AlertTitle>
-      <AlertDescription className="text-green-600/80 text-xs">
-        Your feed is NIP compliant for maximum compatibility with the Nostr protocol.
-      </AlertDescription>
+    <Alert className="mb-4 bg-primary/5 border-primary/20">
+      <div className="flex items-center">
+        <Shield className="h-4 w-4 text-primary mr-2" />
+        <div>
+          <AlertTitle className="text-sm font-medium">NIP Compliance Protection</AlertTitle>
+          <AlertDescription className="text-xs">
+            Posts in this feed are verified for compliance with Nostr Implementation Possibilities (NIPs)
+          </AlertDescription>
+        </div>
+      </div>
     </Alert>
   );
 };

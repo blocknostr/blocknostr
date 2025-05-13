@@ -3,11 +3,12 @@ import React, { useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/NoteCard"; // Use our memoized component
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useInView } from "../shared/useInView";
 import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -68,60 +69,35 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
             size="sm" 
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 border-primary/30 text-primary hover:bg-primary/10",
+              loading && "opacity-70"
+            )}
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
             Refresh Feed
           </Button>
         </div>
       )}
       
-      {/* Virtualized list with ScrollArea */}
-      <ScrollArea
-        className="h-[calc(100vh-200px)] min-h-[400px]"
-      >
-        <div 
-          ref={parentRef} 
-          className="custom-scrollbar"
-        >
-          {/* Define the container size based on virtualizer */}
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {/* Only render the visible items */}
-            {rowVirtualizer.getVirtualItems().map(virtualRow => {
-              const event = events[virtualRow.index];
-              return (
-                <div
-                  key={event.id || virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                >
-                  <div className="py-2">
-                    <NoteCard 
-                      event={event}
-                      profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                      repostData={event.id && repostData[event.id] ? {
-                        reposterPubkey: repostData[event.id].pubkey,
-                        reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                      } : undefined}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </ScrollArea>
+      {/* Events list */}
+      <div className="space-y-3">
+        {events.map((event) => (
+          <NoteCard
+            key={event.id}
+            event={event}
+            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+            repostData={event.id && repostData[event.id] ? {
+              reposterPubkey: repostData[event.id].pubkey,
+              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+            } : undefined}
+          />
+        ))}
+      </div>
       
       {/* Loading indicator at the bottom that triggers more content */}
       {hasMore && (
