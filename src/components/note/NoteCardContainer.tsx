@@ -1,5 +1,5 @@
 
-import { forwardRef, ReactNode } from 'react';
+import { forwardRef, ReactNode, MouseEvent } from 'react';
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -8,10 +8,11 @@ interface NoteCardContainerProps {
   eventId?: string;
   className?: string;
   feedVariant?: "virtualized" | "standard";
+  onClick?: (e: MouseEvent<Element>) => void;
 }
 
 const NoteCardContainer = forwardRef<HTMLDivElement, NoteCardContainerProps>(
-  ({ children, eventId, className = "", feedVariant = "standard" }, ref) => {
+  ({ children, eventId, className = "", feedVariant = "standard", onClick }, ref) => {
     return (
       <Card 
         className={cn(
@@ -23,6 +24,7 @@ const NoteCardContainer = forwardRef<HTMLDivElement, NoteCardContainerProps>(
         role="article"
         aria-label="Post"
         data-event-id={eventId}
+        onClick={onClick}
       >
         {children}
       </Card>
