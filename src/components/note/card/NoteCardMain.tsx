@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import NoteCardHeader from '../NoteCardHeader';
@@ -7,6 +6,7 @@ import NoteCardActions from '../NoteCardActions';
 import NoteCardRepostHeader from '../NoteCardRepostHeader';
 import NoteCardDeleteDialog from '../NoteCardDeleteDialog';
 import NoteCardComments from '../NoteCardComments';
+import NoteCardRepliesSection from './NoteCardRepliesSection';
 import { useNoteCardDeleteDialog } from '../hooks/useNoteCardDeleteDialog';
 import { useNoteCardReplies } from '../hooks/useNoteCardReplies';
 import { NostrEvent } from '@/lib/nostr';
