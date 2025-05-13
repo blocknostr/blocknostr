@@ -1,3 +1,4 @@
+
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
@@ -160,33 +161,13 @@ export class RelayAdapter extends BaseAdapter {
         })
       };
       
+      // Use the service method to publish the event directly
       const eventId = await this.service.publishEvent(event);
       return !!eventId;
     } catch (error) {
       console.error("Error publishing relay list:", error);
       return false;
     }
-  }
-  
-  /**
-   * Get relays with their capabilities from the relay info service
-   * @returns Promise resolving to array of relay info objects
-   */
-  async getRelayInfos(relayUrls: string[]) {
-    // This method could be expanded to fetch detailed relay info
-    // Currently a placeholder for future enhancement
-    return Promise.all(
-      relayUrls.map(async url => {
-        try {
-          return {
-            url,
-            info: await this.relayManager.getRelayInformation(url)
-          };
-        } catch (error) {
-          return { url, info: null };
-        }
-      })
-    );
   }
   
   get relayManager() {

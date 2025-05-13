@@ -1,321 +1,186 @@
-
-import { safeLocalStorageGet, safeLocalStorageSet } from '@/lib/utils/storage';
-
-export interface RelayMetric {
-  timestamp: number;
-  success: boolean;
-  duration?: number;  // In milliseconds
-  operation: 'read' | 'write' | 'ping' | 'connect';
-  error?: string;
-}
-
-export interface RelayPerformanceData {
-  url: string;
-  metrics: RelayMetric[];
-  lastPing?: number;
-  avgResponseTime?: number;
-  successRate?: number;
-  score?: number;
-  lastUpdated: number;
-  supportedNips?: number[];
-  geolocation?: {
-    region?: string;
-    country?: string;
-    latency?: number;
-  };
-}
-
 /**
- * Class for tracking relay performance metrics
+ * RelayPerformanceTracker
+ * 
+ * Tracks performance metrics for relays to guide intelligent relay selection
  */
 export class RelayPerformanceTracker {
-  private relayData: Map<string, RelayPerformanceData> = new Map();
-  private readonly STORAGE_KEY = 'nostr_relay_performance';
-  private readonly MAX_METRICS_PER_RELAY = 20; // Maximum number of metrics to store per relay
+  private relayScores: Map<string, number> = new Map();
+  private responseTimes: Map<string, number[]> = new Map();
+  private failures: Map<string, number> = new Map();
+  private lastResponse: Map<string, number> = new Map();
+  private supportedNips: Map<string, number[]> = new Map();
   
-  constructor() {
-    this.loadFromStorage();
-  }
-  
-  /**
-   * Track response time for a relay operation
-   * @param relayUrl URL of the relay
-   * @param operation Operation type
-   * @param duration Time taken in milliseconds
-   */
-  trackResponseTime(relayUrl: string, operation: 'read' | 'write' | 'ping' | 'connect', duration: number): void {
-    const metric: RelayMetric = {
-      timestamp: Date.now(),
-      success: true,
-      duration,
-      operation
-    };
-    
-    this.addMetric(relayUrl, metric);
-  }
+  // Store up to 10 response times per relay for averaging
+  private readonly MAX_TIMES_TO_KEEP = 10;
   
   /**
-   * Record a successful operation
-   * @param relayUrl URL of the relay
-   * @param operation Operation type
+   * Track a response time for a specific operation
+   * 
+   * @param relayUrl The URL of the relay
+   * @param operation The operation name
+   * @param time The response time in milliseconds
    */
-  recordSuccess(relayUrl: string, operation: 'read' | 'write' | 'ping' | 'connect'): void {
-    const metric: RelayMetric = {
-      timestamp: Date.now(),
-      success: true,
-      operation
-    };
+  trackResponseTime(relayUrl: string, operation: string, time: number): void {
+    // Record last response time
+    this.lastResponse.set(relayUrl, Date.now());
     
-    this.addMetric(relayUrl, metric);
-  }
-  
-  /**
-   * Record a failed operation
-   * @param relayUrl URL of the relay
-   * @param operation Operation type
-   * @param error Error message
-   */
-  recordFailure(relayUrl: string, operation: 'read' | 'write' | 'ping' | 'connect', error?: string): void {
-    const metric: RelayMetric = {
-      timestamp: Date.now(),
-      success: false,
-      operation,
-      error
-    };
-    
-    this.addMetric(relayUrl, metric);
-  }
-  
-  /**
-   * Add a metric to the relay data
-   * @param relayUrl URL of the relay
-   * @param metric Metric to add
-   */
-  private addMetric(relayUrl: string, metric: RelayMetric): void {
-    if (!relayUrl) return;
-    
-    // Get or create relay data
-    const relayData = this.relayData.get(relayUrl) || {
-      url: relayUrl,
-      metrics: [],
-      lastUpdated: Date.now()
-    };
-    
-    // Add new metric at the beginning (most recent first)
-    relayData.metrics.unshift(metric);
-    
-    // Limit the number of metrics stored
-    if (relayData.metrics.length > this.MAX_METRICS_PER_RELAY) {
-      relayData.metrics = relayData.metrics.slice(0, this.MAX_METRICS_PER_RELAY);
+    // Add to response times list
+    if (!this.responseTimes.has(relayUrl)) {
+      this.responseTimes.set(relayUrl, []);
     }
     
-    // Update aggregate statistics
-    this.updateRelayStats(relayData);
+    const times = this.responseTimes.get(relayUrl)!;
+    times.push(time);
     
-    // Save updated data
-    this.relayData.set(relayUrl, relayData);
-    
-    // Store to storage (rate limited)
-    this.debouncedSave();
-  }
-  
-  /**
-   * Update aggregate statistics for a relay
-   * @param relayData Relay data to update
-   */
-  private updateRelayStats(relayData: RelayPerformanceData): void {
-    if (!relayData.metrics.length) return;
-    
-    // Calculate average response time from successful metrics with duration
-    const responseTimes = relayData.metrics
-      .filter(m => m.success && typeof m.duration === 'number')
-      .map(m => m.duration as number);
-      
-    if (responseTimes.length > 0) {
-      relayData.avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+    // Keep only the last MAX_TIMES_TO_KEEP times
+    if (times.length > this.MAX_TIMES_TO_KEEP) {
+      times.shift(); // Remove oldest
     }
     
-    // Calculate success rate
-    const totalOperations = relayData.metrics.length;
-    const successfulOperations = relayData.metrics.filter(m => m.success).length;
-    relayData.successRate = totalOperations > 0 ? successfulOperations / totalOperations : 0;
+    this.responseTimes.set(relayUrl, times);
     
-    // Update timestamp
-    relayData.lastUpdated = Date.now();
-    
-    // Calculate overall score (weighted combination of metrics)
-    // Lower is better for response time (faster), higher is better for success rate
-    const responseTimeScore = relayData.avgResponseTime ? Math.min(1, 2000 / (relayData.avgResponseTime + 500)) : 0.5;
-    const successRateScore = relayData.successRate || 0;
-    
-    // Recent metrics are weighted more heavily
-    const recentMetricsWeight = this.calculateRecencyWeight(relayData.metrics);
-    
-    // Calculate final score (0-100, higher is better)
-    relayData.score = Math.round((responseTimeScore * 0.4 + successRateScore * 0.4 + recentMetricsWeight * 0.2) * 100);
+    // Update score
+    this.updateScore(relayUrl);
   }
   
   /**
-   * Calculate weight based on recency of metrics
-   * @param metrics Array of metrics
-   * @returns Weight factor (0-1)
+   * Record a failure for a relay operation
+   * 
+   * @param relayUrl The URL of the relay
+   * @param operation The operation that failed
+   * @param reason The reason for the failure
    */
-  private calculateRecencyWeight(metrics: RelayMetric[]): number {
-    if (!metrics.length) return 0;
+  recordFailure(relayUrl: string, operation: string, reason: string): void {
+    // Increment failure count
+    const failures = this.failures.get(relayUrl) || 0;
+    this.failures.set(relayUrl, failures + 1);
     
-    const now = Date.now();
-    const MAX_AGE_MS = 3600000; // 1 hour
-    
-    // Calculate recency score for each metric (1.0 for brand new, approaching 0 for older)
-    const recencyScores = metrics.map(m => {
-      const age = now - m.timestamp;
-      return Math.max(0, 1 - (age / MAX_AGE_MS));
-    });
-    
-    // Weight recent success/failure more heavily
-    const recentSuccesses = metrics
-      .filter(m => m.success)
-      .map((m, i) => m.success ? recencyScores[i] : 0)
-      .reduce((sum, score) => sum + score, 0);
-      
-    const recentFailures = metrics
-      .filter(m => !m.success)
-      .map((m, i) => !m.success ? recencyScores[i] : 0)
-      .reduce((sum, score) => sum + score, 0);
-    
-    const totalRecentWeight = recencyScores.reduce((sum, score) => sum + score, 0);
-    
-    return totalRecentWeight > 0 ? 
-      recentSuccesses / (recentSuccesses + recentFailures) : 
-      0.5;
+    // Update score
+    this.updateScore(relayUrl);
   }
   
   /**
-   * Get the performance data for a relay
-   * @param relayUrl URL of the relay
-   * @returns Relay performance data or undefined
-   */
-  getRelayPerformance(relayUrl: string): RelayPerformanceData | undefined {
-    return this.relayData.get(relayUrl);
-  }
-  
-  /**
-   * Calculate the score for a relay
-   * @param relayUrl URL of the relay
-   * @returns Score (0-100, higher is better) or 50 if no data
-   */
-  getRelayScore(relayUrl: string): number {
-    const data = this.relayData.get(relayUrl);
-    return data?.score || 50; // Default midpoint score
-  }
-  
-  /**
-   * Get all relay performance data
-   * @returns Array of relay performance data
-   */
-  getAllRelayPerformance(): RelayPerformanceData[] {
-    return Array.from(this.relayData.values());
-  }
-  
-  /**
-   * Add or update supported NIPs for a relay
-   * @param relayUrl URL of the relay
-   * @param nips Array of supported NIP numbers
+   * Update supported NIPs information for a relay
+   * 
+   * @param relayUrl The URL of the relay
+   * @param nips Array of NIP numbers supported by the relay
    */
   updateSupportedNips(relayUrl: string, nips: number[]): void {
-    const relayData = this.relayData.get(relayUrl) || {
-      url: relayUrl,
-      metrics: [],
-      lastUpdated: Date.now()
-    };
+    this.supportedNips.set(relayUrl, nips);
     
-    relayData.supportedNips = nips;
-    this.relayData.set(relayUrl, relayData);
-    this.debouncedSave();
+    // Update score with NIP support information
+    this.updateScore(relayUrl);
   }
   
   /**
-   * Update geolocation information for a relay
-   * @param relayUrl URL of the relay
-   * @param geoData Geolocation data
+   * Update performance score for a relay
+   * 
+   * @param relayUrl The URL of the relay
    */
-  updateGeolocation(relayUrl: string, geoData: { region?: string; country?: string; latency?: number }): void {
-    const relayData = this.relayData.get(relayUrl) || {
-      url: relayUrl,
-      metrics: [],
-      lastUpdated: Date.now()
-    };
+  private updateScore(relayUrl: string): void {
+    // Base score of 50
+    let score = 50;
     
-    relayData.geolocation = geoData;
-    this.relayData.set(relayUrl, relayData);
-    this.debouncedSave();
-  }
-  
-  /**
-   * Load relay performance data from storage
-   */
-  private loadFromStorage(): void {
-    try {
-      const storedData = safeLocalStorageGet(this.STORAGE_KEY);
-      if (storedData) {
-        const parsedData: RelayPerformanceData[] = JSON.parse(storedData);
-        parsedData.forEach(data => {
-          this.relayData.set(data.url, data);
-        });
-        console.log(`Loaded performance data for ${this.relayData.size} relays`);
+    // Response time factor (lower is better)
+    const times = this.responseTimes.get(relayUrl);
+    if (times && times.length > 0) {
+      // Calculate average response time
+      const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+      
+      // Score adjustment based on response time
+      // <100ms: +20 points
+      // 100-300ms: +10 points
+      // 300-500ms: no change
+      // 500-1000ms: -10 points
+      // >1000ms: -20 points
+      if (avgTime < 100) {
+        score += 20;
+      } else if (avgTime < 300) {
+        score += 10;
+      } else if (avgTime > 1000) {
+        score -= 20;
+      } else if (avgTime > 500) {
+        score -= 10;
       }
-    } catch (error) {
-      console.error('Error loading relay performance data:', error);
     }
+    
+    // Failures factor (fewer is better)
+    const failures = this.failures.get(relayUrl) || 0;
+    score -= failures * 5; // -5 points per failure
+    
+    // NIP support factor
+    const nips = this.supportedNips.get(relayUrl);
+    if (nips) {
+      // Important NIPs we especially want
+      const criticalNips = [1, 4, 9, 10, 11, 20, 28, 33, 40, 42];
+      
+      // Count how many critical NIPs are supported
+      const supportedCriticalNips = criticalNips.filter(n => nips.includes(n));
+      
+      // +2 points per critical NIP supported
+      score += supportedCriticalNips.length * 2;
+      
+      // Bonus for having many NIPs
+      if (nips.length > 30) score += 10;
+      else if (nips.length > 20) score += 5;
+    }
+    
+    // Cap score between 0 and 100
+    score = Math.max(0, Math.min(100, score));
+    
+    // Store updated score
+    this.relayScores.set(relayUrl, score);
   }
   
   /**
-   * Save relay performance data to storage
+   * Get current score for a relay
+   * 
+   * @param relayUrl The URL of the relay
+   * @returns Score between 0 and 100, or undefined if no data
    */
-  private saveToStorage(): void {
-    try {
-      const dataArray = Array.from(this.relayData.values());
-      
-      // Clean up old data before saving
-      this.pruneOldData();
-      
-      safeLocalStorageSet(this.STORAGE_KEY, JSON.stringify(dataArray));
-    } catch (error) {
-      console.error('Error saving relay performance data:', error);
-    }
+  getScore(relayUrl: string): number | undefined {
+    return this.relayScores.get(relayUrl);
   }
   
   /**
-   * Remove old or excess metrics to save storage space
+   * Get average response time for a relay
+   * 
+   * @param relayUrl The URL of the relay
+   * @returns Average response time in milliseconds, or undefined if no data
    */
-  private pruneOldData(): void {
-    const now = Date.now();
-    const ONE_WEEK = 7 * 24 * 60 * 60 * 1000; // 1 week in ms
-    
-    this.relayData.forEach((data, url) => {
-      // Filter out metrics older than one week
-      data.metrics = data.metrics.filter(m => (now - m.timestamp) < ONE_WEEK);
-      
-      // If no metrics left, check if the relay was used recently
-      if (data.metrics.length === 0 && (now - data.lastUpdated > ONE_WEEK)) {
-        this.relayData.delete(url);
-      }
-    });
-  }
-  
-  // Debounce logic to avoid excessive storage writes
-  private saveTimeout: number | null = null;
-  private debouncedSave(): void {
-    if (this.saveTimeout) {
-      window.clearTimeout(this.saveTimeout);
+  getAverageResponseTime(relayUrl: string): number | undefined {
+    const times = this.responseTimes.get(relayUrl);
+    if (!times || times.length === 0) {
+      return undefined;
     }
     
-    this.saveTimeout = window.setTimeout(() => {
-      this.saveToStorage();
-      this.saveTimeout = null;
-    }, 5000); // Save after 5 seconds of inactivity
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  }
+  
+  /**
+   * Get full performance data for a relay
+   * 
+   * @param relayUrl The URL of the relay
+   * @returns Performance data object or undefined if no data
+   */
+  getRelayPerformance(relayUrl: string): {
+    score: number;
+    avgResponseTime?: number;
+    failures: number;
+    supportedNips?: number[];
+  } | undefined {
+    if (!this.relayScores.has(relayUrl)) {
+      return undefined;
+    }
+    
+    return {
+      score: this.relayScores.get(relayUrl) || 50,
+      avgResponseTime: this.getAverageResponseTime(relayUrl),
+      failures: this.failures.get(relayUrl) || 0,
+      supportedNips: this.supportedNips.get(relayUrl)
+    };
   }
 }
 
-// Singleton instance
+// Create and export a singleton instance
 export const relayPerformanceTracker = new RelayPerformanceTracker();

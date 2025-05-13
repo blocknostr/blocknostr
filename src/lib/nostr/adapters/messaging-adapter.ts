@@ -79,4 +79,25 @@ export class MessagingAdapter extends BaseAdapter {
       throw error;
     }
   }
+  
+  /**
+   * Get direct messages for the current user
+   * @returns Promise with array of direct messages
+   */
+  async getDirectMessages() {
+    // This is a stub implementation until we have full messaging functionality
+    console.warn("getDirectMessages is not fully implemented yet");
+    return [];
+  }
+  
+  /**
+   * Get conversation messages between current user and another user
+   * @param pubkey Public key of the other user
+   * @returns Promise with array of messages
+   */
+  async getConversation(pubkey: string) {
+    // This is a stub implementation until we have full messaging functionality
+    console.warn("getConversation is not fully implemented yet");
+    return [];
+  }
 }
