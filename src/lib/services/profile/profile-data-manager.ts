@@ -10,6 +10,7 @@ export class ProfileDataManager {
   private eventEmitter: BrowserEventEmitter;
   private profiles: Record<string, ProfileData> = {};
   private loadingStatus: Record<string, ProfileLoadingState> = {};
+  private currentPubkey: string | null = null;
   
   constructor(eventEmitter: BrowserEventEmitter) {
     this.eventEmitter = eventEmitter;
@@ -176,5 +177,19 @@ export class ProfileDataManager {
       console.error("Invalid pubkey format:", error);
       return null;
     }
+  }
+
+  /**
+   * Set current pubkey being viewed
+   */
+  public setCurrentPubkey(pubkey: string | null): void {
+    this.currentPubkey = pubkey;
+  }
+  
+  /**
+   * Get current pubkey being viewed
+   */
+  public getCurrentPubkey(): string | null {
+    return this.currentPubkey;
   }
 }
