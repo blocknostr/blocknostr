@@ -4,8 +4,8 @@ import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
-const MAX_MESSAGES = 100; // Keep at 100 messages
-const INITIAL_LOAD_LIMIT = 50; // Initial batch size
+const MAX_MESSAGES = 500; // Increased from 100 to 500 messages
+const INITIAL_LOAD_LIMIT = 200; // Increased from 50 to 200 for initial batch
 
 /**
  * Safely get an item from localStorage with error handling

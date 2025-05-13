@@ -4,6 +4,7 @@ import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
 import { NostrEvent } from "@/lib/nostr/types";
 import { Loader2, MessageSquare } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MessageListProps {
   messages: NostrEvent[];
@@ -23,12 +24,13 @@ const MessageList: React.FC<MessageListProps> = ({
   onAddReaction
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (messages.length > 0 && messagesEndRef.current && containerRef.current) {
-      const container = containerRef.current;
+    if (messages.length > 0 && messagesEndRef.current && scrollAreaRef.current) {
+      const container = scrollAreaRef.current;
+      // Check if user is near the bottom (within 100px)
       const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
       
       // Only auto-scroll if the user is already near the bottom
@@ -69,30 +71,33 @@ const MessageList: React.FC<MessageListProps> = ({
   }
 
   return (
-    <CardContent 
-      className="p-0 overflow-hidden flex-1 relative z-10" 
-      ref={containerRef}
-    >
-      <div className="p-2 flex flex-col overflow-y-auto h-full">
-        {/* We display messages in chronological order (oldest first) */}
-        {[...messages].reverse().map((message, index) => {
-          // Get previous message for grouping logic
-          const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
-          
-          return (
-            <MessageItem
-              key={message.id}
-              message={message}
-              previousMessage={previousMessage}
-              emojiReactions={emojiReactions[message.id] || []}
-              profiles={profiles}
-              isLoggedIn={isLoggedIn}
-              onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
-            />
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
+    <CardContent className="p-0 overflow-hidden flex-1 relative z-10">
+      <ScrollArea 
+        className="h-full"
+        ref={scrollAreaRef}
+        scrollHideDelay={100} // Shorter delay before hiding the scrollbar
+      >
+        <div className="p-2 flex flex-col h-full">
+          {/* We display messages in chronological order (oldest first) */}
+          {[...messages].reverse().map((message, index) => {
+            // Get previous message for grouping logic
+            const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
+            
+            return (
+              <MessageItem
+                key={message.id}
+                message={message}
+                previousMessage={previousMessage}
+                emojiReactions={emojiReactions[message.id] || []}
+                profiles={profiles}
+                isLoggedIn={isLoggedIn}
+                onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
+              />
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
     </CardContent>
   );
 };
