@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizontal, Loader2 } from "lucide-react";
-import { NostrEvent } from "@/lib/nostr/types";
+import { Message } from "./types";
 import { formatDistanceToNow } from "date-fns";
 
 interface MessageViewProps {
   activeContact: any;
-  messages: NostrEvent[];
+  messages: Message[];
   loading: boolean;
   newMessage: string;
   setNewMessage: (value: string) => void;
@@ -69,7 +69,7 @@ const MessageView: React.FC<MessageViewProps> = ({
             {messages.length > 0 ? (
               <div className="space-y-4">
                 {messages.map((msg) => {
-                  const isSentByMe = msg.pubkey === currentUserPubkey;
+                  const isSentByMe = msg.sender === currentUserPubkey;
                   const timestamp = formatDistanceToNow(new Date(msg.created_at * 1000), { addSuffix: true });
                   
                   return (
