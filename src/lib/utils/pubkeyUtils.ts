@@ -8,9 +8,6 @@ export function convertToHexPubkey(input: string | undefined | null): string | n
   if (!input) return null;
   
   try {
-    // Import the validation functions for consistency
-    const { isValidHexPubkey, isValidNpub, getHexFromNpub } = require('@/lib/nostr/utils/keys');
-    
     // If input is already in hex format
     if (isValidHexPubkey(input)) {
       return input;

@@ -6,7 +6,7 @@ import { nip19 } from 'nostr-tools';
  * @param input - String to check
  * @returns Boolean indicating if the input is a valid hex pubkey
  */
-const isValidHexPubkey = (input: string): boolean => {
+export const isValidHexPubkey = (input: string): boolean => {
   return input.length === 64 && /^[0-9a-f]{64}$/i.test(input);
 };
 
@@ -15,7 +15,7 @@ const isValidHexPubkey = (input: string): boolean => {
  * @param input - String to check
  * @returns Boolean indicating if the input is a valid npub format
  */
-const isValidNpub = (input: string): boolean => {
+export const isValidNpub = (input: string): boolean => {
   return !!input && input.startsWith('npub1') && input.length >= 60;
 };
 
