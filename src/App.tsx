@@ -14,7 +14,6 @@ import NotFound from './pages/NotFound';
 import { Toaster } from "sonner";
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
-import YouPage from "./pages/YouPage";
 import MainLayout from './layouts/MainLayout';
 
 function App() {
@@ -36,7 +35,6 @@ function App() {
               <Route path="/notebin" element={<NotebinPage />} />
               <Route path="/wallets" element={<WalletsPage />} />
               <Route path="/premium" element={<PremiumPage />} />
-              <Route path="/you" element={<YouPage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

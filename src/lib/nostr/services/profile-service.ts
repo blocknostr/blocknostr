@@ -31,12 +31,6 @@ export class ProfileService {
     try {
       const connectedRelays = this.getConnectedRelayUrls();
       
-      // Handle case when no relays are connected
-      if (connectedRelays.length === 0) {
-        console.warn("No connected relays available for profile fetch");
-        return null;
-      }
-      
       return new Promise((resolve) => {
         // Properly construct a single filter object according to nostr-tools Filter type
         const filter: Filter = {
@@ -54,24 +48,7 @@ export class ProfileService {
             {
               onevent: (event) => {
                 try {
-                  // Ensure we have content before trying to parse
-                  if (!event || !event.content) {
-                    console.warn("Received empty event or content");
-                    return;
-                  }
-                  
-                  // Parse with safer approach
-                  let profile: Record<string, any> = {};
-                  try {
-                    profile = JSON.parse(event.content);
-                  } catch (parseError) {
-                    console.error("Error parsing profile JSON:", parseError);
-                    // Return empty profile rather than failing
-                    profile = {
-                      name: "Unknown",
-                      display_name: "Unknown User"
-                    };
-                  }
+                  const profile = JSON.parse(event.content);
                   
                   // Store the raw event data for later use
                   profile._event = {
@@ -93,53 +70,28 @@ export class ProfileService {
                     }
                   }, 100);
                 } catch (e) {
-                  console.error("Error processing profile event:", e);
-                  resolve({
-                    name: "Unknown",
-                    display_name: "Unknown User"
-                  });
+                  console.error("Error parsing profile:", e);
+                  resolve(null);
                 }
               }
             }
           );
-          
-          // Handle end of stored events with a separate timeout
-          // Instead of using 'eose' which isn't in SubscribeManyParams type
-          setTimeout(() => {
-            console.log("End of stored events timeout, no profile found for", pubkey);
-            // Fix: Check if subscription is not null instead of checking .closed property
-            if (subscription) {
-              resolve({
-                name: "Unknown",
-                display_name: "Unknown User"
-              });
-            }
-          }, 3000);
         } catch (error) {
           console.error("Error in subscription:", error);
-          resolve({
-            name: "Unknown",
-            display_name: "Unknown User"
-          });
+          resolve(null);
         }
         
-        // Set a timeout to resolve with default if no profile is found
+        // Set a timeout to resolve with null if no profile is found
         setTimeout(() => {
           if (subscription) {
             subscription.close();
           }
-          resolve({
-            name: "Unknown",
-            display_name: "Unknown User"
-          });
+          resolve(null);
         }, 5000);
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      return {
-        name: "Unknown",
-        display_name: "Unknown User"
-      };
+      return null;
     }
   }
 
@@ -174,28 +126,37 @@ export class ProfileService {
             {
               onevent: (event) => {
                 events.push(event);
+              },
+              onclose: () => {
+                // On end of subscription, process and resolve
+                if (events.length > 0) {
+                  // Sort by creation time (oldest first)
+                  events.sort((a, b) => a.created_at - b.created_at);
+                  resolve(events[0].created_at);
+                } else {
+                  resolve(null);
+                }
               }
             }
           );
-          
-          // Use timeout instead of onclose since it's not in the type
-          setTimeout(() => {
-            if (subscription) {
-              subscription.close();
-            }
-            
-            if (events.length > 0) {
-              // Sort by creation time (oldest first)
-              events.sort((a, b) => a.created_at - b.created_at);
-              resolve(events[0].created_at);
-            } else {
-              resolve(null);
-            }
-          }, 5000);
         } catch (error) {
           console.error("Error in subscription:", error);
           resolve(null);
         }
+        
+        // Set a timeout to resolve with null if no events found
+        setTimeout(() => {
+          if (subscription) {
+            subscription.close();
+          }
+          
+          if (events.length > 0) {
+            events.sort((a, b) => a.created_at - b.created_at);
+            resolve(events[0].created_at);
+          } else {
+            resolve(null);
+          }
+        }, 5000);
       });
     } catch (error) {
       console.error("Error fetching account creation date:", error);
@@ -221,30 +182,9 @@ export class ProfileService {
    */
   async fetchNip05Data(identifier: string): Promise<{
     pubkey?: string;
-    // Fix the relays type to match the expected format
     relays?: Record<string, { read: boolean; write: boolean }>;
     [key: string]: any;
   } | null> {
-    const data = await fetchNip05Data(identifier);
-    
-    // Transform the relays data to match the expected format
-    if (data && data.relays) {
-      const transformedRelays: Record<string, { read: boolean; write: boolean }> = {};
-      
-      // Convert array of relay URLs to the expected format with read/write properties
-      Object.entries(data.relays).forEach(([pubkey, urls]) => {
-        transformedRelays[pubkey] = {
-          read: true,  // Default to true for both read and write
-          write: true
-        };
-      });
-      
-      return {
-        ...data,
-        relays: transformedRelays
-      };
-    }
-    
-    return data;
+    return fetchNip05Data(identifier);
   }
 }

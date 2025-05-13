@@ -1,5 +1,3 @@
 
-import NoteCard from './note/MemoizedNoteCard';
-
-// Export the component directly
+import { NoteCard } from './note';
 export default NoteCard;

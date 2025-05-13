@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
-import { NostrProfileMetadata } from "@/lib/nostr/types";
 
 export function useSidebarProfile() {
   const isLoggedIn = !!nostrService.publicKey;
@@ -25,10 +24,10 @@ export function useSidebarProfile() {
           const profile = await nostrService.getUserProfile(nostrService.publicKey);
           if (profile) {
             setUserProfile({
-              name: typeof profile.name === 'string' ? profile.name : undefined,
-              display_name: typeof profile.display_name === 'string' ? profile.display_name : undefined,
-              picture: typeof profile.picture === 'string' ? profile.picture : undefined,
-              nip05: typeof profile.nip05 === 'string' ? profile.nip05 : undefined
+              name: profile.name,
+              display_name: profile.display_name,
+              picture: profile.picture,
+              nip05: profile.nip05
             });
           }
         } catch (error) {

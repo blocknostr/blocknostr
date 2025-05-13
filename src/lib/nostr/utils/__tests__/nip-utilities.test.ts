@@ -119,7 +119,7 @@ describe('NIP-05: Identifier Verification', () => {
       })
     });
     
-    const result = await verifyNip05('alice@example.com');
+    const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(true);
     
     // Verify fetch was called with correct URL
@@ -137,7 +137,7 @@ describe('NIP-05: Identifier Verification', () => {
       })
     });
     
-    const result = await verifyNip05('alice@example.com');
+    const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(false);
   });
   
@@ -148,7 +148,7 @@ describe('NIP-05: Identifier Verification', () => {
       status: 404
     });
     
-    const result = await verifyNip05('alice@example.com');
+    const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(false);
   });
   
@@ -161,7 +161,7 @@ describe('NIP-05: Identifier Verification', () => {
       })
     });
     
-    const result = await verifyNip05('alice@example.com');
+    const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(false);
   });
 });
