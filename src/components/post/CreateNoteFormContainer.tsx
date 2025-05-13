@@ -77,11 +77,11 @@ const CreateNoteFormContainer = () => {
   return (
     <form 
       onSubmit={handleSubmit} 
-      className="mb-2 rounded-lg border bg-background shadow-sm transition-all duration-300 hover:shadow-md relative overflow-hidden"
+      className="mb-4 rounded-lg border bg-card shadow-sm transition-all duration-300 hover:shadow-md relative overflow-hidden"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-background to-background/50 opacity-50 pointer-events-none"></div>
-      <div className="flex gap-2 p-2 relative">
-        <div className="">
+      <div className="absolute inset-0 bg-gradient-to-br from-background to-card opacity-50 pointer-events-none"></div>
+      <div className="flex gap-3 p-3 relative">
+        <div className="pt-1">
           <NoteFormAvatar pubkey={pubkey} />
         </div>
         <NoteFormContent

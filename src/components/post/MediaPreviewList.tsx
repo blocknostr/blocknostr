@@ -23,9 +23,9 @@ const MediaPreviewList: React.FC<MediaPreviewListProps> = ({
   };
   
   return (
-    <div className="mt-1.5 mb-1">
+    <div className="mt-2 mb-1">
       <div className={cn(
-        "grid gap-1",
+        "grid gap-1.5",
         getGridCols(mediaUrls.length)
       )}>
         {mediaUrls.map((url, index) => (
@@ -37,7 +37,7 @@ const MediaPreviewList: React.FC<MediaPreviewListProps> = ({
               src={url} 
               alt="Media preview" 
               className={cn(
-                "h-16 w-full object-cover rounded-md transition-transform duration-300",
+                "h-20 w-full object-cover rounded-md transition-transform duration-300",
                 "group-hover:scale-105 group-hover:brightness-90"
               )}
             />
@@ -51,7 +51,7 @@ const MediaPreviewList: React.FC<MediaPreviewListProps> = ({
               )}
               aria-label="Remove media"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           </div>
         ))}
