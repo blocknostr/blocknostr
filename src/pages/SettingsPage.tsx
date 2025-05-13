@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -74,9 +75,9 @@ const SettingsPage = () => {
       <Sidebar />
       
       <div className="flex-1 ml-64">
-        <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10">
+        <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center h-14 px-4">
-            <h1 className="font-semibold">Settings</h1>
+            {/* Removed the "Settings" title text completely */}
           </div>
         </header>
         
