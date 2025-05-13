@@ -28,10 +28,10 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const contactList = await this.getContactList(pool, publicKey, relayUrls);
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if already following
-      if (contactList.following.includes(pubkeyToFollow)) {
+      if (pubkeys.includes(pubkeyToFollow)) {
         return true; // Already following
       }
       
@@ -39,11 +39,11 @@ export class ContactsManager {
       this.userManager.addFollowing(pubkeyToFollow);
       
       // Create updated contact list event
-      const updatedTags = [...(contactList.tags || []), ["p", pubkeyToFollow]];
+      const updatedTags = [...tags, ["p", pubkeyToFollow]];
       
       const event = {
         kind: EVENT_KINDS.CONTACTS,
-        content: contactList.content || '',
+        content,
         tags: updatedTags
       };
       
@@ -69,10 +69,10 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const contactList = await this.getContactList(pool, publicKey, relayUrls);
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if actually following
-      if (!contactList.following.includes(pubkeyToUnfollow)) {
+      if (!pubkeys.includes(pubkeyToUnfollow)) {
         return true; // Not following, nothing to do
       }
       
@@ -80,11 +80,11 @@ export class ContactsManager {
       this.userManager.removeFollowing(pubkeyToUnfollow);
       
       // Create updated contact list event
-      const updatedTags = (contactList.tags || []).filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
+      const updatedTags = tags.filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
       
       const event = {
         kind: EVENT_KINDS.CONTACTS,
-        content: contactList.content || '',
+        content,
         tags: updatedTags
       };
       
@@ -107,10 +107,6 @@ export class ContactsManager {
   ): Promise<ContactList> {
     return new Promise((resolve) => {
       const defaultResult: ContactList = {
-        following: [],
-        followers: [],
-        muted: [],
-        blocked: [],
         pubkeys: [],
         tags: [],
         content: ''
@@ -131,10 +127,6 @@ export class ContactsManager {
           const pubkeys = pTags.map(tag => tag[1]);
           
           resolve({
-            following: pubkeys,  // Set extracted pubkeys as following
-            followers: [],
-            muted: [],
-            blocked: [],
             pubkeys,
             tags: event.tags,
             content: event.content

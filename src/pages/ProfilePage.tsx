@@ -13,7 +13,7 @@ const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
-  const { profiles, fetchProfileData, fetchMultipleProfiles } = useProfileFetcher();
+  const { profiles, fetchProfileData } = useProfileFetcher();
   
   // Convert npub to hex pubkey
   useEffect(() => {
@@ -38,15 +38,6 @@ const ProfilePage = () => {
     hexPubkey,
     limit: 10 // Only load first 10 posts initially
   });
-  
-  // Fetch profiles for original posters when events load
-  useEffect(() => {
-    if (events.length > 0) {
-      // Get unique author pubkeys from events
-      const pubkeys = [...new Set(events.map(event => event.pubkey))];
-      fetchMultipleProfiles(pubkeys);
-    }
-  }, [events, fetchMultipleProfiles]);
   
   if (!npub || !hexPubkey) {
     return (

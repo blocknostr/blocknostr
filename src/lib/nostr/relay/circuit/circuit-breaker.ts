@@ -1,106 +1,175 @@
 
-import { CircuitOptions, CircuitData } from './types';
-
 /**
  * Circuit breaker states
  */
 export enum CircuitState {
-  CLOSED = 'closed',    // Normal operation
-  OPEN = 'open',        // Circuit is open, no operations allowed
-  HALF_OPEN = 'half_open' // Testing if circuit can be closed again
+  CLOSED, // Normal operation (allowing requests)
+  OPEN,   // Blocking requests due to failures
+  HALF_OPEN // Testing if service has recovered
 }
 
 /**
- * Circuit breaker that prevents repeated attempts to connect to failing relays
+ * Circuit breaker options
  */
-class CircuitBreaker {
-  private circuits: Map<string, CircuitData> = new Map();
-  private options: CircuitOptions = {
-    failureThreshold: 3,     // 3 failures to open circuit
-    resetTimeout: 60000 * 5  // 5 minutes
+export interface CircuitBreakerOptions {
+  failureThreshold: number;
+  resetTimeout: number;
+  halfOpenRequests: number;
+}
+
+/**
+ * Implementation of the Circuit Breaker pattern for relay operations
+ * Prevents repeated requests to failing relays
+ */
+export class CircuitBreaker {
+  private circuits: Map<string, {
+    state: CircuitState;
+    failures: number;
+    successful: number;
+    lastFailure: number;
+    nextAttempt: number;
+  }> = new Map();
+  
+  private readonly DEFAULT_OPTIONS: CircuitBreakerOptions = {
+    failureThreshold: 3,
+    resetTimeout: 60000, // 1 minute
+    halfOpenRequests: 1
   };
   
-  /**
-   * Get circuit state for a relay
-   */
-  getState(relayUrl: string): CircuitState {
-    const circuit = this.circuits.get(relayUrl);
-    
-    if (!circuit) {
-      return CircuitState.CLOSED;
-    }
-    
-    // If circuit is open but reset timeout has passed, move to half-open
-    if (circuit.state === CircuitState.OPEN) {
-      const now = Date.now();
-      if (now - circuit.lastFailure > this.options.resetTimeout) {
-        circuit.state = CircuitState.HALF_OPEN;
-        this.circuits.set(relayUrl, circuit);
-      }
-    }
-    
-    return circuit.state;
+  constructor(private options: CircuitBreakerOptions = {
+    failureThreshold: 3,
+    resetTimeout: 60000,
+    halfOpenRequests: 1
+  }) {
+    this.options = { ...this.DEFAULT_OPTIONS, ...options };
   }
   
   /**
-   * Record a success for a relay
+   * Check if requests are allowed to the specified relay
+   * @param relayUrl URL of the relay
+   * @returns Boolean indicating if requests are allowed
    */
-  recordSuccess(relayUrl: string): void {
-    const circuit = this.getOrCreateCircuit(relayUrl);
-    
-    // Reset failure count on success
-    circuit.failureCount = 0;
-    circuit.lastSuccess = Date.now();
-    
-    // If half-open, close the circuit
-    if (circuit.state === CircuitState.HALF_OPEN) {
-      circuit.state = CircuitState.CLOSED;
-    }
-    
-    this.circuits.set(relayUrl, circuit);
-  }
-  
-  /**
-   * Record a failure for a relay
-   */
-  recordFailure(relayUrl: string): void {
-    const circuit = this.getOrCreateCircuit(relayUrl);
-    const now = Date.now();
-    
-    circuit.failureCount++;
-    circuit.lastFailure = now;
-    
-    // Open circuit if failure threshold reached
-    if (circuit.failureCount >= this.options.failureThreshold) {
-      circuit.state = CircuitState.OPEN;
-    }
-    
-    this.circuits.set(relayUrl, circuit);
-  }
-  
-  /**
-   * Reset circuit for a relay
-   */
-  reset(relayUrl: string): void {
-    this.circuits.delete(relayUrl);
-  }
-  
-  /**
-   * Get or create circuit data
-   */
-  private getOrCreateCircuit(relayUrl: string): CircuitData {
+  isAllowed(relayUrl: string): boolean {
     if (!this.circuits.has(relayUrl)) {
       this.circuits.set(relayUrl, {
         state: CircuitState.CLOSED,
-        failureCount: 0,
+        failures: 0,
+        successful: 0,
         lastFailure: 0,
-        lastSuccess: 0
+        nextAttempt: 0
       });
+      return true;
     }
     
-    return this.circuits.get(relayUrl)!;
+    const circuit = this.circuits.get(relayUrl)!;
+    const now = Date.now();
+    
+    switch (circuit.state) {
+      case CircuitState.OPEN:
+        // Check if reset timeout has elapsed
+        if (now >= circuit.nextAttempt) {
+          console.log(`Circuit for ${relayUrl} transitioning from OPEN to HALF_OPEN`);
+          circuit.state = CircuitState.HALF_OPEN;
+          circuit.successful = 0;
+          return true;
+        }
+        return false;
+        
+      case CircuitState.HALF_OPEN:
+        // Only allow a limited number of requests in half-open state
+        return circuit.successful < this.options.halfOpenRequests;
+        
+      case CircuitState.CLOSED:
+      default:
+        return true;
+    }
+  }
+  
+  /**
+   * Record a successful operation for a relay
+   * @param relayUrl URL of the relay
+   */
+  recordSuccess(relayUrl: string): void {
+    if (!this.circuits.has(relayUrl)) {
+      this.circuits.set(relayUrl, {
+        state: CircuitState.CLOSED,
+        failures: 0,
+        successful: 0,
+        lastFailure: 0,
+        nextAttempt: 0
+      });
+      return;
+    }
+    
+    const circuit = this.circuits.get(relayUrl)!;
+    
+    if (circuit.state === CircuitState.HALF_OPEN) {
+      circuit.successful++;
+      
+      // If we've had enough successful requests, close the circuit
+      if (circuit.successful >= this.options.halfOpenRequests) {
+        console.log(`Circuit for ${relayUrl} closing - service recovered`);
+        circuit.state = CircuitState.CLOSED;
+        circuit.failures = 0;
+      }
+    } else if (circuit.state === CircuitState.CLOSED) {
+      // Reset failures counter on success
+      circuit.failures = Math.max(0, circuit.failures - 1);
+    }
+  }
+  
+  /**
+   * Record a failed operation for a relay
+   * @param relayUrl URL of the relay
+   */
+  recordFailure(relayUrl: string): void {
+    if (!this.circuits.has(relayUrl)) {
+      this.circuits.set(relayUrl, {
+        state: CircuitState.CLOSED,
+        failures: 1, // First failure
+        successful: 0,
+        lastFailure: Date.now(),
+        nextAttempt: 0
+      });
+      return;
+    }
+    
+    const circuit = this.circuits.get(relayUrl)!;
+    circuit.failures++;
+    circuit.lastFailure = Date.now();
+    
+    if (circuit.state === CircuitState.HALF_OPEN || 
+        (circuit.state === CircuitState.CLOSED && circuit.failures >= this.options.failureThreshold)) {
+      // Trip the circuit
+      console.log(`Circuit for ${relayUrl} opening - too many failures`);
+      circuit.state = CircuitState.OPEN;
+      circuit.nextAttempt = Date.now() + this.options.resetTimeout;
+    }
+  }
+  
+  /**
+   * Reset the circuit for a relay
+   * @param relayUrl URL of the relay
+   */
+  reset(relayUrl: string): void {
+    this.circuits.set(relayUrl, {
+      state: CircuitState.CLOSED,
+      failures: 0,
+      successful: 0,
+      lastFailure: 0,
+      nextAttempt: 0
+    });
+  }
+  
+  /**
+   * Get the circuit state for a relay
+   * @param relayUrl URL of the relay
+   * @returns CircuitState or undefined if no data
+   */
+  getState(relayUrl: string): CircuitState | undefined {
+    return this.circuits.get(relayUrl)?.state;
   }
 }
 
-// Create and export singleton instance
+// Singleton instance
 export const circuitBreaker = new CircuitBreaker();

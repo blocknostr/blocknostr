@@ -1,9 +1,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
+import { extractMediaUrls, isValidMediaUrl } from '@/lib/nostr/utils';
 import { toast } from 'sonner';
-import { retrieveCachedPosts } from './utils/post-cache';
-import { createPostSubscription } from './utils/post-subscription';
+import { contentCache } from '@/lib/nostr';
 
 interface UseProfilePostsProps {
   hexPubkey: string | undefined;
@@ -60,16 +60,34 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
     }
     
     // Check cache first
-    const { posts, media: cachedMedia, hasEvents: hasCachedEvents } = retrieveCachedPosts(hexPubkey);
-    
-    if (posts.length > 0) {
-      setEvents(posts);
-      setMedia(cachedMedia);
-      setHasEvents(hasCachedEvents);
-      eventCountRef.current = posts.length;
-      
-      // We can shorten loading time if we have cached events
-      setLoading(false);
+    try {
+      const cachedEvents = contentCache.getEventsByAuthors([hexPubkey]);
+      if (cachedEvents && cachedEvents.length > 0) {
+        console.log("Found cached posts:", cachedEvents.length);
+        
+        // Process cached events
+        const postsEvents = cachedEvents.filter(e => e.kind === 1);
+        setEvents(postsEvents.sort((a, b) => b.created_at - a.created_at));
+        
+        // Extract media posts
+        const mediaEvents = postsEvents.filter(event => {
+          const mediaUrls = extractMediaUrls(event.content, event.tags);
+          const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
+          return validMediaUrls.length > 0;
+        });
+        
+        setMedia(mediaEvents.sort((a, b) => b.created_at - a.created_at));
+        
+        if (postsEvents.length > 0) {
+          setHasEvents(true);
+          eventCountRef.current = postsEvents.length;
+          
+          // We can shorten loading time if we have cached events
+          setLoading(false);
+        }
+      }
+    } catch (err) {
+      console.warn("Error processing cached events:", err);
     }
     
     const fetchPosts = async () => {
@@ -77,42 +95,68 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         // First make sure we're connected to relays
         await nostrService.connectToUserRelays();
         
-        const { subscriptionId, cleanup } = createPostSubscription({
-          hexPubkey,
-          limit,
-          onEvent: (event) => {
+        // Add default relays to increase chances of success
+        const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
+        await nostrService.addMultipleRelays(defaultRelays);
+        
+        console.log("Connected to relays, subscribing to posts");
+        
+        // Subscribe to user's notes (kind 1)
+        const notesSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [1],
+              authors: [hexPubkey],
+              limit: limit
+            }
+          ],
+          (event) => {
             if (!isMounted.current) return;
             
-            eventCountRef.current += 1;
-            
-            setEvents(prev => {
-              // Check if we already have this event
-              if (prev.some(e => e.id === event.id)) {
-                return prev;
+            try {
+              console.log("Received post event:", event.id.substring(0, 8), "from", event.pubkey.substring(0, 8));
+              eventCountRef.current += 1;
+              
+              setEvents(prev => {
+                // Check if we already have this event
+                if (prev.some(e => e.id === event.id)) {
+                  return prev;
+                }
+                
+                // Add new event and sort by creation time (newest first)
+                return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+              });
+              
+              // Cache the event
+              try {
+                contentCache.cacheEvent(event);
+              } catch (cacheError) {
+                console.warn("Failed to cache event:", cacheError);
+              }
+    
+              // Check if note contains media using our enhanced detection
+              const mediaUrls = extractMediaUrls(event.content, event.tags);
+              
+              // Validate the URLs to ensure they're proper media links
+              const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
+              
+              if (validMediaUrls.length > 0) {
+                setMedia(prev => {
+                  if (prev.some(e => e.id === event.id)) return prev;
+                  return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+                });
               }
               
-              // Add new event and sort by creation time (newest first)
-              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-            });
-          },
-          onMediaEvent: (event) => {
-            if (!isMounted.current) return;
-            
-            setMedia(prev => {
-              if (prev.some(e => e.id === event.id)) return prev;
-              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-            });
-          },
-          onHasEvents: () => {
-            if (isMounted.current) {
               setHasEvents(true);
+            } catch (err) {
+              console.error("Error processing event in useProfilePosts:", err);
             }
           }
-        });
+        );
         
         // Store the subscription ID for cleanup
-        subscriptionRef.current = subscriptionId;
-        console.log("Created subscription:", subscriptionId, "for posts");
+        subscriptionRef.current = notesSubId;
+        console.log("Created subscription:", notesSubId, "for posts");
         
         // Set a timeout to check if we got any events and mark loading as complete
         // Reduced from 15s to 5s for better user experience
@@ -137,8 +181,6 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
             setLoading(false);
           }
         }, 2000); // Even quicker feedback if we have events
-        
-        return cleanup;
       } catch (err) {
         console.error("Error in useProfilePosts:", err);
         if (isMounted.current) {
@@ -150,14 +192,10 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
       }
     };
     
-    const cleanup = fetchPosts();
+    fetchPosts();
     
     return () => {
       // Ensure we clean up the subscription when the component unmounts
-      if (typeof cleanup === 'function') {
-        cleanup();
-      }
-      
       if (subscriptionRef.current) {
         nostrService.unsubscribe(subscriptionRef.current);
         subscriptionRef.current = null;
@@ -170,49 +208,47 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
     };
   }, [hexPubkey, limit]);
 
-  const refetch = () => {
-    if (hexPubkey) {
-      // Reset state
-      setEvents([]);
-      setMedia([]);
-      setError(null);
-      setLoading(true);
-      setHasEvents(false);
-      eventCountRef.current = 0;
-      
-      // Unsubscribe from current subscription
-      if (subscriptionRef.current) {
-        nostrService.unsubscribe(subscriptionRef.current);
-        subscriptionRef.current = null;
-      }
-      
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      
-      // Force reconnect to relays and retry
-      nostrService.connectToUserRelays()
-        .then(() => {
-          // This will trigger the effect again
-          const event = new CustomEvent('refetchPosts', { detail: { pubkey: hexPubkey } });
-          window.dispatchEvent(event);
-        })
-        .catch(err => {
-          console.error("Failed to reconnect to relays:", err);
-          setLoading(false);
-          setError("Failed to connect to relays");
-          toast.error("Failed to connect to relays");
-        });
-    }
-  };
-
   return { 
     events, 
     media, 
     loading, 
     error, 
     hasEvents,
-    refetch
+    refetch: () => {
+      if (hexPubkey) {
+        // Reset state
+        setEvents([]);
+        setMedia([]);
+        setError(null);
+        setLoading(true);
+        setHasEvents(false);
+        eventCountRef.current = 0;
+        
+        // Unsubscribe from current subscription
+        if (subscriptionRef.current) {
+          nostrService.unsubscribe(subscriptionRef.current);
+          subscriptionRef.current = null;
+        }
+        
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        
+        // Force reconnect to relays and retry
+        nostrService.connectToUserRelays()
+          .then(() => {
+            // This will trigger the effect again
+            const event = new CustomEvent('refetchPosts', { detail: { pubkey: hexPubkey } });
+            window.dispatchEvent(event);
+          })
+          .catch(err => {
+            console.error("Failed to reconnect to relays:", err);
+            setLoading(false);
+            setError("Failed to connect to relays");
+            toast.error("Failed to connect to relays");
+          });
+      }
+    }
   };
 }

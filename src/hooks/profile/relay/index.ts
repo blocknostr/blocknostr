@@ -1,2 +1,0 @@
-
-export { useProfileRelays } from './useProfileRelays';

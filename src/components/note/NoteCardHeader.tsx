@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,7 +14,6 @@ interface NoteCardHeaderProps {
 const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps) => {
   const hexPubkey = pubkey || '';
   const npub = nostrService.getNpubFromHex(hexPubkey);
-  const [imageError, setImageError] = useState(false);
   
   // Handle short display of npub (first 5 and last 5 chars)
   const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
@@ -22,38 +21,22 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   // Get profile info if available
   const name = profileData?.name || shortNpub;
   const displayName = profileData?.display_name || name;
-  const picture = !imageError ? (profileData?.picture || '') : '';
+  const picture = profileData?.picture || '';
   
   // Get the first character of the display name for the avatar fallback
   const avatarFallback = displayName ? displayName.charAt(0).toUpperCase() : 'N';
   
-  // Format relative time with proper handling
   const timeAgo = formatDistanceToNow(
     new Date(createdAt * 1000),
     { addSuffix: true }
   );
-
-  // Handle image loading errors
-  const handleImageError = () => {
-    setImageError(true);
-  };
-
-  // Reset error state if we get a new picture URL
-  useEffect(() => {
-    setImageError(false);
-  }, [profileData?.picture]);
 
   return (
     <div className="flex justify-between">
       <div className="flex">
         <Link to={`/profile/${npub}`} className="mr-3 shrink-0">
           <Avatar className="h-11 w-11 border border-muted">
-            <AvatarImage 
-              src={picture} 
-              alt={name} 
-              onError={handleImageError}
-              loading="lazy"
-            />
+            <AvatarImage src={picture} alt={name} />
             <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
           </Avatar>
         </Link>

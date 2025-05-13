@@ -6,15 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import NoteCardHeader from '@/components/note/NoteCardHeader';
 import NoteCardContent from '@/components/note/NoteCardContent';
-import NoteCardComments from '@/components/note/NoteCardComments';
-import NoteCardActions from '@/components/note/NoteCardActions'; 
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SimplePool } from 'nostr-tools';
-import { SocialManager } from '@/lib/nostr/social';
+import { SocialManager } from '@/lib/nostr/social-manager';
 import { toast } from 'sonner';
-import { Note } from '@/components/notebin/hooks/types';
 
 const PostPage = () => {
   const { id } = useParams();
@@ -29,12 +25,9 @@ const PostPage = () => {
     zaps: 0,
     zapAmount: 0
   });
-  const [showReplies, setShowReplies] = useState(true);
-  const [replyUpdated, setReplyUpdated] = useState(0);
-  const [pool] = useState(() => new SimplePool());
 
-  // Create SocialManager instance with the SimplePool
-  const socialManager = new SocialManager(pool, {});
+  // Create SocialManager instance
+  const socialManager = new SocialManager();
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -108,8 +101,9 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts from the social manager with correct parameters
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
+      // Get reaction counts from the social manager
+      // Pass the eventId and relays to the SocialManager getReactionCounts method
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
@@ -144,27 +138,6 @@ const PostPage = () => {
   // Handle back navigation
   const handleBack = () => {
     navigate(-1);
-  };
-
-  // Convert the event to a Note object for NoteCardActions
-  const getAsNote = (): Note => {
-    return {
-      id: currentNote?.id || '',
-      author: currentNote?.pubkey || '',
-      content: currentNote?.content || '',
-      createdAt: currentNote?.created_at || 0,
-      event: currentNote
-    };
-  };
-
-  // Handle reply being added
-  const handleReplyAdded = () => {
-    // Update reaction counts
-    if (currentNote?.id) {
-      fetchReactionCounts(currentNote.id);
-      // Force comments component to refresh
-      setReplyUpdated(prev => prev + 1);
-    }
   };
 
   if (isLoading) {
@@ -238,32 +211,15 @@ const PostPage = () => {
             <NoteCardContent 
               content={currentNote?.content} 
               tags={currentNote?.tags}
-              event={currentNote}
             />
-            
-            {/* Note Actions */}
-            <div className="mt-4">
-              <NoteCardActions 
-                note={getAsNote()}
-                setActiveReply={() => setShowReplies(true)}
-              />
-            </div>
           </div>
 
           {/* Render stats */}
           {renderStats()}
-          
-          {/* Comments section */}
-          {currentNote?.id && (
-            <NoteCardComments 
-              eventId={currentNote.id}
-              pubkey={currentNote.pubkey}
-              onReplyAdded={handleReplyAdded}
-              key={`comments-${replyUpdated}`}
-            />
-          )}
         </CardContent>
       </Card>
+
+      {/* TODO: Add replies section here */}
     </div>
   );
 };
