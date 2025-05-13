@@ -20,7 +20,7 @@ import { Toaster } from 'sonner';
 
 function App() {
   return (
-    <AlephiumWalletProvider network="mainnet" defaultWallet="extension">
+    <AlephiumWalletProvider network="mainnet">
       <BrowserRouter>
         <div className="flex flex-col min-h-screen">
           <main className="flex-1">
