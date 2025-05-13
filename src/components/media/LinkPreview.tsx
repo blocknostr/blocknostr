@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Globe } from 'lucide-react';
+import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface LinkPreviewProps {
   url: string;
@@ -20,9 +21,9 @@ interface LinkMetadata {
 }
 
 export function LinkPreview({ url, className }: LinkPreviewProps) {
-  const [metadata, setMetadata] = useState<LinkMetadata>({
-    isLoading: true
-  });
+  // Check if this URL is already registered as media
+  // If it is, we shouldn't render it again
+  const [shouldRender, setShouldRender] = useState(true);
   
   // Extract domain from URL for display
   const getDomain = (url: string): string => {
@@ -36,7 +37,20 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
   
   const domain = getDomain(url);
   
+  const [metadata, setMetadata] = useState<LinkMetadata>({
+    isLoading: true
+  });
+  
   useEffect(() => {
+    // Register this URL with the registry
+    if (!UrlRegistry.isUrlRegistered(url)) {
+      UrlRegistry.registerUrl(url, 'link');
+    } else if (UrlRegistry.isUrlRegisteredAsMedia(url)) {
+      // If it's already registered as media, don't render it
+      setShouldRender(false);
+      return;
+    }
+    
     // In a real implementation, we would fetch the metadata from a server
     // For now, we'll simulate the metadata with placeholder data
     const simulateMetadataFetch = async () => {
@@ -66,7 +80,7 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
     simulateMetadataFetch();
   }, [url, domain]);
   
-  if (metadata.error) {
+  if (metadata.error || !shouldRender) {
     return null;
   }
   

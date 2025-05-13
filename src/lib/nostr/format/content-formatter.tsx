@@ -2,6 +2,7 @@
 import React from 'react';
 import { ContentFormatterInterface } from './types';
 import { isNostrUrl, getHexFromNostrUrl, getProfileUrl, getEventUrl, shortenIdentifier } from '../utils/nip/nip27';
+import UrlRegistry from '../utils/media/url-registry';
 
 // Simple content formatter that handles basic Nostr content formatting
 export const contentFormatter: ContentFormatterInterface = {
@@ -16,6 +17,12 @@ export const contentFormatter: ContentFormatterInterface = {
     
     // Process each part
     const formattedParts = parts.map((part, index) => {
+      // Skip URLs that are already registered as media or links
+      if (part.match(/^https?:\/\//i) && UrlRegistry.isUrlRegistered(part)) {
+        // Return empty for URLs that are rendered elsewhere
+        return null;
+      }
+      
       // Detect nostr: URLs (NIP-27)
       if (part.startsWith('nostr:')) {
         const identifier = part.substring(6); // Remove 'nostr:'
@@ -63,7 +70,7 @@ export const contentFormatter: ContentFormatterInterface = {
         );
       }
       
-      // Detect URLs
+      // Detect URLs that are not already being rendered elsewhere
       if (part.match(/^https?:\/\//i)) {
         return (
           <a 
@@ -82,7 +89,8 @@ export const contentFormatter: ContentFormatterInterface = {
       return part;
     });
     
-    return <>{formattedParts}</>;
+    // Filter out null values (for already registered URLs)
+    return <>{formattedParts.filter(Boolean)}</>;
   },
   
   /**

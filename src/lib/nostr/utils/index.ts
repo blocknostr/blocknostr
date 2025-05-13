@@ -1,9 +1,11 @@
 
-// Export NIP-related utilities
-export * from './nip';
+/**
+ * Re-export utility functions for easier imports
+ */
 
-// Export media utility functions
+// Re-export media utilities
 export * from './media-extraction';
+export { default as UrlRegistry } from './media/url-registry';
 
-// Re-export common media utilities
-export { extractAllUrls as extractMediaUrls, extractLinkPreviewUrls } from './media/media-detection';
+// Re-export NIP utilities
+export * from './nip/index';

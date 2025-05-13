@@ -7,6 +7,7 @@ import MediaLoadingState from './MediaLoadingState';
 import MediaErrorState from './MediaErrorState';
 import { cn } from '@/lib/utils';
 import { isValidMediaUrl } from '@/lib/nostr/utils/media/media-validation';
+import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface EnhancedMediaContentProps {
   url: string;
@@ -33,6 +34,21 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   onLoad: externalOnLoad,
   onError: externalOnError
 }) => {
+  // Register this URL with the registry
+  useEffect(() => {
+    UrlRegistry.registerUrl(url, 'media');
+    
+    // Cleanup on unmount
+    return () => {
+      // Only clear if the component is unmounting and not just updating
+      if (!document.hidden) {
+        // We don't clear from registry on unmount because other components
+        // might still need to know this URL is being/was rendered
+        // Registry will be auto-cleared periodically instead
+      }
+    };
+  }, [url]);
+
   // Get initial state from cache if available
   const cachedState = loadedMediaCache.get(url);
   const [isLoaded, setIsLoaded] = useState(cachedState === 'success');

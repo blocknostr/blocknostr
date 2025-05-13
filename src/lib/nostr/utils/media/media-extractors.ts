@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for extracting media from Nostr events
  * Following NIP-94 recommendations
@@ -8,6 +7,7 @@ import { mediaRegex, extractUrlsFromContent, extractAllUrls, isMediaUrl } from '
 import { isValidMediaUrl } from './media-validation';
 import { MediaItem } from './media-types';
 import { NostrEvent } from '@/lib/nostr';
+import UrlRegistry from './url-registry';
 
 /**
  * Extracts media information from event tags following NIP-94
@@ -71,18 +71,21 @@ export const extractMediaFromTags = (tags: string[][]): MediaItem[] => {
 
 /**
  * Main function to extract all media URLs from content
+ * Now filters out already registered URLs
  */
 export const extractMediaUrls = (content: string): string[] => {
   if (!content) return [];
   
   // Extract URLs from content as fallback
   const contentUrls = extractUrlsFromContent(content);
-  return contentUrls;
+  
+  // Filter out URLs that are already registered
+  return UrlRegistry.filterUnregisteredUrls(contentUrls);
 };
 
 /**
  * Helper function to extract media URLs from both content and tags
- * For backward compatibility
+ * For backward compatibility, now with URL registry integration
  */
 export const getMediaUrlsFromEvent = (event: NostrEvent | {content: string, tags?: string[][]}): string[] => {
   const content = event.content || '';
@@ -101,22 +104,32 @@ export const getMediaUrlsFromEvent = (event: NostrEvent | {content: string, tags
     );
     
     mediaTags.forEach(tag => {
-      if (tag[1]) urls.add(tag[1]);
+      if (tag[1] && !UrlRegistry.isUrlRegistered(tag[1])) {
+        urls.add(tag[1]);
+      }
     });
   }
   
-  // Then extract URLs from content
+  // Then extract URLs from content, filtering out already registered ones
   if (content) {
     const contentUrls = extractUrlsFromContent(content);
-    contentUrls.forEach(url => urls.add(url));
+    contentUrls.forEach(url => {
+      if (!UrlRegistry.isUrlRegistered(url)) {
+        urls.add(url);
+      }
+    });
   }
   
-  return [...urls];
+  // Register all found URLs as media
+  const mediaUrls = [...urls];
+  UrlRegistry.registerUrls(mediaUrls, 'media');
+  
+  return mediaUrls;
 };
 
 /**
  * Extract non-media URLs for link previews
- * Returns an array of URLs that are not media files
+ * Returns an array of URLs that are not media files and not already registered
  */
 export const extractLinkPreviewUrls = (content: string): string[] => {
   if (!content) return [];
@@ -124,13 +137,13 @@ export const extractLinkPreviewUrls = (content: string): string[] => {
   // Get all URLs from content
   const allUrls = extractAllUrls(content);
   
-  // Filter out media URLs to get only regular links for previews
-  return allUrls.filter(url => !isMediaUrl(url));
+  // Filter out media URLs and already registered URLs
+  return allUrls.filter(url => !isMediaUrl(url) && !UrlRegistry.isUrlRegistered(url));
 };
 
 /**
  * Helper function to extract link preview URLs from both content and tags
- * For backward compatibility
+ * For backward compatibility, now with URL registry integration
  */
 export const getLinkPreviewUrlsFromEvent = (event: NostrEvent | {content: string, tags?: string[][]}): string[] => {
   const content = event.content || '';
@@ -144,8 +157,17 @@ export const getLinkPreviewUrlsFromEvent = (event: NostrEvent | {content: string
   // Get media URLs that we don't want to show as link previews
   const mediaUrls = new Set(getMediaUrlsFromEvent(event));
   
-  // Filter out media URLs to get only regular links for previews
-  return allUrls.filter(url => !mediaUrls.has(url) && !isMediaUrl(url));
+  // Filter out media URLs and already registered URLs to get only regular links for previews
+  const linkUrls = allUrls.filter(url => 
+    !mediaUrls.has(url) && 
+    !isMediaUrl(url) && 
+    !UrlRegistry.isUrlRegistered(url)
+  );
+  
+  // Register these URLs as links
+  UrlRegistry.registerUrls(linkUrls, 'link');
+  
+  return linkUrls;
 };
 
 /**

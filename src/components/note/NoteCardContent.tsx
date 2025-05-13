@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
@@ -8,6 +9,7 @@ import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
 import { getMediaUrlsFromEvent, getLinkPreviewUrlsFromEvent } from '@/lib/nostr/utils';
+import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface NoteCardContentProps {
   content?: string;
@@ -34,6 +36,16 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   React.useEffect(() => {
     return () => {
       isMounted.current = false;
+      
+      // Clear URL registry on unmount to prevent stale entries
+      // But only do this after the component is fully unmounted (next tick)
+      // to prevent issues with other components still using the registry
+      setTimeout(() => {
+        if (!document.body.contains(document.activeElement)) {
+          // If we're navigating away, clear the registry
+          UrlRegistry.clearAll();
+        }
+      }, 100);
     };
   }, []);
   

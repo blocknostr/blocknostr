@@ -20,3 +20,6 @@ export * from './media/media-validation';
 
 // Re-export extraction functions
 export * from './media/media-extractors';
+
+// Export the URL registry
+export { default as UrlRegistry } from './media/url-registry';
