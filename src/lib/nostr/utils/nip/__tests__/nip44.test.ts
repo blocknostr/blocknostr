@@ -1,7 +1,7 @@
 
 import { encrypt, decrypt } from '../nip44';
 import * as secp from '@noble/secp256k1';
-import { crypto } from '@noble/hashes/crypto';
+import { randomBytes } from '@noble/hashes/utils';
 
 describe('NIP-44 Versioned Encryption', () => {
   // Helper function to generate test keys

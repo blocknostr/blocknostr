@@ -4,11 +4,10 @@
  * Implements the versioned encryption specification defined in NIP-44
  * See: https://github.com/nostr-protocol/nips/blob/master/44.md
  */
-import * as hashes from '@noble/hashes';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { sha256 } from '@noble/hashes/sha256';
+import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
 import { schnorr } from '@noble/curves/secp256k1';
 import * as secp from '@noble/secp256k1';
-import { crypto } from '@noble/hashes/crypto';
 
 export const VERSION = 0;
 export const DEFAULT_CACHE_SIZE = 1000;
@@ -41,11 +40,11 @@ export function encrypt({ plaintext, privateKey, publicKey }: EncryptArgs): stri
     const sharedSecret = secp256k1SharedSecret(privateKey, publicKey);
     
     // Generate random nonce
-    const nonce = crypto.randomBytes(24);
+    const nonce = randomBytes(24);
     
-    // Due to API differences, we'll implement our own XChaCha20-Poly1305
-    // This is a simplified version for demonstration
-    const key = hashes.sha256(sharedSecret);
+    // This is a simplified implementation
+    // In a real implementation, we would use XChaCha20-Poly1305
+    const key = sha256(sharedSecret);
     
     // Placeholder for proper XChaCha20-Poly1305 implementation
     // In a real implementation, we would use the actual cipher

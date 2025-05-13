@@ -20,8 +20,7 @@ export class MessagingAdapter extends BaseAdapter {
         throw new Error("Not logged in");
       }
       
-      // Always use NIP-04 for external compatibility, but use our internal NIP-44 implementation
-      // when window.nostr.nip04 isn't available
+      // Always use NIP-04 for external compatibility
       let encryptedContent: string;
       let tags = [['p', recipientPubkey]];
       let kind = EVENT_KINDS.ENCRYPTED_DM; // Default to kind 4 (NIP-04)
