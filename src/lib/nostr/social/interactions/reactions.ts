@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../../constants';
 import { ReactionCounts } from '../types';
@@ -63,13 +64,13 @@ export async function getReactionCounts(
         reposters.push(event.pubkey);
         
         // Check if current user has reposted
-        if (currentPubkey && event.pubkey === event.pubkey) {
+        if (currentPubkey && event.pubkey === currentPubkey) {
           userHasReposted = true;
         }
       }
     });
     
-    // Set a timeout to resolve with the found counts
+    // Set a timeout to resolve with found counts
     setTimeout(() => {
       reactionsSub.close();
       repostsSub.close();

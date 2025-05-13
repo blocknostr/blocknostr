@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -25,7 +26,7 @@ export type {
 
 // Re-export from social module
 export { SocialManager } from './social';
-export type { ReactionCounts, ContactList, QuickReply } from './social/types';
+export type { ReactionCounts, ContactList } from './social/types';
 
 // Re-export from community module
 export type { ProposalCategory } from '@/types/community';

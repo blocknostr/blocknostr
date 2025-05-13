@@ -71,25 +71,19 @@ export class SocialAdapter extends BaseAdapter {
     return {
       ...this.service.socialManager,
       likeEvent: (event: any) => {
-        return this.service.reactToPost ? this.service.reactToPost(event.id) : null;
+        return this.service.reactToPost(event.id);
       },
       repostEvent: (event: any) => {
-        return this.service.repostNote ? this.service.repostNote(event.id, event.pubkey) : null;
+        return this.service.repostNote(event.id, event.pubkey);
       },
       getReactionCounts: (eventId: string) => {
-        if (this.service.socialManager?.getReactionCounts) {
-          return this.service.socialManager.getReactionCounts(eventId, []);
-        }
         return Promise.resolve({
           likes: 0,
-          reposts: 0,
-          replies: 0,
-          zaps: 0,
-          zapAmount: 0
+          reposts: 0
         });
       },
       reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.service.reactToPost ? this.service.reactToPost(eventId, emoji) : null;
+        return this.service.reactToPost(eventId, emoji);
       }
     };
   }

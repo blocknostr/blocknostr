@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { contentCache } from '@/lib/nostr';
 
 interface UseProfilePostsProps {
-  hexPubkey: string | undefined | null;
+  hexPubkey: string | undefined;
   limit?: number;
 }
 
@@ -151,8 +151,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
             } catch (err) {
               console.error("Error processing event in useProfilePosts:", err);
             }
-          },
-          {} // Add empty options object as third parameter
+          }
         );
         
         // Store the subscription ID for cleanup

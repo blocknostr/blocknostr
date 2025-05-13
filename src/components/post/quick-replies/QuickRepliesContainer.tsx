@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Plus } from "lucide-react";
@@ -17,14 +16,14 @@ import AddReplyDialog from './AddReplyDialog';
 const QuickRepliesContainer: React.FC<QuickRepliesProps> = ({ onReplySelected }) => {
   // Sample quick replies
   const [replies, setReplies] = useState<QuickReply[]>([
-    { id: '1', text: 'Great post! Thanks for sharing.', category: 'greeting', usageCount: 5, createdAt: Date.now() },
-    { id: '2', text: 'I completely agree with your thoughts on this.', category: 'discussion', usageCount: 3, createdAt: Date.now() },
-    { id: '3', text: 'Interesting perspective! Have you considered...', category: 'discussion', usageCount: 2, createdAt: Date.now() },
-    { id: '4', text: 'Thanks for the insights!', category: 'thanks', usageCount: 7, createdAt: Date.now() },
-    { id: '5', text: 'I\'ve been thinking about this topic too.', category: 'discussion', usageCount: 1, createdAt: Date.now() },
-    { id: '6', text: 'Hello there! Nice to meet you.', category: 'greeting', usageCount: 4, createdAt: Date.now() },
-    { id: '7', text: 'Could you elaborate more on that point?', category: 'discussion', usageCount: 2, createdAt: Date.now() },
-    { id: '8', text: 'I appreciate your thoughtful response.', category: 'thanks', usageCount: 3, createdAt: Date.now() }
+    { id: '1', text: 'Great post! Thanks for sharing.', category: 'greeting', usageCount: 5 },
+    { id: '2', text: 'I completely agree with your thoughts on this.', category: 'discussion', usageCount: 3 },
+    { id: '3', text: 'Interesting perspective! Have you considered...', category: 'discussion', usageCount: 2 },
+    { id: '4', text: 'Thanks for the insights!', category: 'thanks', usageCount: 7 },
+    { id: '5', text: 'I\'ve been thinking about this topic too.', category: 'discussion', usageCount: 1 },
+    { id: '6', text: 'Hello there! Nice to meet you.', category: 'greeting', usageCount: 4 },
+    { id: '7', text: 'Could you elaborate more on that point?', category: 'discussion', usageCount: 2 },
+    { id: '8', text: 'I appreciate your thoughtful response.', category: 'thanks', usageCount: 3 }
   ]);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -43,7 +42,7 @@ const QuickRepliesContainer: React.FC<QuickRepliesProps> = ({ onReplySelected })
     setReplies(prev => 
       prev.map(reply => 
         reply.text === text 
-          ? { ...reply, usageCount: (reply.usageCount || 0) + 1 }
+          ? { ...reply, usageCount: reply.usageCount + 1 }
           : reply
       )
     );
@@ -54,8 +53,7 @@ const QuickRepliesContainer: React.FC<QuickRepliesProps> = ({ onReplySelected })
       id: Date.now().toString(),
       text,
       category,
-      usageCount: 0,
-      createdAt: Date.now()
+      usageCount: 0
     };
     
     setReplies(prev => [...prev, newReply]);

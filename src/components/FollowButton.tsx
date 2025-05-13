@@ -19,29 +19,7 @@ const FollowButton = ({ pubkey, className, variant = "default" }: FollowButtonPr
   useEffect(() => {
     // Check if user is already following this pubkey according to NIP-02
     if (pubkey && currentUserPubkey) {
-      // Initialize with the service's knowledge of following status
       setIsFollowing(nostrService.isFollowing(pubkey));
-      
-      // Subscribe to contact list events to stay updated
-      const subscriptionId = nostrService.subscribe(
-        [
-          {
-            kinds: [3], // Contact Lists (NIP-02)
-            authors: [currentUserPubkey],
-            limit: 1
-          }
-        ],
-        (event) => {
-          // Extract p tags (pubkeys) and check if this pubkey is in the list
-          const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
-          const pubkeys = pTags.map(tag => tag[1]);
-          setIsFollowing(pubkeys.includes(pubkey));
-        }
-      );
-      
-      return () => {
-        nostrService.unsubscribe(subscriptionId);
-      };
     }
   }, [pubkey, currentUserPubkey]);
   

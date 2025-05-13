@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +34,7 @@ const PostPage = () => {
   const [pool] = useState(() => new SimplePool());
 
   // Create SocialManager instance with the SimplePool
-  const socialManager = new SocialManager(pool, {}, {});
+  const socialManager = new SocialManager(pool, {});
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -55,14 +54,9 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          // Make sure to pass the empty object as the third parameter (options)
-          const sub = nostrService.subscribe(
-            filters, 
-            (event) => {
-              handleEvent(event);
-            }, 
-            {} // Empty options object
-          );
+          const sub = nostrService.subscribe(filters, (event) => {
+            handleEvent(event);
+          }, defaultRelays);
           
           // Cleanup subscription
           return () => {
@@ -114,7 +108,7 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Pass the defaultRelays array as the second parameter
+      // Get reaction counts from the social manager with correct parameters
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {

@@ -38,8 +38,8 @@ export class NostrService {
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
     this.eventManager = new EventManager();
-    // Fix: Pass the SimplePool instance and the public key to SocialManager
-    this.socialManagerInstance = new SocialManager(this.pool, {}, this.userManager?.publicKey || null);
+    // Fix: Pass the SimplePool instance to SocialManager instead of EventManager
+    this.socialManagerInstance = new SocialManager(this.pool, {});
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManagerFacade();
     
