@@ -35,6 +35,13 @@ const SidebarUserProfile = ({ userProfile, isLoading }: UserProfileProps) => {
     return `/profile/${nostrService.getNpubFromHex(nostrService.publicKey)}`;
   };
 
+  // Get shortened NPUB for display
+  const getShortenedNpub = () => {
+    if (!nostrService.publicKey) return '';
+    const npub = nostrService.getNpubFromHex(nostrService.publicKey);
+    return `${npub.substring(0, 8)}...${npub.substring(npub.length - 4)}`;
+  };
+
   return (
     <Link 
       to={getProfileUrl()} 
@@ -55,10 +62,14 @@ const SidebarUserProfile = ({ userProfile, isLoading }: UserProfileProps) => {
         <span className="font-medium text-sm truncate max-w-[140px]">
           {userProfile.display_name || userProfile.name || 'User'}
         </span>
-        {userProfile.nip05 && (
+        {userProfile.nip05 ? (
           <span className="text-xs text-muted-foreground truncate max-w-[140px] flex items-center gap-1">
             {userProfile.nip05}
             <CheckCircle2 className="h-3 w-3 text-primary" />
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
+            {getShortenedNpub()}
           </span>
         )}
       </div>
