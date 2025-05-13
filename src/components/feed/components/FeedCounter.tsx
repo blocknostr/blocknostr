@@ -6,19 +6,16 @@ interface FeedCounterProps {
   eventsLength: number;
 }
 
+/**
+ * FeedCounter component is now disabled - always returns null
+ * This component previously showed "Showing X Blocks" at the top of the feed
+ */
 const FeedCounter: React.FC<FeedCounterProps> = ({ 
   visibleCount, 
   eventsLength 
 }) => {
-  if (eventsLength === 0) {
-    return null;
-  }
-
-  return (
-    <div className="text-sm text-muted-foreground text-center mb-2">
-      Showing {visibleCount} Blocks
-    </div>
-  );
+  // Returning null in all cases to hide the counter
+  return null;
 };
 
 export default FeedCounter;
