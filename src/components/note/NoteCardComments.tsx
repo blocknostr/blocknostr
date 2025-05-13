@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Trash2 } from 'lucide-react';
+import { Trash2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import {
@@ -30,17 +30,25 @@ interface NoteCardCommentsProps {
   eventId: string;
   pubkey: string;
   initialComments?: Comment[];
+  initialCommentText?: string;
   onReplyAdded: () => void;
 }
 
-const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded }: NoteCardCommentsProps) => {
+const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommentText = "", onReplyAdded }: NoteCardCommentsProps) => {
   const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [newComment, setNewComment] = useState("");
+  const [newComment, setNewComment] = useState(initialCommentText);
   const [replyToDelete, setReplyToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  
+  // Update comment when initialCommentText changes
+  useEffect(() => {
+    if (initialCommentText) {
+      setNewComment(initialCommentText);
+    }
+  }, [initialCommentText]);
   
   // Fetch replies when component mounts
   useEffect(() => {
@@ -200,6 +208,7 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
       setReplyToDelete(null);
       setIsDeleting(false);
       toast.success("Reply deleted successfully");
+      onReplyAdded(); // Notify parent component that comments have changed
     } catch (error) {
       console.error("Error deleting reply:", error);
       toast.error("Failed to delete reply");
@@ -223,38 +232,45 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
 
   return (
     <>
-      <div className="px-5 pb-4 pt-3">
+      <div className="px-3 pb-2 pt-1">
         {nostrService.publicKey && (
-          <div className="flex gap-2 mb-4">
-            <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback>U</AvatarFallback>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Avatar className="h-5 w-5 shrink-0">
+              <AvatarFallback className="text-[10px]">U</AvatarFallback>
             </Avatar>
-            <div className="flex-1 flex flex-col gap-2">
+            <div className="flex-1 flex items-center bg-muted/40 rounded-full overflow-hidden pr-0.5">
               <Textarea
                 placeholder="Write a comment..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[80px] resize-none"
+                className="min-h-[32px] max-h-[80px] resize-none flex-1 py-1 px-2 text-xs border-0 bg-transparent focus-visible:ring-0"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmitComment();
+                  }
+                }}
               />
               <Button 
                 onClick={handleSubmitComment}
                 disabled={!newComment.trim() || commentSubmitting}
-                className="self-end"
-                size="sm"
+                className="h-[28px] w-[28px] rounded-full"
+                size="icon"
+                variant="ghost"
               >
-                {commentSubmitting ? "Posting..." : "Reply"}
+                <Send className="h-3 w-3" />
               </Button>
             </div>
           </div>
         )}
         
-        <div className="space-y-4 mt-2">
-          {isLoading ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
+        <div className="space-y-2">
+          {isLoading && comments.length === 0 ? (
+            <div className="text-xs text-center py-2 text-muted-foreground">
               Loading comments...
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-sm text-center py-4 text-muted-foreground">
+            <div className="text-xs text-center py-2 text-muted-foreground">
               No comments yet. Be the first to comment!
             </div>
           ) : (
@@ -267,46 +283,46 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
               );
               
               return (
-                <div key={comment.id} className="flex items-start gap-2 group">
+                <div key={comment.id} className="flex items-start gap-1.5 group">
                   <Link 
                     to={`/profile/${comment.author}`} 
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-5 w-5">
                       <AvatarImage src={picture} />
-                      <AvatarFallback className="bg-primary/10 text-primary">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
                         {name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </Link>
                   
                   <div className="flex-1">
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <div className="flex items-baseline gap-1.5 mb-1">
+                    <div className="bg-muted/30 p-1.5 rounded-lg">
+                      <div className="flex items-baseline gap-1 mb-0.5">
                         <Link 
                           to={`/profile/${comment.author}`} 
-                          className="font-medium text-sm hover:underline"
+                          className="font-medium text-[10px] hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {name}
                         </Link>
-                        <span className="text-xs text-muted-foreground">@{shortNpub}</span>
-                        <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                        <span className="text-[9px] text-muted-foreground">@{shortNpub}</span>
+                        <span className="text-[9px] text-muted-foreground">·</span>
+                        <span className="text-[9px] text-muted-foreground">{timeAgo}</span>
                       </div>
-                      <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+                      <p className="text-[11px] whitespace-pre-wrap break-words">{comment.content}</p>
                     </div>
                     
                     {isAuthor && comment.id && (
-                      <div className="flex justify-end mt-1">
+                      <div className="flex justify-end mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-6 px-2 py-0 text-xs"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-4 px-1 py-0 text-[9px]"
                           onClick={() => handleDeleteClick(comment.id)}
                         >
-                          <Trash2 className="h-3 w-3 mr-1" />
+                          <Trash2 className="h-2 w-2 mr-0.5" />
                           Delete
                         </Button>
                       </div>

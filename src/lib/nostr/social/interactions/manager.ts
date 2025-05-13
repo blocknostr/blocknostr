@@ -7,12 +7,14 @@ import { ReactionCounts } from '../types';
 import { getReactionCounts } from './reactions';
 
 export class InteractionsManager {
-  private eventManager: EventManager;
-  private userManager: UserManager;
+  private pool: SimplePool;
+  private eventManager?: EventManager;
+  private userManager?: UserManager;
   
-  constructor(eventManager: EventManager, userManager: UserManager) {
-    this.eventManager = eventManager;
-    this.userManager = userManager;
+  constructor(pool: SimplePool, options: { eventManager?: EventManager, userManager?: UserManager } = {}) {
+    this.pool = pool;
+    this.eventManager = options.eventManager;
+    this.userManager = options.userManager;
   }
   
   /**
@@ -28,7 +30,7 @@ export class InteractionsManager {
     relayUrls: string[],
     eventPubkey?: string
   ): Promise<string | null> {
-    if (!publicKey) return null;
+    if (!publicKey || !this.eventManager) return null;
     
     try {
       // Create reaction event (kind 7)
@@ -65,7 +67,7 @@ export class InteractionsManager {
     privateKey: string | null,
     relayUrls: string[]
   ): Promise<string | null> {
-    if (!publicKey) return null;
+    if (!publicKey || !this.eventManager) return null;
     
     try {
       // Create tags for repost
@@ -102,7 +104,7 @@ export class InteractionsManager {
     eventId: string,
     relayUrls: string[]
   ): Promise<ReactionCounts> {
-    const currentPubkey = this.userManager.publicKey;
+    const currentPubkey = this.userManager?.publicKey || null;
     return getReactionCounts(pool, eventId, relayUrls, currentPubkey);
   }
 }

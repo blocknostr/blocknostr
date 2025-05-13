@@ -1,10 +1,9 @@
 
 import React from 'react';
-import { QuickRepliesProps } from './quick-replies/types';
-import QuickRepliesContainer from './quick-replies/QuickRepliesContainer';
 
-const QuickReplies: React.FC<QuickRepliesProps> = ({ onReplySelected }) => {
-  return <QuickRepliesContainer onReplySelected={onReplySelected} />;
+// Simplified component that doesn't do anything now that we're removing QuickReplies
+const QuickReplies: React.FC<{ onReplySelected: (text: string) => void }> = () => {
+  return null; // Return null since we're removing this functionality
 };
 
 export default QuickReplies;

@@ -7,9 +7,18 @@ import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
 import NoteCardRepostHeader from './NoteCardRepostHeader';
 import NoteCardDeleteDialog from './NoteCardDeleteDialog';
+import NoteCardComments from './NoteCardComments';
+import QuickReplies from '@/components/post/QuickReplies';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
+import { useNoteCardReplies } from './hooks/useNoteCardReplies';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { Heart } from 'lucide-react';
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
 
 // Import the Note type from the shared location
 import { Note } from '@/components/notebin/hooks/types';
@@ -39,6 +48,14 @@ const NoteCard = ({
 }: NoteCardProps) => {
   // Set up local state with the correct type
   const [activeReply, setActiveReply] = useState<Note | null>(null);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [replyUpdated, setReplyUpdated] = useState(0);
+  
+  // Use the reply count hook
+  const { replyCount } = useNoteCardReplies({ 
+    eventId: event?.id || '' 
+  });
   
   // Use custom hook for delete dialog
   const {
@@ -61,10 +78,23 @@ const NoteCard = ({
 
   const isCurrentUser = event.pubkey === nostrService.publicKey;
 
+  // Handle reply selection from QuickReplies
+  const handleQuickReplySelected = (text: string) => {
+    setReplyContent(text);
+  };
+
+  // Handle reply added/updated
+  const handleReplyAdded = () => {
+    // Close reply input and increment counter to force refresh
+    setShowReplyInput(false);
+    setReplyUpdated(prev => prev + 1);
+  };
+
   const handleCardClick = (e: React.MouseEvent) => {
-    // If the click is on a link or button, don't navigate
+    // If the click is on a link, button, or accordion, don't navigate
     if ((e.target as HTMLElement).closest('a') || 
-        (e.target as HTMLElement).closest('button')) {
+        (e.target as HTMLElement).closest('button') ||
+        (e.target as HTMLElement).closest('[data-accordion-item]')) {
       return;
     }
     
@@ -129,8 +159,45 @@ const NoteCard = ({
                 createdAt: event?.created_at || 0,
                 event: event
               }}
-              setActiveReply={(note) => setActiveReply(note)}
+              setActiveReply={() => setShowReplyInput(!showReplyInput)}
+              replyCount={replyCount}
             />
+          </div>
+        )}
+        
+        {/* Reply Accordion */}
+        {event?.id && replyCount > 0 && (
+          <Accordion type="single" collapsible className="mt-2 border-t pt-2">
+            <AccordionItem value="replies" className="border-none">
+              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
+                {replyCount} {replyCount === 1 ? 'Reply' : 'Replies'}
+              </AccordionTrigger>
+              <AccordionContent>
+                <NoteCardComments 
+                  eventId={event.id} 
+                  pubkey={event.pubkey}
+                  onReplyAdded={handleReplyAdded}
+                  key={`comments-${replyUpdated}`}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
+        
+        {/* Quick Reply Section */}
+        {showReplyInput && event?.id && (
+          <div className="mt-3 border-t pt-3">
+            <NoteCardComments 
+              eventId={event.id} 
+              pubkey={event.pubkey}
+              initialCommentText={replyContent}
+              onReplyAdded={handleReplyAdded}
+            />
+            
+            {/* Quick Replies */}
+            <div className="mt-2 pb-1">
+              <QuickReplies onReplySelected={handleQuickReplySelected} />
+            </div>
           </div>
         )}
       </CardContent>
