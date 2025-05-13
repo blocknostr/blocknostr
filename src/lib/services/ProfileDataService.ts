@@ -1,4 +1,3 @@
-
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { contentCache } from "@/lib/nostr";
 import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
@@ -149,12 +148,25 @@ export class ProfileDataService extends EventEmitter {
     let hexPubkey: string | null = null;
     
     try {
-      if (npub && npub.startsWith('npub1')) {
-        hexPubkey = nostrService.getHexFromNpub(npub);
-      } else if (npub) {
-        hexPubkey = npub;
+      if (npub) {
+        // If npub is already in hex format (64 chars)
+        if (npub.length === 64 && /^[0-9a-f]+$/i.test(npub)) {
+          hexPubkey = npub;
+          console.log("Using existing hex pubkey:", hexPubkey);
+        }
+        // If npub starts with 'npub1', convert to hex
+        else if (npub.startsWith('npub1')) {
+          hexPubkey = nostrService.getHexFromNpub(npub);
+          console.log("Converting npub to hex:", npub, "->", hexPubkey);
+        } 
+        // Otherwise assume it's already hex
+        else {
+          hexPubkey = npub;
+          console.log("Using provided pubkey as hex:", hexPubkey);
+        }
       } else if (currentUserPubkey) {
         hexPubkey = currentUserPubkey;
+        console.log("Using current user's pubkey:", hexPubkey);
       }
     } catch (error) {
       console.error("Invalid pubkey format:", error);
@@ -163,6 +175,7 @@ export class ProfileDataService extends EventEmitter {
     
     // If no valid pubkey, return empty data
     if (!hexPubkey) {
+      console.warn("No valid pubkey provided");
       return this.getEmptyProfileData(null, false);
     }
     
@@ -537,12 +550,25 @@ export class ProfileDataService extends EventEmitter {
     let hexPubkey: string | null = null;
     
     try {
-      if (npub && npub.startsWith('npub1')) {
-        hexPubkey = nostrService.getHexFromNpub(npub);
-      } else if (npub) {
-        hexPubkey = npub;
+      if (npub) {
+        // If npub is already in hex format (64 chars)
+        if (npub.length === 64 && /^[0-9a-f]+$/i.test(npub)) {
+          hexPubkey = npub;
+          console.log("Using existing hex pubkey:", hexPubkey);
+        }
+        // If npub starts with 'npub1', convert to hex
+        else if (npub.startsWith('npub1')) {
+          hexPubkey = nostrService.getHexFromNpub(npub);
+          console.log("Converting npub to hex:", npub, "->", hexPubkey);
+        } 
+        // Otherwise assume it's already hex
+        else {
+          hexPubkey = npub;
+          console.log("Using provided pubkey as hex:", hexPubkey);
+        }
       } else if (currentUserPubkey) {
         hexPubkey = currentUserPubkey;
+        console.log("Using current user's pubkey:", hexPubkey);
       }
     } catch (error) {
       console.error("Invalid pubkey format:", error);

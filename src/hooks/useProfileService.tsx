@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ProfileData, profileDataService } from '@/lib/services/ProfileDataService';
 import { toast } from 'sonner';
@@ -18,18 +17,32 @@ export function useProfileService({ npub, currentUserPubkey }: UseProfileService
   const pubkeyRef = useRef<string | null>(null);
   
   // Convert npub to hex for tracking
-  const hexNpub = npub?.startsWith('npub1') ? 
-    useCallback(() => {
-      try {
-        return npub ? nostrService.getHexFromNpub(npub) : null;
-      } catch (error) {
-        console.error("Invalid pubkey format:", error);
-        return null;
+  const hexNpub = useCallback(() => {
+    try {
+      if (!npub) return null;
+      
+      // Check if it's already a hex key (64 chars)
+      if (npub.length === 64 && /^[0-9a-f]+$/i.test(npub)) {
+        return npub;
       }
-    }, [npub])() : npub;
+      
+      // Otherwise convert from npub
+      if (npub.startsWith('npub1')) {
+        return nostrService.getHexFromNpub(npub);
+      }
+      
+      console.warn("Unrecognized pubkey format:", npub);
+      return npub; // Return as-is as a fallback
+    } catch (error) {
+      console.error("Error converting pubkey format:", error);
+      return null;
+    }
+  }, [npub])();
   
   // Set up listeners and initial data loading
   useEffect(() => {
+    console.log("useProfileService running with npub:", npub, "hex:", hexNpub);
+    
     isMounted.current = true;
     pubkeyRef.current = hexNpub;
     
@@ -135,11 +148,19 @@ export function useProfileService({ npub, currentUserPubkey }: UseProfileService
     
     // Initial data load
     const loadProfile = async () => {
+      if (!npub && !hexNpub) {
+        setError('Invalid profile identifier');
+        setLoading(false);
+        return;
+      }
+      
       try {
+        console.log("Loading profile for:", npub || hexNpub);
         // Initialize data
         const initialData = await profileDataService.loadProfileData(npub, currentUserPubkey);
         
         if (isMounted.current) {
+          console.log("Profile data loaded:", initialData?.metadata?.name || hexNpub);
           setProfileData(initialData);
           
           // If we already have metadata, we can stop showing the main loader

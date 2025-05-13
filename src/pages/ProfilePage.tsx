@@ -12,13 +12,24 @@ import { useProfileService } from "@/hooks/useProfileService";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useRelays } from "@/hooks/useRelays";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const navigate = useNavigate();
   const currentUserPubkey = nostrService.publicKey;
   
-  // Use our new simplified profile service
+  // Connect to relays first for better profile loading
+  const { connectToRelays, connectionStatus } = useRelays();
+  
+  useEffect(() => {
+    // Connect to relays when component mounts
+    connectToRelays().catch(err => 
+      console.error("Failed to connect to relays:", err)
+    );
+  }, [connectToRelays]);
+  
+  // Use our simplified profile service
   const {
     profileData,
     loading,
@@ -103,6 +114,22 @@ const ProfilePage = () => {
                   onClick={refreshProfile}
                 >
                   Try again
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {connectionStatus !== 'connected' && !metadata && (
+            <Alert variant="warning" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Connecting to relays... This may take a moment.
+                <Button 
+                  variant="link" 
+                  className="p-0 h-auto ml-2" 
+                  onClick={() => connectToRelays()}
+                >
+                  Retry connection
                 </Button>
               </AlertDescription>
             </Alert>
