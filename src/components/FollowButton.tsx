@@ -8,9 +8,10 @@ import { toast } from "sonner";
 interface FollowButtonProps {
   pubkey: string;
   className?: string;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 }
 
-const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
+const FollowButton = ({ pubkey, className, variant = "default" }: FollowButtonProps) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const currentUserPubkey = nostrService.publicKey;
@@ -65,7 +66,7 @@ const FollowButton = ({ pubkey, className }: FollowButtonProps) => {
   
   return (
     <Button
-      variant={isFollowing ? "outline" : "default"}
+      variant={isFollowing ? "outline" : variant}
       size="sm"
       className={className}
       onClick={handleFollowToggle}
