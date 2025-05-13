@@ -4,6 +4,7 @@ import { NostrEvent } from '@/lib/nostr';
 import NoteCard from '@/components/NoteCard';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProfilePostsListProps {
   posts: NostrEvent[];
@@ -64,44 +65,45 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
   }
   
   return (
-    <div 
-      ref={parentRef} 
-      className="overflow-auto" 
-      style={{ height: "calc(100vh - 350px)", minHeight: "400px" }}
-    >
-      {/* Define the container size based on virtualizer */}
-      <div
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          width: '100%',
-          position: 'relative',
-        }}
+    <ScrollArea className="h-[calc(100vh-350px)] min-h-[400px]">
+      <div 
+        ref={parentRef} 
+        className="custom-scrollbar w-full"
       >
-        {/* Only render the visible items */}
-        {rowVirtualizer.getVirtualItems().map(virtualRow => {
-          const post = posts[virtualRow.index];
-          return (
-            <div
-              key={post.id}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              <div className="py-2">
-                <NoteCard 
-                  event={post} 
-                  profileData={profileData} 
-                />
+        {/* Define the container size based on virtualizer */}
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {/* Only render the visible items */}
+          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+            const post = posts[virtualRow.index];
+            return (
+              <div
+                key={post.id}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <div className="py-2">
+                  <NoteCard 
+                    event={post} 
+                    profileData={profileData} 
+                  />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 };
 

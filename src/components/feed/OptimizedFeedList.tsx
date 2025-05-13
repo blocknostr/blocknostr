@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useInView } from "../shared/useInView";
 import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -75,49 +76,52 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         </div>
       )}
       
-      {/* Virtualized list */}
-      <div 
-        ref={parentRef} 
-        className="overflow-auto" 
-        style={{ height: "calc(100vh - 200px)", minHeight: "400px" }}
+      {/* Virtualized list with ScrollArea */}
+      <ScrollArea
+        className="h-[calc(100vh-200px)] min-h-[400px]"
       >
-        {/* Define the container size based on virtualizer */}
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
+        <div 
+          ref={parentRef} 
+          className="custom-scrollbar"
         >
-          {/* Only render the visible items */}
-          {rowVirtualizer.getVirtualItems().map(virtualRow => {
-            const event = events[virtualRow.index];
-            return (
-              <div
-                key={event.id || virtualRow.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-              >
-                <div className="py-2">
-                  <NoteCard 
-                    event={event} 
-                    profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                    repostData={event.id && repostData[event.id] ? {
-                      reposterPubkey: repostData[event.id].pubkey,
-                      reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                    } : undefined}
-                  />
+          {/* Define the container size based on virtualizer */}
+          <div
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {/* Only render the visible items */}
+            {rowVirtualizer.getVirtualItems().map(virtualRow => {
+              const event = events[virtualRow.index];
+              return (
+                <div
+                  key={event.id || virtualRow.index}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <div className="py-2">
+                    <NoteCard 
+                      event={event} 
+                      profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                      repostData={event.id && repostData[event.id] ? {
+                        reposterPubkey: repostData[event.id].pubkey,
+                        reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                      } : undefined}
+                    />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </ScrollArea>
       
       {/* Loading indicator at the bottom that triggers more content */}
       {hasMore && (
