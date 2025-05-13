@@ -22,17 +22,17 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
       disabled={disabled || isSubmitting}
       size="sm"
       className={cn(
-        "rounded-full font-medium transition-all duration-300",
-        isSubmitting ? "w-20" : "w-16",
+        "rounded-full font-medium transition-all duration-300 text-xs h-7",
+        isSubmitting ? "w-18" : "w-14",
         !disabled && "bg-primary hover:bg-primary/90 hover:scale-105 shadow-sm",
         disabled && "opacity-50",
         isScheduled && !disabled ? "bg-primary text-primary-foreground" : ""
       )}
     >
       {isSubmitting ? (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Loader2 className="h-3 w-3 animate-spin" />
-          <span className="text-xs">Posting</span>
+          <span>Posting</span>
         </div>
       ) : isScheduled ? 'Schedule' : 'Post'}
     </Button>

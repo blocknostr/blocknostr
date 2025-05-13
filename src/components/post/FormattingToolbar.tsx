@@ -1,4 +1,3 @@
-
 import { useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Bold, Italic, Smile, Calendar, Image } from "lucide-react";
@@ -93,11 +92,11 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     }, 0);
   };
 
-  const toolbarBtnClass = "rounded-full h-7 w-7 flex items-center justify-center transition-all duration-200";
-  const toolbarIconClass = "h-3.5 w-3.5";
+  const toolbarBtnClass = "rounded-full h-6 w-6 flex items-center justify-center transition-all duration-200";
+  const toolbarIconClass = "h-3 w-3";
 
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-0.5">
       {/* Bold button directly visible */}
       <Button 
         variant="ghost" 
@@ -160,8 +159,8 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 border-border/80 shadow-lg" align="start">
-          <div className="p-3">
-            <p className="text-sm font-medium mb-2">Schedule post</p>
+          <div className="p-2">
+            <p className="text-xs font-medium mb-1">Schedule post</p>
             <CalendarComponent
               mode="single"
               selected={scheduledDate}
@@ -172,7 +171,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             />
             
             {scheduledDate && (
-              <div className="flex justify-between items-center mt-3 pt-2 border-t border-border/30">
+              <div className="flex justify-between items-center mt-2 pt-1 border-t border-border/30">
                 <span className="text-xs text-muted-foreground">
                   {formatDistanceToNow(scheduledDate, { addSuffix: true })}
                 </span>
@@ -180,7 +179,7 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   variant="ghost" 
                   size="sm" 
                   onClick={() => setScheduledDate(null)}
-                  className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="hover:bg-destructive/10 hover:text-destructive transition-colors text-xs py-0.5 h-6"
                 >
                   Clear
                 </Button>

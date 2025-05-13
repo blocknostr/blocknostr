@@ -57,12 +57,12 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         />
         
         {detectedHashtags.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-1 flex flex-wrap gap-0.5">
             {detectedHashtags.map(tag => (
               <span 
                 key={tag} 
                 className={cn(
-                  "text-xs font-medium text-primary px-1.5 py-0.5 rounded-full bg-primary/10",
+                  "text-xs font-medium text-primary px-1 py-0.5 rounded-full bg-primary/10",
                   "transition-all duration-200 hover:bg-primary/15 hover:scale-105"
                 )}
               >
@@ -76,8 +76,7 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
       
       <div className={cn(
-        "border-t mt-2 pt-2 border-border/50",
-        mediaUrls.length > 0 ? "mt-1" : "mt-2"
+        "border-t mt-1 pt-1 border-border/50",
       )}>
         <NoteFormFooter
           textareaRef={textareaRef}

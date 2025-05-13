@@ -14,7 +14,7 @@ const CharacterCounter: React.FC<CharacterCounterProps> = ({
 }) => {
   return (
     <div className={cn(
-      "text-xs font-medium transition-all duration-300 min-w-[3rem] text-center",
+      "text-xs font-medium transition-all duration-300 min-w-[2.5rem] text-center",
       isNearLimit && !isOverLimit ? "text-amber-500" : 
       isOverLimit ? "text-red-500" : 
       "text-muted-foreground opacity-70",
