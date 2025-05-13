@@ -12,6 +12,7 @@ import NoteCardActions from '@/components/note/NoteCardActions';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
+import { SimplePool } from 'nostr-tools';
 import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 import { Note } from '@/components/notebin/hooks/types';
@@ -31,9 +32,10 @@ const PostPage = () => {
   });
   const [showReplies, setShowReplies] = useState(true);
   const [replyUpdated, setReplyUpdated] = useState(0);
+  const [pool] = useState(() => new SimplePool());
 
-  // Create SocialManager instance
-  const socialManager = new SocialManager();
+  // Create SocialManager instance with the SimplePool
+  const socialManager = new SocialManager(pool, {});
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -108,8 +110,8 @@ const PostPage = () => {
       if (!eventId) return;
       
       // Get reaction counts from the social manager
-      // Pass the eventId and relays to the SocialManager getReactionCounts method
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
+      // Pass the eventId and relays - remove SimplePool from parameters as it's already in the SocialManager
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
