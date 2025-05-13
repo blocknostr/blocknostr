@@ -1,6 +1,5 @@
-
 import { useState, useCallback } from 'react';
-import { isVideoUrl } from '@/lib/nostr/utils';
+import { isVideoUrl } from '@/lib/nostr/utils/media-extraction';
 
 interface UseMediaNavigationProps {
   urls: string[];

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NostrEvent } from '@/lib/nostr';
-import { extractFirstImageUrl } from '@/lib/nostr/utils';
+import { extractFirstImageUrl } from '@/lib/nostr/utils/media-extraction';
 import { LazyImage } from '@/components/shared/LazyImage';
 
 interface OptimizedMediaGridProps {

@@ -1,7 +1,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { extractMediaUrls, isValidMediaUrl } from '@/lib/nostr/utils';
+import { extractMediaUrls } from '@/lib/nostr/utils';
+import { isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
 import { toast } from 'sonner';
 import { contentCache } from '@/lib/nostr';
 

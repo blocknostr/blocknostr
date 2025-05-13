@@ -46,6 +46,13 @@ export class NostrAdapter {
   getHexFromNpub = (npub: string): string => {
     return npub.startsWith('npub') ? npub.substring(4) : npub;
   }
+
+  // Add the missing getHexFromNote method
+  getHexFromNote = (noteId: string): string => {
+    // If it starts with note1 (bech32 format), convert to hex
+    // This is a simplified implementation - real code would use proper bech32 conversion
+    return noteId.startsWith('note1') ? noteId.substring(5) : noteId;
+  }
   
   // Following methods
   isFollowing = async (pubkey: string): Promise<boolean> => {

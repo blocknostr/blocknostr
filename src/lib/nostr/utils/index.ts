@@ -1,5 +1,9 @@
+
 // Export NIP-related utilities
 export * from './nip';
 
+// Export media utility functions
+export * from './media-extraction';
+
 // Re-export common media utilities
-export { extractMediaUrls, extractLinkPreviewUrls } from './media/media-detection';
+export { extractAllUrls as extractMediaUrls, extractLinkPreviewUrls } from './media/media-detection';
