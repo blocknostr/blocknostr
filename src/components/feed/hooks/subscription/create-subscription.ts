@@ -1,5 +1,6 @@
 
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
+import { EventDeduplication } from "@/lib/nostr/utils";
 
 interface CreateSubscriptionOptions {
   following?: string[];
@@ -163,8 +164,6 @@ function processRegularNote(
   until?: number,
   mediaOnly: boolean = false
 ) {
-  import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
-  
   setEvents(prev => {
     // Check if we already have this event using deduplication
     if (EventDeduplication.hasEventId(prev, event.id)) {
