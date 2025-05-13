@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for detecting media URLs in text
  * Following NIP-94 recommendations for media content
@@ -10,12 +11,12 @@ const urlParseCache = new Map<string, string[]>();
  * Regular expressions for detecting different types of media URLs
  */
 export const mediaRegex = {
-  // Image URLs (jpg, jpeg, png, gif, webp)
-  image: /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi,
-  // Video URLs (mp4, webm, mov)
-  video: /(https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?)/gi,
-  // Audio URLs (mp3, wav, ogg)
-  audio: /(https?:\/\/[^\s]+\.(mp3|wav|ogg)(\?[^\s]*)?)/gi,
+  // Image URLs (jpg, jpeg, png, gif, webp, avif, svg)
+  image: /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|avif|svg|bmp|tiff)(\?[^\s]*)?)/gi,
+  // Video URLs (mp4, webm, mov, etc)
+  video: /(https?:\/\/[^\s]+\.(mp4|webm|mov|m4v|ogv|avi|mkv|flv)(\?[^\s]*)?)/gi,
+  // Audio URLs (mp3, wav, ogg, etc)
+  audio: /(https?:\/\/[^\s]+\.(mp3|wav|ogg|flac|aac|m4a)(\?[^\s]*)?)/gi,
   // General URLs - lower priority, used as fallback
   url: /(https?:\/\/[^\s]+)/gi
 };
@@ -34,13 +35,24 @@ export const getBaseUrl = (url: string): string => {
 };
 
 /**
+ * Cleans up the URL cache to prevent memory leaks
+ */
+export const cleanUrlCache = (): void => {
+  // Only clean if cache gets too large
+  if (urlParseCache.size > 1000) {
+    console.log("Cleaning URL parse cache...");
+    urlParseCache.clear();
+  }
+};
+
+/**
  * Extracts media URLs from content text
  */
 export const extractUrlsFromContent = (content: string): string[] => {
   if (!content) return [];
 
   // Check cache first
-  const cacheKey = `media-${content}`;
+  const cacheKey = `media-${content.substring(0, 100)}`; // Use first 100 chars as key to avoid huge keys
   if (urlParseCache.has(cacheKey)) {
     return urlParseCache.get(cacheKey) || [];
   }
@@ -86,7 +98,7 @@ export const extractAllUrls = (content: string): string[] => {
   if (!content) return [];
   
   // Check cache first
-  const cacheKey = `all-${content}`;
+  const cacheKey = `all-${content.substring(0, 100)}`; // Use first 100 chars as key
   if (urlParseCache.has(cacheKey)) {
     return urlParseCache.get(cacheKey) || [];
   }
@@ -104,9 +116,9 @@ export const extractAllUrls = (content: string): string[] => {
   
   // Then extract any remaining URLs
   try {
-    mediaRegex.url.lastIndex = 0; // Reset the regex state
+    const urlRegex = new RegExp(mediaRegex.url.source, 'gi');
     let match;
-    while ((match = mediaRegex.url.exec(content)) !== null) {
+    while ((match = urlRegex.exec(content)) !== null) {
       const url = match[0];
       const baseUrl = getBaseUrl(url);
       
@@ -130,9 +142,15 @@ export const extractAllUrls = (content: string): string[] => {
  * Checks if a URL is a media URL (image, video, audio)
  */
 export const isMediaUrl = (url: string): boolean => {
-  return !!(url.match(mediaRegex.image) || 
-           url.match(mediaRegex.video) || 
-           url.match(mediaRegex.audio));
+  if (!url) return false;
+  
+  try {
+    return !!(url.match(mediaRegex.image) || 
+             url.match(mediaRegex.video) || 
+             url.match(mediaRegex.audio));
+  } catch (e) {
+    return false;
+  }
 };
 
 /**

@@ -26,6 +26,8 @@ const VideoPreview = ({
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [isMuted, setIsMuted] = useState(true);
   const [showControls, setShowControls] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [errorOccurred, setErrorOccurred] = useState(false);
   
   // Handle quality settings
   const getQualitySettings = () => {
@@ -75,6 +77,26 @@ const VideoPreview = ({
   // Show/hide controls on hover
   const handleMouseEnter = () => setShowControls(true);
   const handleMouseLeave = () => setShowControls(false);
+  
+  // Handle video loaded data event
+  const handleLoadedData = useCallback(() => {
+    setHasLoaded(true);
+    onLoad();
+    
+    // Auto-play if requested (and if the browser allows it)
+    if (autoPlay && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.warn("Auto-play blocked by browser:", err);
+      });
+    }
+  }, [autoPlay, onLoad]);
+  
+  // Handle video error event
+  const handleError = useCallback(() => {
+    setErrorOccurred(true);
+    console.error("Video failed to load:", url);
+    onError();
+  }, [url, onError]);
   
   // Pause video when it goes out of view
   useEffect(() => {
@@ -130,13 +152,13 @@ const VideoPreview = ({
         loop
         playsInline
         onClick={controls ? undefined : handleTogglePlay}
-        onLoadedData={onLoad}
-        onError={onError}
+        onLoadedData={handleLoadedData}
+        onError={handleError}
         {...qualitySettings}
       />
       
       {/* Custom video controls overlay */}
-      {!controls && showControls && (
+      {!controls && showControls && hasLoaded && (
         <div 
           className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
           onClick={handleTogglePlay}
@@ -170,4 +192,4 @@ const VideoPreview = ({
   );
 };
 
-export default VideoPreview;
+export default React.memo(VideoPreview);

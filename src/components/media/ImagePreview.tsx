@@ -24,6 +24,7 @@ const ImagePreview = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const initialUrlRef = useRef(url);
+  const imageRef = useRef<HTMLImageElement>(null);
   
   // Generate consistent cache-busting URL with the same pattern as LazyImage
   const currentUrl = React.useMemo(() => {
@@ -49,8 +50,13 @@ const ImagePreview = ({
   }, [url]);
   
   const handleLoad = () => {
-    setIsLoaded(true);
-    onLoad();
+    if (imageRef.current && imageRef.current.naturalWidth > 0) {
+      setIsLoaded(true);
+      onLoad();
+    } else {
+      // Image loaded but has no dimensions - likely an error
+      handleError();
+    }
   };
   
   const handleError = () => {
@@ -66,6 +72,7 @@ const ImagePreview = ({
   return (
     <>
       <img 
+        ref={imageRef}
         src={currentUrl} 
         alt={alt || "Media attachment"} 
         className={cn(
@@ -77,6 +84,7 @@ const ImagePreview = ({
         loading={lazyLoad ? "lazy" : "eager"}
         onLoad={handleLoad}
         onError={handleError}
+        decoding="async"
       />
       {!isLoaded && (
         <div className="absolute inset-0 bg-muted/30 animate-pulse" />
@@ -85,4 +93,4 @@ const ImagePreview = ({
   );
 };
 
-export default ImagePreview;
+export default React.memo(ImagePreview);

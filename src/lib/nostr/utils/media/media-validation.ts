@@ -3,6 +3,23 @@
  * Validation utilities for media URLs
  */
 
+// List of trusted media domains for Nostr
+const TRUSTED_MEDIA_HOSTS = [
+  'i.imgur.com', 
+  'media.nostr.band', 
+  'void.cat', 
+  'nostr.build', 
+  'primal.net', 
+  'mako.co.il', 
+  'v.nostr.build',
+  'image.nostr.build',
+  'cdn.nostr.build',
+  'nostrcheck.me',
+  'media.snort.social',
+  'files.zbd.gg',
+  'imgproxy.snort.social'
+];
+
 /**
  * Normalizes a URL by ensuring it has a protocol
  * @param url The URL to normalize
@@ -59,16 +76,20 @@ export const isValidMediaUrl = (url: string): boolean => {
     }
 
     // Check for known media hosting domains
-    const mediaHosts = ['i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 'primal.net', 'mako.co.il', 'v.nostr.build'];
-    for (const host of mediaHosts) {
+    for (const host of TRUSTED_MEDIA_HOSTS) {
       if (normalizedUrl.includes(host)) {
         return true; // Common Nostr media hosts
       }
     }
     
-    return true;
+    // Check for common media extensions
+    if (isImageUrl(normalizedUrl) || isVideoUrl(normalizedUrl) || isAudioUrl(normalizedUrl)) {
+      return true;
+    }
+    
+    return true; // If it passed URL validation, we'll give it a chance
   } catch (error) {
-    console.log('Invalid URL:', url, error);
+    console.error('Invalid URL:', url, error);
     return false;
   }
 };
@@ -77,24 +98,33 @@ export const isValidMediaUrl = (url: string): boolean => {
  * Tests if a URL is an image by extension
  */
 export const isImageUrl = (url: string): boolean => {
-  if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i);
+  try {
+    return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp|tiff)(\?.*)?$/i);
+  } catch (e) {
+    return false;
+  }
 };
 
 /**
  * Tests if a URL is a video by extension
  */
 export const isVideoUrl = (url: string): boolean => {
-  if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i);
+  try {
+    return !!url.match(/\.(mp4|webm|mov|m4v|ogv|avi|mkv|flv)(\?.*)?$/i);
+  } catch (e) {
+    return false;
+  }
 };
 
 /**
  * Tests if a URL is audio by extension
  */
 export const isAudioUrl = (url: string): boolean => {
-  if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i);
+  try {
+    return !!url.match(/\.(mp3|wav|ogg|flac|aac|m4a)(\?.*)?$/i);
+  } catch (e) {
+    return false;
+  }
 };
 
 /**
@@ -104,3 +134,4 @@ export const isSecureUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return url.startsWith('https://');
 };
+
