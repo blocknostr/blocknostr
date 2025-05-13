@@ -93,11 +93,11 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     }, 0);
   };
 
-  const toolbarBtnClass = "rounded-full h-9 w-9 flex items-center justify-center transition-all duration-200";
-  const toolbarIconClass = "h-4 w-4";
+  const toolbarBtnClass = "rounded-full h-7 w-7 flex items-center justify-center transition-all duration-200";
+  const toolbarIconClass = "h-3.5 w-3.5";
 
   return (
-    <div className="flex gap-2 py-1">
+    <div className="flex gap-1">
       {/* Bold button directly visible */}
       <Button 
         variant="ghost" 
