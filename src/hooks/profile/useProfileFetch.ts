@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { contentCache } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -29,9 +28,16 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
       console.log("Fetching profile for hex pubkey:", hexPubkey);
 
       // Check cache first
-      const cachedProfile = contentCache.getProfile(hexPubkey);
+      let cachedProfile = contentCache.getProfile(hexPubkey);
+      if (!cachedProfile) {
+        cachedProfile = undefined;
+      }
+      // Always ensure cachedProfile is a valid ProfileData
+      if (cachedProfile && (typeof cachedProfile !== 'object' || !('name' in cachedProfile))) {
+        cachedProfile = undefined;
+      }
       if (cachedProfile) {
-        console.log("Found cached profile:", 
+        console.log("Found cached profile:",
           cachedProfile.name || cachedProfile.display_name || "Unknown");
 
         if (onSuccess) {
@@ -44,10 +50,13 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
 
       try {
         const profileMetadata = await fetchProfileWithRetry(hexPubkey);
-        
         // Always ensure we have a valid profile object, even if minimal
         const finalProfile = profileMetadata || createMinimalProfile(hexPubkey);
-        
+        // Defensive: if finalProfile is missing required fields, fallback
+        if (!finalProfile || typeof finalProfile !== 'object' || !('name' in finalProfile)) {
+          console.warn("Fetched profile is invalid, using minimal profile");
+          finalProfile = createMinimalProfile(hexPubkey);
+        }
         console.log("Profile fetched successfully:", finalProfile.name || "Unknown");
         const processedProfile = handleProfileCache(hexPubkey, finalProfile);
 
@@ -86,11 +95,9 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
     } catch (error) {
       console.error("Error fetching profile metadata:", error);
       const minimalProfile = createMinimalProfile(hexPubkey);
-      
       if (onSuccess) {
         onSuccess(minimalProfile);
       }
-      
       setLoading(false);
       return minimalProfile;
     } finally {
