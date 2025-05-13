@@ -19,13 +19,12 @@ export const EVENT_KINDS = {
   BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
   BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
   
-  // Community-specific events (NIP-72)
-  COMMUNITY_DEFINITION: 34550, // Community definition (NIP-72)
-  COMMUNITY_METADATA: 30009, // Community metadata as parameterized replaceable event (NIP-72)
-  COMMUNITY_POST: 1310, // Post to a community (NIP-72)
-  COMMUNITY_APPROVAL: 1311, // Community approval event (NIP-72)
-  COMMUNITY_DELETION: 9, // Deletion of a community post (NIP-09 + NIP-72)
-  COMMUNITY_MODERATION: 4550, // Community moderation event (NIP-72)
+  // Community-specific events (custom)
+  COMMUNITY: 34550, // Community definition event
+  PROPOSAL: 34551, // Community proposal event
+  VOTE: 34552, // Vote on a community proposal
+  BLOCK_LIST: 10000, // User block list
+  MUTE_LIST: 10001, // User mute list
   
   // Specialized events (NIP-22, NIP-40)
   CHANNEL_CREATION: 40, // Channel creation
@@ -36,24 +35,4 @@ export const EVENT_KINDS = {
   
   ZAP_REQUEST: 9734, // Zap request (NIP-57)
   ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
-  
-  // For backward compatibility - using our custom events with proper mapping
-  PROPOSAL: 30301, // Community proposal event (custom mapped to NIP compatible kind)
-  VOTE: 7 // Using standard reaction kind for votes (NIP-25)
 }
-
-// Add NIP-72 specific constants
-export const NIP72 = {
-  VERSION: "1.0.0", // Current supported version of NIP-72
-  D_TAG_PREFIX: "34550:", // Prefix for community d-tag identifiers
-  KIND_METADATA: 30009, // Community metadata (replaceable)
-  KIND_POST: 1310, // Post to a community
-  KIND_APPROVAL: 1311, // Approval of a post
-  PARAM_SEPARATOR: ":",
-  ACTION_TYPES: {
-    CREATE: "create",
-    UPDATE: "update",
-    DELETE: "delete",
-    MODERATE: "moderate"
-  }
-};

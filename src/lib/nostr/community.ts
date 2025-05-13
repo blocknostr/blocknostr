@@ -1,7 +1,7 @@
 
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
-import { EVENT_KINDS, NIP72 } from './constants';
+import { EVENT_KINDS } from './constants';
 import type { ProposalCategory } from '@/types/community';
 
 export class CommunityManager {
@@ -12,7 +12,7 @@ export class CommunityManager {
   }
   
   /**
-   * Create a new community following NIP-72 standard
+   * Create a new community
    * @returns Community ID if successful, null otherwise
    */
   async createCommunity(
@@ -25,28 +25,24 @@ export class CommunityManager {
   ): Promise<string | null> {
     if (!publicKey) return null;
     
-    // Generate community ID according to NIP-72 
-    const randomId = Math.random().toString(36).substring(2, 10);
-    const uniqueId = `${NIP72.D_TAG_PREFIX}${randomId}`;
+    const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Create community metadata according to NIP-72
+    // Create community metadata
     const communityData = {
       name,
       description,
       creator: publicKey,
-      created_at: Math.floor(Date.now() / 1000),
-      image: "", // Optional image URL
-      version: NIP72.VERSION
+      createdAt: Math.floor(Date.now() / 1000),
+      image: "" // Optional image URL
     };
     
-    // Create NIP-72 compatible event
+    // Create NIP-172 compatible event
     const event = {
-      kind: EVENT_KINDS.COMMUNITY_DEFINITION,
+      kind: EVENT_KINDS.COMMUNITY,
       content: JSON.stringify(communityData),
       tags: [
         ["d", uniqueId], // Unique identifier for this community
-        ["p", publicKey], // Creator is the first member
-        ["nip", "72"] // Explicitly mark as NIP-72 compliant
+        ["p", publicKey] // Creator is the first member
       ]
     };
     
@@ -54,7 +50,7 @@ export class CommunityManager {
   }
   
   /**
-   * Create a proposal for a community using NIP-72 replaceable events
+   * Create a proposal for a community
    */
   async createProposal(
     pool: SimplePool,
@@ -74,7 +70,7 @@ export class CommunityManager {
     // Default end time is 7 days from now if not specified
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
     
-    // Create proposal data with NIP-72 compatibility
+    // Create proposal data
     const proposalData = {
       title,
       description,
@@ -82,12 +78,8 @@ export class CommunityManager {
       category,
       createdAt: Math.floor(Date.now() / 1000),
       endsAt: endTime,
-      minQuorum: minQuorum || 0, // Default 0 means no quorum requirement
-      version: NIP72.VERSION
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
     };
-    
-    // Create unique proposal identifier
-    const proposalUniqueId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
     
     // Create proposal event
     const event = {
@@ -95,9 +87,7 @@ export class CommunityManager {
       content: JSON.stringify(proposalData),
       tags: [
         ["e", communityId], // Reference to community event
-        ["d", proposalUniqueId], // Unique identifier for replaceable event
-        ["nip", "72"], // Explicitly mark as NIP-72 compliant
-        ["client", "BlockNoster"] // Identify our client
+        ["d", `proposal_${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
       ]
     };
     
@@ -108,7 +98,6 @@ export class CommunityManager {
    * Vote on a proposal
    * @param proposalId ID of the proposal event
    * @param optionIndex Index of the selected option (0-based)
-   * Uses standard reaction event (kind 7) for compatibility with NIP-25 and NIP-72
    */
   async voteOnProposal(
     pool: SimplePool,
@@ -120,14 +109,12 @@ export class CommunityManager {
   ): Promise<string | null> {
     if (!publicKey || !proposalId) return null;
     
-    // Create vote event using standard reaction kind (7) for NIP-72 compatibility
+    // Create vote event
     const event = {
-      kind: EVENT_KINDS.REACTION,
-      content: optionIndex.toString(), // Store option index as content string
+      kind: EVENT_KINDS.VOTE,
+      content: JSON.stringify({ optionIndex }),
       tags: [
         ["e", proposalId], // Reference to proposal event
-        ["nip", "72"], // Explicitly mark as NIP-72 compliant
-        ["client", "BlockNoster"], // Identify our client
         ["d", `vote_${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
       ]
     };

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { NostrEvent, nostrService, EVENT_KINDS, NIP72 } from "@/lib/nostr";
+import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
 import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
@@ -19,11 +18,11 @@ const Communities = () => {
     const loadCommunities = async () => {
       await nostrService.connectToUserRelays();
       
-      // Subscribe to community events following NIP-72 standard
+      // Subscribe to community events
       const communitySubId = nostrService.subscribe(
         [
           {
-            kinds: [EVENT_KINDS.COMMUNITY_DEFINITION],
+            kinds: [EVENT_KINDS.COMMUNITY],
             limit: 30
           }
         ],
@@ -44,7 +43,7 @@ const Communities = () => {
     try {
       if (!event.id) return;
       
-      // Find the unique identifier tag according to NIP-72
+      // Find the unique identifier tag
       const idTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'd');
       if (!idTag) return;
       const uniqueId = idTag[1];
@@ -59,18 +58,12 @@ const Communities = () => {
         return;
       }
       
-      // Validate NIP-72 compliance
-      const hasNip72Tag = event.tags.some(tag => 
-        tag.length >= 2 && tag[0] === 'nip' && tag[1] === '72'
-      );
-      
-      // Verify this is actually a community event by checking crucial fields
+      // Skip communities without a proper name or with the name 'Unnamed Community'
       if (!communityData.name || communityData.name.trim() === '' || communityData.name === 'Unnamed Community') {
-        console.log("Skipping event without proper community name:", event);
         return;
       }
       
-      // Get members from tags according to NIP-72
+      // Get members from tags
       const memberTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
       const members = memberTags.map(tag => tag[1]);
       
@@ -82,8 +75,7 @@ const Communities = () => {
         creator: event.pubkey || '',
         createdAt: event.created_at,
         members,
-        uniqueId,
-        nip72Compliant: hasNip72Tag || uniqueId.startsWith(NIP72.D_TAG_PREFIX) // Track NIP-72 compliance
+        uniqueId
       };
       
       setCommunities(prev => {
@@ -95,7 +87,7 @@ const Communities = () => {
         // Check if we have a community with the same uniqueId but older
         const existingIndex = prev.findIndex(c => c.uniqueId === uniqueId);
         if (existingIndex >= 0) {
-          // Replace if this one is newer (handling replaceable events)
+          // Replace if this one is newer
           if (prev[existingIndex].createdAt < community.createdAt) {
             const updated = [...prev];
             updated[existingIndex] = community;

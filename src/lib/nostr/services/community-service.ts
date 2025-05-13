@@ -1,12 +1,11 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
-import { EVENT_KINDS, NIP72 } from '../constants';
+import { EVENT_KINDS } from '../constants';
 import type { ProposalCategory } from '@/types/community';
 
 /**
  * Community service to handle community-related operations 
- * Implements NIP-72 compatible methods
+ * Implements NIP-172 compatible methods
  */
 export class CommunityService {
   constructor(
@@ -18,7 +17,6 @@ export class CommunityService {
 
   /**
    * Fetch a community by ID
-   * Implements NIP-72 standard for community retrieval
    */
   async fetchCommunity(communityId: string): Promise<any> {
     if (!communityId) return null;
@@ -27,15 +25,10 @@ export class CommunityService {
       const connectedRelays = this.getConnectedRelayUrls();
       
       return new Promise((resolve) => {
-        // Construct d-tag properly according to NIP-72
-        const dTag = communityId.startsWith(NIP72.D_TAG_PREFIX) 
-          ? communityId 
-          : `${NIP72.D_TAG_PREFIX}${communityId}`;
-          
         // Properly construct a single filter object according to nostr-tools Filter type
         const filter: Filter = {
-          kinds: [EVENT_KINDS.COMMUNITY_DEFINITION],
-          '#d': [dTag],
+          kinds: [EVENT_KINDS.COMMUNITY],
+          '#d': [communityId],
           limit: 1
         };
         
@@ -52,7 +45,7 @@ export class CommunityService {
                   community.id = event.id;
                   community.uniqueId = communityId;
                   
-                  // Process members from the tags according to NIP-72
+                  // Process members from the tags
                   const members = event.tags
                     .filter(tag => tag.length >= 2 && tag[0] === 'p')
                     .map(tag => tag[1]);
@@ -102,7 +95,6 @@ export class CommunityService {
 
   /**
    * Create a new community
-   * Implements NIP-72 standard for community creation with replaceable events
    */
   async createCommunity(
     name: string,
@@ -110,29 +102,25 @@ export class CommunityService {
   ): Promise<string | null> {
     if (!this.publicKey) return null;
     
-    // Generate a unique identifier according to NIP-72
-    const randomId = Math.random().toString(36).substring(2, 10);
-    const uniqueId = `${NIP72.D_TAG_PREFIX}${randomId}`;
+    const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
     const relays = this.getConnectedRelayUrls();
     
-    // Create community metadata per NIP-72
+    // Create community metadata
     const communityData = {
       name,
       description,
       creator: this.publicKey,
-      created_at: Math.floor(Date.now() / 1000),
-      image: "", // Optional image URL
-      version: NIP72.VERSION
+      createdAt: Math.floor(Date.now() / 1000),
+      image: "" // Optional image URL
     };
     
-    // Create NIP-72 compatible event
+    // Create NIP-172 compatible event
     const event = {
-      kind: EVENT_KINDS.COMMUNITY_DEFINITION,
+      kind: EVENT_KINDS.COMMUNITY,
       content: JSON.stringify(communityData),
       tags: [
         ["d", uniqueId], // Unique identifier for this community
-        ["p", this.publicKey], // Creator is the first member
-        ["nip", "72"] // Explicitly mark as NIP-72 compliant
+        ["p", this.publicKey] // Creator is the first member
       ]
     };
     
@@ -152,7 +140,6 @@ export class CommunityService {
   
   /**
    * Create a proposal for a community
-   * Using NIP-72 compatible event structure
    */
   async createProposal(
     communityId: string,
@@ -177,21 +164,18 @@ export class CommunityService {
       category,
       createdAt: Math.floor(Date.now() / 1000),
       endsAt: endTime,
-      minQuorum: minQuorum || 0, // Default 0 means no quorum requirement
-      version: NIP72.VERSION
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
     };
     
     const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Create proposal event using parameterized replaceable event kind
+    // Create proposal event
     const event = {
       kind: EVENT_KINDS.PROPOSAL,
       content: JSON.stringify(proposalData),
       tags: [
         ["e", communityId], // Reference to community event
-        ["d", proposalId], // Unique identifier
-        ["nip", "72"], // Explicitly mark as NIP-72 compliant
-        ["client", "BlockNoster"] // Identify our client
+        ["d", proposalId] // Unique identifier
       ]
     };
     
@@ -213,7 +197,6 @@ export class CommunityService {
    * Vote on a proposal
    * @param proposalId ID of the proposal event
    * @param optionIndex Index of the selected option (0-based)
-   * Uses standard reaction event (kind 7) as per NIP-25 and NIP-72
    */
   async voteOnProposal(
     proposalId: string,
@@ -222,14 +205,12 @@ export class CommunityService {
     if (!this.publicKey || !proposalId) return null;
     const relays = this.getConnectedRelayUrls();
     
-    // Create vote event using reaction (kind: 7) as per NIP-72
+    // Create vote event
     const event = {
-      kind: EVENT_KINDS.REACTION,
-      content: optionIndex.toString(), // Convert option index to string for NIP-25 compatibility
+      kind: EVENT_KINDS.VOTE,
+      content: JSON.stringify({ optionIndex }),
       tags: [
-        ["e", proposalId], // Reference to proposal event
-        ["nip", "72"], // Explicitly mark as NIP-72 compliant
-        ["client", "BlockNoster"] // Identify our client
+        ["e", proposalId] // Reference to proposal event
       ]
     };
     

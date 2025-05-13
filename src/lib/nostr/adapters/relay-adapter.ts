@@ -1,5 +1,6 @@
+
 import { BaseAdapter } from './base-adapter';
-import { parseRelayList } from '../utils/nip';
+import { parseRelayList } from '../utils/nip-utilities';
 import { toast } from 'sonner';
 
 /**
@@ -33,7 +34,7 @@ export class RelayAdapter extends BaseAdapter {
   async getRelaysForUser(pubkey: string): Promise<string[]> {
     try {
       // Subscribe to relay list events (NIP-65 kind: 10002)
-      return new Promise<string[]>((resolve) => {
+      return new Promise((resolve) => {
         let resolved = false;
         let timeoutId: ReturnType<typeof setTimeout>;
         
