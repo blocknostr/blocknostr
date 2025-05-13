@@ -19,17 +19,18 @@ const Sidebar = () => {
       )}
     >
       <div className="flex flex-col h-full px-4">
-        {/* Theme-aware, thick wordmark */}
+        {/* Theme-aware, thick wordmark with subtle white glow */}
         <div className="mb-6 flex items-center justify-center">
           <Link
             to="/"
             className={cn(
-              "text-3xl",           // larger size
-              "font-extrabold",     // heavy weight
-              "tracking-tight",     // tight kerning
+              "text-3xl",                   // larger size
+              "font-extrabold",             // heavy weight
+              "tracking-tight",             // tight kerning
               "hover:opacity-80 transition-opacity",
-              "drop-shadow-lg",     // subtle glow/shadow
-              // text color: black in light mode, white in dark mode
+              // subtle white glow
+              "filter drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]",
+              // text color: black in light, white in dark
               "text-black dark:text-white"
             )}
           >
