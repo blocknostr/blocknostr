@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
@@ -9,6 +8,7 @@ import { extractFirstImageUrl } from "@/lib/nostr/utils";
 import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
 import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
+import ProfileLoadingSkeleton from "./ProfileLoadingSkeleton";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -162,6 +162,9 @@ const ProfileTabs = ({
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setPostsLimit(10); // Reset pagination when changing tabs
+    
+    // Scroll back to top when changing tabs
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   // Fetch profiles for reaction posts when likes tab is active
@@ -259,10 +262,7 @@ const ProfileTabs = ({
         {/* Replies Tab */}
         <TabsContent value="replies" className="mt-4">
           {repliesLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading replies...</span>
-            </div>
+            <ProfileLoadingSkeleton count={2} />
           ) : !displayedReplies || displayedReplies.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No replies found.
@@ -284,10 +284,7 @@ const ProfileTabs = ({
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
           {repostsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading reposts...</span>
-            </div>
+            <ProfileLoadingSkeleton count={2} />
           ) : (!tabReposts || tabReposts.length === 0) && (!reposts || reposts.length === 0) ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
@@ -348,10 +345,7 @@ const ProfileTabs = ({
         {/* Likes Tab */}
         <TabsContent value="likes" className="mt-4">
           {reactionsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading likes...</span>
-            </div>
+            <ProfileLoadingSkeleton count={2} />
           ) : !tabReactions || tabReactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No likes found.
