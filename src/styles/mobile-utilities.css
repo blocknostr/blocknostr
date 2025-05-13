@@ -1,0 +1,64 @@
+
+/* Ensure proper tap targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .card {
+    @apply mx-auto max-w-[95%];
+  }
+  
+  /* Allow smaller heights for specific UI elements that need it */
+  .h-auto,
+  .min-h-auto,
+  button.h-auto,
+  button.min-h-auto {
+    min-height: auto;
+  }
+}
+
+/* Improve swipe gesture detection */
+.sheet-open {
+  overflow: hidden;
+}
+
+/* Ensure the content area fills available space */
+.app-content {
+  @apply flex-1 min-h-screen w-full;
+}
+
+/* Theme toggle button styles */
+.theme-toggle-button {
+  position: relative;
+  z-index: 10;
+}
+
+/* Facebook Messenger specific styles */
+.fb-message-transition {
+  transition: all 0.2s ease;
+}
+
+.contact-item {
+  @apply transition-colors duration-200 hover:bg-accent/30 rounded-md;
+}
+
+.contact-item-active {
+  @apply bg-accent;
+}
+
+.messenger-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.message-input {
+  @apply rounded-full bg-muted/30 focus-within:ring-1 focus-within:ring-primary/50;
+}
+
+.online-indicator {
+  @apply absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background;
+}

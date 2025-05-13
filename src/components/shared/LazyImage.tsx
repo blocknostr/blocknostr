@@ -1,13 +1,11 @@
 
-import React, { useState } from 'react';
-import { useInView } from 'react-intersection-observer';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-  src: string;
-  alt: string;
   loadingClassName?: string;
-  placeholderSrc?: string;
+  errorClassName?: string;
+  fallbackSrc?: string;
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -15,64 +13,119 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   alt,
   className,
   loadingClassName,
-  placeholderSrc,
+  errorClassName,
+  fallbackSrc,
   ...props
 }) => {
-  const [loaded, setLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
-  const { ref, inView } = useInView({
-    triggerOnce: true,
-    rootMargin: '200px 0px', // Start loading 200px before it comes into view
-  });
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
+  const [isInView, setIsInView] = useState(false);
+  const imgRef = React.useRef<HTMLImageElement>(null);
+  
+  useEffect(() => {
+    if (!src) {
+      setError(true);
+      setIsLoading(false);
+      return;
+    }
 
-  const handleLoad = () => setLoaded(true);
-  const handleError = () => setError(true);
+    // Reset states when src changes
+    setIsLoading(true);
+    setError(false);
+    
+    // Use Intersection Observer to only load when in viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setIsInView(true);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 } // Start loading when 10% visible
+    );
+
+    const currentRef = imgRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [src]);
+  
+  // When in view, load the image
+  useEffect(() => {
+    if (!isInView || !src) return;
+    
+    // Create new image object to preload
+    const img = new Image();
+    img.src = src;
+    
+    img.onload = () => {
+      setImgSrc(src);
+      setIsLoading(false);
+    };
+    
+    img.onerror = () => {
+      setError(true);
+      setIsLoading(false);
+      if (fallbackSrc) {
+        setImgSrc(fallbackSrc);
+      }
+    };
+    
+    // Clean up
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src, fallbackSrc, isInView]);
 
   return (
-    <div 
-      ref={ref} 
+    <div
+      ref={imgRef}
       className={cn(
-        'relative overflow-hidden',
-        !loaded && loadingClassName,
+        "overflow-hidden",
+        isLoading ? loadingClassName : "",
+        error && !fallbackSrc ? errorClassName : "",
         className
       )}
     >
-      {inView ? (
-        <>
-          <img
-            src={error ? placeholderSrc || '/placeholder-image.jpg' : src}
-            alt={alt}
-            className={cn(
-              'transition-opacity duration-300 ease-in-out object-cover w-full h-full',
-              loaded ? 'opacity-100' : 'opacity-0'
-            )}
-            loading="lazy"
-            onLoad={handleLoad}
-            onError={handleError}
-            {...props}
-          />
-          
-          {/* Placeholder shown until image loads */}
-          {!loaded && !error && (
-            <div className={cn(
-              'absolute inset-0 animate-pulse bg-muted',
-              loadingClassName
-            )} />
+      {isInView && !error && imgSrc && (
+        <img
+          src={imgSrc}
+          alt={alt || "Image"}
+          className={cn(
+            "w-full h-full object-cover transition-opacity duration-300",
+            isLoading ? "opacity-0" : "opacity-100"
           )}
-          
-          {/* Error state */}
-          {error && !placeholderSrc && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">
-              <span className="text-xs">Failed to load image</span>
-            </div>
-          )}
-        </>
-      ) : (
-        // Show a placeholder until in view
+          onError={() => setError(true)}
+          {...props}
+        />
+      )}
+      
+      {isLoading && (
         <div className={cn(
-          'w-full h-full bg-muted',
+          "flex items-center justify-center w-full h-full bg-muted/30",
           loadingClassName
-        )} />
+        )}>
+          <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin" />
+        </div>
+      )}
+      
+      {error && !fallbackSrc && (
+        <div className={cn(
+          "flex items-center justify-center w-full h-full bg-muted/30 text-muted-foreground text-sm",
+          errorClassName
+        )}>
+          Failed to load image
+        </div>
       )}
     </div>
   );
