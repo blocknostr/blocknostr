@@ -86,84 +86,81 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       )}
       
-      {/* Fixed header section with create note form and tabs */}
-      <div className="sticky top-14 z-30 bg-background pt-4 pb-1">
-        <CreateNoteForm />
-        
-        <Tabs 
-          value={activeTab} 
-          onValueChange={handleTabChange}
-          className="mt-4 relative"
-        >
-          {/* Fixed tabs bar with sticky positioning and backdrop blur */}
-          <div className={cn(
-            "bg-background/90 backdrop-blur-md py-1",
-            "transition-shadow duration-300",
-            scrolledDown ? "shadow-md" : "",
-            "border-b border-border/50"
+      <CreateNoteForm />
+      
+      <Tabs 
+        value={activeTab} 
+        onValueChange={handleTabChange}
+        className="mt-4 relative"
+      >
+        {/* Fixed tabs bar with sticky positioning and backdrop blur */}
+        <div className={cn(
+          "sticky top-14 z-20 bg-background/80 backdrop-blur-md py-1",
+          "transition-shadow duration-300",
+          scrolledDown ? "shadow-md" : "",
+          "border-b border-border/50"
+        )}>
+          <TabsList className={cn(
+            "w-full",
+            isMobile ? "grid grid-cols-5" : "flex"
           )}>
-            <TabsList className={cn(
-              "w-full",
-              isMobile ? "grid grid-cols-5" : "flex"
-            )}>
-              <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
-              <TabsTrigger 
-                value="following" 
-                className="flex-1" 
-                disabled={!isLoggedIn}
-              >
-                Following
-              </TabsTrigger>
-              <TabsTrigger value="for-you" className="flex-1">
-                For You
-              </TabsTrigger>
-              <TabsTrigger value="media" className="flex-1">
-                <Image className="h-4 w-4 mr-1" />
-                Media
-              </TabsTrigger>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setIsCustomizationDialogOpen(true)}
-                title="Customize feed"
-                className="size-10"
-              >
-                <Settings size={18} />
-              </Button>
-            </TabsList>
-          </div>
+            <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
+            <TabsTrigger 
+              value="following" 
+              className="flex-1" 
+              disabled={!isLoggedIn}
+            >
+              Following
+            </TabsTrigger>
+            <TabsTrigger value="for-you" className="flex-1">
+              For You
+            </TabsTrigger>
+            <TabsTrigger value="media" className="flex-1">
+              <Image className="h-4 w-4 mr-1" />
+              Media
+            </TabsTrigger>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setIsCustomizationDialogOpen(true)}
+              title="Customize feed"
+              className="size-10"
+            >
+              <Settings size={18} />
+            </Button>
+          </TabsList>
+        </div>
+        
+        {/* Connection Status Banner - Below the tabs */}
+        <div className="pt-4">
+          {isLoggedIn && <ConnectionStatusBanner />}
+        </div>
+        
+        {/* Feed content with padding to account for fixed tabs */}
+        <div className="mt-2">
+          <TabsContent value="global">
+            <GlobalFeed activeHashtag={activeHashtag} />
+          </TabsContent>
           
-          {/* Connection Status Banner - Below the tabs */}
-          <div className="pt-4">
-            {isLoggedIn && <ConnectionStatusBanner />}
-          </div>
+          <TabsContent value="following">
+            {!isLoggedIn ? (
+              <div className="py-8 text-center text-muted-foreground">
+                You need to log in to see posts from people you follow.
+              </div>
+            ) : (
+              <FollowingFeed activeHashtag={activeHashtag} />
+            )}
+          </TabsContent>
           
-          {/* Feed content with padding to account for fixed tabs */}
-          <div className="mt-2">
-            <TabsContent value="global">
-              <GlobalFeed activeHashtag={activeHashtag} />
-            </TabsContent>
-            
-            <TabsContent value="following">
-              {!isLoggedIn ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  You need to log in to see posts from people you follow.
-                </div>
-              ) : (
-                <FollowingFeed activeHashtag={activeHashtag} />
-              )}
-            </TabsContent>
-            
-            <TabsContent value="for-you">
-              <ForYouFeed activeHashtag={activeHashtag} />
-            </TabsContent>
-            
-            <TabsContent value="media">
-              <MediaFeed activeHashtag={activeHashtag} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+          <TabsContent value="for-you">
+            <ForYouFeed activeHashtag={activeHashtag} />
+          </TabsContent>
+          
+          <TabsContent value="media">
+            <MediaFeed activeHashtag={activeHashtag} />
+          </TabsContent>
+        </div>
+      </Tabs>
 
       {/* Customization Dialog */}
       <FeedCustomizationDialog 
