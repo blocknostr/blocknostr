@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
+import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -107,6 +108,9 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             <Settings size={18} />
           </Button>
         </TabsList>
+        
+        {/* Connection Status Banner - Moved here, below the tabs navigation */}
+        {isLoggedIn && <ConnectionStatusBanner />}
         
         <TabsContent value="global">
           <GlobalFeed activeHashtag={activeHashtag} />

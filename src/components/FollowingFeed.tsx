@@ -4,7 +4,6 @@ import FeedEmptyState from "./feed/FeedEmptyState";
 import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
 import { useFollowingFeed } from "./feed/useFollowingFeed";
-import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
 import { Button } from "./ui/button";
@@ -30,8 +29,6 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
 
   return (
     <>
-      <ConnectionStatusBanner />
-      
       {/* Show cache status if we're showing cached content */}
       {cacheHit && lastUpdated && (
         <Alert variant="default" className="mb-4 bg-primary/10 border-primary/20">

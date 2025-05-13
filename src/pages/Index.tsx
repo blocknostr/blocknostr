@@ -1,7 +1,7 @@
+
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
-import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -119,9 +119,6 @@ const Index: React.FC = () => {
           </div>
         </div>
       )}
-      
-      {/* Show connection status only if logged in */}
-      {isLoggedIn && <ConnectionStatusBanner />}
       
       {/* Welcome message (no login button) */}
       {!isLoggedIn && (
