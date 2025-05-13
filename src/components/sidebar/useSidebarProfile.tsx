@@ -1,23 +1,24 @@
 
-import { useState, useEffect } from "react";
+import * as React from "react";
 import { nostrService } from "@/lib/nostr";
 
 export function useSidebarProfile() {
   const isLoggedIn = !!nostrService.publicKey;
-  const [userProfile, setUserProfile] = useState<{
+  const [userProfile, setUserProfile] = React.useState<{
     name?: string;
     display_name?: string;
     picture?: string;
     nip05?: string;
   }>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   
   // Force profile refresh when route changes, user logs in, or after 30 seconds
-  useEffect(() => {
+  React.useEffect(() => {
     const fetchUserProfile = async () => {
       if (isLoggedIn && nostrService.publicKey) {
         try {
           setIsLoading(true);
+          
           // Make sure we're connected to relays
           await nostrService.connectToUserRelays();
           

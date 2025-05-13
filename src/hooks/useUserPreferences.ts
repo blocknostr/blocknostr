@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import { toast } from 'sonner';
 
 export type FeedType = 'global' | 'following' | 'for-you' | 'media';
@@ -175,13 +175,13 @@ const testStorageAvailability = (): { available: boolean, quotaReached: boolean 
 };
 
 export function useUserPreferences() {
-  const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
-  const [loaded, setLoaded] = useState(false);
-  const [storageAvailable, setStorageAvailable] = useState(true);
-  const [storageQuotaReached, setStorageQuotaReached] = useState(false);
+  const [preferences, setPreferences] = React.useState<UserPreferences>(defaultPreferences);
+  const [loaded, setLoaded] = React.useState(false);
+  const [storageAvailable, setStorageAvailable] = React.useState(true);
+  const [storageQuotaReached, setStorageQuotaReached] = React.useState(false);
 
   // Test if localStorage is available
-  useEffect(() => {
+  React.useEffect(() => {
     const { available, quotaReached } = testStorageAvailability();
     setStorageAvailable(available);
     setStorageQuotaReached(quotaReached);
@@ -195,7 +195,7 @@ export function useUserPreferences() {
   }, []);
 
   // Load preferences from storage with chunked storage
-  useEffect(() => {
+  React.useEffect(() => {
     try {
       // Load individual preference sections
       const defaultFeed = safeStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
@@ -247,7 +247,7 @@ export function useUserPreferences() {
   }, [storageAvailable]);
 
   // Save preferences to localStorage with chunking to avoid quota issues
-  useEffect(() => {
+  React.useEffect(() => {
     if (loaded) {
       // Track if any saves failed
       let anySaveFailed = false;
@@ -305,7 +305,7 @@ export function useUserPreferences() {
   }, [preferences, loaded, storageQuotaReached]);
 
   // Update specific preference
-  const updatePreference = useCallback(<K extends keyof UserPreferences>(
+  const updatePreference = React.useCallback(<K extends keyof UserPreferences>(
     key: K,
     value: UserPreferences[K]
   ) => {
@@ -316,7 +316,7 @@ export function useUserPreferences() {
   }, []);
 
   // Update nested preference
-  const updateNestedPreference = useCallback(<
+  const updateNestedPreference = React.useCallback(<
     K extends keyof UserPreferences,
     NK extends keyof UserPreferences[K]
   >(
@@ -353,7 +353,7 @@ export function useUserPreferences() {
   }, []);
 
   // Reset all preferences to default
-  const resetPreferences = useCallback(() => {
+  const resetPreferences = React.useCallback(() => {
     setPreferences(defaultPreferences);
     
     // Clear all preference keys from storage

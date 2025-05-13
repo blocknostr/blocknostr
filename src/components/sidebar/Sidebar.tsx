@@ -1,11 +1,12 @@
 
-import React from "react";
+import * as React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SidebarNav from "./SidebarNav";
 import SidebarUserProfile from "./SidebarUserProfile";
 import { useSidebarProfile } from "./useSidebarProfile";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const Sidebar = () => {
   const isMobile = useIsMobile();
@@ -27,7 +28,13 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (
-            <SidebarUserProfile userProfile={userProfile} isLoading={isLoading} />
+            <ErrorBoundary fallback={
+              <div className="p-2 text-sm text-muted-foreground">
+                Failed to load profile
+              </div>
+            }>
+              <SidebarUserProfile userProfile={userProfile} isLoading={isLoading} />
+            </ErrorBoundary>
           )}
         </div>
       </div>

@@ -28,8 +28,13 @@ export class MessagingAdapter extends BaseAdapter {
       console.log(`Sending message to ${recipientPubkey}`);
       
       if (window.nostr?.nip04) {
-        // Use NIP-04 (legacy/external)
-        encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+        try {
+          // Use NIP-04 (legacy/external)
+          encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+        } catch (error) {
+          console.error("Error encrypting message with NIP-04:", error);
+          throw new Error("Failed to encrypt message");
+        }
       } else {
         // Implementation is missing or not available
         console.error("No encryption available - Nostr extension does not support nip04");

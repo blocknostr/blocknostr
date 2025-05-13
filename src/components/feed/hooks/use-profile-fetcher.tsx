@@ -1,11 +1,11 @@
 
-import { useState } from "react";
+import * as React from "react";
 import { contentCache, nostrService } from "@/lib/nostr";
 
 export function useProfileFetcher() {
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [profiles, setProfiles] = React.useState<Record<string, any>>({});
   
-  const fetchProfileData = async (pubkey: string) => {
+  const fetchProfileData = React.useCallback(async (pubkey: string) => {
     if (!pubkey || profiles[pubkey]) return;
     
     // Check cache first
@@ -32,7 +32,7 @@ export function useProfileFetcher() {
     } catch (error) {
       console.error(`Error fetching profile for ${pubkey}:`, error);
     }
-  };
+  }, [profiles]);
   
   return {
     profiles,
