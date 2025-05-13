@@ -18,12 +18,12 @@ const SidebarNavItem = ({ name, icon: Icon, href, isActive, isPremium }: Sidebar
   const buttonClassName = cn(
     "w-full justify-start text-left font-medium",
     isActive ? "bg-accent text-accent-foreground" : "",
-    isPremium ? "group transition-all duration-200" : ""
+    isPremium ? "group hover:scale-105 transition-transform duration-200" : ""
   );
 
   const iconClassName = cn(
     "mr-2 h-5 w-5",
-    isPremium ? "text-primary group-hover:text-yellow-400" : ""
+    isPremium ? "text-yellow-400 group-hover:animate-pulse" : ""
   );
 
   const textClassName = cn(
