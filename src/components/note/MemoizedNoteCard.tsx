@@ -10,6 +10,7 @@ import NoteCardDeleteDialog from './NoteCardDeleteDialog';
 import { useNoteCardDeleteDialog } from './hooks/useNoteCardDeleteDialog';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { Heart } from 'lucide-react';
+import NoteCardContainer from './NoteCardContainer';
 
 // Import the Note type from the shared location
 import { Note } from '@/components/notebin/hooks/types';
@@ -27,6 +28,7 @@ interface NoteCardProps {
     emoji: string;
     reactionEvent: NostrEvent;
   };
+  feedVariant?: "virtualized" | "standard";
 }
 
 const NoteCard = ({
@@ -35,7 +37,8 @@ const NoteCard = ({
   hideActions = false,
   repostData,
   isReply = false,
-  reactionData
+  reactionData,
+  feedVariant = "standard"
 }: NoteCardProps) => {
   // Set up local state with the correct type
   const [activeReply, setActiveReply] = useState<Note | null>(null);
@@ -75,8 +78,12 @@ const NoteCard = ({
   
   // Build card component with all the variations
   return (
-    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
-          onClick={handleCardClick}>
+    <NoteCardContainer 
+      eventId={event.id} 
+      className="shadow-sm hover:shadow transition-shadow cursor-pointer" 
+      onClick={handleCardClick}
+      feedVariant={feedVariant}
+    >
       {/* Render repost header if this is a repost */}
       {repostData && (
         <NoteCardRepostHeader
@@ -142,7 +149,7 @@ const NoteCard = ({
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
-    </Card>
+    </NoteCardContainer>
   );
 };
 
