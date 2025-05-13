@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from "@/lib/utils";
 import { Play, Pause, Volume, VolumeOff } from "lucide-react";
 
