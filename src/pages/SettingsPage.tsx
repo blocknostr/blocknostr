@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -10,15 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
-
-// Mock the wallet hook until the package is properly installed
-const useWallet = () => {
-  return {
-    account: {
-      address: "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH"
-    }
-  };
-};
+import { useWallet } from "@alephium/web3-react";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -26,8 +17,7 @@ const SettingsPage = () => {
   const { account } = useWallet();
 
   const pubkey = nostrService.publicKey;
-  // Fix: Use getNpubFromHex instead of getNpub
-  const npub = pubkey ? nostrService.getNpubFromHex(pubkey) : "";
+  const npub = pubkey ? nostrService.getNpub(pubkey) : "";
   const hexPubkey = pubkey || "";
 
   useEffect(() => {
@@ -39,9 +29,9 @@ const SettingsPage = () => {
     }
   }, [navigate, pubkey]);
 
-  const copyToClipboard = (value: string) => {
+  const copyToClipboard = (value: string, label: string) => {
     navigator.clipboard.writeText(value);
-    toast.success("Copied to clipboard");
+    toast.success(`${label} copied to clipboard`);
   };
 
   return (
@@ -65,32 +55,41 @@ const SettingsPage = () => {
                 </div>
                 <div>
                   <Label className="text-sm">Alephium Wallet</Label>
-                  <Input readOnly value={account?.address || "Not connected"} />
+                  <Input
+                    readOnly
+                    value={account?.address || "Not connected"}
+                  />
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 justify-end pt-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => copyToClipboard(npub)}
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy npub
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => copyToClipboard(hexPubkey)}
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  Copy Hex
-                </Button>
+                {npub && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => copyToClipboard(npub, "npub")}
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy npub
+                  </Button>
+                )}
+                {hexPubkey && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => copyToClipboard(hexPubkey, "Hex pubkey")}
+                  >
+                    <Copy className="w-4 h-4 mr-1" />
+                    Copy Hex
+                  </Button>
+                )}
                 {account?.address && (
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => copyToClipboard(account.address)}
+                    onClick={() =>
+                      copyToClipboard(account.address, "Wallet address")
+                    }
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     Copy Wallet
