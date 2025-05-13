@@ -31,4 +31,23 @@ export interface ContactList {
   muted: string[];
   blocked: string[];
   pubkeys: string[];
+  // Add missing properties used in contacts.ts
+  tags?: any[][];
+  content?: string;
+}
+
+// Add QuickReply interface for quick-replies components
+export interface QuickReply {
+  id: string;
+  text: string;
+  category: 'greeting' | 'thanks' | 'discussion' | 'custom';
+  usageCount: number;
+}
+
+// Add ZapInfo interface needed for zap.ts
+export interface ZapInfo {
+  amount: number;
+  lnurl: string;
+  recipient: string;
+  relayUrl?: string;
 }
