@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -9,7 +10,23 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
-import { useWallet } from "@alephium/web3-react";
+
+// Mock interface for Alephium wallet
+// This is a temporary solution until we properly integrate @alephium/web3-react
+interface MockWallet {
+  account?: {
+    address: string;
+  } | null;
+}
+
+// Mock hook until we can properly integrate @alephium/web3-react
+const useWallet = (): MockWallet => {
+  return {
+    account: {
+      address: "mock-alephium-address-for-display"
+    }
+  };
+};
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -17,7 +34,7 @@ const SettingsPage = () => {
   const { account } = useWallet();
 
   const pubkey = nostrService.publicKey;
-  const npub = pubkey ? nostrService.getNpub(pubkey) : "";
+  const npub = pubkey ? nostrService.getNpubFromHex(pubkey) : "";
   const hexPubkey = pubkey || "";
 
   useEffect(() => {
