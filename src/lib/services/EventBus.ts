@@ -1,56 +1,22 @@
 
-type EventCallback = (...args: any[]) => void;
+import { BrowserEventEmitter } from "./BrowserEventEmitter";
 
 /**
  * Simple event bus for application-wide events
  */
-class EventBus {
-  private events: Record<string, EventCallback[]> = {};
-  
-  /**
-   * Subscribe to an event
-   */
-  on(event: string, callback: EventCallback): void {
-    if (!this.events[event]) {
-      this.events[event] = [];
-    }
-    this.events[event].push(callback);
-  }
-  
-  /**
-   * Unsubscribe from an event
-   */
-  off(event: string, callback: EventCallback): void {
-    if (!this.events[event]) return;
-    this.events[event] = this.events[event].filter(cb => cb !== callback);
-  }
-  
-  /**
-   * Emit an event
-   */
-  emit(event: string, ...args: any[]): void {
-    if (!this.events[event]) return;
-    this.events[event].forEach(callback => {
-      try {
-        callback(...args);
-      } catch (error) {
-        console.error(`Error in event listener for ${event}:`, error);
-      }
-    });
-  }
-  
+class EventBus extends BrowserEventEmitter {
   /**
    * Remove all listeners for an event
    */
   clearEvent(event: string): void {
-    this.events[event] = [];
+    this.removeAllListeners(event);
   }
   
   /**
    * Remove all listeners for all events
    */
   clearAll(): void {
-    this.events = {};
+    this.removeAllListeners();
   }
 }
 

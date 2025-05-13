@@ -3,7 +3,7 @@ import { contentCache } from "@/lib/nostr";
 import { relaySelector } from "@/lib/nostr/relay/selection/relay-selector";
 import { retry } from "@/lib/utils/retry";
 import { cacheManager } from "@/lib/utils/cacheManager";
-import { EventEmitter } from "events";
+import { BrowserEventEmitter } from "./BrowserEventEmitter";
 
 type ProfileLoadingStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -48,7 +48,7 @@ interface ProfileLoadingState {
  * ProfileDataService centralizes all profile data loading and management
  * to improve performance and reliability
  */
-export class ProfileDataService extends EventEmitter {
+export class ProfileDataService extends BrowserEventEmitter {
   private static instance: ProfileDataService;
   
   private currentPubkey: string | null = null;
