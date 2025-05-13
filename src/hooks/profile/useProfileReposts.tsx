@@ -1,20 +1,25 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 
 interface UseProfileRepostsProps {
+  hexPubkey?: string;
   originalPostProfiles: Record<string, any>;
   setOriginalPostProfiles: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  enabled?: boolean;
 }
 
 export function useProfileReposts({ 
+  hexPubkey,
   originalPostProfiles, 
-  setOriginalPostProfiles 
+  setOriginalPostProfiles,
+  enabled = true
 }: UseProfileRepostsProps) {
   const [reposts, setReposts] = useState<{ 
     originalEvent: NostrEvent; 
     repostEvent: NostrEvent;
   }[]>([]);
+  const [loading, setLoading] = useState(false);
   
   const [replies, setReplies] = useState<NostrEvent[]>([]);
   const subscriptionsRef = useRef<Set<string>>(new Set());
@@ -22,7 +27,7 @@ export function useProfileReposts({
   const isMounted = useRef(true);
   
   // Set up the mounted ref for cleanup
-  useState(() => {
+  useEffect(() => {
     return () => {
       isMounted.current = false;
       
@@ -36,7 +41,7 @@ export function useProfileReposts({
         clearTimeout(timeoutId);
       });
     };
-  });
+  }, []);
 
   const fetchOriginalPost = (eventId: string, pubkey: string | null, repostEvent: NostrEvent) => {
     // Subscribe to the original event by ID
@@ -122,5 +127,71 @@ export function useProfileReposts({
     timeoutsRef.current.add(timeoutId);
   };
 
-  return { reposts, replies, fetchOriginalPost };
+  // Add new fetchReposts function to be called when hexPubkey or enabled changes
+  useEffect(() => {
+    if (!hexPubkey || !enabled) return;
+    
+    const fetchReposts = async () => {
+      setLoading(true);
+      
+      try {
+        // Subscribe to user's reposts (kind 6)
+        const subId = nostrService.subscribe(
+          [
+            {
+              kinds: [6], // Reposts
+              authors: [hexPubkey],
+              limit: 30
+            }
+          ],
+          (repostEvent) => {
+            // Get the original event ID
+            const eTag = repostEvent.tags?.find(tag => 
+              Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+            );
+            
+            if (eTag && eTag[1]) {
+              fetchOriginalPost(eTag[1], repostEvent.pubkey, repostEvent);
+            }
+          }
+        );
+        
+        // Add subscription to our tracking set
+        subscriptionsRef.current.add(subId);
+        
+        // Cleanup subscription after some time
+        const timeoutId = window.setTimeout(() => {
+          if (subscriptionsRef.current.has(subId)) {
+            nostrService.unsubscribe(subId);
+            subscriptionsRef.current.delete(subId);
+          }
+          setLoading(false);
+        }, 5000);
+        
+        // Track timeout
+        timeoutsRef.current.add(timeoutId);
+      } catch (error) {
+        console.error("Error fetching reposts:", error);
+        setLoading(false);
+      }
+    };
+    
+    fetchReposts();
+    
+    return () => {
+      // Clean up all subscriptions when effect re-runs or unmounts
+      subscriptionsRef.current.forEach(subId => {
+        nostrService.unsubscribe(subId);
+      });
+      subscriptionsRef.current.clear();
+      
+      // Clear all timeouts
+      timeoutsRef.current.forEach(timeoutId => {
+        clearTimeout(timeoutId);
+      });
+      timeoutsRef.current.clear();
+    };
+  }, [hexPubkey, enabled]);
+
+  return { reposts, replies, fetchOriginalPost, loading };
 }
