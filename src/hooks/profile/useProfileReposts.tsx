@@ -1,28 +1,33 @@
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 
 interface UseProfileRepostsProps {
-  originalPostProfiles: Record<string, any>;
-  setOriginalPostProfiles: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+  hexPubkey: string | undefined;
+  enabled?: boolean;
+  originalPostProfiles?: Record<string, any>;
+  onProfileFetched?: (pubkey: string, data: any) => void;
 }
 
 export function useProfileReposts({ 
-  originalPostProfiles, 
-  setOriginalPostProfiles 
+  hexPubkey, 
+  enabled = true,
+  originalPostProfiles = {},
+  onProfileFetched
 }: UseProfileRepostsProps) {
   const [reposts, setReposts] = useState<{ 
     originalEvent: NostrEvent; 
     repostEvent: NostrEvent;
   }[]>([]);
   
-  const [replies, setReplies] = useState<NostrEvent[]>([]);
+  const [loading, setLoading] = useState(false);
   const subscriptionsRef = useRef<Set<string>>(new Set());
   const timeoutsRef = useRef<Set<number>>(new Set());
+  const profilesRef = useRef<Record<string, any>>(originalPostProfiles);
   const isMounted = useRef(true);
   
   // Set up the mounted ref for cleanup
-  useState(() => {
+  useEffect(() => {
     return () => {
       isMounted.current = false;
       
@@ -36,8 +41,9 @@ export function useProfileReposts({
         clearTimeout(timeoutId);
       });
     };
-  });
+  }, []);
 
+  // Function to fetch original post by event ID
   const fetchOriginalPost = (eventId: string, pubkey: string | null, repostEvent: NostrEvent) => {
     // Subscribe to the original event by ID
     const eventSubId = nostrService.subscribe(
@@ -65,8 +71,11 @@ export function useProfileReposts({
           );
         });
         
-        // Fetch profile data for the original author if we don't have it yet
-        if (originalEvent.pubkey && !originalPostProfiles[originalEvent.pubkey]) {
+        // Fetch profile data for the original author if needed
+        if (originalEvent.pubkey && 
+            !profilesRef.current[originalEvent.pubkey] && 
+            onProfileFetched) {
+          
           const metadataSubId = nostrService.subscribe(
             [
               {
@@ -80,10 +89,12 @@ export function useProfileReposts({
               
               try {
                 const metadata = JSON.parse(event.content);
-                setOriginalPostProfiles(prev => ({
-                  ...prev,
-                  [originalEvent.pubkey]: metadata
-                }));
+                profilesRef.current[originalEvent.pubkey] = metadata;
+                
+                // Notify parent component about new profile data
+                if (onProfileFetched) {
+                  onProfileFetched(originalEvent.pubkey, metadata);
+                }
               } catch (e) {
                 console.error('Failed to parse profile metadata for repost:', e);
               }
@@ -122,5 +133,60 @@ export function useProfileReposts({
     timeoutsRef.current.add(timeoutId);
   };
 
-  return { reposts, replies, fetchOriginalPost };
+  // Effect to fetch reposts
+  useEffect(() => {
+    // Only fetch data if enabled and we have a pubkey
+    if (!enabled || !hexPubkey) return;
+    
+    setLoading(true);
+    console.log("Fetching reposts for profile:", hexPubkey);
+    
+    try {
+      // Subscribe to user's reposts (kind 6)
+      const subId = nostrService.subscribe(
+        [
+          {
+            kinds: [6], // Reposts
+            authors: [hexPubkey],
+            limit: 30
+          }
+        ],
+        (repostEvent) => {
+          if (!isMounted.current) return;
+          
+          // Get the original event ID
+          const eTag = repostEvent.tags?.find(tag => 
+            Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+          );
+          
+          if (eTag && eTag[1]) {
+            fetchOriginalPost(eTag[1], repostEvent.pubkey, repostEvent);
+          }
+        }
+      );
+      
+      subscriptionsRef.current.add(subId);
+      
+      // Stop loading after some time
+      const timeoutId = window.setTimeout(() => {
+        if (isMounted.current) {
+          setLoading(false);
+        }
+      }, 5000);
+      
+      timeoutsRef.current.add(timeoutId);
+    } catch (error) {
+      console.error("Error fetching reposts:", error);
+      setLoading(false);
+    }
+    
+    return () => {
+      // Clean up subscriptions on unmount
+      subscriptionsRef.current.forEach(subId => {
+        nostrService.unsubscribe(subId);
+      });
+    };
+  }, [hexPubkey, enabled]);
+
+  return { reposts, loading, fetchOriginalPost };
 }

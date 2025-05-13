@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
 import { NostrEvent, nostrService } from "@/lib/nostr";
@@ -36,6 +35,7 @@ const ProfileTabs = ({
   const { profiles, fetchProfileData } = useProfileFetcher();
   const [activeTab, setActiveTab] = useState("posts");
   const [loadingReactionProfiles, setLoadingReactionProfiles] = useState(false);
+  const [tabOriginalPostProfiles, setTabOriginalPostProfiles] = useState<Record<string, any>>(originalPostProfiles);
   
   // Tab-specific data loading hooks
   const { 
@@ -55,8 +55,21 @@ const ProfileTabs = ({
     enabled: activeTab === "likes" 
   });
   
-  const [tabReposts, setTabReposts] = useState<{ originalEvent: NostrEvent; repostEvent: NostrEvent }[]>([]);
-  const [repostsLoading, setRepostsLoading] = useState(false);
+  // Use our properly structured hook for reposts
+  const {
+    reposts: tabReposts,
+    loading: repostsLoading
+  } = useProfileReposts({
+    hexPubkey,
+    enabled: activeTab === "reposts",
+    originalPostProfiles: tabOriginalPostProfiles,
+    onProfileFetched: (pubkey, data) => {
+      setTabOriginalPostProfiles(prev => ({
+        ...prev,
+        [pubkey]: data
+      }));
+    }
+  });
   
   // State for displayed posts (with pagination)
   const [displayedPosts, setDisplayedPosts] = useState<NostrEvent[]>([]);
@@ -64,68 +77,6 @@ const ProfileTabs = ({
   const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
   const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
   const [postsLimit, setPostsLimit] = useState(10);
-  
-  // Setup for reposts tab
-  useEffect(() => {
-    if (activeTab !== "reposts" || !hexPubkey) return;
-    
-    setRepostsLoading(true);
-    
-    // Create a temporary repo for reposts data management
-    const tempPostProfiles: Record<string, any> = { ...originalPostProfiles };
-    
-    const { reposts: fetchedReposts, fetchOriginalPost } = useProfileReposts({
-      originalPostProfiles: tempPostProfiles,
-      setOriginalPostProfiles: (newProfiles) => {
-        Object.assign(tempPostProfiles, newProfiles);
-      }
-    });
-    
-    // Fetch reposts when tab is active
-    const fetchReposts = async () => {
-      if (!hexPubkey) return;
-      
-      try {
-        // Subscribe to user's reposts (kind 6)
-        const subId = nostrService.subscribe(
-          [
-            {
-              kinds: [6], // Reposts
-              authors: [hexPubkey],
-              limit: 30
-            }
-          ],
-          (repostEvent) => {
-            // Get the original event ID
-            const eTag = repostEvent.tags?.find(tag => 
-              Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
-            );
-            
-            if (eTag && eTag[1]) {
-              fetchOriginalPost(eTag[1], repostEvent.pubkey, repostEvent);
-            }
-          }
-        );
-        
-        // Cleanup subscription after some time
-        setTimeout(() => {
-          nostrService.unsubscribe(subId);
-          setRepostsLoading(false);
-        }, 5000);
-        
-      } catch (error) {
-        console.error("Error fetching reposts:", error);
-        setRepostsLoading(false);
-      }
-    };
-    
-    fetchReposts();
-    
-    // Update reposts when they're available
-    if (fetchedReposts.length > 0) {
-      setTabReposts(fetchedReposts);
-    }
-  }, [activeTab, hexPubkey]);
   
   // Load more posts when scrolling
   const loadMorePosts = () => {
@@ -300,8 +251,8 @@ const ProfileTabs = ({
                   event={originalEvent} 
                   profileData={
                     originalEvent && originalEvent.pubkey && 
-                    originalPostProfiles && originalPostProfiles[originalEvent.pubkey] 
-                      ? originalPostProfiles[originalEvent.pubkey] 
+                    tabOriginalPostProfiles && tabOriginalPostProfiles[originalEvent.pubkey] 
+                      ? tabOriginalPostProfiles[originalEvent.pubkey] 
                       : undefined
                   }
                   repostData={{
