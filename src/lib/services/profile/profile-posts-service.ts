@@ -23,13 +23,9 @@ export class ProfilePostsService {
       loadingStatus.posts = 'loading';
       this.emitter.emit('loading-state-changed', pubkey, loadingStatus);
       
-      // Simplified stub implementation
-      const posts = await nostrService.getEventsByUser(pubkey);
-      
-      // Emit post data events
-      posts.forEach(post => {
-        this.emitter.emit('post-received', pubkey, post);
-      });
+      // For now, we just set an empty placeholder
+      // No 'getEventsByUser' implementation yet
+      this.emitter.emit('posts-received', pubkey, []);
       
       loadingStatus.posts = 'success';
       this.emitter.emit('loading-state-changed', pubkey, loadingStatus);

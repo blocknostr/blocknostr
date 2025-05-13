@@ -1,20 +1,37 @@
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import React from 'react';
+import { Check } from "lucide-react";
 
 interface TweetInstructionsProps {
-  step: 'idle' | 'tweet' | 'verify';
+  step: 'tweet' | 'verify';
 }
 
 const TweetInstructions = ({ step }: TweetInstructionsProps) => {
   return (
-    <Alert variant="default" className="bg-muted/50">
-      <AlertCircle className="h-4 w-4" />
-      <AlertDescription>
-        {step === 'tweet' && "Click the tweet button that opens in a new tab and post the verification tweet."}
-        {step === 'verify' && "After posting your tweet, paste the URL of your tweet below to complete verification."}
-      </AlertDescription>
-    </Alert>
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold text-center">
+        {step === 'tweet' 
+          ? 'Step 1: Post a verification tweet' 
+          : 'Step 2: Verify your tweet'}
+      </h4>
+      
+      <div className="bg-muted p-2 rounded-md text-xs space-y-2">
+        {step === 'tweet' ? (
+          <>
+            <p>1. A tweet composer will open in a new tab</p>
+            <p>2. Post the tweet without modifying its content</p>
+            <p>3. Return to this page after posting</p>
+            <p>4. Copy the URL of your tweet</p>
+          </>
+        ) : (
+          <>
+            <p>1. Copy the URL of your verification tweet</p>
+            <p>2. Paste it in the field below</p>
+            <p>3. Click "Verify" to complete the process</p>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 

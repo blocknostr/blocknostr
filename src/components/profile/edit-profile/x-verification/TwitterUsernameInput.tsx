@@ -1,49 +1,48 @@
 
-import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import React from 'react';
 import { Input } from "@/components/ui/input";
+import { Check } from "lucide-react";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from '../types';
-import { Check } from "lucide-react";
 
 interface TwitterUsernameInputProps {
   form: UseFormReturn<ProfileFormValues>;
   twitterVerified: boolean;
 }
 
-const TwitterUsernameInput = ({ form, twitterVerified }: TwitterUsernameInputProps) => {
+const TwitterUsernameInput = ({ 
+  form, 
+  twitterVerified 
+}: TwitterUsernameInputProps) => {
   return (
-    <FormField
-      control={form.control}
-      name="twitter"
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel className="flex items-center gap-2">
-            Username
-            {twitterVerified && (
-              <span className="text-green-500 flex items-center text-xs font-normal">
-                <Check className="h-3 w-3 mr-1" />
-                Verified
-              </span>
-            )}
-          </FormLabel>
-          <FormControl>
-            <Input
-              placeholder="@username"
-              {...field}
-              value={field.value}
-              onChange={(e) => {
-                // Remove @ if it's already in the input
-                const value = e.target.value.startsWith('@')
-                  ? e.target.value
-                  : `@${e.target.value}`;
-                field.onChange(value);
-              }}
-              disabled={twitterVerified}
-            />
-          </FormControl>
-        </FormItem>
-      )}
-    />
+    <div className="flex flex-col space-y-1">
+      <div className="flex justify-between items-center">
+        <label htmlFor="twitter" className="text-sm font-medium">
+          X (Twitter) Username
+        </label>
+        {twitterVerified && (
+          <div className="flex items-center text-xs text-green-600 dark:text-green-500">
+            <Check className="h-3 w-3 mr-1" />
+            Verified
+          </div>
+        )}
+      </div>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+          @
+        </span>
+        <Input
+          id="twitter"
+          placeholder="username"
+          className="pl-7"
+          disabled={twitterVerified}
+          {...form.register('twitter')}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Your X (Twitter) username without the @ symbol
+      </p>
+    </div>
   );
 };
 

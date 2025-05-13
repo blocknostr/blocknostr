@@ -289,6 +289,13 @@ export class NostrAdapter extends BaseAdapter {
     return this.dataAdapter.verifyNip05(identifier, pubkey);
   }
   
+  /**
+   * Get events authored by a specific user
+   */
+  async getEventsByUser(pubkey: string) {
+    return this.dataAdapter.getEventsByUser(pubkey);
+  }
+
   // Community methods
   async createCommunity(name: string, description: string) {
     return this.communityAdapter.createCommunity(name, description);

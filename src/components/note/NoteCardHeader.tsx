@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
-import { Link } from 'react-router-dom';
 import { BadgeCheck } from 'lucide-react';
 import {
   Tooltip,
@@ -69,24 +68,17 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   return (
     <div className="flex justify-between">
       <div className="flex">
-        <Link 
-          to={`/profile/${npub}`} 
-          className="mr-3 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
+        {/* Temporarily disable profile navigation */}
+        <div className="mr-3 shrink-0">
           <Avatar className="h-11 w-11 border border-muted">
             <AvatarImage src={picture} alt={name} />
             <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
           </Avatar>
-        </Link>
+        </div>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
-            <Link 
-              to={`/profile/${npub}`}
-              className="font-bold hover:underline truncate flex items-center gap-1"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="font-bold truncate flex items-center gap-1">
               {displayName}
               {xVerified && (
                 <TooltipProvider>
@@ -102,7 +94,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
                   </Tooltip>
                 </TooltipProvider>
               )}
-            </Link>
+            </div>
             
             <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
             <span className="text-muted-foreground text-sm mx-0.5">·</span>
@@ -112,6 +104,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
       </div>
     </div>
   );
-};
+}
 
 export default NoteCardHeader;

@@ -1,8 +1,7 @@
 
-import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import React from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { UseFormReturn } from 'react-hook-form';
 import { ProfileFormValues } from '../types';
 
@@ -12,40 +11,35 @@ interface TweetUrlInputProps {
   onVerify: () => void;
 }
 
-const TweetUrlInput = ({ form, isVerifying, onVerify }: TweetUrlInputProps) => {
+const TweetUrlInput = ({ 
+  form, 
+  isVerifying, 
+  onVerify 
+}: TweetUrlInputProps) => {
   return (
     <div className="space-y-2">
-      <FormField
-        control={form.control}
-        name="tweetUrl"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Tweet URL</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="https://twitter.com/username/status/123456789"
-                {...field}
-              />
-            </FormControl>
-          </FormItem>
-        )}
-      />
-      
-      <Button
-        type="button"
-        onClick={onVerify}
-        disabled={isVerifying || !form.getValues('tweetUrl')}
-        className="mt-2 w-full"
-      >
-        {isVerifying ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Verifying...
-          </>
-        ) : (
-          "Verify Tweet"
-        )}
-      </Button>
+      <div className="flex flex-col space-y-1">
+        <label htmlFor="tweetUrl" className="text-sm font-medium">
+          Tweet URL
+        </label>
+        <div className="flex space-x-2">
+          <Input
+            id="tweetUrl"
+            placeholder="https://x.com/yourusername/status/123456789"
+            {...form.register('tweetUrl')}
+            className="flex-1"
+          />
+          <Button 
+            onClick={onVerify} 
+            disabled={isVerifying}
+          >
+            {isVerifying ? 'Verifying...' : 'Verify'}
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Paste the URL of your verification tweet to complete verification
+      </p>
     </div>
   );
 };

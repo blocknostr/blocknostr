@@ -1,6 +1,7 @@
 
+import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Loader2, Twitter } from "lucide-react";
+import { Twitter } from "lucide-react";
 
 interface InitiateVerificationButtonProps {
   isVerifying: boolean;
@@ -8,24 +9,22 @@ interface InitiateVerificationButtonProps {
 }
 
 const InitiateVerificationButton = ({ 
-  isVerifying,
-  onClick
+  isVerifying, 
+  onClick 
 }: InitiateVerificationButtonProps) => {
   return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={onClick}
-      disabled={isVerifying}
-      className="w-full flex items-center justify-center gap-2 border-[#1DA1F2] text-[#1DA1F2] hover:bg-[#1DA1F2]/10"
-    >
-      {isVerifying ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <Twitter className="h-4 w-4" />
-      )}
-      Verify X Account
-    </Button>
+    <div className="flex justify-center">
+      <Button
+        type="button"
+        variant="outline"
+        className="flex items-center gap-2"
+        disabled={isVerifying}
+        onClick={onClick}
+      >
+        <Twitter className="h-4 w-4 text-blue-500" />
+        {isVerifying ? "Opening Twitter..." : "Verify X Account"}
+      </Button>
+    </div>
   );
 };
 

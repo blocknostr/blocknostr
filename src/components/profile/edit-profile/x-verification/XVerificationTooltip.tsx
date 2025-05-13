@@ -1,25 +1,29 @@
 
+import React from 'react';
+import { InfoIcon } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
 
 const XVerificationTooltip = () => {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <HelpCircle className="h-4 w-4 text-muted-foreground" />
-          </Button>
+          <InfoIcon className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p>You can verify your X (Twitter) account by posting a verification tweet.</p>
-          <p className="mt-2">This follows the NIP-39 protocol for cross-platform identity verification.</p>
+        <TooltipContent side="top" align="center" className="max-w-[300px]">
+          <div className="space-y-1.5 text-xs">
+            <p>
+              Verify your X (Twitter) account to display a verification badge on your profile.
+            </p>
+            <p>
+              This uses the Nostr NIP-39 standard for cross-platform verification.
+            </p>
+          </div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
