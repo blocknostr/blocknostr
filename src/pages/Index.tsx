@@ -1,13 +1,12 @@
-import React, { useEffect, useState, lazy, Suspense } from "react";
+
+import React, { useEffect, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Lazy load MainFeed to improve initial page load
-const MainFeed = lazy(() => import("@/components/MainFeed"));
+import MainFeed from "@/components/MainFeed";  // Direct import instead of lazy loading
 
 const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
@@ -164,14 +163,7 @@ const Index: React.FC = () => {
           <p className="text-muted-foreground">Initializing connection...</p>
         </div>
       ) : isLoggedIn ? (
-        <Suspense fallback={
-          <div className="py-12 flex flex-col items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
-            <p className="text-muted-foreground">Loading feed...</p>
-          </div>
-        }>
-          <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
-        </Suspense>
+        <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
       ) : (
         <div className="py-8 text-center">
           <p className="text-muted-foreground">

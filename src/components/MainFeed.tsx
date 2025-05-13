@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
@@ -138,6 +137,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       />
     </div>
   );
-}
+};
 
+// Make sure we're correctly exporting the component
 export default MainFeed;
