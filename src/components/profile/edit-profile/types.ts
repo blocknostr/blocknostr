@@ -1,17 +1,18 @@
 
 /**
- * Type definitions for profile editing
+ * Type definitions for profile edit functionality
  */
 
 export interface ProfileFormValues {
-  name: string;
+  name?: string;
   displayName?: string;
+  username?: string;
   bio?: string;
   website?: string;
-  picture?: string;
-  banner?: string;
+  nip05?: string;
   twitter?: string;
   tweetUrl?: string;
-  nip05?: string;
+  banner?: string;
+  picture?: string;
   lud16?: string;
 }

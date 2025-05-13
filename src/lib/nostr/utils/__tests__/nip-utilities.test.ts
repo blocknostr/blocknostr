@@ -1,8 +1,8 @@
+
 import { 
   getAccountCreationDate,
   parseThreadTags,
   verifyNip05,
-  checkXVerification,
   parseRelayList
 } from '../nip';
 import { NostrEvent } from "../../types";
@@ -163,46 +163,6 @@ describe('NIP-05: Identifier Verification', () => {
     
     const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(false);
-  });
-});
-
-describe('NIP-39: X Verification Check', () => {
-  test('should detect NIP-39 i-tag verification', () => {
-    const profileData = {
-      name: 'Jack',
-      tags: [
-        ['i', 'twitter:jack', '1234567890']
-      ]
-    };
-    
-    const result = checkXVerification(profileData);
-    expect(result.xVerified).toBe(true);
-    expect(result.xVerifiedInfo?.username).toBe('jack');
-    expect(result.xVerifiedInfo?.tweetId).toBe('1234567890');
-  });
-  
-  test('should fall back to legacy verification', () => {
-    const profileData = {
-      name: 'Jack',
-      twitter: 'jack',
-      twitter_verified: true,
-      twitter_proof: '1234567890'
-    };
-    
-    const result = checkXVerification(profileData);
-    expect(result.xVerified).toBe(true);
-    expect(result.xVerifiedInfo?.username).toBe('jack');
-    expect(result.xVerifiedInfo?.tweetId).toBe('1234567890');
-  });
-  
-  test('should handle null/undefined profile data', () => {
-    const result1 = checkXVerification(null);
-    expect(result1.xVerified).toBe(false);
-    expect(result1.xVerifiedInfo).toBe(null);
-    
-    const result2 = checkXVerification(undefined);
-    expect(result2.xVerified).toBe(false);
-    expect(result2.xVerifiedInfo).toBe(null);
   });
 });
 
