@@ -6,7 +6,6 @@ import {
   Bell, 
   Mail, 
   Users, 
-  Settings, 
   FileText, 
   Wallet, 
   Crown 
@@ -61,12 +60,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Premium",
       icon: Crown,
       href: "/premium",
-      requiresAuth: false
-    },
-    {
-      name: "Settings",
-      icon: Settings,
-      href: "/settings",
       requiresAuth: false
     }
   ];
