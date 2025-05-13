@@ -1,4 +1,3 @@
-
 import { BrowserEventEmitter } from "../BrowserEventEmitter";
 import { nostrService } from "@/lib/nostr";
 import { contentCache } from "@/lib/nostr/cache";
@@ -36,7 +35,7 @@ export class ProfilePostsService {
         
         // Filter media posts
         const mediaEvents = postsEvents.filter(event => {
-          const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
+          const mediaUrls = getMediaUrlsFromEvent(event);
           const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
           return validMediaUrls.length > 0;
         });
@@ -68,7 +67,7 @@ export class ProfilePostsService {
               postsList.push(event);
               
               // Check if post contains media
-              const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
+              const mediaUrls = getMediaUrlsFromEvent(event);
               const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
               
               if (validMediaUrls.length > 0) {

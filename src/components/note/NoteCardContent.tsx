@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
@@ -60,13 +59,13 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   
   // Extract media URLs from content and tags using our utility
   const mediaUrls = useMemo(() => {
-    return getMediaUrlsFromEvent(contentToUse, tagsToUse);
-  }, [contentToUse, tagsToUse]);
+    return getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+  }, [contentToUse, tagsToUse, event]);
   
   // Extract link preview URLs (non-media URLs)
   const linkPreviewUrls = useMemo(() => {
-    return getLinkPreviewUrlsFromEvent(contentToUse, tagsToUse);
-  }, [contentToUse, tagsToUse]);
+    return getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+  }, [contentToUse, tagsToUse, event]);
   
   // Handle hashtag click
   const handleHashtagClick = (e: React.MouseEvent, tag: string) => {

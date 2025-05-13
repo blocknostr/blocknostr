@@ -19,7 +19,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {displayedMedia.map(event => {
-        const imageUrl = getFirstImageUrlFromEvent(event.content, event.tags);
+        const imageUrl = getFirstImageUrlFromEvent(event);
         if (!imageUrl) return null;
         
         return (

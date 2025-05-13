@@ -7,6 +7,7 @@
 import { mediaRegex, extractUrlsFromContent, extractAllUrls, isMediaUrl } from './media-detection';
 import { isValidMediaUrl } from './media-validation';
 import { MediaItem } from './media-types';
+import { NostrEvent } from '@/lib/nostr';
 
 /**
  * Extracts media information from event tags following NIP-94
@@ -69,26 +70,24 @@ export const extractMediaFromTags = (tags: string[][]): MediaItem[] => {
 };
 
 /**
- * Main function to extract all media URLs from a Nostr event
- * Prioritizes structured data from tags over content parsing
+ * Main function to extract all media URLs from content
  */
 export const extractMediaUrls = (content: string): string[] => {
   if (!content) return [];
   
   // Extract URLs from content as fallback
-  if (content) {
-    const contentUrls = extractUrlsFromContent(content);
-    return contentUrls;
-  }
-  
-  return [];
+  const contentUrls = extractUrlsFromContent(content);
+  return contentUrls;
 };
 
 /**
  * Helper function to extract media URLs from both content and tags
  * For backward compatibility
  */
-export const getMediaUrlsFromEvent = (content: string, tags: string[][]): string[] => {
+export const getMediaUrlsFromEvent = (event: NostrEvent | {content: string, tags?: string[][]}): string[] => {
+  const content = event.content || '';
+  const tags = event.tags || [];
+  
   if (!content && (!tags || !Array.isArray(tags))) return [];
   
   const urls: Set<string> = new Set();
@@ -133,14 +132,17 @@ export const extractLinkPreviewUrls = (content: string): string[] => {
  * Helper function to extract link preview URLs from both content and tags
  * For backward compatibility
  */
-export const getLinkPreviewUrlsFromEvent = (content: string, tags: string[][]): string[] => {
+export const getLinkPreviewUrlsFromEvent = (event: NostrEvent | {content: string, tags?: string[][]}): string[] => {
+  const content = event.content || '';
+  const tags = event.tags || [];
+  
   if (!content) return [];
   
   // Get all URLs from content
   const allUrls = extractAllUrls(content);
   
   // Get media URLs that we don't want to show as link previews
-  const mediaUrls = new Set(getMediaUrlsFromEvent(content, tags));
+  const mediaUrls = new Set(getMediaUrlsFromEvent(event));
   
   // Filter out media URLs to get only regular links for previews
   return allUrls.filter(url => !mediaUrls.has(url) && !isMediaUrl(url));
@@ -156,35 +158,35 @@ export const extractMediaItems = (content: string): MediaItem[] => {
   const urls: Set<string> = new Set();
   
   // Extract URLs from content
-  if (content) {
-    const contentUrls = extractUrlsFromContent(content);
-    contentUrls.forEach(url => {
-      if (url && !urls.has(url)) {
-        urls.add(url);
-        
-        // Determine media type based on URL extension
-        let type: 'image' | 'video' | 'audio' | 'url' = 'url';
-        if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
-          type = 'image';
-        } else if (url.match(/\.(mp4|webm|mov)(\?.*)?$/i)) {
-          type = 'video';
-        } else if (url.match(/\.(mp3|wav|ogg)(\?.*)?$/i)) {
-          type = 'audio';
-        }
-        
-        mediaItems.push({ url, type });
+  const contentUrls = extractUrlsFromContent(content);
+  contentUrls.forEach(url => {
+    if (url && !urls.has(url)) {
+      urls.add(url);
+      
+      // Determine media type based on URL extension
+      let type: 'image' | 'video' | 'audio' | 'url' = 'url';
+      if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
+        type = 'image';
+      } else if (url.match(/\.(mp4|webm|mov)(\?.*)?$/i)) {
+        type = 'video';
+      } else if (url.match(/\.(mp3|wav|ogg)(\?.*)?$/i)) {
+        type = 'audio';
       }
-    });
-  }
+      
+      mediaItems.push({ url, type });
+    }
+  });
   
   return mediaItems;
 };
 
 /**
  * Helper function to extract media items from both content and tags
- * For backward compatibility
  */
-export const getMediaItemsFromEvent = (content: string, tags: string[][]): MediaItem[] => {
+export const getMediaItemsFromEvent = (event: NostrEvent | {content: string, tags?: string[][]}): MediaItem[] => {
+  const content = event.content || '';
+  const tags = event.tags || [];
+  
   if (!content && (!tags || !Array.isArray(tags))) return [];
   
   const mediaItems: MediaItem[] = [];
@@ -244,9 +246,11 @@ export const extractFirstImageUrl = (content: string): string | null => {
 
 /**
  * Helper function to extract the first image URL from both content and tags
- * For backward compatibility
  */
-export const getFirstImageUrlFromEvent = (content?: string, tags?: string[][]): string | null => {
+export const getFirstImageUrlFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string | null => {
+  const content = event?.content || '';
+  const tags = event?.tags || [];
+  
   // First check tags for a cleaner URL source
   if (Array.isArray(tags)) {
     const imageTag = tags.find(tag => 
@@ -261,5 +265,5 @@ export const getFirstImageUrlFromEvent = (content?: string, tags?: string[][]): 
     }
   }
   
-  return extractFirstImageUrl(content || '');
+  return extractFirstImageUrl(content);
 };

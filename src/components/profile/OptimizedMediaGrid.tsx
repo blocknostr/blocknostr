@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { NostrEvent } from '@/lib/nostr';
-import { extractFirstImageUrl } from '@/lib/nostr/utils/media-extraction';
+import { getFirstImageUrlFromEvent } from '@/lib/nostr/utils';
 import { LazyImage } from '@/components/shared/LazyImage';
 
 interface OptimizedMediaGridProps {
@@ -39,7 +39,7 @@ const OptimizedMediaGrid: React.FC<OptimizedMediaGridProps> = ({ media, postsLim
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {displayedMedia.map(event => {
-        const imageUrl = extractFirstImageUrl(event.content, event.tags);
+        const imageUrl = getFirstImageUrlFromEvent(event);
         if (!imageUrl) return null;
         
         const isError = loadingStates[event.id] === 'error';

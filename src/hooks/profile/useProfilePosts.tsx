@@ -70,7 +70,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         
         // Extract media posts
         const mediaEvents = postsEvents.filter(event => {
-          const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
+          const mediaUrls = getMediaUrlsFromEvent(event);
           const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
           return validMediaUrls.length > 0;
         });
@@ -134,7 +134,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
               }
     
               // Check if note contains media using our enhanced detection
-              const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
+              const mediaUrls = getMediaUrlsFromEvent(event);
               
               // Validate the URLs to ensure they're proper media links
               const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
