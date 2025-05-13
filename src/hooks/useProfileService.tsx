@@ -15,16 +15,22 @@ export function useProfileService({ npub, currentUserPubkey }: UseProfileService
     return useProfileCore({ npub, currentUserPubkey });
   } catch (error) {
     console.error("Error in useProfileService:", error);
-    // Return default values in case of error
+    // Return default values with all required fields in case of error
     return {
       profileData: {
         metadata: {},
         posts: [],
         media: [],
+        reposts: [],
+        replies: [],
+        reactions: [],
+        referencedEvents: {},
         followers: [],
         following: [],
         relays: [],
+        originalPostProfiles: {},
         isCurrentUser: true,
+        hexPubkey: null
       },
       loading: false,
       error: error,

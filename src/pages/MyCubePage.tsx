@@ -1,4 +1,3 @@
-
 import { useEffect, useState, Suspense, lazy } from "react";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
@@ -60,15 +59,21 @@ const MyCubePage = () => {
     console.log("Current user pubkey:", currentUserPubkey);
   }, [currentUserPubkey]);
   
-  // Initialize profileData with default values
+  // Initialize profileData with default values - include all required fields
   const defaultProfileData = {
     metadata: {},
     posts: [],
     media: [],
+    reposts: [],
+    replies: [],
+    reactions: [],
+    referencedEvents: {},
     followers: [],
     following: [],
     relays: [],
+    originalPostProfiles: {},
     isCurrentUser: true,
+    hexPubkey: null
   };
   
   // Use profileService with current user's pubkey
@@ -77,7 +82,10 @@ const MyCubePage = () => {
     loading = true,
     error,
     refreshing = false,
-    refreshProfile = () => console.log("Refresh function not available")
+    refreshProfile = () => {
+      console.log("Attempting to refresh profile");
+      toast.info("Refreshing profile data...");
+    }
   } = useProfileService({ 
     npub: currentUserPubkey ? nostrService.getNpubFromHex(currentUserPubkey) : undefined, 
     currentUserPubkey 
@@ -124,7 +132,13 @@ const MyCubePage = () => {
           <p className="text-muted-foreground mb-4">
             There was an error loading your profile data. Please try refreshing.
           </p>
-          <Button onClick={refreshProfile}>Refresh</Button>
+          <Button onClick={() => {
+            if (refreshProfile) {
+              refreshProfile();
+            } else {
+              toast.info("Refresh function not available");
+            }
+          }}>Refresh</Button>
         </Card>
       </div>
     );
