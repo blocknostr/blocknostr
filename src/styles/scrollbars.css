@@ -1,0 +1,28 @@
+
+/* Hide default scrollbars but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Subtle custom scrollbar styling */
+.custom-scrollbar {
+  @apply scrollbar-hide overflow-auto;
+}
+
+/* Mini navigation indicator */
+.mini-nav-indicator {
+  @apply absolute right-1 w-1 rounded-full bg-muted-foreground/20 hover:bg-muted-foreground/40 transition-all duration-200;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.custom-scrollbar:hover .mini-nav-indicator,
+.custom-scrollbar:focus-within .mini-nav-indicator,
+.custom-scrollbar:active .mini-nav-indicator {
+  opacity: 1;
+}

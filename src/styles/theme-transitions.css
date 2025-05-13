@@ -1,0 +1,32 @@
+
+/* Theme transition classes - updated with shorter duration */
+.color-theme-in-transition,
+.color-theme-in-transition *,
+.color-theme-in-transition *:before,
+.color-theme-in-transition *:after {
+  transition: all 1s ease-out !important;
+  transition-delay: 0 !important;
+}
+
+/* Radial effect for theme transition */
+html.color-theme-in-transition {
+  background-image: radial-gradient(
+    circle at var(--theme-change-x) var(--theme-change-y),
+    hsl(var(--background)) 0%,
+    hsl(var(--background)) 10%,
+    transparent 70%
+  );
+  background-position: center;
+  background-size: 300% 300%;
+  background-repeat: no-repeat;
+  animation: theme-ripple 1s ease-out forwards;
+}
+
+@keyframes theme-ripple {
+  0% {
+    background-size: 0% 0%;
+  }
+  100% {
+    background-size: 300% 300%;
+  }
+}
