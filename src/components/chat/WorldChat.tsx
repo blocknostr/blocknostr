@@ -1,5 +1,5 @@
 
-import React, { lazy, Suspense, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader, { WORLD_CHAT_CHANNELS, ChatChannel } from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
@@ -10,9 +10,7 @@ import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import LoginDialog from "../auth/LoginDialog";
 import { cn } from "@/lib/utils";
-
-// Lazy load the MessageList component to improve initial load performance
-const MessageList = lazy(() => import("./MessageList"));
+import MessageList from "./MessageList";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -159,21 +157,15 @@ const WorldChat = () => {
         </Alert>
       )}
       
- <div className="flex-grow overflow-y-auto relative">
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-full">
-            <RefreshCw className="h-6 w-6 animate-spin text-primary/50" />
-          </div>
-        }>
-          <MessageList
-            messages={messages}
-            profiles={profiles}
-            emojiReactions={emojiReactions}
-            loading={showLoading}
-            isLoggedIn={isLoggedIn}
-            onAddReaction={addReaction}
-          />
-        </Suspense>
+      <div className="flex-grow overflow-y-auto relative">
+        <MessageList
+          messages={messages}
+          profiles={profiles}
+          emojiReactions={emojiReactions}
+          loading={showLoading}
+          isLoggedIn={isLoggedIn}
+          onAddReaction={addReaction}
+        />
       </div>
       
       <ChatInput
