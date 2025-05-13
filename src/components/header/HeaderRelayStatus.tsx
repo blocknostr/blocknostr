@@ -45,7 +45,7 @@ export function HeaderRelayStatus() {
     }
   };
 
-  // Get status color - Using TailwindCSS colors
+  // Get status color - Using the same color scheme as WorldChat
   const getStatusColor = () => {
     if (!isOnline) return "bg-red-500 hover:bg-red-600";
     if (connectionStatus === 'connecting' || isReconnecting) return "bg-yellow-500 hover:bg-yellow-600";
