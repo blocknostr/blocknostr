@@ -18,8 +18,8 @@ export {
 // Re-export validation functions
 export * from './media/media-validation';
 
-// Re-export extraction functions
-export * from './media/media-extractors';
+// Re-export extraction functions from the new modular structure
+export * from './media/extractors';
 
 // Export the URL registry
 export { default as UrlRegistry } from './media/url-registry';
