@@ -44,28 +44,34 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
           className="custom-scrollbar w-full"
         >
           {/* Total height spacer */}
-          <div style={{ height: totalHeight }}>
+          <div 
+            style={{ height: totalHeight, position: 'relative' }}
+          >
             {/* Only render visible posts */}
             {virtualItems.map(virtualRow => {
               const event = events[virtualRow.index];
               return (
                 <div
                   key={event.id}
-                  className="absolute w-full"
                   style={{
-                    top: virtualRow.start,
-                    height: virtualRow.size,
+                    position: 'absolute',
+                    top: `${virtualRow.start}px`,
+                    left: 0,
+                    width: '100%',
+                    height: `${virtualRow.size}px`,
                   }}
                 >
-                  <NoteCard 
-                    key={event.id} 
-                    event={event} 
-                    profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                    repostData={event.id && repostData[event.id] ? {
-                      reposterPubkey: repostData[event.id].pubkey,
-                      reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                    } : undefined}
-                  />
+                  <div className="py-2">
+                    <NoteCard 
+                      key={event.id} 
+                      event={event} 
+                      profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                      repostData={event.id && repostData[event.id] ? {
+                        reposterPubkey: repostData[event.id].pubkey,
+                        reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                      } : undefined}
+                    />
+                  </div>
                 </div>
               );
             })}

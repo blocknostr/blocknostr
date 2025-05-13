@@ -100,10 +100,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
                   key={event.id || virtualRow.index}
                   style={{
                     position: 'absolute',
-                    top: 0,
+                    top: `${virtualRow.start}px`,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualRow.start}px)`,
+                    height: `${virtualRow.size}px`,
                   }}
                 >
                   <div className="py-2">
