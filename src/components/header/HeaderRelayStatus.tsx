@@ -54,7 +54,15 @@ export function HeaderRelayStatus() {
     return "text-green-500 bg-green-500/10";
   };
 
-  // Get status message
+  // Get status text
+  const getStatusText = () => {
+    if (!isOnline) return "Offline";
+    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting...";
+    if (connectedCount === 0) return "Disconnected";
+    return "Connected";
+  };
+
+  // Get status message for tooltip
   const getStatusMessage = () => {
     if (!isOnline) return "Browser offline";
     if (connectionStatus === 'connecting' || isReconnecting) return "Connecting to relays...";
@@ -82,7 +90,8 @@ export function HeaderRelayStatus() {
             ) : (
               <WifiOff className="h-3 w-3" />
             )}
-            <span className="font-medium">{connectedCount}/{totalCount}</span>
+            <span className="font-medium">{getStatusText()}</span>
+            <span className="font-medium text-xs opacity-80">({connectedCount}/{totalCount})</span>
           </div>
         </TooltipTrigger>
         <TooltipContent>
