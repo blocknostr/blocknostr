@@ -1,15 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
-import { BadgeCheck } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Link } from 'react-router-dom';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -20,8 +14,6 @@ interface NoteCardHeaderProps {
 const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps) => {
   const hexPubkey = pubkey || '';
   const npub = nostrService.getNpubFromHex(hexPubkey);
-  const currentUserPubkey = nostrService.publicKey;
-  const [xVerified, setXVerified] = useState(false);
   
   // Handle short display of npub (first 5 and last 5 chars)
   const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
@@ -39,62 +31,21 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     { addSuffix: true }
   );
 
-  // Check for X verification status from profile
-  useEffect(() => {
-    // Check if profile has X verification (either via our legacy method or NIP-39)
-    if (profileData) {
-      // First, check our custom twitter_verified field
-      if (profileData.twitter_verified) {
-        setXVerified(true);
-        return;
-      }
-      
-      // Then check for NIP-39 i tags in the raw event
-      if (profileData.tags && Array.isArray(profileData.tags)) {
-        const hasTwitterTag = profileData.tags.some(tag => 
-          tag.length >= 3 && tag[0] === 'i' && tag[1].startsWith('twitter:')
-        );
-        
-        if (hasTwitterTag) {
-          setXVerified(true);
-          return;
-        }
-      }
-      
-      setXVerified(false);
-    }
-  }, [profileData]);
-
   return (
     <div className="flex justify-between">
       <div className="flex">
-        {/* Temporarily disable profile navigation */}
-        <div className="mr-3 shrink-0">
+        <Link to={`/profile/${npub}`} className="mr-3 shrink-0">
           <Avatar className="h-11 w-11 border border-muted">
             <AvatarImage src={picture} alt={name} />
             <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
           </Avatar>
-        </div>
+        </Link>
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
-            <div className="font-bold truncate flex items-center gap-1">
+            <Link to={`/profile/${npub}`} className="font-bold truncate hover:underline">
               {displayName}
-              {xVerified && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <BadgeCheck className="h-3.5 w-3.5 text-blue-500 inline-block ml-0.5" />
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Verified X account (NIP-39)</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+            </Link>
             
             <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
             <span className="text-muted-foreground text-sm mx-0.5">·</span>

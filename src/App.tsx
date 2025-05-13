@@ -10,6 +10,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
+import ProfilePage from './pages/ProfilePage';
 import { Toaster } from "sonner";
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
@@ -32,6 +33,7 @@ function App() {
               <Route path="/notebin" element={<NotebinPage />} />
               <Route path="/wallets" element={<WalletsPage />} />
               <Route path="/premium" element={<PremiumPage />} />
+              <Route path="/profile/:npub" element={<ProfilePage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
