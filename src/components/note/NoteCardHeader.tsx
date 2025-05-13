@@ -1,9 +1,9 @@
 
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nostrService } from '@/lib/nostr';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import { formatPubkey, getNpubFromHex } from '@/lib/nostr/utils/keys';
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -15,29 +15,25 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   // Ensure we have a valid pubkey
   const hexPubkey = pubkey || '';
   
-  // Get npub with error handling
+  // Use our improved utility functions with built-in validation and fallbacks
   let npub = '';
   let shortNpub = '';
   
   try {
     if (hexPubkey) {
-      // Validate hex format (64 hex chars)
-      if (hexPubkey.length === 64 && /^[0-9a-f]+$/i.test(hexPubkey)) {
-        npub = nostrService.getNpubFromHex(hexPubkey);
-      } else if (hexPubkey.startsWith('npub1')) {
-        npub = hexPubkey;
-      } else {
-        // Handle invalid format with a placeholder
-        npub = 'npub1unknown';
-      }
+      // Use the enhanced getNpubFromHex with built-in validation
+      npub = getNpubFromHex(hexPubkey);
       
       // Handle short display of npub (first 9 and last 5 chars)
+      // This will always work since our utility returns valid strings even for errors
       shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
     } else {
+      // Consistent fallbacks for empty input
       npub = 'npub1unknown';
       shortNpub = 'unknown';
     }
   } catch (error) {
+    // Extra safety in case of unexpected errors
     console.error('Error in NoteCardHeader with pubkey:', hexPubkey, error);
     npub = 'npub1unknown';
     shortNpub = 'unknown';

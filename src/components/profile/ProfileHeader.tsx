@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, Link as LinkIcon, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { isCurrentUser } from '@/lib/utils/pubkeyUtils';
 import { nostrService } from '@/lib/nostr';
 import FollowButton from '@/components/FollowButton';
 
@@ -31,11 +32,18 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey 
     ? format(new Date(created_at * 1000), 'MMMM yyyy')
     : '';
   
-  // Determine if this is the currently logged in user
-  const isCurrentUser = hexPubkey === nostrService.publicKey;
+  // Use the utility function to check if this is the current user
+  const currentUserOwnsProfile = isCurrentUser(hexPubkey, nostrService.publicKey);
   
-  // Short version of npub for display
-  const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+  // Short version of npub for display (handle potential errors)
+  const shortNpub = (() => {
+    try {
+      return `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+    } catch (e) {
+      console.error("Error formatting short npub:", e);
+      return npub.substring(0, 15) + '...';
+    }
+  })();
   
   return (
     <div className="mb-6">
@@ -56,7 +64,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey 
           
           {/* Action buttons */}
           <div className="mt-4 flex space-x-2">
-            {isCurrentUser ? (
+            {currentUserOwnsProfile ? (
               <Button variant="outline">Edit Profile</Button>
             ) : (
               <FollowButton pubkey={hexPubkey} variant="default" />

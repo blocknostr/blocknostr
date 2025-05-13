@@ -1,5 +1,5 @@
 
-import { nostrService } from '@/lib/nostr';
+import { getHexFromNpub, isValidHexPubkey, isValidNpub } from '@/lib/nostr/utils/keys';
 
 /**
  * Convert any valid pubkey format (npub or hex) to hex format
@@ -8,23 +8,23 @@ export function convertToHexPubkey(input: string | undefined | null): string | n
   if (!input) return null;
   
   try {
-    // If input is already in hex format (64 chars)
-    if (input.length === 64 && /^[0-9a-f]+$/i.test(input)) {
+    // Import the validation functions for consistency
+    const { isValidHexPubkey, isValidNpub, getHexFromNpub } = require('@/lib/nostr/utils/keys');
+    
+    // If input is already in hex format
+    if (isValidHexPubkey(input)) {
       return input;
     }
     
-    // If input starts with npub1, convert to hex
-    if (input.startsWith('npub1')) {
-      return nostrService.getHexFromNpub(input);
+    // If input is in npub format
+    if (isValidNpub(input)) {
+      const hex = getHexFromNpub(input);
+      return hex || null; // Return null if conversion failed
     }
     
-    // For any other format, try to convert
-    try {
-      return nostrService.getHexFromNpub(input);
-    } catch (e) {
-      console.warn("Unrecognized pubkey format:", input);
-      return input; // Return as-is as fallback
-    }
+    // For any other format, try to convert but provide more details on failure
+    console.warn("Unrecognized pubkey format:", input);
+    return null;
   } catch (error) {
     console.error("Error converting pubkey format:", error);
     return null;

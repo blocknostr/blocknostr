@@ -1,7 +1,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nostrService } from "@/lib/nostr";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getNpubFromHex } from "@/lib/nostr/utils/keys";
 
 interface VotersListProps {
   voters: string[];
@@ -13,6 +13,17 @@ const VotersList = ({ voters, maxDisplay = 5 }: VotersListProps) => {
   
   const displayVoters = voters.slice(0, maxDisplay);
   const remainingCount = voters.length - maxDisplay;
+  
+  // Function to safely get a short display version of a pubkey
+  const getShortNpub = (hexPubkey: string): string => {
+    try {
+      const npub = getNpubFromHex(hexPubkey);
+      return npub.substring(0, 12) + '...';
+    } catch (e) {
+      console.error("Error generating short npub:", e);
+      return hexPubkey.substring(0, 8) + '...';
+    }
+  };
   
   return (
     <div className="flex -space-x-2 overflow-hidden">
@@ -28,7 +39,7 @@ const VotersList = ({ voters, maxDisplay = 5 }: VotersListProps) => {
               </div>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {nostrService.getNpubFromHex(voter).substring(0, 12)}...
+              {getShortNpub(voter)}
             </TooltipContent>
           </Tooltip>
         ))}
