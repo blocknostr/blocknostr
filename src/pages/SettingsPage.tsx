@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -43,12 +42,9 @@ const SettingsPage = () => {
       
       setLoadingInterests(true);
       try {
-        // Access the interests through the socialInteractionService
-        const socialService = nostrService.service.socialInteractionService;
-        if (socialService) {
-          const userInterests = await socialService.getInterests();
-          setInterests(userInterests || []);
-        }
+        // Use the new socialInteraction adapter instead of directly accessing the service
+        const userInterests = await nostrService.socialInteraction.getInterests();
+        setInterests(userInterests || []);
       } catch (error) {
         console.error("Error loading interests:", error);
       } finally {
@@ -99,16 +95,13 @@ const SettingsPage = () => {
     if (!newInterest.trim()) return;
     
     try {
-      const socialService = nostrService.service.socialInteractionService;
-      if (socialService) {
-        const success = await socialService.addInterest(newInterest.trim());
-        if (success) {
-          toast.success(`Added interest: ${newInterest}`);
-          setInterests(prev => [...prev, newInterest.trim()]);
-          setNewInterest("");
-        } else {
-          toast.error("Failed to add interest");
-        }
+      const success = await nostrService.socialInteraction.addInterest(newInterest.trim());
+      if (success) {
+        toast.success(`Added interest: ${newInterest}`);
+        setInterests(prev => [...prev, newInterest.trim()]);
+        setNewInterest("");
+      } else {
+        toast.error("Failed to add interest");
       }
     } catch (error) {
       console.error("Error adding interest:", error);
@@ -118,15 +111,12 @@ const SettingsPage = () => {
 
   const handleRemoveInterest = async (interest: string) => {
     try {
-      const socialService = nostrService.service.socialInteractionService;
-      if (socialService) {
-        const success = await socialService.removeInterest(interest);
-        if (success) {
-          toast.success(`Removed interest: ${interest}`);
-          setInterests(prev => prev.filter(i => i !== interest));
-        } else {
-          toast.error("Failed to remove interest");
-        }
+      const success = await nostrService.socialInteraction.removeInterest(interest);
+      if (success) {
+        toast.success(`Removed interest: ${interest}`);
+        setInterests(prev => prev.filter(i => i !== interest));
+      } else {
+        toast.error("Failed to remove interest");
       }
     } catch (error) {
       console.error("Error removing interest:", error);

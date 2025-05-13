@@ -36,7 +36,7 @@ export interface QueuedOperation {
   timestamp: number;
 }
 
-// NIP-51 compliant bookmark types - matches current implementation
+// NIP-51 compliant bookmark types - use LIST from constants
 export enum BookmarkEventKinds {
   BOOKMARK_LIST = 10000,
   COLLECTIONS = 10000

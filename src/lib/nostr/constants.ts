@@ -32,6 +32,10 @@ export const EVENT_KINDS = {
   
   ZAP_REQUEST: 9734, // Zap request (NIP-57)
   ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
+  
+  // Add missing bookmark-related constants
+  BOOKMARK_COLLECTIONS: 10000, // Uses kind 10000 with d-tag as per NIP-51
+  BOOKMARK_METADATA: 10000   // Uses kind 10000 with d-tag as per NIP-51
 }
 
 // NIP-51 List Identifiers
