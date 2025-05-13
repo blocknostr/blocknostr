@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { ConnectionStatusBanner } from "@/components/feed/ConnectionStatusBanner";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import FeedLoadingSkeleton from "@/components/feed/FeedLoadingSkeleton";
 
 // Lazy load MainFeed to improve initial page load
 const MainFeed = lazy(() => import("@/components/MainFeed"));
@@ -121,7 +120,8 @@ const Index: React.FC = () => {
         </div>
       )}
       
-      {/* Removed ConnectionStatusBanner from here; it's now in MainFeed */}
+      {/* Show connection status only if logged in */}
+      {isLoggedIn && <ConnectionStatusBanner />}
       
       {/* Welcome message (no login button) */}
       {!isLoggedIn && (
@@ -164,7 +164,12 @@ const Index: React.FC = () => {
           <p className="text-muted-foreground">Initializing connection...</p>
         </div>
       ) : isLoggedIn ? (
-        <Suspense fallback={<FeedLoadingSkeleton />}>
+        <Suspense fallback={
+          <div className="py-12 flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
+            <p className="text-muted-foreground">Loading feed...</p>
+          </div>
+        }>
           <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
         </Suspense>
       ) : (
