@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -9,6 +8,7 @@ import { BookmarkAdapter } from './adapters/bookmark-adapter';
 import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
 import { relaySelector } from './relay/selection/relay-selector';
 import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
+import { NostrEvent } from './types';
 
 /**
  * Main NostrAdapter that implements all functionality through composition
@@ -61,10 +61,19 @@ export class NostrAdapter extends BaseAdapter {
     
     // Connect to these relays first if available
     if (bestRelays.length > 0) {
-      await this.relayAdapter.addMultipleRelays(bestRelays);
+      await this.addMultipleRelays(bestRelays);
     }
     
     return this.socialAdapter.sendDirectMessage(recipientPubkey, content);
+  }
+
+  /**
+   * Decrypt a direct message using NIP-44 with fallback to NIP-04
+   * @param event The encrypted message event
+   * @returns Decrypted message content or null if decryption fails
+   */
+  async decryptDirectMessage(event: NostrEvent): Promise<string | null> {
+    return this.socialAdapter.decryptDirectMessage(event);
   }
 
   // User moderation methods
