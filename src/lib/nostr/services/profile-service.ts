@@ -1,3 +1,4 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -98,19 +99,21 @@ export class ProfileService {
                     display_name: "Unknown User"
                   });
                 }
-              },
-              eose: () => {
-                // On end of stream, resolve with default if no profile found
-                console.log("End of stored events, no profile found for", pubkey);
-                setTimeout(() => {
-                  resolve({
-                    name: "Unknown",
-                    display_name: "Unknown User"
-                  });
-                }, 100);
               }
             }
           );
+          
+          // Handle end of stored events with a separate timeout
+          // Instead of using 'eose' which isn't in SubscribeManyParams type
+          setTimeout(() => {
+            console.log("End of stored events timeout, no profile found for", pubkey);
+            if (subscription && !subscription.closed) {
+              resolve({
+                name: "Unknown",
+                display_name: "Unknown User"
+              });
+            }
+          }, 3000);
         } catch (error) {
           console.error("Error in subscription:", error);
           resolve({
@@ -170,37 +173,28 @@ export class ProfileService {
             {
               onevent: (event) => {
                 events.push(event);
-              },
-              onclose: () => {
-                // On end of subscription, process and resolve
-                if (events.length > 0) {
-                  // Sort by creation time (oldest first)
-                  events.sort((a, b) => a.created_at - b.created_at);
-                  resolve(events[0].created_at);
-                } else {
-                  resolve(null);
-                }
               }
             }
           );
+          
+          // Use timeout instead of onclose since it's not in the type
+          setTimeout(() => {
+            if (subscription) {
+              subscription.close();
+            }
+            
+            if (events.length > 0) {
+              // Sort by creation time (oldest first)
+              events.sort((a, b) => a.created_at - b.created_at);
+              resolve(events[0].created_at);
+            } else {
+              resolve(null);
+            }
+          }, 5000);
         } catch (error) {
           console.error("Error in subscription:", error);
           resolve(null);
         }
-        
-        // Set a timeout to resolve with null if no events found
-        setTimeout(() => {
-          if (subscription) {
-            subscription.close();
-          }
-          
-          if (events.length > 0) {
-            events.sort((a, b) => a.created_at - b.created_at);
-            resolve(events[0].created_at);
-          } else {
-            resolve(null);
-          }
-        }, 5000);
       });
     } catch (error) {
       console.error("Error fetching account creation date:", error);
