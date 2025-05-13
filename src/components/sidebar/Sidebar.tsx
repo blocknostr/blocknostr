@@ -19,13 +19,17 @@ const Sidebar = () => {
       )}
     >
       <div className="flex flex-col h-full px-4">
-        {/* Logo in place of text */}
-        <div className="mb-6 flex items-center">
+        {/* Centered logo with white glow */}
+        <div className="mb-6 flex items-center justify-center">
           <Link to="/">
             <img
               src="/BlockNostr_Transparent.png"
               alt="BlockNostr Logo"
-              className="w-32 h-auto hover:opacity-80 transition-opacity"
+              className="
+                w-32 h-auto
+                hover:opacity-80 transition-opacity
+                shadow-[0_0_8px_rgba(255,255,255,0.8)]
+              "
             />
           </Link>
         </div>
