@@ -1,6 +1,6 @@
 
 import { SimplePool } from 'nostr-tools';
-import { EVENT_KINDS, LIST_IDENTIFIERS } from '../../constants';
+import { EVENT_KINDS } from '../../constants';
 import { contentCache } from '../../cache/content-cache';
 import { UserListBase } from './user-list-base';
 
@@ -14,8 +14,8 @@ export class BlockListService extends UserListBase {
     getConnectedRelayUrls: () => string[]
   ) {
     super(pool, getPublicKey, getConnectedRelayUrls, {
-      kind: EVENT_KINDS.LIST,
-      identifier: LIST_IDENTIFIERS.BLOCK,
+      kind: EVENT_KINDS.BLOCK_LIST,
+      identifier: 'block-list',
       cacheGetter: () => contentCache.getBlockList(),
       cacheSetter: (list: string[]) => contentCache.cacheBlockList(list)
     });

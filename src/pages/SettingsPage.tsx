@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -7,9 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { nostrService, Relay, LIST_IDENTIFIERS } from "@/lib/nostr";
+import { nostrService, Relay } from "@/lib/nostr";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Check, Hash, Plus, Trash2, X } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const SettingsPage = () => {
@@ -18,9 +17,6 @@ const SettingsPage = () => {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [newInterest, setNewInterest] = useState("");
-  const [loadingInterests, setLoadingInterests] = useState(false);
   
   useEffect(() => {
     const checkAuth = () => {
@@ -38,33 +34,14 @@ const SettingsPage = () => {
       setRelays(relayStatus);
     };
     
-    const loadInterests = async () => {
-      if (!isLoggedIn) return;
-      
-      setLoadingInterests(true);
-      try {
-        // Use the new socialInteraction adapter
-        const userInterests = await nostrService.socialInteraction.getInterests();
-        setInterests(userInterests || []);
-      } catch (error) {
-        console.error("Error loading interests:", error);
-      } finally {
-        setLoadingInterests(false);
-      }
-    };
-    
     checkAuth();
     loadRelays();
-    
-    if (isLoggedIn) {
-      loadInterests();
-    }
     
     // Refresh relay status every 5 seconds
     const interval = setInterval(loadRelays, 5000);
     
     return () => clearInterval(interval);
-  }, [navigate, isLoggedIn]);
+  }, [navigate]);
   
   const handleAddRelay = async () => {
     if (!newRelayUrl.trim()) return;
@@ -91,39 +68,6 @@ const SettingsPage = () => {
     setRelays(nostrService.getRelayStatus());
     toast.success(`Removed relay: ${relayUrl}`);
   };
-
-  const handleAddInterest = async () => {
-    if (!newInterest.trim()) return;
-    
-    try {
-      const success = await nostrService.socialInteraction.addInterest(newInterest.trim());
-      if (success) {
-        toast.success(`Added interest: ${newInterest}`);
-        setInterests(prev => [...prev, newInterest.trim()]);
-        setNewInterest("");
-      } else {
-        toast.error("Failed to add interest");
-      }
-    } catch (error) {
-      console.error("Error adding interest:", error);
-      toast.error("Error adding interest");
-    }
-  };
-
-  const handleRemoveInterest = async (interest: string) => {
-    try {
-      const success = await nostrService.socialInteraction.removeInterest(interest);
-      if (success) {
-        toast.success(`Removed interest: ${interest}`);
-        setInterests(prev => prev.filter(i => i !== interest));
-      } else {
-        toast.error("Failed to remove interest");
-      }
-    } catch (error) {
-      console.error("Error removing interest:", error);
-      toast.error("Error removing interest");
-    }
-  };
   
   return (
     <div className="flex min-h-screen bg-background">
@@ -141,7 +85,6 @@ const SettingsPage = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="account">Account</TabsTrigger>
               <TabsTrigger value="relays">Relays</TabsTrigger>
-              <TabsTrigger value="interests">Interests</TabsTrigger>
               <TabsTrigger value="privacy">Privacy</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="about">About</TabsTrigger>
@@ -254,77 +197,6 @@ const SettingsPage = () => {
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
                               </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="interests">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Interests</CardTitle>
-                  <CardDescription>
-                    Manage topics you're interested in (NIP-51 compliant)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="newInterest">Add New Interest Topic</Label>
-                      <div className="flex items-center mt-1.5 gap-2">
-                        <Input 
-                          id="newInterest" 
-                          placeholder="bitcoin"
-                          value={newInterest}
-                          onChange={(e) => setNewInterest(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newInterest.trim()) {
-                              handleAddInterest();
-                            }
-                          }}
-                        />
-                        <Button 
-                          onClick={handleAddInterest}
-                          size="icon"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Topics you add here are stored as a NIP-51 interests list (kind 10000, d="interests")
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Your Interest Topics</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {loadingInterests ? (
-                          <p className="text-sm italic text-muted-foreground">Loading interests...</p>
-                        ) : interests.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            No interests added yet. Add topics you're interested in above.
-                          </p>
-                        ) : (
-                          interests.map((interest) => (
-                            <div 
-                              key={interest} 
-                              className="flex items-center bg-secondary px-2 py-1 rounded-md"
-                            >
-                              <Hash className="h-3 w-3 mr-1 text-muted-foreground" />
-                              <span className="text-sm">{interest}</span>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-5 w-5 p-0 ml-1"
-                                onClick={() => handleRemoveInterest(interest)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
                             </div>
                           ))
                         )}

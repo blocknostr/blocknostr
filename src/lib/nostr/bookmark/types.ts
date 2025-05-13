@@ -1,7 +1,5 @@
 
 // Basic types for bookmarks
-import { EVENT_KINDS, LIST_IDENTIFIERS } from '../constants';
-
 export interface BookmarkStatus {
   eventId: string;
   isBookmarked: boolean;
@@ -22,11 +20,11 @@ export interface BookmarkCollection {
   color?: string;
   description?: string;
   createdAt: number;
-  updatedAt?: number;
+  updatedAt?: number;  // Add updatedAt as optional property
   totalItems?: number;
 }
 
-// Operation types
+// Operation types for offline support
 export type BookmarkOperationType = 'add' | 'remove' | 'update' | 'addCollection' | 'updateCollection' | 'deleteCollection';
 
 export interface QueuedOperation {
@@ -38,12 +36,29 @@ export interface QueuedOperation {
   timestamp: number;
 }
 
-// NIP-51 compliant bookmark types
+// Event kinds for Nostr events
 export enum BookmarkEventKinds {
-  BOOKMARK_LIST = EVENT_KINDS.LIST,
-  COLLECTIONS = EVENT_KINDS.LIST
+  BOOKMARK_LIST = 30001,
+  BOOKMARK_COLLECTIONS = 30002,
+  BOOKMARK_METADATA = 30003,
+  BOOKMARKS = 30001,
+  COLLECTIONS = 30002,
+  METADATA = 30003,
+  DELETE = 5
 }
 
+// Filter types
+export interface BookmarkFilters {
+  collections?: string[];
+  tags?: string[];
+  dateRange?: {
+    from?: Date;
+    to?: Date;
+  };
+  search?: string;
+}
+
+// Dependencies for the bookmark manager
 export interface BookmarkManagerDependencies {
   publishEvent: (event: any) => Promise<string | null>;
   getEvents: (filters: any[], relays?: string[]) => Promise<any[]>;

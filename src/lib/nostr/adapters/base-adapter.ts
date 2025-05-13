@@ -1,14 +1,14 @@
 
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from '../utils/keys';
-import { NostrService } from '../service';
+import { nostrService } from '../service';
 
 /**
  * Base adapter class that provides core functionality
  */
 export class BaseAdapter {
-  protected service: NostrService;
+  protected service: typeof nostrService;
   
-  constructor(service: NostrService) {
+  constructor(service: typeof nostrService) {
     this.service = service;
   }
 

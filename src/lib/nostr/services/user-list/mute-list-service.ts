@@ -1,11 +1,11 @@
 
 import { SimplePool } from 'nostr-tools';
-import { EVENT_KINDS, LIST_IDENTIFIERS } from '../../constants';
+import { EVENT_KINDS } from '../../constants';
 import { contentCache } from '../../cache/content-cache';
 import { UserListBase } from './user-list-base';
 
 /**
- * Service for managing user mute lists following NIP-51 pattern
+ * Service for managing user mute lists following NIP-51
  */
 export class MuteListService extends UserListBase {
   constructor(
@@ -14,15 +14,15 @@ export class MuteListService extends UserListBase {
     getConnectedRelayUrls: () => string[]
   ) {
     super(pool, getPublicKey, getConnectedRelayUrls, {
-      kind: EVENT_KINDS.LIST,
-      identifier: LIST_IDENTIFIERS.MUTE,
+      kind: EVENT_KINDS.MUTE_LIST,
+      identifier: 'mute-list',
       cacheGetter: () => contentCache.getMuteList(),
       cacheSetter: (list: string[]) => contentCache.cacheMuteList(list)
     });
   }
 
   /**
-   * Mutes a user - adds the user to the mute list
+   * Mutes a user following NIP-51 - adds the user to the mute list
    * @param pubkeyToMute The pubkey of the user to mute
    * @returns Whether the operation was successful
    */
@@ -31,7 +31,7 @@ export class MuteListService extends UserListBase {
   }
 
   /**
-   * Unmutes a user - removes the user from the mute list
+   * Unmutes a user following NIP-51 - removes the user from the mute list
    * @param pubkeyToUnmute The pubkey of the user to unmute
    * @returns Whether the operation was successful
    */

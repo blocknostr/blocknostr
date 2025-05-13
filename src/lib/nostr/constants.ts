@@ -14,14 +14,17 @@ export const EVENT_KINDS = {
   
   // Parameterized replaceable events (NIP-33)
   EVENT_APP: 30000, // Generic application-specific event
+  BOOKMARKS: 30001, // Bookmarks list (per NIP-51)
+  COMMUNITIES: 30002, // User communities
+  BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
+  BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
   
   // Community-specific events (custom)
   COMMUNITY: 34550, // Community definition event
   PROPOSAL: 34551, // Community proposal event
   VOTE: 34552, // Vote on a community proposal
-  
-  // NIP-51 Lists (kind 10000 with d tag)
-  LIST: 10000, // Generic lists per NIP-51
+  BLOCK_LIST: 10000, // User block list
+  MUTE_LIST: 10001, // User mute list
   
   // Specialized events (NIP-22, NIP-40)
   CHANNEL_CREATION: 40, // Channel creation
@@ -32,20 +35,4 @@ export const EVENT_KINDS = {
   
   ZAP_REQUEST: 9734, // Zap request (NIP-57)
   ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
-  
-  // Add bookmark-related constants using LIST kind with d-tag as per NIP-51
-  BOOKMARK_COLLECTIONS: 10000, // Uses kind 10000 with d-tag as per NIP-51
-  BOOKMARK_METADATA: 10000   // Uses kind 10000 with d-tag as per NIP-51
-}
-
-// NIP-51 List Identifiers
-export const LIST_IDENTIFIERS = {
-  MUTE: 'mute',
-  BLOCK: 'block',
-  PINNED_NOTES: 'pin',
-  INTERESTS: 'interests',
-  BOOKMARKS: 'bookmarks',
-  CHANNELS: 'channels',
-  COMMUNITIES: 'communities',
-  CUSTOM_LISTS: 'lists'
 }
