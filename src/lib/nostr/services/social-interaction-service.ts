@@ -1,14 +1,15 @@
 
 import { SimplePool } from 'nostr-tools';
-import { MuteListService, BlockListService } from './user-list';
+import { MuteListService, BlockListService, InterestListService } from './user-list';
 
 /**
  * Facade service that provides social interaction capabilities
- * Handles user muting and blocking using specialized services
+ * Handles user muting, blocking, and interests using specialized services
  */
 export class SocialInteractionService {
   private muteListService: MuteListService;
   private blockListService: BlockListService;
+  private interestListService: InterestListService;
 
   constructor(
     pool: SimplePool,
@@ -17,6 +18,7 @@ export class SocialInteractionService {
   ) {
     this.muteListService = new MuteListService(pool, getPublicKey, getConnectedRelayUrls);
     this.blockListService = new BlockListService(pool, getPublicKey, getConnectedRelayUrls);
+    this.interestListService = new InterestListService(pool, getPublicKey, getConnectedRelayUrls);
   }
 
   // Mute list methods
@@ -51,5 +53,22 @@ export class SocialInteractionService {
 
   async isUserBlocked(pubkey: string): Promise<boolean> {
     return this.blockListService.isUserBlocked(pubkey);
+  }
+
+  // Interest list methods
+  async addInterest(topic: string): Promise<boolean> {
+    return this.interestListService.addInterest(topic);
+  }
+
+  async removeInterest(topic: string): Promise<boolean> {
+    return this.interestListService.removeInterest(topic);
+  }
+
+  async getInterests(): Promise<string[]> {
+    return this.interestListService.getInterests();
+  }
+
+  async hasInterest(topic: string): Promise<boolean> {
+    return this.interestListService.hasInterest(topic);
   }
 }

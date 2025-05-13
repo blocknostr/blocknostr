@@ -1,5 +1,5 @@
 
-// Basic types for bookmarks
+// Basic types for bookmarks - empty stubs for backward compatibility
 export interface BookmarkStatus {
   eventId: string;
   isBookmarked: boolean;
@@ -20,11 +20,11 @@ export interface BookmarkCollection {
   color?: string;
   description?: string;
   createdAt: number;
-  updatedAt?: number;  // Add updatedAt as optional property
+  updatedAt?: number;
   totalItems?: number;
 }
 
-// Operation types for offline support
+// Placeholder types for backward compatibility
 export type BookmarkOperationType = 'add' | 'remove' | 'update' | 'addCollection' | 'updateCollection' | 'deleteCollection';
 
 export interface QueuedOperation {
@@ -36,29 +36,12 @@ export interface QueuedOperation {
   timestamp: number;
 }
 
-// Event kinds for Nostr events
+// NIP-51 compliant bookmark types - matches current implementation
 export enum BookmarkEventKinds {
-  BOOKMARK_LIST = 30001,
-  BOOKMARK_COLLECTIONS = 30002,
-  BOOKMARK_METADATA = 30003,
-  BOOKMARKS = 30001,
-  COLLECTIONS = 30002,
-  METADATA = 30003,
-  DELETE = 5
+  BOOKMARK_LIST = 10000,
+  COLLECTIONS = 10000
 }
 
-// Filter types
-export interface BookmarkFilters {
-  collections?: string[];
-  tags?: string[];
-  dateRange?: {
-    from?: Date;
-    to?: Date;
-  };
-  search?: string;
-}
-
-// Dependencies for the bookmark manager
 export interface BookmarkManagerDependencies {
   publishEvent: (event: any) => Promise<string | null>;
   getEvents: (filters: any[], relays?: string[]) => Promise<any[]>;

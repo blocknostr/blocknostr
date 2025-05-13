@@ -38,25 +38,37 @@ export class UserListBase {
    * @returns Array of pubkeys in the list
    */
   async getUserList(): Promise<string[]> {
+    return this.getTagList('p');
+  }
+
+  /**
+   * Gets a list of tags of a specific type from cache or relays
+   * @param tagType The tag type (e.g., 'p' for pubkeys, 't' for topics)
+   * @returns Array of tag values
+   */
+  async getTagList(tagType: string = 'p'): Promise<string[]> {
     const currentUserPubkey = this.getPublicKey();
     if (!currentUserPubkey) {
       return [];
     }
 
-    // Check cache first
-    const cachedList = this.options.cacheGetter();
-    if (cachedList) {
-      return cachedList;
+    // Check cache first if it's a pubkey list
+    if (tagType === 'p' && this.options.cacheGetter) {
+      const cachedList = this.options.cacheGetter();
+      if (cachedList) {
+        return cachedList;
+      }
     }
 
     // If not in cache, fetch from relays
     try {
       const relays = this.getConnectedRelayUrls();
       
-      // Create a proper Filter object for querySync
+      // Create a proper Filter object for querySync with correct d tag for NIP-51
       const filter: Filter = {
         kinds: [this.options.kind],
         authors: [currentUserPubkey],
+        '#d': [this.options.identifier],
         limit: 1
       };
 
@@ -64,15 +76,17 @@ export class UserListBase {
       const events = await this.pool.querySync(relays, filter);
 
       if (events && events.length > 0) {
-        // Extract pubkeys from the 'p' tags
-        const pubkeys = events[0].tags
-          .filter(tag => tag.length >= 2 && tag[0] === 'p')
+        // Extract values from the specified tag type
+        const tagValues = events[0].tags
+          .filter(tag => tag.length >= 2 && tag[0] === tagType)
           .map(tag => tag[1]);
         
-        // Cache the result
-        this.options.cacheSetter(pubkeys);
+        // Cache the result if it's a pubkey list
+        if (tagType === 'p' && this.options.cacheSetter) {
+          this.options.cacheSetter(tagValues);
+        }
         
-        return pubkeys;
+        return tagValues;
       }
       
       // If no events found, return empty array
@@ -89,10 +103,20 @@ export class UserListBase {
    * @returns True if the user is in the list
    */
   async isUserInList(pubkey: string): Promise<boolean> {
-    if (!pubkey) return false;
+    return this.isTagInList('p', pubkey);
+  }
+
+  /**
+   * Checks if a tag is in the list
+   * @param tagType The tag type (e.g., 'p', 't')
+   * @param value The tag value to check
+   * @returns True if the tag is in the list
+   */
+  async isTagInList(tagType: string, value: string): Promise<boolean> {
+    if (!value) return false;
     
-    const list = await this.getUserList();
-    return list.includes(pubkey);
+    const list = await this.getTagList(tagType);
+    return list.includes(value);
   }
 
   /**
@@ -101,33 +125,50 @@ export class UserListBase {
    * @returns Whether the operation was successful
    */
   async addUserToList(pubkeyToAdd: string): Promise<boolean> {
+    return this.addTagToList('p', pubkeyToAdd);
+  }
+
+  /**
+   * Adds a tag to the list
+   * @param tagType The tag type (e.g., 'p' for pubkeys, 't' for topics) 
+   * @param valueToAdd The value to add
+   * @returns Whether the operation was successful
+   */
+  async addTagToList(tagType: string, valueToAdd: string): Promise<boolean> {
     const currentUserPubkey = this.getPublicKey();
     if (!currentUserPubkey) {
       toast.error(`You must be logged in to manage ${this.options.identifier} list`);
       return false;
     }
 
-    // Prevent adding yourself
-    if (pubkeyToAdd === currentUserPubkey) {
+    // Prevent adding yourself if it's a pubkey
+    if (tagType === 'p' && valueToAdd === currentUserPubkey) {
       toast.error(`You cannot add yourself to ${this.options.identifier} list`);
       return false;
     }
 
     try {
-      // Get current list
-      const userList = await this.getUserList();
+      // Get current tags
+      const tagList = await this.getTagList(tagType);
       
       // Check if already in list
-      if (userList.includes(pubkeyToAdd)) {
+      if (tagList.includes(valueToAdd)) {
         return true; // Already in list
       }
 
       // Add to list
-      userList.push(pubkeyToAdd);
+      tagList.push(valueToAdd);
       
-      // Create list tags following NIP-51
-      const tags = userList.map(pubkey => ['p', pubkey]);
-      tags.push(['d', this.options.identifier]); // NIP-51 requires 'd' tag with identifier value
+      // Create all tags following NIP-51
+      let tags: string[][] = [];
+      
+      // Add existing tags of the same type
+      for (const value of tagList) {
+        tags.push([tagType, value]);
+      }
+      
+      // Add d tag with identifier value per NIP-51
+      tags.push(['d', this.options.identifier]); 
 
       // Create and publish the event
       const event = {
@@ -146,8 +187,10 @@ export class UserListBase {
         
         await this.pool.publish(relays, signedEvent as Event);
         
-        // Update local cache
-        this.options.cacheSetter(userList);
+        // Update local cache if it's a pubkey list
+        if (tagType === 'p' && this.options.cacheSetter) {
+          this.options.cacheSetter(tagList);
+        }
         
         return true;
       } else {
@@ -155,8 +198,8 @@ export class UserListBase {
         return false;
       }
     } catch (error) {
-      console.error(`Error adding user to ${this.options.identifier} list:`, error);
-      toast.error(`Failed to add user to ${this.options.identifier} list`);
+      console.error(`Error adding to ${this.options.identifier} list:`, error);
+      toast.error(`Failed to add to ${this.options.identifier} list`);
       return false;
     }
   }
@@ -167,6 +210,16 @@ export class UserListBase {
    * @returns Whether the operation was successful
    */
   async removeUserFromList(pubkeyToRemove: string): Promise<boolean> {
+    return this.removeTagFromList('p', pubkeyToRemove);
+  }
+
+  /**
+   * Removes a tag from the list
+   * @param tagType The tag type (e.g., 'p', 't')
+   * @param valueToRemove The tag value to remove
+   * @returns Whether the operation was successful
+   */
+  async removeTagFromList(tagType: string, valueToRemove: string): Promise<boolean> {
     const currentUserPubkey = this.getPublicKey();
     if (!currentUserPubkey) {
       toast.error(`You must be logged in to manage ${this.options.identifier} list`);
@@ -175,19 +228,26 @@ export class UserListBase {
 
     try {
       // Get current list
-      const userList = await this.getUserList();
+      const tagList = await this.getTagList(tagType);
       
       // Check if not in list
-      if (!userList.includes(pubkeyToRemove)) {
+      if (!tagList.includes(valueToRemove)) {
         return true; // Already not in list
       }
 
       // Remove from list
-      const updatedList = userList.filter(pubkey => pubkey !== pubkeyToRemove);
+      const updatedList = tagList.filter(value => value !== valueToRemove);
       
-      // Create list tags following NIP-51
-      const tags = updatedList.map(pubkey => ['p', pubkey]);
-      tags.push(['d', this.options.identifier]); // NIP-51 requires 'd' tag with identifier value
+      // Create all tags of the specified type
+      let tags: string[][] = [];
+      
+      // Add remaining tags
+      for (const value of updatedList) {
+        tags.push([tagType, value]);
+      }
+      
+      // Add d tag with identifier per NIP-51
+      tags.push(['d', this.options.identifier]);
 
       // Create and publish the event
       const event = {
@@ -206,8 +266,10 @@ export class UserListBase {
         
         await this.pool.publish(relays, signedEvent as Event);
         
-        // Update local cache
-        this.options.cacheSetter(updatedList);
+        // Update local cache if it's a pubkey list
+        if (tagType === 'p' && this.options.cacheSetter) {
+          this.options.cacheSetter(updatedList);
+        }
         
         return true;
       } else {
@@ -215,8 +277,8 @@ export class UserListBase {
         return false;
       }
     } catch (error) {
-      console.error(`Error removing user from ${this.options.identifier} list:`, error);
-      toast.error(`Failed to remove user from ${this.options.identifier} list`);
+      console.error(`Error removing from ${this.options.identifier} list:`, error);
+      toast.error(`Failed to remove from ${this.options.identifier} list`);
       return false;
     }
   }
