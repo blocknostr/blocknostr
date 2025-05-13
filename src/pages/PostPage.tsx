@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,10 +55,14 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          // Fix: Add the third parameter as an empty options object to meet the expected argument count
-          const sub = nostrService.subscribe(filters, (event) => {
-            handleEvent(event);
-          }, {});
+          // Make sure to pass the empty object as the third parameter (options)
+          const sub = nostrService.subscribe(
+            filters, 
+            (event) => {
+              handleEvent(event);
+            }, 
+            {} // Empty options object
+          );
           
           // Cleanup subscription
           return () => {
@@ -109,7 +114,7 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Fix: Pass an empty array as the second parameter instead of an object
+      // Pass the defaultRelays array as the second parameter
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {

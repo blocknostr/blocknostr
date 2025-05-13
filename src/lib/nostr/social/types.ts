@@ -1,23 +1,11 @@
 
-// Define essential types for social interactions
-
-export interface ZapInfo {
-  amount: number;
-  sender?: string;
-  recipient: string;
-  comment?: string;
-  eventId?: string;
+export interface SocialManagerOptions {
+  cacheExpiration?: number;
+  maxCacheSize?: number;
+  enableMetrics?: boolean;
+  [key: string]: any;
 }
 
-export interface QuickReply {
-  id: string;
-  text: string;  // Changed from content to text
-  category: string;
-  createdAt?: number;
-  usageCount: number; // Added usageCount
-}
-
-// Add missing types needed by imports
 export interface ReactionCounts {
   likes: number;
   reposts: number;
@@ -42,9 +30,20 @@ export interface ContactList {
   content: string;
 }
 
-export interface SocialManagerOptions {
-  cacheExpiration?: number;
-  maxCacheSize?: number;
-  enableMetrics?: boolean;
-  [key: string]: any;
+export interface QuickReply {
+  id: string;
+  text: string;
+  category: 'greeting' | 'thanks' | 'discussion' | 'custom';
+  usageCount: number;
+}
+
+export interface ZapInfo {
+  amount: number;
+  recipient: string;
+  content?: string;
+  zapper?: string;
+  bolt11?: string;
+  sender?: string;
+  eventId?: string;
+  comment?: string;
 }

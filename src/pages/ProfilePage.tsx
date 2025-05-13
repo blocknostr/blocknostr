@@ -11,11 +11,11 @@ import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
-  const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
+  const [hexPubkey, setHexPubkey] = useState<string | null>(null);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
   const { profiles, fetchProfileData } = useProfileFetcher();
   
-  // Convert npub to hex pubkey
+  // Convert npub to hex pubkey - this is always executed regardless of npub validity
   useEffect(() => {
     if (npub) {
       try {
@@ -23,15 +23,32 @@ const ProfilePage = () => {
         setHexPubkey(hex);
       } catch (error) {
         console.error('Invalid npub:', error);
+        setHexPubkey(null);
       }
+    } else {
+      setHexPubkey(null);
     }
   }, [npub]);
   
-  // Fetch posts with limited initial count
-  const { events = [], media = [], loading: postsLoading, error = null, refetch = () => {} } = 
-    hexPubkey ? useProfilePosts({ hexPubkey, limit: 10 }) : { events: [], media: [], loading: false, error: null, refetch: () => {} };
+  // IMPORTANT: Always call the hook regardless of hexPubkey value
+  // We just pass null/undefined when we don't have a valid hexPubkey
+  // This ensures hooks are called in the same order on every render
+  const { 
+    events = [], 
+    media = [], 
+    loading: postsLoading, 
+    error = null, 
+    hasEvents = false, 
+    refetch = () => {} 
+  } = useProfilePosts({ 
+    hexPubkey: hexPubkey || undefined, 
+    limit: 10 
+  });
   
-  if (!npub || !hexPubkey) {
+  const isLoading = profileLoading || (postsLoading && events.length === 0);
+  const isInvalidProfile = !npub || !hexPubkey;
+  
+  if (isInvalidProfile) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <h1 className="text-xl font-semibold mb-2">Invalid Profile</h1>
@@ -39,8 +56,6 @@ const ProfilePage = () => {
       </div>
     );
   }
-  
-  const isLoading = profileLoading || (postsLoading && events.length === 0);
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
