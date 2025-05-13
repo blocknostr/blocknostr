@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -71,7 +70,7 @@ const defaultPreferences: UserPreferences = {
 // Storage keys for splitting preferences into smaller chunks
 const STORAGE_KEYS = {
   DEFAULT_FEED: 'bn_pref_default_feed',
-  FEED_FILTERS: 'bn_pref_feed_filters', 
+  FEED_FILTERS: 'bn_pref_feed_filters',
   CONTENT_PREFS: 'bn_pref_content',
   NOTIFICATION_PREFS: 'bn_pref_notif',
   RELAY_PREFS: 'bn_pref_relay',
@@ -99,7 +98,7 @@ const memoryStore = new Map<string, string>();
 const safeLocalStorageSave = (key: string, value: any): boolean => {
   try {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-    
+
     // First try browser localStorage
     try {
       localStorage.setItem(key, serialized);
@@ -108,7 +107,7 @@ const safeLocalStorageSave = (key: string, value: any): boolean => {
       // If localStorage fails, use memory storage as fallback
       console.warn(`Using memory storage for key (${key}) due to: ${error}`);
       memoryStore.set(key, serialized);
-      
+
       // Mark storage as problematic
       memoryStore.set(STORAGE_KEYS.STORAGE_STATUS, 'limited');
       return false;
@@ -131,16 +130,33 @@ const safeStorageLoad = <T>(key: string, defaultValue: T): T => {
       console.warn(`Using memory storage for reading key (${key}) due to: ${e}`);
       serialized = memoryStore.get(key) || null;
     }
-    
     if (serialized === null) return defaultValue;
-    
+
     // If the value is a compressed array (starts with pipe or alphanumeric)
-    if (typeof defaultValue === 'object' && Array.isArray(defaultValue) && 
-        (typeof serialized === 'string' && /^[a-zA-Z0-9|]+$/.test(serialized))) {
+    if (typeof defaultValue === 'object' && Array.isArray(defaultValue) &&
+      (typeof serialized === 'string' && /^[a-zA-Z0-9|]+$/.test(serialized))) {
       return decompressArray(serialized) as unknown as T;
     }
-    
-    return JSON.parse(serialized) as T;
+
+    // --- PATCH: Handle legacy non-JSON values (e.g. "global") gracefully ---
+    try {
+      return JSON.parse(serialized) as T;
+    } catch (err) {
+      // If parsing fails, return the raw string if it matches the expected type
+      if (typeof defaultValue === 'string') {
+        return serialized as unknown as T;
+      }
+      // If FeedType (for defaultFeed), allow 'global', 'following', etc.
+      if (
+        key === STORAGE_KEYS.DEFAULT_FEED &&
+        (serialized === 'global' || serialized === 'following' || serialized === 'for-you' || serialized === 'media')
+      ) {
+        return serialized as unknown as T;
+      }
+      // Otherwise, fallback to default
+      return defaultValue;
+    }
+    // --- END PATCH ---
   } catch (error) {
     console.error(`Failed to load from storage (${key}):`, error);
     return defaultValue;
@@ -152,7 +168,7 @@ const testStorageAvailability = (): { available: boolean, quotaReached: boolean 
   try {
     localStorage.setItem(STORAGE_KEYS.STORAGE_TEST, 'test');
     localStorage.removeItem(STORAGE_KEYS.STORAGE_TEST);
-    
+
     // Check if we previously had storage issues
     let storageStatus = '';
     try {
@@ -160,15 +176,15 @@ const testStorageAvailability = (): { available: boolean, quotaReached: boolean 
     } catch (e) {
       storageStatus = memoryStore.get(STORAGE_KEYS.STORAGE_STATUS) || '';
     }
-    
-    return { 
-      available: true, 
+
+    return {
+      available: true,
       quotaReached: storageStatus === 'limited'
     };
   } catch (e) {
     console.error('Storage availability test failed:', e);
-    return { 
-      available: false, 
+    return {
+      available: false,
       quotaReached: true
     };
   }
@@ -185,7 +201,7 @@ export function useUserPreferences() {
     const { available, quotaReached } = testStorageAvailability();
     setStorageAvailable(available);
     setStorageQuotaReached(quotaReached);
-    
+
     if (!available) {
       console.warn("Storage is unavailable. Using in-memory storage only.");
     }
@@ -199,13 +215,13 @@ export function useUserPreferences() {
     try {
       // Load individual preference sections
       const defaultFeed = safeStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
-      
+
       // Load feed filters except hidden users (which we'll handle separately)
       const feedFilters = safeStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
         showReplies: defaultPreferences.feedFilters.showReplies,
         showReposted: defaultPreferences.feedFilters.showReposted,
       });
-      
+
       // Load hidden users array separately (could be large)
       let hideFromUsers: string[] = [];
       try {
@@ -215,12 +231,12 @@ export function useUserPreferences() {
         console.error('Failed to load hidden users:', e);
         hideFromUsers = [];
       }
-      
+
       const contentPreferences = safeStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
       const notificationPreferences = safeStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
       const relayPreferences = safeStorageLoad(STORAGE_KEYS.RELAY_PREFS, defaultPreferences.relayPreferences);
       const uiPreferences = safeStorageLoad(STORAGE_KEYS.UI_PREFS, defaultPreferences.uiPreferences);
-      
+
       // Merge all preferences with defaults for any missing properties
       const mergedPreferences: UserPreferences = {
         ...defaultPreferences,
@@ -235,14 +251,14 @@ export function useUserPreferences() {
         relayPreferences,
         uiPreferences
       };
-      
+
       setPreferences(mergedPreferences);
     } catch (error) {
       console.error('Failed to load preferences:', error);
       // Fall back to defaults
       setPreferences(defaultPreferences);
     }
-    
+
     setLoaded(true);
   }, [storageAvailable]);
 
@@ -251,11 +267,11 @@ export function useUserPreferences() {
     if (loaded) {
       // Track if any saves failed
       let anySaveFailed = false;
-      
+
       // Save default feed
       const feedSuccess = safeLocalStorageSave(STORAGE_KEYS.DEFAULT_FEED, preferences.defaultFeed);
       if (!feedSuccess) anySaveFailed = true;
-      
+
       // Save feed filters without the potentially large hideFromUsers array
       const feedFilters = {
         showReplies: preferences.feedFilters.showReplies,
@@ -263,35 +279,35 @@ export function useUserPreferences() {
       };
       const filtersSuccess = safeLocalStorageSave(STORAGE_KEYS.FEED_FILTERS, feedFilters);
       if (!filtersSuccess) anySaveFailed = true;
-      
+
       // Save hidden users as compressed string
       if (preferences.feedFilters.hideFromUsers && preferences.feedFilters.hideFromUsers.length > 0) {
         const compressedUsers = compressArray(preferences.feedFilters.hideFromUsers);
         const usersSuccess = safeLocalStorageSave(STORAGE_KEYS.HIDDEN_USERS, compressedUsers);
         if (!usersSuccess) anySaveFailed = true;
       }
-      
+
       // Save each section separately
       const contentSuccess = safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
       if (!contentSuccess) anySaveFailed = true;
-      
+
       const notifSuccess = safeLocalStorageSave(STORAGE_KEYS.NOTIFICATION_PREFS, preferences.notificationPreferences);
       if (!notifSuccess) anySaveFailed = true;
-      
+
       const relaySuccess = safeLocalStorageSave(STORAGE_KEYS.RELAY_PREFS, preferences.relayPreferences);
       if (!relaySuccess) anySaveFailed = true;
-      
+
       const uiSuccess = safeLocalStorageSave(STORAGE_KEYS.UI_PREFS, preferences.uiPreferences);
       if (!uiSuccess) anySaveFailed = true;
 
       // Update storage quota reached state
       if (anySaveFailed && !storageQuotaReached) {
         setStorageQuotaReached(true);
-        
+
         // Only show toast first time we detect the issue
         toast.warning(
-          "Storage limit reached", 
-          { 
+          "Storage limit reached",
+          {
             description: "Some preferences will only be available for this session.",
             duration: 5000
           }
@@ -327,19 +343,19 @@ export function useUserPreferences() {
     setPreferences(prev => {
       // Create a safe copy of the nested object with type checking
       const nestedObject = prev[key];
-      
+
       if (nestedObject && typeof nestedObject === 'object' && !Array.isArray(nestedObject)) {
         // Create a new object of the appropriate type using type assertion
         const updatedNested = { ...nestedObject as object } as UserPreferences[K];
         // Set the new value
         (updatedNested as any)[nestedKey] = value;
-        
+
         return {
           ...prev,
           [key]: updatedNested
         };
       }
-      
+
       // Fallback: create a new object based on defaults if the nested object is invalid
       const defaultValue = defaultPreferences[key];
       return {
@@ -355,7 +371,7 @@ export function useUserPreferences() {
   // Reset all preferences to default
   const resetPreferences = React.useCallback(() => {
     setPreferences(defaultPreferences);
-    
+
     // Clear all preference keys from storage
     if (storageAvailable) {
       Object.values(STORAGE_KEYS).forEach(key => {
@@ -367,7 +383,7 @@ export function useUserPreferences() {
         }
       });
     }
-    
+
     toast.success("Preferences reset to defaults");
   }, [storageAvailable]);
 
