@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -44,9 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const handleHashtagChange = (event: CustomEvent) => {
       setActiveHashtag(event.detail);
     };
-    
     window.addEventListener('set-hashtag', handleHashtagChange as EventListener);
-    
     return () => {
       window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
     };
@@ -57,20 +54,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     if (isMobile) {
       setRightPanelOpen(false);
     }
-    // Scroll to top of the feed
     window.scrollTo(0, 0);
-    
-    // Dispatch custom event for components that need to know about hashtag changes
-    const event = new CustomEvent('set-hashtag', { detail: topic });
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent('set-hashtag', { detail: topic }));
   };
 
   const clearHashtag = () => {
     setActiveHashtag(undefined);
-    
-    // Dispatch custom event to clear hashtag
-    const event = new CustomEvent('set-hashtag', { detail: undefined });
-    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent('set-hashtag', { detail: undefined }));
   };
 
   // Close panels when clicking on main content (mobile only)
@@ -83,14 +73,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <NavigationProvider>
-      <div className={cn(
-        "flex min-h-screen bg-background relative",
-        preferences.uiPreferences?.compactMode ? "text-sm" : ""
-      )}>
+      <div
+        className={cn(
+          "flex min-h-screen bg-background relative",
+          preferences.uiPreferences?.compactMode ? "text-sm" : ""
+        )}
+      >
         {/* Desktop sidebar - only visible on non-mobile */}
         {!isMobile && <Sidebar />}
-        
-        <div 
+
+        <div
           className={cn(
             "flex-1 transition-all duration-200",
             !isMobile && "ml-64"
@@ -105,15 +97,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             activeHashtag={activeHashtag}
             onClearHashtag={clearHashtag}
           />
-          
+
           <div className="flex">
-            <main 
-              className="flex-1 min-h-screen" 
+            <main
+              className="flex-1 min-h-screen mt-4"  {/* ← Added mt-4 here */}
               onClick={handleMainContentClick}
             >
               {children || <Outlet />}
             </main>
-            
+
             <GlobalSidebar
               rightPanelOpen={rightPanelOpen}
               setRightPanelOpen={setRightPanelOpen}
