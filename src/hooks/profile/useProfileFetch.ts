@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { contentCache } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -30,7 +31,8 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
       // Check cache first
       const cachedProfile = contentCache.getProfile(hexPubkey);
       if (cachedProfile) {
-        console.log("Found cached profile:", cachedProfile.name || cachedProfile.display_name || hexPubkey);
+        console.log("Found cached profile:", 
+          cachedProfile.name || cachedProfile.display_name || "Unknown");
 
         if (onSuccess) {
           onSuccess(cachedProfile);
@@ -42,22 +44,19 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
 
       try {
         const profileMetadata = await fetchProfileWithRetry(hexPubkey);
+        
+        // Always ensure we have a valid profile object, even if minimal
+        const finalProfile = profileMetadata || createMinimalProfile(hexPubkey);
+        
+        console.log("Profile fetched successfully:", finalProfile.name || "Unknown");
+        const processedProfile = handleProfileCache(hexPubkey, finalProfile);
 
-        if (profileMetadata) {
-          console.log("Profile fetched successfully:", profileMetadata);
-          const processedProfile = handleProfileCache(hexPubkey, profileMetadata);
-
-          if (onSuccess) {
-            onSuccess(processedProfile);
-          }
-
-          setLoading(false);
-          return processedProfile;
-        } else {
-          console.warn("No profile data returned for pubkey:", hexPubkey);
-          setLoading(false);
-          return null;
+        if (onSuccess) {
+          onSuccess(processedProfile);
         }
+
+        setLoading(false);
+        return processedProfile;
       } catch (connectionError) {
         console.error("Error connecting to relays:", connectionError);
 
@@ -86,20 +85,27 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
       }
     } catch (error) {
       console.error("Error fetching profile metadata:", error);
-      return handleError("Failed to load profile");
+      const minimalProfile = createMinimalProfile(hexPubkey);
+      
+      if (onSuccess) {
+        onSuccess(minimalProfile);
+      }
+      
+      setLoading(false);
+      return minimalProfile;
     } finally {
       setLoading(false);
     }
   }, [onSuccess, handleError, clearError]);
 
   const fetchProfileFromIdentifier = useCallback(async (identifier: string | undefined) => {
-    if (!identifier) return null;
+    if (!identifier) return createMinimalProfile("");
 
     const hexPubkey = getHexPubkey(identifier);
     if (!hexPubkey) {
       toast.error("Invalid profile identifier");
       setError("Invalid profile identifier");
-      return null;
+      return createMinimalProfile("");
     }
 
     return fetchProfile(hexPubkey);

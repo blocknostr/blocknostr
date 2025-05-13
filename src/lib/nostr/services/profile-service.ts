@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -31,6 +30,12 @@ export class ProfileService {
     try {
       const connectedRelays = this.getConnectedRelayUrls();
       
+      // Handle case when no relays are connected
+      if (connectedRelays.length === 0) {
+        console.warn("No connected relays available for profile fetch");
+        return null;
+      }
+      
       return new Promise((resolve) => {
         // Properly construct a single filter object according to nostr-tools Filter type
         const filter: Filter = {
@@ -48,7 +53,24 @@ export class ProfileService {
             {
               onevent: (event) => {
                 try {
-                  const profile = JSON.parse(event.content);
+                  // Ensure we have content before trying to parse
+                  if (!event || !event.content) {
+                    console.warn("Received empty event or content");
+                    return;
+                  }
+                  
+                  // Parse with safer approach
+                  let profile: Record<string, any> = {};
+                  try {
+                    profile = JSON.parse(event.content);
+                  } catch (parseError) {
+                    console.error("Error parsing profile JSON:", parseError);
+                    // Return empty profile rather than failing
+                    profile = {
+                      name: "Unknown",
+                      display_name: "Unknown User"
+                    };
+                  }
                   
                   // Store the raw event data for later use
                   profile._event = {
@@ -70,28 +92,50 @@ export class ProfileService {
                     }
                   }, 100);
                 } catch (e) {
-                  console.error("Error parsing profile:", e);
-                  resolve(null);
+                  console.error("Error processing profile event:", e);
+                  resolve({
+                    name: "Unknown",
+                    display_name: "Unknown User"
+                  });
                 }
+              },
+              eose: () => {
+                // On end of stream, resolve with default if no profile found
+                console.log("End of stored events, no profile found for", pubkey);
+                setTimeout(() => {
+                  resolve({
+                    name: "Unknown",
+                    display_name: "Unknown User"
+                  });
+                }, 100);
               }
             }
           );
         } catch (error) {
           console.error("Error in subscription:", error);
-          resolve(null);
+          resolve({
+            name: "Unknown",
+            display_name: "Unknown User"
+          });
         }
         
-        // Set a timeout to resolve with null if no profile is found
+        // Set a timeout to resolve with default if no profile is found
         setTimeout(() => {
           if (subscription) {
             subscription.close();
           }
-          resolve(null);
+          resolve({
+            name: "Unknown",
+            display_name: "Unknown User"
+          });
         }, 5000);
       });
     } catch (error) {
       console.error("Error fetching user profile:", error);
-      return null;
+      return {
+        name: "Unknown",
+        display_name: "Unknown User"
+      };
     }
   }
 

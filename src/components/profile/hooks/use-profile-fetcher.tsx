@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import { contentCache, nostrService } from "@/lib/nostr";
 import { useProfileCache } from "@/hooks/useProfileCache";
 import { toast } from "sonner";
+import { createMinimalProfile } from "@/hooks/profile/useProfileFetchRetry";
 
 export function useProfileFetcher() {
   const { profiles, fetchProfile, fetchProfiles } = useProfileCache();
@@ -13,7 +14,7 @@ export function useProfileFetcher() {
   
   // Enhanced profile fetcher with better error handling, retries and tracking
   const fetchProfileData = async (pubkey: string) => {
-    if (!pubkey) return;
+    if (!pubkey) return createMinimalProfile("");
     
     try {
       console.log("Fetching profile data for:", pubkey);
@@ -27,7 +28,9 @@ export function useProfileFetcher() {
       console.log(`Profile ${pubkey} converted to hex:`, hexPubkey);
       
       // First try to connect to relays to ensure we're ready to receive data
-      await nostrService.connectToUserRelays();
+      await nostrService.connectToUserRelays().catch(err => {
+        console.warn("Error connecting to user relays:", err);
+      });
       
       // Add more popular relays to increase chances of finding profile data
       await nostrService.addMultipleRelays([
@@ -36,13 +39,19 @@ export function useProfileFetcher() {
         "wss://relay.nostr.band",
         "wss://relay.snort.social",
         "wss://nostr.mutinywallet.com"
-      ]);
+      ]).catch(err => {
+        console.warn("Error adding additional relays:", err);
+      });
       
       // Mark important profiles (like currently viewed profiles) as important for caching
       const profile = await fetchProfile(hexPubkey, { important: true });
       
+      // Always ensure we have a valid profile, even if minimal
+      const finalProfile = profile || createMinimalProfile(hexPubkey);
+      
       if (profile) {
-        console.log("Profile fetched successfully:", profile.name || profile.display_name || hexPubkey);
+        console.log("Profile fetched successfully:", 
+          finalProfile.name || finalProfile.display_name || hexPubkey);
         
         // Reset retry attempts on success
         setRetryAttempts(prev => {
@@ -73,7 +82,7 @@ export function useProfileFetcher() {
         return updated;
       });
       
-      return profile;
+      return finalProfile;
     } catch (error) {
       console.error(`Error fetching profile for ${pubkey}:`, error);
       setProfileErrors(prev => ({ 
@@ -92,7 +101,7 @@ export function useProfileFetcher() {
         toast.error(`Couldn't load profile data after ${MAX_RETRIES} attempts`);
       }
       
-      return null;
+      return createMinimalProfile(pubkey);
     } finally {
       setFetchingProfiles(prev => ({ ...prev, [pubkey]: false }));
     }
@@ -106,7 +115,9 @@ export function useProfileFetcher() {
     
     try {
       // Ensure we're connected to relays before batch fetching
-      await nostrService.connectToUserRelays();
+      await nostrService.connectToUserRelays().catch(err => {
+        console.warn("Error connecting to user relays:", err);
+      });
       
       // Add more popular relays to increase chances of finding profiles
       await nostrService.addMultipleRelays([
@@ -114,10 +125,20 @@ export function useProfileFetcher() {
         "wss://nos.lol", 
         "wss://relay.nostr.band",
         "wss://relay.snort.social"
-      ]);
+      ]).catch(err => {
+        console.warn("Error adding additional relays:", err);
+      });
       
       const uniquePubkeys = [...new Set(pubkeys)];
       const results = await fetchProfiles(uniquePubkeys);
+      
+      // Create minimal profiles for any that weren't found
+      const completeResults = { ...results };
+      for (const pubkey of uniquePubkeys) {
+        if (!completeResults[pubkey]) {
+          completeResults[pubkey] = createMinimalProfile(pubkey);
+        }
+      }
       
       // Log success rate
       const successCount = Object.keys(results).length;
@@ -127,11 +148,18 @@ export function useProfileFetcher() {
         console.warn("Less than 50% of profiles loaded, may indicate relay connection issues");
       }
       
-      return results;
+      return completeResults;
     } catch (error) {
       console.error("Error in batch profile fetching:", error);
       toast.error("Failed to load some profiles");
-      return {};
+      
+      // Return minimal profiles for all requested pubkeys
+      const fallbackProfiles = pubkeys.reduce((acc, pubkey) => {
+        acc[pubkey] = createMinimalProfile(pubkey);
+        return acc;
+      }, {} as Record<string, any>);
+      
+      return fallbackProfiles;
     }
   };
   

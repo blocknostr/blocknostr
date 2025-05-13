@@ -1,3 +1,4 @@
+
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr';
@@ -36,20 +37,27 @@ export async function fetchProfileWithRetry(hexPubkey: string) {
       }
     );
 
+    // Create a safe default profile if no data returned
+    if (!profileMetadata) {
+      console.warn(`No profile metadata returned for ${hexPubkey}`);
+      return createMinimalProfile(hexPubkey);
+    }
+
     // Safely extract and type properties from profileMetadata
     const metadata = profileMetadata as Record<string, unknown>;
     const profileData: ProfileData = {
-      name: (metadata.name as string) || "Unknown",
-      bio: (metadata.bio as string) || "",
-      picture: (metadata.picture as string) || "",
-      banner: (metadata.banner as string) || "",
-      nip05: metadata.nip05 as string | undefined
+      name: typeof metadata.name === 'string' ? metadata.name : "Unknown",
+      bio: typeof metadata.bio === 'string' ? metadata.bio : "",
+      picture: typeof metadata.picture === 'string' ? metadata.picture : "",
+      banner: typeof metadata.banner === 'string' ? metadata.banner : "",
+      nip05: typeof metadata.nip05 === 'string' ? metadata.nip05 : undefined
     };
 
     return profileData;
   } catch (error) {
     console.error("Error in profile fetch with retry:", error);
-    throw error;
+    // Return a minimal profile on error instead of throwing
+    return createMinimalProfile(hexPubkey);
   }
 }
 
@@ -57,7 +65,7 @@ export async function fetchProfileWithRetry(hexPubkey: string) {
  * Handle profile cache operations
  */
 export function handleProfileCache(hexPubkey: string, profileMetadata: ProfileData) {
-  if (!profileMetadata) return null;
+  if (!profileMetadata) return createMinimalProfile(hexPubkey);
 
   console.log("Profile found:", profileMetadata.name || hexPubkey);
 
