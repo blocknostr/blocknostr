@@ -1,55 +1,53 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-
 import { nostrService } from '@/lib/nostr';
-import { useBasicProfile } from '@/hooks/useBasicProfile';
 import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
 import { useProfileRelations } from '@/hooks/profile/useProfileRelations';
-import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
-import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
-
+import { useBasicProfile } from '@/hooks/useBasicProfile';
+import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileStats from '@/components/profile/ProfileStats';
 import ProfileTabs from '@/components/profile/ProfileTabs';
+import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
+import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
-
-  // 🔐 Attempt to convert npub to hex pubkey
-  const hexPubkey = useMemo(() => {
-    try {
-      return npub ? nostrService.getHexFromNpub(npub) : undefined;
-    } catch (error) {
-      console.error('Invalid npub:', error);
-      return undefined;
-    }
-  }, [npub]);
-
-  // 📌 Derived state
-  const currentUserPubkey = nostrService.publicKey;
-  const isCurrentUser = useMemo(
-    () => currentUserPubkey === hexPubkey,
-    [currentUserPubkey, hexPubkey]
-  );
-
-  // 📄 Load base profile data
+  const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
   const { profiles, fetchProfileData } = useProfileFetcher();
-
-  // 📝 Load posts & media
+  
+  // Get the current user's pubkey
+  const currentUserPubkey = nostrService.publicKey;
+  
+  // Convert npub to hex pubkey
+  useEffect(() => {
+    if (npub) {
+      try {
+        const hex = nostrService.getHexFromNpub(npub);
+        setHexPubkey(hex);
+      } catch (error) {
+        console.error('Invalid npub:', error);
+      }
+    }
+  }, [npub]);
+  
+  // Determine if this is the current user's profile
+  const isCurrentUser = currentUserPubkey === hexPubkey;
+  
+  // Fetch posts with limited initial count
   const {
     events,
     media,
     loading: postsLoading,
     error,
     refetch: refetchPosts
-  } = useProfilePosts({
+  } = useProfilePosts({ 
     hexPubkey,
-    limit: 10
+    limit: 10 // Only load first 10 posts initially
   });
-
-  // 👥 Load followers/following
+  
+  // Fetch followers and following
   const {
     followers,
     following,
@@ -59,8 +57,8 @@ const ProfilePage = () => {
     hexPubkey,
     isCurrentUser
   });
-
-  // 🔁 Load relay preferences
+  
+  // Fetch relays
   const {
     relays,
     isLoading: relaysLoading,
@@ -69,27 +67,14 @@ const ProfilePage = () => {
     hexPubkey,
     isCurrentUser
   });
-
-  // 🔁 Refetch everything
+  
+  // Combined refetch function
   const handleRefresh = () => {
     refetchPosts();
     refetchRelations();
     refetchRelays();
   };
-
-  // 🧠 Prefetch full profile hydration
-  useEffect(() => {
-    if (hexPubkey) {
-      fetchProfileData(hexPubkey);
-    }
-  }, [hexPubkey, fetchProfileData]);
-
-  const isLoading = useMemo(
-    () => profileLoading || (postsLoading && events.length === 0),
-    [profileLoading, postsLoading, events.length]
-  );
-
-  // ❌ Invalid or missing npub
+  
   if (!npub || !hexPubkey) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -98,17 +83,9 @@ const ProfilePage = () => {
       </div>
     );
   }
-
-  // ❌ Valid npub, but failed to load profile
-  if (!isLoading && !profile) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <h1 className="text-xl font-semibold mb-2">Profile Not Found</h1>
-        <p className="text-muted-foreground">This profile could not be loaded.</p>
-      </div>
-    );
-  }
-
+  
+  const isLoading = profileLoading || (postsLoading && events.length === 0);
+  
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
       {isLoading ? (
@@ -118,12 +95,12 @@ const ProfilePage = () => {
         </div>
       ) : (
         <>
-          <ProfileHeader
-            profile={profile}
-            npub={npub}
-            hexPubkey={hexPubkey}
+          <ProfileHeader 
+            profile={profile} 
+            npub={npub} 
+            hexPubkey={hexPubkey} 
           />
-
+          
           <ProfileStats
             followers={followers}
             following={following}
@@ -135,11 +112,11 @@ const ProfilePage = () => {
             isLoading={relationsLoading || relaysLoading}
             onRefresh={handleRefresh}
           />
-
-          <ProfileTabs
-            events={events}
+          
+          <ProfileTabs 
+            events={events} 
             media={media}
-            reposts={[]} // Optionally load reposts later
+            reposts={[]}
             profileData={profile}
             originalPostProfiles={profiles}
             hexPubkey={hexPubkey}
