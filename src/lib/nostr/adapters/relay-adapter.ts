@@ -1,5 +1,5 @@
 import { BaseAdapter } from './base-adapter';
-import { parseRelayList } from '../utils/nip';
+import { parseRelayList, getRelayUrls } from '../utils/nip';
 import { toast } from 'sonner';
 
 /**
@@ -51,8 +51,8 @@ export class RelayAdapter extends BaseAdapter {
               // Parse relay list according to NIP-65 format
               const relayMap = parseRelayList(event);
               
-              // Extract URLs from the relay map
-              const relayUrls = Array.from(relayMap.keys());
+              // Extract URLs from the relay map using helper function
+              const relayUrls = getRelayUrls(relayMap);
               
               // Clean up and resolve
               this.service.unsubscribe(subId);

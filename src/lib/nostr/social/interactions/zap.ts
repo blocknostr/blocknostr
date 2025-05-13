@@ -1,6 +1,7 @@
 
 import { SimplePool } from 'nostr-tools';
 import { ZapInfo } from '../types';
+import { NostrEvent } from '../../types';
 
 /**
  * Send a zap to a user (NIP-57)

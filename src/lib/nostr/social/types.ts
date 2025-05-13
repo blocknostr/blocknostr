@@ -36,10 +36,14 @@ export interface ContactListItem {
   petname?: string;
 }
 
-// Contact list type
+// Contact list type with all required properties for compatibility
 export interface ContactList {
   contacts: ContactListItem[];
   lastUpdated?: number;
+  // Additional properties needed for compatibility with existing code
+  pubkeys?: string[];
+  tags?: string[][];
+  content?: string;
 }
 
 // For reaction counts
@@ -48,6 +52,14 @@ export interface ReactionCounts {
   reposts: number;
   zaps: number;
   replies: number;
+  // Additional properties needed for compatibility
+  zapAmount?: number;
+  userHasLiked?: boolean;
+  userHasReposted?: boolean;
+  userHasZapped?: boolean;
+  likers?: string[];
+  reposters?: string[];
+  zappers?: string[];
 }
 
 // NIP-36 Content Warning types

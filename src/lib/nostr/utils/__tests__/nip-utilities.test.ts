@@ -3,7 +3,8 @@ import {
   getAccountCreationDate,
   parseThreadTags,
   verifyNip05,
-  parseRelayList
+  parseRelayList,
+  getRelayUrls
 } from '../nip';
 import { NostrEvent } from "../../types";
 

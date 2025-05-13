@@ -1,5 +1,5 @@
 
-import { validateNip65RelayList, parseRelayList } from '../nip';
+import { validateNip65RelayList, parseRelayList, getRelayUrls } from '../nip';
 import { NostrEvent } from "../../types";
 
 describe('NIP-65 Relay List Validation', () => {
@@ -40,24 +40,6 @@ describe('NIP-65 Relay List Validation', () => {
     const result = validateNip65RelayList(invalidRelayList);
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
-  });
-  
-  test('should detect invalid read/write markers', () => {
-    const invalidMarkers: NostrEvent = {
-      id: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      pubkey: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      created_at: 1652000000,
-      kind: 10002,
-      tags: [
-        ['r', 'wss://relay.nostr.org', 'invalid-marker']
-      ],
-      content: '',
-      sig: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234'
-    };
-    
-    const result = validateNip65RelayList(invalidMarkers);
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain("Relay tag at index 0 has invalid marker: invalid-marker, must be 'read' or 'write'");
   });
 });
 

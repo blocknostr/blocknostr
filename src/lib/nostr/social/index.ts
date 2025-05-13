@@ -1,4 +1,3 @@
-
 import { NostrEvent } from "../types";
 import { nostrService } from "../service";
 import { validateEvent } from "../utils/nip/validator";
@@ -30,6 +29,9 @@ export interface SocialManager {
   
   // Validation method
   validateInteraction(event: NostrEvent): { valid: boolean, errors: Record<string, string[]> };
+  
+  // NIP-04: Direct Messages
+  sendDirectMessage(recipient: string, content: string): Promise<string | null>;
 }
 
 export class SocialManager implements SocialManager {
@@ -158,14 +160,29 @@ export class SocialManager implements SocialManager {
   
   // Follow functionality
   async followUser(pubkey: string): Promise<boolean> {
-    // Implement according to NIP-02 (contact list)
-    // This would follow the NIP-02 standard for contact lists
-    return this.service.addContact?.(pubkey) || false;
+    // Update to use nostrService methods
+    try {
+      if (this.service.followUser) {
+        return await this.service.followUser(pubkey);
+      }
+      return false;
+    } catch (error) {
+      console.error("Error following user:", error);
+      return false;
+    }
   }
   
   async unfollowUser(pubkey: string): Promise<boolean> {
-    // Implement according to NIP-02 (contact list)
-    return this.service.removeContact?.(pubkey) || false;
+    // Update to use nostrService methods
+    try {
+      if (this.service.unfollowUser) {
+        return await this.service.unfollowUser(pubkey);
+      }
+      return false;
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      return false;
+    }
   }
   
   isFollowing(pubkey: string): boolean {
@@ -199,5 +216,27 @@ export class SocialManager implements SocialManager {
     }
     
     return { valid, errors };
+  }
+  
+  // NIP-04: Direct Messages
+  async sendDirectMessage(recipient: string, content: string): Promise<string | null> {
+    if (!this.service.publicKey || !content.trim()) return null;
+    
+    try {
+      // Create a direct message event according to NIP-04
+      const messageEvent = {
+        kind: 4, // Direct message
+        content: content, // In a real implementation, this would be encrypted
+        tags: [
+          ["p", recipient] // Recipient's pubkey
+        ]
+      };
+      
+      // Publish the message
+      return await this.service.publishEvent(messageEvent);
+    } catch (error) {
+      console.error("Error sending direct message:", error);
+      return null;
+    }
   }
 }

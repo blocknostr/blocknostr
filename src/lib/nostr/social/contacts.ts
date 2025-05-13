@@ -3,7 +3,7 @@ import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
 import { EVENT_KINDS } from '../constants';
-import { ContactList } from './types';
+import { ContactList, ContactListItem } from './types';
 
 export class ContactsManager {
   private eventManager: EventManager;
@@ -28,10 +28,10 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
+      const contactList = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if already following
-      if (pubkeys.includes(pubkeyToFollow)) {
+      if (contactList.pubkeys?.includes(pubkeyToFollow)) {
         return true; // Already following
       }
       
@@ -39,11 +39,11 @@ export class ContactsManager {
       this.userManager.addFollowing(pubkeyToFollow);
       
       // Create updated contact list event
-      const updatedTags = [...tags, ["p", pubkeyToFollow]];
+      const updatedTags = [...(contactList.tags || []), ["p", pubkeyToFollow]];
       
       const event = {
         kind: EVENT_KINDS.CONTACTS,
-        content,
+        content: contactList.content || '',
         tags: updatedTags
       };
       
@@ -69,10 +69,10 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
+      const contactList = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if actually following
-      if (!pubkeys.includes(pubkeyToUnfollow)) {
+      if (!contactList.pubkeys?.includes(pubkeyToUnfollow)) {
         return true; // Not following, nothing to do
       }
       
@@ -80,11 +80,11 @@ export class ContactsManager {
       this.userManager.removeFollowing(pubkeyToUnfollow);
       
       // Create updated contact list event
-      const updatedTags = tags.filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
+      const updatedTags = (contactList.tags || []).filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
       
       const event = {
         kind: EVENT_KINDS.CONTACTS,
-        content,
+        content: contactList.content || '',
         tags: updatedTags
       };
       
@@ -107,6 +107,7 @@ export class ContactsManager {
   ): Promise<ContactList> {
     return new Promise((resolve) => {
       const defaultResult: ContactList = {
+        contacts: [],
         pubkeys: [],
         tags: [],
         content: ''
@@ -126,7 +127,15 @@ export class ContactsManager {
           const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
           const pubkeys = pTags.map(tag => tag[1]);
           
+          // Create contact list items
+          const contacts: ContactListItem[] = pTags.map(tag => ({
+            pubkey: tag[1],
+            relay: tag.length > 2 ? tag[2] : undefined,
+            petname: tag.length > 3 ? tag[3] : undefined
+          }));
+          
           resolve({
+            contacts,
             pubkeys,
             tags: event.tags,
             content: event.content
