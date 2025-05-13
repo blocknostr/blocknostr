@@ -1,11 +1,12 @@
 
-import React, { useCallback } from "react";
+import React, { useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "../note/MemoizedNoteCard"; // Use our new memoized component
+import NoteCard from "../note/MemoizedNoteCard"; // Use our memoized component
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useInView } from "../shared/useInView"; // We'll create this hook
-import FeedLoadingSkeleton from "./FeedLoadingSkeleton"; // We'll create this component
+import { useInView } from "../shared/useInView";
+import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -28,10 +29,21 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   hasMore,
   loadMoreLoading = false
 }) => {
-  // Use our custom hook for intersection observer
+  // Use our custom hook for intersection observer (for load more)
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.5,
     triggerOnce: false
+  });
+
+  // Reference to the scrollable parent container
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  // Set up virtualization
+  const rowVirtualizer = useVirtualizer({
+    count: events.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 250, // Estimated height of each post
+    overscan: 5, // Number of items to render beyond visible area
   });
 
   // Load more content when the load more element comes into view
@@ -63,52 +75,71 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         </div>
       )}
       
-      {/* Staggered rendering for improved perceived performance */}
-      <div className="space-y-4">
-        {events.map((event, index) => (
-          <React.Fragment key={event.id || index}>
-            {/* Add staggered animation delay based on index */}
-            <div 
-              className="animate-fade-in" 
-              style={{ 
-                animationDelay: `${Math.min(index * 50, 500)}ms`,
-                animationFillMode: 'both'
-              }}
-            >
-              <NoteCard 
-                event={event} 
-                profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-                repostData={event.id && repostData[event.id] ? {
-                  reposterPubkey: repostData[event.id].pubkey,
-                  reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-                } : undefined}
-              />
-            </div>
-          </React.Fragment>
-        ))}
-        
-        {/* Loading indicator at the bottom that triggers more content */}
-        {hasMore && (
-          <div 
-            ref={loadMoreRef} 
-            className="py-4 text-center"
-          >
-            {loadMoreLoading && (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading more posts...
+      {/* Virtualized list */}
+      <div 
+        ref={parentRef} 
+        className="overflow-auto" 
+        style={{ height: "calc(100vh - 200px)", minHeight: "400px" }}
+      >
+        {/* Define the container size based on virtualizer */}
+        <div
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {/* Only render the visible items */}
+          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+            const event = events[virtualRow.index];
+            return (
+              <div
+                key={event.id || virtualRow.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                <div className="py-2">
+                  <NoteCard 
+                    event={event} 
+                    profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                    repostData={event.id && repostData[event.id] ? {
+                      reposterPubkey: repostData[event.id].pubkey,
+                      reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                    } : undefined}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        )}
-        
-        {/* End of feed message */}
-        {!hasMore && events.length > 0 && (
-          <div className="text-center py-8 text-muted-foreground border-t">
-            You've reached the end of your feed
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
+      
+      {/* Loading indicator at the bottom that triggers more content */}
+      {hasMore && (
+        <div 
+          ref={loadMoreRef} 
+          className="py-4 text-center"
+        >
+          {loadMoreLoading && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading more posts...
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* End of feed message */}
+      {!hasMore && events.length > 0 && (
+        <div className="text-center py-8 text-muted-foreground border-t">
+          You've reached the end of your feed
+        </div>
+      )}
     </div>
   );
 };

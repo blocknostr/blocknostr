@@ -8,7 +8,7 @@ import { extractFirstImageUrl } from "@/lib/nostr/utils";
 import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
 import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
-import ProfileLoadingSkeleton from "./ProfileLoadingSkeleton";
+import ProfilePostsList from "./ProfilePostsList";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -162,9 +162,6 @@ const ProfileTabs = ({
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setPostsLimit(10); // Reset pagination when changing tabs
-    
-    // Scroll back to top when changing tabs
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   // Fetch profiles for reaction posts when likes tab is active
@@ -240,51 +237,44 @@ const ProfileTabs = ({
           <TabsTrigger value="likes">Likes</TabsTrigger>
         </TabsList>
         
-        {/* Posts Tab */}
+        {/* Posts Tab - Now using virtualized list */}
         <TabsContent value="posts" className="mt-4">
-          {!Array.isArray(displayedPosts) || displayedPosts.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No posts found.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {displayedPosts.map(event => (
-                <NoteCard 
-                  key={event.id} 
-                  event={event} 
-                  profileData={profileData || undefined} 
-                />
-              ))}
-            </div>
-          )}
+          <ProfilePostsList 
+            posts={displayedPosts}
+            profileData={profileData}
+            loading={activeTab === "posts" && events.length === 0 && !displayedPosts.length}
+            emptyMessage="No posts found."
+          />
         </TabsContent>
         
         {/* Replies Tab */}
         <TabsContent value="replies" className="mt-4">
           {repliesLoading ? (
-            <ProfileLoadingSkeleton count={2} />
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading replies...</span>
+            </div>
           ) : !displayedReplies || displayedReplies.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No replies found.
             </div>
           ) : (
-            <div className="space-y-4">
-              {displayedReplies.map(event => (
-                <NoteCard 
-                  key={event.id} 
-                  event={event} 
-                  profileData={profileData || undefined}
-                  isReply={true}
-                />
-              ))}
-            </div>
+            <ProfilePostsList 
+              posts={displayedReplies}
+              profileData={profileData}
+              loading={false}
+              emptyMessage="No replies found."
+            />
           )}
         </TabsContent>
 
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
           {repostsLoading ? (
-            <ProfileLoadingSkeleton count={2} />
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading reposts...</span>
+            </div>
           ) : (!tabReposts || tabReposts.length === 0) && (!reposts || reposts.length === 0) ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
@@ -345,7 +335,10 @@ const ProfileTabs = ({
         {/* Likes Tab */}
         <TabsContent value="likes" className="mt-4">
           {reactionsLoading ? (
-            <ProfileLoadingSkeleton count={2} />
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading likes...</span>
+            </div>
           ) : !tabReactions || tabReactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No likes found.
