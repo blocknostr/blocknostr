@@ -5,13 +5,12 @@ import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import { toast } from "sonner";
 
-const WORLD_CHAT_TAG = "world-chat";
-
 /**
  * Hook to manage emoji reactions to messages
  */
 export const useReactionHandler = (
-  connectionStatus: 'connected' | 'connecting' | 'disconnected'
+  connectionStatus: 'connected' | 'connecting' | 'disconnected',
+  chatTag: string = "world-chat"
 ) => {
   const [emojiReactions, setEmojiReactions] = useState<Record<string, string[]>>({});
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
@@ -62,7 +61,7 @@ export const useReactionHandler = (
       [
         {
           kinds: [EVENT_KINDS.REACTION],
-          '#t': [WORLD_CHAT_TAG],
+          '#t': [chatTag],
           limit: 50
         } as NostrFilter
       ],
@@ -75,7 +74,7 @@ export const useReactionHandler = (
     return () => {
       if (reactionsSub) nostrService.unsubscribe(reactionsSub);
     };
-  }, [connectionStatus, handleReaction]);
+  }, [connectionStatus, handleReaction, chatTag]);
 
   // Add reaction with improved error handling (NIP-25 compliant)
   const addReaction = async (emoji: string, messageId: string) => {
@@ -108,7 +107,7 @@ export const useReactionHandler = (
         content: emoji,
         tags: [
           ['e', messageId],
-          ['t', WORLD_CHAT_TAG]
+          ['t', chatTag]
         ]
       });
     } catch (error) {

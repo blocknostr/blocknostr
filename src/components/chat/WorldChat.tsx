@@ -1,4 +1,3 @@
-
 import React, { lazy, Suspense, useState } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader from "./WorldChatHeader";
@@ -17,8 +16,17 @@ const MessageList = lazy(() => import("./MessageList"));
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
 
+// Chat tag options
+const CHAT_TAGS = {
+  DEFAULT: "world-chat",
+  BITCOIN: "bitcoin-world-chat",
+  ALEPHIUM: "alephium-world-chat",
+  ERGO: "ergo-world-chat"
+};
+
 const WorldChat = () => {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [currentChatTag, setCurrentChatTag] = useState(CHAT_TAGS.DEFAULT);
   const isLoggedIn = !!nostrService.publicKey;
 
   const {
@@ -32,7 +40,7 @@ const WorldChat = () => {
     connectionStatus,
     reconnect,
     isReconnecting
-  } = useWorldChat();
+  } = useWorldChat(currentChatTag);
 
   const handleLoginClick = () => {
     setLoginDialogOpen(true);

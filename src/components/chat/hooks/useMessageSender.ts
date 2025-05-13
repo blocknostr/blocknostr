@@ -5,7 +5,6 @@ import { nostrService } from "@/lib/nostr";
 import { contentFormatter } from "@/lib/nostr";
 import { toast } from "sonner";
 
-const WORLD_CHAT_TAG = "world-chat";
 const MAX_MESSAGES = 15;
 
 /**
@@ -14,7 +13,8 @@ const MAX_MESSAGES = 15;
 export const useMessageSender = (
   connectionStatus: 'connected' | 'connecting' | 'disconnected',
   setMessages: React.Dispatch<React.SetStateAction<NostrEvent[]>>,
-  setError: React.Dispatch<React.SetStateAction<string | null>>
+  setError: React.Dispatch<React.SetStateAction<string | null>>,
+  chatTag: string = "world-chat"
 ) => {
   const isLoggedIn = !!nostrService.publicKey;
   
@@ -34,11 +34,11 @@ export const useMessageSender = (
       // Use the new processContent method which returns a string
       const processedContent = contentFormatter.processContent(messageContent);
       
-      // Create a message with the world-chat tag
+      // Create a message with the specified chat tag
       const eventId = await nostrService.publishEvent({
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
         content: processedContent,
-        tags: [['t', WORLD_CHAT_TAG]]
+        tags: [['t', chatTag]]
       });
       
       if (!eventId) {
@@ -52,7 +52,7 @@ export const useMessageSender = (
         pubkey: nostrService.publicKey!,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
-        tags: [['t', WORLD_CHAT_TAG]],
+        tags: [['t', chatTag]],
         content: messageContent,
         sig: ''
       };
@@ -65,7 +65,7 @@ export const useMessageSender = (
       setError("Failed to send message. Please try again.");
       toast.error("Failed to send message");
     }
-  }, [connectionStatus, isLoggedIn, setError, setMessages]);
+  }, [connectionStatus, isLoggedIn, setError, setMessages, chatTag]);
 
   return {
     isLoggedIn,

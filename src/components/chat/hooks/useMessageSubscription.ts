@@ -1,9 +1,9 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
-const WORLD_CHAT_TAG = "world-chat";
 const MAX_MESSAGES = 100; // Keep at 100 messages
 const INITIAL_LOAD_LIMIT = 50; // Initial batch size
 
@@ -37,7 +37,8 @@ const safeLocalStorageSet = (key: string, value: string): boolean => {
  */
 export const useMessageSubscription = (
   connectionStatus: 'connected' | 'connecting' | 'disconnected',
-  fetchProfile: (pubkey: string) => Promise<void>
+  fetchProfile: (pubkey: string) => Promise<void>,
+  chatTag: string = "world-chat"
 ) => {
   const [messages, setMessages] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,8 @@ export const useMessageSubscription = (
   // Try to load cached messages on initial load to avoid empty state
   useEffect(() => {
     try {
-      const cachedMessages = safeLocalStorageGet('world_chat_messages');
+      const storageKey = `${chatTag}_messages`;
+      const cachedMessages = safeLocalStorageGet(storageKey);
       if (cachedMessages) {
         const parsedMessages = JSON.parse(cachedMessages);
         if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
@@ -65,7 +67,7 @@ export const useMessageSubscription = (
     } catch (error) {
       console.warn("Error loading cached messages:", error);
     }
-  }, [fetchProfile]);
+  }, [fetchProfile, chatTag]);
   
   // Setup message subscription
   useEffect(() => {
@@ -96,7 +98,8 @@ export const useMessageSubscription = (
         
         // Cache the messages for faster loading next time
         try {
-          safeLocalStorageSet('world_chat_messages', JSON.stringify(limitedMessages));
+          const storageKey = `${chatTag}_messages`;
+          safeLocalStorageSet(storageKey, JSON.stringify(limitedMessages));
         } catch (e) {
           console.warn("Failed to cache messages:", e);
         }
@@ -115,7 +118,7 @@ export const useMessageSubscription = (
       [
         {
           kinds: [EVENT_KINDS.TEXT_NOTE],
-          '#t': [WORLD_CHAT_TAG], // Using '#t' for tag filtering
+          '#t': [chatTag], // Using '#t' for tag filtering
           limit: INITIAL_LOAD_LIMIT
         } as NostrFilter
       ],
@@ -130,7 +133,7 @@ export const useMessageSubscription = (
     return () => {
       if (messagesSub) nostrService.unsubscribe(messagesSub);
     };
-  }, [connectionStatus, fetchProfile]);
+  }, [connectionStatus, fetchProfile, chatTag]);
 
   return {
     messages,

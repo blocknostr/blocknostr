@@ -11,7 +11,7 @@ export type { ConnectionStatus } from "./useRelayConnection";
 /**
  * Main World Chat hook that composes other specialized hooks
  */
-export const useWorldChat = () => {
+export const useWorldChat = (chatTag: string = "world-chat") => {
   const [error, setError] = useState<string | null>(null);
   
   // Connection management
@@ -31,13 +31,13 @@ export const useWorldChat = () => {
     loading, 
     isLoggedIn,
     setMessages 
-  } = useMessageSubscription(connectionStatus, fetchProfile);
+  } = useMessageSubscription(connectionStatus, fetchProfile, chatTag);
   
   // Reaction management
-  const { emojiReactions, addReaction } = useReactionHandler(connectionStatus);
+  const { emojiReactions, addReaction } = useReactionHandler(connectionStatus, chatTag);
   
   // Message sending
-  const { sendMessage } = useMessageSender(connectionStatus, setMessages, setError);
+  const { sendMessage } = useMessageSender(connectionStatus, setMessages, setError, chatTag);
   
   // Combine errors
   const combinedError = error || connectionError;
