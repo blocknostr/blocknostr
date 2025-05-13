@@ -43,8 +43,8 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
       
       // Add reposters
       Object.values(repostData || {}).forEach(data => {
-        if (data.reposterPubkey) {
-          pubkeysToFetch.add(data.reposterPubkey);
+        if (data.pubkey) {
+          pubkeysToFetch.add(data.pubkey);
         }
       });
       
