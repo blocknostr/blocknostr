@@ -1,45 +1,44 @@
 
-import React from "react";
-import { 
-  Sidebar as ShadcnSidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarProvider,
-  SidebarTrigger 
-} from "@/components/ui/sidebar";
+import * as React from "react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import SidebarNav from "./SidebarNav";
 import SidebarUserProfile from "./SidebarUserProfile";
 import { useSidebarProfile } from "./useSidebarProfile";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const Sidebar = () => {
-  const { userProfile, isLoading, isLoggedIn, onRetry } = useSidebarProfile();
-
+  const isMobile = useIsMobile();
+  const { isLoggedIn, userProfile, isLoading } = useSidebarProfile();
+  
   return (
-    <SidebarProvider defaultOpen={true}>
-      <ShadcnSidebar>
-        <SidebarHeader>
-          <div className="flex items-center justify-between px-3 py-2">
-            <h2 className="text-lg font-semibold">BlockNoster</h2>
-            <SidebarTrigger />
-          </div>
-        </SidebarHeader>
+    <aside className={cn(
+      "border-r h-full py-4 bg-background",
+      isMobile ? "w-full" : "w-64 fixed left-0 top-0 hidden md:block"
+    )}>
+      <div className="flex flex-col h-full px-4">
+        <div className="mb-6">
+          <Link to="/" className="text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
+            BlockNostr
+          </Link>
+        </div>
         
-        <SidebarContent>
-          <SidebarNav isLoggedIn={isLoggedIn} />
-        </SidebarContent>
+        <SidebarNav isLoggedIn={isLoggedIn} />
         
-        <SidebarFooter>
+        <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (
-            <SidebarUserProfile 
-              userProfile={userProfile} 
-              isLoading={isLoading}
-              onRetry={onRetry}
-            />
+            <ErrorBoundary fallback={
+              <div className="p-2 text-sm text-muted-foreground">
+                Failed to load profile
+              </div>
+            }>
+              <SidebarUserProfile userProfile={userProfile} isLoading={isLoading} />
+            </ErrorBoundary>
           )}
-        </SidebarFooter>
-      </ShadcnSidebar>
-    </SidebarProvider>
+        </div>
+      </div>
+    </aside>
   );
 };
 
