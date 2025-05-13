@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Note } from '@/components/notebin/hooks/types';
@@ -12,7 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { NipCompliance } from '@/components/feed/NipCompliance';
 
 interface NoteCardActionsProps {
   note: Note;
@@ -169,9 +167,6 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           <Heart className="h-4 w-4 mr-1.5" />
           <span className="text-xs">Like</span>
         </Button>
-        
-        {/* NIP Compliance */}
-        {note.event && <NipCompliance event={note.event} />}
       </div>
       
       <div className="flex items-center">

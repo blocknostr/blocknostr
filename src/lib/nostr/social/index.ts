@@ -1,154 +1,152 @@
 
-import { EventManager } from '../event';
-import { UserManager } from '../user';
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import { InteractionsManager } from './interactions';
+import { UserManager } from '../user';
+import { EventManager } from '../event';
 import { ContactsManager } from './contacts';
 import { MessagesManager } from './messages';
+import { InteractionsManager } from './interactions';
+import { ReactionCounts, ContactList } from './types';
 
 /**
- * Social Manager class to handle all social interactions
- * Implements all NIPs related to social interactions
- * including NIP-04, NIP-25, NIP-26, etc.
+ * SocialManager class that coordinates all social interactions
+ * with other specialized managers
  */
 export class SocialManager {
   private eventManager: EventManager;
   private userManager: UserManager;
-  private interactionManager: InteractionsManager;
-  private contactManager: ContactsManager;
-  private messageManager: MessagesManager;
+  private contactsManager: ContactsManager;
+  private messagesManager: MessagesManager;
+  private interactionsManager: InteractionsManager;
   
   constructor(eventManager: EventManager, userManager: UserManager) {
     this.eventManager = eventManager;
     this.userManager = userManager;
-    this.interactionManager = new InteractionsManager(this.eventManager, this.userManager);
-    this.contactManager = new ContactsManager(this.userManager);
-    this.messageManager = new MessagesManager(this.eventManager);
+    this.contactsManager = new ContactsManager(eventManager, userManager);
+    this.messagesManager = new MessagesManager(eventManager);
+    this.interactionsManager = new InteractionsManager(eventManager, userManager);
   }
   
   /**
-   * Follow a user (NIP-02)
-   * @param pool SimplePool to use for publishing
-   * @param pubkeyToFollow Public key to follow
-   * @param privateKey Private key to sign with (optional)
-   * @param relays Relays to publish to
-   * @returns Promise resolving to boolean indicating success
+   * Follow a user by adding them to the contact list
+   * Implements NIP-02: https://github.com/nostr-protocol/nips/blob/master/02.md
    */
-  public async followUser(pool: SimplePool, pubkeyToFollow: string, privateKey: string | null = null, relays: string[] = []): Promise<boolean> {
-    const userPubkey = this.userManager.publicKey;
-    if (!userPubkey) return false;
-    
-    try {
-      // Forward to contact manager
-      const success = await this.contactManager.addContact(pubkeyToFollow);
-      
-      if (success) {
-        // Update local following list
-        this.userManager.addFollowing(pubkeyToFollow);
-      }
-      
-      return success;
-    } catch (error) {
-      console.error("Error following user:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Unfollow a user (NIP-02)
-   * @param pool SimplePool to use for publishing
-   * @param pubkeyToUnfollow Public key to unfollow
-   * @param privateKey Private key to sign with (optional)
-   * @param relays Relays to publish to
-   * @returns Promise resolving to boolean indicating success
-   */
-  public async unfollowUser(pool: SimplePool, pubkeyToUnfollow: string, privateKey: string | null = null, relays: string[] = []): Promise<boolean> {
-    const userPubkey = this.userManager.publicKey;
-    if (!userPubkey) return false;
-    
-    try {
-      // Forward to contact manager
-      const success = await this.contactManager.removeContact(pubkeyToUnfollow);
-      
-      if (success) {
-        // Update local following list
-        this.userManager.removeFollowing(pubkeyToUnfollow);
-      }
-      
-      return success;
-    } catch (error) {
-      console.error("Error unfollowing user:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * React to an event (NIP-25)
-   * @param pool SimplePool to use for publishing
-   * @param eventId ID of event to react to
-   * @param emoji Emoji to react with (default: '+')
-   * @param pubkey Public key of reactor (optional, default: current user)
-   * @param privateKey Private key to sign with (optional)
-   * @param relays Relays to publish to
-   * @returns Promise resolving to reaction event ID or null
-   */
-  public async reactToEvent(
+  public async followUser(
     pool: SimplePool,
-    eventId: string,
-    emoji: string = "+",
-    pubkey?: string | null,
-    privateKey: string | null = null,
-    relays: string[] = []
-  ): Promise<string | null> {
-    // Forward to interaction manager
-    return this.interactionManager.reactToEvent(pool, eventId, emoji, pubkey, privateKey, relays);
+    pubkeyToFollow: string,
+    privateKey: string | null,
+    relayUrls: string[]
+  ): Promise<boolean> {
+    return this.contactsManager.followUser(pool, pubkeyToFollow, privateKey, relayUrls);
   }
   
   /**
-   * Repost an event (NIP-18)
-   * @param pool SimplePool to use for publishing
-   * @param eventId ID of event to repost
-   * @param authorPubkey Author of original event
-   * @param relayHint Relay hint for the original event
-   * @param pubkey Public key of reposter (optional, default: current user)
-   * @param privateKey Private key to sign with (optional)
-   * @param relays Relays to publish to
-   * @returns Promise resolving to repost event ID or null
+   * Unfollow a user by removing them from the contact list
+   * Implements NIP-02: https://github.com/nostr-protocol/nips/blob/master/02.md
    */
-  public async repostEvent(
+  public async unfollowUser(
     pool: SimplePool,
-    eventId: string,
-    authorPubkey: string,
-    relayHint: string | null,
-    pubkey?: string | null,
-    privateKey: string | null = null,
-    relays: string[] = []
-  ): Promise<string | null> {
-    // Forward to interaction manager
-    return this.interactionManager.repostEvent(pool, eventId, authorPubkey, relayHint, pubkey, privateKey, relays);
+    pubkeyToUnfollow: string,
+    privateKey: string | null,
+    relayUrls: string[]
+  ): Promise<boolean> {
+    return this.contactsManager.unfollowUser(pool, pubkeyToUnfollow, privateKey, relayUrls);
   }
   
   /**
-   * Send a direct message to a user (NIP-04/NIP-44)
-   * @param pool SimplePool to use for publishing
-   * @param recipientPubkey Recipient's public key
-   * @param content Message content to send
-   * @param senderPubkey Sender's public key (default: current user)
-   * @param privateKey Private key to sign with (optional)
-   * @param relays Relays to publish to
-   * @returns Promise resolving to message event ID or null
+   * Get the current contact list for a user
+   * @returns Object containing the pubkeys, full tags array, and content
+   */
+  public async getContactList(
+    pool: SimplePool,
+    pubkey: string,
+    relayUrls: string[]
+  ): Promise<ContactList> {
+    return this.contactsManager.getContactList(pool, pubkey, relayUrls);
+  }
+  
+  /**
+   * Send a direct message to a user
+   * NIP-04: Encrypted Direct Messages
    */
   public async sendDirectMessage(
     pool: SimplePool,
     recipientPubkey: string,
     content: string,
-    senderPubkey?: string | null,
-    privateKey: string | null = null,
-    relays: string[] = []
+    senderPubkey: string | null,
+    privateKey: string | null,
+    relayUrls: string[]
   ): Promise<string | null> {
-    // Forward to message manager
-    return this.messageManager.sendDirectMessage(pool, recipientPubkey, content, senderPubkey, privateKey, relays);
+    return this.messagesManager.sendDirectMessage(
+      pool,
+      recipientPubkey,
+      content,
+      senderPubkey,
+      privateKey,
+      relayUrls
+    );
+  }
+  
+  /**
+   * React to a note with specific emoji
+   * Implements NIP-25: https://github.com/nostr-protocol/nips/blob/master/25.md
+   */
+  public async reactToEvent(
+    pool: SimplePool,
+    eventId: string,
+    emoji: string,
+    publicKey: string | null,
+    privateKey: string | null,
+    relayUrls: string[],
+    eventPubkey?: string
+  ): Promise<string | null> {
+    return this.interactionsManager.reactToEvent(
+      pool,
+      eventId,
+      emoji,
+      publicKey,
+      privateKey,
+      relayUrls,
+      eventPubkey
+    );
+  }
+  
+  /**
+   * Repost a note
+   * Implements NIP-18: https://github.com/nostr-protocol/nips/blob/master/18.md
+   */
+  public async repostEvent(
+    pool: SimplePool,
+    eventId: string,
+    eventPubkey: string,
+    relayHint: string | null,
+    publicKey: string | null,
+    privateKey: string | null,
+    relayUrls: string[]
+  ): Promise<string | null> {
+    return this.interactionsManager.repostEvent(
+      pool,
+      eventId,
+      eventPubkey,
+      relayHint,
+      publicKey,
+      privateKey,
+      relayUrls
+    );
+  }
+  
+  /**
+   * Get reaction counts for an event
+   * Supports NIP-25: https://github.com/nostr-protocol/nips/blob/master/25.md
+   */
+  public async getReactionCounts(
+    pool: SimplePool,
+    eventId: string,
+    relayUrls: string[]
+  ): Promise<ReactionCounts> {
+    return this.interactionsManager.getReactionCounts(pool, eventId, relayUrls);
   }
 }
+
+export * from './types';

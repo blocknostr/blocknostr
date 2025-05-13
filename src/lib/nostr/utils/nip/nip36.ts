@@ -2,7 +2,7 @@
 import { NostrEvent } from "../../types";
 
 /**
- * NIP-36: Sensitive/NSFW content and content warnings
+ * NIP-36: Sensitive Content Warnings
  * https://github.com/nostr-protocol/nips/blob/master/36.md
  */
 
@@ -12,8 +12,13 @@ import { NostrEvent } from "../../types";
  * @returns Boolean indicating if event has content warning
  */
 export function hasContentWarning(event: NostrEvent): boolean {
-  if (!event || !event.tags) return false;
-  return event.tags.some(tag => tag.length >= 1 && tag[0] === 'content-warning');
+  if (!event?.tags || !Array.isArray(event.tags)) {
+    return false;
+  }
+  
+  return event.tags.some(tag => 
+    Array.isArray(tag) && tag.length >= 1 && tag[0] === 'content-warning'
+  );
 }
 
 /**
@@ -22,11 +27,23 @@ export function hasContentWarning(event: NostrEvent): boolean {
  * @returns Array of content warning reasons or empty array if none
  */
 export function getContentWarningReasons(event: NostrEvent): string[] {
-  if (!event || !event.tags) return [];
+  if (!event?.tags || !Array.isArray(event.tags)) {
+    return [];
+  }
   
-  return event.tags
-    .filter(tag => tag.length >= 2 && tag[0] === 'content-warning')
-    .map(tag => tag[1]);
+  const cwTags = event.tags.filter(tag => 
+    Array.isArray(tag) && tag.length >= 2 && tag[0] === 'content-warning'
+  );
+  
+  // Extract reasons from tags
+  const reasons: string[] = [];
+  for (const tag of cwTags) {
+    if (tag.length >= 2 && tag[1]) {
+      reasons.push(tag[1]);
+    }
+  }
+  
+  return reasons;
 }
 
 /**
@@ -40,8 +57,9 @@ export function addContentWarning(event: NostrEvent, reason?: string): NostrEven
   
   const updatedEvent = { ...event };
   
-  // Create a deep copy of tags
-  updatedEvent.tags = [...(event.tags || [])];
+  if (!updatedEvent.tags) {
+    updatedEvent.tags = [];
+  }
   
   // Add content warning tag
   if (reason) {
@@ -54,27 +72,30 @@ export function addContentWarning(event: NostrEvent, reason?: string): NostrEven
 }
 
 /**
- * Validate the content warning tags on an event
- * @param event Event to validate
- * @returns Validation result with errors if any
+ * Validates content warning tags according to NIP-36
  */
 export function validateNip36ContentWarning(event: NostrEvent): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
-  // Check for content-warning tag
-  const cwTags = event.tags.filter(tag => tag[0] === 'content-warning');
+  if (!event?.tags || !Array.isArray(event.tags)) {
+    return { valid: true, errors }; // No tags means no CW tags to validate
+  }
   
-  if (cwTags.length > 0) {
-    // If content-warning tag exists, it should have a valid reason or be empty
-    // Valid reasons according to NIP-36: "nudity", "sexual", "gore", "self-harm", "violence", etc.
-    // Empty reason is allowed (generic content warning)
-    const validReasons = ["nudity", "sexual", "porn", "gore", "self-harm", "violence", "graphic", "nsfw"];
+  const cwTags = event.tags.filter(tag => 
+    Array.isArray(tag) && tag[0] === 'content-warning'
+  );
+  
+  if (cwTags.length === 0) {
+    return { valid: true, errors }; // No CW tags to validate
+  }
+  
+  // Multiple content-warning tags are allowed, but each should be properly formatted
+  for (let i = 0; i < cwTags.length; i++) {
+    const tag = cwTags[i];
     
-    for (const tag of cwTags) {
-      // If there's a reason provided, check if it's recognized
-      if (tag.length > 1 && tag[1] && !validReasons.includes(tag[1].toLowerCase()) && !tag[1].startsWith('custom:')) {
-        errors.push(`Content warning reason '${tag[1]}' is not standard. Consider using a recognized reason or custom:reason format.`);
-      }
+    // Tag should be either ['content-warning'] or ['content-warning', 'reason']
+    if (tag.length > 2) {
+      errors.push(`Content warning tag at index ${i} has too many elements. Expected format: ['content-warning', 'reason']`);
     }
   }
   

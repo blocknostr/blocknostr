@@ -47,6 +47,7 @@ describe('NIP-01 Event Validation', () => {
     
     const result = validateNip01Event(eventWithInvalidTags);
     expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Tag element at index 0,1 must be a string');
   });
 });
 

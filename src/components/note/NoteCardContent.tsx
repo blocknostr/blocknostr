@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,14 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
+  const isMounted = useRef(true);
+  
+  // Setup cleanup when component unmounts
+  React.useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
   
   // Check if content is longer than 280 characters
   const isLong = contentToUse.length > 280;
@@ -49,15 +57,22 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags using our utility
+  // Extract media URLs from content and tags using our new utility
   const mediaUrls = useMemo(() => {
     return extractMediaUrls(contentToUse, tagsToUse);
   }, [contentToUse, tagsToUse]);
   
+  // Handle hashtag click
+  const handleHashtagClick = (e: React.MouseEvent, tag: string) => {
+    e.stopPropagation();
+    // Dispatch custom event to be caught by parent components
+    window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
+  };
+  
   return (
-    <div>
-      <div className="prose dark:prose-invert max-w-none text-sm">
-        <div className="whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: formattedContent }} />
+    <div className="mt-2">
+      <div className="prose max-w-none dark:prose-invert text-sm">
+        {formattedContent}
       </div>
       
       {/* Media preview section */}
@@ -70,7 +85,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
             <EnhancedMediaContent 
               key={`${url}-${index}`}
               url={url}
-              alt={`Media ${index + 1}`}
+              alt={`Post media ${index + 1}`}
               index={index}
               totalItems={mediaUrls.length}
             />
@@ -83,7 +98,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </div>
       )}
       
-      {/* Show more/less button */}
       {isLong && (
         <Button 
           variant="link" 
@@ -98,24 +112,19 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Hashtags section */}
-      {hashtags.length > 0 && (
+      {hashtags && hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
             <HashtagButton
               key={index}
               tag={tag}
-              onClick={(e, tag) => {
-                e.stopPropagation();
-                window.dispatchEvent(new CustomEvent('set-hashtag', { detail: tag }));
-              }}
+              onClick={handleHashtagClick}
               variant="small"
             />
           ))}
         </div>
       )}
       
-      {/* View count */}
       {reachCount !== undefined && (
         <div className="mt-2 text-xs text-muted-foreground">
           <MessageSquare className="inline mr-1 h-3 w-3" />

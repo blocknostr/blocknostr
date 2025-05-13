@@ -14,7 +14,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 252 70% 74%; /* Purple accent, similar to BlockNostr.com */
+    --primary: 211 100% 50%; /* Facebook Messenger blue */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -23,7 +23,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 252 40% 94%; /* Light purple accent */
+    --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,18 +31,18 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 252 70% 74%; /* Purple for focus rings */
+    --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 252 70% 74%;
+    --sidebar-primary: 240 5.9% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 252 70% 74%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
     
     /* Theme change variables */
     --theme-change-x: 50%;
@@ -50,44 +50,44 @@
   }
 
   .dark {
-    /* Dark mode with BlockNostr-inspired colors */
-    --background: 232 27% 12%; /* Dark blue-gray */
+    /* Updated dark mode theme with black, gray, and white tones */
+    --background: 0 0% 7%; /* Near black */
     --foreground: 0 0% 95%; /* Off-white */
 
-    --card: 232 23% 15%; /* Slightly lighter dark blue-gray */
+    --card: 0 0% 10%; /* Dark gray */
     --card-foreground: 0 0% 95%; /* Off-white */
 
-    --popover: 232 23% 15%; /* Dark blue-gray */
+    --popover: 0 0% 10%; /* Dark gray */
     --popover-foreground: 0 0% 95%; /* Off-white */
 
-    --primary: 252 70% 74%; /* Purple accent */
+    --primary: 211 100% 50%; /* Facebook Messenger blue */
     --primary-foreground: 0 0% 100%; /* White */
 
-    --secondary: 232 20% 20%; /* Darker blue-gray */
+    --secondary: 0 0% 15%; /* Gray */
     --secondary-foreground: 0 0% 95%; /* Off-white */
 
-    --muted: 232 22% 25%; /* Medium blue-gray */
+    --muted: 0 0% 20%; /* Medium gray */
     --muted-foreground: 0 0% 70%; /* Light gray */
 
-    --accent: 252 36% 30%; /* Darker purple */
+    --accent: 0 0% 25%; /* Gray */
     --accent-foreground: 0 0% 95%; /* Off-white */
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 95%; /* Off-white */
 
-    --border: 232 22% 20%; /* Medium blue-gray */
-    --input: 232 22% 20%; /* Medium blue-gray */
-    --ring: 252 70% 74%; /* Purple */
+    --border: 0 0% 20%; /* Medium gray */
+    --input: 0 0% 20%; /* Medium gray */
+    --ring: 0 0% 70%; /* Light gray */
     
     /* Sidebar related colors */
-    --sidebar-background: 232 25% 14%; /* Darker blue-gray */
+    --sidebar-background: 0 0% 10%; /* Dark gray */
     --sidebar-foreground: 0 0% 90%; /* Light gray */
-    --sidebar-primary: 252 70% 74%; /* Purple */
+    --sidebar-primary: 0 0% 95%; /* Off-white */
     --sidebar-primary-foreground: 0 0% 7%; /* Near black */
-    --sidebar-accent: 232 20% 18%; /* Dark blue-gray */
+    --sidebar-accent: 0 0% 15%; /* Gray */
     --sidebar-accent-foreground: 0 0% 90%; /* Light gray */
-    --sidebar-border: 232 22% 20%; /* Medium blue-gray */
-    --sidebar-ring: 252 70% 74%; /* Purple */
+    --sidebar-border: 0 0% 20%; /* Medium gray */
+    --sidebar-ring: 0 0% 40%; /* Gray */
   }
 }
 

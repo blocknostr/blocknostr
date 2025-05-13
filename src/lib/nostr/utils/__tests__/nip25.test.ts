@@ -75,6 +75,6 @@ describe('NIP-25 Reaction Validation', () => {
     
     const result = validateNip25Reaction(reactionWithoutETag);
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Reaction must reference an event with e-tag');
+    expect(result.errors).toContain('Reaction must have at least one e tag referencing the event being reacted to');
   });
 });

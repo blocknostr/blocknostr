@@ -82,6 +82,11 @@ describe('NIP-36: Content Warning Tests', () => {
     expect(withWarning.tags).toHaveLength(1);
     expect(withWarning.tags[0][0]).toBe('content-warning');
     expect(withWarning.tags[0][1]).toBe('nsfw');
+    
+    const withGenericWarning = addContentWarning(originalEvent);
+    expect(withGenericWarning.tags).toHaveLength(1);
+    expect(withGenericWarning.tags[0][0]).toBe('content-warning');
+    expect(withGenericWarning.tags[0]).toHaveLength(1);
   });
   
   test('should validate content warning tags', () => {
@@ -103,7 +108,7 @@ describe('NIP-36: Content Warning Tests', () => {
       created_at: 1652000000,
       kind: 1,
       tags: [
-        ['content-warning', 'invalid-reason']
+        ['content-warning', 'nsfw', 'extra-element']
       ],
       content: 'Test content',
       sig: 'test-sig'

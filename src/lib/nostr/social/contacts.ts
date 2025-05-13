@@ -3,29 +3,15 @@ import { SimplePool, type Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
 import { EVENT_KINDS } from '../constants';
-import { ContactList, ContactListItem } from './types';
+import { ContactList } from './types';
 
 export class ContactsManager {
+  private eventManager: EventManager;
   private userManager: UserManager;
   
-  constructor(userManager: UserManager) {
+  constructor(eventManager: EventManager, userManager: UserManager) {
+    this.eventManager = eventManager;
     this.userManager = userManager;
-  }
-  
-  /**
-   * Add a user to the contact list
-   */
-  async addContact(pubkeyToAdd: string): Promise<boolean> {
-    // Implementation logic
-    return true; // Placeholder
-  }
-  
-  /**
-   * Remove a user from the contact list
-   */
-  async removeContact(pubkeyToRemove: string): Promise<boolean> {
-    // Implementation logic
-    return true; // Placeholder
   }
   
   /**
@@ -42,18 +28,27 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const contactList = await this.getContactList(pool, publicKey, relayUrls);
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if already following
-      if (contactList.pubkeys?.includes(pubkeyToFollow)) {
+      if (pubkeys.includes(pubkeyToFollow)) {
         return true; // Already following
       }
       
       // Add to in-memory following list
       this.userManager.addFollowing(pubkeyToFollow);
       
-      // Implementation logic for updating contact list
-      return true;
+      // Create updated contact list event
+      const updatedTags = [...tags, ["p", pubkeyToFollow]];
+      
+      const event = {
+        kind: EVENT_KINDS.CONTACTS,
+        content,
+        tags: updatedTags
+      };
+      
+      const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      return !!eventId;
     } catch (error) {
       console.error("Error following user:", error);
       return false;
@@ -74,18 +69,27 @@ export class ContactsManager {
     
     try {
       // Get current contact list
-      const contactList = await this.getContactList(pool, publicKey, relayUrls);
+      const { pubkeys, tags, content } = await this.getContactList(pool, publicKey, relayUrls);
       
       // Check if actually following
-      if (!contactList.pubkeys?.includes(pubkeyToUnfollow)) {
+      if (!pubkeys.includes(pubkeyToUnfollow)) {
         return true; // Not following, nothing to do
       }
       
       // Remove from in-memory following list
       this.userManager.removeFollowing(pubkeyToUnfollow);
       
-      // Implementation logic for updating contact list
-      return true;
+      // Create updated contact list event
+      const updatedTags = tags.filter(tag => !(tag[0] === 'p' && tag[1] === pubkeyToUnfollow));
+      
+      const event = {
+        kind: EVENT_KINDS.CONTACTS,
+        content,
+        tags: updatedTags
+      };
+      
+      const eventId = await this.eventManager.publishEvent(pool, publicKey, privateKey, event, relayUrls);
+      return !!eventId;
     } catch (error) {
       console.error("Error unfollowing user:", error);
       return false;
@@ -105,8 +109,7 @@ export class ContactsManager {
       const defaultResult: ContactList = {
         pubkeys: [],
         tags: [],
-        content: '',
-        contacts: []
+        content: ''
       };
       
       // Create a filter for contact list events
@@ -123,18 +126,10 @@ export class ContactsManager {
           const pTags = event.tags.filter(tag => tag.length >= 2 && tag[0] === 'p');
           const pubkeys = pTags.map(tag => tag[1]);
           
-          // Create contact list items
-          const contacts: ContactListItem[] = pTags.map(tag => ({
-            pubkey: tag[1],
-            relay: tag.length > 2 ? tag[2] : undefined,
-            petname: tag.length > 3 ? tag[3] : undefined
-          }));
-          
           resolve({
             pubkeys,
             tags: event.tags,
-            content: event.content,
-            contacts
+            content: event.content
           });
         }
       });

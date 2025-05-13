@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -38,7 +39,7 @@ export class NostrService {
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
     this.eventManager = new EventManager();
-    this.socialManagerInstance = new SocialManager(this.eventManager, this.userManager); // Fixed: Only passing required arguments
+    this.socialManagerInstance = new SocialManager(this.eventManager, this.userManager);
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManagerFacade();
     
@@ -718,3 +719,4 @@ export class NostrService {
 
 // Create and export a singleton instance
 export const nostrService = new NostrService();
+
