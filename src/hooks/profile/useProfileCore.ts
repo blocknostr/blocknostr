@@ -43,11 +43,7 @@ export function useProfileCore({ npub, currentUserPubkey }: UseProfileCoreProps)
     }
     
     console.log("Loading profile for:", npub || hexNpub);
-    loadProfile(npub, currentUserPubkey)
-      .catch(err => {
-        console.error("Error loading profile:", err);
-        toast.error("Failed to load profile");
-      });
+    loadProfile(npub, currentUserPubkey);
     
     // Set a timeout to ensure loading doesn't hang indefinitely
     timeoutRef.current = window.setTimeout(() => {
@@ -73,13 +69,8 @@ export function useProfileCore({ npub, currentUserPubkey }: UseProfileCoreProps)
   const handleRefreshProfile = useCallback(async () => {
     if (refreshing) return;
     
-    try {
-      toast.loading("Refreshing profile data...");
-      await refreshProfile(npub, currentUserPubkey);
-    } catch (error) {
-      console.error("Error refreshing profile:", error);
-      toast.error("Failed to refresh profile");
-    }
+    toast.loading("Refreshing profile data...");
+    await refreshProfile(npub, currentUserPubkey);
   }, [npub, currentUserPubkey, refreshing, refreshProfile]);
   
   // Return processed data and actions

@@ -10,8 +10,7 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Crown,
-  Box // Changed from Cubes to Box which is available in lucide-react
+  Crown 
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -33,12 +32,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Wallets",
       icon: Wallet,
       href: "/wallets",
-      requiresAuth: true
-    },
-    {
-      name: "MyCube",
-      icon: Box, // Changed from Cubes to Box
-      href: "/mycube",
       requiresAuth: true
     },
     {
