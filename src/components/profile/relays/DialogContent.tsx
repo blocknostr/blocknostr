@@ -100,17 +100,17 @@ export function RelayDialogContent({
     }
   };
   
-  // Handle publishing relay preferences
+  // Handle publishing relay preferences - fixed to return a Promise<boolean>
   const handlePublish = async () => {
     setIsPublishing(true);
     try {
-      const success = await onPublishRelayList(relays);
-      if (!success) {
-        toast.error("Failed to publish relay preferences");
-      }
+      // Make sure to call onPublishRelayList with the relays array parameter
+      // and return the boolean result
+      return await onPublishRelayList(relays);
     } catch (error) {
       console.error("Error publishing relay preferences:", error);
       toast.error("Failed to publish relay preferences");
+      return false;
     } finally {
       setIsPublishing(false);
     }
