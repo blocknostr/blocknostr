@@ -32,6 +32,18 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     triggerOnce: true,
     threshold: 0.1,
   });
+  
+  // Create a memoized version of the URL with cache-busting for consistency
+  const imageUrl = React.useMemo(() => {
+    // Generate consistent cache busting parameter
+    const cacheBuster = retryCount > 0 ? `retry=${retryCount}` : '';
+    
+    if (!cacheBuster) return src;
+    
+    return src.includes('?') 
+      ? `${src}&${cacheBuster}` 
+      : `${src}?${cacheBuster}`;
+  }, [src, retryCount]);
 
   // Effect to handle image retry logic
   useEffect(() => {
@@ -55,7 +67,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   };
 
   const handleError = () => {
-    console.warn("Image failed to load:", src);
+    console.warn("Image failed to load:", imageUrl);
     setHasError(true);
     setIsLoaded(true);
     if (onLoadError) onLoadError();
@@ -82,7 +94,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     >
       {inView && !hasError && (
         <img
-          src={`${src}${src.includes('?') ? '&' : '?'}cache=${retryCount}`}
+          src={imageUrl}
           alt={alt}
           className={cn(
             "transition-opacity duration-300",

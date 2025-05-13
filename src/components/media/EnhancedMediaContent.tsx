@@ -19,6 +19,10 @@ interface EnhancedMediaContentProps {
   onError?: () => void;
 }
 
+// Create an in-memory cache to track which media URLs have already been loaded
+// This helps prevent duplicate loading attempts across components
+const loadedMediaCache = new Map<string, 'loading' | 'success' | 'error'>();
+
 const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   url,
   alt,
@@ -29,8 +33,10 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   onLoad: externalOnLoad,
   onError: externalOnError
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  // Get initial state from cache if available
+  const cachedState = loadedMediaCache.get(url);
+  const [isLoaded, setIsLoaded] = useState(cachedState === 'success');
+  const [error, setError] = useState(cachedState === 'error');
   const [retryCount, setRetryCount] = useState(0);
   const isLightbox = variant === 'lightbox';
   const isVideo = url.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv|m4v)(\?.*)?$/i) !== null;
@@ -40,10 +46,22 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   
   useEffect(() => {
     setIsValidUrl(isValidMediaUrl(url));
-    // Reset states when URL changes
-    setIsLoaded(false);
-    setError(false);
-    setRetryCount(0);
+    
+    // Reset states when URL changes, but respect the cache
+    const state = loadedMediaCache.get(url);
+    if (state === 'success') {
+      setIsLoaded(true);
+      setError(false);
+    } else if (state === 'error') {
+      setIsLoaded(false);
+      setError(true);
+    } else {
+      setIsLoaded(false);
+      setError(false);
+      setRetryCount(0);
+      // Mark as loading in cache
+      loadedMediaCache.set(url, 'loading');
+    }
   }, [url]);
 
   // Use intersection observer to detect when media is in view
@@ -59,12 +77,16 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   const handleLoad = () => {
     setIsLoaded(true);
     setError(false);
+    // Update cache
+    loadedMediaCache.set(url, 'success');
     if (externalOnLoad) externalOnLoad();
   };
   
   // Handle media error event
   const handleError = () => {
     setError(true);
+    // Update cache
+    loadedMediaCache.set(url, 'error');
     console.error(`Media failed to load: ${url}`);
     if (externalOnError) externalOnError();
   };
@@ -76,6 +98,8 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       setRetryCount(prev => prev + 1);
       setError(false);
       setIsLoaded(false);
+      // Reset cache state
+      loadedMediaCache.set(url, 'loading');
     }
   }, [retryCount, url]);
   
@@ -143,4 +167,4 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   );
 };
 
-export default EnhancedMediaContent;
+export default React.memo(EnhancedMediaContent);

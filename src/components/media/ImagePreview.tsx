@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 
 interface ImagePreviewProps {
@@ -23,13 +23,29 @@ const ImagePreview = ({
 }: ImagePreviewProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [currentUrl, setCurrentUrl] = useState(url);
+  const initialUrlRef = useRef(url);
   
-  // Reset state if URL changes
+  // Generate consistent cache-busting URL with the same pattern as LazyImage
+  const currentUrl = React.useMemo(() => {
+    // No retry attempt yet - use original URL
+    if (retryCount === 0) return url;
+    
+    // Use consistent retry parameter format
+    const cacheBuster = `retry=${retryCount}`;
+    return url.includes('?') ? `${url}&${cacheBuster}` : `${url}?${cacheBuster}`;
+  }, [url, retryCount]);
+  
+  // Reset state if URL base changes (not just cache parameters)
   useEffect(() => {
-    setIsLoaded(false);
-    setRetryCount(0);
-    setCurrentUrl(url);
+    // Only reset if the base URL actually changed
+    const baseUrl = url.split('?')[0];
+    const prevBaseUrl = initialUrlRef.current.split('?')[0];
+    
+    if (baseUrl !== prevBaseUrl) {
+      setIsLoaded(false);
+      setRetryCount(0);
+      initialUrlRef.current = url;
+    }
   }, [url]);
   
   const handleLoad = () => {
@@ -41,13 +57,7 @@ const ImagePreview = ({
     console.warn(`Image failed to load: ${currentUrl} (attempt ${retryCount + 1}/${maxRetries + 1})`);
     
     if (retryCount < maxRetries) {
-      // Add cache-busting parameter for retry
-      const nextUrl = url.includes('?') 
-        ? `${url}&retry=${retryCount + 1}` 
-        : `${url}?retry=${retryCount + 1}`;
-      
       setRetryCount(prev => prev + 1);
-      setCurrentUrl(nextUrl);
     } else {
       onError();
     }

@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
@@ -46,8 +45,7 @@ const NoteCard = ({
   isReply = false,
   reactionData
 }: NoteCardProps) => {
-  // Set up local state with the correct type
-  const [activeReply, setActiveReply] = useState<Note | null>(null);
+  // Set up local state
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyUpdated, setReplyUpdated] = useState(0);
@@ -139,7 +137,7 @@ const NoteCard = ({
           profileData={profileData}
         />
         
-        {/* Note Content */}
+        {/* Note Content - Use the unified NoteCardContent component */}
         <div className="mt-2">
           <NoteCardContent 
             content={event?.content || ''}

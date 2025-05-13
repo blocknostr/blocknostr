@@ -1,8 +1,10 @@
-
 /**
  * Utility functions for detecting media URLs in text
  * Following NIP-94 recommendations for media content
  */
+
+// Keep a cache of parsed URLs to avoid redundant regex operations
+const urlParseCache = new Map<string, string[]>();
 
 /**
  * Regular expressions for detecting different types of media URLs
@@ -19,12 +21,32 @@ export const mediaRegex = {
 };
 
 /**
+ * Gets base URL without query parameters
+ * Used for URL deduplication
+ */
+export const getBaseUrl = (url: string): string => {
+  try {
+    // Remove query parameters and hash
+    return url.split('?')[0].split('#')[0];
+  } catch (e) {
+    return url;
+  }
+};
+
+/**
  * Extracts media URLs from content text
  */
 export const extractUrlsFromContent = (content: string): string[] => {
   if (!content) return [];
 
+  // Check cache first
+  const cacheKey = `media-${content}`;
+  if (urlParseCache.has(cacheKey)) {
+    return urlParseCache.get(cacheKey) || [];
+  }
+
   const urls: string[] = [];
+  const seenBaseUrls = new Set<string>();
   
   // Extract image URLs
   let match;
@@ -38,12 +60,21 @@ export const extractUrlsFromContent = (content: string): string[] => {
   try {
     while ((match = combinedRegex.exec(content)) !== null) {
       if (match[0]) {
-        urls.push(match[0]);
+        const baseUrl = getBaseUrl(match[0]);
+        
+        // Only add if we haven't seen this base URL before
+        if (!seenBaseUrls.has(baseUrl)) {
+          urls.push(match[0]);
+          seenBaseUrls.add(baseUrl);
+        }
       }
     }
   } catch (error) {
     console.error("Error extracting URLs from content:", error);
   }
+  
+  // Store in cache
+  urlParseCache.set(cacheKey, urls);
   
   return urls;
 };
@@ -54,28 +85,45 @@ export const extractUrlsFromContent = (content: string): string[] => {
 export const extractAllUrls = (content: string): string[] => {
   if (!content) return [];
   
-  const urls: Set<string> = new Set();
-  let match;
+  // Check cache first
+  const cacheKey = `all-${content}`;
+  if (urlParseCache.has(cacheKey)) {
+    return urlParseCache.get(cacheKey) || [];
+  }
+  
+  const urls: string[] = [];
+  const seenBaseUrls = new Set<string>();
   
   // First extract media URLs
   const mediaUrls = extractUrlsFromContent(content);
-  mediaUrls.forEach(url => urls.add(url));
+  mediaUrls.forEach(url => {
+    const baseUrl = getBaseUrl(url);
+    seenBaseUrls.add(baseUrl);
+    urls.push(url);
+  });
   
   // Then extract any remaining URLs
   try {
     mediaRegex.url.lastIndex = 0; // Reset the regex state
+    let match;
     while ((match = mediaRegex.url.exec(content)) !== null) {
       const url = match[0];
+      const baseUrl = getBaseUrl(url);
+      
       // Only add if not already added as a media URL
-      if (!urls.has(url)) {
-        urls.add(url);
+      if (!seenBaseUrls.has(baseUrl)) {
+        urls.push(url);
+        seenBaseUrls.add(baseUrl);
       }
     }
   } catch (error) {
     console.error("Error extracting URLs from content:", error);
   }
   
-  return [...urls];
+  // Store in cache
+  urlParseCache.set(cacheKey, urls);
+  
+  return urls;
 };
 
 /**

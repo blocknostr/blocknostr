@@ -2,6 +2,7 @@
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
 import { getFirstImageUrlFromEvent } from "@/lib/nostr/utils";
+import EnhancedMediaContent from "@/components/media/EnhancedMediaContent";
 
 interface MediaTabProps {
   displayedMedia: NostrEvent[];
@@ -23,16 +24,17 @@ export const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia }) => {
         if (!imageUrl) return null;
         
         return (
-          <div key={event.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
-            <img 
-              src={imageUrl}
-              alt="Media" 
-              className="h-full w-full object-cover transition-all hover:scale-105"
-              loading="lazy"
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = `/post/${event.id}`;
-              }}
+          <div 
+            key={event.id} 
+            className="aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
+            onClick={() => {
+              window.location.href = `/post/${event.id}`;
+            }}
+          >
+            <EnhancedMediaContent
+              url={imageUrl}
+              alt="Media"
+              className="h-full w-full object-cover"
             />
           </div>
         );

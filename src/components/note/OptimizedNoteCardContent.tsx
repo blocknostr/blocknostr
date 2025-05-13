@@ -4,7 +4,8 @@ import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { LazyImage } from '../shared/LazyImage';
+import { getMediaUrlsFromEvent } from '@/lib/nostr/utils';
+import EnhancedMediaContent from '../media/EnhancedMediaContent';
 
 interface NoteCardContentProps {
   content: string;
@@ -12,14 +13,6 @@ interface NoteCardContentProps {
   reachCount?: number;
 }
 
-// Create utility function to extract image URLs from content
-const extractImageUrls = (content: string): string[] => {
-  const urlRegex = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
-  const matches = content.match(urlRegex);
-  return matches ? matches : [];
-};
-
-// Use memo to prevent unnecessary re-renders
 const OptimizedNoteCardContent = memo(({
   content,
   tags = [],
@@ -35,8 +28,8 @@ const OptimizedNoteCardContent = memo(({
     ? content.substring(0, 277) + '...' 
     : content;
   
-  // Extract image URLs for optimized loading
-  const imageUrls = extractImageUrls(displayContent);
+  // Use the standardized utility to extract media URLs
+  const mediaUrls = getMediaUrlsFromEvent({ content: displayContent, tags });
   
   // Process content for rendering, excluding image URLs
   const formattedContent = contentFormatter.formatContent(displayContent);
@@ -52,21 +45,27 @@ const OptimizedNoteCardContent = memo(({
         {formattedContent}
       </div>
       
-      {/* Lazy load images */}
-      {imageUrls.length > 0 && (
+      {/* Render media with standardized component */}
+      {mediaUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
-          imageUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
+          mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
         )}>
-          {imageUrls.map((url, index) => (
-            <LazyImage 
+          {mediaUrls.slice(0, 4).map((url, index) => (
+            <EnhancedMediaContent 
               key={`${url}-${index}`}
-              src={url} 
-              alt="Post image" 
-              className="rounded-md overflow-hidden"
-              loadingClassName="animate-pulse bg-muted h-40"
+              url={url} 
+              alt="Post image"
+              index={index}
+              totalItems={mediaUrls.length}
+              variant="inline"
             />
           ))}
+          {mediaUrls.length > 4 && (
+            <div className="col-span-2 text-center text-sm text-muted-foreground mt-1">
+              +{mediaUrls.length - 4} more media items
+            </div>
+          )}
         </div>
       )}
       
