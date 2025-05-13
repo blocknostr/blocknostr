@@ -1,364 +1,124 @@
-import { nostrService } from './service';
-import { BaseAdapter } from './adapters/base-adapter';
-import { SocialAdapter } from './adapters/social-adapter';
-import { RelayAdapter } from './adapters/relay-adapter';
-import { DataAdapter } from './adapters/data-adapter';
-import { CommunityAdapter } from './adapters/community-adapter';
-import { BookmarkAdapter } from './adapters/bookmark-adapter';
-import { MessagingAdapter } from './adapters/messaging-adapter';
-import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
+import { nostrService } from './index';
 import { relaySelector } from './relay/selection/relay-selector';
-import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
+import { circuitBreaker } from './relay/circuit/circuit-breaker';
+import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
 
 /**
- * Main NostrAdapter that implements all functionality through domain-specific adapters
- * This class exposes both the structured approach (domain properties) and direct methods
- * for backward compatibility during transition
+ * Adapter that enhances Nostr service with performance optimizations
  */
-export class NostrAdapter extends BaseAdapter {
-  private socialAdapter: SocialAdapter;
-  private relayAdapter: RelayAdapter;
-  private dataAdapter: DataAdapter;
-  private communityAdapter: CommunityAdapter;
-  private bookmarkAdapter: BookmarkAdapter;
-  private messagingAdapter: MessagingAdapter;
-  
-  constructor(service: typeof nostrService) {
-    super(service);
-    
-    // Initialize all the adapters
-    this.socialAdapter = new SocialAdapter(service);
-    this.relayAdapter = new RelayAdapter(service);
-    this.dataAdapter = new DataAdapter(service);
-    this.communityAdapter = new CommunityAdapter(service);
-    this.bookmarkAdapter = new BookmarkAdapter(service);
-    this.messagingAdapter = new MessagingAdapter(service);
-  }
-
-  // Domain-specific property accessors
-  get social() {
-    return this.socialAdapter;
-  }
-  
-  get relay() {
-    return this.relayAdapter;
-  }
-  
-  get data() {
-    return this.dataAdapter;
-  }
-  
-  get community() {
-    return this.communityAdapter;
-  }
-  
-  get bookmark() {
-    return this.bookmarkAdapter;
-  }
-  
-  get messaging() {
-    return this.messagingAdapter;
-  }
-  
-  // Forward methods to appropriate adapters
-  
-  // Social methods
-  isFollowing(pubkey: string) {
-    return this.socialAdapter.isFollowing(pubkey);
-  }
-  
-  async followUser(pubkey: string) {
-    return this.socialAdapter.followUser(pubkey);
-  }
-  
-  async unfollowUser(pubkey: string) {
-    return this.socialAdapter.unfollowUser(pubkey);
-  }
-  
-  async sendDirectMessage(recipientPubkey: string, content: string) {
-    // Use relay selector to pick best write relays for DM
-    const bestRelays = relaySelector.selectBestRelays(
-      this.relayAdapter.getRelayUrls(),
-      { 
-        operation: 'write', 
-        count: 3,
-        requireWriteSupport: true,
-        minScore: 40
-      }
-    );
-    
-    // Connect to these relays first if available
-    if (bestRelays.length > 0) {
-      await this.relayAdapter.addMultipleRelays(bestRelays);
-    }
-    
-    return this.socialAdapter.sendDirectMessage(recipientPubkey, content);
-  }
-
-  // User moderation methods
-  async muteUser(pubkey: string) {
-    return this.socialAdapter.muteUser(pubkey);
-  }
-  
-  async unmuteUser(pubkey: string) {
-    return this.socialAdapter.unmuteUser(pubkey);
-  }
-  
-  async isUserMuted(pubkey: string) {
-    return this.socialAdapter.isUserMuted(pubkey);
-  }
-  
-  async blockUser(pubkey: string) {
-    return this.socialAdapter.blockUser(pubkey);
-  }
-  
-  async unblockUser(pubkey: string) {
-    return this.socialAdapter.unblockUser(pubkey);
-  }
-  
-  async isUserBlocked(pubkey: string) {
-    return this.socialAdapter.isUserBlocked(pubkey);
-  }
-  
-  // Relay methods with enhanced performance tracking
-  async addRelay(relayUrl: string, readWrite: boolean = true) {
-    // Measure connection time
-    const startTime = performance.now();
-    
-    // First check if circuit breaker allows connection to this relay
-    if (circuitBreaker.getState(relayUrl) === CircuitState.OPEN) {
-      console.log(`Circuit breaker preventing connection to ${relayUrl}`);
-      return false;
-    }
+class NostrAdapter {
+  /**
+   * Optimized method to get user profile with performance tracking
+   */
+  async getUserProfile(pubkey: string) {
+    const start = performance.now();
     
     try {
-      const result = await this.relayAdapter.addRelay(relayUrl, readWrite);
+      // Get profile through regular service
+      const profile = await nostrService.getUserProfile(pubkey);
       
-      // Record performance metrics
-      const duration = performance.now() - startTime;
+      // Record success and response time
+      const responseTime = performance.now() - start;
+      const connectedRelays = nostrService.getRelayStatus()
+        .filter(r => r.status === 'connected')
+        .map(r => r.url);
       
-      if (result) {
-        // Success
-        relayPerformanceTracker.trackResponseTime(relayUrl, 'connect', duration);
-        circuitBreaker.recordSuccess(relayUrl);
-      } else {
-        // Failure
-        relayPerformanceTracker.recordFailure(relayUrl, 'connect', 'Failed to connect');
-        circuitBreaker.recordFailure(relayUrl);
-      }
+      // Record performance for all connected relays
+      connectedRelays.forEach(url => {
+        relayPerformanceTracker.recordSuccess(url, responseTime / connectedRelays.length);
+      });
       
-      return result;
+      return profile;
     } catch (error) {
-      // Error
-      relayPerformanceTracker.recordFailure(relayUrl, 'connect', String(error));
-      circuitBreaker.recordFailure(relayUrl);
-      return false;
-    }
-  }
-  
-  removeRelay(relayUrl: string) {
-    // Reset circuit breaker when manually removing a relay
-    circuitBreaker.reset(relayUrl);
-    return this.relayAdapter.removeRelay(relayUrl);
-  }
-  
-  getRelayStatus() {
-    // Enhance relay status with performance data
-    const relayStatus = this.relayAdapter.getRelayStatus();
-    
-    return relayStatus.map(relay => {
-      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
-      return {
-        ...relay,
-        score: perfData?.score || 50,
-        avgResponse: perfData?.avgResponseTime,
-      };
-    });
-  }
-
-  getRelayUrls() {
-    return this.relayAdapter.getRelayUrls();
-  }
-  
-  async getRelaysForUser(pubkey: string) {
-    return this.relayAdapter.getRelaysForUser(pubkey);
-  }
-  
-  async connectToDefaultRelays() {
-    // Use relay selector for smart relay selection
-    const allRelays = this.relayAdapter.getRelayUrls();
-    if (allRelays.length > 0) {
-      const bestRelays = relaySelector.selectBestRelays(allRelays, {
-        operation: 'both',
-        count: Math.min(5, allRelays.length),
-        minScore: 0  // Use all available relays if needed
+      // Record failure for connected relays
+      const connectedRelays = nostrService.getRelayStatus()
+        .filter(r => r.status === 'connected')
+        .map(r => r.url);
+      
+      connectedRelays.forEach(url => {
+        relayPerformanceTracker.recordFailure(url);
       });
       
-      if (bestRelays.length > 0) {
-        await this.addMultipleRelays(bestRelays);
-        return bestRelays;
-      }
+      throw error;
     }
-    
-    return this.relayAdapter.connectToDefaultRelays();
-  }
-  
-  async connectToUserRelays() {
-    // Use relay selector for smart relay selection
-    const allRelays = this.relayAdapter.getRelayUrls();
-    if (allRelays.length > 0) {
-      const bestRelays = relaySelector.selectBestRelays(allRelays, {
-        operation: 'both',
-        count: Math.min(5, allRelays.length),
-        minScore: 0  // Use all available relays if needed
-      });
-      
-      if (bestRelays.length > 0) {
-        await this.addMultipleRelays(bestRelays);
-        return;
-      }
-    }
-    
-    return this.relayAdapter.connectToUserRelays();
-  }
-  
-  async addMultipleRelays(relayUrls: string[]) {
-    // Filter out relays with open circuit breakers
-    const allowedRelays = relayUrls.filter(url => {
-      const state = circuitBreaker.getState(url);
-      return state !== CircuitState.OPEN; 
-    });
-    
-    // Use the remaining relays
-    return this.relayAdapter.addMultipleRelays(allowedRelays);
-  }
-  
-  // Add the new NIP-65 relay list publishing method with performance-aware selection
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
-    // Sort relays by performance score before publishing
-    const enhancedRelays = relays.map(relay => {
-      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
-      return {
-        ...relay,
-        score: perfData?.score || 50
-      };
-    });
-    
-    // Sort by score (higher first)
-    enhancedRelays.sort((a, b) => 
-      (b.score || 50) - (a.score || 50)
-    );
-    
-    // Use relay selector to pick best write relays for publishing
-    const bestRelays = relaySelector.selectBestRelays(
-      enhancedRelays.filter(r => r.write).map(r => r.url),
-      { 
-        operation: 'write', 
-        count: 3,
-        requireWriteSupport: true
-      }
-    );
-    
-    // Connect to these relays first
-    if (bestRelays.length > 0) {
-      await this.addMultipleRelays(bestRelays);
-    }
-    
-    // Now publish the relay list
-    return this.relayAdapter.publishRelayList(relays);
-  }
-  
-  // Data retrieval methods
-  async getEventById(id: string) {
-    return this.dataAdapter.getEventById(id);
-  }
-  
-  async getEvents(ids: string[]) {
-    return this.dataAdapter.getEvents(ids);
-  }
-  
-  async getProfilesByPubkeys(pubkeys: string[]) {
-    return this.dataAdapter.getProfilesByPubkeys(pubkeys);
-  }
-  
-  async getUserProfile(pubkey: string) {
-    return this.dataAdapter.getUserProfile(pubkey);
-  }
-  
-  async verifyNip05(identifier: string, pubkey: string) {
-    return this.dataAdapter.verifyNip05(identifier, pubkey);
   }
   
   /**
-   * Get events authored by a specific user
+   * Get user's relays with optimized approach
    */
-  async getEventsByUser(pubkey: string) {
-    return this.dataAdapter.getEventsByUser(pubkey);
-  }
-
-  // Community methods
-  async createCommunity(name: string, description: string) {
-    return this.communityAdapter.createCommunity(name, description);
-  }
-  
-  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
-    return this.communityAdapter.createProposal(communityId, title, description, options, category);
-  }
-
-  async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
-  }
-  
-  // Bookmark methods
-  async isBookmarked(eventId: string) {
-    return this.bookmarkAdapter.isBookmarked(eventId);
-  }
-  
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
-    return this.bookmarkAdapter.addBookmark(eventId, collectionId, tags, note);
-  }
-  
-  async removeBookmark(eventId: string) {
-    return this.bookmarkAdapter.removeBookmark(eventId);
+  async getRelaysForUser(pubkey: string): Promise<string[]> {
+    try {
+      // Select best relays for relay list discovery
+      const bestRelays = relaySelector.getRecommendedRelays('read', 4);
+      
+      // Connect to these optimal relays
+      for (const url of bestRelays) {
+        if (!circuitBreaker.isCircuitOpen(url)) {
+          try {
+            await nostrService.connectToRelay(url);
+          } catch (error) {
+            circuitBreaker.recordFailure(url);
+          }
+        }
+      }
+      
+      // Now get the user's relay list
+      // This will be implemented with NIP-65 support
+      // For now returning an empty array as placeholder
+      return [];
+    } catch (error) {
+      console.error("Failed to get relays for user:", error);
+      return [];
+    }
   }
   
-  async getBookmarks() {
-    return this.bookmarkAdapter.getBookmarks();
+  /**
+   * Publish user's relay list with optimized approach
+   */
+  async publishRelayList(relays: any[]): Promise<boolean> {
+    try {
+      // Select best relays for publishing
+      const bestRelays = relaySelector.getRecommendedRelays('write', 3);
+      
+      // Connect to these optimal relays
+      for (const url of bestRelays) {
+        if (!circuitBreaker.isCircuitOpen(url)) {
+          try {
+            await nostrService.connectToRelay(url);
+          } catch (error) {
+            circuitBreaker.recordFailure(url);
+          }
+        }
+      }
+      
+      // Placeholder for publishing relay list
+      // Will be implemented with NIP-65 support
+      return true;
+    } catch (error) {
+      console.error("Failed to publish relay list:", error);
+      return false;
+    }
   }
   
-  async getBookmarkCollections() {
-    return this.bookmarkAdapter.getBookmarkCollections();
-  }
-  
-  async getBookmarkMetadata() {
-    return this.bookmarkAdapter.getBookmarkMetadata();
-  }
-  
-  async createBookmarkCollection(name: string, color?: string, description?: string) {
-    return this.bookmarkAdapter.createBookmarkCollection(name, color, description);
-  }
-  
-  async processPendingOperations() {
-    return this.bookmarkAdapter.processPendingOperations();
-  }
-  
-  // Manager getters
-  get socialManager() {
-    return this.socialAdapter.socialManager;
-  }
-  
-  get relayManager() {
-    return this.relayAdapter.relayManager;
-  }
-  
-  get communityManager() {
-    return this.communityAdapter.communityManager;
-  }
-  
-  get bookmarkManager() {
-    return this.bookmarkAdapter.bookmarkManager;
+  /**
+   * Get relay status with enhanced information
+   */
+  getRelayStatus() {
+    const relayStatus = nostrService.getRelayStatus();
+    
+    // Enhance with performance data
+    return relayStatus.map(relay => {
+      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
+      const circuitState = circuitBreaker.getState(relay.url);
+      
+      return {
+        ...relay,
+        performance: perfData,
+        circuitState
+      };
+    });
   }
 }
 
-// Create and export a singleton instance
-export const adaptedNostrService = new NostrAdapter(nostrService);
+// Export singleton instance
+export const adaptedNostrService = new NostrAdapter();

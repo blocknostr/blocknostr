@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
@@ -55,15 +54,16 @@ const ProfileTabs = ({
     enabled: activeTab === "likes" 
   });
   
-  const [tabReposts, setTabReposts] = useState<{ originalEvent: NostrEvent; repostEvent: NostrEvent }[]>([]);
-  const [repostsLoading, setRepostsLoading] = useState(false);
-  
   // State for displayed posts (with pagination)
   const [displayedPosts, setDisplayedPosts] = useState<NostrEvent[]>([]);
   const [displayedMedia, setDisplayedMedia] = useState<NostrEvent[]>([]);
   const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
   const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
   const [postsLimit, setPostsLimit] = useState(10);
+  
+  // State for reposts tab
+  const [tabReposts, setTabReposts] = useState<{ originalEvent: NostrEvent; repostEvent: NostrEvent }[]>([]);
+  const [repostsLoading, setRepostsLoading] = useState(false);
   
   // Setup for reposts tab
   useEffect(() => {
