@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -211,8 +210,8 @@ html.color-theme-in-transition {
   
   /* Custom scrollbar styles for browsers that support it (mainly webkit) */
   .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 12px; /* Increased from 8px to 12px for better visibility */
+    height: 12px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
@@ -223,20 +222,30 @@ html.color-theme-in-transition {
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: hsl(var(--scrollbar-thumb));
     border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    min-height: 40px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary));
+    background-clip: padding-box;
   }
   
   /* Make radix scrollbar more visible */
   [data-radix-scroll-area-scrollbar-thumb] {
     background-color: hsl(var(--scrollbar-thumb)) !important;
     min-height: 40px;
+    min-width: 12px; /* Ensure horizontal scrollbars are also visible */
   }
   
   [data-radix-scroll-area-scrollbar]:hover [data-radix-scroll-area-scrollbar-thumb] {
     background-color: hsl(var(--primary)) !important;
+  }
+  
+  /* Ensure Radix ScrollArea scrollbar is always visible when type="always" */
+  [data-radix-scroll-area-scrollbar][data-state="visible"] {
+    opacity: 1 !important;
   }
 }
 

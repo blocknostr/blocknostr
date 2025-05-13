@@ -34,7 +34,7 @@ const ScrollBar = React.forwardRef<
       orientation === "vertical" &&
         "h-full w-3.5 border-l border-l-transparent p-[1px]", // Increased width from 2.5 to 3.5
       orientation === "horizontal" &&
-        "h-2.5 flex-col border-t border-t-transparent p-[1px]",
+        "h-3.5 flex-col border-t border-t-transparent p-[1px]", // Also increased horizontal scrollbar height
       className
     )}
     {...props}

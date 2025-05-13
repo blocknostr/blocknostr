@@ -24,8 +24,6 @@ const MessageList: React.FC<MessageListProps> = ({
   onAddReaction
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  // Removed ref from ScrollArea as it's not directly needed
-  
   // Create a ref we can use with DOM methods
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -82,8 +80,9 @@ const MessageList: React.FC<MessageListProps> = ({
     <CardContent className="p-0 overflow-hidden flex-1 relative z-10">
       <div ref={scrollContainerRef} className="h-full">
         <ScrollArea 
-          className="h-full"
-          scrollHideDelay={1500} // Increased delay before hiding the scrollbar
+          className="h-full custom-scrollbar"
+          type="always"
+          scrollHideDelay={3000} 
         >
           <div className="p-2 flex flex-col h-full">
             {/* We display messages in chronological order (oldest first) */}
