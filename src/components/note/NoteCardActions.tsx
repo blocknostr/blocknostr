@@ -15,18 +15,30 @@ import {
 interface NoteCardActionsProps {
   note: Note;
   setActiveReply: (note: Note | null) => void;
+  replyCount?: number;
 }
 
 const NoteCardActions: React.FC<NoteCardActionsProps> = ({ 
   note, 
-  setActiveReply 
+  setActiveReply,
+  replyCount = 0
 }) => {
   const navigate = useNavigate();
   
   // Handle comment button click
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
-    navigate(`/post/${note.id}`);
+    
+    // Toggle reply form instead of navigating
+    setActiveReply(note);
+    
+    // On post page, we still navigate if needed
+    if (window.location.pathname !== `/post/${note.id}`) {
+      // Keep the option to navigate to the post directly via ctrl/cmd+click
+      if (e.ctrlKey || e.metaKey) {
+        navigate(`/post/${note.id}`);
+      }
+    }
   };
   
   // Handle repost button click
@@ -144,6 +156,9 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
         >
           <MessageSquare className="h-4 w-4 mr-1.5" />
           <span className="text-xs">Reply</span>
+          {replyCount > 0 && (
+            <span className="ml-1 text-xs font-medium">{replyCount}</span>
+          )}
         </Button>
         
         {/* Repost button */}

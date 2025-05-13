@@ -30,17 +30,25 @@ interface NoteCardCommentsProps {
   eventId: string;
   pubkey: string;
   initialComments?: Comment[];
+  initialCommentText?: string;
   onReplyAdded: () => void;
 }
 
-const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded }: NoteCardCommentsProps) => {
+const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommentText = "", onReplyAdded }: NoteCardCommentsProps) => {
   const [comments, setComments] = useState<Comment[]>(initialComments);
-  const [newComment, setNewComment] = useState("");
+  const [newComment, setNewComment] = useState(initialCommentText);
   const [replyToDelete, setReplyToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  
+  // Update comment when initialCommentText changes
+  useEffect(() => {
+    if (initialCommentText) {
+      setNewComment(initialCommentText);
+    }
+  }, [initialCommentText]);
   
   // Fetch replies when component mounts
   useEffect(() => {
@@ -200,6 +208,7 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
       setReplyToDelete(null);
       setIsDeleting(false);
       toast.success("Reply deleted successfully");
+      onReplyAdded(); // Notify parent component that comments have changed
     } catch (error) {
       console.error("Error deleting reply:", error);
       toast.error("Failed to delete reply");
@@ -249,7 +258,7 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], onReplyAdded 
         )}
         
         <div className="space-y-4 mt-2">
-          {isLoading ? (
+          {isLoading && comments.length === 0 ? (
             <div className="text-sm text-center py-4 text-muted-foreground">
               Loading comments...
             </div>
