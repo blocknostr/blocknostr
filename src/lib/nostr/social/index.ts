@@ -17,7 +17,7 @@ export class SocialManager {
       enableMetrics: false,
       ...options
     };
-    this.interactionsManager = new InteractionsManager(pool);
+    this.interactionsManager = new InteractionsManager(pool, {});
   }
 
   // Implement methods needed for service.ts
