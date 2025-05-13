@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoteCard from "@/components/NoteCard";
@@ -9,6 +8,7 @@ import { extractFirstImageUrl } from "@/lib/nostr/utils";
 import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
 import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
+import ProfilePostsList from "./ProfilePostsList";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -237,23 +237,14 @@ const ProfileTabs = ({
           <TabsTrigger value="likes">Likes</TabsTrigger>
         </TabsList>
         
-        {/* Posts Tab */}
+        {/* Posts Tab - Now using virtualized list */}
         <TabsContent value="posts" className="mt-4">
-          {!Array.isArray(displayedPosts) || displayedPosts.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No posts found.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {displayedPosts.map(event => (
-                <NoteCard 
-                  key={event.id} 
-                  event={event} 
-                  profileData={profileData || undefined} 
-                />
-              ))}
-            </div>
-          )}
+          <ProfilePostsList 
+            posts={displayedPosts}
+            profileData={profileData}
+            loading={activeTab === "posts" && events.length === 0 && !displayedPosts.length}
+            emptyMessage="No posts found."
+          />
         </TabsContent>
         
         {/* Replies Tab */}
@@ -268,16 +259,12 @@ const ProfileTabs = ({
               No replies found.
             </div>
           ) : (
-            <div className="space-y-4">
-              {displayedReplies.map(event => (
-                <NoteCard 
-                  key={event.id} 
-                  event={event} 
-                  profileData={profileData || undefined}
-                  isReply={true}
-                />
-              ))}
-            </div>
+            <ProfilePostsList 
+              posts={displayedReplies}
+              profileData={profileData}
+              loading={false}
+              emptyMessage="No replies found."
+            />
           )}
         </TabsContent>
 
