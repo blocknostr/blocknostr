@@ -3,17 +3,23 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
+import { useProfileRelations } from '@/hooks/profile/useProfileRelations';
 import { useBasicProfile } from '@/hooks/useBasicProfile';
 import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
+import ProfileStats from '@/components/profile/ProfileStats';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
+import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
   const { profiles, fetchProfileData } = useProfileFetcher();
+  
+  // Get the current user's pubkey
+  const currentUserPubkey = nostrService.publicKey;
   
   // Convert npub to hex pubkey
   useEffect(() => {
@@ -27,17 +33,48 @@ const ProfilePage = () => {
     }
   }, [npub]);
   
+  // Determine if this is the current user's profile
+  const isCurrentUser = currentUserPubkey === hexPubkey;
+  
   // Fetch posts with limited initial count
   const {
     events,
     media,
     loading: postsLoading,
     error,
-    refetch
+    refetch: refetchPosts
   } = useProfilePosts({ 
     hexPubkey,
     limit: 10 // Only load first 10 posts initially
   });
+  
+  // Fetch followers and following
+  const {
+    followers,
+    following,
+    isLoading: relationsLoading,
+    refetch: refetchRelations
+  } = useProfileRelations({
+    hexPubkey,
+    isCurrentUser
+  });
+  
+  // Fetch relays
+  const {
+    relays,
+    isLoading: relaysLoading,
+    refetch: refetchRelays
+  } = useProfileRelays({
+    hexPubkey,
+    isCurrentUser
+  });
+  
+  // Combined refetch function
+  const handleRefresh = () => {
+    refetchPosts();
+    refetchRelations();
+    refetchRelays();
+  };
   
   if (!npub || !hexPubkey) {
     return (
@@ -64,6 +101,19 @@ const ProfilePage = () => {
             npub={npub} 
             hexPubkey={hexPubkey} 
           />
+          
+          <ProfileStats
+            followers={followers}
+            following={following}
+            postsCount={events.length}
+            currentUserPubkey={currentUserPubkey}
+            isCurrentUser={isCurrentUser}
+            relays={relays}
+            userNpub={npub}
+            isLoading={relationsLoading || relaysLoading}
+            onRefresh={handleRefresh}
+          />
+          
           <ProfileTabs 
             events={events} 
             media={media}
