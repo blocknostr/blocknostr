@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -100,7 +101,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
           <div className="flex">
             <main
-              className="flex-1 min-h-screen mt-4"  {/* ← Added mt-4 here */}
+              className="flex-1 min-h-screen mt-4" /* Added mt-4 for top margin */
               onClick={handleMainContentClick}
             >
               {children || <Outlet />}
