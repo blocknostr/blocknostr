@@ -1,5 +1,5 @@
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "../note/MemoizedNoteCard";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ interface OptimizedFeedListProps {
   loadMoreLoading?: boolean;
 }
 
+const INITIAL_DISPLAY_COUNT = 15;
+
 const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   events,
   profiles: initialProfiles,
@@ -29,6 +31,9 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   hasMore,
   loadMoreLoading = false
 }) => {
+  // State to track how many posts to display
+  const [visibleCount, setVisibleCount] = useState(INITIAL_DISPLAY_COUNT);
+  
   // Use our custom hook for intersection observer
   const { ref: loadMoreRef, inView } = useInView({
     threshold: 0.5,
@@ -92,15 +97,26 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 
   // Load more content when the load more element comes into view
   useEffect(() => {
-    if (inView && hasMore && !loadMoreLoading) {
+    if (inView && hasMore && !loadMoreLoading && visibleCount >= events.length) {
       console.log('[OptimizedFeedList] Load more triggered by scrolling');
       onLoadMore();
     }
-  }, [inView, hasMore, loadMoreLoading, onLoadMore]);
+  }, [inView, hasMore, loadMoreLoading, onLoadMore, events.length, visibleCount]);
+
+  // Handler for "Load More" button click
+  const handleLoadMoreClick = useCallback(() => {
+    // Show more posts in increments
+    setVisibleCount(prev => Math.min(prev + INITIAL_DISPLAY_COUNT, events.length));
+  }, [events.length]);
 
   if (loading && events.length === 0) {
     return <FeedLoadingSkeleton count={3} />;
   }
+
+  // Determine if we should show the "Load More" button
+  const hasMoreToShow = visibleCount < events.length;
+  // Get only the events we want to display
+  const visibleEvents = events.slice(0, visibleCount);
 
   return (
     <div className="space-y-4">
@@ -120,9 +136,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         </div>
       )}
       
+      {/* Feed counter showing visible blocks */}
+      {events.length > 0 && (
+        <div className="text-sm text-muted-foreground text-center mb-2">
+          Showing {visibleCount} Blocks
+        </div>
+      )}
+      
       {/* Staggered rendering for improved perceived performance */}
       <div className="space-y-4">
-        {events.map((event, index) => (
+        {visibleEvents.map((event, index) => (
           <React.Fragment key={event.id || index}>
             {/* Add staggered animation delay based on index */}
             <div 
@@ -145,8 +168,21 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
           </React.Fragment>
         ))}
         
-        {/* Loading indicator at the bottom that triggers more content */}
-        {hasMore && (
+        {/* "Load More" button */}
+        {hasMoreToShow && (
+          <div className="flex justify-center py-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMoreClick}
+              className="px-8 py-2"
+            >
+              Load More
+            </Button>
+          </div>
+        )}
+        
+        {/* Loading indicator at the bottom that triggers more content from the API */}
+        {hasMore && visibleCount >= events.length && (
           <div 
             ref={loadMoreRef} 
             className="py-4 text-center"
@@ -161,7 +197,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         )}
         
         {/* End of feed message */}
-        {!hasMore && events.length > 0 && (
+        {!hasMore && visibleCount >= events.length && events.length > 0 && (
           <div className="text-center py-8 text-muted-foreground border-t">
             You've reached the end of your feed
           </div>

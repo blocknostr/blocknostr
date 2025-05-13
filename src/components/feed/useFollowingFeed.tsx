@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -17,6 +18,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loadingFromCache, setLoadingFromCache] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const { 
     events, 
@@ -35,6 +37,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   
   const loadMoreEvents = () => {
     if (!subId || following.length === 0) return;
+    
+    // Set loading state
+    setIsLoadingMore(true);
     
     // Close previous subscription
     if (subId) {
@@ -75,6 +80,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       // Check if we have this range cached
       loadFromCache('following', newSince, newUntil);
     }
+    
+    // End loading after a delay regardless of whether data was loaded
+    setTimeout(() => setIsLoadingMore(false), 3000);
   };
   
   const {
@@ -238,7 +246,12 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     if (events.length >= 100) {
       setHasMore(false);
     }
-  }, [events, loading]);
+    
+    // Also end loading more state if we have events
+    if (events.length > 0 && isLoadingMore) {
+      setIsLoadingMore(false);
+    }
+  }, [events, loading, isLoadingMore]);
 
   return {
     events,
@@ -247,9 +260,11 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     loadMoreRef,
     loading,
     loadingFromCache,
+    loadingMore: isLoadingMore,
     following,
     hasMore,
     refreshFeed,
+    loadMoreEvents,
     connectionAttempted,
     lastUpdated,
     cacheHit

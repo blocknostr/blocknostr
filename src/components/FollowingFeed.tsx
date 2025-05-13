@@ -25,6 +25,9 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     lastUpdated,
     cacheHit,
     loadingFromCache,
+    loadingMore,
+    hasMore,
+    loadMoreEvents
   } = useFollowingFeed({ activeHashtag });
 
   return (
@@ -71,6 +74,9 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
           loadMoreRef={loadMoreRef}
           loading={loading}
           onRefresh={refreshFeed}
+          onLoadMore={loadMoreEvents}
+          hasMore={hasMore}
+          loadMoreLoading={loadingMore}
         />
       )}
     </>
