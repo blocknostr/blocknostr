@@ -8,16 +8,20 @@ import MediaErrorState from './MediaErrorState';
 import { cn } from '@/lib/utils';
 import { isValidMediaUrl, normalizeUrl } from '@/lib/nostr/utils/media/media-validation';
 import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
+import { useMediaHandling } from '@/hooks/useMediaHandling';
 
 interface EnhancedMediaContentProps {
   url: string;
   alt?: string;
   index?: number;
   totalItems?: number;
-  variant?: 'lightbox' | 'carousel' | 'inline';
+  variant?: 'lightbox' | 'carousel' | 'inline' | 'profile';
   className?: string;
   onLoad?: () => void;
   onError?: () => void;
+  autoPlayVideos?: boolean;
+  dataSaverMode?: boolean;
+  preferredQuality?: 'high' | 'medium' | 'low';
 }
 
 // Create an in-memory cache to track which media URLs have already been loaded
@@ -32,7 +36,10 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   variant = 'inline',
   className,
   onLoad: externalOnLoad,
-  onError: externalOnError
+  onError: externalOnError,
+  autoPlayVideos,
+  dataSaverMode,
+  preferredQuality
 }) => {
   // Normalize the URL to ensure consistent handling
   const normalizedUrl = React.useMemo(() => {
@@ -52,7 +59,6 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       console.error('Error registering URL in registry:', normalizedUrl, err);
     }
     
-    // Cleanup on unmount
     return () => {
       // Only clear if the component is unmounting and not just updating
       if (!document.hidden) {
@@ -78,6 +84,21 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       return false;
     }
   }, [normalizedUrl]);
+  
+  // Use our new media handling hook
+  const {
+    ref,
+    inView,
+    shouldLoad,
+    quality,
+    handleLoad: mediaHandlingLoad,
+    handleError: mediaHandlingError
+  } = useMediaHandling({
+    url: normalizedUrl,
+    isVideo,
+    variant,
+    quality: preferredQuality,
+  });
   
   // Validate URL
   const [isValidUrl, setIsValidUrl] = useState(true);
@@ -110,16 +131,6 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       }
     }
   }, [normalizedUrl]);
-
-  // Use intersection observer to detect when media is in view
-  const { ref, inView } = useInView({
-    threshold: 0.1,
-    triggerOnce: false,
-    skip: isLightbox // Skip for lightboxes, always load
-  });
-
-  // Only load media when in view or if it's a lightbox
-  const shouldLoad = inView || isLightbox;
   
   // Handle media load event
   const handleLoad = () => {
@@ -131,6 +142,8 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     } catch (err) {
       console.error('Error updating media cache on load:', err);
     }
+    
+    mediaHandlingLoad();
     if (externalOnLoad) externalOnLoad();
   };
   
@@ -143,6 +156,8 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     } catch (err) {
       console.error('Error updating media cache on error:', err);
     }
+    
+    mediaHandlingError();
     console.error(`Media failed to load: ${normalizedUrl}`);
     if (externalOnError) externalOnError();
   };
@@ -182,6 +197,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       className={cn(
         "relative overflow-hidden",
         variant === 'inline' && "rounded-md border border-border/10",
+        variant === 'profile' && "aspect-square", 
         className
       )}
     >
@@ -192,9 +208,10 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
               url={normalizedUrl}
               onLoad={handleLoad}
               onError={handleError}
-              autoPlay={isLightbox}
+              autoPlay={isLightbox || (variant === 'carousel' && autoPlayVideos !== false)}
               controls={isLightbox}
               className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
+              quality={quality as 'low' | 'medium' | 'high'}
             />
           ) : (
             <ImagePreview
@@ -203,7 +220,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
               onLoad={handleLoad}
               onError={handleError}
               className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
-              lazyLoad={!isLightbox}
+              lazyLoad={!isLightbox && variant !== 'carousel'}
               maxRetries={2}
             />
           )}
