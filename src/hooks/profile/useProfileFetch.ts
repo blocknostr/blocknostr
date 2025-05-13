@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { contentCache } from '@/lib/nostr';
 import { toast } from 'sonner';
@@ -51,7 +52,7 @@ export function useProfileFetch(options: UseProfileFetchOptions = {}) {
       try {
         const profileMetadata = await fetchProfileWithRetry(hexPubkey);
         // Always ensure we have a valid profile object, even if minimal
-        const finalProfile = profileMetadata || createMinimalProfile(hexPubkey);
+        let finalProfile = profileMetadata || createMinimalProfile(hexPubkey);
         // Defensive: if finalProfile is missing required fields, fallback
         if (!finalProfile || typeof finalProfile !== 'object' || !('name' in finalProfile)) {
           console.warn("Fetched profile is invalid, using minimal profile");
