@@ -1,11 +1,14 @@
 
 import React, { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import NoteCard from "@/components/note/NoteCard";
+import NoteCard from "@/components/NoteCard";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Loader2 } from "lucide-react";
 import { useProfileFetcher } from "../feed/hooks/use-profile-fetcher";
 import { extractFirstImageUrl } from "@/lib/nostr/utils";
+import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
+import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
+import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -15,7 +18,8 @@ interface ProfileTabsProps {
   originalPostProfiles: Record<string, any>;
   replies?: NostrEvent[];
   reactions?: NostrEvent[];
-  referencedEvents?: Record<string, NostrEvent>;
+  referencedEvents?: Record<string, any>;
+  hexPubkey?: string;
 }
 
 const ProfileTabs = ({ 
@@ -26,16 +30,145 @@ const ProfileTabs = ({
   originalPostProfiles = {},
   replies = [],
   reactions = [],
-  referencedEvents = {}
+  referencedEvents = {},
+  hexPubkey = ""
 }: ProfileTabsProps) => {
   const { profiles, fetchProfileData } = useProfileFetcher();
+  const [activeTab, setActiveTab] = useState("posts");
   const [loadingReactionProfiles, setLoadingReactionProfiles] = useState(false);
-
-  // Fetch profiles for posts in the reactions tab
+  
+  // Tab-specific data loading hooks
+  const { 
+    replies: tabReplies, 
+    loading: repliesLoading 
+  } = useProfileReplies({ 
+    hexPubkey, 
+    enabled: activeTab === "replies" 
+  });
+  
+  const { 
+    reactions: tabReactions, 
+    referencedEvents: tabReferencedEvents, 
+    loading: reactionsLoading 
+  } = useProfileLikes({ 
+    hexPubkey, 
+    enabled: activeTab === "likes" 
+  });
+  
+  const [tabReposts, setTabReposts] = useState<{ originalEvent: NostrEvent; repostEvent: NostrEvent }[]>([]);
+  const [repostsLoading, setRepostsLoading] = useState(false);
+  
+  // State for displayed posts (with pagination)
+  const [displayedPosts, setDisplayedPosts] = useState<NostrEvent[]>([]);
+  const [displayedMedia, setDisplayedMedia] = useState<NostrEvent[]>([]);
+  const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
+  const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
+  const [postsLimit, setPostsLimit] = useState(10);
+  
+  // Setup for reposts tab
+  useEffect(() => {
+    if (activeTab !== "reposts" || !hexPubkey) return;
+    
+    setRepostsLoading(true);
+    
+    // Create a temporary repo for reposts data management
+    const tempPostProfiles: Record<string, any> = { ...originalPostProfiles };
+    
+    const { reposts: fetchedReposts, fetchOriginalPost } = useProfileReposts({
+      originalPostProfiles: tempPostProfiles,
+      setOriginalPostProfiles: (newProfiles) => {
+        Object.assign(tempPostProfiles, newProfiles);
+      }
+    });
+    
+    // Fetch reposts when tab is active
+    const fetchReposts = async () => {
+      if (!hexPubkey) return;
+      
+      try {
+        // Subscribe to user's reposts (kind 6)
+        const subId = nostrService.subscribe(
+          [
+            {
+              kinds: [6], // Reposts
+              authors: [hexPubkey],
+              limit: 30
+            }
+          ],
+          (repostEvent) => {
+            // Get the original event ID
+            const eTag = repostEvent.tags?.find(tag => 
+              Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+            );
+            
+            if (eTag && eTag[1]) {
+              fetchOriginalPost(eTag[1], repostEvent.pubkey, repostEvent);
+            }
+          }
+        );
+        
+        // Cleanup subscription after some time
+        setTimeout(() => {
+          nostrService.unsubscribe(subId);
+          setRepostsLoading(false);
+        }, 5000);
+        
+      } catch (error) {
+        console.error("Error fetching reposts:", error);
+        setRepostsLoading(false);
+      }
+    };
+    
+    fetchReposts();
+    
+    // Update reposts when they're available
+    if (fetchedReposts.length > 0) {
+      setTabReposts(fetchedReposts);
+    }
+  }, [activeTab, hexPubkey]);
+  
+  // Load more posts when scrolling
+  const loadMorePosts = () => {
+    setPostsLimit(prev => prev + 10);
+  };
+  
+  // Update displayed posts based on limit
+  useEffect(() => {
+    setDisplayedPosts(events.slice(0, postsLimit));
+  }, [events, postsLimit]);
+  
+  // Update displayed media based on limit
+  useEffect(() => {
+    setDisplayedMedia(media.slice(0, postsLimit));
+  }, [media, postsLimit]);
+  
+  // Update displayed replies based on limit
+  useEffect(() => {
+    if (activeTab === "replies") {
+      const repliesData = tabReplies.length > 0 ? tabReplies : replies;
+      setDisplayedReplies(repliesData.slice(0, postsLimit));
+    }
+  }, [activeTab, tabReplies, replies, postsLimit]);
+  
+  // Update displayed reactions based on limit
+  useEffect(() => {
+    if (activeTab === "likes") {
+      const reactionsData = tabReactions.length > 0 ? tabReactions : reactions || [];
+      setDisplayedReactions(reactionsData.slice(0, postsLimit));
+    }
+  }, [activeTab, tabReactions, reactions, postsLimit]);
+  
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setPostsLimit(10); // Reset pagination when changing tabs
+  };
+  
+  // Fetch profiles for reaction posts when likes tab is active
   useEffect(() => {
     const fetchReactionProfiles = async () => {
-      // Add null checks for reactions and referencedEvents
-      if (!reactions || !Array.isArray(reactions) || reactions.length === 0 || !referencedEvents) {
+      // Only fetch if we're on the likes tab and have referenced events
+      if (activeTab !== "likes" || !tabReferencedEvents || Object.keys(tabReferencedEvents).length === 0) {
         return;
       }
       
@@ -43,7 +176,7 @@ const ProfileTabs = ({
       
       try {
         // Get unique author pubkeys from referenced events
-        const authorPubkeys = Object.values(referencedEvents)
+        const authorPubkeys = Object.values(tabReferencedEvents)
           .filter(event => !!event?.pubkey)
           .map(event => event.pubkey);
         
@@ -53,7 +186,7 @@ const ProfileTabs = ({
         }
         
         // Fetch profiles for all authors
-        const uniquePubkeys = [...new Set(authorPubkeys)]; // Remove duplicates
+        const uniquePubkeys = [...new Set(authorPubkeys)];
         
         for (const pubkey of uniquePubkeys) {
           try {
@@ -70,11 +203,32 @@ const ProfileTabs = ({
     };
     
     fetchReactionProfiles();
-  }, [reactions, referencedEvents, fetchProfileData]);
+  }, [activeTab, tabReferencedEvents, fetchProfileData]);
+  
+  // Detect when we're near the bottom to load more
+  const handleScroll = () => {
+    const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollThreshold = scrollHeight - 300;
+    
+    if (scrollPosition > scrollThreshold) {
+      loadMorePosts();
+    }
+  };
+  
+  // Add scroll listener
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   
   return (
     <div className="mt-6">
-      <Tabs defaultValue="posts" className="w-full">
+      <Tabs 
+        defaultValue="posts" 
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="replies">Replies</TabsTrigger>
@@ -85,13 +239,13 @@ const ProfileTabs = ({
         
         {/* Posts Tab */}
         <TabsContent value="posts" className="mt-4">
-          {!Array.isArray(events) || events.length === 0 ? (
+          {!Array.isArray(displayedPosts) || displayedPosts.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No posts found.
             </div>
           ) : (
             <div className="space-y-4">
-              {events.map(event => (
+              {displayedPosts.map(event => (
                 <NoteCard 
                   key={event.id} 
                   event={event} 
@@ -102,15 +256,20 @@ const ProfileTabs = ({
           )}
         </TabsContent>
         
-        {/* Replies Tab - Now implemented with NIP-10 */}
+        {/* Replies Tab */}
         <TabsContent value="replies" className="mt-4">
-          {!replies || !Array.isArray(replies) || replies.length === 0 ? (
+          {repliesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading replies...</span>
+            </div>
+          ) : !displayedReplies || displayedReplies.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No replies found.
             </div>
           ) : (
             <div className="space-y-4">
-              {replies.map(event => (
+              {displayedReplies.map(event => (
                 <NoteCard 
                   key={event.id} 
                   event={event} 
@@ -124,13 +283,18 @@ const ProfileTabs = ({
 
         {/* Reposts Tab */}
         <TabsContent value="reposts" className="mt-4">
-          {!reposts || !Array.isArray(reposts) || reposts.length === 0 ? (
+          {repostsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading reposts...</span>
+            </div>
+          ) : (!tabReposts || tabReposts.length === 0) && (!reposts || reposts.length === 0) ? (
             <div className="py-8 text-center text-muted-foreground">
               No reposts found.
             </div>
           ) : (
             <div className="space-y-4">
-              {reposts.map(({ originalEvent, repostEvent }) => (
+              {(tabReposts.length > 0 ? tabReposts : reposts).slice(0, postsLimit).map(({ originalEvent, repostEvent }) => (
                 <NoteCard 
                   key={originalEvent.id} 
                   event={originalEvent} 
@@ -152,13 +316,13 @@ const ProfileTabs = ({
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          {!media || !Array.isArray(media) || media.length === 0 ? (
+          {!displayedMedia || displayedMedia.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No media found.
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {media.map(event => {
+              {displayedMedia.map(event => {
                 const imageUrl = extractFirstImageUrl(event.content, event.tags);
                 if (!imageUrl) return null;
                 
@@ -168,6 +332,7 @@ const ProfileTabs = ({
                       src={imageUrl}
                       alt="Media" 
                       className="h-full w-full object-cover transition-all hover:scale-105"
+                      loading="lazy"
                       onClick={(e) => {
                         e.preventDefault();
                         window.location.href = `/post/${event.id}`;
@@ -180,15 +345,20 @@ const ProfileTabs = ({
           )}
         </TabsContent>
         
-        {/* Likes Tab - Now implemented with NIP-25 */}
+        {/* Likes Tab */}
         <TabsContent value="likes" className="mt-4">
-          {!reactions || !Array.isArray(reactions) || reactions.length === 0 ? (
+          {reactionsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading likes...</span>
+            </div>
+          ) : !tabReactions || tabReactions.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               No likes found.
             </div>
           ) : (
             <div className="space-y-4">
-              {reactions.map(reactionEvent => {
+              {displayedReactions.map(reactionEvent => {
                 // Safely extract the eventId from tags with null checks
                 let eventId = '';
                 if (reactionEvent && reactionEvent.tags && Array.isArray(reactionEvent.tags)) {
@@ -198,9 +368,14 @@ const ProfileTabs = ({
                   eventId = eTag ? eTag[1] : '';
                 }
                 
-                if (!eventId || !referencedEvents) return null;
+                if (!eventId) return null;
                 
-                const originalEvent = referencedEvents[eventId];
+                // Use tab-specific referenced events if available
+                const referencedEventsSource = tabReferencedEvents && Object.keys(tabReferencedEvents).length > 0 
+                  ? tabReferencedEvents 
+                  : referencedEvents || {};
+                
+                const originalEvent = referencedEventsSource[eventId];
                 
                 if (!originalEvent) {
                   return (

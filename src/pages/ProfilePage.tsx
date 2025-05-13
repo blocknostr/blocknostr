@@ -27,14 +27,17 @@ const ProfilePage = () => {
     }
   }, [npub]);
   
-  // Fetch posts and other profile data
+  // Fetch posts with limited initial count
   const {
     events,
     media,
     loading: postsLoading,
     error,
     refetch
-  } = useProfilePosts({ hexPubkey });
+  } = useProfilePosts({ 
+    hexPubkey,
+    limit: 10 // Only load first 10 posts initially
+  });
   
   if (!npub || !hexPubkey) {
     return (
@@ -45,7 +48,7 @@ const ProfilePage = () => {
     );
   }
   
-  const isLoading = profileLoading || postsLoading;
+  const isLoading = profileLoading || (postsLoading && events.length === 0);
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
@@ -67,6 +70,7 @@ const ProfilePage = () => {
             reposts={[]}
             profileData={profile}
             originalPostProfiles={profiles}
+            hexPubkey={hexPubkey}
           />
         </>
       )}

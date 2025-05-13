@@ -20,6 +20,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
+  const [isInView, setIsInView] = useState(false);
+  const imgRef = React.useRef<HTMLImageElement>(null);
   
   useEffect(() => {
     if (!src) {
@@ -31,6 +33,35 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     // Reset states when src changes
     setIsLoading(true);
     setError(false);
+    
+    // Use Intersection Observer to only load when in viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setIsInView(true);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 } // Start loading when 10% visible
+    );
+
+    const currentRef = imgRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [src]);
+  
+  // When in view, load the image
+  useEffect(() => {
+    if (!isInView || !src) return;
     
     // Create new image object to preload
     const img = new Image();
@@ -54,36 +85,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       img.onload = null;
       img.onerror = null;
     };
-  }, [src, fallbackSrc]);
-
-  // Use Intersection Observer to only load when in viewport
-  const imgRef = React.useRef<HTMLImageElement>(null);
-  const [isInView, setIsInView] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setIsInView(true);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1 } // Start loading when 10% visible
-    );
-
-    const currentRef = imgRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, []);
+  }, [src, fallbackSrc, isInView]);
 
   return (
     <div
@@ -95,7 +97,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         className
       )}
     >
-      {isInView && !error && (
+      {isInView && !error && imgSrc && (
         <img
           src={imgSrc}
           alt={alt || "Image"}
@@ -106,6 +108,15 @@ export const LazyImage: React.FC<LazyImageProps> = ({
           onError={() => setError(true)}
           {...props}
         />
+      )}
+      
+      {isLoading && (
+        <div className={cn(
+          "flex items-center justify-center w-full h-full bg-muted/30",
+          loadingClassName
+        )}>
+          <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin" />
+        </div>
       )}
       
       {error && !fallbackSrc && (
