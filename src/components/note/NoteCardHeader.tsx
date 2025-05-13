@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
@@ -6,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { formatPubkey, getNpubFromHex } from '@/lib/nostr/utils/keys';
 import { Skeleton } from "@/components/ui/skeleton";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
+import { toast } from "@/components/ui/use-toast";
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -19,6 +19,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     profileData || null
   );
   const [isLoading, setIsLoading] = useState(!profileData && !!pubkey);
+  const [fetchAttempts, setFetchAttempts] = useState(0);
   
   // Effect to fetch profile data if not provided
   useEffect(() => {
@@ -43,13 +44,30 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     const fetchProfile = async () => {
       try {
         const profile = await unifiedProfileService.getProfile(pubkey);
-        console.log(`[NoteCardHeader] Fetched profile for ${pubkey.substring(0, 8)}:`, 
-          profile?.name || profile?.display_name || 'No name');
-        setLocalProfileData(profile);
+        
+        if (profile) {
+          console.log(`[NoteCardHeader] Fetched profile for ${pubkey.substring(0, 8)}:`, 
+            profile.name || profile.display_name || 'No name');
+          setLocalProfileData(profile);
+          setIsLoading(false);
+        } else {
+          // If profile is null, increment fetch attempts
+          setFetchAttempts(prev => prev + 1);
+          console.warn(`[NoteCardHeader] No profile returned for ${pubkey.substring(0, 8)}, attempt ${fetchAttempts + 1}`);
+          
+          // After 3 attempts, give up on loading state but keep subscribed to updates
+          if (fetchAttempts >= 2) {
+            setIsLoading(false);
+          }
+        }
       } catch (error) {
         console.error(`[NoteCardHeader] Error fetching profile for ${pubkey}:`, error);
-      } finally {
-        setIsLoading(false);
+        setFetchAttempts(prev => prev + 1);
+        
+        // After 3 attempts, give up on loading state
+        if (fetchAttempts >= 2) {
+          setIsLoading(false);
+        }
       }
     };
     
@@ -66,7 +84,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     return () => {
       unsubscribe();
     };
-  }, [pubkey, profileData]);
+  }, [pubkey, profileData, fetchAttempts]);
   
   // Ensure we have a valid pubkey
   const hexPubkey = pubkey || '';
@@ -127,7 +145,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
               </AvatarFallback>
             ) : (
               <>
-                <AvatarImage src={picture} alt={name} />
+                <AvatarImage src={picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
               </>
             )}

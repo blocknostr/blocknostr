@@ -13,6 +13,7 @@ import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
+import { eventBus, EVENTS } from '@/lib/services/EventBus';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -444,11 +445,11 @@ export class NostrService {
           this.unsubscribe(sub);
         }, connectedRelays);
         
-        // Set timeout
+        // Set timeout to 10s (increased from 5s)
         setTimeout(() => {
           this.unsubscribe(sub);
           reject(new Error(`Timeout fetching event ${id}`));
-        }, 5000);
+        }, 10000);
       });
     } catch (e) {
       console.error(`Error getting event ${id}:`, e);
@@ -458,26 +459,59 @@ export class NostrService {
   
   public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     const connectedRelays = this.getConnectedRelayUrls();
+    
+    if (pubkeys.length === 0) {
+      console.log("[NostrService] No pubkeys provided to getProfilesByPubkeys");
+      return {};
+    }
+
+    console.log(`[NostrService] Fetching ${pubkeys.length} profiles from relays:`, connectedRelays);
+    
     try {
       // Implement our own temporary version
       return new Promise((resolve) => {
         const profiles: Record<string, any> = {};
+        const startTime = Date.now();
         
         const sub = this.subscribe([{kinds: [0], authors: pubkeys}], (event) => {
           if (event.kind === 0 && event.pubkey) {
             try {
-              profiles[event.pubkey] = JSON.parse(event.content);
+              const profile = JSON.parse(event.content);
+              console.log(`[NostrService] Received profile for ${event.pubkey.slice(0, 8)}:`, 
+                profile.name || profile.display_name || 'No name');
+              
+              // Add the original event to help with timestamps
+              profile._event = event;
+              
+              profiles[event.pubkey] = profile;
+              
+              // Emit an event when we receive a profile
+              eventBus.emit(EVENTS.PROFILE_UPDATED, event.pubkey, profile);
             } catch (e) {
               console.error("Error parsing profile:", e);
             }
           }
         }, connectedRelays);
         
-        // Set timeout
+        // Set timeout (increased from 3s to 10s for better reliability)
         setTimeout(() => {
           this.unsubscribe(sub);
+          const timeElapsed = Date.now() - startTime;
+          
+          console.log(`[NostrService] Profile fetching completed in ${timeElapsed}ms. Fetched ${Object.keys(profiles).length}/${pubkeys.length} profiles`);
+          
+          if (Object.keys(profiles).length < pubkeys.length) {
+            console.warn(`[NostrService] Some profiles couldn't be fetched in time (${Object.keys(profiles).length}/${pubkeys.length})`);
+            
+            // Log which pubkeys we're missing
+            const missingPubkeys = pubkeys.filter(pubkey => !profiles[pubkey]);
+            if (missingPubkeys.length > 0) {
+              console.warn(`[NostrService] Missing profiles for: ${missingPubkeys.map(p => p.slice(0, 8)).join(', ')}`);
+            }
+          }
+          
           resolve(profiles);
-        }, 3000);
+        }, 10000); // Increased timeout to 10 seconds
       });
     } catch (e) {
       console.error("Error getting profiles:", e);
@@ -486,8 +520,16 @@ export class NostrService {
   }
   
   public async getUserProfile(pubkey: string): Promise<any> {
+    console.log(`[NostrService] Getting profile for user ${pubkey?.slice(0, 8) || 'unknown'}`);
+    if (!pubkey) return null;
+    
     const profiles = await this.getProfilesByPubkeys([pubkey]);
-    return profiles[pubkey] || null;
+    const profile = profiles[pubkey];
+    
+    console.log(`[NostrService] Profile fetch result for ${pubkey.slice(0, 8)}:`, 
+      profile ? (profile.name || profile.display_name || 'No name') : 'Not found');
+    
+    return profile || null;
   }
   
   public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {

@@ -1,165 +1,170 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { unifiedProfileService } from '@/lib/services/UnifiedProfileService';
-import { eventBus, EVENTS } from '@/lib/services/EventBus';
+import * as React from "react";
+import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
+import { nostrService } from "@/lib/nostr";
+import { eventBus, EVENTS } from "@/lib/services/EventBus";
 
 /**
- * Enhanced hook for profile data fetching that uses the unified profile service
- * and supports real-time updates via the event bus
+ * Unified hook for fetching and managing profile data across components
  */
 export function useUnifiedProfileFetcher() {
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
-  const [loadingProfiles, setLoadingProfiles] = useState<Record<string, boolean>>({});
-  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [profiles, setProfiles] = React.useState<Record<string, any>>({});
+  const [fetchErrors, setFetchErrors] = React.useState<Record<string, string>>({});
+  const [loading, setLoading] = React.useState<Record<string, boolean>>({});
+  const activeSubscriptions = React.useRef<Record<string, () => void>>({});
   
-  // Track which pubkeys we're actively tracking
-  const [trackedPubkeys, setTrackedPubkeys] = useState<Set<string>>(new Set());
-  
-  // Setup event listener for profile updates
-  useEffect(() => {
-    const handleProfileUpdate = (pubkey: string, profile: any) => {
-      console.log(`[useUnifiedProfileFetcher] Received profile update for ${pubkey.substring(0, 8)}`, 
-        profile?.name || profile?.display_name);
-        
-      // Only update if we're tracking this pubkey
-      if (trackedPubkeys.has(pubkey)) {
-        setProfiles(prev => ({
-          ...prev,
-          [pubkey]: profile
-        }));
-        
-        // Clear loading state and errors
-        setLoadingProfiles(prev => {
-          const newState = { ...prev };
-          delete newState[pubkey];
-          return newState;
-        });
-        
-        setProfileErrors(prev => {
-          const newState = { ...prev };
-          delete newState[pubkey];
-          return newState;
-        });
-      }
-    };
-    
-    eventBus.on(EVENTS.PROFILE_UPDATED, handleProfileUpdate);
-    
+  // Clean up subscriptions on unmount
+  React.useEffect(() => {
     return () => {
-      eventBus.off(EVENTS.PROFILE_UPDATED, handleProfileUpdate);
+      Object.values(activeSubscriptions.current).forEach(unsubscribe => {
+        if (unsubscribe) unsubscribe();
+      });
     };
-  }, [trackedPubkeys]);
+  }, []);
   
   /**
    * Fetch a single profile
    */
-  const fetchProfile = useCallback(async (pubkey: string, options?: { force?: boolean }) => {
-    if (!pubkey) return;
+  const fetchProfile = React.useCallback(async (pubkey: string, options: { force?: boolean } = {}) => {
+    if (!pubkey) return null;
     
-    // Start tracking this pubkey
-    setTrackedPubkeys(prev => {
-      const newSet = new Set(prev);
-      newSet.add(pubkey);
-      return newSet;
-    });
-    
-    // Set loading state
-    setLoadingProfiles(prev => ({
-      ...prev,
-      [pubkey]: true
-    }));
+    // Mark as loading
+    setLoading(prev => ({ ...prev, [pubkey]: true }));
     
     try {
-      console.log(`[useUnifiedProfileFetcher] Fetching profile for ${pubkey.substring(0, 8)}...`);
+      console.log(`[useUnifiedProfileFetcher] Fetching profile for ${pubkey.substring(0, 8)}`);
       const profile = await unifiedProfileService.getProfile(pubkey, options);
       
       if (profile) {
-        console.log(`[useUnifiedProfileFetcher] Profile fetched for ${pubkey.substring(0, 8)}:`, 
-          profile.name || profile.display_name);
-          
-        setProfiles(prev => ({
-          ...prev,
-          [pubkey]: profile
-        }));
+        // Update state with the new profile
+        setProfiles(prev => ({ ...prev, [pubkey]: profile }));
+        
+        // Clear any previous errors
+        if (fetchErrors[pubkey]) {
+          setFetchErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors[pubkey];
+            return newErrors;
+          });
+        }
+        
+        return profile;
       } else {
-        console.log(`[useUnifiedProfileFetcher] No profile found for ${pubkey.substring(0, 8)}`);
+        console.warn(`[useUnifiedProfileFetcher] No profile data returned for ${pubkey.substring(0, 8)}`);
+        setFetchErrors(prev => ({
+          ...prev,
+          [pubkey]: "No profile data found"
+        }));
+        return null;
       }
     } catch (error) {
-      console.error(`[useUnifiedProfileFetcher] Error fetching profile for ${pubkey}:`, error);
-      setProfileErrors(prev => ({
+      console.error(`[useUnifiedProfileFetcher] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
+      setFetchErrors(prev => ({
         ...prev,
-        [pubkey]: error instanceof Error ? error.message : 'Unknown error'
+        [pubkey]: error instanceof Error ? error.message : "Unknown error"
       }));
+      return null;
     } finally {
-      setLoadingProfiles(prev => {
-        const newState = { ...prev };
-        delete newState[pubkey];
-        return newState;
-      });
+      // Mark as no longer loading
+      setLoading(prev => ({ ...prev, [pubkey]: false }));
     }
-  }, []);
+  }, [fetchErrors]);
   
   /**
    * Fetch multiple profiles at once
    */
-  const fetchProfiles = useCallback(async (pubkeys: string[]) => {
-    if (!pubkeys.length) return;
+  const fetchProfiles = React.useCallback(async (pubkeys: string[], options: { force?: boolean } = {}) => {
+    if (!pubkeys.length) return {};
     
-    // Filter out already loaded profiles
-    const pubkeysToFetch = pubkeys.filter(pubkey => !profiles[pubkey]);
+    // Deduplicate pubkeys
+    const uniquePubkeys = [...new Set(pubkeys)];
+    console.log(`[useUnifiedProfileFetcher] Batch fetching ${uniquePubkeys.length} profiles`);
     
-    if (pubkeysToFetch.length === 0) return;
-    
-    console.log(`[useUnifiedProfileFetcher] Fetching ${pubkeysToFetch.length} profiles...`);
-    
-    // Track all pubkeys
-    setTrackedPubkeys(prev => {
-      const newSet = new Set(prev);
-      pubkeysToFetch.forEach(pubkey => newSet.add(pubkey));
-      return newSet;
+    // Mark all as loading
+    const loadingUpdates: Record<string, boolean> = {};
+    uniquePubkeys.forEach(pubkey => {
+      loadingUpdates[pubkey] = true;
     });
+    setLoading(prev => ({ ...prev, ...loadingUpdates }));
     
-    // Set loading states
-    setLoadingProfiles(prev => {
-      const newState = { ...prev };
-      pubkeysToFetch.forEach(pubkey => {
-        newState[pubkey] = true;
-      });
-      return newState;
+    // Set up subscriptions for all pubkeys if not already subscribed
+    uniquePubkeys.forEach(pubkey => {
+      if (!activeSubscriptions.current[pubkey]) {
+        activeSubscriptions.current[pubkey] = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
+          if (profile) {
+            console.log(`[useUnifiedProfileFetcher] Received profile update for ${pubkey.substring(0, 8)}`, 
+              profile.name || profile.display_name);
+            setProfiles(prev => ({ ...prev, [pubkey]: profile }));
+          }
+        });
+      }
     });
     
     try {
-      const fetchedProfiles = await unifiedProfileService.getProfiles(pubkeysToFetch);
+      // Use the unified service to fetch profiles
+      const results = await unifiedProfileService.getProfiles(uniquePubkeys);
       
-      console.log(`[useUnifiedProfileFetcher] Fetched ${Object.keys(fetchedProfiles).length} profiles`);
+      // Update state with results
+      setProfiles(prev => ({ ...prev, ...results }));
       
-      if (Object.keys(fetchedProfiles).length > 0) {
-        setProfiles(prev => ({
-          ...prev,
-          ...fetchedProfiles
-        }));
-      }
-    } catch (error) {
-      console.error('[useUnifiedProfileFetcher] Error batch fetching profiles:', error);
-    } finally {
-      // Clear loading states
-      setLoadingProfiles(prev => {
-        const newState = { ...prev };
-        pubkeysToFetch.forEach(pubkey => {
-          delete newState[pubkey];
-        });
-        return newState;
+      // Clear errors for any successfully fetched profiles
+      const errorUpdates: Record<string, string> = { ...fetchErrors };
+      Object.keys(results).forEach(pubkey => {
+        if (errorUpdates[pubkey]) {
+          delete errorUpdates[pubkey];
+        }
       });
+      setFetchErrors(errorUpdates);
+      
+      // Track which pubkeys didn't return profiles
+      const missingPubkeys = uniquePubkeys.filter(pubkey => !results[pubkey]);
+      if (missingPubkeys.length > 0) {
+        console.warn(`[useUnifiedProfileFetcher] Missing profiles after batch fetch: ${missingPubkeys.length}`);
+        
+        // Set errors for missing profiles
+        const newErrors: Record<string, string> = {};
+        missingPubkeys.forEach(pubkey => {
+          newErrors[pubkey] = "Profile not found";
+        });
+        setFetchErrors(prev => ({ ...prev, ...newErrors }));
+      }
+      
+      return results;
+    } catch (error) {
+      console.error(`[useUnifiedProfileFetcher] Error in batch fetch:`, error);
+      
+      // Set errors for all pubkeys
+      const errorUpdates: Record<string, string> = {};
+      uniquePubkeys.forEach(pubkey => {
+        errorUpdates[pubkey] = error instanceof Error ? error.message : "Unknown error";
+      });
+      setFetchErrors(prev => ({ ...prev, ...errorUpdates }));
+      
+      return {};
+    } finally {
+      // Mark all as no longer loading
+      const loadingUpdates: Record<string, boolean> = {};
+      uniquePubkeys.forEach(pubkey => {
+        loadingUpdates[pubkey] = false;
+      });
+      setLoading(prev => ({ ...prev, ...loadingUpdates }));
     }
-  }, [profiles]);
+  }, [fetchErrors]);
+  
+  /**
+   * Refresh a profile (force fetch)
+   */
+  const refreshProfile = React.useCallback((pubkey: string) => {
+    return fetchProfile(pubkey, { force: true });
+  }, [fetchProfile]);
   
   return {
     profiles,
-    loadingProfiles,
-    profileErrors,
     fetchProfile,
     fetchProfiles,
-    hasProfile: useCallback((pubkey: string) => !!profiles[pubkey], [profiles]),
-    isProfileLoading: useCallback((pubkey: string) => !!loadingProfiles[pubkey], [loadingProfiles])
+    refreshProfile,
+    fetchErrors,
+    isLoading: (pubkey: string) => loading[pubkey] || false,
+    hasError: (pubkey: string) => !!fetchErrors[pubkey]
   };
 }

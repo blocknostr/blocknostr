@@ -35,16 +35,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     triggerOnce: false
   });
 
-  // Use our unified profile fetcher
-  const { profiles: unifiedProfiles, fetchProfiles } = useUnifiedProfileFetcher();
+  // Use our unified profile fetcher with enhanced features
+  const { profiles: unifiedProfiles, fetchProfiles, isLoading: profilesLoading } = useUnifiedProfileFetcher();
   
-  // Combine initial profiles with unified profiles
+  // Combine initial profiles with unified profiles with unified profiles taking precedence
   const combinedProfiles = { ...initialProfiles, ...unifiedProfiles };
   
   // Fetch profiles for authors that aren't already loaded
   useEffect(() => {
     if (events.length > 0) {
-      console.log(`[OptimizedFeedList] Fetching profiles for ${events.length} events`);
+      console.log(`[OptimizedFeedList] Checking profiles for ${events.length} events`);
       
       // Collect all unique pubkeys that need profiles
       const pubkeysToFetch = new Set<string>();
@@ -66,13 +66,34 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       if (pubkeysToFetch.size > 0) {
         console.log(`[OptimizedFeedList] Fetching ${pubkeysToFetch.size} profiles`);
         fetchProfiles(Array.from(pubkeysToFetch));
+      } else {
+        console.log('[OptimizedFeedList] All profiles are already loaded');
       }
     }
-  }, [events, repostData, combinedProfiles, fetchProfiles]);
+  }, [events, repostData, fetchProfiles]);
+  
+  // Log profile coverage stats
+  useEffect(() => {
+    if (events.length > 0) {
+      const totalProfiles = events.length;
+      let profilesWithNames = 0;
+      
+      events.forEach(event => {
+        if (event.pubkey && combinedProfiles[event.pubkey] && 
+            (combinedProfiles[event.pubkey].name || combinedProfiles[event.pubkey].display_name)) {
+          profilesWithNames++;
+        }
+      });
+      
+      const coverage = (profilesWithNames / totalProfiles) * 100;
+      console.log(`[OptimizedFeedList] Profile coverage: ${profilesWithNames}/${totalProfiles} events (${coverage.toFixed(1)}%)`);
+    }
+  }, [events, combinedProfiles]);
 
   // Load more content when the load more element comes into view
   useEffect(() => {
     if (inView && hasMore && !loadMoreLoading) {
+      console.log('[OptimizedFeedList] Load more triggered by scrolling');
       onLoadMore();
     }
   }, [inView, hasMore, loadMoreLoading, onLoadMore]);
