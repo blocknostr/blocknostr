@@ -31,6 +31,13 @@ export class BrowserEventEmitter {
   }
 
   /**
+   * Remove an event listener (alias for off)
+   */
+  removeListener(event: string, listener: Function): this {
+    return this.off(event, listener);
+  }
+
+  /**
    * Emit an event
    */
   emit(event: string, ...args: any[]): boolean {
