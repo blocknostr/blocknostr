@@ -8,4 +8,4 @@ export * from "./use-media-feed";
 export * from "./use-feed-cache";
 export * from "./use-feed-initialization";
 export * from "./use-feed-pagination";
-
+export * from "./subscription/create-subscription";
