@@ -21,7 +21,7 @@ interface EditProfileSectionProps {
   onSaved: () => void;
 }
 
-interface ProfileData {
+export interface ProfileData {
   name: string;
   bio: string;
   picture: string;
