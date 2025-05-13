@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useInView } from './useInView';
 import { cn } from '@/lib/utils';
 import { AlertTriangle } from 'lucide-react';
-import { isSecureUrl } from '@/lib/nostr/utils/media/media-validation';
-import { handleError } from '@/lib/utils/errorHandling';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -14,7 +12,6 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   onLoadSuccess?: () => void;
   onLoadError?: () => void;
   fallbackText?: string;
-  priority?: boolean; // If true, load immediately without lazy loading
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -26,7 +23,6 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   onLoadSuccess,
   onLoadError,
   fallbackText = "Failed to load image",
-  priority = false,
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -35,23 +31,10 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   const { ref, inView } = useInView({
     triggerOnce: true,
     threshold: 0.1,
-    skip: priority // Skip intersection observer if priority is true
   });
-  
-  // Validate URL early
-  const isValidUrl = React.useMemo(() => {
-    try {
-      return !!src && isSecureUrl(src);
-    } catch (error) {
-      console.warn("Invalid image URL:", src);
-      return false;
-    }
-  }, [src]);
   
   // Create a memoized version of the URL with cache-busting for consistency
   const imageUrl = React.useMemo(() => {
-    if (!isValidUrl) return '';
-    
     // Generate consistent cache busting parameter
     const cacheBuster = retryCount > 0 ? `retry=${retryCount}` : '';
     
@@ -60,7 +43,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     return src.includes('?') 
       ? `${src}&${cacheBuster}` 
       : `${src}?${cacheBuster}`;
-  }, [src, retryCount, isValidUrl]);
+  }, [src, retryCount]);
 
   // Effect to handle image retry logic
   useEffect(() => {
@@ -76,15 +59,6 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       return () => clearTimeout(timer);
     }
   }, [hasError, retryCount, src]);
-  
-  // Set initial error state if URL is invalid
-  useEffect(() => {
-    if (!isValidUrl) {
-      setHasError(true);
-      setIsLoaded(true);
-      if (onLoadError) onLoadError();
-    }
-  }, [isValidUrl, onLoadError]);
 
   const handleLoad = () => {
     setIsLoaded(true);
@@ -118,8 +92,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         className
       )}
     >
-      {/* Only render image if in view or priority loading */}
-      {(inView || priority) && !hasError && isValidUrl && (
+      {inView && !hasError && (
         <img
           src={imageUrl}
           alt={alt}
@@ -128,7 +101,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             !isLoaded && "opacity-0",
             isLoaded && "opacity-100",
           )}
-          loading={priority ? "eager" : "lazy"}
+          loading="lazy"
           onLoad={handleLoad}
           onError={handleError}
           {...props}
