@@ -1,18 +1,33 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRelayConnection } from "./useRelayConnection";
 import { useProfileFetcher } from "./useProfileFetcher";
 import { useMessageSubscription } from "./useMessageSubscription";
 import { useReactionHandler } from "./useReactionHandler";
 import { useMessageSender } from "./useMessageSender";
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/storage";
 
 export type { ConnectionStatus } from "./useRelayConnection";
+
+const MUTE_PREFERENCE_KEY = "world_chat_muted";
 
 /**
  * Main World Chat hook that composes other specialized hooks
  */
 export const useWorldChat = () => {
   const [error, setError] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(
+    safeLocalStorageGet(MUTE_PREFERENCE_KEY) === "true"
+  );
+  
+  // Toggle mute state
+  const toggleMute = () => {
+    setIsMuted(prev => {
+      const newState = !prev;
+      safeLocalStorageSet(MUTE_PREFERENCE_KEY, newState.toString());
+      return newState;
+    });
+  };
   
   // Connection management
   const { 
@@ -31,7 +46,7 @@ export const useWorldChat = () => {
     loading, 
     isLoggedIn,
     setMessages 
-  } = useMessageSubscription(connectionStatus, fetchProfile);
+  } = useMessageSubscription(connectionStatus, fetchProfile, isMuted);
   
   // Reaction management
   const { emojiReactions, addReaction } = useReactionHandler(connectionStatus);
@@ -47,6 +62,10 @@ export const useWorldChat = () => {
     connectionStatus,
     reconnect,
     isReconnecting,
+    
+    // Mute state
+    isMuted,
+    toggleMute,
     
     // Content state
     messages,
