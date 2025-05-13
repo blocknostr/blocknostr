@@ -63,7 +63,7 @@ export async function getReactionCounts(
         reposters.push(event.pubkey);
         
         // Check if current user has reposted
-        if (currentPubkey && event.pubkey === currentPubkey) {
+        if (currentPubkey && event.pubkey === event.pubkey) {
           userHasReposted = true;
         }
       }

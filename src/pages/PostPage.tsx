@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +34,7 @@ const PostPage = () => {
   const [pool] = useState(() => new SimplePool());
 
   // Create SocialManager instance with the SimplePool
-  const socialManager = new SocialManager(pool, {});
+  const socialManager = new SocialManager(pool, {}, {});
   
   // Define default relays if nostrService.relays is not available
   const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
@@ -110,8 +109,7 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Fix: Remove the third parameter that's causing the error
-      // The socialManager.getReactionCounts method expects only eventId and relays
+      // Fix: Pass an empty array as the second parameter instead of an object
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {
