@@ -42,6 +42,9 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   // Keep track of measured sizes
   const sizesCache = useRef<Record<string, number>>({});
   
+  // CSS variables for consistent spacing
+  const itemGap = 8; // Space between items
+  
   // Set up virtualization with dynamic size measurement
   const rowVirtualizer = useVirtualizer({
     count: events.length,
@@ -53,8 +56,8 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         return sizesCache.current[event.id];
       }
       
-      // Improved base size estimate - consistent with iris.to approach
-      let estimatedSize = 120;
+      // Improved base size estimate with better spacing
+      let estimatedSize = 140; // Increased from 120 to account for spacing
       
       // Add more height for longer content with more precise estimates
       if (event.content) {
@@ -79,7 +82,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       }
       
       // Add consistent spacing between posts
-      return estimatedSize + 8; // 8px for spacing
+      return estimatedSize + itemGap;
     },
     overscan: 3, // Reduced overscan for better performance
     measureElement: (element) => {
@@ -91,10 +94,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       // Store the measured height in our cache
       if (eventId) {
-        sizesCache.current[eventId] = height + 8; // Add consistent 8px spacing
+        sizesCache.current[eventId] = height + itemGap; // Add consistent spacing
       }
       
-      return height + 8; // Return with consistent 8px spacing
+      return height + itemGap;
     }
   });
 
@@ -130,6 +133,12 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       {/* Virtualized list with ScrollArea */}
       <ScrollArea
         className="h-[calc(100vh-200px)] min-h-[400px]"
+        style={{ 
+          // Enable GPU acceleration for smooth scrolling
+          willChange: 'transform',
+          // Add subtle background contrast for better separation
+          background: 'var(--background)' 
+        }}
       >
         <div 
           ref={parentRef} 
@@ -157,8 +166,9 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
                     width: '100%',
                     height: `${virtualRow.size}px`,
                     padding: '0',
-                    marginBottom: '0', // Remove any margin to ensure consistent spacing
+                    boxSizing: 'border-box',
                   }}
+                  className="animate-fade-in"
                 >
                   <NoteCard 
                     event={event} 

@@ -25,6 +25,9 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
   // Keep track of measured sizes
   const sizesCache = useRef<Record<string, number>>({});
   
+  // CSS variables for consistent spacing
+  const itemGap = 8; // Space between items
+  
   // Set up virtualization with dynamic size measurement
   const rowVirtualizer = useVirtualizer({
     count: posts.length,
@@ -37,7 +40,7 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
       }
       
       // Improved base size estimate - consistent with other feed components
-      let estimatedSize = 120;
+      let estimatedSize = 140; // Increased from 120 to account for spacing
       
       // Add more height for longer content with more precise estimates
       if (post.content) {
@@ -62,7 +65,7 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
       }
       
       // Add consistent spacing between posts
-      return estimatedSize + 8;
+      return estimatedSize + itemGap;
     },
     overscan: 3, // Reduced overscan for better performance
     measureElement: (element) => {
@@ -74,10 +77,10 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
       
       // Store the measured height in our cache
       if (postId) {
-        sizesCache.current[postId] = height + 8; // Add consistent 8px spacing
+        sizesCache.current[postId] = height + itemGap; // Add consistent spacing
       }
       
-      return height + 8;
+      return height + itemGap;
     }
   });
   
@@ -116,7 +119,13 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
   }
   
   return (
-    <ScrollArea className="h-[calc(100vh-350px)] min-h-[400px]">
+    <ScrollArea 
+      className="h-[calc(100vh-350px)] min-h-[400px]"
+      style={{ 
+        // Enable GPU acceleration for smooth scrolling
+        willChange: 'transform'
+      }}
+    >
       <div 
         ref={parentRef} 
         className="custom-scrollbar w-full"
@@ -143,8 +152,9 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
                   width: '100%',
                   height: `${virtualRow.size}px`,
                   padding: '0',
-                  marginBottom: '0', // Remove any margin to ensure consistent spacing
+                  boxSizing: 'border-box',
                 }}
+                className="animate-fade-in"
               >
                 <NoteCard 
                   event={post} 

@@ -25,6 +25,9 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
   // Keep track of measured sizes
   const sizesCache = useRef<Record<string, number>>({});
   
+  // CSS variables for consistent spacing
+  const itemGap = 8; // Space between items
+  
   // Use TanStack Virtual for efficient list rendering
   const rowVirtualizer = useVirtualizer({
     count: events.length,
@@ -36,8 +39,8 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
         return sizesCache.current[event.id];
       }
       
-      // Improved base size estimate - consistent with OptimizedFeedList
-      let estimatedSize = 120;
+      // Improved base size estimate with better spacing
+      let estimatedSize = 140; // Increased from 120 to account for spacing
       
       // Add more height for longer content with more precise estimates
       if (event.content) {
@@ -62,7 +65,7 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
       }
       
       // Add fixed spacing between posts
-      return estimatedSize + 8;
+      return estimatedSize + itemGap;
     },
     overscan: 3, // Reduced overscan for better performance 
     measureElement: (element) => {
@@ -74,19 +77,28 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
       
       // Store the measured height in our cache
       if (eventId) {
-        sizesCache.current[eventId] = height + 8; // Add consistent 8px spacing
+        sizesCache.current[eventId] = height + itemGap; // Add consistent spacing
       }
       
-      return height + 8;
+      return height + itemGap;
     }
   });
   
   return (
     <div className="relative">
-      <ScrollArea className="h-[calc(100vh-200px)]">
+      <ScrollArea 
+        className="h-[calc(100vh-200px)]"
+        style={{ 
+          // Enable GPU acceleration for smooth scrolling
+          willChange: 'transform',
+          // Add subtle background contrast for better visual separation
+          background: 'var(--background)' 
+        }}
+      >
         <div 
           ref={parentRef} 
           className="custom-scrollbar w-full"
+          style={{ position: 'relative' }}
         >
           {/* Total height spacer */}
           <div 
@@ -106,7 +118,7 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
                     width: '100%',
                     height: `${virtualRow.size}px`,
                     padding: '0',
-                    marginBottom: '0', // Remove any margin to ensure consistent spacing
+                    boxSizing: 'border-box',
                   }}
                 >
                   <NoteCard 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SocialManager } from '@/lib/nostr/social-manager';
+import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 
 const PostPage = () => {
@@ -49,7 +50,7 @@ const PostPage = () => {
         if (nostrService.subscribe) {
           const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          }, defaultRelays); // Pass defaultRelays as the third argument
+          }, defaultRelays, "post_page"); // Pass both defaultRelays and a subscription name
           
           // Cleanup subscription
           return () => {
@@ -101,9 +102,16 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts from the social manager
-      // Pass the eventId and relays to the SocialManager getReactionCounts method
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, {});
+      // Get reaction counts using the interactions API from socialManager
+      // The internal implementation handles this differently than getReactionCounts
+      const counts = await socialManager.interactions?.getInteractionCounts(eventId, defaultRelays) || {
+        likes: 0,
+        reposts: 0,
+        replies: 0,
+        zaps: 0,
+        zapAmount: 0
+      };
+      
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);
@@ -203,7 +211,7 @@ const PostPage = () => {
             {/* Note header with author info */}
             <NoteCardHeader 
               pubkey={currentNote?.pubkey} 
-              createdAt={currentNote?.created_at} 
+              timestamp={currentNote?.created_at} 
               profileData={profileData || undefined}
             />
             
