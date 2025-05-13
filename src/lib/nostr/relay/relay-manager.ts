@@ -19,7 +19,7 @@ export class RelayManager {
     'wss://relay.nostr.band'
   ];
   private relayInfoService: RelayInfoService;
-  
+
   constructor(pool: SimplePool) {
     this.pool = pool;
     this.connectionManager = new ConnectionManager();
@@ -28,11 +28,11 @@ export class RelayManager {
     this.relayInfoService = new RelayInfoService(pool);
     this.healthManager.startHealthCheck();
   }
-  
+
   get userRelays(): Map<string, boolean> {
     return new Map(this._userRelays);
   }
-  
+
   /**
    * Load user relays from local storage
    */
@@ -52,7 +52,7 @@ export class RelayManager {
       });
     }
   }
-  
+
   /**
    * Save user relays to local storage
    */
@@ -60,7 +60,7 @@ export class RelayManager {
     const relaysObject = Object.fromEntries(this._userRelays);
     localStorage.setItem('nostr_user_relays', JSON.stringify(relaysObject));
   }
-  
+
   /**
    * Connect to a specific relay
    * @param relayUrl URL of the relay
@@ -70,7 +70,7 @@ export class RelayManager {
   async connectToRelay(relayUrl: string, retryCount: number = 0): Promise<boolean> {
     return this.connectionManager.connectToRelay(relayUrl, retryCount);
   }
-  
+
   /**
    * Connect to the default relays
    * @returns Promise resolving when connection attempts complete
@@ -78,7 +78,7 @@ export class RelayManager {
   async connectToDefaultRelays(): Promise<void> {
     return this.connectionManager.connectToRelays(this.defaultRelays);
   }
-  
+
   /**
    * Connect to all user relays
    * @returns Promise resolving when connection attempts complete
@@ -86,7 +86,7 @@ export class RelayManager {
   async connectToUserRelays(): Promise<void> {
     return this.connectionManager.connectToRelays(Array.from(this._userRelays.keys()));
   }
-  
+
   /**
    * Add a new relay to the user's relay list
    * @param relayUrl URL of the relay to add
@@ -100,19 +100,19 @@ export class RelayManager {
     } catch (e) {
       return false;
     }
-    
+
     // Add to user relays
     this._userRelays.set(relayUrl, readWrite);
     this.saveUserRelays();
-    
+
     // Update health manager with new relays
     this.healthManager.updateUserRelays(this._userRelays);
-    
+
     // Try to connect
     const connected = await this.connectToRelay(relayUrl);
     return connected;
   }
-  
+
   /**
    * Remove a relay from the user's relay list
    * @param relayUrl URL of the relay to remove
@@ -120,14 +120,14 @@ export class RelayManager {
   removeRelay(relayUrl: string): void {
     this._userRelays.delete(relayUrl);
     this.saveUserRelays();
-    
+
     // Update health manager
     this.healthManager.updateUserRelays(this._userRelays);
-    
+
     // Disconnect
     this.connectionManager.disconnect(relayUrl);
   }
-  
+
   /**
    * Get status of all relays
    * @returns Array of Relay objects with status information
@@ -135,11 +135,11 @@ export class RelayManager {
   getRelayStatus(): Relay[] {
     // First get all relays from userRelays
     const relayMap = new Map<string, Relay>();
-    
+
     // Add all user relays first (even if not connected)
     Array.from(this._userRelays.keys()).forEach(url => {
       const isConnected = this.connectionManager.isConnected(url);
-      
+
       relayMap.set(url, {
         url,
         status: isConnected ? 'connected' : 'disconnected',
@@ -147,7 +147,7 @@ export class RelayManager {
         write: !!this._userRelays.get(url)
       });
     });
-    
+
     // Add any connected relays that might not be in userRelays
     const connectedRelays = this.connectionManager.getConnectedRelayUrls();
     connectedRelays.forEach(url => {
@@ -160,10 +160,10 @@ export class RelayManager {
         });
       }
     });
-    
+
     return Array.from(relayMap.values());
   }
-  
+
   /**
    * Add multiple relays at once
    * @param relayUrls Array of relay URLs to add
@@ -171,9 +171,9 @@ export class RelayManager {
    */
   async addMultipleRelays(relayUrls: string[]): Promise<number> {
     if (!relayUrls.length) return 0;
-    
+
     let successCount = 0;
-    
+
     for (const url of relayUrls) {
       try {
         const success = await this.addRelay(url);
@@ -182,10 +182,10 @@ export class RelayManager {
         console.error(`Failed to add relay ${url}:`, error);
       }
     }
-    
+
     return successCount;
   }
-  
+
   /**
    * Set user relays map (used when loading from NIP-65)
    * @param relays Map of relay URLs to read/write status
@@ -193,14 +193,14 @@ export class RelayManager {
   setUserRelays(relays: Map<string, boolean>): void {
     this._userRelays = relays;
     this.saveUserRelays();
-    
+
     // Update health manager
     this.healthManager.updateUserRelays(this._userRelays);
-    
+
     // Connect to these relays
     this.connectToUserRelays();
   }
-  
+
   /**
    * Pick best relays for a specific operation
    * @param operation 'read' or 'write' operation
@@ -211,25 +211,25 @@ export class RelayManager {
     const connectedRelays = this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .filter(relay => operation === 'read' || (operation === 'write' && relay.write));
-    
+
     // If we have enough connected relays, use them
     if (connectedRelays.length >= count) {
       return connectedRelays.slice(0, count).map(relay => relay.url);
     }
-    
+
     // Otherwise, return all available relays that match the criteria
     return connectedRelays.map(relay => relay.url);
   }
-  
+
   /**
    * Get information about a relay using NIP-11
    * @param relayUrl URL of the relay
    * @returns Promise resolving to relay information or null
    */
-  async getRelayInformation(relayUrl: string): Promise<any | null> {
+  async getRelayInformation(relayUrl: string): Promise<RelayInfo | null> {
     return this.relayInfoService.getRelayInfo(relayUrl);
   }
-  
+
   /**
    * Check if a relay supports a specific NIP
    * @param relayUrl URL of the relay
@@ -239,24 +239,31 @@ export class RelayManager {
   async doesRelaySupport(relayUrl: string, nipNumber: number): Promise<boolean> {
     return this.relayInfoService.supportsNIP(relayUrl, nipNumber);
   }
-  
+
   /**
    * Get relay limitations based on NIP-11
    * @param relayUrl URL of the relay
    * @returns Promise resolving to relay limitations
    */
-  async getRelayLimitations(relayUrl: string): Promise<any | null> {
+  async getRelayLimitations(relayUrl: string): Promise<Record<string, unknown> | null> {
     return this.relayInfoService.getRelayLimitations(relayUrl);
   }
-  
+
   /**
    * Clean up when manager is destroyed
    */
   cleanup(): void {
     // Clean up health manager
     this.healthManager.cleanup();
-    
+
     // Clean up connections
     this.connectionManager.cleanup();
   }
+}
+
+interface RelayInfo {
+  name: string;
+  description: string;
+  supportedNIPs: number[];
+  limitations?: Record<string, unknown>;
 }
