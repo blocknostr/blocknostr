@@ -1,3 +1,4 @@
+
 // src/components/feed/VirtualizedFeedList.tsx
 import React, { useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
@@ -37,8 +38,8 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
     <div className="space-y-4 relative">
       <div
         ref={parentRef}
-        className="overflow-auto mt-8"               {/* ← push down a bit */}
-        style={{ height: "calc(100vh - 250px)" }}    {/* ← carve out more top space */}
+        className="overflow-auto mt-8"               {/* push down a bit */}
+        style={{ height: "calc(100vh - 250px)" }}    {/* carve out more top space */}
       >
         {/* spacer to set scrollable height */}
         <div style={{ height: totalHeight }}>
