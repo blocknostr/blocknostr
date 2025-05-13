@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -231,47 +232,45 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommen
 
   return (
     <>
-      <div className="px-4 pb-3 pt-2">
+      <div className="px-3 pb-2 pt-1">
         {nostrService.publicKey && (
-          <div className="flex gap-2 mb-3">
-            <Avatar className="h-7 w-7 shrink-0">
-              <AvatarFallback>U</AvatarFallback>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Avatar className="h-5 w-5 shrink-0">
+              <AvatarFallback className="text-[10px]">U</AvatarFallback>
             </Avatar>
-            <div className="flex-1 flex flex-col gap-1">
-              <div className="flex items-center">
-                <Textarea
-                  placeholder="Write a comment..."
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="min-h-[42px] max-h-[120px] resize-none flex-1 py-2 px-3 text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmitComment();
-                    }
-                  }}
-                />
-                <Button 
-                  onClick={handleSubmitComment}
-                  disabled={!newComment.trim() || commentSubmitting}
-                  className="h-[42px] ml-1"
-                  size="icon"
-                  variant="ghost"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex-1 flex items-center bg-muted/40 rounded-full overflow-hidden pr-0.5">
+              <Textarea
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="min-h-[32px] max-h-[80px] resize-none flex-1 py-1 px-2 text-xs border-0 bg-transparent focus-visible:ring-0"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmitComment();
+                  }
+                }}
+              />
+              <Button 
+                onClick={handleSubmitComment}
+                disabled={!newComment.trim() || commentSubmitting}
+                className="h-[28px] w-[28px] rounded-full"
+                size="icon"
+                variant="ghost"
+              >
+                <Send className="h-3 w-3" />
+              </Button>
             </div>
           </div>
         )}
         
-        <div className="space-y-3 mt-2">
+        <div className="space-y-2">
           {isLoading && comments.length === 0 ? (
-            <div className="text-xs text-center py-3 text-muted-foreground">
+            <div className="text-xs text-center py-2 text-muted-foreground">
               Loading comments...
             </div>
           ) : comments.length === 0 ? (
-            <div className="text-xs text-center py-3 text-muted-foreground">
+            <div className="text-xs text-center py-2 text-muted-foreground">
               No comments yet. Be the first to comment!
             </div>
           ) : (
@@ -290,40 +289,40 @@ const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommen
                     className="shrink-0"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Avatar className="h-6 w-6">
+                    <Avatar className="h-5 w-5">
                       <AvatarImage src={picture} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
                         {name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   </Link>
                   
                   <div className="flex-1">
-                    <div className="bg-muted/40 p-2 rounded-lg">
+                    <div className="bg-muted/30 p-1.5 rounded-lg">
                       <div className="flex items-baseline gap-1 mb-0.5">
                         <Link 
                           to={`/profile/${comment.author}`} 
-                          className="font-medium text-xs hover:underline"
+                          className="font-medium text-[10px] hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {name}
                         </Link>
-                        <span className="text-[10px] text-muted-foreground">@{shortNpub}</span>
-                        <span className="text-[10px] text-muted-foreground">·</span>
-                        <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
+                        <span className="text-[9px] text-muted-foreground">@{shortNpub}</span>
+                        <span className="text-[9px] text-muted-foreground">·</span>
+                        <span className="text-[9px] text-muted-foreground">{timeAgo}</span>
                       </div>
-                      <p className="text-xs whitespace-pre-wrap break-words">{comment.content}</p>
+                      <p className="text-[11px] whitespace-pre-wrap break-words">{comment.content}</p>
                     </div>
                     
                     {isAuthor && comment.id && (
-                      <div className="flex justify-end mt-0.5">
+                      <div className="flex justify-end mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-5 px-1.5 py-0 text-[10px]"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600 h-4 px-1 py-0 text-[9px]"
                           onClick={() => handleDeleteClick(comment.id)}
                         >
-                          <Trash2 className="h-2.5 w-2.5 mr-1" />
+                          <Trash2 className="h-2 w-2 mr-0.5" />
                           Delete
                         </Button>
                       </div>

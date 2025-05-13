@@ -56,7 +56,7 @@ const PostPage = () => {
         if (nostrService.subscribe) {
           const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
-          }, defaultRelays); // Pass defaultRelays as the third argument
+          }, defaultRelays);
           
           // Cleanup subscription
           return () => {
@@ -119,7 +119,7 @@ const PostPage = () => {
   // Fix the stats section to use the right properties
   const renderStats = () => {
     return (
-      <div className="flex gap-4 text-sm text-muted-foreground pb-4 border-b px-4 md:px-6">
+      <div className="flex gap-4 text-xs text-muted-foreground py-2 border-b px-4 md:px-6">
         <div title="Replies">
           <span className="font-medium">{reactionCounts.replies || 0}</span> {reactionCounts.replies === 1 ? 'Reply' : 'Replies'}
         </div>
@@ -242,7 +242,7 @@ const PostPage = () => {
             />
             
             {/* Note Actions */}
-            <div className="mt-4">
+            <div className="mt-3">
               <NoteCardActions 
                 note={getAsNote()}
                 setActiveReply={() => setShowReplies(true)}
