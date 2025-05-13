@@ -1,96 +1,45 @@
 
-import { NostrEvent } from "../types";
+/**
+ * Helper utility functions for Nostr
+ */
+
+import { NostrEvent } from '../types';
 
 /**
- * Shortens a pubkey for display purposes
+ * Formats a pubkey for display by taking the first and last few characters
  */
-export const shortenPubkey = (pubkey: string, length = 8): string => {
-  if (!pubkey) return '';
-  if (pubkey.length <= length * 2) return pubkey;
-  
-  return `${pubkey.slice(0, length)}...${pubkey.slice(-length)}`;
+export const shortenPubkey = (pubkey: string, prefixLength = 4, suffixLength = 4): string => {
+  if (!pubkey || pubkey.length <= prefixLength + suffixLength) return pubkey;
+  return `${pubkey.substring(0, prefixLength)}...${pubkey.substring(pubkey.length - suffixLength)}`;
 };
 
 /**
- * Sorts events by timestamp (newest first)
+ * Returns true if an event is newer than another based on created_at timestamp
+ */
+export const isNewerEvent = (event1: NostrEvent, event2: NostrEvent): boolean => {
+  return event1.created_at > event2.created_at;
+};
+
+/**
+ * Sorts events by created_at timestamp (newest first)
  */
 export const sortEventsByDate = (events: NostrEvent[]): NostrEvent[] => {
   return [...events].sort((a, b) => b.created_at - a.created_at);
 };
 
 /**
- * Extracts hashtags from event content and tags
+ * Formats a timestamp into a human-readable relative time string
  */
-export const extractHashtags = (event: NostrEvent): string[] => {
-  const tags = new Set<string>();
+export const formatRelativeTime = (timestamp: number): string => {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - timestamp;
   
-  // Extract hashtags from t tags
-  if (Array.isArray(event.tags)) {
-    event.tags
-      .filter(tag => Array.isArray(tag) && tag[0] === 't' && tag[1])
-      .forEach(tag => tags.add(tag[1].toLowerCase()));
-  }
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
   
-  // Extract hashtags from content
-  if (event.content) {
-    const hashtagRegex = /#(\w+)/g;
-    let match;
-    
-    while ((match = hashtagRegex.exec(event.content)) !== null) {
-      if (match[1]) {
-        tags.add(match[1].toLowerCase());
-      }
-    }
-  }
-  
-  return Array.from(tags);
-};
-
-/**
- * Creates a human-readable timestamp from an event
- */
-export const formatEventTimestamp = (event: NostrEvent): string => {
-  if (!event.created_at) return '';
-  
-  const date = new Date(event.created_at * 1000);
-  return date.toLocaleString();
-};
-
-/**
- * Checks if an event is a reply to another event
- */
-export const isReplyEvent = (event: NostrEvent): boolean => {
-  if (!Array.isArray(event.tags)) return false;
-  
-  return event.tags.some(tag => 
-    Array.isArray(tag) && 
-    tag[0] === 'e' && 
-    tag.length >= 2
-  );
-};
-
-/**
- * Gets the target event ID that this event is replying to
- */
-export const getReplyTargetId = (event: NostrEvent): string | null => {
-  if (!Array.isArray(event.tags)) return null;
-  
-  // Look for an 'e' tag with reply marker
-  const replyTag = event.tags.find(tag => 
-    Array.isArray(tag) && 
-    tag[0] === 'e' && 
-    tag.length >= 3 && 
-    tag[3] === 'reply'
-  );
-  
-  if (replyTag && replyTag[1]) return replyTag[1];
-  
-  // Fall back to the first 'e' tag
-  const firstETag = event.tags.find(tag => 
-    Array.isArray(tag) && 
-    tag[0] === 'e' && 
-    tag.length >= 2
-  );
-  
-  return firstETag ? firstETag[1] : null;
+  // Format as date for older posts
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString();
 };

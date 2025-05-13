@@ -1,56 +1,26 @@
-import { NostrEvent } from "../types";
 
 /**
- * Filters events by specific criteria
- * Implements patterns from NIP-01
+ * Utility functions for filtering Nostr events
  */
-export const filterEventsByKind = (events: NostrEvent[], kinds: number[]): NostrEvent[] => {
-  if (!kinds || kinds.length === 0) return events;
-  
-  return events.filter(event => kinds.includes(event.kind));
+
+import { NostrEvent } from '../types';
+
+/**
+ * Filter events by kind
+ */
+export const filterEventsByKind = (events: NostrEvent[], kind: number): NostrEvent[] => {
+  return events.filter(event => event.kind === kind);
 };
 
 /**
- * Filters events by author pubkey
+ * Filter events by author
  */
-export const filterEventsByAuthor = (events: NostrEvent[], pubkeys: string[]): NostrEvent[] => {
-  if (!pubkeys || pubkeys.length === 0) return events;
-  
-  const pubkeySet = new Set(pubkeys);
-  return events.filter(event => event.pubkey && pubkeySet.has(event.pubkey));
+export const filterEventsByAuthor = (events: NostrEvent[], pubkey: string): NostrEvent[] => {
+  return events.filter(event => event.pubkey === pubkey);
 };
 
 /**
- * Filters events by tag value
- */
-export const filterEventsByTag = (
-  events: NostrEvent[], 
-  tagName: string, 
-  tagValues?: string[]
-): NostrEvent[] => {
-  if (!tagName) return events;
-  
-  return events.filter(event => {
-    if (!event.tags || !Array.isArray(event.tags)) return false;
-    
-    // If no specific tag values are requested, check if the tag exists
-    if (!tagValues || tagValues.length === 0) {
-      return event.tags.some(tag => Array.isArray(tag) && tag[0] === tagName);
-    }
-    
-    // Otherwise, check for specific tag values
-    const tagValueSet = new Set(tagValues);
-    return event.tags.some(tag => 
-      Array.isArray(tag) && 
-      tag[0] === tagName && 
-      tag.length > 1 && 
-      tagValueSet.has(tag[1])
-    );
-  });
-};
-
-/**
- * Filters events by time range
+ * Filter events by time range
  */
 export const filterEventsByTimeRange = (
   events: NostrEvent[], 
@@ -65,25 +35,20 @@ export const filterEventsByTimeRange = (
 };
 
 /**
- * Filters events with media content
+ * Filter events by tag
  */
-export const filterMediaEvents = (events: NostrEvent[]): NostrEvent[] => {
+export const filterEventsByTag = (
+  events: NostrEvent[], 
+  tagName: string,
+  tagValue?: string
+): NostrEvent[] => {
   return events.filter(event => {
-    // Check content for media URLs
-    if (event.content) {
-      const hasMediaUrl = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|mov)(\?[^\s]*)?)/i.test(event.content);
-      if (hasMediaUrl) return true;
-    }
+    if (!Array.isArray(event.tags)) return false;
     
-    // Check for media tags
-    if (Array.isArray(event.tags)) {
-      return event.tags.some(tag => 
-        Array.isArray(tag) && 
-        tag.length >= 2 && 
-        ['image', 'media', 'video'].includes(tag[0])
-      );
-    }
-    
-    return false;
+    return event.tags.some(tag => {
+      if (tag[0] !== tagName) return false;
+      if (tagValue && tag[1] !== tagValue) return false;
+      return true;
+    });
   });
 };
