@@ -101,7 +101,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
           <div className="flex">
             <main
-              className="flex-1 min-h-screen mt-4" /* Added mt-4 for top margin */
+              className="flex-1 min-h-screen mt-14" /* Added mt-4 for top margin */
               onClick={handleMainContentClick}
             >
               {children || <Outlet />}
