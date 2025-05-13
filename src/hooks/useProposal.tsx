@@ -76,6 +76,8 @@ export const useProposal = ({
     
     try {
       setIsSubmitting(true);
+      
+      // Using NIP-72 compliant voting with reactions
       const eventId = await nostrService.voteOnProposal(proposal.id, optionIndex);
       
       if (eventId) {

@@ -1,4 +1,3 @@
-
 import { NostrEvent } from "@/lib/nostr";
 
 export interface Community {
@@ -15,6 +14,7 @@ export interface Community {
   guidelines?: string; // Community guidelines
   tags?: string[]; // Tags for better discovery
   minJoinTime?: number; // Minimum time required for new members before they can propose/vote
+  nip72Compliant?: boolean; // Indicates if this community follows NIP-72 standard
 }
 
 export interface Proposal {
@@ -29,6 +29,7 @@ export interface Proposal {
   votes: Record<string, number>;
   category?: string; // Categorize proposals (governance, feature, etc.)
   minQuorum?: number; // Minimum percentage of members required to vote for the proposal to be valid
+  version?: string; // NIP-72 version compatibility
 }
 
 export interface KickProposal {
