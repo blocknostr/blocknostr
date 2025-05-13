@@ -1,3 +1,3 @@
 
-import { NoteCard } from './note';
+import { NoteCard } from '@/components/note';
 export default NoteCard;

@@ -1,7 +1,7 @@
 
 import React, { useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "../note/MemoizedNoteCard"; // Use our memoized component
+import NoteCard from "@/components/NoteCard"; // Use our memoized component
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useInView } from "../shared/useInView";
