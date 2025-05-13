@@ -14,6 +14,7 @@ import NotFound from './pages/NotFound';
 import { Toaster } from "sonner";
 import WalletsPage from "./pages/WalletsPage";
 import PremiumPage from "./pages/PremiumPage";
+import MyCubePage from "./pages/MyCubePage";
 import MainLayout from './layouts/MainLayout';
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
               <Route path="/notebin" element={<NotebinPage />} />
               <Route path="/wallets" element={<WalletsPage />} />
               <Route path="/premium" element={<PremiumPage />} />
+              <Route path="/mycube" element={<MyCubePage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
