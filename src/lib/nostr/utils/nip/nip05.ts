@@ -1,3 +1,4 @@
+
 /**
  * Verifies a NIP-05 identifier and returns the associated pubkey if valid
  * @param identifier - NIP-05 identifier in format username@domain.tld
