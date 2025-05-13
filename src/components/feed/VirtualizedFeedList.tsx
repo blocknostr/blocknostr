@@ -58,8 +58,8 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
                   }}
                 >
                   <NoteCard 
-                    key={event.id} 
-                    event={event} 
+                    key={event.id}
+                    event={event}
                     profileData={event.pubkey ? profiles[event.pubkey] : undefined}
                     repostData={event.id && repostData[event.id] ? {
                       reposterPubkey: repostData[event.id].pubkey,

@@ -94,8 +94,8 @@ const ProfilePostsList: React.FC<ProfilePostsListProps> = ({
               >
                 <div className="py-2">
                   <NoteCard 
-                    event={post} 
-                    profileData={profileData} 
+                    event={post}
+                    profileData={profileData}
                   />
                 </div>
               </div>

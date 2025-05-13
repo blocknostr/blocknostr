@@ -108,7 +108,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
                 >
                   <div className="py-2">
                     <NoteCard 
-                      event={event} 
+                      event={event}
                       profileData={event.pubkey ? profiles[event.pubkey] : undefined}
                       repostData={event.id && repostData[event.id] ? {
                         reposterPubkey: repostData[event.id].pubkey,
