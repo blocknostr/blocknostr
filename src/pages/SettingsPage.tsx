@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ const SettingsPage = () => {
       
       setLoadingInterests(true);
       try {
-        // Use the new socialInteraction adapter instead of directly accessing the service
+        // Use the new socialInteraction adapter
         const userInterests = await nostrService.socialInteraction.getInterests();
         setInterests(userInterests || []);
       } catch (error) {

@@ -5,7 +5,7 @@ import { EVENT_KINDS, LIST_IDENTIFIERS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
 import { NostrService } from './service';
-import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
+import { adaptedNostrService } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
@@ -24,7 +24,7 @@ export type { ProposalCategory } from '@/types/community';
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance and type
-export { nostrServiceInstance as nostrService };
+export { adaptedNostrService as nostrService };
 export type { NostrService };
 
 // Export cache modules

@@ -65,12 +65,12 @@ export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
       };
     };
     
-    const cleanupFn = fetchReplyCount();
+    const cleanup = fetchReplyCount();
     
     // Ensure we clean up when the component unmounts or when eventId changes
     return () => {
-      if (typeof cleanupFn === 'function') {
-        cleanupFn();
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
       }
     };
   }, [eventId]);

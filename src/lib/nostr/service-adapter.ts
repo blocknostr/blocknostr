@@ -1,4 +1,3 @@
-
 import { NostrService } from './service';
 
 /**
@@ -15,31 +14,50 @@ export class NostrServiceAdapter {
   // Add adapter methods for backward compatibility
   
   connectToDefaultRelays() {
-    return this.service.connectToUserRelays();
+    if (this.service.connectToUserRelays) {
+      return this.service.connectToUserRelays();
+    }
+    return Promise.resolve(false);
   }
   
   getRelayUrls() {
-    return this.service.getRelayUrls();
+    if (this.service.getRelayStatus) {
+      const relays = this.service.getRelayStatus();
+      return relays.map(r => r.url);
+    }
+    return [];
   }
   
   getRelayStatus() {
-    return this.service.getRelayStatus();
+    return this.service.getRelayStatus ? this.service.getRelayStatus() : [];
   }
   
   async fetchUserProfile(pubkey: string) {
-    return this.service.getUserProfile(pubkey);
+    if (this.service.getUserProfile) {
+      return this.service.getUserProfile(pubkey);
+    }
+    return null;
   }
   
   async fetchUserProfiles(pubkeys: string[]) {
-    return this.service.getProfilesByPubkeys(pubkeys);
+    if (this.service.getProfilesByPubkeys) {
+      return this.service.getProfilesByPubkeys(pubkeys);
+    }
+    return [];
   }
   
   async fetchEvent(id: string) {
-    return this.service.getEventById(id);
+    if (this.service.getEventById) {
+      return this.service.getEventById(id);
+    }
+    return null;
   }
   
   async fetchEvents(ids: string[]) {
-    return this.service.getEvents(ids);
+    if (this.service.getEvents) {
+      return this.service.getEvents(ids);
+    }
+    return [];
   }
   
   async publishNote(content: string, tags: string[][] = []) {
@@ -51,11 +69,11 @@ export class NostrServiceAdapter {
   }
   
   async likeEvent(eventId: string, authorPubkey: string) {
-    return this.service.reactToPost(eventId, '+');
+    return this.service.reactToPost ? this.service.reactToPost(eventId, '+') : false;
   }
   
   async repostEvent(eventId: string, authorPubkey: string) {
-    return this.service.repostNote(eventId, authorPubkey);
+    return this.service.repostNote ? this.service.repostNote(eventId, authorPubkey) : false;
   }
   
   async followUser(pubkey: string) {

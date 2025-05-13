@@ -82,3 +82,7 @@ export class NostrAdapter {
     return this._socialInteractionAdapter;
   }
 }
+
+// Create an instance with the service
+import { nostrService } from './service';
+export const adaptedNostrService = new NostrAdapter(nostrService);

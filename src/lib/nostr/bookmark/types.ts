@@ -1,5 +1,7 @@
 
-// Basic types for bookmarks - empty stubs for backward compatibility
+// Basic types for bookmarks
+import { EVENT_KINDS, LIST_IDENTIFIERS } from '../constants';
+
 export interface BookmarkStatus {
   eventId: string;
   isBookmarked: boolean;
@@ -24,7 +26,7 @@ export interface BookmarkCollection {
   totalItems?: number;
 }
 
-// Placeholder types for backward compatibility
+// Operation types
 export type BookmarkOperationType = 'add' | 'remove' | 'update' | 'addCollection' | 'updateCollection' | 'deleteCollection';
 
 export interface QueuedOperation {
@@ -36,10 +38,10 @@ export interface QueuedOperation {
   timestamp: number;
 }
 
-// NIP-51 compliant bookmark types - use LIST from constants
+// NIP-51 compliant bookmark types
 export enum BookmarkEventKinds {
-  BOOKMARK_LIST = 10000,
-  COLLECTIONS = 10000
+  BOOKMARK_LIST = EVENT_KINDS.LIST,
+  COLLECTIONS = EVENT_KINDS.LIST
 }
 
 export interface BookmarkManagerDependencies {
