@@ -1,0 +1,33 @@
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  button, 
+  a,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  .card {
+    @apply mx-auto max-w-[95%];
+  }
+  
+  /* Allow smaller heights for specific UI elements that need it */
+  .h-auto,
+  .min-h-auto,
+  button.h-auto,
+  button.min-h-auto {
+    min-height: auto;
+  }
+}
+
+/* Improve swipe gesture detection */
+.sheet-open {
+  overflow: hidden;
+}
+
+/* Ensure the content area fills available space */
+.app-content {
+  @apply flex-1 min-h-screen w-full;
+}
