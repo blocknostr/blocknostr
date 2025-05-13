@@ -95,7 +95,7 @@ const decompressArray = (compressed: string): string[] => {
 const memoryStore = new Map<string, string>();
 
 // Safely save to localStorage with error handling and memory fallback
-const safeLocalStorageSave = (key: string, value: any): boolean => {
+const safeLocalStorageSave = (key: string, value: unknown): boolean => {
   try {
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
@@ -346,9 +346,9 @@ export function useUserPreferences() {
 
       if (nestedObject && typeof nestedObject === 'object' && !Array.isArray(nestedObject)) {
         // Create a new object of the appropriate type using type assertion
-        const updatedNested = { ...nestedObject as object } as UserPreferences[K];
+        const updatedNested = { ...nestedObject } as UserPreferences[K];
         // Set the new value
-        (updatedNested as any)[nestedKey] = value;
+        updatedNested[nestedKey] = value;
 
         return {
           ...prev,

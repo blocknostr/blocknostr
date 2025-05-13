@@ -1,5 +1,6 @@
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
+import type { NostrProfileMetadata } from './types';
 import { EVENT_KINDS } from './constants';
 import { UserManager } from './user';
 import { RelayManager } from './relay';
@@ -13,7 +14,6 @@ import type { ProposalCategory } from '@/types/community';
 import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
-import { eventBus, EVENTS } from '@/lib/services/EventBus';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -29,42 +29,42 @@ export class NostrService {
   public bookmarkManager: BookmarkManagerFacade;
   private pool: SimplePool;
   private adapter: NostrServiceAdapter;
-  
+
   constructor() {
     // Initialize SimplePool first
     this.pool = new SimplePool();
-    
+
     // Initialize managers with enhanced subscription manager
     this.userManager = new UserManager();
     this.relayManager = new RelayManager(this.pool);
     this.subscriptionManager = new SubscriptionManager(this.pool);
     this.eventManager = new EventManager();
-    
+
     // Initialize SocialManager with pool and pass EventManager and UserManager
     this.socialManagerInstance = new SocialManager(this.pool, {
       eventManager: this.eventManager,
       userManager: this.userManager
     });
-    
+
     this.communityManager = new CommunityManager(this.eventManager);
     this.bookmarkManager = new BookmarkManagerFacade();
-    
+
     // Initialize adapter
     this.adapter = new NostrServiceAdapter(this);
-    
+
     // Load user data
     this.userManager.loadUserKeys();
     this.userManager.loadFollowing();
-    
+
     // Connect to relays
     this.connectToUserRelays();
-    
+
     // Fetch following list and relay list if user is logged in
     if (this.publicKey) {
       this.fetchFollowingList();
     }
   }
-  
+
   // Expose the adapter as getter
   get socialManager() {
     return this.socialManagerInstance;
@@ -74,11 +74,11 @@ export class NostrService {
   get publicKey(): string | null {
     return this.userManager.publicKey;
   }
-  
+
   get following(): string[] {
     return this.userManager.following;
   }
-  
+
   get userRelays(): Map<string, boolean> {
     return this.relayManager.userRelays;
   }
@@ -91,7 +91,7 @@ export class NostrService {
     }
     return success;
   }
-  
+
   public signOut(): void {
     this.userManager.signOut();
   }
@@ -101,7 +101,7 @@ export class NostrService {
     // Just call connectToUserRelays for now
     await this.connectToUserRelays();
   }
-  
+
   public async connectToUserRelays(): Promise<string[]> {
     await this.relayManager.connectToUserRelays();
     return this.getRelayUrls();
@@ -111,14 +111,14 @@ export class NostrService {
   public async connectToDefaultRelays(): Promise<string[]> {
     return this.connectToUserRelays();
   }
-  
+
   // Helper to get relay URLs
   public getRelayUrls(): string[] {
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
   }
-  
+
   public async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
     return this.relayManager.addRelay(relayUrl, readWrite);
   }
@@ -127,15 +127,15 @@ export class NostrService {
   public async addMultipleRelays(relayUrls: string[]): Promise<number> {
     return this.relayManager.addMultipleRelays(relayUrls);
   }
-  
+
   public removeRelay(relayUrl: string): void {
     this.relayManager.removeRelay(relayUrl);
   }
-  
+
   public getRelayStatus(): Relay[] {
     return this.relayManager.getRelayStatus();
   }
-  
+
   // Method to get relays for a user
   public async getRelaysForUser(pubkey: string): Promise<string[]> {
     // This will be implemented in RelayManager in the future
@@ -159,8 +159,8 @@ export class NostrService {
       connectedRelays
     );
   }
-  
-  public async publishProfileMetadata(metadata: Record<string, any>): Promise<boolean> {
+
+  public async publishProfileMetadata(metadata: NostrProfileMetadata): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
     return this.eventManager.publishProfileMetadata(
       this.pool,
@@ -170,7 +170,7 @@ export class NostrService {
       connectedRelays
     );
   }
-  
+
   // Subscription management
   public subscribe(
     filters: { kinds?: number[], authors?: string[], since?: number, limit?: number, ids?: string[], '#p'?: string[], '#e'?: string[] }[],
@@ -184,45 +184,55 @@ export class NostrService {
     const connectedRelays = relays || this.getConnectedRelayUrls();
     // Fixed: Remove the fourth parameter to match function signature
     return this.subscriptionManager.subscribe(
-      connectedRelays, 
-      filters, 
+      connectedRelays,
+      filters,
       onEvent
     );
   }
-  
+
   public unsubscribe(subId: string): void {
     this.subscriptionManager.unsubscribe(subId);
   }
-  
+
   // Renew subscription
   public renewSubscription(subId: string, ttl?: number): boolean {
-    return (this.subscriptionManager as any).renewSubscription(subId, ttl);
+    // Delegate to subscriptionManager if method available
+    const manager = this.subscriptionManager as unknown as { renewSubscription(subId: string, ttl?: number): boolean };
+    return typeof manager.renewSubscription === 'function'
+      ? manager.renewSubscription(subId, ttl)
+      : false;
   }
-  
+
   // Get subscription details
-  public getSubscriptionDetails(subId: string): any {
-    return (this.subscriptionManager as any).getSubscriptionDetails(subId);
+  public getSubscriptionDetails(subId: string): unknown {
+    const manager = this.subscriptionManager as unknown as { getSubscriptionDetails(subId: string): unknown };
+    return typeof manager.getSubscriptionDetails === 'function'
+      ? manager.getSubscriptionDetails(subId)
+      : undefined;
   }
-  
+
   // Get subscription time remaining
   public getSubscriptionTimeRemaining(subId: string): number | null {
-    return (this.subscriptionManager as any).getSubscriptionTimeRemaining(subId);
+    const manager = this.subscriptionManager as unknown as { getSubscriptionTimeRemaining(subId: string): number | null };
+    return typeof manager.getSubscriptionTimeRemaining === 'function'
+      ? manager.getSubscriptionTimeRemaining(subId)
+      : null;
   }
-  
+
   // Social features
   public isFollowing(pubkey: string): boolean {
     return this.userManager.isFollowing(pubkey);
   }
-  
+
   public async followUser(pubkey: string): Promise<boolean> {
     console.log(`NostrService.followUser called for: ${pubkey}`);
     const connectedRelays = this.getConnectedRelayUrls();
-    
+
     if (connectedRelays.length === 0) {
       console.warn("No connected relays found, attempting to connect to default relays");
       await this.connectToDefaultRelays();
     }
-    
+
     // Get updated relays list after connection attempt
     const updatedRelays = this.getConnectedRelayUrls();
     if (updatedRelays.length === 0) {
@@ -230,34 +240,34 @@ export class NostrService {
       toast.error("Cannot follow user: No relays connected");
       return false;
     }
-    
+
     console.log(`Using relays for follow operation: ${updatedRelays.join(', ')}`);
-    
+
     const result = await this.socialManagerInstance.followUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
       updatedRelays
     );
-    
+
     if (result) {
       // Update local following list
       this.userManager.addFollowing(pubkey);
       console.log(`User ${pubkey} added to local following list`);
     }
-    
+
     return result;
   }
-  
+
   public async unfollowUser(pubkey: string): Promise<boolean> {
     console.log(`NostrService.unfollowUser called for: ${pubkey}`);
     const connectedRelays = this.getConnectedRelayUrls();
-    
+
     if (connectedRelays.length === 0) {
       console.warn("No connected relays found, attempting to connect to default relays");
       await this.connectToDefaultRelays();
     }
-    
+
     // Get updated relays list after connection attempt
     const updatedRelays = this.getConnectedRelayUrls();
     if (updatedRelays.length === 0) {
@@ -265,41 +275,41 @@ export class NostrService {
       toast.error("Cannot unfollow user: No relays connected");
       return false;
     }
-    
+
     console.log(`Using relays for unfollow operation: ${updatedRelays.join(', ')}`);
-    
+
     const result = await this.socialManagerInstance.unfollowUser(
       this.pool,
       pubkey,
       null, // We're not storing private keys
       updatedRelays
     );
-    
+
     if (result) {
       // Update local following list
       this.userManager.removeFollowing(pubkey);
       console.log(`User ${pubkey} removed from local following list`);
     }
-    
+
     return result;
   }
-  
+
   public async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    
+
     // Try to find recipient's preferred relays
     let recipientRelays: string[] = [];
-    
+
     try {
       // Try to fetch relay preferences from relay list event
       recipientRelays = await this.getRelaysForUser(recipientPubkey);
     } catch (error) {
       console.error("Error finding recipient's relays:", error);
     }
-    
+
     // Combine connected relays with recipient's relays
     const publishToRelays = Array.from(new Set([...connectedRelays, ...recipientRelays]));
-    
+
     return this.socialManagerInstance.sendDirectMessage(
       this.pool,
       recipientPubkey,
@@ -309,7 +319,7 @@ export class NostrService {
       publishToRelays.length > 0 ? publishToRelays : connectedRelays
     );
   }
-  
+
   /**
    * React to a note with specific emoji (NIP-25)
    */
@@ -324,7 +334,7 @@ export class NostrService {
       connectedRelays
     );
   }
-  
+
   /**
    * Repost a note (NIP-18)
    */
@@ -332,7 +342,7 @@ export class NostrService {
     const connectedRelays = this.getConnectedRelayUrls();
     // Use first relay as hint
     const relayHint = connectedRelays.length > 0 ? connectedRelays[0] : null;
-    
+
     return this.socialManagerInstance.repostEvent(
       this.pool,
       eventId,
@@ -348,28 +358,28 @@ export class NostrService {
   public formatPubkey(pubkey: string): string {
     return formatPubkey(pubkey);
   }
-  
+
   public getNpubFromHex(hexPubkey: string): string {
     return getNpubFromHex(hexPubkey);
   }
-  
+
   public getHexFromNpub(npub: string): string {
     return getHexFromNpub(npub);
   }
-  
+
   // Community methods
-  public async fetchCommunity(communityId: string): Promise<any> {
+  public async fetchCommunity(communityId: string): Promise<Record<string, unknown>> {
     const connectedRelays = this.getConnectedRelayUrls();
     // Just return empty object since this is not implemented yet
     return {};
   }
-  
+
   public async createCommunity(name: string, description: string): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
     // Return null since this is not implemented yet
     return null;
   }
-  
+
   public async createProposal(
     communityId: string,
     title: string,
@@ -383,48 +393,48 @@ export class NostrService {
     // Return null since this is not implemented yet
     return null;
   }
-  
+
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
     // Return null since this is not implemented yet
     return null;
   }
-  
+
   // Bookmark methods (simplified to use the facade without arguments)
   public async isBookmarked(eventId: string): Promise<boolean> {
     return false;
   }
-  
+
   public async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
     return false;
   }
-  
+
   public async removeBookmark(eventId: string): Promise<boolean> {
     return false;
   }
-  
+
   public async getBookmarks(): Promise<string[]> {
     return [];
   }
-  
+
   public async getBookmarkCollections(): Promise<BookmarkCollection[]> {
     return [];
   }
-  
+
   public async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
     return [];
   }
-  
+
   public async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
     return null;
   }
-  
+
   public async processPendingOperations(): Promise<void> {
     return;
   }
-  
+
   // Additional methods needed for other components
-  public async getEvents(ids: string[]): Promise<any[]> {
+  public async getEvents(ids: string[]): Promise<NostrEvent[]> {
     const connectedRelays = this.getConnectedRelayUrls();
     try {
       // Fix by accessing methods directly from eventManager
@@ -434,124 +444,83 @@ export class NostrService {
       return [];
     }
   }
-  
-  public async getEventById(id: string): Promise<any> {
+
+  public async getEventById(id: string): Promise<NostrEvent | null> {
     const connectedRelays = this.getConnectedRelayUrls();
     try {
       // Implement our own temporary version
       return new Promise((resolve, reject) => {
-        const sub = this.subscribe([{kinds: [1], ids: [id]}], (event) => {
+        const sub = this.subscribe([{ kinds: [1], ids: [id] }], (event) => {
           resolve(event);
           this.unsubscribe(sub);
         }, connectedRelays);
-        
-        // Set timeout to 10s (increased from 5s)
+
+        // Set timeout
         setTimeout(() => {
           this.unsubscribe(sub);
           reject(new Error(`Timeout fetching event ${id}`));
-        }, 10000);
+        }, 5000);
       });
     } catch (e) {
       console.error(`Error getting event ${id}:`, e);
       return null;
     }
   }
-  
-  public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    
-    if (pubkeys.length === 0) {
-      console.log("[NostrService] No pubkeys provided to getProfilesByPubkeys");
-      return {};
-    }
 
-    console.log(`[NostrService] Fetching ${pubkeys.length} profiles from relays:`, connectedRelays);
-    
+  public async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, NostrProfileMetadata>> {
+    const connectedRelays = this.getConnectedRelayUrls();
     try {
       // Implement our own temporary version
       return new Promise((resolve) => {
-        const profiles: Record<string, any> = {};
-        const startTime = Date.now();
-        
-        const sub = this.subscribe([{kinds: [0], authors: pubkeys}], (event) => {
+        const profiles: Record<string, NostrProfileMetadata> = {};
+
+        const sub = this.subscribe([{ kinds: [0], authors: pubkeys }], (event) => {
           if (event.kind === 0 && event.pubkey) {
             try {
-              const profile = JSON.parse(event.content);
-              console.log(`[NostrService] Received profile for ${event.pubkey.slice(0, 8)}:`, 
-                profile.name || profile.display_name || 'No name');
-              
-              // Add the original event to help with timestamps
-              profile._event = event;
-              
-              profiles[event.pubkey] = profile;
-              
-              // Emit an event when we receive a profile
-              eventBus.emit(EVENTS.PROFILE_UPDATED, event.pubkey, profile);
+              profiles[event.pubkey] = JSON.parse(event.content);
             } catch (e) {
               console.error("Error parsing profile:", e);
             }
           }
         }, connectedRelays);
-        
-        // Set timeout (increased from 3s to 10s for better reliability)
+
+        // Set timeout
         setTimeout(() => {
           this.unsubscribe(sub);
-          const timeElapsed = Date.now() - startTime;
-          
-          console.log(`[NostrService] Profile fetching completed in ${timeElapsed}ms. Fetched ${Object.keys(profiles).length}/${pubkeys.length} profiles`);
-          
-          if (Object.keys(profiles).length < pubkeys.length) {
-            console.warn(`[NostrService] Some profiles couldn't be fetched in time (${Object.keys(profiles).length}/${pubkeys.length})`);
-            
-            // Log which pubkeys we're missing
-            const missingPubkeys = pubkeys.filter(pubkey => !profiles[pubkey]);
-            if (missingPubkeys.length > 0) {
-              console.warn(`[NostrService] Missing profiles for: ${missingPubkeys.map(p => p.slice(0, 8)).join(', ')}`);
-            }
-          }
-          
           resolve(profiles);
-        }, 10000); // Increased timeout to 10 seconds
+        }, 3000);
       });
     } catch (e) {
       console.error("Error getting profiles:", e);
       return {};
     }
   }
-  
-  public async getUserProfile(pubkey: string): Promise<any> {
-    console.log(`[NostrService] Getting profile for user ${pubkey?.slice(0, 8) || 'unknown'}`);
-    if (!pubkey) return null;
-    
+
+  public async getUserProfile(pubkey: string): Promise<NostrProfileMetadata | null> {
     const profiles = await this.getProfilesByPubkeys([pubkey]);
-    const profile = profiles[pubkey];
-    
-    console.log(`[NostrService] Profile fetch result for ${pubkey.slice(0, 8)}:`, 
-      profile ? (profile.name || profile.display_name || 'No name') : 'Not found');
-    
-    return profile || null;
+    return (profiles[pubkey] as NostrProfileMetadata) || null;
   }
-  
+
   public async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
     try {
       const [name, domain] = identifier.split('@');
       if (!name || !domain) return false;
-      
+
       const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
       const response = await fetch(url);
       const data = await response.json();
-      
+
       if (data && data.names && data.names[name] === expectedPubkey) {
         return true;
       }
-      
+
       return false;
     } catch (e) {
       console.error("Error verifying NIP-05:", e);
       return false;
     }
   }
-  
+
   /**
    * Fetch user's oldest metadata event to determine account creation date (NIP-01)
    * @param pubkey User's public key
@@ -559,10 +528,10 @@ export class NostrService {
    */
   public async getAccountCreationDate(pubkey: string): Promise<number | null> {
     if (!pubkey) return null;
-    
+
     try {
       const connectedRelays = this.getConnectedRelayUrls();
-      
+
       return new Promise((resolve) => {
         // Construct filter to get oldest metadata events
         const filters = [{
@@ -572,9 +541,9 @@ export class NostrService {
           // Query for historical events
           until: Math.floor(Date.now() / 1000)
         }];
-        
+
         let oldestTimestamp: number | null = null;
-        
+
         const subId = this.subscribe(
           filters,
           (event) => {
@@ -583,7 +552,7 @@ export class NostrService {
             }
           }
         );
-        
+
         // Set a timeout to resolve with the found timestamp or null
         setTimeout(() => {
           this.unsubscribe(subId);
@@ -595,13 +564,13 @@ export class NostrService {
       return null;
     }
   }
-  
+
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
-    
+
     try {
       await this.connectToRelays(["wss://relay.damus.io", "wss://relay.nostr.band", "wss://nos.lol"]);
-      
+
       const filters = [
         {
           kinds: [EVENT_KINDS.CONTACTS],
@@ -609,7 +578,7 @@ export class NostrService {
           limit: 1
         }
       ];
-      
+
       const subId = this.subscribe(
         filters,
         (event) => {
@@ -617,11 +586,11 @@ export class NostrService {
           const pubkeys = event.tags
             .filter(tag => tag.length >= 2 && tag[0] === 'p')
             .map(tag => tag[1]);
-            
+
           this.userManager.setFollowing(pubkeys);
         }
       );
-      
+
       // Cleanup subscription after a short time
       setTimeout(() => {
         this.unsubscribe(subId);
@@ -630,13 +599,13 @@ export class NostrService {
       console.error("Error fetching following list:", error);
     }
   }
-  
+
   private getConnectedRelayUrls(): string[] {
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
   }
-  
+
   // User Moderation (NIP-51)
   public async muteUser(pubkey: string): Promise<boolean> {
     // Implementation for muting a user
@@ -649,7 +618,7 @@ export class NostrService {
           ["p", pubkey]
         ]
       };
-      
+
       const eventId = await this.publishEvent(event);
       return !!eventId;
     } catch (error) {
@@ -664,7 +633,7 @@ export class NostrService {
       // Get current mute list
       const mutedUsers = await this.getMutedUsers();
       const updatedList = mutedUsers.filter(p => p !== pubkey);
-      
+
       // Create new replacement event
       const event = {
         kind: 10000,
@@ -674,7 +643,7 @@ export class NostrService {
           ...updatedList.map(p => ["p", p])
         ]
       };
-      
+
       const eventId = await this.publishEvent(event);
       return !!eventId;
     } catch (error) {
@@ -687,21 +656,21 @@ export class NostrService {
     const mutedUsers = await this.getMutedUsers();
     return mutedUsers.includes(pubkey);
   }
-  
+
   private async getMutedUsers(): Promise<string[]> {
     if (!this.publicKey) return [];
-    
+
     try {
       return new Promise((resolve) => {
         const mutedUsers: string[] = [];
-        
+
         // Subscribe to mute list events with proper filter format
         const filters = [{
           kinds: [10000],
           authors: [this.publicKey],
           "#d": ["mute-list"]
         }];
-        
+
         const subId = this.subscribe(
           filters,
           (event) => {
@@ -709,11 +678,11 @@ export class NostrService {
             const pubkeys = event.tags
               .filter(tag => tag.length >= 2 && tag[0] === 'p')
               .map(tag => tag[1]);
-            
+
             mutedUsers.push(...pubkeys);
           }
         );
-        
+
         // Resolve after short timeout
         setTimeout(() => {
           this.unsubscribe(subId);
@@ -725,7 +694,7 @@ export class NostrService {
       return [];
     }
   }
-  
+
   public async blockUser(pubkey: string): Promise<boolean> {
     // Implementation for blocking a user
     try {
@@ -737,7 +706,7 @@ export class NostrService {
           ["p", pubkey]
         ]
       };
-      
+
       const eventId = await this.publishEvent(event);
       return !!eventId;
     } catch (error) {
@@ -751,7 +720,7 @@ export class NostrService {
       // Get current block list
       const blockedUsers = await this.getBlockedUsers();
       const updatedList = blockedUsers.filter(p => p !== pubkey);
-      
+
       // Create new replacement event
       const event = {
         kind: 10000,
@@ -761,7 +730,7 @@ export class NostrService {
           ...updatedList.map(p => ["p", p])
         ]
       };
-      
+
       const eventId = await this.publishEvent(event);
       return !!eventId;
     } catch (error) {
@@ -774,21 +743,21 @@ export class NostrService {
     const blockedUsers = await this.getBlockedUsers();
     return blockedUsers.includes(pubkey);
   }
-  
+
   private async getBlockedUsers(): Promise<string[]> {
     if (!this.publicKey) return [];
-    
+
     try {
       return new Promise((resolve) => {
         const blockedUsers: string[] = [];
-        
+
         // Subscribe to block list events with proper filter format
         const filters = [{
           kinds: [10000],
           authors: [this.publicKey],
           "#d": ["block-list"]
         }];
-        
+
         const subId = this.subscribe(
           filters,
           (event) => {
@@ -796,11 +765,11 @@ export class NostrService {
             const pubkeys = event.tags
               .filter(tag => tag.length >= 2 && tag[0] === 'p')
               .map(tag => tag[1]);
-            
+
             blockedUsers.push(...pubkeys);
           }
         );
-        
+
         // Resolve after short timeout
         setTimeout(() => {
           this.unsubscribe(subId);
