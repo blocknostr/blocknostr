@@ -3,7 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from "@/lib/nostr";
-import { Settings, Crown } from "lucide-react";
+import { Settings, Crown, UserRound } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
@@ -36,6 +36,10 @@ const SidebarUserProfile = ({ userProfile, isLoading }: UserProfileProps) => {
     return 'U';
   };
 
+  // Get the user's public key from localStorage
+  const pubkey = localStorage.getItem('nostr:pubkey');
+  const profileUrl = pubkey ? `/profile/${pubkey}` : '/login';
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -67,6 +71,12 @@ const SidebarUserProfile = ({ userProfile, isLoading }: UserProfileProps) => {
       </DropdownMenuTrigger>
       
       <DropdownMenuContent className="w-56" align="start" sideOffset={8}>
+        <DropdownMenuItem asChild>
+          <Link to={profileUrl} className="flex items-center cursor-pointer">
+            <UserRound className="mr-2 h-4 w-4" />
+            <span>View Profile</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/settings" className="flex items-center cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />

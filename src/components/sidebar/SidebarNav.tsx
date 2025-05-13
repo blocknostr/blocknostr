@@ -8,7 +8,8 @@ import {
   Users, 
   FileText, 
   Wallet, 
-  Crown 
+  Crown,
+  UserRound
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -25,6 +26,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Home,
       href: "/",
       requiresAuth: false
+    },
+    {
+      name: "Profile",
+      icon: UserRound,
+      href: isLoggedIn ? `/profile/${localStorage.getItem('nostr:pubkey') || ''}` : "/login",
+      requiresAuth: true
     },
     {
       name: "Wallets",
@@ -61,7 +68,7 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Crown,
       href: "/premium",
       requiresAuth: false,
-      isPremium: true // Add this flag to identify the premium item
+      isPremium: true
     }
   ];
 
