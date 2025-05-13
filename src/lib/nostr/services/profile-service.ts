@@ -107,7 +107,8 @@ export class ProfileService {
           // Instead of using 'eose' which isn't in SubscribeManyParams type
           setTimeout(() => {
             console.log("End of stored events timeout, no profile found for", pubkey);
-            if (subscription && !subscription.closed) {
+            // Fix: Check if subscription is not null instead of checking .closed property
+            if (subscription) {
               resolve({
                 name: "Unknown",
                 display_name: "Unknown User"
