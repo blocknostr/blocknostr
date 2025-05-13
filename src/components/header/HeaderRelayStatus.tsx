@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useRelays } from '@/hooks/useRelays';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export function HeaderRelayStatus() {
   const { relays, isConnecting, connectionStatus, connectToRelays } = useRelays();
@@ -45,12 +46,12 @@ export function HeaderRelayStatus() {
     }
   };
 
-  // Get status color - Using the same color scheme as WorldChat
-  const getStatusColor = () => {
-    if (!isOnline) return "bg-red-500 hover:bg-red-600";
-    if (connectionStatus === 'connecting' || isReconnecting) return "bg-yellow-500 hover:bg-yellow-600";
-    if (connectedCount === 0) return "bg-red-500 hover:bg-red-600";
-    return "bg-green-500 hover:bg-green-600"; 
+  // Get status classes - Match WorldChat indicator
+  const getStatusClasses = () => {
+    if (!isOnline) return "text-red-500 bg-red-500/10";
+    if (connectionStatus === 'connecting' || isReconnecting) return "text-yellow-500 bg-yellow-500/10";
+    if (connectedCount === 0) return "text-red-500 bg-red-500/10";
+    return "text-green-500 bg-green-500/10";
   };
 
   // Get status message
@@ -66,9 +67,12 @@ export function HeaderRelayStatus() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge 
-            variant="outline"
-            className={`flex items-center gap-1.5 cursor-pointer text-white ${getStatusColor()}`}
+          <div 
+            className={cn(
+              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full cursor-pointer",
+              getStatusClasses(),
+              connectedCount === 0 && isOnline && !isReconnecting ? "hover:bg-opacity-20" : ""
+            )}
             onClick={connectedCount === 0 && isOnline ? handleReconnect : undefined}
           >
             {isReconnecting || connectionStatus === 'connecting' ? (
@@ -78,8 +82,8 @@ export function HeaderRelayStatus() {
             ) : (
               <WifiOff className="h-3 w-3" />
             )}
-            <span className="text-xs font-medium">{connectedCount}/{totalCount}</span>
-          </Badge>
+            <span className="font-medium">{connectedCount}/{totalCount}</span>
+          </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>{getStatusMessage()}</p>
