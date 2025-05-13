@@ -62,52 +62,73 @@ export function useProfilePosts({
       setLoading(false);
     }
     
-    // Subscribe to posts and set up event handling
-    const unsubscribe = subscribe(hexPubkey, {
-      limit,
-      onEvent: (event, isMediaEvent) => {
-        if (!isMounted.current) return;
-        
-        eventCountRef.current += 1;
-        
-        setEvents(prev => {
-          // Check if we already have this event
-          if (prev.some(e => e.id === event.id)) {
-            return prev;
+    // Create a function to start subscription
+    const startSubscription = async () => {
+      try {
+        // Subscribe to posts and set up event handling
+        const unsubscribe = subscribe(hexPubkey, {
+          limit,
+          onEvent: (event, isMediaEvent) => {
+            if (!isMounted.current) return;
+            
+            eventCountRef.current += 1;
+            
+            setEvents(prev => {
+              // Check if we already have this event
+              if (prev.some(e => e.id === event.id)) {
+                return prev;
+              }
+              
+              // Add new event and sort by creation time (newest first)
+              return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+            });
+            
+            if (isMediaEvent) {
+              setMedia(prev => {
+                if (prev.some(e => e.id === event.id)) return prev;
+                return [...prev, event].sort((a, b) => b.created_at - a.created_at);
+              });
+            }
+            
+            setHasEvents(true);
+          },
+          onComplete: () => {
+            if (!isMounted.current) return;
+            
+            console.log("Posts loading timeout - events found:", eventCountRef.current);
+            setLoading(false);
+            
+            if (eventCountRef.current === 0 && !hasEvents) {
+              console.log("No posts found for user");
+              // Only show error if we didn't get any events and there are none in the cache
+              if (events.length === 0) {
+                setError("No posts found");
+              }
+            }
           }
-          
-          // Add new event and sort by creation time (newest first)
-          return [...prev, event].sort((a, b) => b.created_at - a.created_at);
         });
         
-        if (isMediaEvent) {
-          setMedia(prev => {
-            if (prev.some(e => e.id === event.id)) return prev;
-            return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-          });
-        }
-        
-        setHasEvents(true);
-      },
-      onComplete: () => {
-        if (!isMounted.current) return;
-        
-        console.log("Posts loading timeout - events found:", eventCountRef.current);
+        return unsubscribe;
+      } catch (error) {
+        console.error("Error subscribing to events:", error);
         setLoading(false);
-        
-        if (eventCountRef.current === 0 && !hasEvents) {
-          console.log("No posts found for user");
-          // Only show error if we didn't get any events and there are none in the cache
-          if (events.length === 0) {
-            setError("No posts found");
-          }
-        }
+        setError("Failed to subscribe to events");
+        return () => {}; // Return empty cleanup function
       }
+    };
+    
+    // Start subscription without awaiting
+    let unsubscribe: (() => void) | undefined;
+    startSubscription().then(cleanupFn => {
+      unsubscribe = cleanupFn;
     });
     
-    // Cleanup on component unmount or when hexPubkey changes
-    return unsubscribe;
-  }, [hexPubkey, limit, subscribe, checkCache]);
+    // Return cleanup function
+    return () => {
+      if (unsubscribe) unsubscribe();
+      cleanup();
+    };
+  }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 
   const refetch = () => {
     if (hexPubkey) {
