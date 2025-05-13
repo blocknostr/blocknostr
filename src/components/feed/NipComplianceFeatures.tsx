@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export const NipComplianceBadge: React.FC<{ event: NostrEvent }> = ({ event }) => {
-  const compliance = new NipCompliance(event);
-  const complianceLevel = compliance.getComplianceLevel();
+  // Create an instance of NipCompliance to check event compliance
+  const compliance = new NipCompliance();
+  const complianceLevel = compliance.getComplianceLevel(event);
   
   if (!complianceLevel || complianceLevel === 'unknown') return null;
   
@@ -25,12 +26,12 @@ export const NipComplianceBadge: React.FC<{ event: NostrEvent }> = ({ event }) =
         <TooltipTrigger asChild>
           <Badge variant="outline" className={`text-[10px] py-0 px-2 font-medium ${colorMap[complianceLevel]}`}>
             <Shield className="h-2.5 w-2.5 mr-1" />
-            NIP {compliance.getImplementedNips().join(', ')}
+            NIP {compliance.getImplementedNips(event).join(', ')}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-xs">
-            This post follows Nostr Implementation Possibilities (NIPs): {compliance.getImplementedNips().join(', ')}
+            This post follows Nostr Implementation Possibilities (NIPs): {compliance.getImplementedNips(event).join(', ')}
           </p>
         </TooltipContent>
       </Tooltip>

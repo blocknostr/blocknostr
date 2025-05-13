@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import NoteCardContent from '@/components/note/NoteCardContent';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
-import { SocialManager } from '@/lib/nostr/social-manager';
+import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 
 const PostPage = () => {
@@ -200,11 +201,11 @@ const PostPage = () => {
       <Card className="mb-4">
         <CardContent className="p-0">
           <div className="p-4 md:p-6">
-            {/* Note header with author info */}
+            {/* Note header with author info - fixed to use the timestamp prop */}
             <NoteCardHeader 
               pubkey={currentNote?.pubkey} 
-              createdAt={currentNote?.created_at} 
-              profileData={profileData || undefined}
+              timestamp={currentNote?.created_at ? new Date(currentNote.created_at * 1000) : undefined} 
+              profile={profileData || undefined}
             />
             
             {/* Note content */}

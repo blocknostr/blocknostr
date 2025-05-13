@@ -10,13 +10,18 @@ interface NoteCardHeaderProps {
   pubkey?: string;
   profile?: any;
   timestamp?: Date;
+  createdAt?: any; // Add this for compatibility with PostPage
 }
 
 const NoteCardHeader: React.FC<NoteCardHeaderProps> = ({
   pubkey,
   profile,
-  timestamp
+  timestamp,
+  createdAt // Add this parameter
 }) => {
+  // Use timestamp or convert createdAt to timestamp if provided
+  const displayTimestamp = timestamp || (createdAt ? new Date(createdAt * 1000) : undefined);
+  
   // Get profile information
   const name = profile?.name || pubkey?.slice(0, 8);
   const displayName = profile?.display_name || name;
@@ -45,10 +50,10 @@ const NoteCardHeader: React.FC<NoteCardHeaderProps> = ({
           </div>
           <div className="flex items-center text-xs text-muted-foreground">
             <span>@{npub}</span>
-            {timestamp && (
+            {displayTimestamp && (
               <>
                 <span className="mx-1">•</span>
-                <span>{formatDistanceToNow(timestamp)} ago</span>
+                <span>{formatDistanceToNow(displayTimestamp)} ago</span>
               </>
             )}
           </div>
