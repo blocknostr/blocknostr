@@ -91,10 +91,7 @@ export const isMediaUrl = (url: string): boolean => {
  * Extract non-media URLs for link previews
  * Returns an array of URLs that are not media files
  */
-export const extractLinkPreviewUrls = (
-  content: string | undefined, 
-  tags: string[][] | undefined
-): string[] => {
+export const extractLinkPreviewUrls = (content: string): string[] => {
   if (!content) return [];
   
   // Get all URLs from content
@@ -103,6 +100,3 @@ export const extractLinkPreviewUrls = (
   // Filter out media URLs to get only regular links for previews
   return allUrls.filter(url => !isMediaUrl(url));
 };
-
-// Export the extractMediaUrls as an alias for backward compatibility
-export const extractMediaUrls = extractAllUrls;

@@ -1,8 +1,6 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { extractMediaUrls } from '@/lib/nostr/utils';
-import { isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
+import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils';
 import { toast } from 'sonner';
 import { contentCache } from '@/lib/nostr';
 
@@ -72,7 +70,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
         
         // Extract media posts
         const mediaEvents = postsEvents.filter(event => {
-          const mediaUrls = extractMediaUrls(event.content, event.tags);
+          const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
           const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
           return validMediaUrls.length > 0;
         });
@@ -136,7 +134,7 @@ export function useProfilePosts({ hexPubkey, limit = 50 }: UseProfilePostsProps)
               }
     
               // Check if note contains media using our enhanced detection
-              const mediaUrls = extractMediaUrls(event.content, event.tags);
+              const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
               
               // Validate the URLs to ensure they're proper media links
               const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));

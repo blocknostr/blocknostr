@@ -6,7 +6,17 @@
  * This file re-exports all media extraction utilities from the media/ folder
  */
 
+// Re-export all types
 export * from './media/media-types';
-export * from './media/media-detection';
+
+// Re-export media detection functions but NOT the conflicting functions
+export {
+  mediaRegex,
+  isMediaUrl
+} from './media/media-detection';
+
+// Re-export validation functions
 export * from './media/media-validation';
+
+// Re-export extraction functions
 export * from './media/media-extractors';

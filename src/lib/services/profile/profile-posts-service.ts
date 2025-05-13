@@ -2,7 +2,7 @@
 import { BrowserEventEmitter } from "../BrowserEventEmitter";
 import { nostrService } from "@/lib/nostr";
 import { contentCache } from "@/lib/nostr/cache";
-import { extractMediaUrls, isValidMediaUrl } from "@/lib/nostr/utils/media-extraction";
+import { getMediaUrlsFromEvent, isValidMediaUrl } from "@/lib/nostr/utils";
 
 /**
  * Service to handle profile post loading
@@ -36,7 +36,7 @@ export class ProfilePostsService {
         
         // Filter media posts
         const mediaEvents = postsEvents.filter(event => {
-          const mediaUrls = extractMediaUrls(event.content, event.tags);
+          const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
           const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
           return validMediaUrls.length > 0;
         });
@@ -68,7 +68,7 @@ export class ProfilePostsService {
               postsList.push(event);
               
               // Check if post contains media
-              const mediaUrls = extractMediaUrls(event.content, event.tags);
+              const mediaUrls = getMediaUrlsFromEvent(event.content, event.tags);
               const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
               
               if (validMediaUrls.length > 0) {

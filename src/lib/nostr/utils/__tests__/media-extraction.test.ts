@@ -1,18 +1,20 @@
-
 import { 
   extractMediaUrls, 
   extractMediaItems,
   extractFirstImageUrl,
   isValidMediaUrl,
   isImageUrl,
-  isVideoUrl
+  isVideoUrl,
+  getMediaUrlsFromEvent,
+  getMediaItemsFromEvent,
+  getFirstImageUrlFromEvent
 } from '../media-extraction';
 
 describe('Media URL Extraction', () => {
   test('should extract image URLs from content', () => {
     const content = 'Check out this image: https://example.com/image.jpg and this one https://example.com/photo.png';
     
-    const urls = extractMediaUrls(content, []);
+    const urls = extractMediaUrls(content);
     
     expect(urls).toContain('https://example.com/image.jpg');
     expect(urls).toContain('https://example.com/photo.png');
@@ -22,7 +24,7 @@ describe('Media URL Extraction', () => {
   test('should extract video URLs from content', () => {
     const content = 'Watch this video: https://example.com/video.mp4';
     
-    const urls = extractMediaUrls(content, []);
+    const urls = extractMediaUrls(content);
     
     expect(urls).toContain('https://example.com/video.mp4');
     expect(urls.length).toBe(1);
@@ -35,7 +37,7 @@ describe('Media URL Extraction', () => {
       ['img', 'https://example.com/another-image.png']
     ];
     
-    const urls = extractMediaUrls(content, tags);
+    const urls = getMediaUrlsFromEvent(content, tags);
     
     expect(urls).toContain('https://example.com/tagged-image.jpg');
     expect(urls).toContain('https://example.com/another-image.png');
@@ -49,7 +51,7 @@ describe('Media URL Extraction', () => {
       ['img', 'https://example.com/unique.png']
     ];
     
-    const urls = extractMediaUrls(content, tags);
+    const urls = getMediaUrlsFromEvent(content, tags);
     
     expect(urls).toContain('https://example.com/image.jpg');
     expect(urls).toContain('https://example.com/unique.png');
@@ -63,7 +65,7 @@ describe('Media URL Extraction', () => {
     ];
     
     // Pass content and tags separately
-    const items = extractMediaItems(content, tags); 
+    const items = getMediaItemsFromEvent(content, tags); 
     
     expect(items.length).toBe(3);
     
@@ -83,9 +85,9 @@ describe('Media URL Extraction', () => {
     const contentWithImage = 'Here is an image: https://example.com/first.jpg and https://example.com/second.jpg';
     const contentWithoutImage = 'No image here';
     
-    expect(extractFirstImageUrl(contentWithImage, [])).toBe('https://example.com/first.jpg');
-    expect(extractFirstImageUrl(contentWithoutImage, [])).toBe(null);
-    expect(extractFirstImageUrl('', [['image', 'https://example.com/tagged.jpg']])).toBe('https://example.com/tagged.jpg');
+    expect(extractFirstImageUrl(contentWithImage)).toBe('https://example.com/first.jpg');
+    expect(extractFirstImageUrl(contentWithoutImage)).toBe(null);
+    expect(getFirstImageUrlFromEvent('', [['image', 'https://example.com/tagged.jpg']])).toBe('https://example.com/tagged.jpg');
   });
 });
 

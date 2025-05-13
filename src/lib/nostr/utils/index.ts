@@ -1,3 +1,4 @@
+
 // src/lib/nostr/utils/index.ts
 
 // Export all NIP-related utilities
@@ -5,10 +6,8 @@ export * from './nip';
 
 // Re-export media detection utilities
 export {
-  extractMediaUrls,
-  extractLinkPreviewUrls,
-  extractAllUrls,
   extractUrlsFromContent,
+  extractAllUrls,
   isMediaUrl,
   isVideoUrl
 } from './media/media-detection';
@@ -22,5 +21,11 @@ export {
 export {
   extractMediaItems,
   extractMediaFromTags,
-  extractFirstImageUrl
-} from './media/media-extraction';
+  extractFirstImageUrl,
+  extractMediaUrls,
+  extractLinkPreviewUrls,
+  getMediaUrlsFromEvent,
+  getLinkPreviewUrlsFromEvent,
+  getMediaItemsFromEvent,
+  getFirstImageUrlFromEvent
+} from './media/media-extractors';

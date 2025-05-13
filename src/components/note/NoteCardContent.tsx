@@ -8,7 +8,7 @@ import EnhancedMediaContent from '../media/EnhancedMediaContent';
 import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
-import { extractMediaUrls, extractLinkPreviewUrls } from '@/lib/nostr/utils';
+import { getMediaUrlsFromEvent, getLinkPreviewUrlsFromEvent } from '@/lib/nostr/utils';
 
 interface NoteCardContentProps {
   content?: string;
@@ -60,12 +60,12 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   
   // Extract media URLs from content and tags using our utility
   const mediaUrls = useMemo(() => {
-    return extractMediaUrls(contentToUse, tagsToUse);
+    return getMediaUrlsFromEvent(contentToUse, tagsToUse);
   }, [contentToUse, tagsToUse]);
   
   // Extract link preview URLs (non-media URLs)
   const linkPreviewUrls = useMemo(() => {
-    return extractLinkPreviewUrls(contentToUse, tagsToUse);
+    return getLinkPreviewUrlsFromEvent(contentToUse, tagsToUse);
   }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
