@@ -16,18 +16,46 @@ const NoteComposer: React.FC<NoteComposerProps> = ({
   maxLength,
   textareaRef 
 }) => {
-  // Focus the textarea when component mounts
+  // Auto-resize function
+  const autoResize = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    // Reset height temporarily to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Set the height based on scroll height with a small buffer
+    const newHeight = Math.max(
+      textarea.scrollHeight, // Content height
+      72 // Minimum height (4.5rem)
+    );
+    
+    textarea.style.height = `${newHeight}px`;
+  };
+  
+  // Resize on mount
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.focus();
+      autoResize();
     }
   }, []);
+  
+  // Resize when content changes
+  useEffect(() => {
+    autoResize();
+  }, [content]);
+  
+  // Handle content change
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+  };
   
   return (
     <Textarea
       ref={textareaRef}
       value={content}
-      onChange={(e) => setContent(e.target.value)}
+      onChange={handleContentChange}
       placeholder="What's happening?"
       className={cn(
         "resize-none border-none min-h-[4.5rem] h-auto focus-visible:ring-1 text-base p-0 bg-transparent",
