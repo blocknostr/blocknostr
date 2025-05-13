@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -340,4 +339,4 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     lastUpdated,
     cacheHit
   };
-}, []);
+}
