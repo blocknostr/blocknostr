@@ -4,33 +4,60 @@ import { useEffect, useRef, useState, useCallback } from "react";
 type UseInfiniteScrollOptions = {
   threshold?: number;
   initialLoad?: boolean;
+  rootMargin?: string;
+  debounceMs?: number;
 };
 
 export const useInfiniteScroll = (
   onLoadMore: () => void,
-  { threshold = 200, initialLoad = true }: UseInfiniteScrollOptions = {}
+  { 
+    threshold = 200, 
+    initialLoad = true, 
+    rootMargin = "0px 0px 300px 0px",
+    debounceMs = 500
+  }: UseInfiniteScrollOptions = {}
 ) => {
   const [loading, setLoading] = useState(initialLoad);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Debounced version of onLoadMore to prevent rapid firing
+  const debouncedLoadMore = useCallback(() => {
+    if (loading || !hasMore) return;
+    
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    
+    // Set loading state immediately
+    setLoading(true);
+    
+    // Set a debounce timer before actually loading
+    timerRef.current = setTimeout(() => {
+      onLoadMore();
+    }, debounceMs);
+  }, [onLoadMore, loading, hasMore, debounceMs]);
+
+  // Handle intersection observer
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
       if (target.isIntersecting && hasMore && !loading) {
-        setLoading(true);
-        onLoadMore();
+        debouncedLoadMore();
       }
     },
-    [onLoadMore, hasMore, loading]
+    [debouncedLoadMore, hasMore, loading]
   );
 
+  // Setup the observer
   useEffect(() => {
     const options = {
       root: null,
-      rootMargin: `0px 0px ${threshold}px 0px`,
-      threshold: 0.1,
+      rootMargin, // Use configured rootMargin for better control
+      threshold: 0.1, // Less sensitive threshold
     };
 
     observer.current = new IntersectionObserver(handleObserver, options);
@@ -40,11 +67,15 @@ export const useInfiniteScroll = (
     }
 
     return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      
       if (observer.current) {
         observer.current.disconnect();
       }
     };
-  }, [handleObserver, threshold]);
+  }, [handleObserver, rootMargin]);
 
   // This is the function we're returning, which should match FeedList's prop type
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
