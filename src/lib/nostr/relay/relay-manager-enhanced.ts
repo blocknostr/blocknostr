@@ -4,8 +4,8 @@ import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
 import { HealthManager } from './health-manager';
 import { RelayInfoService } from './relay-info-service';
-import { RelayPerformanceTracker, relayPerformanceTracker } from './performance/relay-performance-tracker';
-import { RelaySelector, relaySelector } from './selection/relay-selector';
+import { relayPerformanceTracker } from './performance/relay-performance-tracker';
+import { relaySelector } from './selection/relay-selector';
 import { CircuitBreaker, circuitBreaker, CircuitState } from './circuit/circuit-breaker';
 import { RelayDiscoverer } from './discovery/relay-discoverer';
 

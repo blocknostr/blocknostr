@@ -39,8 +39,9 @@ export const relaySelector = {
       }
       
       // Get performance data from performance tracker
-      const score = relayPerformanceTracker.getRelayScore ? 
-        relayPerformanceTracker.getRelayScore(url) : 50; // Default score if method missing
+      const performance = relayPerformanceTracker.getRelayPerformance ? 
+        relayPerformanceTracker.getRelayPerformance(url) : null;
+      const score = performance?.score ?? 50; // Default score if method missing
       
       // Apply minimum score threshold
       if (score < minScore) {
@@ -52,10 +53,13 @@ export const relaySelector = {
     
     // Sort relays by score (descending)
     const sortedRelays = filteredRelays.sort((a, b) => {
-      const scoreA = relayPerformanceTracker.getRelayScore ? 
-        relayPerformanceTracker.getRelayScore(a) : 50;
-      const scoreB = relayPerformanceTracker.getRelayScore ? 
-        relayPerformanceTracker.getRelayScore(b) : 50;
+      const perfA = relayPerformanceTracker.getRelayPerformance ? 
+        relayPerformanceTracker.getRelayPerformance(a) : null;
+      const perfB = relayPerformanceTracker.getRelayPerformance ? 
+        relayPerformanceTracker.getRelayPerformance(b) : null;
+      
+      const scoreA = perfA?.score ?? 50;
+      const scoreB = perfB?.score ?? 50;
       
       return scoreB - scoreA;
     });

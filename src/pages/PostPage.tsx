@@ -109,7 +109,7 @@ const PostPage = () => {
       if (!eventId) return;
       
       // Get reaction counts from the social manager with correct parameters
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays, nostrService.publicKey);
       setReactionCounts(counts);
     } catch (error) {
       console.error("Error fetching reaction counts:", error);

@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../../constants';
 import { ReactionCounts } from '../types';
@@ -70,7 +69,7 @@ export async function getReactionCounts(
       }
     });
     
-    // Set a timeout to resolve with found counts
+    // Set a timeout to resolve with the found counts
     setTimeout(() => {
       reactionsSub.close();
       repostsSub.close();
