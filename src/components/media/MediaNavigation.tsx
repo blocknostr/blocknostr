@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface MediaNavigationProps {
   isSingleItem: boolean;
@@ -21,76 +20,59 @@ const MediaNavigation: React.FC<MediaNavigationProps> = ({
   totalItems,
   variant = 'carousel'
 }) => {
+  // Don't show navigation if there's only one item
   if (isSingleItem) return null;
   
   const isLightbox = variant === 'lightbox';
   
+  // Navigation button styling based on variant
+  const buttonClasses = cn(
+    "flex items-center justify-center rounded-full transition-all duration-200",
+    isLightbox 
+      ? "bg-background/80 hover:bg-background/90 w-10 h-10" 
+      : "bg-background/60 hover:bg-background/80 w-8 h-8 opacity-0 group-hover:opacity-100"
+  );
+  
   return (
     <>
-      {/* Navigation buttons */}
-      <Button
-        variant="outline"
-        size="icon"
+      {/* Previous button */}
+      <button 
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 rounded-full",
-          isLightbox 
-            ? "left-2 h-10 w-10 bg-background/80 border-border/20 shadow-md hover:bg-background hover:scale-110 transition-all" 
-            : "left-2 h-8 w-8 opacity-0 bg-background/80 border-none group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/95 hover:scale-110"
+          buttonClasses,
+          "absolute left-3",
+          isLightbox ? "top-1/2 -translate-y-1/2" : "top-1/2 -translate-y-1/2"
         )}
         onClick={(e) => {
-          e?.stopPropagation?.();
+          e.stopPropagation();
           onPrev();
         }}
+        aria-label="Previous media"
       >
-        <ChevronLeft className={isLightbox ? "h-6 w-6" : "h-5 w-5"} />
-        <span className="sr-only">Previous</span>
-      </Button>
+        <ChevronLeft className={cn(isLightbox ? "h-6 w-6" : "h-4 w-4")} />
+      </button>
       
-      <Button
-        variant="outline"
-        size="icon"
+      {/* Next button */}
+      <button 
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 rounded-full",
-          isLightbox 
-            ? "right-2 h-10 w-10 bg-background/80 border-border/20 shadow-md hover:bg-background hover:scale-110 transition-all" 
-            : "right-2 h-8 w-8 opacity-0 bg-background/80 border-none group-hover:opacity-100 transition-opacity duration-200 hover:bg-background/95 hover:scale-110"
+          buttonClasses,
+          "absolute right-3",
+          isLightbox ? "top-1/2 -translate-y-1/2" : "top-1/2 -translate-y-1/2"
         )}
         onClick={(e) => {
-          e?.stopPropagation?.();
+          e.stopPropagation();
           onNext();
         }}
+        aria-label="Next media"
       >
-        <ChevronRight className={isLightbox ? "h-6 w-6" : "h-5 w-5"} />
-        <span className="sr-only">Next</span>
-      </Button>
+        <ChevronRight className={cn(isLightbox ? "h-6 w-6" : "h-4 w-4")} />
+      </button>
       
-      {/* Indicators */}
+      {/* Counter indicator */}
       <div className={cn(
-        "absolute left-0 right-0 flex justify-center gap-1.5",
-        isLightbox ? "-bottom-6" : "bottom-2"
+        "absolute bottom-3 left-3 px-2 py-1 rounded-full text-xs",
+        isLightbox ? "bg-background/80 text-foreground" : "bg-background/60 text-foreground opacity-0 group-hover:opacity-100"
       )}>
-        {Array.from({ length: totalItems }).map((_, index) => (
-          <button
-            key={index}
-            className={cn(
-              "w-1.5 h-1.5 rounded-full transition-all duration-300",
-              index === currentIndex 
-                ? isLightbox ? "bg-primary w-4" : "bg-primary w-3"
-                : isLightbox ? "bg-muted-foreground/30 hover:bg-muted-foreground/60" : "bg-background/70 hover:bg-background"
-            )}
-            onClick={(e) => {
-              e?.stopPropagation?.();
-              // Go to this index
-              if (index !== currentIndex) {
-                // Fix: Cast to HTMLButtonElement to access focus method
-                const targetButton = e.currentTarget.parentElement?.querySelector(`button:nth-child(${index + 1})`) as HTMLButtonElement | null;
-                if (targetButton) {
-                  targetButton.focus();
-                }
-              }
-            }}
-          />
-        ))}
+        {currentIndex + 1} / {totalItems}
       </div>
     </>
   );

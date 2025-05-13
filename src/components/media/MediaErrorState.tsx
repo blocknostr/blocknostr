@@ -1,15 +1,20 @@
 
-import { Video, Image } from 'lucide-react';
+import React from 'react';
+import { AlertTriangle, FileVideo } from 'lucide-react';
 
 interface MediaErrorStateProps {
-  isVideo: boolean;
+  isVideo?: boolean;
 }
 
-const MediaErrorState = ({ isVideo }: MediaErrorStateProps) => {
+const MediaErrorState: React.FC<MediaErrorStateProps> = ({ isVideo = false }) => {
   return (
-    <div className="absolute inset-0 flex items-center justify-center flex-col gap-2 text-muted-foreground">
-      {isVideo ? <Video className="w-8 h-8" /> : <Image className="w-8 h-8" />}
-      <span className="text-sm">Unable to load media</span>
+    <div className="absolute inset-0 bg-muted/50 flex flex-col items-center justify-center text-muted-foreground gap-2">
+      {isVideo ? (
+        <FileVideo className="h-8 w-8 opacity-70" />
+      ) : (
+        <AlertTriangle className="h-8 w-8 opacity-70" />
+      )}
+      <p className="text-xs">Failed to load {isVideo ? 'video' : 'image'}</p>
     </div>
   );
 };

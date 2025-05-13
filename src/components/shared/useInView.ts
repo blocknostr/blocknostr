@@ -1,114 +1,71 @@
 
-import { useState, useEffect, useRef, RefCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface UseInViewOptions {
-  /**
-   * The root element to use for intersection
-   */
+interface UseInViewProps {
   root?: Element | null;
-  
-  /**
-   * Margin around the root element
-   */
   rootMargin?: string;
-  
-  /**
-   * Threshold at which to trigger intersection
-   */
   threshold?: number | number[];
-  
-  /**
-   * Only trigger the intersection once
-   */
   triggerOnce?: boolean;
-  
-  /**
-   * Start observing immediately
-   */
-  initialObserve?: boolean;
 }
 
 export function useInView({
   root = null,
   rootMargin = '0px',
   threshold = 0,
-  triggerOnce = false,
-  initialObserve = true,
-}: UseInViewOptions = {}) {
+  triggerOnce = false
+}: UseInViewProps = {}) {
   const [inView, setInView] = useState(false);
-  const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null);
-  const observed = useRef(false);
-  const elementRef = useRef<Element | null>(null);
+  const [hasTriggered, setHasTriggered] = useState(false);
+  const observedRef = useRef<Element | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  
-  const setRef: RefCallback<Element> = (element) => {
-    if (elementRef.current) {
-      unobserve();
-    }
-    
-    if (element) {
-      observe(element);
-    }
-    
-    elementRef.current = element;
-  };
-  
-  const observe = (element: Element) => {
-    if (observerRef.current === null) {
-      observerRef.current = new IntersectionObserver(
-        ([entry]) => {
-          setEntry(entry);
-          setInView(entry.isIntersecting);
-          
-          if (entry.isIntersecting && triggerOnce) {
-            unobserve();
-            observed.current = true;
-          }
-        },
-        { root, rootMargin, threshold }
-      );
-    }
-    
-    if (element && initialObserve) {
-      observerRef.current.observe(element);
-    }
-  };
-  
-  const unobserve = () => {
-    if (observerRef.current && elementRef.current) {
-      observerRef.current.unobserve(elementRef.current);
-    }
-  };
-  
-  // Start/stop observing when initialObserve changes
-  useEffect(() => {
-    if (elementRef.current) {
-      if (initialObserve && !observed.current) {
-        observe(elementRef.current);
-      } else if (!initialObserve) {
-        unobserve();
-      }
-    }
-    
-    return () => {
-      unobserve();
-    };
-  }, [initialObserve, root, rootMargin, threshold]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+
+  const setRef = useCallback((node: Element | null) => {
+    if (observedRef.current) {
+      // Cleanup previous observer
       if (observerRef.current) {
         observerRef.current.disconnect();
       }
-    };
+      observedRef.current = null;
+    }
+
+    if (node) {
+      observedRef.current = node;
+    }
   }, []);
-  
-  return {
-    ref: setRef,
-    inView,
-    entry,
-    observe: () => elementRef.current && observe(elementRef.current),
-    unobserve
-  };
+
+  // Set up intersection observer
+  useEffect(() => {
+    if (!observedRef.current || (triggerOnce && hasTriggered)) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const [entry] = entries;
+        const isVisible = entry.isIntersecting;
+
+        setInView(isVisible);
+
+        if (isVisible && triggerOnce) {
+          setHasTriggered(true);
+          // Disconnect if we only need to trigger once
+          observer.disconnect();
+        }
+      },
+      { root, rootMargin, threshold }
+    );
+
+    observerRef.current = observer;
+
+    if (observedRef.current) {
+      observer.observe(observedRef.current);
+    }
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [root, rootMargin, threshold, triggerOnce, hasTriggered]);
+
+  return { ref: setRef, inView, observedRef };
 }
+

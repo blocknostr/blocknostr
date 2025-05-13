@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useInView } from '../shared/useInView';
-import { useMediaPreferences } from '@/hooks/useMediaPreferences';
 import ImagePreview from './ImagePreview';
 import VideoPreview from './VideoPreview';
 import MediaLoadingState from './MediaLoadingState';
@@ -31,7 +30,6 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
-  const { mediaPrefs } = useMediaPreferences();
   const isLightbox = variant === 'lightbox';
   const isVideo = url.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv)(\?.*)?$/i) !== null;
   
@@ -41,8 +39,8 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     triggerOnce: false
   });
 
-  // Only load media when in view or if we're not in data saver mode
-  const shouldLoad = inView || !mediaPrefs.dataSaverMode || isLightbox;
+  // Only load media when in view
+  const shouldLoad = inView || isLightbox;
   
   // Handle media load event
   const handleLoad = () => {
@@ -72,10 +70,9 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
               url={url}
               onLoad={handleLoad}
               onError={handleError}
-              autoPlay={mediaPrefs.autoPlayVideos || isLightbox}
+              autoPlay={isLightbox}
               controls={isLightbox}
               className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
-              quality={mediaPrefs.preferredQuality}
             />
           ) : (
             <ImagePreview

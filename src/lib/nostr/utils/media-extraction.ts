@@ -163,31 +163,12 @@ export const extractMediaUrls = (
 
 /**
  * Extract detailed media information including metadata from event
- * Fixed to accept both direct params and event object
  */
 export const extractMediaItems = (
-  eventOrContent: NostrEvent | string | { content?: string; tags?: string[][] },
-  maybeTags?: string[][]
+  content: string | undefined, 
+  tags: string[][] | undefined
 ): MediaItem[] => {
-  let content: string | undefined;
-  let tags: string[][] | undefined;
-  
-  // Handle different parameter formats
-  if (typeof eventOrContent === 'string') {
-    // Called with (content, tags)
-    content = eventOrContent;
-    tags = maybeTags;
-  } else if (eventOrContent && typeof eventOrContent === 'object') {
-    if ('content' in eventOrContent) {
-      // Called with object that has content property
-      content = eventOrContent.content;
-      tags = 'tags' in eventOrContent ? eventOrContent.tags : undefined;
-    } else {
-      // Assume it's a NostrEvent
-      content = (eventOrContent as NostrEvent).content;
-      tags = (eventOrContent as NostrEvent).tags;
-    }
-  }
+  if (!content && (!tags || !Array.isArray(tags))) return [];
   
   const mediaItems: MediaItem[] = [];
   const urls: Set<string> = new Set();
@@ -295,3 +276,4 @@ export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return !!url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
 };
+

@@ -1,8 +1,10 @@
 
-const MediaLoadingState = () => {
+import React from 'react';
+
+const MediaLoadingState: React.FC = () => {
   return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    <div className="absolute inset-0 bg-muted/30 flex items-center justify-center">
+      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
     </div>
   );
 };

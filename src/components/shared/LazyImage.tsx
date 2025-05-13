@@ -1,132 +1,71 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useInView } from './useInView';
 import { cn } from '@/lib/utils';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  src: string;
+  alt: string;
   loadingClassName?: string;
   errorClassName?: string;
-  fallbackSrc?: string;
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
   src,
   alt,
   className,
-  loadingClassName,
-  errorClassName,
-  fallbackSrc,
+  loadingClassName = "animate-pulse bg-muted",
+  errorClassName = "bg-muted/50",
   ...props
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
-  const [isInView, setIsInView] = useState(false);
-  const imgRef = React.useRef<HTMLImageElement>(null);
-  
-  useEffect(() => {
-    if (!src) {
-      setError(true);
-      setIsLoading(false);
-      return;
-    }
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
 
-    // Reset states when src changes
-    setIsLoading(true);
-    setError(false);
-    
-    // Use Intersection Observer to only load when in viewport
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            setIsInView(true);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.1 } // Start loading when 10% visible
-    );
+  const handleLoad = () => {
+    setIsLoaded(true);
+  };
 
-    const currentRef = imgRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [src]);
-  
-  // When in view, load the image
-  useEffect(() => {
-    if (!isInView || !src) return;
-    
-    // Create new image object to preload
-    const img = new Image();
-    img.src = src;
-    
-    img.onload = () => {
-      setImgSrc(src);
-      setIsLoading(false);
-    };
-    
-    img.onerror = () => {
-      setError(true);
-      setIsLoading(false);
-      if (fallbackSrc) {
-        setImgSrc(fallbackSrc);
-      }
-    };
-    
-    // Clean up
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [src, fallbackSrc, isInView]);
+  const handleError = () => {
+    setIsLoaded(true);
+    setHasError(true);
+  };
 
   return (
-    <div
-      ref={imgRef}
+    <div 
+      ref={ref}
       className={cn(
-        "overflow-hidden",
-        isLoading ? loadingClassName : "",
-        error && !fallbackSrc ? errorClassName : "",
+        "relative overflow-hidden",
+        !isLoaded && loadingClassName,
+        hasError && errorClassName,
         className
       )}
     >
-      {isInView && !error && imgSrc && (
+      {inView && (
         <img
-          src={imgSrc}
-          alt={alt || "Image"}
+          src={src}
+          alt={alt}
           className={cn(
-            "w-full h-full object-cover transition-opacity duration-300",
-            isLoading ? "opacity-0" : "opacity-100"
+            "transition-opacity duration-300",
+            !isLoaded && "opacity-0",
+            isLoaded && "opacity-100",
           )}
-          onError={() => setError(true)}
+          loading="lazy"
+          onLoad={handleLoad}
+          onError={handleError}
           {...props}
         />
       )}
       
-      {isLoading && (
-        <div className={cn(
-          "flex items-center justify-center w-full h-full bg-muted/30",
-          loadingClassName
-        )}>
-          <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-primary animate-spin" />
-        </div>
-      )}
-      
-      {error && !fallbackSrc && (
-        <div className={cn(
-          "flex items-center justify-center w-full h-full bg-muted/30 text-muted-foreground text-sm",
-          errorClassName
-        )}>
-          Failed to load image
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <span className="text-xs">Failed to load image</span>
         </div>
       )}
     </div>
   );
 };
+
