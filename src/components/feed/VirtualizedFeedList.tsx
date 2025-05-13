@@ -37,7 +37,7 @@ const VirtualizedFeedList: React.FC<VirtualizedFeedListProps> = ({
     <div className="space-y-4 relative">
       <div
         ref={parentRef}
-        className="overflow-auto mt-4"               {/* ← push down a bit */}
+        className="overflow-auto mt-8"               {/* ← push down a bit */}
         style={{ height: "calc(100vh - 250px)" }}    {/* ← carve out more top space */}
       >
         {/* spacer to set scrollable height */}
