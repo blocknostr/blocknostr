@@ -217,7 +217,7 @@ export const useMessaging = () => {
     try {
       console.log("Preparing to send message to:", activeContact.pubkey);
       
-      // Use proper NIP-04 (kind 4) for direct messages
+      // Use proper messaging adapter for direct messages
       const messageId = await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
       
       if (messageId) {

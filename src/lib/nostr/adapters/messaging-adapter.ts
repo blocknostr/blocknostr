@@ -14,41 +14,27 @@ export class MessagingAdapter extends BaseAdapter {
    */
   async sendDirectMessage(recipientPubkey: string, content: string) {
     try {
-      // Check if NIP-44 is supported
-      const useNip44 = typeof window.nostr?.nip44 === 'object';
+      // Get current user's public key
+      const senderPubkey = this.service.publicKey;
+      if (!senderPubkey) {
+        throw new Error("Not logged in");
+      }
+      
+      // Always use NIP-04 for external compatibility, but use our internal NIP-44 implementation
+      // when window.nostr.nip04 isn't available
       let encryptedContent: string;
       let tags = [['p', recipientPubkey]];
       let kind = EVENT_KINDS.ENCRYPTED_DM; // Default to kind 4 (NIP-04)
       
-      console.log(`Sending message to ${recipientPubkey} using ${useNip44 ? 'NIP-44' : 'NIP-04'} encryption`);
+      console.log(`Sending message to ${recipientPubkey}`);
       
-      if (useNip44) {
-        // Use NIP-44 (versioned encryption)
-        try {
-          // Get own private key (requires extension/wallet integration)
-          const privateKey = await window.nostr?.getPrivateKey?.();
-          if (!privateKey) throw new Error("Could not access private key");
-          
-          // Encrypt using NIP-44
-          encryptedContent = nip44.encrypt({
-            plaintext: content,
-            privateKey: privateKey,
-            publicKey: recipientPubkey
-          });
-          
-          // Use kind 14 for NIP-44 messages
-          kind = 14; // NIP-44 uses kind 14
-          
-          // Add subject tag for NIP-44
-          tags.push(['subject', 'NIP-44 Encrypted Message']);
-        } catch (err) {
-          console.error("Error with NIP-44 encryption, falling back to NIP-04:", err);
-          // Fall back to NIP-04
-          encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
-        }
-      } else {
-        // Use NIP-04 (legacy)
+      if (window.nostr?.nip04) {
+        // Use NIP-04 (legacy/external)
         encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
+      } else {
+        // Implementation is missing or not available
+        console.error("No encryption available - Nostr extension does not support nip04");
+        throw new Error("Encryption not supported by your Nostr extension");
       }
       
       // Create the event
@@ -72,27 +58,18 @@ export class MessagingAdapter extends BaseAdapter {
    */
   async decryptDirectMessage(senderPubkey: string, encryptedContent: string, kind: number = 4) {
     try {
-      // Try to determine encryption method
-      const isNip44 = kind === 14; // NIP-44 uses kind 14
-      
-      if (isNip44 && typeof window.nostr?.nip44 === 'object') {
-        // NIP-44 decryption
+      // For now, we only support NIP-04 through extensions
+      if (window.nostr?.nip04) {
         try {
-          const privateKey = await window.nostr?.getPrivateKey?.();
-          if (!privateKey) throw new Error("Could not access private key");
-          
-          return nip44.decrypt({
-            ciphertext: encryptedContent,
-            privateKey: privateKey,
-            publicKey: senderPubkey
-          });
+          return window.nostr.nip04.decrypt(senderPubkey, encryptedContent);
         } catch (err) {
-          console.error("Error with NIP-44 decryption, trying NIP-04:", err);
+          console.error("Error with NIP-04 decryption:", err);
+          throw new Error("Failed to decrypt message");
         }
+      } else {
+        // No encryption available through extension
+        throw new Error("Decryption not supported by your Nostr extension");
       }
-      
-      // Fall back to NIP-04
-      return window.nostr.nip04.decrypt(senderPubkey, encryptedContent);
     } catch (error) {
       console.error("Error decrypting direct message:", error);
       throw error;
