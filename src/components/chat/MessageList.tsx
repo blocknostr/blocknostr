@@ -80,9 +80,9 @@ const MessageList: React.FC<MessageListProps> = ({
     <CardContent className="p-0 overflow-hidden flex-1 relative z-10">
       <div ref={scrollContainerRef} className="h-full">
         <ScrollArea 
-          className="h-full subtle-scrollbar"
-          type="hover"
-          scrollHideDelay={1000} 
+          className="h-full custom-scrollbar"
+          type="always"
+          scrollHideDelay={3000} 
         >
           <div className="p-2 flex flex-col h-full">
             {/* We display messages in chronological order (oldest first) */}
