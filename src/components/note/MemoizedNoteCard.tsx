@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import NoteCardStructure from './structure/NoteCardStructure';
 import { unifiedProfileService } from '@/lib/services/UnifiedProfileService';
@@ -23,6 +23,14 @@ const NoteCard = (props: NoteCardProps) => {
   const [profile, setProfile] = useState(props.profileData);
   const [reposterProfile, setReposterProfile] = useState(props.repostData?.reposterProfile);
   
+  // Refs to store unsubscribe functions
+  const profileUnsubRef = useRef<(() => void) | null>(null);
+  const reposterUnsubRef = useRef<(() => void) | null>(null);
+  
+  // Prevent too frequent updates with useRef
+  const lastUpdateTime = useRef<number>(0);
+  const updateDelayMs = 500; // Minimum time between updates
+  
   // Effect to fetch profiles if not provided
   useEffect(() => {
     // Update if profile data props change
@@ -34,7 +42,7 @@ const NoteCard = (props: NoteCardProps) => {
       setReposterProfile(props.repostData.reposterProfile);
     }
     
-    // If we have a pubkey but no profile, fetch it
+    // Only fetch and subscribe if we don't have profile data
     if (props.event?.pubkey && !props.profileData) {
       const fetchProfile = async () => {
         try {
@@ -49,18 +57,34 @@ const NoteCard = (props: NoteCardProps) => {
       
       fetchProfile();
       
-      // Subscribe to profile updates
-      const unsubscribe = unifiedProfileService.subscribeToUpdates(props.event.pubkey, (updatedProfile) => {
-        if (updatedProfile) {
+      // Clean up previous subscription if it exists
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+      
+      // Subscribe to profile updates with debouncing
+      profileUnsubRef.current = unifiedProfileService.subscribeToUpdates(props.event.pubkey, (updatedProfile) => {
+        if (!updatedProfile) return;
+        
+        const now = Date.now();
+        // Only update if enough time has passed since last update
+        if (now - lastUpdateTime.current > updateDelayMs) {
           console.log(`[NoteCard] Received profile update for ${props.event.pubkey.substring(0, 8)}:`,
             updatedProfile.name || updatedProfile.display_name);
           setProfile(updatedProfile);
+          lastUpdateTime.current = now;
         }
       });
       
-      return () => unsubscribe();
+      return () => {
+        if (profileUnsubRef.current) {
+          profileUnsubRef.current();
+          profileUnsubRef.current = null;
+        }
+      };
     }
-  }, [props.event?.pubkey, props.profileData, props.repostData]);
+  }, [props.event?.pubkey, props.profileData]);
   
   // Effect to fetch reposter profile if not provided
   useEffect(() => {
@@ -78,23 +102,36 @@ const NoteCard = (props: NoteCardProps) => {
       
       fetchReposterProfile();
       
-      // Subscribe to reposter profile updates
-      const unsubscribe = unifiedProfileService.subscribeToUpdates(props.repostData.reposterPubkey, (updatedProfile) => {
-        if (updatedProfile) {
+      // Clean up previous subscription if it exists
+      if (reposterUnsubRef.current) {
+        reposterUnsubRef.current();
+        reposterUnsubRef.current = null;
+      }
+      
+      // Subscribe to reposter profile updates with debouncing
+      reposterUnsubRef.current = unifiedProfileService.subscribeToUpdates(props.repostData.reposterPubkey, (updatedProfile) => {
+        if (!updatedProfile) return;
+        
+        const now = Date.now();
+        // Only update if enough time has passed since last update
+        if (now - lastUpdateTime.current > updateDelayMs) {
           setReposterProfile(updatedProfile);
+          lastUpdateTime.current = now;
         }
       });
       
-      return () => unsubscribe();
+      return () => {
+        if (reposterUnsubRef.current) {
+          reposterUnsubRef.current();
+          reposterUnsubRef.current = null;
+        }
+      };
     }
   }, [props.repostData]);
 
   if (!props.event) {
     return null;
   }
-  
-  console.log(`[MemoizedNoteCard] Rendering note with pubkey ${props.event.pubkey?.substring(0, 8)}, has profile: ${!!profile}`, 
-    profile?.name || profile?.display_name);
 
   return <NoteCardStructure 
     event={props.event}
@@ -109,7 +146,7 @@ const NoteCard = (props: NoteCardProps) => {
   />;
 };
 
-// Use React.memo to prevent unnecessary re-renders but with improved profile data handling
+// Use React.memo with improved comparison function to prevent unnecessary re-renders
 export default React.memo(NoteCard, (prevProps, nextProps) => {
   // Always re-render if the event ID has changed
   if (prevProps.event?.id !== nextProps.event?.id) {
@@ -117,14 +154,10 @@ export default React.memo(NoteCard, (prevProps, nextProps) => {
   }
   
   // If we have new profile data but didn't have it before (or it changed), re-render
-  if (!prevProps.profileData && nextProps.profileData) {
+  if ((!prevProps.profileData && nextProps.profileData) || 
+      (prevProps.profileData && nextProps.profileData && 
+       JSON.stringify(prevProps.profileData) !== JSON.stringify(nextProps.profileData))) {
     return false; // Don't skip render
-  }
-  
-  if (prevProps.profileData !== nextProps.profileData &&
-      (prevProps.profileData?.name !== nextProps.profileData?.name ||
-       prevProps.profileData?.display_name !== nextProps.profileData?.display_name)) {
-    return false; // Don't skip render if name or display_name changed
   }
   
   // If repost data has changed, re-render

@@ -14,6 +14,10 @@ class UnifiedProfileService {
   private maxRetryAttempts = 3;
   private retryDelay = 5000; // 5 seconds
   
+  // Add debouncing for profile update events
+  private profileUpdateTimers: Map<string, number> = new Map();
+  private updateDebounceMs = 500; // 500ms debounce for updates
+  
   constructor() {
     // Start the retry processor
     this.startRetryProcessor();
@@ -66,8 +70,8 @@ class UnifiedProfileService {
         // Remove from retry queue if it was there
         this.retryQueue.delete(pubkey);
         
-        // Emit event for listeners
-        eventBus.emit(EVENTS.PROFILE_UPDATED, pubkey, profile);
+        // Emit event for listeners with debouncing
+        this.debouncedEmitProfileUpdate(pubkey, profile);
         
         // Add related profiles to prefetch queue
         this.queueRelatedProfiles(profile);
@@ -86,6 +90,24 @@ class UnifiedProfileService {
       // No longer fetching
       this.fetchingProfiles.delete(pubkey);
     }
+  }
+  
+  /**
+   * Debounce profile update events to prevent UI flickering
+   */
+  private debouncedEmitProfileUpdate(pubkey: string, profile: any): void {
+    // Clear any existing timer for this pubkey
+    if (this.profileUpdateTimers.has(pubkey)) {
+      window.clearTimeout(this.profileUpdateTimers.get(pubkey));
+    }
+    
+    // Set new timer
+    const timerId = window.setTimeout(() => {
+      eventBus.emit(EVENTS.PROFILE_UPDATED, pubkey, profile);
+      this.profileUpdateTimers.delete(pubkey);
+    }, this.updateDebounceMs);
+    
+    this.profileUpdateTimers.set(pubkey, timerId);
   }
   
   /**
@@ -132,8 +154,8 @@ class UnifiedProfileService {
           // Remove from retry queue if it was there
           this.retryQueue.delete(pubkey);
           
-          // Emit event for listeners
-          eventBus.emit(EVENTS.PROFILE_UPDATED, pubkey, profile);
+          // Emit event for listeners with debouncing
+          this.debouncedEmitProfileUpdate(pubkey, profile);
           
           // Queue related profiles for prefetching
           this.queueRelatedProfiles(profile);
@@ -317,6 +339,17 @@ class UnifiedProfileService {
     return () => {
       eventBus.off(EVENTS.PROFILE_UPDATED, handler);
     };
+  }
+  
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    // Clear all update timers
+    this.profileUpdateTimers.forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+    this.profileUpdateTimers.clear();
   }
 }
 
