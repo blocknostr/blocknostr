@@ -37,7 +37,7 @@ export function useInView({
   triggerOnce = false,
   skip = false,
 }: UseInViewOptions = {}): UseInViewResult {
-  const [inView, setInView] = useState<boolean>(false);
+  const [inView, setInView] = useState<boolean>(skip ? true : false);
   const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
   const currentElement = useRef<Element | null>(null);
@@ -53,6 +53,7 @@ export function useInView({
   useEffect(() => {
     // Skip creating the observer if the component should not observe
     if (skip) {
+      setInView(true);
       return;
     }
 

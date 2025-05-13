@@ -12,6 +12,7 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   onLoadSuccess?: () => void;
   onLoadError?: () => void;
   fallbackText?: string;
+  priority?: boolean; // Add priority prop to optionally skip lazy loading
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -23,6 +24,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   onLoadSuccess,
   onLoadError,
   fallbackText = "Failed to load image",
+  priority = false,
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -31,6 +33,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   const { ref, inView } = useInView({
     triggerOnce: true,
     threshold: 0.1,
+    skip: priority, // Skip intersection observer for priority images
   });
   
   // Create a memoized version of the URL with cache-busting for consistency
@@ -82,9 +85,12 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     }
   };
 
+  // For priority images or when in view, render the image
+  const shouldRenderImage = priority || inView;
+
   return (
     <div 
-      ref={ref}
+      ref={priority ? undefined : ref} // Don't use ref for priority images
       className={cn(
         "relative overflow-hidden",
         !isLoaded && loadingClassName,
@@ -92,7 +98,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         className
       )}
     >
-      {inView && !hasError && (
+      {shouldRenderImage && !hasError && (
         <img
           src={imageUrl}
           alt={alt}
@@ -101,7 +107,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             !isLoaded && "opacity-0",
             isLoaded && "opacity-100",
           )}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"} // Use eager loading for priority images
           onLoad={handleLoad}
           onError={handleError}
           {...props}

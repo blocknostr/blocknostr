@@ -6,7 +6,7 @@ import VideoPreview from './VideoPreview';
 import MediaLoadingState from './MediaLoadingState';
 import MediaErrorState from './MediaErrorState';
 import { cn } from '@/lib/utils';
-import { isValidMediaUrl } from '@/lib/nostr/utils/media/media-validation';
+import { isValidMediaUrl, normalizeUrl } from '@/lib/nostr/utils/media/media-validation';
 import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface EnhancedMediaContentProps {
@@ -34,9 +34,23 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   onLoad: externalOnLoad,
   onError: externalOnError
 }) => {
+  // Normalize the URL to ensure consistent handling
+  const normalizedUrl = React.useMemo(() => {
+    try {
+      return normalizeUrl(url);
+    } catch (err) {
+      console.warn('Failed to normalize URL:', url, err);
+      return url;
+    }
+  }, [url]);
+  
   // Register this URL with the registry
   useEffect(() => {
-    UrlRegistry.registerUrl(url, 'media');
+    try {
+      UrlRegistry.registerUrl(normalizedUrl, 'media');
+    } catch (err) {
+      console.error('Error registering URL in registry:', normalizedUrl, err);
+    }
     
     // Cleanup on unmount
     return () => {
@@ -47,24 +61,37 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
         // Registry will be auto-cleared periodically instead
       }
     };
-  }, [url]);
+  }, [normalizedUrl]);
 
   // Get initial state from cache if available
-  const cachedState = loadedMediaCache.get(url);
+  const cachedState = loadedMediaCache.get(normalizedUrl);
   const [isLoaded, setIsLoaded] = useState(cachedState === 'success');
   const [error, setError] = useState(cachedState === 'error');
   const [retryCount, setRetryCount] = useState(0);
   const isLightbox = variant === 'lightbox';
-  const isVideo = url.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv|m4v)(\?.*)?$/i) !== null;
+  
+  // Detect media type
+  const isVideo = React.useMemo(() => {
+    try {
+      return normalizedUrl.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv|m4v)(\?.*)?$/i) !== null;
+    } catch (err) {
+      return false;
+    }
+  }, [normalizedUrl]);
   
   // Validate URL
   const [isValidUrl, setIsValidUrl] = useState(true);
   
   useEffect(() => {
-    setIsValidUrl(isValidMediaUrl(url));
+    try {
+      setIsValidUrl(isValidMediaUrl(normalizedUrl));
+    } catch (err) {
+      console.error('Error validating URL:', normalizedUrl, err);
+      setIsValidUrl(false);
+    }
     
     // Reset states when URL changes, but respect the cache
-    const state = loadedMediaCache.get(url);
+    const state = loadedMediaCache.get(normalizedUrl);
     if (state === 'success') {
       setIsLoaded(true);
       setError(false);
@@ -76,14 +103,19 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
       setError(false);
       setRetryCount(0);
       // Mark as loading in cache
-      loadedMediaCache.set(url, 'loading');
+      try {
+        loadedMediaCache.set(normalizedUrl, 'loading');
+      } catch (err) {
+        console.error('Error updating media cache:', err);
+      }
     }
-  }, [url]);
+  }, [normalizedUrl]);
 
   // Use intersection observer to detect when media is in view
   const { ref, inView } = useInView({
     threshold: 0.1,
-    triggerOnce: false
+    triggerOnce: false,
+    skip: isLightbox // Skip for lightboxes, always load
   });
 
   // Only load media when in view or if it's a lightbox
@@ -94,7 +126,11 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     setIsLoaded(true);
     setError(false);
     // Update cache
-    loadedMediaCache.set(url, 'success');
+    try {
+      loadedMediaCache.set(normalizedUrl, 'success');
+    } catch (err) {
+      console.error('Error updating media cache on load:', err);
+    }
     if (externalOnLoad) externalOnLoad();
   };
   
@@ -102,32 +138,40 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   const handleError = () => {
     setError(true);
     // Update cache
-    loadedMediaCache.set(url, 'error');
-    console.error(`Media failed to load: ${url}`);
+    try {
+      loadedMediaCache.set(normalizedUrl, 'error');
+    } catch (err) {
+      console.error('Error updating media cache on error:', err);
+    }
+    console.error(`Media failed to load: ${normalizedUrl}`);
     if (externalOnError) externalOnError();
   };
 
   // Handle retry
   const handleRetry = useCallback(() => {
     if (retryCount < 2) {
-      console.log(`Retrying media load (${retryCount + 1}/2):`, url);
+      console.log(`Retrying media load (${retryCount + 1}/2):`, normalizedUrl);
       setRetryCount(prev => prev + 1);
       setError(false);
       setIsLoaded(false);
       // Reset cache state
-      loadedMediaCache.set(url, 'loading');
+      try {
+        loadedMediaCache.set(normalizedUrl, 'loading');
+      } catch (err) {
+        console.error('Error updating media cache on retry:', err);
+      }
     }
-  }, [retryCount, url]);
+  }, [retryCount, normalizedUrl]);
   
   // Invalid URL handling
   if (!isValidUrl) {
-    console.warn("Invalid media URL detected:", url);
+    console.warn("Invalid media URL detected:", normalizedUrl);
     return (
       <div className={cn(
         "relative overflow-hidden rounded-md border border-border/10",
         className
       )}>
-        <MediaErrorState isVideo={isVideo} url={url} />
+        <MediaErrorState isVideo={isVideo} url={normalizedUrl} />
       </div>
     );
   }
@@ -145,7 +189,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
         <>
           {isVideo ? (
             <VideoPreview
-              url={url}
+              url={normalizedUrl}
               onLoad={handleLoad}
               onError={handleError}
               autoPlay={isLightbox}
@@ -154,7 +198,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
             />
           ) : (
             <ImagePreview
-              url={url}
+              url={normalizedUrl}
               alt={alt || `Media ${index + 1} of ${totalItems}`}
               onLoad={handleLoad}
               onError={handleError}
@@ -168,7 +212,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
           {error && (
             <MediaErrorState 
               isVideo={isVideo} 
-              url={url}
+              url={normalizedUrl}
               onRetry={handleRetry}
               canRetry={retryCount < 2}
             />

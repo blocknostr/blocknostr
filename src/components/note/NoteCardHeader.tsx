@@ -12,11 +12,36 @@ interface NoteCardHeaderProps {
 }
 
 const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps) => {
+  // Ensure we have a valid pubkey
   const hexPubkey = pubkey || '';
-  const npub = nostrService.getNpubFromHex(hexPubkey);
   
-  // Handle short display of npub (first 5 and last 5 chars)
-  const shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+  // Get npub with error handling
+  let npub = '';
+  let shortNpub = '';
+  
+  try {
+    if (hexPubkey) {
+      // Validate hex format (64 hex chars)
+      if (hexPubkey.length === 64 && /^[0-9a-f]+$/i.test(hexPubkey)) {
+        npub = nostrService.getNpubFromHex(hexPubkey);
+      } else if (hexPubkey.startsWith('npub1')) {
+        npub = hexPubkey;
+      } else {
+        // Handle invalid format with a placeholder
+        npub = 'npub1unknown';
+      }
+      
+      // Handle short display of npub (first 9 and last 5 chars)
+      shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+    } else {
+      npub = 'npub1unknown';
+      shortNpub = 'unknown';
+    }
+  } catch (error) {
+    console.error('Error in NoteCardHeader with pubkey:', hexPubkey, error);
+    npub = 'npub1unknown';
+    shortNpub = 'unknown';
+  }
   
   // Get profile info if available
   const name = profileData?.name || shortNpub;
@@ -26,10 +51,18 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   // Get the first character of the display name for the avatar fallback
   const avatarFallback = displayName ? displayName.charAt(0).toUpperCase() : 'N';
   
-  const timeAgo = formatDistanceToNow(
-    new Date(createdAt * 1000),
-    { addSuffix: true }
-  );
+  // Format the created at timestamp
+  let timeAgo = 'some time ago';
+  try {
+    if (createdAt && createdAt > 0) {
+      timeAgo = formatDistanceToNow(
+        new Date(createdAt * 1000),
+        { addSuffix: true }
+      );
+    }
+  } catch (error) {
+    console.error('Error formatting time:', error);
+  }
 
   return (
     <div className="flex justify-between">
