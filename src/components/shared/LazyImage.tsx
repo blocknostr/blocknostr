@@ -1,13 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useInView } from './useInView';
 import { cn } from '@/lib/utils';
+import { AlertTriangle } from 'lucide-react';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
   loadingClassName?: string;
   errorClassName?: string;
+  onLoadSuccess?: () => void;
+  onLoadError?: () => void;
+  fallbackText?: string;
 }
 
 export const LazyImage: React.FC<LazyImageProps> = ({
@@ -16,22 +20,54 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   className,
   loadingClassName = "animate-pulse bg-muted",
   errorClassName = "bg-muted/50",
+  onLoadSuccess,
+  onLoadError,
+  fallbackText = "Failed to load image",
   ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { ref, inView } = useInView({
     triggerOnce: true,
     threshold: 0.1,
   });
 
+  // Effect to handle image retry logic
+  useEffect(() => {
+    if (hasError && retryCount < 2) {
+      // Add a small delay before retry
+      const timer = setTimeout(() => {
+        console.log(`Retrying image load (${retryCount + 1}/2):`, src);
+        setHasError(false);
+        setIsLoaded(false);
+        setRetryCount(prev => prev + 1);
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasError, retryCount, src]);
+
   const handleLoad = () => {
     setIsLoaded(true);
+    setHasError(false);
+    if (onLoadSuccess) onLoadSuccess();
   };
 
   const handleError = () => {
-    setIsLoaded(true);
+    console.warn("Image failed to load:", src);
     setHasError(true);
+    setIsLoaded(true);
+    if (onLoadError) onLoadError();
+  };
+  
+  const handleRetry = () => {
+    if (retryCount < 3) {
+      console.log("Manually retrying image load:", src);
+      setHasError(false);
+      setIsLoaded(false);
+      setRetryCount(prev => prev + 1);
+    }
   };
 
   return (
@@ -44,9 +80,9 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         className
       )}
     >
-      {inView && (
+      {inView && !hasError && (
         <img
-          src={src}
+          src={`${src}${src.includes('?') ? '&' : '?'}cache=${retryCount}`}
           alt={alt}
           className={cn(
             "transition-opacity duration-300",
@@ -61,11 +97,19 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       )}
       
       {hasError && (
-        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-          <span className="text-xs">Failed to load image</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+          <AlertTriangle className="h-5 w-5 mb-1 opacity-60" />
+          <span className="text-xs">{fallbackText}</span>
+          {retryCount < 3 && (
+            <button 
+              onClick={handleRetry}
+              className="text-xs mt-1 text-primary hover:underline"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
     </div>
   );
 };
-

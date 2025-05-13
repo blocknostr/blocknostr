@@ -16,11 +16,30 @@ export const isValidMediaUrl = (url: string): boolean => {
     new URL(url);
     
     // Additional checks for media URLs
-    return (
-      url.startsWith('http://') || 
-      url.startsWith('https://')
-    );
+    // Ensure it has http/https protocol
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return false;
+    }
+    
+    // Check for common URL-shortener services that might redirect
+    const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
+    for (const shortener of commonShorteners) {
+      if (url.includes(shortener)) {
+        return true; // We'll assume shortened URLs might be valid media
+      }
+    }
+
+    // Check for known media hosting domains
+    const mediaHosts = ['i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build'];
+    for (const host of mediaHosts) {
+      if (url.includes(host)) {
+        return true; // Common Nostr media hosts
+      }
+    }
+    
+    return true;
   } catch (error) {
+    console.log('Invalid URL:', url, error);
     return false;
   }
 };
@@ -30,7 +49,7 @@ export const isValidMediaUrl = (url: string): boolean => {
  */
 export const isImageUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i);
 };
 
 /**
@@ -38,7 +57,7 @@ export const isImageUrl = (url: string): boolean => {
  */
 export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
+  return !!url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i);
 };
 
 /**
@@ -46,5 +65,13 @@ export const isVideoUrl = (url: string): boolean => {
  */
 export const isAudioUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp3|wav|ogg)(\?.*)?$/i);
+  return !!url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i);
+};
+
+/**
+ * Checks if a URL points to a secure HTTPS resource
+ */
+export const isSecureUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.startsWith('https://');
 };
