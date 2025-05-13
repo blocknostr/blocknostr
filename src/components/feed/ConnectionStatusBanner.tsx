@@ -75,7 +75,7 @@ export function ConnectionStatusBanner() {
   };
   
   return (
-    <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4">
+    <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4 mt-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isOffline ? (
