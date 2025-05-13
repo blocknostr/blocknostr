@@ -6,6 +6,7 @@ import {
   Bell, 
   Mail, 
   Users, 
+  Settings, 
   FileText, 
   Wallet, 
   Crown 
@@ -60,8 +61,13 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Premium",
       icon: Crown,
       href: "/premium",
-      requiresAuth: false,
-      isPremium: true // Add this flag to identify the premium item
+      requiresAuth: false
+    },
+    {
+      name: "Settings",
+      icon: Settings,
+      href: "/settings",
+      requiresAuth: false
     }
   ];
 
@@ -82,7 +88,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
               icon={item.icon}
               href={item.href}
               isActive={isActive}
-              isPremium={item.isPremium}
             />
           );
         })}

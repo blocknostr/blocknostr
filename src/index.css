@@ -14,7 +14,7 @@
     --popover-foreground: 222.2 84% 4.9%;
 
     --primary: 211 100% 50%; /* Facebook Messenger blue */
-    --primary-foreground: 222.2 40% 98%;
+    --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -136,65 +136,6 @@ html.color-theme-in-transition {
   }
   100% {
     background-size: 300% 300%;
-  }
-}
-
-/* Premium text effects - static by default, animated on hover */
-@keyframes premium-neon-glow {
-  0% {
-    text-shadow: 0 0 5px rgba(0, 120, 255, 0.8), 0 0 10px rgba(0, 120, 255, 0.5);
-    color: #0078FF; /* Primary Blue */
-  }
-  33% {
-    text-shadow: 0 0 7px rgba(123, 104, 238, 0.8), 0 0 14px rgba(123, 104, 238, 0.5);
-    color: #7B68EE; /* Royal Purple */
-  }
-  66% {
-    text-shadow: 0 0 7px rgba(255, 215, 0, 0.8), 0 0 14px rgba(255, 215, 0, 0.5);
-    color: #FFD700; /* Gold */
-  }
-  100% {
-    text-shadow: 0 0 5px rgba(0, 120, 255, 0.8), 0 0 10px rgba(0, 120, 255, 0.5);
-    color: #0078FF; /* Primary Blue */
-  }
-}
-
-@keyframes premium-pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.premium-text {
-  font-weight: 600;
-  /* No background image or color: transparent by default - use regular text color */
-}
-
-/* Apply premium effects only on hover */
-.premium-text-container:hover .premium-text {
-  background-image: linear-gradient(90deg, #0078FF, #7B68EE, #FFD700);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  background-size: 300% 100%;
-  animation: premium-neon-glow 3s infinite ease-in-out, 
-             premium-pulse 2s infinite ease-in-out, 
-             premium-gradient 4s infinite linear;
-  text-shadow: 0 0 5px rgba(0, 120, 255, 0.5);
-}
-
-@keyframes premium-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 100% 50%;
   }
 }
 
