@@ -58,8 +58,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const displayTitle = activeHashtag ? `#${activeHashtag}` : title;
 
   return (
-<header className="border-b sticky top-16 bg-background/80 backdrop-blur-sm z-10">
-  <div className="flex items-center justify-between h-14 px-4">
+<header className="border-b sticky top-16 bg-background/80 backdrop-blur-sm z-10">      <div className="flex items-center justify-between h-14 px-4">
         {isMobile && (
           <MobileMenu 
             leftPanelOpen={leftPanelOpen}
