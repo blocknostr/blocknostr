@@ -146,26 +146,24 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       {/* Staggered rendering for improved perceived performance */}
       <div className="space-y-4">
         {visibleEvents.map((event, index) => (
-          <React.Fragment key={event.id || index}>
-            {/* Add staggered animation delay based on index */}
-            <div 
-              className="animate-fade-in" 
-              style={{ 
-                animationDelay: `${Math.min(index * 50, 500)}ms`,
-                animationFillMode: 'both'
-              }}
-            >
-              <NoteCard 
-                event={event} 
-                profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
-                repostData={event.id && repostData[event.id] ? {
-                  reposterPubkey: repostData[event.id].pubkey,
-                  reposterProfile: repostData[event.id].pubkey ? 
-                    combinedProfiles[repostData[event.id].pubkey] : undefined
-                } : undefined}
-              />
-            </div>
-          </React.Fragment>
+          <div
+            key={event.id || index}
+            className="animate-fade-in" 
+            style={{ 
+              animationDelay: `${Math.min(index * 50, 500)}ms`,
+              animationFillMode: 'both'
+            }}
+          >
+            <NoteCard 
+              event={event} 
+              profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
+              repostData={event.id && repostData[event.id] ? {
+                reposterPubkey: repostData[event.id].pubkey,
+                reposterProfile: repostData[event.id].pubkey ? 
+                  combinedProfiles[repostData[event.id].pubkey] : undefined
+              } : undefined}
+            />
+          </div>
         ))}
         
         {/* "Load More" button */}
