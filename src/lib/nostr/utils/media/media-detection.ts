@@ -47,3 +47,42 @@ export const extractUrlsFromContent = (content: string): string[] => {
   
   return urls;
 };
+
+/**
+ * Extracts all URLs from content text, including regular links
+ */
+export const extractAllUrls = (content: string): string[] => {
+  if (!content) return [];
+  
+  const urls: Set<string> = new Set();
+  let match;
+  
+  // First extract media URLs
+  const mediaUrls = extractUrlsFromContent(content);
+  mediaUrls.forEach(url => urls.add(url));
+  
+  // Then extract any remaining URLs
+  try {
+    mediaRegex.url.lastIndex = 0; // Reset the regex state
+    while ((match = mediaRegex.url.exec(content)) !== null) {
+      const url = match[0];
+      // Only add if not already added as a media URL
+      if (!urls.has(url)) {
+        urls.add(url);
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting URLs from content:", error);
+  }
+  
+  return [...urls];
+};
+
+/**
+ * Checks if a URL is a media URL (image, video, audio)
+ */
+export const isMediaUrl = (url: string): boolean => {
+  return !!(url.match(mediaRegex.image) || 
+           url.match(mediaRegex.video) || 
+           url.match(mediaRegex.audio));
+};

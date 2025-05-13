@@ -1,10 +1,9 @@
-
 /**
  * Utility functions for extracting media from Nostr events
  * Following NIP-94 recommendations
  */
 
-import { mediaRegex, extractUrlsFromContent } from './media-detection';
+import { mediaRegex, extractUrlsFromContent, extractAllUrls, isMediaUrl } from './media-detection';
 import { isValidMediaUrl } from './media-validation';
 import { MediaItem } from './media-types';
 
@@ -105,6 +104,26 @@ export const extractMediaUrls = (
   
   // Return unique URLs
   return [...urls];
+};
+
+/**
+ * Extract non-media URLs for link previews
+ * Returns an array of URLs that are not media files
+ */
+export const extractLinkPreviewUrls = (
+  content: string | undefined, 
+  tags: string[][] | undefined
+): string[] => {
+  if (!content) return [];
+  
+  // Get all URLs from content
+  const allUrls = extractAllUrls(content);
+  
+  // Get media URLs that we don't want to show as link previews
+  const mediaUrls = new Set(extractMediaUrls(content, tags));
+  
+  // Filter out media URLs to get only regular links for previews
+  return allUrls.filter(url => !mediaUrls.has(url) && !isMediaUrl(url));
 };
 
 /**

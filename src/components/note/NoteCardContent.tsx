@@ -5,9 +5,10 @@ import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import EnhancedMediaContent from '../media/EnhancedMediaContent';
+import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
-import { extractMediaUrls } from '@/lib/nostr/utils';
+import { extractMediaUrls, extractLinkPreviewUrls } from '@/lib/nostr/utils';
 
 interface NoteCardContentProps {
   content?: string;
@@ -57,9 +58,14 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags using our new utility
+  // Extract media URLs from content and tags using our utility
   const mediaUrls = useMemo(() => {
     return extractMediaUrls(contentToUse, tagsToUse);
+  }, [contentToUse, tagsToUse]);
+  
+  // Extract link preview URLs (non-media URLs)
+  const linkPreviewUrls = useMemo(() => {
+    return extractLinkPreviewUrls(contentToUse, tagsToUse);
   }, [contentToUse, tagsToUse]);
   
   // Handle hashtag click
@@ -93,6 +99,23 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
           {mediaUrls.length > 4 && (
             <div className="col-span-2 text-center text-sm text-muted-foreground mt-1">
               +{mediaUrls.length - 4} more media items
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Link preview section */}
+      {linkPreviewUrls && linkPreviewUrls.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {linkPreviewUrls.slice(0, 2).map((url, index) => (
+            <LinkPreview 
+              key={`link-${url}-${index}`} 
+              url={url}
+            />
+          ))}
+          {linkPreviewUrls.length > 2 && (
+            <div className="text-center text-sm text-muted-foreground">
+              +{linkPreviewUrls.length - 2} more links
             </div>
           )}
         </div>
