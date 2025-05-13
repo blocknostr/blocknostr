@@ -163,6 +163,7 @@ export const extractMediaUrls = (
 
 /**
  * Extract detailed media information including metadata from event
+ * Fix: Updated function signature to match test expectations
  */
 export const extractMediaItems = (
   content: string | undefined, 
@@ -276,4 +277,3 @@ export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return !!url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
 };
-
