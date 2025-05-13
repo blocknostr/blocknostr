@@ -91,9 +91,16 @@ export class NostrService {
   }
 
   // Relay management
-  public async connectToRelays(relayUrls: string[]): Promise<void> {
-    // Just call connectToUserRelays for now
-    await this.connectToUserRelays();
+  public async connectToRelays(relayUrls: string[]): Promise<{ success: string[]; failures: string[] }> {
+    const { success, failures } = await this.relayManager.connectToRelays(relayUrls);
+
+    console.log(`Successfully connected to ${success.length} relays:`, success);
+
+    if (failures.length > 0) {
+      console.warn(`Failed to connect to ${failures.length} relays:`, failures);
+    }
+
+    return { success, failures };
   }
 
   public async connectToUserRelays(): Promise<string[]> {

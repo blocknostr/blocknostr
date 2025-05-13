@@ -75,8 +75,16 @@ export class RelayManager {
    * Connect to the default relays
    * @returns Promise resolving when connection attempts complete
    */
-  async connectToDefaultRelays(): Promise<void> {
-    return this.connectionManager.connectToRelays(this.defaultRelays);
+  async connectToDefaultRelays(): Promise<{ success: string[]; failures: string[] }> {
+    const { success, failures } = await this.connectionManager.connectToRelays(this.defaultRelays);
+
+    console.log(`Successfully connected to ${success.length} default relays:`, success);
+
+    if (failures.length > 0) {
+      console.warn(`Failed to connect to ${failures.length} default relays:`, failures);
+    }
+
+    return { success, failures };
   }
 
   /**
@@ -84,7 +92,14 @@ export class RelayManager {
    * @returns Promise resolving when connection attempts complete
    */
   async connectToUserRelays(): Promise<void> {
-    return this.connectionManager.connectToRelays(Array.from(this._userRelays.keys()));
+    const relayUrls = Array.from(this._userRelays.keys());
+    const { success, failures } = await this.connectionManager.connectToRelays(relayUrls);
+
+    console.log(`Successfully connected to ${success.length} relays:`, success);
+
+    if (failures.length > 0) {
+      console.warn(`Failed to connect to ${failures.length} relays:`, failures);
+    }
   }
 
   /**

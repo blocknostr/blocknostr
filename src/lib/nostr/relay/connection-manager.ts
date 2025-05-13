@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 
 /**
@@ -8,9 +7,9 @@ export class ConnectionManager {
   private relays: Map<string, WebSocket> = new Map();
   private connectionStatus: Map<string, { connected: boolean, lastAttempt: number, failures: number }> = new Map();
   private reconnectTimers: Map<string, number> = new Map();
-  
-  constructor() {}
-  
+
+  constructor() { }
+
   /**
    * Connect to a specific relay
    * @param relayUrl URL of the relay to connect to
@@ -21,24 +20,24 @@ export class ConnectionManager {
     if (this.relays.has(relayUrl) && this.relays.get(relayUrl)?.readyState === WebSocket.OPEN) {
       return true; // Already connected
     }
-    
+
     // Track connection attempt
     if (!this.connectionStatus.has(relayUrl)) {
       this.connectionStatus.set(relayUrl, { connected: false, lastAttempt: Date.now(), failures: 0 });
     }
-    
+
     const status = this.connectionStatus.get(relayUrl)!;
     status.lastAttempt = Date.now();
-    
+
     // Clear any existing reconnect timer
     if (this.reconnectTimers.has(relayUrl)) {
       window.clearTimeout(this.reconnectTimers.get(relayUrl));
       this.reconnectTimers.delete(relayUrl);
     }
-    
+
     try {
       const socket = new WebSocket(relayUrl);
-      
+
       return new Promise((resolve) => {
         socket.onopen = () => {
           this.relays.set(relayUrl, socket);
@@ -46,16 +45,16 @@ export class ConnectionManager {
           status.failures = 0;
           resolve(true);
         };
-        
+
         socket.onerror = () => {
           status.failures++;
           resolve(false);
         };
-        
+
         socket.onclose = () => {
           status.connected = false;
           this.relays.delete(relayUrl);
-          
+
           // Exponential backoff for reconnection (max ~1 minute)
           if (retryCount < 6) {
             const delay = Math.min(1000 * Math.pow(2, retryCount), 60000);
@@ -65,7 +64,7 @@ export class ConnectionManager {
             this.reconnectTimers.set(relayUrl, timerId);
           }
         };
-        
+
         socket.onmessage = (msg) => {
           try {
             const data = JSON.parse(msg.data);
@@ -75,7 +74,7 @@ export class ConnectionManager {
             console.error('Error parsing relay message:', e);
           }
         };
-        
+
         // Set timeout for connection
         setTimeout(() => {
           if (socket.readyState !== WebSocket.OPEN) {
@@ -90,17 +89,48 @@ export class ConnectionManager {
       return false;
     }
   }
-  
+
   /**
    * Connect to multiple relays at once
    * @param relayUrls Array of relay URLs to connect to
    * @returns Promise resolving when all connection attempts complete
    */
-  async connectToRelays(relayUrls: string[]): Promise<void> {
-    const promises = relayUrls.map(url => this.connectToRelay(url));
-    await Promise.all(promises);
+  async connectToRelays(relayUrls: string[]): Promise<{ success: string[]; failures: string[] }> {
+    const success: string[] = [];
+    const failures: string[] = [];
+
+    for (const url of relayUrls) {
+      let attempts = 0;
+      let connected = false;
+
+      while (attempts < 3 && !connected) {
+        try {
+          attempts++;
+          console.log(`Attempting to connect to relay: ${url} (Attempt ${attempts})`);
+          connected = await this.connectToRelay(url);
+
+          if (connected) {
+            success.push(url);
+            console.log(`Successfully connected to relay: ${url}`);
+          } else {
+            throw new Error(`Connection failed for relay: ${url}`);
+          }
+        } catch (error) {
+          console.error(`Error connecting to relay ${url} on attempt ${attempts}:`, error);
+
+          if (attempts === 3) {
+            failures.push(url);
+            console.warn(`Failed to connect to relay after 3 attempts: ${url}`);
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts))); // Exponential backoff
+          }
+        }
+      }
+    }
+
+    return { success, failures };
   }
-  
+
   /**
    * Get the websocket for a connected relay
    * @param relayUrl URL of the relay
@@ -109,7 +139,7 @@ export class ConnectionManager {
   getRelaySocket(relayUrl: string): WebSocket | undefined {
     return this.relays.get(relayUrl);
   }
-  
+
   /**
    * Get URLs of all connected relays
    * @returns Array of connected relay URLs
@@ -118,17 +148,17 @@ export class ConnectionManager {
     return Array.from(this.relays.keys())
       .filter(url => this.relays.get(url)?.readyState === WebSocket.OPEN);
   }
-  
+
   /**
    * Check if a relay is connected
    * @param relayUrl URL of the relay
    * @returns Boolean indicating if relay is connected
    */
   isConnected(relayUrl: string): boolean {
-    return this.relays.has(relayUrl) && 
-           this.relays.get(relayUrl)?.readyState === WebSocket.OPEN;
+    return this.relays.has(relayUrl) &&
+      this.relays.get(relayUrl)?.readyState === WebSocket.OPEN;
   }
-  
+
   /**
    * Disconnect from a relay
    * @param relayUrl URL of the relay to disconnect from
@@ -139,14 +169,14 @@ export class ConnectionManager {
       socket.close();
       this.relays.delete(relayUrl);
     }
-    
+
     // Clear any reconnect timer
     if (this.reconnectTimers.has(relayUrl)) {
       window.clearTimeout(this.reconnectTimers.get(relayUrl));
       this.reconnectTimers.delete(relayUrl);
     }
   }
-  
+
   /**
    * Clean up all connections and timers
    */
@@ -157,14 +187,14 @@ export class ConnectionManager {
         socket.close();
       }
     });
-    
+
     this.relays.clear();
-    
+
     // Clear all reconnect timers
     this.reconnectTimers.forEach((timerId) => {
       window.clearTimeout(timerId);
     });
-    
+
     this.reconnectTimers.clear();
   }
 }
