@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { nostrService } from "@/lib/nostr";
 import Sidebar from "@/components/Sidebar";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRelays } from "@/hooks/useRelays";
+import { PageHeader } from "@/components/ui/page-header";
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -74,10 +75,9 @@ const ProfilePage = () => {
       <Sidebar />
       
       <div className="flex-1 ml-0 md:ml-64">
-        <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-          <div className="flex items-center justify-between h-14 px-4">
-            <h1 className="font-semibold">Profile</h1>
-            
+        <PageHeader
+          title="Profile"
+          rightContent={
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 {connectedRelayCount > 0 ? (
@@ -99,8 +99,8 @@ const ProfilePage = () => {
                 Refresh
               </Button>
             </div>
-          </div>
-        </header>
+          }
+        />
         
         <div className="max-w-3xl mx-auto px-4 py-4">
           {error && (
