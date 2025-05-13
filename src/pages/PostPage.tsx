@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -109,8 +108,7 @@ const PostPage = () => {
     try {
       if (!eventId) return;
       
-      // Get reaction counts from the social manager
-      // Pass the eventId and relays - remove SimplePool from parameters as it's already in the SocialManager
+      // Get reaction counts from the social manager with correct parameters
       const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
       setReactionCounts(counts);
     } catch (error) {
