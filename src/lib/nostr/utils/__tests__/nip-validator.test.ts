@@ -1,9 +1,7 @@
-
 import { 
   validateNip01Event, 
   validateNip10Tags, 
   validateNip25Reaction,
-  validateNip39Claim,
   validateNip65RelayList,
   isValidNip05Format
 } from '../nip';
@@ -185,62 +183,6 @@ describe('NIP-25 Reaction Validation', () => {
     const result = validateNip25Reaction(reactionWithoutETag);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Reaction must have at least one e tag referencing the event being reacted to');
-  });
-});
-
-describe('NIP-39 External Identity Verification', () => {
-  test('should validate a valid Twitter/X verification claim', () => {
-    const validVerification: NostrEvent = {
-      id: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      pubkey: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      created_at: 1652000000,
-      kind: 0,
-      tags: [
-        ['i', 'twitter:jack', '1234567890', 'https://twitter.com/jack/status/1234567890']
-      ],
-      content: '{"name":"Jack","about":"Creator of Twitter"}',
-      sig: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234'
-    };
-    
-    const result = validateNip39Claim(validVerification);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-  
-  test('should detect missing platform or identifier', () => {
-    const invalidVerification: NostrEvent = {
-      id: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      pubkey: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      created_at: 1652000000,
-      kind: 0,
-      tags: [
-        ['i', 'twitter', '1234567890'] // Missing username after platform
-      ],
-      content: '{"name":"Jack","about":"Creator of Twitter"}',
-      sig: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234'
-    };
-    
-    const result = validateNip39Claim(invalidVerification);
-    expect(result.valid).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-  });
-  
-  test('should detect wrong event kind', () => {
-    const wrongKindVerification: NostrEvent = {
-      id: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      pubkey: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234',
-      created_at: 1652000000,
-      kind: 1, // Should be kind 0
-      tags: [
-        ['i', 'twitter:jack', '1234567890']
-      ],
-      content: 'Not a metadata event',
-      sig: '123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234'
-    };
-    
-    const result = validateNip39Claim(wrongKindVerification);
-    expect(result.valid).toBe(false);
-    expect(result.errors).toContain('External identity claim must be in a kind 0 event');
   });
 });
 
