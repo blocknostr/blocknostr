@@ -1,11 +1,12 @@
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "../note/MemoizedNoteCard"; // Use our new memoized component
+import NoteCard from "../note/MemoizedNoteCard";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useInView } from "../shared/useInView"; // We'll create this hook
-import FeedLoadingSkeleton from "./FeedLoadingSkeleton"; // We'll create this component
+import { useInView } from "../shared/useInView";
+import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
+import { useUnifiedProfileFetcher } from "@/hooks/useUnifiedProfileFetcher";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -20,7 +21,7 @@ interface OptimizedFeedListProps {
 
 const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   events,
-  profiles,
+  profiles: initialProfiles,
   repostData,
   loading,
   onRefresh,
@@ -34,8 +35,43 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     triggerOnce: false
   });
 
+  // Use our unified profile fetcher
+  const { profiles: unifiedProfiles, fetchProfiles } = useUnifiedProfileFetcher();
+  
+  // Combine initial profiles with unified profiles
+  const combinedProfiles = { ...initialProfiles, ...unifiedProfiles };
+  
+  // Fetch profiles for authors that aren't already loaded
+  useEffect(() => {
+    if (events.length > 0) {
+      console.log(`[OptimizedFeedList] Fetching profiles for ${events.length} events`);
+      
+      // Collect all unique pubkeys that need profiles
+      const pubkeysToFetch = new Set<string>();
+      
+      // Add authors
+      events.forEach(event => {
+        if (event.pubkey && !combinedProfiles[event.pubkey]) {
+          pubkeysToFetch.add(event.pubkey);
+        }
+      });
+      
+      // Add reposters
+      Object.values(repostData).forEach(data => {
+        if (data.pubkey && !combinedProfiles[data.pubkey]) {
+          pubkeysToFetch.add(data.pubkey);
+        }
+      });
+      
+      if (pubkeysToFetch.size > 0) {
+        console.log(`[OptimizedFeedList] Fetching ${pubkeysToFetch.size} profiles`);
+        fetchProfiles(Array.from(pubkeysToFetch));
+      }
+    }
+  }, [events, repostData, combinedProfiles, fetchProfiles]);
+
   // Load more content when the load more element comes into view
-  React.useEffect(() => {
+  useEffect(() => {
     if (inView && hasMore && !loadMoreLoading) {
       onLoadMore();
     }
@@ -77,10 +113,11 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
             >
               <NoteCard 
                 event={event} 
-                profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+                profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
                 repostData={event.id && repostData[event.id] ? {
                   reposterPubkey: repostData[event.id].pubkey,
-                  reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+                  reposterProfile: repostData[event.id].pubkey ? 
+                    combinedProfiles[repostData[event.id].pubkey] : undefined
                 } : undefined}
               />
             </div>
