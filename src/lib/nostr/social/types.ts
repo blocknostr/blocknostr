@@ -9,6 +9,13 @@ export interface ContactList {
   pubkeys: string[];
   tags: string[][];
   content: string;
+  contacts?: ContactListItem[];
+}
+
+export interface ContactListItem {
+  pubkey: string;
+  relay?: string;
+  petname?: string;
 }
 
 export interface ReactionCounts {
@@ -17,7 +24,14 @@ export interface ReactionCounts {
   replies: number;
   zaps: number;
   zapAmount: number;
-  events: Record<string, NostrEvent[]>;
+  events?: Record<string, NostrEvent[]>;
+  // Additional properties for user interactions
+  userHasLiked?: boolean;
+  userHasReposted?: boolean;
+  userHasZapped?: boolean;
+  likers?: string[];
+  reposters?: string[];
+  zappers?: string[];
 }
 
 export interface ZapInfo {
@@ -30,7 +44,8 @@ export interface ZapInfo {
 
 export interface QuickReply {
   id: string;
-  content: string;
+  text: string;  // Changed from content to text
   category: string;
-  userCreated: boolean;
+  usageCount: number;
+  userCreated?: boolean;
 }

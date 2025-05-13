@@ -4,9 +4,9 @@ import { UserManager } from '../user';
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import { InteractionManager } from './interactions';
-import { ContactManager } from './contacts';
-import { MessageManager } from './messages';
+import { InteractionsManager } from './interactions';
+import { ContactsManager } from './contacts';
+import { MessagesManager } from './messages';
 
 /**
  * Social Manager class to handle all social interactions
@@ -16,16 +16,16 @@ import { MessageManager } from './messages';
 export class SocialManager {
   private eventManager: EventManager;
   private userManager: UserManager;
-  private interactionManager: InteractionManager;
-  private contactManager: ContactManager;
-  private messageManager: MessageManager;
+  private interactionManager: InteractionsManager;
+  private contactManager: ContactsManager;
+  private messageManager: MessagesManager;
   
   constructor(eventManager: EventManager, userManager: UserManager) {
     this.eventManager = eventManager;
     this.userManager = userManager;
-    this.interactionManager = new InteractionManager(this.eventManager);
-    this.contactManager = new ContactManager(this.userManager);
-    this.messageManager = new MessageManager(this.eventManager);
+    this.interactionManager = new InteractionsManager(this.eventManager, this.userManager);
+    this.contactManager = new ContactsManager(this.userManager);
+    this.messageManager = new MessagesManager(this.eventManager);
   }
   
   /**
@@ -46,7 +46,7 @@ export class SocialManager {
       
       if (success) {
         // Update local following list
-        this.userManager.addToFollowing(pubkeyToFollow);
+        this.userManager.addFollowing(pubkeyToFollow);
       }
       
       return success;
@@ -74,7 +74,7 @@ export class SocialManager {
       
       if (success) {
         // Update local following list
-        this.userManager.removeFromFollowing(pubkeyToUnfollow);
+        this.userManager.removeFollowing(pubkeyToUnfollow);
       }
       
       return success;
@@ -103,7 +103,7 @@ export class SocialManager {
     relays: string[] = []
   ): Promise<string | null> {
     // Forward to interaction manager
-    return this.interactionManager.reactToEvent(eventId, emoji, pubkey, privateKey);
+    return this.interactionManager.reactToEvent(pool, eventId, emoji, pubkey, privateKey, relays);
   }
   
   /**
@@ -127,7 +127,7 @@ export class SocialManager {
     relays: string[] = []
   ): Promise<string | null> {
     // Forward to interaction manager
-    return this.interactionManager.repostEvent(eventId, authorPubkey, relayHint);
+    return this.interactionManager.repostEvent(pool, eventId, authorPubkey, relayHint, pubkey, privateKey, relays);
   }
   
   /**
@@ -149,6 +149,6 @@ export class SocialManager {
     relays: string[] = []
   ): Promise<string | null> {
     // Forward to message manager
-    return this.messageManager.sendMessage(recipientPubkey, content);
+    return this.messageManager.sendDirectMessage(pool, recipientPubkey, content, senderPubkey, privateKey, relays);
   }
 }
