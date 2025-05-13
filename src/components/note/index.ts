@@ -1,3 +1,3 @@
 
-import NoteCard from './MemoizedNoteCard';
+import NoteCard from './card/NoteCard';
 export { NoteCard };
