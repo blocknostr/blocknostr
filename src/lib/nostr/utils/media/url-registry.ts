@@ -1,3 +1,4 @@
+
 import { normalizeUrl } from './media-validation';
 
 /**
@@ -11,6 +12,10 @@ const urlRegistry = new Map<string, 'media' | 'link' | 'text'>();
 
 // Keep track of registration counts to handle shared URLs
 const urlRegistrationCount = new Map<string, number>();
+
+// Dedicated image loading registry to track which component is handling loading
+// This prevents multiple components from trying to load the same image
+const imageLoadingRegistry = new Map<string, string>();
 
 export const UrlRegistry = {
   /**
@@ -58,6 +63,53 @@ export const UrlRegistry = {
         this.registerUrl(url, type);
       }
     });
+  },
+
+  /**
+   * Register an image URL as being actively loaded by a specific component instance
+   * Returns true if this is the first component to claim this image, false otherwise
+   */
+  claimImageLoad(url: string, componentId: string): boolean {
+    if (!url || typeof url !== 'string') return false;
+    
+    try {
+      const normalizedUrl = normalizeUrl(url);
+      
+      // If no component is currently loading this image, claim it
+      if (!imageLoadingRegistry.has(normalizedUrl)) {
+        imageLoadingRegistry.set(normalizedUrl, componentId);
+        return true;
+      }
+      
+      // If this component already claimed it, return true
+      if (imageLoadingRegistry.get(normalizedUrl) === componentId) {
+        return true;
+      }
+      
+      // Another component is loading this image
+      return false;
+    } catch (error) {
+      console.error('Error claiming image load in UrlRegistry:', url, error);
+      return false;
+    }
+  },
+  
+  /**
+   * Release an image URL from being loaded by a specific component instance
+   */
+  releaseImageLoad(url: string, componentId: string): void {
+    if (!url || typeof url !== 'string') return;
+    
+    try {
+      const normalizedUrl = normalizeUrl(url);
+      
+      // Only release if this component claimed it
+      if (imageLoadingRegistry.get(normalizedUrl) === componentId) {
+        imageLoadingRegistry.delete(normalizedUrl);
+      }
+    } catch (error) {
+      console.error('Error releasing image load in UrlRegistry:', url, error);
+    }
   },
 
   /**
@@ -136,6 +188,7 @@ export const UrlRegistry = {
       const normalizedUrl = normalizeUrl(url);
       urlRegistry.delete(normalizedUrl);
       urlRegistrationCount.delete(normalizedUrl);
+      imageLoadingRegistry.delete(normalizedUrl);
     } catch (error) {
       console.error('Error clearing URL from UrlRegistry:', url, error);
       urlRegistry.delete(url);
@@ -149,6 +202,7 @@ export const UrlRegistry = {
   clearAll(): void {
     urlRegistry.clear();
     urlRegistrationCount.clear();
+    imageLoadingRegistry.clear();
   },
 
   /**

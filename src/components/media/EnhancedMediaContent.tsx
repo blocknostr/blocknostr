@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useInView } from '../shared/useInView';
 import ImagePreview from './ImagePreview';
 import VideoPreview from './VideoPreview';
@@ -38,6 +38,9 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   autoPlayVideos = false,
   dataSaverMode = false
 }) => {
+  // Create a unique ID for this component instance
+  const componentId = useRef(`media-${Math.random().toString(36).substring(2, 15)}`);
+  
   // Normalize the URL to ensure consistent handling
   const normalizedUrl = React.useMemo(() => {
     try {
@@ -48,21 +51,38 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     }
   }, [url]);
   
-  // Register this URL with the registry
+  // Track if this component instance is the primary loader for this URL
+  const isPrimaryLoader = useRef(false);
+  
+  // Register this URL with the registry and determine if this instance should load the image
   useEffect(() => {
     try {
+      // Register the URL in the general registry
       UrlRegistry.registerUrl(normalizedUrl, 'media');
+      
+      // Claim this image load - only the first component to claim gets true
+      isPrimaryLoader.current = UrlRegistry.claimImageLoad(normalizedUrl, componentId.current);
+      
+      if (isPrimaryLoader.current) {
+        console.debug(`Component ${componentId.current.slice(0, 6)} is primary loader for:`, normalizedUrl);
+      } else {
+        console.debug(`Component ${componentId.current.slice(0, 6)} is secondary loader for:`, normalizedUrl);
+      }
     } catch (err) {
       console.error('Error registering URL in registry:', normalizedUrl, err);
     }
     
     // Cleanup on unmount
     return () => {
-      // Only clear if the component is unmounting and not just updating
-      if (!document.hidden) {
-        // We don't clear from registry on unmount because other components
-        // might still need to know this URL is being/was rendered
-        // Registry will be auto-cleared periodically instead
+      try {
+        // Release our claim to loading this image
+        UrlRegistry.releaseImageLoad(normalizedUrl, componentId.current);
+        // Only unregister if component is unmounting (not just updating)
+        if (!document.hidden) {
+          UrlRegistry.unregisterUrl(normalizedUrl);
+        }
+      } catch (err) {
+        console.error('Error cleaning up URL registry:', err);
       }
     };
   }, [normalizedUrl]);
@@ -72,8 +92,17 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   const [isLoaded, setIsLoaded] = useState(cachedState === 'success');
   const [error, setError] = useState(cachedState === 'error');
   const [retryCount, setRetryCount] = useState(0);
-  const [forceLoad, setForceLoad] = useState(false); // New state to handle manual loading
+  const [forceLoad, setForceLoad] = useState(false); // For manual loading
   const isLightbox = variant === 'lightbox';
+  
+  // Monitor the cache for changes
+  useEffect(() => {
+    // If we're not the primary loader, sync our state with the cache
+    if (!isPrimaryLoader.current && cachedState) {
+      setIsLoaded(cachedState === 'success');
+      setError(cachedState === 'error');
+    }
+  }, [cachedState]);
   
   // Detect media type
   const isVideo = React.useMemo(() => {
@@ -129,8 +158,9 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     setForceLoad(true);
   }, [normalizedUrl]);
 
-  // Only load media when in view, forced by user click, or if it's a lightbox
-  const shouldLoad = inView || isLightbox || forceLoad || dataSaverMode === false;
+  // Determine if media should load based on various factors
+  const shouldLoad = (isPrimaryLoader.current || isLightbox) && 
+                     (inView || isLightbox || forceLoad || dataSaverMode === false);
   
   // Handle media load event
   const handleLoad = () => {
@@ -148,13 +178,15 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   // Handle media error event
   const handleError = () => {
     setError(true);
-    // Update cache
-    try {
-      loadedMediaCache.set(normalizedUrl, 'error');
-    } catch (err) {
-      console.error('Error updating media cache on error:', err);
+    // Only update cache if we're the primary loader
+    if (isPrimaryLoader.current) {
+      try {
+        loadedMediaCache.set(normalizedUrl, 'error');
+      } catch (err) {
+        console.error('Error updating media cache on error:', err);
+      }
+      console.error(`Media failed to load: ${normalizedUrl}`);
     }
-    console.error(`Media failed to load: ${normalizedUrl}`);
     if (externalOnError) externalOnError();
   };
 
@@ -183,6 +215,65 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
         className
       )}>
         <MediaErrorState isVideo={isVideo} url={normalizedUrl} />
+      </div>
+    );
+  }
+  
+  // If we're not the primary loader and the media is already loaded successfully, 
+  // show a simplified version
+  if (!isPrimaryLoader.current && cachedState === 'success' && !isLightbox) {
+    return (
+      <div 
+        ref={ref} 
+        className={cn(
+          "relative overflow-hidden",
+          variant === 'inline' && "rounded-md border border-border/10",
+          className
+        )}
+      >
+        {isVideo ? (
+          <VideoPreview
+            url={normalizedUrl}
+            autoPlay={isLightbox && autoPlayVideos}
+            controls={isLightbox}
+            className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
+            // Don't attach load/error handlers for secondary instances
+            onLoadedData={() => {}}
+            onError={() => {}}
+          />
+        ) : (
+          <ImagePreview
+            url={normalizedUrl}
+            alt={alt || `Media ${index + 1} of ${totalItems}`}
+            onLoad={() => {}}
+            onError={() => {}}
+            className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
+            lazyLoad={!isLightbox && !dataSaverMode}
+            maxRetries={2}
+          />
+        )}
+      </div>
+    );
+  }
+  
+  // If we're not the primary loader and the media has an error, 
+  // show the error state directly
+  if (!isPrimaryLoader.current && cachedState === 'error' && !isLightbox) {
+    return (
+      <div 
+        ref={ref} 
+        className={cn(
+          "relative overflow-hidden",
+          variant === 'inline' && "rounded-md border border-border/10",
+          className
+        )}
+      >
+        <MediaErrorState 
+          isVideo={isVideo} 
+          url={normalizedUrl}
+          onRetry={handleRetry}
+          canRetry={retryCount < 2}
+        />
       </div>
     );
   }
