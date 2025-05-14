@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
@@ -11,6 +11,7 @@ interface UseGlobalFeedProps {
 export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [loadingMore, setLoadingMore] = useState(false);
   
   const { 
     events, 
@@ -23,11 +24,13 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   } = useFeedEvents({
     since,
     until,
-    activeHashtag
+    activeHashtag,
+    limit: 20 // Initial load of 20 posts
   });
   
-  const loadMoreEvents = () => {
+  const loadMoreEvents = useCallback(async () => {
     if (!subId) return;
+    setLoadingMore(true);
     
     // Close previous subscription
     if (subId) {
@@ -62,15 +65,24 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  };
+    
+    // Set loading more to false after a delay to allow for the new events to load
+    setTimeout(() => {
+      setLoadingMore(false);
+    }, 2000);
+  }, [subId, events, since, until, setupSubscription]);
   
   const {
     loadMoreRef,
     loading,
     setLoading,
     hasMore,
-    setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+    setHasMore,
+    loadingMore: scrollLoadingMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 400 // Increase threshold for earlier loading
+  });
 
   useEffect(() => {
     const initFeed = async () => {
@@ -113,11 +125,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     if (events.length > 0 && loading) {
       setLoading(false);
     }
-    
-    // If we've reached the limit, set hasMore to false
-    if (events.length >= 100) {
-      setHasMore(false);
-    }
   }, [events, loading]);
 
   return {
@@ -126,6 +133,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     repostData,
     loadMoreRef,
     loading,
-    hasMore
+    hasMore,
+    loadMoreEvents,
+    loadingMore: loadingMore || scrollLoadingMore
   };
 }

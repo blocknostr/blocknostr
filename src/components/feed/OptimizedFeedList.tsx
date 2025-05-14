@@ -1,9 +1,9 @@
 
 import React, { useRef, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "@/components/NoteCard";
+import NoteCard from "@/components/note/NoteCard";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Loader2 } from "lucide-react";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -85,22 +85,14 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         </React.Fragment>
       ))}
       
-      {/* Load More / Loader */}
+      {/* Auto-loading indicator - no more button */}
       {hasMore && (
         <div className="py-4 text-center" ref={lastRef}>
-          {loadMoreLoading ? (
-            <div className="text-sm text-muted-foreground">
+          {loadMoreLoading && (
+            <div className="flex items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Loading more posts...
             </div>
-          ) : (
-            <Button 
-              variant="outline" 
-              onClick={onLoadMore}
-              disabled={loading}
-              size="sm"
-            >
-              Load More
-            </Button>
           )}
         </div>
       )}

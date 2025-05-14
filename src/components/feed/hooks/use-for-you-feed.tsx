@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
@@ -12,6 +12,7 @@ interface UseForYouFeedProps {
 export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [loadingMore, setLoadingMore] = useState(false);
   
   const { 
     events, 
@@ -24,7 +25,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   } = useFeedEvents({
     since,
     until,
-    activeHashtag
+    activeHashtag,
+    limit: 20 // Initial load of 20 posts
   });
   
   // Track user interactions for personalized feed
@@ -121,8 +123,9 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     });
   };
   
-  const loadMoreEvents = () => {
+  const loadMoreEvents = useCallback(async () => {
     if (!subId) return;
+    setLoadingMore(true);
     
     // Close previous subscription
     if (subId) {
@@ -153,15 +156,24 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  };
+    
+    // Set loading more to false after a delay
+    setTimeout(() => {
+      setLoadingMore(false);
+    }, 2000);
+  }, [subId, since, until, events, setupSubscription]);
   
   const {
     loadMoreRef,
     loading,
     setLoading,
     hasMore,
-    setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+    setHasMore,
+    loadingMore: scrollLoadingMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 400 // Increase threshold for earlier loading
+  });
 
   useEffect(() => {
     const initFeed = async () => {
@@ -184,10 +196,6 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
       setLoading(false);
-      
-      toast("For You feed is personalized based on your interactions", {
-        description: "Keep interacting with content you enjoy for a better experience",
-      });
     };
     
     initFeed();
@@ -203,10 +211,6 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     if (events.length > 0 && loading) {
       setLoading(false);
     }
-    
-    if (events.length >= 100) {
-      setHasMore(false);
-    }
   }, [events, loading]);
 
   return {
@@ -216,6 +220,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     loadMoreRef,
     loading,
     hasMore,
-    recordInteraction
+    loadMoreEvents,
+    recordInteraction,
+    loadingMore: loadingMore || scrollLoadingMore
   };
 }

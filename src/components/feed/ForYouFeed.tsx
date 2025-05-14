@@ -16,7 +16,10 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
     repostData,
     loadMoreRef,
     loading,
-    recordInteraction
+    recordInteraction,
+    hasMore,
+    loadMoreEvents,
+    loadingMore
   } = useForYouFeed({ activeHashtag });
 
   // Record view interactions for displayed events
@@ -46,7 +49,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
     );
   }
 
-  // Show events list
+  // Show events list with auto-loading functionality
   return (
     <FeedList 
       events={events}
@@ -54,6 +57,9 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
       repostData={repostData}
       loadMoreRef={loadMoreRef}
       loading={loading}
+      onLoadMore={loadMoreEvents}
+      hasMore={hasMore}
+      loadMoreLoading={loadingMore}
     />
   );
 };

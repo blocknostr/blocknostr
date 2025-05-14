@@ -9,22 +9,36 @@ type UseInfiniteScrollOptions = {
 
 export const useInfiniteScroll = (
   onLoadMore: () => void,
-  { threshold = 200, initialLoad = true, disabled = false }: UseInfiniteScrollOptions = {}
+  { threshold = 400, initialLoad = true, disabled = false }: UseInfiniteScrollOptions = {}
 ) => {
   const [loading, setLoading] = useState(initialLoad);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Track if we're currently fetching more items
+  const isFetchingRef = useRef(false);
 
   const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
+    async (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
-      if (target.isIntersecting && hasMore && !loading && !disabled) {
-        setLoading(true);
-        onLoadMore();
+      if (target.isIntersecting && hasMore && !disabled && !isFetchingRef.current) {
+        isFetchingRef.current = true;
+        setLoadingMore(true);
+        
+        try {
+          await onLoadMore();
+        } finally {
+          // Reset the fetching flag after a short delay to prevent multiple rapid triggers
+          setTimeout(() => {
+            isFetchingRef.current = false;
+            setLoadingMore(false);
+          }, 500);
+        }
       }
     },
-    [onLoadMore, hasMore, loading, disabled]
+    [onLoadMore, hasMore, disabled]
   );
 
   useEffect(() => {
@@ -61,5 +75,6 @@ export const useInfiniteScroll = (
     setLoading,
     hasMore,
     setHasMore,
+    loadingMore,
   };
 };

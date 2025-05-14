@@ -66,7 +66,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
         <FeedEmptyState following={following} loading={loading} activeHashtag={activeHashtag} />
       )}
 
-      {/* Show events list */}
+      {/* Show events list with auto-loading functionality */}
       {events.length > 0 && (
         <FeedList 
           events={events}

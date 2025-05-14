@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useCallback } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
@@ -15,7 +15,9 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     repostData,
     loadMoreRef,
     loading,
-    hasMore
+    hasMore,
+    loadMoreEvents,
+    loadingMore
   } = useGlobalFeed({ activeHashtag });
 
   // Show loading state when no events and loading
@@ -43,6 +45,9 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
       repostData={repostData}
       loadMoreRef={loadMoreRef}
       loading={loading}
+      onLoadMore={loadMoreEvents}
+      hasMore={hasMore}
+      loadMoreLoading={loadingMore}
     />
   );
 };
