@@ -64,7 +64,7 @@ BlockNostr is the first to combine **Nostr’s censorship-resistant protocol** w
 
 #### Our Vision
 
-A global, interoperable social platform uniting users across multiple layer-1 blockchains, each with tailored layouts and smart contracts. Messages incur minimal fees (~$0.01 plus native gas fees), aggregated into a unified, seamless Web3 communication network. BlockNostr is a **social experiment**, a **blockchain stress test**, and a **layer-1 throughput race**—shaping the future of decentralized ecosystems.
+A global, interoperable social platform uniting users across multiple layer-1 blockchains, each with tailored layouts and smart contracts. BlockNostr is a **social experiment**, a **blockchain stress test**, and a **layer-1 throughput race**—shaping the future of decentralized ecosystems.
 
 #### Core Principles
 
@@ -80,7 +80,7 @@ BlockNostr’s modular, dual-blockchain architecture integrates **Nostr**, **Ale
 
 #### Dual-Blockchain Design
 
-1. **Polygon**: Powers **ZKP KYC** for identity verification and regulatory compliance, ensuring user privacy.
+1. **Polygon**/Google wallet: Powers **ZKP KYC** for identity verification and regulatory compliance, ensuring user privacy.
 2. **Alephium**: Drives **secure, scalable DeFi interactions** with robust smart contract capabilities.
 
 #### Benefits
@@ -89,7 +89,7 @@ BlockNostr’s modular, dual-blockchain architecture integrates **Nostr**, **Ale
 - **DeFi Programmability**: Flexible smart contracts enable user-driven financial solutions.
 - **Scalability**: Alephium’s sharding and lightweight design enhance performance.
 - **User Privacy**: ZKP and modular separation safeguard sensitive data.
-- **Compliance**: Polygon’s identity verification aligns with global regulations.
+- **Compliance**: Zero-knowledge proof identity verification aligns with global regulations.
 
 #### Future-Proof Modularity
 
@@ -107,17 +107,16 @@ BlockNostr leverages **Nostr’s decentralized relays** for non-critical events 
 
 **Deliverables**:
 
-- Nostr powered by Alephium Wallet.
-- DAO creation with intuitive, Communities-like UX.
+- Fully functional Nostr Client.
+- DAO creation with Communities Page (NIP 72 - Moderated Communities )
 - DAO proposals and voting.
 - One-click relay/node deployment (Azure).
 - End-to-end encrypted messaging (NIP-04, NIP-44).
 - Data aggregation tool (CoinGecko/CMC).
 - Portfolio manager with Alephium Wallet (Schnorr Signatures).
-- Early moderation via community reporting.
-- Proposed ZKP KYC (Polygon ID, manual fallback).
-- DAO Multisig Wallet.
-- Partial open-source release.
+- Proposed ZKP KYC (Polygon ID or Google Wallet ZKP, manual fallback).
+- DAO Multisig Wallet Creation (Toolkit)
+- Full open-source release.
 
 #### Phase 2: Open Beta (The Everything dApp)
 
@@ -125,12 +124,12 @@ BlockNostr leverages **Nostr’s decentralized relays** for non-critical events 
 
 **Deliverables**:
 
-- Games marketplace with KYC verification.
-- Decentralized marketplace.
+- Games marketplace with ZKP KYC verification to further boost the economy.
+- Decentralized marketplaces.
 - DeFi features (lending, Alephium dApps APIs, e.g., Linx Labs’ Smart Swap).
 - World Chat.
 - Crowdfunding platform.
-- Partial open-source release.
+- Full open-source release.
 
 #### Phase 3: Mature Ecosystem, Fully Decentralized
 
@@ -142,17 +141,13 @@ BlockNostr leverages **Nostr’s decentralized relays** for non-critical events 
 - AI integration and mobile apps.
 - BlockMail (Flutter-based secure messaging).
 - IPO/ICO and full open-source release.
-- Multi-chain support for ecosystem continuity.
+- Multi-chain support for ecosystem continuity. (Can work in parallel on phase 1 and 2)
+- Sprints for peer audits and web2/web3 audits.
+- Full open-source reslease
+- Decompiler
 
 ---
 
 ### Conclusion
 
-BlockNostr is more than a platform—it’s a movement to redefine Web3 social ecosystems. By merging **Nostr’s open protocol** with **Alephium’s scalable blockchain**, BlockNostr empowers users with **autonomy**, **security**, and **innovation**. From simplified onboarding to trustless DeFi and interoperable communication, BlockNostr is paving the way for a decentralized future. Join us in shaping the next era of Web3.
-
----
-
-### References
-
-[1] User studies on decentralized platform UX preferences.  
-[2] Decentralized moderation best practices and regulatory frameworks.
+BlockNostr is a movement to redefine Web3 social ecosystems. By merging **Nostr’s open protocol** with **Alephium’s scalable blockchain**, BlockNostr empowers users with **autonomy**, **security**, and **innovation**. From simplified onboarding to trustless DeFi and interoperable communication, BlockNostr is paving the way for a decentralized future. Join us in shaping the next era of Web3.
