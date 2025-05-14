@@ -1,3 +1,4 @@
+
 import { useRef } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { PostsSubscriptionOptions } from './types';
@@ -38,7 +39,7 @@ export function usePostsSubscription() {
           timeoutRef.current = null;
         }, 10000); // 10 second timeout (was 30s)
         
-        // Subscribe to events
+        // Subscribe to events - Make sure we have the right parameter order
         const subId = nostrService.subscribe(
           filters,
           (event) => {
@@ -51,6 +52,8 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
+          // Pass options as the fourth parameter after an array of relay URLs
+          undefined, // Using default relays
           {
             ttl: 20000, // 20-second subscription
             isRenewable: false,
