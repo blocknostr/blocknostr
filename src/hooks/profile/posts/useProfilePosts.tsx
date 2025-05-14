@@ -8,8 +8,9 @@ import { UseProfilePostsProps, UseProfilePostsReturn } from './types';
 
 export function useProfilePosts({ 
   hexPubkey, 
-  limit = 50 
-}: UseProfilePostsProps): UseProfilePostsReturn {
+  limit = 50,
+  componentId // New parameter for component tracking
+}: UseProfilePostsProps & { componentId?: string }): UseProfilePostsReturn {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [media, setMedia] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,6 +69,7 @@ export function useProfilePosts({
         // Subscribe to posts and set up event handling
         const unsubscribe = subscribe(hexPubkey, {
           limit,
+          componentId, // Pass component ID for tracking
           onEvent: (event, isMediaEvent) => {
             if (!isMounted.current) return;
             
@@ -128,7 +130,7 @@ export function useProfilePosts({
       if (unsubscribe) unsubscribe();
       cleanup();
     };
-  }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
+  }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length, componentId]);
 
   const refetch = () => {
     if (hexPubkey) {

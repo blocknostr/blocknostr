@@ -10,6 +10,8 @@ import ProfileHeader from '@/components/profile/ProfileHeader';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 import ProfileTabs from '@/components/profile/ProfileTabs';
+import { useComponentSubscriptions } from '@/hooks/useComponentSubscriptions';
+import { ConnectionPool } from '@/lib/nostr/relay/connection-pool';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -17,6 +19,7 @@ const ProfilePage = () => {
   const [minLoadingTimeMet, setMinLoadingTimeMet] = useState(false);
   const { profile, loading: profileLoading, error: profileError } = useBasicProfile(npub);
   const { profiles, fetchProfile } = useUnifiedProfileFetcher();
+  const { componentId, registerCleanup } = useComponentSubscriptions();
   
   // Get the current user's pubkey
   const currentUserPubkey = nostrService.publicKey;
@@ -37,12 +40,35 @@ const ProfilePage = () => {
     // Set minimum loading time for better UX
     const minLoadingTimer = setTimeout(() => {
       setMinLoadingTimeMet(true);
-    }, 6000); // 6 second minimum loading time
+    }, 3000); // Reduced from 6s to 3s for better UX
     
+    // Clean up resources when unmounting
     return () => {
       clearTimeout(minLoadingTimer);
     };
   }, [npub, fetchProfile]);
+  
+  // Ensure relay connections are managed properly
+  useEffect(() => {
+    // Get the connection pool instance
+    const connectionPool = ConnectionPool.getInstance();
+    
+    // Connect to default relays to ensure we have at least some connections
+    connectionPool.connectToRelays([
+      "wss://relay.damus.io", 
+      "wss://nos.lol", 
+      "wss://relay.nostr.band"
+    ]).catch(err => {
+      console.error("Failed to connect to default relays:", err);
+    });
+    
+    // On cleanup, no need to disconnect - connection pool handles this globally
+    
+    // Register a cleanup function
+    registerCleanup(() => {
+      console.log("Profile page cleanup complete");
+    });
+  }, [registerCleanup]);
   
   // Determine if this is the current user's profile
   const isCurrentUser = currentUserPubkey === hexPubkey;
@@ -57,7 +83,8 @@ const ProfilePage = () => {
     hasEvents
   } = useProfilePosts({ 
     hexPubkey,
-    limit: 5 // Only load first 5 posts initially
+    limit: 5, // Only load first 5 posts initially
+    componentId // Pass component ID for subscription tracking
   });
   
   // Use true lazy loading for relations/followers data - only trigger after basic profile is ready
@@ -68,7 +95,8 @@ const ProfilePage = () => {
     refetch: refetchRelations
   } = useProfileRelations({
     hexPubkey,
-    isCurrentUser
+    isCurrentUser,
+    componentId // Pass component ID for subscription tracking
   });
   
   const {
@@ -77,7 +105,8 @@ const ProfilePage = () => {
     refetch: refetchRelays
   } = useProfileRelays({
     hexPubkey,
-    isCurrentUser
+    isCurrentUser,
+    componentId // Pass component ID for subscription tracking
   });
   
   // Track individual loading states for stats
