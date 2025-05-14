@@ -44,10 +44,23 @@ const ProfileTabs = ({
     repliesLoading,
     repostsLoading,
     reactionsLoading,
+    repliesLoadingMore,
+    repostsLoadingMore,
+    reactionsLoadingMore,
+    repliesHasMore,
+    repostsHasMore,
+    reactionsHasMore,
     loadingReactionProfiles,
     tabReposts,
     tabReferencedEvents,
-    localOriginalPostProfiles
+    localOriginalPostProfiles,
+    postsLoadMoreRef,
+    mediaLoadMoreRef,
+    repliesLoadMoreRef,
+    repostsLoadMoreRef,
+    likesLoadMoreRef,
+    postsHasMore,
+    mediaHasMore
   } = useProfileTabsData({
     events,
     media,
@@ -80,6 +93,8 @@ const ProfileTabs = ({
           <PostsTab 
             displayedPosts={displayedPosts} 
             profileData={profileData} 
+            hasMore={postsHasMore}
+            loadMoreRef={postsLoadMoreRef}
           />
         </TabsContent>
         
@@ -87,8 +102,11 @@ const ProfileTabs = ({
         <TabsContent value="replies" className="mt-4">
           <RepliesTab 
             loading={repliesLoading}
+            loadingMore={repliesLoadingMore}
+            hasMore={repliesHasMore}
             displayedReplies={displayedReplies}
             profileData={profileData}
+            loadMoreRef={repliesLoadMoreRef}
           />
         </TabsContent>
 
@@ -96,28 +114,38 @@ const ProfileTabs = ({
         <TabsContent value="reposts" className="mt-4">
           <RepostsTab 
             loading={repostsLoading}
+            loadingMore={repostsLoadingMore}
+            hasMore={repostsHasMore}
             reposts={tabReposts.length > 0 ? tabReposts : reposts}
             postsLimit={postsLimit}
             profileData={profileData}
             originalPostProfiles={localOriginalPostProfiles}
+            loadMoreRef={repostsLoadMoreRef}
           />
         </TabsContent>
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          <MediaTab displayedMedia={displayedMedia} />
+          <MediaTab 
+            displayedMedia={displayedMedia} 
+            hasMore={mediaHasMore}
+            loadMoreRef={mediaLoadMoreRef}
+          />
         </TabsContent>
         
         {/* Likes Tab */}
         <TabsContent value="likes" className="mt-4">
           <LikesTab 
             loading={reactionsLoading}
+            loadingMore={reactionsLoadingMore}
+            hasMore={reactionsHasMore}
             loadingProfiles={loadingReactionProfiles}
             displayedReactions={displayedReactions}
             referencedEvents={tabReferencedEvents && Object.keys(tabReferencedEvents).length > 0 
               ? tabReferencedEvents 
               : referencedEvents || {}}
             profiles={profiles}
+            loadMoreRef={likesLoadMoreRef}
           />
         </TabsContent>
       </Tabs>

@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 type UseInfiniteScrollOptions = {
   threshold?: number;
   initialLoad?: boolean;
+  disabled?: boolean;
 };
 
 export const useInfiniteScroll = (
   onLoadMore: () => void,
-  { threshold = 200, initialLoad = true }: UseInfiniteScrollOptions = {}
+  { threshold = 200, initialLoad = true, disabled = false }: UseInfiniteScrollOptions = {}
 ) => {
   const [loading, setLoading] = useState(initialLoad);
   const [hasMore, setHasMore] = useState(true);
@@ -18,12 +19,12 @@ export const useInfiniteScroll = (
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
-      if (target.isIntersecting && hasMore && !loading) {
+      if (target.isIntersecting && hasMore && !loading && !disabled) {
         setLoading(true);
         onLoadMore();
       }
     },
-    [onLoadMore, hasMore, loading]
+    [onLoadMore, hasMore, loading, disabled]
   );
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export const useInfiniteScroll = (
 
     observer.current = new IntersectionObserver(handleObserver, options);
 
-    if (loadMoreRef.current) {
+    if (loadMoreRef.current && !disabled) {
       observer.current.observe(loadMoreRef.current);
     }
 
@@ -44,15 +45,15 @@ export const useInfiniteScroll = (
         observer.current.disconnect();
       }
     };
-  }, [handleObserver, threshold]);
+  }, [handleObserver, threshold, disabled]);
 
   // This is the function we're returning, which should match FeedList's prop type
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
     loadMoreRef.current = node;
-    if (node && observer.current) {
+    if (node && observer.current && !disabled) {
       observer.current.observe(node);
     }
-  }, []);
+  }, [disabled]);
 
   return {
     loadMoreRef: setLoadMoreRef,

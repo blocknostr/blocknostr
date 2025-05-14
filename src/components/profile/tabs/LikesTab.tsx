@@ -6,20 +6,26 @@ import { Loader2 } from "lucide-react";
 
 interface LikesTabProps {
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   loadingProfiles: boolean;
   displayedReactions: NostrEvent[];
   referencedEvents: Record<string, any>;
   profiles: Record<string, any>;
+  loadMoreRef?: (node: HTMLDivElement | null) => void;
 }
 
 export const LikesTab: React.FC<LikesTabProps> = ({ 
   loading, 
+  loadingMore = false,
+  hasMore = false,
   loadingProfiles,
   displayedReactions, 
   referencedEvents,
-  profiles
+  profiles,
+  loadMoreRef
 }) => {
-  if (loading) {
+  if (loading && (!displayedReactions || displayedReactions.length === 0)) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -76,6 +82,23 @@ export const LikesTab: React.FC<LikesTabProps> = ({
           />
         );
       }).filter(Boolean)}
+      
+      {/* Infinite scroll loader */}
+      {hasMore && (
+        <div 
+          ref={loadMoreRef} 
+          className="py-4 flex justify-center"
+        >
+          {loadingMore ? (
+            <div className="flex items-center">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading more likes...</span>
+            </div>
+          ) : (
+            <div className="h-8" /> {/* Spacer for intersection observer */}
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import { useProfileFetcher } from "@/components/feed/hooks/use-profile-fetcher";
 import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
 import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
 interface UseProfileTabsDataProps {
   events: NostrEvent[];
@@ -38,37 +39,51 @@ export function useProfileTabsData({
   // State for displayed posts (with pagination)
   const [displayedPosts, setDisplayedPosts] = useState<NostrEvent[]>([]);
   const [displayedMedia, setDisplayedMedia] = useState<NostrEvent[]>([]);
-  const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
-  const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
-
-  // Tab-specific data loading hooks
+  
+  // Tab-specific data loading hooks with progressive loading
   const { 
     replies: tabReplies, 
-    loading: repliesLoading 
+    loading: repliesLoading,
+    loadingMore: repliesLoadingMore,
+    hasMore: repliesHasMore,
+    loadMore: loadMoreReplies 
   } = useProfileReplies({ 
     hexPubkey, 
-    enabled: activeTab === "replies" 
+    enabled: activeTab === "replies", 
+    initialLimit: 10
   });
   
   const { 
     reactions: tabReactions, 
     referencedEvents: tabReferencedEvents, 
-    loading: reactionsLoading 
+    loading: reactionsLoading,
+    loadingMore: reactionsLoadingMore,
+    hasMore: reactionsHasMore,
+    loadMore: loadMoreReactions
   } = useProfileLikes({ 
     hexPubkey, 
-    enabled: activeTab === "likes" 
+    enabled: activeTab === "likes",
+    initialLimit: 10
   });
   
   // Properly use the hook at the component level
   const {
     reposts: tabReposts,
-    loading: repostsLoading
+    loading: repostsLoading,
+    loadingMore: repostsLoadingMore,
+    hasMore: repostsHasMore,
+    loadMore: loadMoreReposts
   } = useProfileReposts({
     hexPubkey,
     originalPostProfiles: localOriginalPostProfiles,
     setOriginalPostProfiles: setLocalOriginalPostProfiles,
-    enabled: activeTab === "reposts"
+    enabled: activeTab === "reposts",
+    initialLimit: 10
   });
+  
+  // State for displayed replies and reactions
+  const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
+  const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
   
   // Handle tab change
   const handleTabChange = (value: string) => {
@@ -76,36 +91,93 @@ export function useProfileTabsData({
     setPostsLimit(10); // Reset pagination when changing tabs
   };
   
-  // Load more posts when scrolling
-  const loadMorePosts = () => {
+  // Load more handler for posts tab
+  const loadMorePosts = useCallback(() => {
     setPostsLimit(prev => prev + 10);
-  };
+  }, []);
+  
+  // Set up infinite scroll for posts tab
+  const {
+    loadMoreRef: postsLoadMoreRef,
+    loading: postsLoading,
+    setLoading: setPostsLoading,
+    hasMore: postsHasMore,
+    setHasMore: setPostsHasMore
+  } = useInfiniteScroll(loadMorePosts, { 
+    disabled: activeTab !== "posts" || events.length <= postsLimit
+  });
+  
+  // Set up infinite scroll for media tab
+  const loadMoreMedia = useCallback(() => {
+    setPostsLimit(prev => prev + 10);
+  }, []);
+  
+  const {
+    loadMoreRef: mediaLoadMoreRef,
+    hasMore: mediaHasMore,
+    setHasMore: setMediaHasMore
+  } = useInfiniteScroll(loadMoreMedia, { 
+    disabled: activeTab !== "media" || media.length <= postsLimit
+  });
+  
+  // Set up infinite scroll for replies tab
+  const {
+    loadMoreRef: repliesLoadMoreRef
+  } = useInfiniteScroll(loadMoreReplies, { 
+    disabled: activeTab !== "replies" || !repliesHasMore || repliesLoadingMore
+  });
+  
+  // Set up infinite scroll for reposts tab
+  const {
+    loadMoreRef: repostsLoadMoreRef
+  } = useInfiniteScroll(loadMoreReposts, { 
+    disabled: activeTab !== "reposts" || !repostsHasMore || repostsLoadingMore
+  });
+  
+  // Set up infinite scroll for likes tab
+  const {
+    loadMoreRef: likesLoadMoreRef
+  } = useInfiniteScroll(loadMoreReactions, { 
+    disabled: activeTab !== "likes" || !reactionsHasMore || reactionsLoadingMore
+  });
   
   // Update displayed posts based on limit
   useEffect(() => {
-    setDisplayedPosts(events.slice(0, postsLimit));
-  }, [events, postsLimit]);
+    const slicedPosts = events.slice(0, postsLimit);
+    setDisplayedPosts(slicedPosts);
+    
+    // Update hasMore state
+    if (activeTab === "posts") {
+      setPostsHasMore(slicedPosts.length < events.length);
+    }
+  }, [events, postsLimit, activeTab]);
   
   // Update displayed media based on limit
   useEffect(() => {
-    setDisplayedMedia(media.slice(0, postsLimit));
-  }, [media, postsLimit]);
+    const slicedMedia = media.slice(0, postsLimit);
+    setDisplayedMedia(slicedMedia);
+    
+    // Update hasMore state
+    if (activeTab === "media") {
+      setMediaHasMore(slicedMedia.length < media.length);
+    }
+  }, [media, postsLimit, activeTab]);
   
-  // Update displayed replies based on limit
+  // Update displayed replies based on the tab replies
   useEffect(() => {
     if (activeTab === "replies") {
       const repliesData = tabReplies.length > 0 ? tabReplies : replies;
-      setDisplayedReplies(repliesData.slice(0, postsLimit));
+      setDisplayedReplies(repliesData);
     }
-  }, [activeTab, tabReplies, replies, postsLimit]);
+  }, [activeTab, tabReplies, replies]);
   
-  // Update displayed reactions based on limit
+  // Update displayed reactions based on tab reactions
   useEffect(() => {
     if (activeTab === "likes") {
       const reactionsData = tabReactions.length > 0 ? tabReactions : reactions || [];
-      setDisplayedReactions(reactionsData.slice(0, postsLimit));
+      setDisplayedReactions(reactionsData);
     }
-  }, [activeTab, tabReactions, reactions, postsLimit]);
+  }, [activeTab, tabReactions, reactions]);
   
   // Fetch profiles for reaction posts when likes tab is active
   useEffect(() => {
@@ -147,23 +219,6 @@ export function useProfileTabsData({
     
     fetchReactionProfiles();
   }, [activeTab, tabReferencedEvents, fetchProfileData]);
-  
-  // Detect when we're near the bottom to load more
-  const handleScroll = () => {
-    const scrollPosition = window.innerHeight + document.documentElement.scrollTop;
-    const scrollHeight = document.documentElement.scrollHeight;
-    const scrollThreshold = scrollHeight - 300;
-    
-    if (scrollPosition > scrollThreshold) {
-      loadMorePosts();
-    }
-  };
-  
-  // Add scroll listener
-  useEffect(() => {
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   return {
     activeTab,
@@ -177,10 +232,23 @@ export function useProfileTabsData({
     repliesLoading,
     repostsLoading,
     reactionsLoading,
+    repliesLoadingMore,
+    repostsLoadingMore,
+    reactionsLoadingMore,
+    repliesHasMore,
+    repostsHasMore,
+    reactionsHasMore,
     loadingReactionProfiles,
     tabReposts,
     tabReferencedEvents,
     localOriginalPostProfiles,
-    referencedEvents
+    referencedEvents,
+    postsLoadMoreRef,
+    mediaLoadMoreRef,
+    repliesLoadMoreRef,
+    repostsLoadMoreRef,
+    likesLoadMoreRef,
+    postsHasMore,
+    mediaHasMore
   };
 }

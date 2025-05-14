@@ -11,20 +11,26 @@ interface RepostData {
 
 interface RepostsTabProps {
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   reposts: RepostData[];
   postsLimit: number;
   profileData: any;
   originalPostProfiles: Record<string, any>;
+  loadMoreRef?: (node: HTMLDivElement | null) => void;
 }
 
 export const RepostsTab: React.FC<RepostsTabProps> = ({ 
   loading, 
+  loadingMore = false,
+  hasMore = false,
   reposts, 
   postsLimit,
   profileData,
-  originalPostProfiles
+  originalPostProfiles,
+  loadMoreRef
 }) => {
-  if (loading) {
+  if (loading && (!reposts || reposts.length === 0)) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -59,6 +65,23 @@ export const RepostsTab: React.FC<RepostsTabProps> = ({
           }}
         />
       ))}
+      
+      {/* Infinite scroll loader */}
+      {hasMore && (
+        <div 
+          ref={loadMoreRef} 
+          className="py-4 flex justify-center"
+        >
+          {loadingMore ? (
+            <div className="flex items-center">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <span className="text-sm text-muted-foreground">Loading more reposts...</span>
+            </div>
+          ) : (
+            <div className="h-8" /> {/* Spacer for intersection observer */}
+          )}
+        </div>
+      )}
     </div>
   );
 };
