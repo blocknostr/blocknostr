@@ -13,7 +13,7 @@ export const useProfileFetcher = () => {
     if (!pubkey || profiles[pubkey]) return;
 
     try {
-      const metadata = await chatNostrService.getProfile(pubkey);
+      const metadata = await chatNostrService.getUserProfile(pubkey);
       if (metadata) {
         setProfiles(prev => ({
           ...prev,

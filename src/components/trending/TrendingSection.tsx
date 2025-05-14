@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { TrendingTopicsList } from './TrendingTopicsList';
+import TrendingTopicsList from './TrendingTopicsList';
 import { useTrendingTopicsData } from './hooks/useTrendingTopicsData';
-import { TrendingFilters } from './TrendingFilters';
+import TrendingFilters from './TrendingFilters';
 
 interface TrendingSectionProps {
   onTopicClick?: (topic: string) => void;
@@ -16,12 +16,17 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
   onClearHashtag
 }) => {
   const {
-    topics,
-    isLoading,
-    selectedTime,
-    setSelectedTime,
-    selectedFilter,
-    setSelectedFilter
+    trendingTopics,
+    activeFilter,
+    timeRange,
+    setActiveFilter,
+    setTimeRange,
+    isFilterOpen,
+    setIsFilterOpen,
+    filterOptions,
+    timeOptions,
+    currentFilter,
+    currentTime
   } = useTrendingTopicsData();
 
   return (
@@ -31,18 +36,13 @@ const TrendingSection: React.FC<TrendingSectionProps> = ({
       </div>
       
       <TrendingFilters 
-        selectedTime={selectedTime}
-        onTimeChange={setSelectedTime}
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
+        currentFilter={currentFilter}
+        currentTime={currentTime}
       />
       
       <TrendingTopicsList 
-        topics={topics}
-        isLoading={isLoading}
+        topics={trendingTopics}
         onTopicClick={onTopicClick}
-        activeHashtag={activeHashtag}
-        onClearHashtag={onClearHashtag}
       />
     </div>
   );
