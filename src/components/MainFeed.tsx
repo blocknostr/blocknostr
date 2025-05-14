@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
@@ -78,21 +79,20 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
 
   return (
     <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
-      {/* Fixed header container for both CreateNoteForm and Tabs */}
-      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md pb-1 shadow-sm">
-        {/* Offline banner */}
-        {isOffline && (
-          <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
-            <span>You're currently offline. Viewing cached content.</span>
-          </div>
-        )}
-        
-        {/* Create Note Form */}
-        <div className="mb-4 pt-4 px-2 sm:px-0">
-          <CreateNoteForm />
+      {/* Offline banner */}
+      {isOffline && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
+          <span>You're currently offline. Viewing cached content.</span>
         </div>
-        
-        {/* Tabs navigation */}
+      )}
+      
+      {/* Create Note Form - No longer in sticky container */}
+      <div className="mb-4 px-2 sm:px-0 pt-2">
+        <CreateNoteForm />
+      </div>
+      
+      {/* Tabs navigation - Still sticky */}
+      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md">
         <div className={cn(
           "border-b border-border/50",
           scrolledDown ? "shadow-sm" : ""
@@ -131,12 +131,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       </div>
       
-      {/* Connection Status Banner - Below the fixed header */}
-      <div className="pt-4">
+      {/* Connection Status Banner */}
+      <div className="pt-2">
         {isLoggedIn && <ConnectionStatusBanner />}
       </div>
       
-      {/* Feed content that will scroll under the fixed header */}
+      {/* Feed content */}
       <div className="mt-2 space-y-4">
         <Tabs 
           value={activeTab} 
