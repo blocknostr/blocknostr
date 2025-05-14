@@ -72,6 +72,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   const [isLoaded, setIsLoaded] = useState(cachedState === 'success');
   const [error, setError] = useState(cachedState === 'error');
   const [retryCount, setRetryCount] = useState(0);
+  const [forceLoad, setForceLoad] = useState(false); // New state to handle manual loading
   const isLightbox = variant === 'lightbox';
   
   // Detect media type
@@ -122,8 +123,14 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     skip: isLightbox // Skip for lightboxes, always load
   });
 
-  // Only load media when in view or if it's a lightbox
-  const shouldLoad = inView || isLightbox;
+  // Handle click on placeholder to force load media
+  const handlePlaceholderClick = useCallback(() => {
+    console.log('Media placeholder clicked, forcing load:', normalizedUrl);
+    setForceLoad(true);
+  }, [normalizedUrl]);
+
+  // Only load media when in view, forced by user click, or if it's a lightbox
+  const shouldLoad = inView || isLightbox || forceLoad || dataSaverMode === false;
   
   // Handle media load event
   const handleLoad = () => {
@@ -223,7 +230,13 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
           )}
         </>
       ) : (
-        <div className="bg-muted/30 animate-pulse flex items-center justify-center h-40 w-full">
+        <div 
+          className="bg-muted/30 animate-pulse flex items-center justify-center h-40 w-full cursor-pointer hover:bg-muted/40 transition-colors"
+          onClick={handlePlaceholderClick}
+          role="button"
+          tabIndex={0}
+          aria-label="Tap to load media"
+        >
           <p className="text-xs text-muted-foreground">Tap to load media</p>
         </div>
       )}
