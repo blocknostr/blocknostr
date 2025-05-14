@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -124,7 +123,7 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   };
   
   const loadMoreEvents = useCallback(async () => {
-    if (!subId) return;
+    if (!subId || loadingMore) return;
     setLoadingMore(true);
     
     // Close previous subscription
@@ -139,7 +138,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
+      const newSince = newUntil - 48 * 60 * 60;
       
       setSince(newSince);
       setUntil(newUntil);
@@ -148,7 +148,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setSubId(newSubId);
     } else {
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60;
+      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
+      const newSince = newUntil - 48 * 60 * 60;
       
       setSince(newSince);
       setUntil(newUntil);
@@ -157,11 +158,11 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setSubId(newSubId);
     }
     
-    // Set loading more to false after a delay
+    // Set loading more to false after a shorter delay
     setTimeout(() => {
       setLoadingMore(false);
-    }, 2000);
-  }, [subId, since, until, events, setupSubscription]);
+    }, 1500); // Reduced from 2000ms to 1500ms
+  }, [subId, since, until, events, setupSubscription, loadingMore]);
   
   const {
     loadMoreRef,
@@ -172,7 +173,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
-    threshold: 400 // Increase threshold for earlier loading
+    threshold: 800, // Increased from 400 to 800 for earlier loading
+    aggressiveness: 'high' // Set to high for the most aggressive loading
   });
 
   useEffect(() => {

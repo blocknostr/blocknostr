@@ -2,8 +2,7 @@
 import React, { useRef, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -27,6 +26,32 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
+  
+  // Add early loading triggers at multiple points in the feed
+  const earlyTriggerRefs = useRef<Array<HTMLDivElement | null>>([]);
+  
+  useEffect(() => {
+    // Set up early loading triggers
+    const earlyTriggerObserver = new IntersectionObserver(
+      (entries) => {
+        // If any early trigger becomes visible and we're not already loading
+        if (entries.some(entry => entry.isIntersecting) && hasMore && !loadMoreLoading && onLoadMore) {
+          console.log("[OptimizedFeedList] Early loading trigger activated");
+          onLoadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '0px 0px 1500px 0px' }  // Very large bottom margin for early detection
+    );
+    
+    // Observe early trigger refs
+    earlyTriggerRefs.current.forEach(ref => {
+      if (ref) earlyTriggerObserver.observe(ref);
+    });
+    
+    return () => {
+      earlyTriggerObserver.disconnect();
+    };
+  }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
   
   useEffect(() => {
     // Check how many profiles we're missing
@@ -54,25 +79,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     }
   }, [events, profiles]);
   
+  // Calculate positions for early triggers
+  const earlyTriggerPositions = events.length > 10 ? [
+    Math.floor(events.length * 0.5),  // Halfway through the list
+    Math.floor(events.length * 0.75), // Three quarters through the list
+  ] : [];
+  
   return (
     <div className="space-y-4">
-      {/* Refresh button - only shows if onRefresh function is provided */}
-      {onRefresh && (
-        <div className="flex justify-center py-2">
-          <Button 
-            variant="outline" 
-            onClick={onRefresh}
-            size="sm"
-            className="text-xs"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Refresh Feed
-          </Button>
-        </div>
-      )}
-      
       {/* Render all events as note cards */}
-      {events.map((event) => (
+      {events.map((event, index) => (
         <React.Fragment key={event.id}>
           <NoteCard 
             event={event} 
@@ -82,6 +98,14 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
               reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
             } : undefined}
           />
+          
+          {/* Add early loading triggers at specific positions */}
+          {earlyTriggerPositions.includes(index) && (
+            <div 
+              ref={el => earlyTriggerRefs.current[earlyTriggerPositions.indexOf(index)] = el}
+              className="h-0 w-full" /* Invisible trigger element */
+            />
+          )}
         </React.Fragment>
       ))}
       
