@@ -144,10 +144,10 @@ const WorldChat = () => {
       )}
       
       {connectionStatus === 'connecting' && (
-        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-2 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
+        <Alert variant="warning" className="w-auto mx-2 mt-1 mb-0 py-1 px-3 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
           <div className="flex items-center gap-2">
-            <RefreshCw className="h-3.5 w-3.5 animate-spin text-yellow-600 dark:text-yellow-400" />
-            <AlertDescription className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
+            <RefreshCw className="h-3 w-3 animate-spin text-yellow-600 dark:text-yellow-400" />
+            <AlertDescription className="text-xs font-medium text-yellow-700 dark:text-yellow-300 whitespace-nowrap">
               Connecting to chat relays...
             </AlertDescription>
           </div>
