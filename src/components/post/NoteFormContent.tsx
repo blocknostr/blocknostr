@@ -1,7 +1,6 @@
 
 import React from 'react';
 import NoteComposer from './NoteComposer';
-import MediaPreviewList from './MediaPreviewList';
 import ScheduledIndicator from './ScheduledIndicator';
 import SmartComposeToolbar from './SmartComposeToolbar';
 import NoteFormFooter from './NoteFormFooter';
@@ -11,13 +10,10 @@ interface NoteFormContentProps {
   content: string;
   setContent: (content: string) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement>;
-  mediaUrls: string[];
-  removeMedia: (url: string) => void;
   handleHashtagClick: (tag: string) => void;
   detectedHashtags: string[];
   scheduledDate: Date | null;
   setScheduledDate: (date: Date | null) => void;
-  handleMediaAdded: (url: string) => void;
   charsLeft: number;
   isNearLimit: boolean;
   isOverLimit: boolean;
@@ -29,13 +25,10 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
   content,
   setContent,
   textareaRef,
-  mediaUrls,
-  removeMedia,
   handleHashtagClick,
   detectedHashtags,
   scheduledDate,
   setScheduledDate,
-  handleMediaAdded,
   charsLeft,
   isNearLimit,
   isOverLimit,
@@ -73,17 +66,13 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
         )}
       </div>
       
-      <MediaPreviewList mediaUrls={mediaUrls} removeMedia={removeMedia} />
-      
       <div className={cn(
-        "border-t mt-2 pt-2 border-border/50",
-        mediaUrls.length > 0 ? "mt-1" : "mt-2"
+        "border-t mt-2 pt-2 border-border/50"
       )}>
         <NoteFormFooter
           textareaRef={textareaRef}
           content={content}
           setContent={setContent}
-          onMediaAdded={handleMediaAdded}
           scheduledDate={scheduledDate}
           setScheduledDate={setScheduledDate}
           charsLeft={charsLeft}

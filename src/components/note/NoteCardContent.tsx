@@ -3,11 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
-import EnhancedMediaContent from '../media/EnhancedMediaContent';
-import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
-import { getMediaUrlsFromEvent, getLinkPreviewUrlsFromEvent } from '@/lib/nostr/utils';
 
 interface NoteCardContentProps {
   content?: string;
@@ -49,28 +46,30 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags - limit to 2 for simplicity
-  const mediaUrls = useMemo(() => {
-    if (!event && !contentToUse) return [];
-    
-    const extractedUrls = getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-    return extractedUrls.slice(0, 2); // Limit to 2 media items for basic display
-  }, [contentToUse, tagsToUse, event]);
-  
-  // Extract link preview URLs - limit to 1 for simplicity
-  const linkPreviewUrls = useMemo(() => {
-    if (!event && !contentToUse) return [];
-    
-    const extractedUrls = getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-    return extractedUrls.slice(0, 1); // Limit to 1 link preview for basic display
-  }, [contentToUse, tagsToUse, event]);
-  
   // Handle hashtag click
   const handleHashtagClick = (e: React.MouseEvent, tag: string) => {
     e.stopPropagation();
     // Dispatch custom event to be caught by parent components
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
+  
+  // Extract image URLs - simple, NIP-compliant approach
+  const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+    const content = contentToUse;
+    
+    // Simple regex to find image URLs
+    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
+    let match;
+    
+    while ((match = imgRegex.exec(content)) !== null) {
+      if (match[0]) {
+        urls.push(match[0]);
+      }
+    }
+    
+    return urls;
+  }, [contentToUse]);
   
   return (
     <div className="mt-2">
@@ -93,29 +92,22 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Media preview section - simplified */}
-      {mediaUrls.length > 0 && (
+      {/* Simple image rendering */}
+      {imageUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
-          mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
+          imageUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
         )}>
-          {mediaUrls.map((url, index) => (
-            <EnhancedMediaContent 
-              key={`${url}-${index}`}
-              url={url}
-              alt={`Post media ${index + 1}`}
-              index={index}
-              totalItems={mediaUrls.length}
-              variant="inline"
-            />
+          {imageUrls.slice(0, 4).map((url, index) => (
+            <div key={`${index}`} className="relative aspect-square overflow-hidden rounded-md border border-border/10">
+              <img 
+                src={url} 
+                alt="Media content" 
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
           ))}
-        </div>
-      )}
-      
-      {/* Link preview section - simplified */}
-      {linkPreviewUrls.length > 0 && (
-        <div className="mt-3">
-          <LinkPreview url={linkPreviewUrls[0]} />
         </div>
       )}
       

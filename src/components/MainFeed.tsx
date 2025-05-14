@@ -5,9 +5,8 @@ import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
 import GlobalFeed from "./feed/GlobalFeed";
 import ForYouFeed from "./feed/ForYouFeed";
-import MediaFeed from "./feed/MediaFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Image } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -73,8 +72,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   // Handler for tab changes that ensures we only set valid FeedType values
   const handleTabChange = (value: string) => {
     // Ensure the value is a valid FeedType before setting it
-    if (value === 'global' || value === 'following' || value === 'for-you' || value === 'media') {
-      setActiveTab(value);
+    if (value === 'global' || value === 'following' || value === 'for-you') {
+      setActiveTab(value as FeedType);
     }
   };
 
@@ -106,7 +105,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           >
             <TabsList className={cn(
               "w-full",
-              isMobile ? "grid grid-cols-5" : "flex"
+              isMobile ? "grid grid-cols-4" : "flex"
             )}>
               <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
               <TabsTrigger 
@@ -118,10 +117,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
               </TabsTrigger>
               <TabsTrigger value="for-you" className="flex-1">
                 For You
-              </TabsTrigger>
-              <TabsTrigger value="media" className="flex-1">
-                <Image className="h-4 w-4 mr-1" />
-                Media
               </TabsTrigger>
               <Button 
                 variant="ghost" 
@@ -165,10 +160,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           
           <TabsContent value="for-you">
             <ForYouFeed activeHashtag={activeHashtag} />
-          </TabsContent>
-          
-          <TabsContent value="media">
-            <MediaFeed activeHashtag={activeHashtag} />
           </TabsContent>
         </Tabs>
       </div>
