@@ -57,7 +57,7 @@ const LikesTab: React.FC<LikesTabProps> = ({
       )}
 
       <div ref={loadMoreRef} className="py-2 text-center">
-        {loadMoreLoading ? (
+        {loadingMore ? (
           <div className="flex items-center justify-center py-4">
             <span className="text-sm text-muted-foreground">Loading more likes...</span>
           </div>
