@@ -5,17 +5,18 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { nostrService } from '@/lib/nostr';
 import FollowButton from '@/components/FollowButton';
-import EditProfileDialog from './edit-profile/EditProfileDialog';
+import { EditProfileDialog } from './edit-profile/EditProfileDialog';
 import type { NostrProfileMetadata } from '@/lib/nostr/types';
 
 interface ProfileHeaderProps {
   profile: NostrProfileMetadata | null;
   npub: string;
   hexPubkey: string;
-  isCurrentUser: boolean; // <-- Add this prop
+  isCurrentUser: boolean;
+  onEditProfile: () => void; // <-- Add a prop to control the EditProfileDialog visibility and pass the pubkey
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey, isCurrentUser }) => {
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey, isCurrentUser, onEditProfile }) => {
   const name = profile?.name || npub;
   const displayName = profile?.display_name || name;
   const picture = profile?.picture || '';
@@ -23,7 +24,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey,
   const about = profile?.about || '';
   const nip05 = profile?.nip05 || '';
   const website = profile?.website || '';
-  const created_at = profile?._event?.created_at;
+  // Access _event safely and then created_at
+  const created_at = profile && profile._event && typeof profile._event === 'object' && 'created_at' in profile._event ? profile._event.created_at as number : undefined;
 
   // Get the first character of the display name for the avatar fallback
   const avatarFallback = displayName ? displayName.charAt(0).toUpperCase() : 'N';
@@ -63,7 +65,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey,
           {/* Action buttons */}
           <div className="mt-4 flex space-x-2">
             {isCurrentUser ? (
-              <EditProfileDialog profile={profile} />
+              // Pass onEditProfile to the Button's onClick handler
+              <Button variant="outline" onClick={onEditProfile}>Edit Profile</Button>
             ) : (
               <FollowButton pubkey={hexPubkey} variant="default" />
             )}

@@ -1,89 +1,64 @@
+import { useUserProfiles } from '@/hooks/queries/useProfileQueries';
+import type { NostrProfileMetadata } from '@/lib/nostr';
 
-import * as React from "react";
-import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
-
-export function useProfileFetcher() {
-  const [profiles, setProfiles] = React.useState<Record<string, any>>({});
-  const [fetchErrors, setFetchErrors] = React.useState<Record<string, string>>({});
-  
-  const fetchProfileData = React.useCallback(async (pubkey: string) => {
-    if (!pubkey) {
-      console.warn("[useProfileFetcher] No pubkey provided");
-      return;
-    }
-    
-    if (profiles[pubkey]) {
-      console.log(`[useProfileFetcher] Profile already loaded for ${pubkey.substring(0, 8)}`);
-      return;
-    }
-    
-    console.log(`[useProfileFetcher] Fetching profile for ${pubkey.substring(0, 8)}`);
-    
-    try {
-      // Use our unified profile service
-      const data = await unifiedProfileService.getProfile(pubkey);
-      
-      if (data) {
-        console.log(`[useProfileFetcher] Profile loaded for ${pubkey.substring(0, 8)}: ${data.name || data.display_name || 'No name'}`);
-        
-        setProfiles(prev => ({
-          ...prev,
-          [pubkey]: data
-        }));
-        
-        // Clear any previous errors
-        if (fetchErrors[pubkey]) {
-          setFetchErrors(prev => {
-            const newErrors = {...prev};
-            delete newErrors[pubkey];
-            return newErrors;
-          });
-        }
-      } else {
-        console.warn(`[useProfileFetcher] No profile data returned for ${pubkey.substring(0, 8)}`);
-        setFetchErrors(prev => ({
-          ...prev,
-          [pubkey]: "No profile data found"
-        }));
-      }
-    } catch (error) {
-      console.error(`[useProfileFetcher] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
-      setFetchErrors(prev => ({
-        ...prev,
-        [pubkey]: error instanceof Error ? error.message : "Unknown error"
-      }));
-    }
-  }, [profiles, fetchErrors]);
-  
-  // Subscribe to profile updates from the unified service
-  React.useEffect(() => {
-    const eventHandlers: (() => void)[] = [];
-    
-    // Get all pubkeys we're tracking
-    const trackedPubkeys = Object.keys(profiles);
-    
-    trackedPubkeys.forEach(pubkey => {
-      const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
-        console.log(`[useProfileFetcher] Profile update received for ${pubkey.substring(0, 8)}`, profile?.name || profile?.display_name);
-        
-        setProfiles(prev => ({
-          ...prev,
-          [pubkey]: profile
-        }));
-      });
-      
-      eventHandlers.push(unsubscribe);
-    });
-    
-    return () => {
-      // Cleanup all subscriptions
-      eventHandlers.forEach(unsubscribe => unsubscribe());
-    };
-  }, [profiles]);
-  
-  return {
-    profiles,
-    fetchProfileData,
-    fetchErrors
-  };
+interface UseProfileFetcherProps {
+  pubkeys: string[];
 }
+
+interface UseProfileFetcherReturn {
+  profiles: Record<string, NostrProfileMetadata | null | undefined>;
+  isLoading: boolean;
+}
+
+export const useProfileFetcher = ({
+  pubkeys,
+}: UseProfileFetcherProps): UseProfileFetcherReturn => {
+  const uniquePubkeys = pubkeys ? [...new Set(pubkeys)].filter(Boolean) : [];
+
+  // The order of results corresponds to the order of uniquePubkeys
+  const results = useUserProfiles(uniquePubkeys, {
+    // Queries will be enabled if uniquePubkeys has items, and then individually based on each pubkey's validity
+    enabled: uniquePubkeys.length > 0,
+  });
+
+  let isLoadingOverall = false;
+  const profilesMap: Record<string, NostrProfileMetadata | null | undefined> = {}; // Corrected type
+
+  results.forEach((result, index) => {
+    const currentPubkey = uniquePubkeys[index]; // Get pubkey by index
+
+    if (result.isLoading) {
+      isLoadingOverall = true;
+    }
+
+    if (currentPubkey) {
+      if (result.isSuccess) {
+        // result.data is NostrProfileMetadata | null
+        profilesMap[currentPubkey] = result.data;
+      } else if (result.isError) {
+        profilesMap[currentPubkey] = null; // Explicitly set to null on error
+        console.error(
+          `[useProfileFetcher] Error fetching profile for ${currentPubkey}:`,
+          result.error
+        );
+      } else if (!result.isLoading) {
+        // Query is not loading, not success, not error (e.g., idle/disabled).
+        // Ensure it has an entry if we expect one and it hasn't been set.
+        if (!(currentPubkey in profilesMap)) {
+          profilesMap[currentPubkey] = undefined;
+        }
+      }
+    }
+  });
+
+  // Ensure all originally requested uniquePubkeys have an entry in the profilesMap.
+  uniquePubkeys.forEach((pubkey) => {
+    if (!(pubkey in profilesMap)) {
+      // This case handles pubkeys for which queries might not have run or resolved,
+      // or if the pubkey was somehow not processed in the loop above.
+      profilesMap[pubkey] = undefined;
+    }
+  });
+
+  return { profiles: profilesMap, isLoading: isLoadingOverall };
+};

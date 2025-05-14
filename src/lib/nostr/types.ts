@@ -1,4 +1,3 @@
-
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -32,7 +31,8 @@ export interface NostrProfileMetadata {
   nip05?: string;
   lud16?: string;
   website?: string;
-  [key: string]: any;
+  created_at?: number; // Explicitly define created_at as number
+  [key: string]: unknown; // Changed from any to unknown
 }
 
 export type NostrFilter = {
@@ -45,7 +45,7 @@ export type NostrFilter = {
   since?: number;
   until?: number;
   limit?: number;
-  [key: string]: any;
+  [key: string]: unknown; // Changed from any to unknown
 };
 
 export interface NostrSubscription {

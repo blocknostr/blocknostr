@@ -1,70 +1,44 @@
-
 import * as React from "react";
 import { nostrService } from "@/lib/nostr";
+import { useUserProfile } from "@/hooks/queries/useProfileQueries"; // Import the new hook
 
 export function useSidebarProfile() {
-  const isLoggedIn = !!nostrService.publicKey;
-  const [userProfile, setUserProfile] = React.useState<{
-    name?: string;
-    display_name?: string;
-    picture?: string;
-    nip05?: string;
-    about?: string;
-    created_at?: number;
-  }>({});
-  const [isLoading, setIsLoading] = React.useState(false);
-  
-  // Force profile refresh when route changes, user logs in, or after 30 seconds
-  React.useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (isLoggedIn && nostrService.publicKey) {
-        try {
-          setIsLoading(true);
-          
-          // Make sure we're connected to relays
-          await nostrService.connectToUserRelays();
-          
-          const profile = await nostrService.getUserProfile(nostrService.publicKey);
-          
-          if (profile) {
-            // Get account creation date if not already in profile
-            let creationDate = profile._event?.created_at || profile.created_at;
-            if (!creationDate) {
-              try {
-                // Direct call to the getAccountCreationDate method instead of using getProfileService()
-                const date = await nostrService.getAccountCreationDate(nostrService.publicKey);
-                if (date) {
-                  creationDate = date;
-                }
-              } catch (e) {
-                console.warn("Could not fetch account creation date:", e);
-              }
-            }
-            
-            setUserProfile({
-              name: profile.name,
-              display_name: profile.display_name,
-              picture: profile.picture,
-              nip05: profile.nip05,
-              about: profile.about,
-              created_at: creationDate
-            });
-          }
-        } catch (error) {
-          console.error("Failed to fetch user profile:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
+  const currentPubkey = nostrService.publicKey;
+  const isLoggedIn = !!currentPubkey;
+
+  // Use the React Query hook to fetch the profile
+  // Enable the query only if the user is logged in (currentPubkey is not null)
+  const {
+    data: profileData,
+    isLoading,
+    error
+  } = useUserProfile(currentPubkey, { enabled: isLoggedIn });
+
+  // Transform the profileData to the structure expected by components using this hook
+  const userProfile = React.useMemo(() => {
+    if (!profileData) return {};
+    // Safely access _event and then created_at, providing a fallback to profileData.created_at if _event is not as expected.
+    const createdAt = profileData._event && typeof profileData._event === 'object' && 'created_at' in profileData._event
+      ? profileData._event.created_at as number
+      : profileData.created_at;
+    return {
+      name: profileData.name,
+      display_name: profileData.display_name,
+      picture: profileData.picture,
+      nip05: profileData.nip05,
+      about: profileData.about,
+      created_at: createdAt,
     };
-    
-    fetchUserProfile();
-    
-    // Set up an interval to periodically refresh the profile
-    const intervalId = setInterval(fetchUserProfile, 30000);
-    
-    return () => clearInterval(intervalId);
-  }, [isLoggedIn]);
-  
+  }, [profileData]);
+
+  if (error) {
+    console.error("Failed to fetch user profile for sidebar:", error);
+  }
+
+  // The useEffect for fetching and the interval are no longer needed,
+  // React Query handles caching, background updates, and refetching.
+  // The nostrService.connectToUserRelays() call has been removed as it's
+  // a connection concern, not a data-fetching one for this specific hook.
+
   return { isLoggedIn, userProfile, isLoading };
 }

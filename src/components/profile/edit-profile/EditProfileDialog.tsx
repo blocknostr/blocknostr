@@ -7,119 +7,137 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { ProfileFormValues } from './types';
-import { nostrService } from '@/lib/nostr/service';
+import { nostrService } from '@/lib/nostr/service'; // Keep for currentPubkey, can be refactored later if app state provides it
 import type { NostrProfileMetadata } from '@/lib/nostr';
-import { toast } from 'sonner';
+import { toast } from 'sonner'; // Changed from "@/hooks/use-toast"
+import { useUserProfile, useUpdateUserProfile } from '@/hooks/queries/useProfileQueries';
+import { useQueryClient } from '@tanstack/react-query';
+import { profileQueryKeys } from '@/hooks/queries/useProfileQueries';
 
 interface EditProfileDialogProps {
-    profile: NostrProfileMetadata | null;
+    isOpen: boolean;
+    onClose: () => void;
+    profilePubkey: string;
 }
 
-const EditProfileDialog = ({ profile }: EditProfileDialogProps) => {
-    // Uncontrolled dialog
-    const defaultUsername = profile?.nip05?.split('@')[0] || '';
-    const { register, handleSubmit, formState: { isSubmitting, errors }, reset, watch } = useForm<ProfileFormValues>({
-        defaultValues: {
-            name: profile?.name,
-            displayName: profile?.display_name,
-            bio: profile?.about,
-            website: profile?.website,
-            nip05: defaultUsername,
-            picture: profile?.picture,
-            banner: profile?.banner,
-            lud16: profile?.lud16,
-        }
-    });
+export function EditProfileDialog({
+    isOpen,
+    onClose,
+    profilePubkey,
+}: EditProfileDialogProps) {
+    const queryClient = useQueryClient();
+    const { data: userProfile, isLoading: isLoadingProfile, error: profileError } = useUserProfile(profilePubkey);
+    const { mutate: updateUserProfile, isPending: isSaving } = useUpdateUserProfile(profilePubkey);
 
-    // Reset form when profile metadata loads or changes
+    const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<ProfileFormValues>();
+
     useEffect(() => {
-        if (profile) {
-            console.log('[EditProfileDialog] Profile prop received:', JSON.stringify(profile, null, 2));
-            const defaultUsername = profile.nip05?.split('@')[0] || '';
+        if (userProfile) {
             reset({
-                name: profile.name,
-                displayName: profile.display_name,
-                bio: profile.about,
-                website: profile.website,
-                nip05: defaultUsername,
-                picture: profile.picture,
-                banner: profile.banner,
-                lud16: profile.lud16,
+                name: userProfile.name,
+                displayName: userProfile.display_name,
+                bio: userProfile.about,
+                website: userProfile.website,
+                nip05: userProfile.nip05?.split('@')[0] || '',
+                picture: userProfile.picture,
+                banner: userProfile.banner,
+                lud16: userProfile.lud16,
             });
-        } else {
-            console.warn('[EditProfileDialog] Profile prop is null or undefined');
         }
-    }, [profile, reset]);
+    }, [userProfile, reset]);
 
-    // Watch fields for live previews
     const pictureUrl = watch('picture');
     const bannerUrl = watch('banner');
 
-    const currentPubkey = nostrService.publicKey;
-    const profilePubkey = profile && typeof profile === 'object' && 'pubkey' in profile ? (profile as { pubkey: string }).pubkey : '';
-    const canEdit = currentPubkey && profilePubkey && currentPubkey === profilePubkey;
+    const canEdit = nostrService.publicKey && profilePubkey && nostrService.publicKey === profilePubkey;
 
-    console.log('[EditProfileDialog] currentPubkey:', currentPubkey);
-    console.log('[EditProfileDialog] profilePubkey derived:', profilePubkey);
-    console.log('[EditProfileDialog] canEdit:', canEdit);
+    const onSubmit = (values: ProfileFormValues) => {
+        if (!userProfile) {
+            toast.error("Profile data not loaded yet. Please try again.");
+            return;
+        }
 
-    // Add detailed logging to debug why editing is blocked
-    console.log('[EditProfileDialog] Debugging canEdit logic:', {
-        currentPubkey,
-        profilePubkey,
-        canEdit,
-        profile,
-    });
+        const metadataToUpdate: NostrProfileMetadata = {};
+
+        if (values.name !== undefined) metadataToUpdate.name = values.name;
+        if (values.displayName !== undefined) metadataToUpdate.display_name = values.displayName;
+        if (values.bio !== undefined) metadataToUpdate.about = values.bio;
+        if (values.website !== undefined) metadataToUpdate.website = values.website;
+        if (values.picture !== undefined) metadataToUpdate.picture = values.picture;
+        if (values.banner !== undefined) metadataToUpdate.banner = values.banner;
+        if (values.lud16 !== undefined) metadataToUpdate.lud16 = values.lud16;
+
+        if (values.nip05 && values.nip05.trim() !== "") {
+            metadataToUpdate.nip05 = `${values.nip05.trim()}@blocknostr.com`;
+        } else {
+            // Send undefined to clear the NIP-05 identifier
+            metadataToUpdate.nip05 = undefined;
+        }
+
+        // Add other custom fields if they exist and are defined
+        if (values.username !== undefined) metadataToUpdate.username = values.username;
+        if (values.twitter !== undefined) metadataToUpdate.twitter = values.twitter;
+        if (values.tweetUrl !== undefined) metadataToUpdate.tweetUrl = values.tweetUrl;
+
+        updateUserProfile(metadataToUpdate, {
+            onSuccess: () => {
+                toast('Profile Updated', {
+                    description: 'Your profile has been successfully updated.',
+                });
+                queryClient.invalidateQueries({ queryKey: profileQueryKeys.detail(profilePubkey) });
+                onClose?.();
+            },
+            onError: (error: Error) => { // Added type for error
+                toast.error('Update Failed', {
+                    description: error.message || 'Could not update profile.',
+                });
+            },
+        });
+    };
 
     const handleClearCacheAndReload = () => {
-        localStorage.clear();
-        sessionStorage.clear();
-        toast.info("Cache cleared. Reloading page...");
-        window.location.reload();
+        queryClient.invalidateQueries({ queryKey: profileQueryKeys.detail(profilePubkey) })
+            .then(() => {
+                toast('Cache Cleared', {
+                    description: 'Profile cache has been cleared and data reloaded.',
+                });
+            })
+            .catch((error: Error) => {
+                toast.error('Error Clearing Cache', {
+                    description: error.message || 'Could not clear cache.',
+                });
+            });
     };
 
-    const onSubmit = async (values: ProfileFormValues) => {
-        // Construct full NIP-05 identifier with our domain
-        const fullNip05 = values.nip05 ? `${values.nip05}@blocknostr.com` : '';
-        const metadata: NostrProfileMetadata = {
-            name: values.name,
-            display_name: values.displayName,
-            about: values.bio,
-            picture: values.picture,
-            banner: values.banner,
-            website: values.website,
-            nip05: fullNip05,
-            lud16: values.lud16,
-        };
-        const success = await nostrService.publishProfileMetadata(metadata);
-        if (success) {
-            toast.success('Profile updated');
-            window.location.reload();
-        } else {
-            toast.error('Failed to update profile');
-        }
-    };
+    // Corrected: use isLoadingProfile and profileError
+    if (isLoadingProfile) return <DialogDescription>Loading profile...</DialogDescription>;
+    if (profileError) return <DialogDescription>Error loading profile: {profileError.message}</DialogDescription>;
+    // Ensure userProfile exists before trying to render the form, even if not loading and no error
+    if (!userProfile && !isLoadingProfile && !profileError) {
+        return <DialogDescription>Profile data is not available. It might be a new or empty profile.</DialogDescription>;
+    }
+
 
     return (
-        <Dialog>
+        <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogTrigger asChild>
-                <Button variant="outline">Edit Profile</Button>
+                <Button variant="outline" disabled={!canEdit}>Edit Profile</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
-                <DialogDescription>
-                    Edit your profile including name, display name, bio, website, NIP-05 username (blocknostr.com), Lightning address, avatar, and banner.
-                </DialogDescription>
                 <DialogHeader>
                     <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogDescription>
+                        Edit your profile including name, display name, bio, website, NIP-05 username (blocknostr.com), Lightning address, avatar, and banner.
+                    </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" id="edit-profile-form">
                     {/* Show warning if not owner */}
                     {!canEdit && profilePubkey && (
                         <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
                             <p className="font-bold">Ownership Mismatch!</p>
                             <p>You are not the owner of this profile. Please switch to the correct account to edit.</p>
                             <p className="mt-2 text-xs">
-                                Current active public key (first 10 chars): <code>{currentPubkey?.substring(0, 10)}...</code><br />
+                                Current active public key (first 10 chars): <code>{nostrService.publicKey?.substring(0, 10)}...</code><br />
                                 Profile's public key (first 10 chars): <code>{profilePubkey?.substring(0, 10)}...</code>
                             </p>
                             <p className="mt-2 text-xs">
@@ -136,7 +154,7 @@ const EditProfileDialog = ({ profile }: EditProfileDialogProps) => {
                             </Button>
                         </div>
                     )}
-                    {!canEdit && !profilePubkey && profile && (
+                    {!canEdit && !profilePubkey && userProfile && (
                         <div className="p-4 mb-4 text-sm text-yellow-700 bg-yellow-100 rounded-lg" role="alert">
                             <p className="font-bold">Profile data incomplete</p>
                             <p>The public key for this profile is not available, so ownership cannot be verified. Editing is disabled.</p>
@@ -155,7 +173,7 @@ const EditProfileDialog = ({ profile }: EditProfileDialogProps) => {
                         </div>
                     )}
 
-                    <fieldset disabled={!canEdit} className="space-y-6">
+                    <fieldset disabled={!canEdit || isSaving} className="space-y-6">
                         {/* Live previews */}
                         {bannerUrl && (
                             <div className="h-24 w-full bg-cover bg-center rounded" style={{ backgroundImage: `url(${bannerUrl})` }} />
@@ -318,16 +336,16 @@ const EditProfileDialog = ({ profile }: EditProfileDialogProps) => {
                             </div>
                         </div>
                     </fieldset>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button variant="outline" type="button" className="mr-2">Cancel</Button>
-                        </DialogClose>
-                        <Button type="submit" disabled={isSubmitting || !canEdit}>Save Profile</Button>
-                    </DialogFooter>
                 </form>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button variant="outline" onClick={onClose}>Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" form="edit-profile-form" disabled={!canEdit || isSaving}>
+                        {isSaving ? 'Saving...' : 'Save Profile'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
-};
-
-export default EditProfileDialog;
+}

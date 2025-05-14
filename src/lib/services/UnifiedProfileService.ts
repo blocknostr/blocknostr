@@ -14,7 +14,8 @@ export interface CachedUserProfile extends NostrProfileMetadata {
  */
 class UnifiedProfileService {
   private profileCache: Map<string, CachedUserProfile> = new Map();
-  private fetchingProfiles: Set<string> = new Set();
+  // private fetchingProfiles: Set<string> = new Set(); // Replaced
+  private ongoingFetches: Map<string, Promise<CachedUserProfile | null>> = new Map(); // Added
   private prefetchQueue: string[] = []; // Changed from Set to array
   private retryQueue: Map<string, { attempts: number, lastTry: number }> = new Map();
   private maxRetryAttempts = 3;
@@ -35,69 +36,73 @@ class UnifiedProfileService {
   async getProfile(pubkey: string, options: { force?: boolean } = {}): Promise<CachedUserProfile | null> {
     if (!pubkey) return null;
 
-    console.log(`[UnifiedProfileService] getProfile requested for ${pubkey.substring(0, 8)}...`);
+    // console.log(`[UnifiedProfileService] getProfile requested for ${pubkey.substring(0, 8)}...`); // Commented out for reduced verbosity
 
     // Check cache first (if not forcing refresh)
     if (!options.force && this.profileCache.has(pubkey)) {
-      console.log(`[UnifiedProfileService] Profile cache hit for ${pubkey.substring(0, 8)}...`);
-      return this.profileCache.get(pubkey);
+      // console.log(`[UnifiedProfileService] Profile cache hit for ${pubkey.substring(0, 8)}...`); // Commented out
+      return this.profileCache.get(pubkey)!;
     }
 
-    // Check if already fetching this profile
-    if (this.fetchingProfiles.has(pubkey)) {
-      console.log(`[UnifiedProfileService] Already fetching profile ${pubkey.substring(0, 8)}...`);
-      return null; // Return null and let the subscription system handle updates
+    // Check if already fetching this profile (use ongoingFetches)
+    if (this.ongoingFetches.has(pubkey)) {
+      console.log(`[UnifiedProfileService] Profile fetch already in progress for ${pubkey.substring(0, 8)}..., returning existing promise`);
+      return this.ongoingFetches.get(pubkey)!;
     }
 
     // Cache check with cache manager
     const cachedProfile = cacheManager.get(`profile:${pubkey}`) as CachedUserProfile | undefined;
     if (!options.force && cachedProfile) {
-      console.log(`[UnifiedProfileService] CacheManager hit for ${pubkey.substring(0, 8)}...`);
+      // console.log(`[UnifiedProfileService] CacheManager hit for ${pubkey.substring(0, 8)}...`); // Commented out
       this.profileCache.set(pubkey, cachedProfile);
       return cachedProfile;
     }
 
-    // Mark as fetching
-    this.fetchingProfiles.add(pubkey);
+    // Mark as fetching by creating a promise and storing it
+    const fetchPromise = (async (): Promise<CachedUserProfile | null> => {
+      try {
+        // Fetch from network
+        console.log(`[UnifiedProfileService] Fetching profile for ${pubkey.substring(0, 8)}... (new fetch)`);
+        const metadata = await nostrService.getUserProfile(pubkey); // metadata is the content of kind 0
 
-    try {
-      // Fetch from network
-      console.log(`[UnifiedProfileService] Fetching profile for ${pubkey.substring(0, 8)}...`);
-      const metadata = await nostrService.getUserProfile(pubkey); // metadata is the content of kind 0
+        if (metadata) {
+          console.log(`[UnifiedProfileService] Profile fetched successfully for ${pubkey.substring(0, 8)}`,
+            metadata.name || metadata.display_name || 'No name');
 
-      if (metadata) {
-        console.log(`[UnifiedProfileService] Profile fetched successfully for ${pubkey.substring(0, 8)}`,
-          metadata.name || metadata.display_name || 'No name');
+          const profileWithPubkey: CachedUserProfile = { ...metadata, pubkey: pubkey }; // Add pubkey to the object
 
-        const profileWithPubkey: CachedUserProfile = { ...metadata, pubkey: pubkey }; // Add pubkey to the object
+          // Update cache
+          this.profileCache.set(pubkey, profileWithPubkey);
+          cacheManager.set(`profile:${pubkey}`, profileWithPubkey, 5 * 60 * 1000); // 5 minutes
 
-        // Update cache
-        this.profileCache.set(pubkey, profileWithPubkey);
-        cacheManager.set(`profile:${pubkey}`, profileWithPubkey, 5 * 60 * 1000); // 5 minutes
+          // Remove from retry queue if it was there
+          this.retryQueue.delete(pubkey);
 
-        // Remove from retry queue if it was there
-        this.retryQueue.delete(pubkey);
+          // Emit event for listeners with debouncing
+          this.debouncedEmitProfileUpdate(pubkey, profileWithPubkey);
 
-        // Emit event for listeners with debouncing
-        this.debouncedEmitProfileUpdate(pubkey, profileWithPubkey);
+          // Add related profiles to prefetch queue
+          this.queueRelatedProfiles(profileWithPubkey);
 
-        // Add related profiles to prefetch queue
-        this.queueRelatedProfiles(profileWithPubkey);
-
-        return profileWithPubkey;
-      } else {
-        console.log(`[UnifiedProfileService] No profile found for ${pubkey.substring(0, 8)}, will queue for retry`);
+          return profileWithPubkey;
+        } else {
+          console.log(`[UnifiedProfileService] No profile found for ${pubkey.substring(0, 8)}, will queue for retry`);
+          this.addToRetryQueue(pubkey);
+          return null;
+        }
+      } catch (error) {
+        console.error(`[UnifiedProfileService] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
         this.addToRetryQueue(pubkey);
         return null;
+      } finally {
+        // No longer fetching, remove the promise from the map
+        this.ongoingFetches.delete(pubkey);
+        console.log(`[UnifiedProfileService] Fetch completed (success/failure) for ${pubkey.substring(0, 8)}, removed from ongoingFetches.`);
       }
-    } catch (error) {
-      console.error(`[UnifiedProfileService] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
-      this.addToRetryQueue(pubkey);
-      return null;
-    } finally {
-      // No longer fetching
-      this.fetchingProfiles.delete(pubkey);
-    }
+    })();
+
+    this.ongoingFetches.set(pubkey, fetchPromise);
+    return fetchPromise;
   }
 
   /**
@@ -283,15 +288,19 @@ class UnifiedProfileService {
     const follows = profile.follows; // Use direct access
     if (Array.isArray(follows)) {
       follows.forEach((relatedPubkey: string) => {
-        // Only queue if not already cached or being fetched
-        if (!this.profileCache.has(relatedPubkey) && !this.fetchingProfiles.has(relatedPubkey)) {
-          this.prefetchQueue.push(relatedPubkey);
+        // Only queue if not already cached or being fetched (use ongoingFetches)
+        if (!this.profileCache.has(relatedPubkey) && !this.ongoingFetches.has(relatedPubkey)) {
+          // Avoid adding duplicates to prefetchQueue if it's already there
+          if (!this.prefetchQueue.includes(relatedPubkey)) {
+            this.prefetchQueue.push(relatedPubkey);
+          }
         }
       });
     }
 
     // Process prefetch queue if not too many
-    if (this.prefetchQueue.length <= 10) {
+    // Consider adjusting this limit or processing logic based on typical number of follows
+    if (this.prefetchQueue.length > 0 && this.prefetchQueue.length <= 10) { // Ensure queue has items before processing
       this.processPrefetchQueue();
     }
   }
@@ -302,20 +311,24 @@ class UnifiedProfileService {
   private processPrefetchQueue(): void {
     if (this.prefetchQueue.length === 0) return;
 
-    // Take first 3 pubkeys from queue
-    const toProcess = this.prefetchQueue.splice(0, 3);
-    console.log(`[UnifiedProfileService] Prefetching ${toProcess.length} profiles in background`);
+    // Take first few pubkeys from queue (e.g., up to 3)
+    const toProcess = this.prefetchQueue.splice(0, Math.min(this.prefetchQueue.length, 3));
+    if (toProcess.length > 0) { // Ensure there's something to process
+      console.log(`[UnifiedProfileService] Prefetching ${toProcess.length} profiles in background: ${toProcess.map(p => p.substring(0, 8)).join(', ')}`);
 
-    // Prefetch in background with low priority
-    setTimeout(() => {
+      // Prefetch in background with low priority
+      // No need to await these, they are background tasks
       toProcess.forEach(pubkey => {
-        if (!this.profileCache.has(pubkey) && !this.fetchingProfiles.has(pubkey)) {
-          this.getProfile(pubkey).catch(err => {
+        // Double check it's not cached or being fetched right before calling getProfile
+        // getProfile itself will handle the ongoingFetches check
+        if (!this.profileCache.has(pubkey)) {
+          this.getProfile(pubkey).catch(err => { // Call getProfile, which now handles ongoing fetches correctly
             console.warn(`[UnifiedProfileService] Failed to prefetch profile ${pubkey.substring(0, 8)}`, err);
+            // Optionally, add back to prefetchQueue or a secondary queue if prefetching is critical
           });
         }
       });
-    }, 1000);
+    }
   }
 
   /**

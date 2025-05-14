@@ -13,7 +13,7 @@ const TRUSTED_MEDIA_HOSTS = [
   'v.nostr.build',
   'image.nostr.build',
   'cdn.nostr.build',
-  'nostrcheck.me',
+  'nostrcheck.me', // Re-added
   'media.snort.social',
   'files.zbd.gg',
   'imgproxy.snort.social'
@@ -52,46 +52,17 @@ export const normalizeUrl = (url: string | undefined | null): string => {
  * @returns Boolean indicating if the URL is valid
  */
 export const isValidMediaUrl = (url: string | undefined | null): boolean => {
-  if (!url || typeof url !== 'string' || url.trim() === '') return false; // Early exit for invalid input
+  if (!url || typeof url !== 'string' || url.trim() === '') return false;
 
   try {
-    // Normalize URL
-    const normalizedUrl = normalizeUrl(url); // url is guaranteed to be a string here
-
+    const normalizedUrl = normalizeUrl(url);
     if (!normalizedUrl) return false; // If normalization results in an empty string, it's invalid
 
-    // Basic URL validation
+    // Try to instantiate a URL object. If it doesn't throw, consider it structurally valid enough to attempt loading.
     new URL(normalizedUrl);
-
-    // Additional checks for media URLs
-    // Ensure it has http/https protocol
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      return false;
-    }
-
-    // Check for common URL-shortener services that might redirect
-    const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
-    for (const shortener of commonShorteners) {
-      if (normalizedUrl.includes(shortener)) {
-        return true; // We'll assume shortened URLs might be valid media
-      }
-    }
-
-    // Check for known media hosting domains
-    for (const host of TRUSTED_MEDIA_HOSTS) {
-      if (normalizedUrl.includes(host)) {
-        return true; // Common Nostr media hosts
-      }
-    }
-
-    // Check for common media extensions
-    if (isImageUrl(normalizedUrl) || isVideoUrl(normalizedUrl) || isAudioUrl(normalizedUrl)) {
-      return true;
-    }
-
-    return true; // If it passed URL validation, we'll give it a chance
+    return true; // If new URL() doesn't throw, assume it's a potentially valid media URL
   } catch (error) {
-    console.error('Invalid URL:', url, error);
+    // console.error('Attempted to validate URL, but it was invalid:', url, error); // Optional: for debugging invalid URLs
     return false;
   }
 };
@@ -112,7 +83,8 @@ export const isImageUrl = (url: string): boolean => {
  */
 export const isVideoUrl = (url: string): boolean => {
   try {
-    return !!url.match(/\.(mp4|webm|mov|m4v|ogv|avi|mkv|flv)(\?.*)?$/i);
+    // Comprehensive list of video extensions
+    return !!url.match(/\.(mp4|webm|mov|m4v|ogv|avi|wmv|mkv|flv)(\?.*)?$/i);
   } catch (e) {
     return false;
   }
