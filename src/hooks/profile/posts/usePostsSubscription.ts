@@ -39,7 +39,7 @@ export function usePostsSubscription() {
           timeoutRef.current = null;
         }, 10000); // 10 second timeout (was 30s)
         
-        // Subscribe to events - match the expected parameter order from subscription-manager.ts
+        // Subscribe to events - Fix: Match the expected parameter structure
         const subId = nostrService.subscribe(
           filters,
           (event) => {
@@ -52,7 +52,6 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
-          undefined, // Use default relays
           {
             ttl: 20000, // 20-second subscription
             isRenewable: false,
