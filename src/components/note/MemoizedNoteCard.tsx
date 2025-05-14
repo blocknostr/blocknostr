@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import NoteCardStructure from './structure/NoteCardStructure';
 
@@ -28,8 +28,14 @@ const MemoizedNoteCard = React.memo(
     isReply, 
     reactionData 
   }: NoteCardProps) {
-    if (!event || !event.id) return null;
-
+    // Validate event before rendering
+    const isValidEvent = useMemo(() => {
+      return event && event.id && event.pubkey;
+    }, [event]);
+    
+    // Return null if event is invalid to prevent errors
+    if (!isValidEvent) return null;
+    
     return (
       <NoteCardStructure
         event={event}
@@ -43,9 +49,10 @@ const MemoizedNoteCard = React.memo(
   },
   // Custom comparison function to prevent unnecessary re-renders
   (prevProps, nextProps) => {
-    // Only re-render if the event ID changes or profile data updates
+    // Only re-render if event ID changes, profile data updates, or reaction data changes
     return prevProps.event.id === nextProps.event.id && 
-           JSON.stringify(prevProps.profileData) === JSON.stringify(nextProps.profileData);
+           JSON.stringify(prevProps.profileData) === JSON.stringify(nextProps.profileData) &&
+           JSON.stringify(prevProps.reactionData) === JSON.stringify(nextProps.reactionData);
   }
 );
 
