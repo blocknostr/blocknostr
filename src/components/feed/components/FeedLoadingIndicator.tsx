@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Loader2, HandStop } from "lucide-react";
+import { Loader2, Hand } from "lucide-react";
 
 interface FeedLoadingIndicatorProps {
   loading: boolean;
@@ -21,7 +21,7 @@ const FeedLoadingIndicator = ({
     return (
       <div className="py-4 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-md text-sm">
-          <HandStop className="h-3.5 w-3.5" />
+          <Hand className="h-3.5 w-3.5" />
           <span>Auto-loading paused</span>
         </div>
       </div>

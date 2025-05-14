@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -20,6 +21,51 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [pendingEvents, setPendingEvents] = useState<any[]>([]);
   const [lastBatchTime, setLastBatchTime] = useState(0);
+  
+  // Helper function to load data from cache - defined before it's used
+  const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
+    if (!navigator.onLine || contentCache.isOffline()) {
+      setLoadingFromCache(true);
+    }
+    
+    // Get feed cache object from contentCache
+    const feedCache = contentCache.feedCache;
+    if (!feedCache) return false;
+    
+    // Check if we have a cached feed for these parameters
+    const cachedEvents = feedCache.getFeed(feedType, {
+      authorPubkeys: following,
+      hashtag: activeHashtag,
+      since: cacheSince,
+      until: cacheUntil,
+    });
+    
+    if (cachedEvents && cachedEvents.length > 0) {
+      // We have cached data
+      setCacheHit(true);
+      setLastUpdated(new Date());
+      
+      // If offline or first load, replace events with cached events
+      if (contentCache.isOffline() || events.length === 0) {
+        setEvents(cachedEvents);
+        setLoading(false);
+      } else {
+        // Otherwise, append unique events
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e.id));
+          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
+          
+          // Return combined events sorted by timestamp
+          return [...prevEvents, ...newEvents]
+            .sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }, [following, activeHashtag]);
   
   // Create a debounced batch update function
   const processPendingEvents = useCallback(() => {
@@ -150,51 +196,6 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     debounceMs: 800 // Add debounce to prevent rapid firing
   });
 
-  // Helper function to load data from cache
-  const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
-    if (!navigator.onLine || contentCache.isOffline()) {
-      setLoadingFromCache(true);
-    }
-    
-    // Get feed cache object from contentCache
-    const feedCache = contentCache.feedCache;
-    if (!feedCache) return false;
-    
-    // Check if we have a cached feed for these parameters
-    const cachedEvents = feedCache.getFeed(feedType, {
-      authorPubkeys: following,
-      hashtag: activeHashtag,
-      since: cacheSince,
-      until: cacheUntil,
-    });
-    
-    if (cachedEvents && cachedEvents.length > 0) {
-      // We have cached data
-      setCacheHit(true);
-      setLastUpdated(new Date());
-      
-      // If offline or first load, replace events with cached events
-      if (contentCache.isOffline() || events.length === 0) {
-        setEvents(cachedEvents);
-        setLoading(false);
-      } else {
-        // Otherwise, append unique events
-        setEvents(prevEvents => {
-          const existingIds = new Set(prevEvents.map(e => e.id));
-          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
-          
-          // Return combined events sorted by timestamp
-          return [...prevEvents, ...newEvents]
-            .sort((a, b) => b.created_at - a.created_at);
-        });
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }, [following, activeHashtag, events.length, setEvents, setLoading]);
-
   // Initialize feed with better state management
   const initFeed = useCallback(async (forceReconnect = false) => {
     setLoading(true);
@@ -254,7 +255,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     } finally {
       setLoadingFromCache(false);
     }
-  }, [loadFromCache, subId, following, setEvents, setupSubscription, setSubId, retryCount]);
+  }, [loadFromCache, subId, following, events, setEvents, setupSubscription, setSubId, retryCount]);
   
   // Refresh feed function with scroll position preservation
   const refreshFeed = useCallback(() => {

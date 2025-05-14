@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
@@ -90,6 +91,11 @@ export function useFeedEvents({
     }
   }, [batchUpdate, eventBuffer.length, processEventBuffer, fetchProfileData]);
   
+  // Create a wrapper function that matches the expected type for setEvents
+  const setEventsWrapper = useCallback((event: NostrEvent) => {
+    handleEvent(event);
+  }, [handleEvent]);
+  
   // Handle event subscription
   const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
@@ -97,7 +103,7 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: handleEvent, // Use our custom event handler
+    setEvents: setEventsWrapper, // Use our wrapper function that matches expected type
     handleRepost,
     fetchProfileData,
     feedType,
