@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -114,24 +113,21 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Fix: Fix the subscribeMany call to match the expected signature
-          // nostr-tools expects a single options object that contains relays and filters
-          const sub = poolInstance.subscribeMany(
-            relays, 
-            [nostrToolsFilter], 
-            {
-              onevent: (event) => {
-                onEvent(event as NostrEvent);
-                
-                // Check if we've reached the limit
-                receivedEventCount++;
-                if (receivedEventCount >= limit) {
-                  // Close this subscription automatically
-                  this.unsubscribe(id);
-                }
+          // Fixed: Use the correct signature for subscribeMany - single object parameter
+          const sub = poolInstance.subscribeMany({
+            relays: relays, 
+            filters: [nostrToolsFilter], 
+            onevent: (event) => {
+              onEvent(event as NostrEvent);
+              
+              // Check if we've reached the limit
+              receivedEventCount++;
+              if (receivedEventCount >= limit) {
+                // Close this subscription automatically
+                this.unsubscribe(id);
               }
             }
-          );
+          });
           
           // Add the closer function
           subClosers.push(sub);

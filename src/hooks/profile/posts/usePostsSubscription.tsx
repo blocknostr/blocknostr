@@ -39,7 +39,7 @@ export function usePostsSubscription() {
           timeoutRef.current = null;
         }, 10000); // 10 second timeout (was 30s)
         
-        // Fix: Use the correct parameter structure for nostrService.subscribe
+        // Fixed: Pass options as additional parameters to ensure TypeScript compatibility
         const subId = nostrService.subscribe(
           filters,
           (event) => {
@@ -52,13 +52,10 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
-          // Pass subscription options correctly based on nostrService.subscribe's expected type
-          {
-            componentId: options.componentId,
-            category: 'profile',
-            ttl: 20000,
-            isRenewable: false
-          }
+          options.componentId,
+          'profile',
+          20000, // TTL
+          false // isRenewable
         );
         
         subscriptionRef.current = subId;
