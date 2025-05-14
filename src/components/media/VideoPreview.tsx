@@ -23,6 +23,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({
 }: VideoPreviewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
+  const [hasLoaded, setHasLoaded] = useState(false);
   
   // Handle quality settings
   const getQualitySettings = () => {
@@ -46,12 +47,34 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({
     
     if (videoRef.current) {
       if (videoRef.current.paused) {
-        videoRef.current.play();
-        setIsPlaying(true);
+        videoRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((error) => {
+            console.error("Error playing video:", error);
+          });
       } else {
         videoRef.current.pause();
         setIsPlaying(false);
       }
+    }
+  };
+
+  // Handle video load events
+  const handleLoadedData = () => {
+    console.log("Video loaded successfully:", url);
+    setHasLoaded(true);
+    if (onLoadedData) {
+      onLoadedData();
+    }
+  };
+
+  // Handle video error events
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error("Error loading video:", url, e);
+    if (onError) {
+      onError();
     }
   };
   
@@ -103,8 +126,8 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({
       loop
       playsInline
       onClick={handleVideoClick}
-      onLoadedData={onLoadedData}
-      onError={onError}
+      onLoadedData={handleLoadedData}
+      onError={handleError}
       {...qualitySettings}
     />
   );
