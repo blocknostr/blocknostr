@@ -101,9 +101,6 @@ const WorldChat = () => {
     );
   }
 
-  // Determine if we should show loading state
-  const showLoading = loading || isChangingChannel;
-
   return (
     <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
       <WorldChatHeader 
@@ -147,10 +144,10 @@ const WorldChat = () => {
       )}
       
       {connectionStatus === 'connecting' && (
-        <Alert className="mx-2 mt-1 mb-0 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 rounded-md">
+        <Alert variant="warning" className="mx-2 mt-1 mb-0 py-2 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
           <div className="flex items-center gap-2">
-            <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
-            <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin text-yellow-600 dark:text-yellow-400" />
+            <AlertDescription className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
               Connecting to chat relays...
             </AlertDescription>
           </div>
@@ -162,7 +159,7 @@ const WorldChat = () => {
           messages={messages}
           profiles={profiles}
           emojiReactions={emojiReactions}
-          loading={showLoading}
+          loading={isChangingChannel} // Only show loading when changing channels, not during initial load
           isLoggedIn={isLoggedIn}
           onAddReaction={addReaction}
         />
