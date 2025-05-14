@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
@@ -91,9 +90,16 @@ export function useFeedEvents({
     }
   }, [batchUpdate, eventBuffer.length, processEventBuffer, fetchProfileData]);
   
-  // Create a wrapper function that matches the expected type for setEvents
-  const setEventsWrapper = useCallback((event: NostrEvent) => {
-    handleEvent(event);
+  // Create a wrapper function that correctly implements the Dispatch<SetStateAction<NostrEvent[]>> interface
+  // This is the key fix for the type error
+  const setEventsWrapper = useCallback((value: NostrEvent | React.SetStateAction<NostrEvent[]>) => {
+    // If the value is a single NostrEvent, we handle it with our custom handler
+    if ((value as NostrEvent).id !== undefined) {
+      handleEvent(value as NostrEvent);
+    } else {
+      // Otherwise it's a standard React.SetStateAction for the events array
+      setEvents(value as React.SetStateAction<NostrEvent[]>);
+    }
   }, [handleEvent]);
   
   // Handle event subscription
@@ -103,7 +109,7 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: setEventsWrapper, // Use our wrapper function that matches expected type
+    setEvents: setEventsWrapper,
     handleRepost,
     fetchProfileData,
     feedType,
