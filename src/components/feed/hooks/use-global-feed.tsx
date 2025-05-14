@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
+import { toast } from "sonner";
+import { retry } from "@/lib/utils/retry";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
@@ -12,7 +14,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isInitialLoadingTimeout, setIsInitialLoadingTimeout] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
+  const minimumLoadingTimeRef = useRef<number | null>(null);
   
   const { 
     events, 
@@ -28,6 +34,34 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     activeHashtag,
     limit: 20 // Initial load of 20 posts
   });
+  
+  // Function to handle retrying when no posts are loaded
+  const retryLoadingPosts = useCallback(async () => {
+    if (events.length === 0 && !isRetrying && retryCount < 2) {
+      setIsRetrying(true);
+      
+      // Close previous subscription
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+      
+      // Create new subscription with slightly extended time range
+      const currentTime = Math.floor(Date.now() / 1000);
+      const threeWeeksAgo = currentTime - 24 * 60 * 60 * 21; // 3 weeks for retry
+      
+      setSince(threeWeeksAgo);
+      setUntil(currentTime);
+      
+      // Start the new subscription with the extended timestamp range
+      const newSubId = setupSubscription(threeWeeksAgo, currentTime);
+      setSubId(newSubId);
+      
+      setRetryCount(prevCount => prevCount + 1);
+      
+      // End retry state after a delay
+      setTimeout(() => setIsRetrying(false), 3000);
+    }
+  }, [events, isRetrying, retryCount, subId, setupSubscription]);
   
   const loadMoreEvents = useCallback(async () => {
     if (!subId || loadingMore) return;
@@ -97,6 +131,15 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
 
   useEffect(() => {
     const initFeed = async () => {
+      // Set initial loading timeout
+      setIsInitialLoadingTimeout(true);
+      
+      // Set a minimum loading time (6 seconds) before showing empty state
+      minimumLoadingTimeRef.current = window.setTimeout(() => {
+        setIsInitialLoadingTimeout(false);
+        minimumLoadingTimeRef.current = null;
+      }, 6000);
+      
       // Connect to relays
       await nostrService.connectToUserRelays();
       
@@ -104,6 +147,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setEvents([]);
       setHasMore(true);
       setLoading(true);
+      setRetryCount(0);
 
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
@@ -118,7 +162,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       // Start a new subscription
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      setLoading(false);
     };
     
     initFeed();
@@ -131,15 +174,30 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
+      if (minimumLoadingTimeRef.current) {
+        clearTimeout(minimumLoadingTimeRef.current);
+      }
     };
   }, [activeHashtag]);
 
-  // Mark the loading as finished when we get events
+  // Add the retry logic if no events after certain time
+  useEffect(() => {
+    // If we've been loading for some time but still have no events, retry with a longer timeframe
+    if (!loading && events.length === 0 && !isRetrying && retryCount < 2) {
+      const retryTimeout = window.setTimeout(() => {
+        retryLoadingPosts();
+      }, 5000); // Wait 5 seconds before retrying
+      
+      return () => clearTimeout(retryTimeout);
+    }
+  }, [loading, events.length, isRetrying, retryCount, retryLoadingPosts]);
+
+  // Mark the loading as finished when we get events OR after a reasonable timeout
   useEffect(() => {
     if (events.length > 0 && loading) {
       setLoading(false);
     }
-  }, [events, loading]);
+  }, [events, loading, setLoading]);
 
   return {
     events,
@@ -149,6 +207,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     loading,
     hasMore,
     loadMoreEvents,
-    loadingMore: loadingMore || scrollLoadingMore
+    loadingMore: loadingMore || scrollLoadingMore,
+    isInitialLoadingTimeout
   };
 }

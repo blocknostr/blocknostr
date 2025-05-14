@@ -1,6 +1,5 @@
 
-import React from "react";
-import FeedEmptyState from "./FeedEmptyState";
+import React, { useEffect } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useForYouFeed } from "./hooks/use-for-you-feed";
@@ -19,7 +18,8 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
     recordInteraction,
     hasMore,
     loadMoreEvents,
-    loadingMore
+    loadingMore,
+    isInitialLoadingTimeout
   } = useForYouFeed({ activeHashtag });
 
   // Record view interactions for displayed events
@@ -30,10 +30,10 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
         recordInteraction('view', event);
       });
     }
-  }, [events]);
+  }, [events, recordInteraction]);
 
-  // Show loading state when no events and loading
-  if (loading && events.length === 0) {
+  // Show loading state when no events and loading or during initial loading timeout
+  if ((loading || isInitialLoadingTimeout) && events.length === 0) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -43,7 +43,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
       <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag in your personalized feed` :
-          "Keep interacting with posts to improve your personalized feed"
+          "No posts in your personalized feed yet. Interact with more posts to improve recommendations."
         }
       </div>
     );
