@@ -19,7 +19,9 @@ export function subscribeToEvents(
     const subId = 'subscription-' + Math.random().toString(36).substring(2, 10);
     
     // Subscribe to events using the available API format
-    const subscription = pool.subscribeMany(relays, filters, {
+    const subscription = pool.subscribeMany({
+      relays,
+      filters,
       onevent: callbacks.onevent,
       onclose: callbacks.onclose
     });

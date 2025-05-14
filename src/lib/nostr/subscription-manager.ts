@@ -1,3 +1,4 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -113,10 +114,10 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Fixed: Use the correct signature for subscribeMany - single object parameter
+          // Use the correct signature for subscribeMany with a single options parameter
           const sub = poolInstance.subscribeMany({
-            relays: relays, 
-            filters: [nostrToolsFilter], 
+            relays,
+            filters: [nostrToolsFilter],
             onevent: (event) => {
               onEvent(event as NostrEvent);
               
