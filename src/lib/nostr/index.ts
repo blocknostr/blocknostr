@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -9,8 +8,7 @@ import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
-export type { NostrEvent, Relay } from './types';
-export type { NostrProfileMetadata } from './types';
+export type { NostrEvent, Relay, NostrProfileMetadata, NostrFilter } from './types';
 export { EVENT_KINDS } from './constants';
 
 // Export adapter interfaces
@@ -49,3 +47,6 @@ export { contentFormatter };
 
 // Export NIP utilities
 export * from './utils/nip';
+
+// Ensure all types are exported
+export * from './types';

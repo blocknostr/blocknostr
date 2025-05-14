@@ -2,7 +2,7 @@ import { useUserProfiles } from '@/hooks/queries/useProfileQueries';
 import type { NostrProfileMetadata } from '@/lib/nostr';
 
 interface UseProfileFetcherProps {
-  pubkeys: string[];
+  pubkeys?: string[]; // Made pubkeys optional
 }
 
 interface UseProfileFetcherReturn {
@@ -11,7 +11,7 @@ interface UseProfileFetcherReturn {
 }
 
 export const useProfileFetcher = ({
-  pubkeys,
+  pubkeys = [], // Default to empty array if not provided
 }: UseProfileFetcherProps): UseProfileFetcherReturn => {
   const uniquePubkeys = pubkeys ? [...new Set(pubkeys)].filter(Boolean) : [];
 

@@ -1,16 +1,15 @@
-
 import React, { useEffect, useState, useRef } from 'react';
-import { NostrEvent } from '@/lib/nostr';
+import { NostrEvent, NostrProfileMetadata } from '@/lib/nostr/types'; // Updated import
 import NoteCardStructure from './structure/NoteCardStructure';
 import { unifiedProfileService } from '@/lib/services/UnifiedProfileService';
 
 interface NoteCardProps {
   event: NostrEvent;
-  profileData?: Record<string, any>;
+  profileData?: NostrProfileMetadata; // Changed from Record<string, any>
   hideActions?: boolean;
   repostData?: {
     reposterPubkey: string;
-    reposterProfile?: Record<string, any>;
+    reposterProfile?: NostrProfileMetadata; // Changed from Record<string, any>
   };
   isReply?: boolean;
   reactionData?: {
@@ -20,63 +19,63 @@ interface NoteCardProps {
 }
 
 const NoteCard = (props: NoteCardProps) => {
-  const [profile, setProfile] = useState(props.profileData);
-  const [reposterProfile, setReposterProfile] = useState(props.repostData?.reposterProfile);
-  
+  const [profile, setProfile] = useState<NostrProfileMetadata | undefined>(props.profileData);
+  const [reposterProfile, setReposterProfile] = useState<NostrProfileMetadata | undefined>(props.repostData?.reposterProfile);
+
   // Refs to store unsubscribe functions
   const profileUnsubRef = useRef<(() => void) | null>(null);
   const reposterUnsubRef = useRef<(() => void) | null>(null);
-  
+
   // Prevent too frequent updates with useRef
   const lastUpdateTime = useRef<number>(0);
   const updateDelayMs = 500; // Minimum time between updates
-  
+
   // Effect to fetch profiles if not provided
   useEffect(() => {
     // Update if profile data props change
     if (props.profileData) {
       setProfile(props.profileData);
     }
-    
+
     if (props.repostData?.reposterProfile) {
       setReposterProfile(props.repostData.reposterProfile);
     }
-    
+
     // Only fetch and subscribe if we don't have profile data
     if (props.event?.pubkey && !props.profileData) {
       const fetchProfile = async () => {
         try {
           const profileData = await unifiedProfileService.getProfile(props.event.pubkey);
           if (profileData) {
-            setProfile(profileData);
+            setProfile(profileData as NostrProfileMetadata); // Add type assertion
           }
         } catch (error) {
           console.error(`[NoteCard] Error fetching profile for ${props.event.pubkey.substring(0, 8)}:`, error);
         }
       };
-      
+
       fetchProfile();
-      
+
       // Clean up previous subscription if it exists
       if (profileUnsubRef.current) {
         profileUnsubRef.current();
         profileUnsubRef.current = null;
       }
-      
+
       // Subscribe to profile updates with debouncing
       profileUnsubRef.current = unifiedProfileService.subscribeToUpdates(props.event.pubkey, (updatedProfile) => {
         if (!updatedProfile) return;
-        
+
         const now = Date.now();
         // Only update if enough time has passed since last update
         if (now - lastUpdateTime.current > updateDelayMs) {
           console.log(`[NoteCard] Received profile update for ${props.event.pubkey.substring(0, 8)}:`,
             updatedProfile.name || updatedProfile.display_name);
-          setProfile(updatedProfile);
+          setProfile(updatedProfile as NostrProfileMetadata); // Add type assertion
           lastUpdateTime.current = now;
         }
       });
-      
+
       return () => {
         if (profileUnsubRef.current) {
           profileUnsubRef.current();
@@ -84,8 +83,8 @@ const NoteCard = (props: NoteCardProps) => {
         }
       };
     }
-  }, [props.event?.pubkey, props.profileData]);
-  
+  }, [props.event?.pubkey, props.profileData, props.repostData?.reposterProfile]); // Added missing dependency
+
   // Effect to fetch reposter profile if not provided
   useEffect(() => {
     if (props.repostData?.reposterPubkey && !props.repostData.reposterProfile) {
@@ -93,33 +92,33 @@ const NoteCard = (props: NoteCardProps) => {
         try {
           const reposterProfileData = await unifiedProfileService.getProfile(props.repostData!.reposterPubkey);
           if (reposterProfileData) {
-            setReposterProfile(reposterProfileData);
+            setReposterProfile(reposterProfileData as NostrProfileMetadata); // Add type assertion
           }
         } catch (error) {
           console.error(`[NoteCard] Error fetching reposter profile for ${props.repostData!.reposterPubkey.substring(0, 8)}:`, error);
         }
       };
-      
+
       fetchReposterProfile();
-      
+
       // Clean up previous subscription if it exists
       if (reposterUnsubRef.current) {
         reposterUnsubRef.current();
         reposterUnsubRef.current = null;
       }
-      
+
       // Subscribe to reposter profile updates with debouncing
       reposterUnsubRef.current = unifiedProfileService.subscribeToUpdates(props.repostData.reposterPubkey, (updatedProfile) => {
         if (!updatedProfile) return;
-        
+
         const now = Date.now();
         // Only update if enough time has passed since last update
         if (now - lastUpdateTime.current > updateDelayMs) {
-          setReposterProfile(updatedProfile);
+          setReposterProfile(updatedProfile as NostrProfileMetadata); // Add type assertion
           lastUpdateTime.current = now;
         }
       });
-      
+
       return () => {
         if (reposterUnsubRef.current) {
           reposterUnsubRef.current();
@@ -133,7 +132,7 @@ const NoteCard = (props: NoteCardProps) => {
     return null;
   }
 
-  return <NoteCardStructure 
+  return <NoteCardStructure
     event={props.event}
     profileData={profile}
     hideActions={props.hideActions}
@@ -152,19 +151,17 @@ export default React.memo(NoteCard, (prevProps, nextProps) => {
   if (prevProps.event?.id !== nextProps.event?.id) {
     return false; // Don't skip render
   }
-  
+
   // If we have new profile data but didn't have it before (or it changed), re-render
-  if ((!prevProps.profileData && nextProps.profileData) || 
-      (prevProps.profileData && nextProps.profileData && 
-       JSON.stringify(prevProps.profileData) !== JSON.stringify(nextProps.profileData))) {
+  if (JSON.stringify(prevProps.profileData) !== JSON.stringify(nextProps.profileData)) {
     return false; // Don't skip render
   }
-  
+
   // If repost data has changed, re-render
   if (JSON.stringify(prevProps.repostData) !== JSON.stringify(nextProps.repostData)) {
     return false; // Don't skip render
   }
-  
+
   // Default equality check for other props
   return (
     prevProps.hideActions === nextProps.hideActions &&

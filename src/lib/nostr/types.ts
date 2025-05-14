@@ -39,13 +39,15 @@ export type NostrFilter = {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  '#e'?: string[];
+  '#e'?: string[]; // Specific tags like this are compatible with the generic signature below
   '#p'?: string[];
   '#t'?: string[];
   since?: number;
   until?: number;
   limit?: number;
-  [key: string]: unknown; // Changed from any to unknown
+  search?: string; // For NIP-50 search queries
+} & {
+  [key: `#${string}`]: string[] | undefined; // Allows any #<char> tag with string array value, compatible with nostr-tools
 };
 
 export interface NostrSubscription {
