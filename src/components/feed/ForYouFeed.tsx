@@ -1,31 +1,15 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import FeedEmptyState from "./FeedEmptyState";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useForYouFeed } from "./hooks/use-for-you-feed";
-import { NostrEvent } from "@/lib/nostr";
-
-interface FeedState {
-  scrollPosition: number;
-  events: NostrEvent[];
-  profiles: Record<string, any>;
-  repostData: Record<string, { pubkey: string, original: NostrEvent }>;
-  hasMore: boolean;
-  initialLoadComplete: boolean;
-}
 
 interface ForYouFeedProps {
   activeHashtag?: string;
-  feedState: FeedState;
-  onFeedStateChange: (state: Partial<FeedState>) => void;
 }
 
-const ForYouFeed: React.FC<ForYouFeedProps> = ({ 
-  activeHashtag,
-  feedState,
-  onFeedStateChange 
-}) => {
+const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
   const {
     events,
     profiles,
@@ -36,55 +20,26 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({
     hasMore,
     loadMoreEvents,
     loadingMore,
-    minLoadingTimeMet,
-    setEvents,
-    setProfiles,
-    setRepostData
-  } = useForYouFeed({ 
-    activeHashtag,
-    initialEvents: feedState.events,
-    initialProfiles: feedState.profiles,
-    initialRepostData: feedState.repostData,
-    initialHasMore: feedState.hasMore
-  });
-
-  // Update parent component with the latest feed state
-  useEffect(() => {
-    onFeedStateChange({ 
-      events, 
-      profiles, 
-      repostData, 
-      hasMore,
-      initialLoadComplete: true
-    });
-  }, [events, profiles, repostData, hasMore, onFeedStateChange]);
-
-  // Restore state from feedState if we have cached data
-  useEffect(() => {
-    if (feedState.events.length > 0 && events.length === 0) {
-      setEvents(feedState.events);
-      setProfiles(feedState.profiles);
-      setRepostData(feedState.repostData);
-    }
-  }, [feedState, events.length]);
+    minLoadingTimeMet
+  } = useForYouFeed({ activeHashtag });
 
   // Record view interactions for displayed events
   React.useEffect(() => {
     if (events.length > 0) {
       // Record view interaction for the first 5 visible posts only
       events.slice(0, 5).forEach(event => {
-        recordInteraction(); // Fixed: no arguments passed
+        recordInteraction('view', event);
       });
     }
-  }, [events, recordInteraction]);
+  }, [events]);
 
   // Show loading state when no events and loading or minimum loading time not met yet
-  if ((loading || !minLoadingTimeMet) && events.length === 0 && !feedState.initialLoadComplete) {
-    return <FeedLoading />;
+  if ((loading || !minLoadingTimeMet) && events.length === 0) {
+    return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
   // Show empty state when no events and not loading
-  if (events.length === 0 && !feedState.initialLoadComplete) {
+  if (events.length === 0) {
     return (
       <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 

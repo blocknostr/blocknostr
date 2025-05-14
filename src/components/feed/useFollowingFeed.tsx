@@ -1,372 +1,315 @@
-// Update the useFollowingFeed hook to use preserved state
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useProfileFetcher } from './hooks/use-profile-fetcher';
-import { nostrService, NostrEvent } from '@/lib/nostr';
-import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
+
+import { useState, useEffect } from "react";
+import { nostrService, contentCache } from "@/lib/nostr";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { useFeedEvents } from "./hooks";
+import { toast } from "sonner";
+import { retry } from "@/lib/utils/retry";
 
 interface UseFollowingFeedProps {
   activeHashtag?: string;
-  initialEvents?: NostrEvent[];
-  initialProfiles?: Record<string, any>;
-  initialRepostData?: Record<string, { pubkey: string, original: NostrEvent }>;
-  initialHasMore?: boolean;
 }
 
-export function useFollowingFeed({
-  activeHashtag,
-  initialEvents = [],
-  initialProfiles = {},
-  initialRepostData = {},
-  initialHasMore = true
-}: UseFollowingFeedProps) {
-  const [events, setEvents] = useState<NostrEvent[]>(initialEvents);
-  const [profiles, setProfiles] = useState<Record<string, any>>(initialProfiles);
-  const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>(initialRepostData);
-  const [following, setFollowing] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
+  const following = nostrService.following;
+  const [since, setSince] = useState<number | undefined>(undefined);
+  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [connectionAttempted, setConnectionAttempted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [cacheHit, setCacheHit] = useState(false);
   const [loadingFromCache, setLoadingFromCache] = useState(false);
+  const [cacheHit, setCacheHit] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
   
-  // If we're provided with initial state, use it
-  const initialState = initialEvents.length > 0;
+  const { 
+    events, 
+    profiles, 
+    repostData, 
+    subId, 
+    setSubId, 
+    setupSubscription, 
+    setEvents 
+  } = useFeedEvents({
+    following,
+    since,
+    until,
+    activeHashtag
+  });
   
-  const loadMoreTimeoutRef = useRef<number | null>(null);
-  
-  // Get the list of users the current user is following
-  useEffect(() => {
-    const fetchFollowing = async () => {
-      const followingList = await nostrService.following;
-      if (followingList && followingList.length > 0) {
-        setFollowing(followingList);
-      } else {
-        setFollowing([]);
-        setHasMore(false);
-        setLoading(false);
-      }
-    };
+  const loadMoreEvents = () => {
+    if (!subId || following.length === 0) return;
     
-    if (!initialState) {
-      fetchFollowing();
+    // Set loading state
+    setIsLoadingMore(true);
+    
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
     }
-  }, [initialState]);
-  
-  // Function to refresh feed data
-  const refreshFeed = useCallback(() => {
-    // Only refresh if we're logged in and have following
-    if (!nostrService.publicKey || following.length === 0) return;
-    
-    setLoading(true);
-    setEvents([]);
-    
-    // Cancel existing subscription
-    if (subscriptionId) {
-      nostrService.unsubscribe(subscriptionId);
-    }
-    
-    // Setup new subscription with current time window
-    const currentTime = Math.floor(Date.now() / 1000);
-    const since = currentTime - 24 * 60 * 60; // Last 24 hours
-    
-    const filter: any = {
-      kinds: [1], // Regular notes (kind 1)
-      authors: following,
-      limit: 50,
-      since,
-      until: currentTime
-    };
-    
-    // Add hashtag filter if present
-    if (activeHashtag) {
-      filter['#t'] = [activeHashtag];
-    }
-    
-    const subId = Math.random().toString(36).substring(2, 15);
-    
-    // Fix: Pass the parameters in the correct format expected by nostrService.subscribe
-    nostrService.subscribe(
-      [subId], // Convert to array to match expected type
-      [filter],
-      handleEvent
-    );
-    
-    setSubscriptionId(subId);
-    setCacheHit(false);
-    setLastUpdated(null);
-  }, [following, subscriptionId, activeHashtag]);
-  
-  // Handle incoming events
-  const handleEvent = useCallback((event: NostrEvent) => {
-    if (!event) return;
-    
-    // Skip duplicates
-    setEvents(prevEvents => {
-      if (prevEvents.some(e => e.id === event.id)) return prevEvents;
-      return [event, ...prevEvents];
-    });
-    
-    // Fetch profile data if we don't have it already
-    if (event.pubkey && !profiles[event.pubkey]) {
-      nostrService.getUserProfile(event.pubkey).then(profileData => {
-        if (profileData) {
-          setProfiles(prev => ({
-            ...prev,
-            [event.pubkey]: profileData
-          }));
-        }
-      });
-    }
-    
-    // Handle reposts
-    if (event.kind === 1 && event.tags && event.tags.some(tag => tag[0] === 'e')) {
-      const eTags = event.tags.filter(tag => tag[0] === 'e');
-      if (eTags.length > 0 && (!event.content || event.content.trim() === '')) {
-        // This is a repost, find the original event
-        const originalEventId = eTags[0][1];
-        
-        // Try to find the original event
-        nostrService.getEventById(originalEventId).then(originalEvent => {
-          if (originalEvent) {
-            setRepostData(prev => ({
-              ...prev,
-              [originalEvent.id]: { pubkey: event.pubkey, original: originalEvent }
-            }));
-            
-            // Also fetch profile data for the original author
-            if (originalEvent.pubkey && !profiles[originalEvent.pubkey]) {
-              nostrService.getUserProfile(originalEvent.pubkey).then(profileData => {
-                if (profileData) {
-                  setProfiles(prev => ({
-                    ...prev,
-                    [originalEvent.pubkey]: profileData
-                  }));
-                }
-              });
-            }
-          }
-        });
-      }
-    }
-  }, [profiles]);
-  
-  // Setup subscription when following list is loaded
-  useEffect(() => {
-    // If we have cached events, use those instead of setting up a subscription
-    if (initialState) {
-      setLoading(false);
-      setHasMore(initialHasMore);
-      return;
-    }
-    
-    const setupSubscription = async () => {
-      // Only proceed if we have a list of followed users
-      if (following.length === 0) return;
-      
-      // Connect to relays
-      await nostrService.connectToUserRelays();
-      
-      const currentTime = Math.floor(Date.now() / 1000);
-      const since = currentTime - 24 * 60 * 60; // Last 24 hours
-      
-      const filter: any = {
-        kinds: [1], // Regular notes (kind 1)
-        authors: following,
-        limit: 50,
-        since,
-        until: currentTime
-      };
-      
-      // Add hashtag filter if present
-      if (activeHashtag) {
-        filter['#t'] = [activeHashtag];
-      }
-      
-      const subId = Math.random().toString(36).substring(2, 15);
-      
-      // Fix: Pass the parameters in the correct format
-      nostrService.subscribe(
-        [subId], // Convert to array to match expected type
-        [filter],
-        handleEvent
-      );
-      
-      setSubscriptionId(subId);
-      
-      // Turn off loading after some time even if no events received
-      setTimeout(() => {
-        setLoading(false);
-        
-        // If we still don't have events, retry with a longer timeframe
-        if (events.length === 0 && !isRetrying) {
-          retryWithLongerTimeframe();
-        }
-      }, 6000);
-    };
-    
-    setupSubscription();
-    
-    // Cleanup subscription on unmount
-    return () => {
-      if (subscriptionId) {
-        nostrService.unsubscribe(subscriptionId);
-      }
-    };
-  }, [following, activeHashtag, handleEvent, initialState]);
-  
-  // Retry loading with a longer timeframe if no events found
-  const retryWithLongerTimeframe = useCallback(() => {
-    if (retryAttempt >= 3 || events.length > 0) return;
-    
-    setIsRetrying(true);
-    const nextRetryAttempt = retryAttempt + 1;
-    setRetryAttempt(nextRetryAttempt);
-    
-    // Cancel the current subscription
-    if (subscriptionId) {
-      nostrService.unsubscribe(subscriptionId);
-    }
-    
-    // Try with a longer time window based on retry attempt
-    const currentTime = Math.floor(Date.now() / 1000);
-    const timeWindowDays = [3, 7, 14][nextRetryAttempt - 1] || 30; // 3, 7, 14, or 30 days
-    const since = currentTime - (timeWindowDays * 24 * 60 * 60);
-    
-    console.log(`Retry attempt ${nextRetryAttempt}: Looking back ${timeWindowDays} days for following feed`);
-    
-    const filter: any = {
-      kinds: [1],
-      authors: following,
-      limit: 50,
-      since,
-      until: currentTime
-    };
-    
-    if (activeHashtag) {
-      filter['#t'] = [activeHashtag];
-    }
-    
-    const subId = Math.random().toString(36).substring(2, 15);
-    
-    // Fix: Pass parameters in the correct format
-    nostrService.subscribe(
-      [subId], // Convert to array to match expected type
-      [filter],
-      handleEvent
-    );
-    
-    setSubscriptionId(subId);
-    
-    // Set a timeout for this retry attempt
-    setTimeout(() => {
-      setIsRetrying(false);
-      
-      // If still no events, try the next retry
-      if (events.length === 0) {
-        retryWithLongerTimeframe();
-      }
-    }, 5000);
-  }, [subscriptionId, events.length, retryAttempt, following, activeHashtag, handleEvent]);
-  
-  // Load more posts when user scrolls to bottom
-  const loadMoreEvents = useCallback(() => {
-    // Don't load more if already loading or no more to load
-    if (loadingMore || !hasMore || following.length === 0) return;
-    
-    setLoadingMore(true);
-    
-    // Get the oldest event we have
-    const oldestEvent = events.length > 0 
-      ? events.reduce((oldest, current) => oldest.created_at < current.created_at ? oldest : current)
-      : null;
-    
-    if (!oldestEvent) {
-      setLoadingMore(false);
-      return;
-    }
-    
-    // Cancel current subscription
-    if (subscriptionId) {
-      nostrService.unsubscribe(subscriptionId);
-    }
-    
-    // Create new subscription with older timestamp range
-    const until = oldestEvent.created_at - 1;
-    const since = until - 24 * 60 * 60 * 3; // 3 days before the oldest post
-    
-    const filter: any = {
-      kinds: [1],
-      authors: following,
-      limit: 20,
-      since,
-      until
-    };
-    
-    if (activeHashtag) {
-      filter['#t'] = [activeHashtag];
-    }
-    
-    const subId = Math.random().toString(36).substring(2, 15);
-    
-    // Fix: Pass parameters in the correct format
-    nostrService.subscribe(
-      [subId], // Convert to array to match expected type
-      [filter],
-      handleEvent
-    );
-    
-    setSubscriptionId(subId);
-    
-    // Set loading more to false after a delay
-    if (loadMoreTimeoutRef.current) {
-      clearTimeout(loadMoreTimeoutRef.current);
-    }
-    
-    loadMoreTimeoutRef.current = window.setTimeout(() => {
-      setLoadingMore(false);
-      loadMoreTimeoutRef.current = null;
-      
-      // If we didn't get any new events, we're probably at the end
-      const newEventsCount = events.length;
-      setTimeout(() => {
-        if (events.length === newEventsCount) {
-          setHasMore(false);
-        }
-      }, 2000);
-    }, 3000);
-  }, [loadingMore, hasMore, events, following, subscriptionId, activeHashtag, handleEvent]);
 
+    // Create new subscription with older timestamp range
+    if (!since) {
+      // If no since value yet, get the oldest post timestamp
+      const oldestEvent = events.length > 0 ? 
+        events.reduce((oldest, current) => oldest.created_at < current.created_at ? oldest : current) : 
+        null;
+      
+      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
+      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+      
+      // Check if we have this range cached
+      loadFromCache('following', newSince, newUntil);
+    } else {
+      // We already have a since value, so use it to get older posts
+      const newUntil = since;
+      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      
+      setSince(newSince);
+      setUntil(newUntil);
+      
+      // Start the new subscription with the older timestamp range
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+      
+      // Check if we have this range cached
+      loadFromCache('following', newSince, newUntil);
+    }
+    
+    // End loading after a delay regardless of whether data was loaded
+    setTimeout(() => setIsLoadingMore(false), 3000);
+  };
+  
   const {
     loadMoreRef,
-    loading: scrollLoading,
-    hasMore: scrollHasMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: false,
-    threshold: 800,
-    preservePosition: true
-  });
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+
+  // Helper function to load data from cache
+  const loadFromCache = (feedType: string, cacheSince?: number, cacheUntil?: number) => {
+    if (!navigator.onLine || contentCache.isOffline()) {
+      setLoadingFromCache(true);
+    }
+    
+    // Get feed cache object from contentCache
+    const feedCache = contentCache.feedCache;
+    if (!feedCache) return false;
+    
+    // Check if we have a cached feed for these parameters
+    const cachedEvents = feedCache.getFeed(feedType, {
+      authorPubkeys: following,
+      hashtag: activeHashtag,
+      since: cacheSince,
+      until: cacheUntil,
+    });
+    
+    if (cachedEvents && cachedEvents.length > 0) {
+      // We have cached data
+      setCacheHit(true);
+      setLastUpdated(new Date());
+      
+      // If offline or first load, replace events with cached events
+      if (contentCache.isOffline() || events.length === 0) {
+        setEvents(cachedEvents);
+        setLoading(false);
+      } else {
+        // Otherwise, append unique events
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e.id));
+          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
+          
+          // Return combined events sorted by timestamp
+          return [...prevEvents, ...newEvents]
+            .sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Function to automatically retry loading posts if none are found
+  const retryLoadingPosts = async () => {
+    if (events.length === 0 && !isRetrying) {
+      setIsRetrying(true);
+      
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Close previous subscription
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+      
+      // Create new subscription with slightly extended time range
+      const currentTime = Math.floor(Date.now() / 1000);
+      const twoWeeksAgo = currentTime - 24 * 60 * 60 * 14; // 2 weeks for retry
+      
+      setSince(twoWeeksAgo);
+      setUntil(currentTime);
+      
+      // Start the new subscription with the extended timestamp range
+      const newSubId = setupSubscription(twoWeeksAgo, currentTime);
+      setSubId(newSubId);
+      
+      // Also try to load from cache with extended range
+      loadFromCache('following', twoWeeksAgo, currentTime);
+      
+      // End retry state after a delay
+      setTimeout(() => setIsRetrying(false), 3000);
+    }
+  };
+
+  const initFeed = async (forceReconnect = false) => {
+    setLoading(true);
+    const currentTime = Math.floor(Date.now() / 1000);
+    const weekAgo = currentTime - 24 * 60 * 60 * 7;
+    
+    // Always try to load from cache first for immediate response
+    const cacheLoaded = loadFromCache('following', weekAgo, currentTime);
+    
+    try {
+      // If force reconnect or no relays connected, connect to relays
+      const relayStatus = nostrService.getRelayStatus();
+      const connectedRelays = relayStatus.filter(r => r.status === 'connected');
+      
+      if (forceReconnect || connectedRelays.length === 0) {
+        // Connect to relays
+        await nostrService.connectToUserRelays();
+        setConnectionAttempted(true);
+      }
+      
+      // Reset state when filter changes (if not loading from cache)
+      if (!cacheLoaded) {
+        setEvents([]);
+      }
+      setHasMore(true);
+      
+      // Reset the timestamp range for new subscription
+      setSince(undefined);
+      setUntil(currentTime);
+      
+      // Close previous subscription if exists
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+      
+      // If online, start a new subscription
+      if (navigator.onLine) {
+        const newSubId = setupSubscription(weekAgo, currentTime);
+        setSubId(newSubId);
+      }
+      
+      if (following.length === 0) {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error initializing feed:", error);
+      setLoading(false);
+      
+      // Retry up to 3 times
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => initFeed(true), 2000); // Retry after 2 seconds
+      } else {
+        toast.error("Failed to connect to relays. Check your connection or try again later.");
+      }
+    } finally {
+      setLoadingFromCache(false);
+    }
+  };
+  
+  // Refresh feed function for manual refresh
+  const refreshFeed = () => {
+    setRetryCount(0);
+    setCacheHit(false);
+    initFeed(true);
+  };
+  
+  // Cache the feed data when events update
+  useEffect(() => {
+    if (events.length > 0 && following.length > 0) {
+      // Don't cache if we just loaded from cache
+      if (cacheHit) return;
+      
+      // Cache the current feed state
+      const feedCache = contentCache.feedCache;
+      if (feedCache) {
+        feedCache.cacheFeed('following', events, {
+          authorPubkeys: following,
+          hashtag: activeHashtag,
+          since,
+          until
+        }, true); // Mark as important for offline use
+        
+        // Update last updated timestamp
+        setLastUpdated(new Date());
+      }
+    }
+  }, [events, following, activeHashtag, cacheHit]);
+  
+  useEffect(() => {
+    initFeed();
+    
+    return () => {
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+    };
+  }, [following, activeHashtag]);
+  
+  // Mark the loading as finished when we get events
+  useEffect(() => {
+    if (events.length > 0 && loading) {
+      setLoading(false);
+    }
+    
+    // If we've reached the limit, set hasMore to false
+    if (events.length >= 100) {
+      setHasMore(false);
+    }
+    
+    // Also end loading more state if we have events
+    if (events.length > 0 && isLoadingMore) {
+      setIsLoadingMore(false);
+    }
+  }, [events, loading, isLoadingMore]);
+  
+  // Add automatic retry if no events are found after initial loading
+  useEffect(() => {
+    // Check if loading has finished but we have no events
+    if (!loading && events.length === 0 && !isRetrying && following.length > 0) {
+      retryLoadingPosts();
+    }
+  }, [loading, events.length, isRetrying, following.length]);
 
   return {
     events,
     profiles,
     repostData,
     loadMoreRef,
-    loading,
+    loading: loading || isRetrying, // Consider still loading during retry
+    loadingFromCache,
+    loadingMore: isLoadingMore,
     following,
+    hasMore,
     refreshFeed,
+    loadMoreEvents,
+    connectionAttempted,
     lastUpdated,
     cacheHit,
-    loadingFromCache,
-    loadingMore,
-    hasMore,
-    loadMoreEvents,
-    isRetrying,
-    setEvents,
-    setProfiles,
-    setRepostData
+    isRetrying
   };
 }

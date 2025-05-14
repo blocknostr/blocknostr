@@ -6,36 +6,6 @@ import { NostrEvent } from "../types";
  * Ensures consistent event display and prevents duplicates
  */
 export class EventDeduplication {
-  private eventIds: Set<string> = new Set<string>();
-  
-  /**
-   * Add an event to the deduplication tracker
-   * @param event Nostr event to track
-   */
-  public addEvent(event: NostrEvent): void {
-    if (event.id) {
-      this.eventIds.add(event.id);
-    }
-  }
-  
-  /**
-   * Check if an event is already tracked
-   * @param event Nostr event to check
-   * @returns Boolean indicating if event exists
-   */
-  public hasEvent(event: NostrEvent): boolean {
-    return event.id ? this.eventIds.has(event.id) : false;
-  }
-  
-  /**
-   * Check if an event ID already exists
-   * @param eventId ID to check
-   * @returns Boolean indicating if event exists
-   */
-  public hasEventId(eventId: string): boolean {
-    return this.eventIds.has(eventId);
-  }
-
   /**
    * Deduplicate an array of events by event ID
    * @param events Array of Nostr events

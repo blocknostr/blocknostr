@@ -15,9 +15,6 @@ interface UseFeedEventsProps {
   limit?: number;
   feedType?: string;
   mediaOnly?: boolean;
-  initialEvents?: NostrEvent[];
-  initialProfiles?: Record<string, any>;
-  initialRepostData?: Record<string, { pubkey: string, original: NostrEvent }>;
 }
 
 export function useFeedEvents({
@@ -27,18 +24,15 @@ export function useFeedEvents({
   activeHashtag,
   limit = 50,
   feedType = 'generic',
-  mediaOnly = false,
-  initialEvents = [],
-  initialProfiles = {},
-  initialRepostData = {}
+  mediaOnly = false
 }: UseFeedEventsProps) {
-  const [events, setEvents] = useState<NostrEvent[]>(initialEvents);
+  const [events, setEvents] = useState<NostrEvent[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [cacheHit, setCacheHit] = useState<boolean>(false);
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
   
-  const { profiles, fetchProfileData, setProfiles } = useProfileFetcher(initialProfiles);
-  const { repostData, handleRepost, setRepostData } = useRepostHandler({ fetchProfileData, initialRepostData });
+  const { profiles, fetchProfileData } = useProfileFetcher();
+  const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
   
   // Handle event subscription
   const { subId, setSubId, setupSubscription } = useEventSubscription({
@@ -52,29 +46,10 @@ export function useFeedEvents({
     fetchProfileData,
     feedType,
     mediaOnly,
-    initialEvents
   });
   
-  // Try to load from cache first when component mounts (if no initial state)
+  // Try to load from cache first when component mounts
   useEffect(() => {
-    if (initialEvents.length > 0) {
-      // We already have events from the parent component's state
-      // Prefetch profile data for authors if needed
-      const uniqueAuthors = new Set<string>();
-      initialEvents.forEach(event => {
-        if (event.pubkey && !profiles[event.pubkey]) {
-          uniqueAuthors.add(event.pubkey);
-        }
-      });
-      
-      // Fetch missing profiles
-      uniqueAuthors.forEach(pubkey => {
-        fetchProfileData(pubkey);
-      });
-      
-      return;
-    }
-
     const loadFromCache = async () => {
       setLoadingFromCache(true);
       
@@ -124,7 +99,7 @@ export function useFeedEvents({
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, initialEvents.length]);
+  }, [feedType, following, activeHashtag, since, until, mediaOnly]);
   
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = () => {
@@ -167,8 +142,6 @@ export function useFeedEvents({
     refreshFeed,
     lastUpdated,
     cacheHit,
-    loadingFromCache,
-    setProfiles,
-    setRepostData
+    loadingFromCache
   };
 }

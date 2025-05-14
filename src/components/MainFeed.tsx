@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -14,85 +14,20 @@ import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
-import { NostrEvent } from "@/lib/nostr";
 
 interface MainFeedProps {
   activeHashtag?: string;
   onClearHashtag?: () => void;
 }
 
-// Interface for tracking feed state
-interface FeedState {
-  scrollPosition: number;
-  events: NostrEvent[];
-  profiles: Record<string, any>;
-  repostData: Record<string, { pubkey: string, original: NostrEvent }>;
-  hasMore: boolean;
-  initialLoadComplete: boolean;
-}
-
 const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
-  const [previousTab, setPreviousTab] = useState<FeedType | null>(null);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
-
-  // Track scroll position for each feed
-  const [globalFeedState, setGlobalFeedState] = useState<FeedState>({
-    scrollPosition: 0,
-    events: [],
-    profiles: {},
-    repostData: {},
-    hasMore: true,
-    initialLoadComplete: false
-  });
-  
-  const [followingFeedState, setFollowingFeedState] = useState<FeedState>({
-    scrollPosition: 0,
-    events: [],
-    profiles: {},
-    repostData: {},
-    hasMore: true,
-    initialLoadComplete: false
-  });
-  
-  const [forYouFeedState, setForYouFeedState] = useState<FeedState>({
-    scrollPosition: 0,
-    events: [],
-    profiles: {},
-    repostData: {},
-    hasMore: true,
-    initialLoadComplete: false
-  });
-
-  // Get current feed state based on active tab
-  const getCurrentFeedState = () => {
-    switch (activeTab) {
-      case 'global': return globalFeedState;
-      case 'following': return followingFeedState;
-      case 'for-you': return forYouFeedState;
-      default: return globalFeedState;
-    }
-  };
-
-  // Update feed state based on active tab
-  const updateFeedState = (updatedState: Partial<FeedState>) => {
-    switch (activeTab) {
-      case 'global':
-        setGlobalFeedState(prev => ({ ...prev, ...updatedState }));
-        break;
-      case 'following':
-        setFollowingFeedState(prev => ({ ...prev, ...updatedState }));
-        break;
-      case 'for-you':
-        setForYouFeedState(prev => ({ ...prev, ...updatedState }));
-        break;
-    }
-  };
 
   // When preferences change, update the active tab if it's the default feed
   useEffect(() => {
@@ -106,37 +41,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     const handleScroll = () => {
       const position = window.scrollY;
       setScrolledDown(position > 10);
-      
-      // Save scroll position for current tab
-      updateFeedState({ scrollPosition: position });
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [activeTab]);
-
-  // Restore scroll position when switching tabs
-  useEffect(() => {
-    if (previousTab !== activeTab && previousTab !== null) {
-      // Small delay to ensure rendering is complete before scrolling
-      const timer = setTimeout(() => {
-        const currentState = getCurrentFeedState();
-        if (currentState.initialLoadComplete) {
-          window.scrollTo({
-            top: currentState.scrollPosition,
-            behavior: 'instant'
-          });
-        } else {
-          // If this is the first load for this tab, scroll to top
-          window.scrollTo({ top: 0, behavior: 'instant' });
-        }
-      }, 50);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [activeTab, previousTab]);
+  }, []);
 
   const handleTopicClick = (topic: string) => {
     if (onClearHashtag) {
@@ -159,11 +70,9 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       : 'text-base';
 
   // Handler for tab changes that ensures we only set valid FeedType values
-  // and preserves previous tab for scroll restoration
   const handleTabChange = (value: string) => {
     // Ensure the value is a valid FeedType before setting it
     if (value === 'global' || value === 'following' || value === 'for-you') {
-      setPreviousTab(activeTab);
       setActiveTab(value as FeedType);
     }
   };
@@ -235,13 +144,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           className="relative"
         >
           <TabsContent value="global">
-            <GlobalFeed 
-              activeHashtag={activeHashtag} 
-              feedState={globalFeedState}
-              onFeedStateChange={(state: Partial<FeedState>) => {
-                setGlobalFeedState(prev => ({ ...prev, ...state }));
-              }}
-            />
+            <GlobalFeed activeHashtag={activeHashtag} />
           </TabsContent>
           
           <TabsContent value="following">
@@ -250,24 +153,12 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
                 You need to log in to see posts from people you follow.
               </div>
             ) : (
-              <FollowingFeed 
-                activeHashtag={activeHashtag} 
-                feedState={followingFeedState}
-                onFeedStateChange={(state: Partial<FeedState>) => {
-                  setFollowingFeedState(prev => ({ ...prev, ...state }));
-                }}
-              />
+              <FollowingFeed activeHashtag={activeHashtag} />
             )}
           </TabsContent>
           
           <TabsContent value="for-you">
-            <ForYouFeed 
-              activeHashtag={activeHashtag} 
-              feedState={forYouFeedState}
-              onFeedStateChange={(state: Partial<FeedState>) => {
-                setForYouFeedState(prev => ({ ...prev, ...state }));
-              }}
-            />
+            <ForYouFeed activeHashtag={activeHashtag} />
           </TabsContent>
         </Tabs>
       </div>
