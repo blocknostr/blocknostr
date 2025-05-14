@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo } from 'react';
-import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
@@ -50,18 +49,20 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags
+  // Extract media URLs from content and tags - limit to 2 for simplicity
   const mediaUrls = useMemo(() => {
+    if (!event && !contentToUse) return [];
+    
     const extractedUrls = getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-    // Ensure uniqueness of URLs
-    return Array.from(new Set(extractedUrls)).slice(0, 4); // Limit to 4 media items
+    return extractedUrls.slice(0, 2); // Limit to 2 media items for basic display
   }, [contentToUse, tagsToUse, event]);
   
-  // Extract link preview URLs (non-media URLs)
+  // Extract link preview URLs - limit to 1 for simplicity
   const linkPreviewUrls = useMemo(() => {
+    if (!event && !contentToUse) return [];
+    
     const extractedUrls = getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-    // Ensure uniqueness of URLs and limit to 2
-    return Array.from(new Set(extractedUrls)).slice(0, 2);
+    return extractedUrls.slice(0, 1); // Limit to 1 link preview for basic display
   }, [contentToUse, tagsToUse, event]);
   
   // Handle hashtag click
@@ -92,7 +93,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Media preview section */}
+      {/* Media preview section - simplified */}
       {mediaUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
@@ -111,15 +112,10 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </div>
       )}
       
-      {/* Link preview section */}
+      {/* Link preview section - simplified */}
       {linkPreviewUrls.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {linkPreviewUrls.map((url, index) => (
-            <LinkPreview 
-              key={`link-${url}-${index}`} 
-              url={url}
-            />
-          ))}
+        <div className="mt-3">
+          <LinkPreview url={linkPreviewUrls[0]} />
         </div>
       )}
       
@@ -134,14 +130,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
               variant="small"
             />
           ))}
-        </div>
-      )}
-      
-      {/* View count if available */}
-      {reachCount !== undefined && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          <MessageSquare className="inline mr-1 h-3 w-3" />
-          {reachCount.toLocaleString()} views
         </div>
       )}
     </div>

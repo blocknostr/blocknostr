@@ -1,28 +1,22 @@
 
 /**
- * Core media extraction utilities
+ * Core media extraction utilities - simplified
  */
 import { mediaRegex, extractUrlsFromContent, extractAllUrls, isMediaUrl } from '../media-detection';
-import { isValidMediaUrl } from '../media-validation';
-import UrlRegistry from '../url-registry';
 
 /**
  * Main function to extract all media URLs from content
- * Filters out already registered URLs
  */
 export const extractMediaUrls = (content: string): string[] => {
   if (!content) return [];
   
-  // Extract URLs from content as fallback
-  const contentUrls = extractUrlsFromContent(content);
-  
-  // Filter out URLs that are already registered
-  return UrlRegistry.filterUnregisteredUrls(contentUrls);
+  // Extract URLs from content
+  return extractUrlsFromContent(content);
 };
 
 /**
  * Extract non-media URLs for link previews
- * Returns an array of URLs that are not media files and not already registered
+ * Returns an array of URLs that are not media files
  */
 export const extractLinkPreviewUrls = (content: string): string[] => {
   if (!content) return [];
@@ -30,8 +24,8 @@ export const extractLinkPreviewUrls = (content: string): string[] => {
   // Get all URLs from content
   const allUrls = extractAllUrls(content);
   
-  // Filter out media URLs and already registered URLs
-  return allUrls.filter(url => !isMediaUrl(url) && !UrlRegistry.isUrlRegistered(url));
+  // Filter out media URLs
+  return allUrls.filter(url => !isMediaUrl(url));
 };
 
 /**
@@ -39,12 +33,11 @@ export const extractLinkPreviewUrls = (content: string): string[] => {
  * Useful for generating thumbnails or previews
  */
 export const extractFirstImageUrl = (content: string): string | null => {
-  // Fallback to content parsing for image URLs
-  if (content) {
-    const matches = content.match(mediaRegex.image);
-    if (matches && matches.length > 0) {
-      return matches[0];
-    }
+  if (!content) return null;
+  
+  const matches = content.match(mediaRegex.image);
+  if (matches && matches.length > 0) {
+    return matches[0];
   }
   
   return null;

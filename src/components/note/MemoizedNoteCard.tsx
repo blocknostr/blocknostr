@@ -18,31 +18,17 @@ interface NoteCardProps {
   };
 }
 
-// Create a stable memo comparison function
+// Basic memo comparison function
 const arePropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProps) => {
-  // Basic comparison of event IDs
-  if (prevProps.event?.id !== nextProps.event?.id) return false;
-  
-  // Check if the content changed
-  if (prevProps.event?.content !== nextProps.event?.content) return false;
-  
-  // Check if the profile data changed
-  if (JSON.stringify(prevProps.profileData) !== JSON.stringify(nextProps.profileData)) return false;
-  
-  // Check if the repost data changed
-  if (!!prevProps.repostData !== !!nextProps.repostData) return false;
-  
-  // Check if the reaction data changed
-  if (!!prevProps.reactionData !== !!nextProps.reactionData) return false;
-  
-  // If we got here, props are equal
-  return true;
+  // Only compare event IDs for basic implementation
+  return prevProps.event?.id === nextProps.event?.id;
 };
 
 const NoteCard = (props: NoteCardProps) => {
   return <NoteCardStructure {...props} />;
 };
 
+// Use memo to prevent unnecessary re-renders
 const MemoizedNoteCard = memo(NoteCard, arePropsEqual);
 
 export default MemoizedNoteCard;

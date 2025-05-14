@@ -1,6 +1,7 @@
 
 /**
- * Basic URL Registry for tracking URLs across components
+ * Simple URL Registry for tracking URLs across components
+ * This prevents duplicate loading of media
  */
 
 // Global registry of URLs being rendered
@@ -42,20 +43,6 @@ export const UrlRegistry = {
   },
 
   /**
-   * Check if URL is registered as media
-   */
-  isUrlRegisteredAsMedia(url: string): boolean {
-    return this.getUrlType(url) === 'media';
-  },
-
-  /**
-   * Check if URL is registered as link
-   */
-  isUrlRegisteredAsLink(url: string): boolean {
-    return this.getUrlType(url) === 'link';
-  },
-
-  /**
    * Filter out URLs that are already registered
    * Returns only the URLs that are not already in the registry
    */
@@ -73,7 +60,6 @@ export const UrlRegistry = {
 
   /**
    * Clear all URLs from registry
-   * Useful for cleanup between page navigations
    */
   clearAll(): void {
     urlRegistry.clear();
