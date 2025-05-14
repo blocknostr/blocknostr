@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -13,7 +12,7 @@ interface SubscriptionDetails {
   expiresAt: number | null;
   isRenewable: boolean;
   componentId: string;
-  category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp'; 
+  category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other'; 
 }
 
 export class SubscriptionManager {
@@ -60,7 +59,7 @@ export class SubscriptionManager {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
       isRenewable?: boolean;  // Whether this subscription should be auto-renewed
       componentId?: string;  // Identifier for the component creating this subscription
-      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp';
+      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other';
       limit?: number;        // Maximum number of events to receive before closing
     } = {}
   ): string {
@@ -83,7 +82,7 @@ export class SubscriptionManager {
     let ttl = options.ttl;
     if (ttl === undefined) {
       if (category === 'profile') ttl = this.profileTTL;
-      else if (category === 'temp') ttl = this.tempTTL;
+      // Use a short TTL for temporary subscriptions - but 'temp' is not a valid category
       else ttl = this.defaultTTL;
     }
     
@@ -111,21 +110,22 @@ export class SubscriptionManager {
       filters.forEach(filter => {
         try {
           // Fix: Use the correct signature for SimplePool.subscribe
-          const sub = poolInstance.subscribe(relays, [filter], {
-            onevent: (event) => {
-              onEvent(event as NostrEvent);
-              
-              // Check if we've reached the limit
-              receivedEventCount++;
-              if (receivedEventCount >= limit) {
-                // Close this subscription automatically
-                this.unsubscribe(id);
-              }
+          const sub = poolInstance.sub(relays, [filter]);
+          
+          // Set up event handler
+          sub.on('event', (event: any) => {
+            onEvent(event as NostrEvent);
+            
+            // Check if we've reached the limit
+            receivedEventCount++;
+            if (receivedEventCount >= limit) {
+              // Close this subscription automatically
+              this.unsubscribe(id);
             }
           });
           
           // Add the closer function
-          subClosers.push(sub);
+          subClosers.push({ close: () => sub.unsub() });
         } catch (error) {
           console.error("Error creating subscription for filter:", error);
         }
