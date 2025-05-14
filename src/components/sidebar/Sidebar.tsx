@@ -19,6 +19,7 @@ const Sidebar = () => {
       )}
     >
       <div className="flex flex-col h-full px-4">
+<<<<<<< HEAD
         {/* Theme-aware, thick wordmark with subtle white glow */}
         <div className="mb-6 flex items-center justify-center">
           <Link
@@ -35,6 +36,20 @@ const Sidebar = () => {
             )}
           >
             BlockNostr
+=======
+        {/* Centered logo with white glow */}
+        <div className="mb-6 flex items-center justify-center">
+          <Link to="/">
+            <img
+              src="/BlockNostr_New_NonTransparent.png"
+              alt="BlockNostr Logo"
+              className="
+                w-32 h-auto
+                hover:opacity-80 transition-opacity
+                shadow-[0_0_8px_rgba(255,255,255,0.8)]
+              "
+            />
+>>>>>>> 246dae6 (update logo)
           </Link>
         </div>
         
