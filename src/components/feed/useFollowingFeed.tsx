@@ -90,9 +90,9 @@ export function useFollowingFeed({
     const subId = Math.random().toString(36).substring(2, 15);
     
     nostrService.subscribe({
+      id: subId,
       filter,
-      eventHandler: handleEvent,
-      id: subId
+      eventHandler: handleEvent
     });
     
     setSubscriptionId(subId);
@@ -189,9 +189,9 @@ export function useFollowingFeed({
       const subId = Math.random().toString(36).substring(2, 15);
       
       nostrService.subscribe({
+        id: subId,
         filter,
-        eventHandler: handleEvent,
-        id: subId
+        eventHandler: handleEvent
       });
       
       setSubscriptionId(subId);
@@ -252,9 +252,9 @@ export function useFollowingFeed({
     const subId = Math.random().toString(36).substring(2, 15);
     
     nostrService.subscribe({
+      id: subId,
       filter,
-      eventHandler: handleEvent,
-      id: subId
+      eventHandler: handleEvent
     });
     
     setSubscriptionId(subId);
@@ -311,9 +311,9 @@ export function useFollowingFeed({
     const subId = Math.random().toString(36).substring(2, 15);
     
     nostrService.subscribe({
+      id: subId,
       filter,
-      eventHandler: handleEvent,
-      id: subId
+      eventHandler: handleEvent
     });
     
     setSubscriptionId(subId);
