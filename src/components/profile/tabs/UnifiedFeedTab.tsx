@@ -34,8 +34,8 @@ const UnifiedFeedTab: React.FC<UnifiedFeedTabProps> = ({
   return (
     <div className="space-y-4">
       {loading ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+        <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="text-sm text-muted-foreground">Loading posts...</span>
         </div>
       ) : feedItems.length === 0 ? (

@@ -1,6 +1,5 @@
 
 import React from "react";
-import FeedEmptyState from "./FeedEmptyState";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
@@ -27,7 +26,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
   // Show empty state when no events and not loading
   if (events.length === 0) {
     return (
-      <div className="py-4 text-center text-muted-foreground">
+      <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag` :
           "No posts found. Connect to more relays to see posts here."
