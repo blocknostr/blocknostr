@@ -1,3 +1,4 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -110,7 +111,8 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Use the correct signature for subscribeMany with a single options parameter
+          // FIX: The error is here - subscribeMany expects a single options object
+          // The function signature changed in the nostr-tools library
           const sub = poolInstance.subscribeMany(
             relays,
             [nostrToolsFilter],

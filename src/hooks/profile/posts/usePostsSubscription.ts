@@ -55,7 +55,8 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
-          relays
+          relays,
+          options.componentId
         );
         
         subscriptionRef.current = subId;

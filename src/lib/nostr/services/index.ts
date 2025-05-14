@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 
@@ -22,10 +21,7 @@ export function subscribeToEvents(
     const subscription = pool.subscribeMany(
       relays,
       filters,
-      {
-        onevent: callbacks.onevent,
-        onclose: callbacks.onclose
-      }
+      callbacks
     );
     
     // Return the subscription ID and unsubscribe function
