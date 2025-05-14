@@ -103,17 +103,12 @@ export class SubscriptionManager {
       let receivedEventCount = 0;
       const limit = options.limit || Number.MAX_SAFE_INTEGER;
       
-      // Create an array to hold subscription closers
-      const subClosers: any[] = [];
-      
-      // Process each filter individually
-      filters.forEach(filter => {
-        try {
-          // Fix: Use the correct signature for SimplePool.subscribe
-          const sub = poolInstance.sub(relays, [filter]);
-          
-          // Set up event handler
-          sub.on('event', (event: any) => {
+      // SimplePool.subscribe expects a single filter
+      // We'll create multiple subscriptions, one for each filter
+      const subClosers = filters.map(filter => {
+        // Fix: SimplePool.subscribe implementation has changed, update accordingly
+        return poolInstance.subscribe(relays, filter, 
+          event => {
             onEvent(event as NostrEvent);
             
             // Check if we've reached the limit
@@ -122,13 +117,8 @@ export class SubscriptionManager {
               // Close this subscription automatically
               this.unsubscribe(id);
             }
-          });
-          
-          // Add the closer function
-          subClosers.push({ close: () => sub.unsub() });
-        } catch (error) {
-          console.error("Error creating subscription for filter:", error);
-        }
+          }
+        );
       });
       
       // Calculate expiration time if TTL is provided
