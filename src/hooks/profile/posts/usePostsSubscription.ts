@@ -3,12 +3,7 @@ import { useRef, useCallback } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
 import { contentCache } from '@/lib/nostr';
-
-interface UsePostsSubscriptionProps {
-  onEvent: (event: NostrEvent, isMediaEvent: boolean) => void;
-  onComplete: () => void;
-  limit: number;
-}
+import { UsePostsSubscriptionProps } from './types';
 
 export function usePostsSubscription() {
   const subscriptionRef = useRef<string | null>(null);
@@ -17,10 +12,10 @@ export function usePostsSubscription() {
   
   const subscribe = useCallback(async (
     hexPubkey: string | undefined, 
-    { onEvent, onComplete, limit }: UsePostsSubscriptionProps
+    options: UsePostsSubscriptionProps
   ) => {
     if (!hexPubkey) {
-      onComplete();
+      options.onComplete();
       return () => {};
     }
     
@@ -48,7 +43,7 @@ export function usePostsSubscription() {
         const noteEvents = cachedEvents
           .filter(event => event.kind === 1)
           .sort((a, b) => b.created_at - a.created_at)
-          .slice(0, limit);
+          .slice(0, options.limit);
           
         noteEvents.forEach(event => {
           const mediaUrls = getMediaUrlsFromEvent(event);
@@ -56,20 +51,20 @@ export function usePostsSubscription() {
           const isMediaEvent = validMediaUrls.length > 0;
           
           eventCountRef.current++;
-          onEvent(event, isMediaEvent);
+          options.onEvent(event, isMediaEvent);
         });
         
         // If we have enough cached events, complete early
-        if (noteEvents.length >= limit) {
+        if (noteEvents.length >= options.limit) {
           console.log(`[usePostsSubscription] Found ${noteEvents.length} cached events, completing early`);
-          setTimeout(() => onComplete(), 0);
+          setTimeout(() => options.onComplete(), 0);
           // Still subscribe to get newer posts but with shorter timeout
         } else if (noteEvents.length > 0) {
           // We have some cached events but not enough, so mark as partially complete
           // This helps the UI show something immediately
           setTimeout(() => {
             console.log(`[usePostsSubscription] Partial data available, triggering UI update`);
-            onComplete();
+            options.onComplete();
           }, 0);
         }
       }
@@ -82,7 +77,7 @@ export function usePostsSubscription() {
           {
             kinds: [1],
             authors: [hexPubkey],
-            limit
+            limit: options.limit
           }
         ],
         (event) => {
@@ -107,10 +102,14 @@ export function usePostsSubscription() {
             const isMediaEvent = validMediaUrls.length > 0;
             
             eventCountRef.current++;
-            onEvent(event, isMediaEvent);
+            options.onEvent(event, isMediaEvent);
           } catch (err) {
             console.error("Error processing event:", err);
           }
+        },
+        undefined,
+        {
+          componentId: options.componentId // Pass component ID for tracking
         }
       );
       
@@ -121,7 +120,7 @@ export function usePostsSubscription() {
       // Reduced from 5s to 3s
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
-        onComplete();
+        options.onComplete();
       }, 3000);
       
       // Return a cleanup function
@@ -138,7 +137,7 @@ export function usePostsSubscription() {
       };
     } catch (err) {
       console.error("Error in usePostsSubscription:", err);
-      onComplete();
+      options.onComplete();
       return () => {};
     }
   }, []);

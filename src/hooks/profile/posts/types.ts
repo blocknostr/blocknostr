@@ -22,3 +22,18 @@ export interface PostsSubscriptionOptions {
   onComplete: () => void;
   componentId?: string; // Add component ID for subscription tracking
 }
+
+// Add the missing CacheCheckResult interface
+export interface CacheCheckResult {
+  postsEvents: NostrEvent[];
+  mediaEvents: NostrEvent[];
+  foundInCache: boolean;
+}
+
+// Update UsePostsSubscriptionProps interface
+export interface UsePostsSubscriptionProps {
+  onEvent: (event: NostrEvent, isMediaEvent: boolean) => void;
+  onComplete: () => void;
+  limit: number;
+  componentId?: string; // Add component ID for subscription tracking
+}

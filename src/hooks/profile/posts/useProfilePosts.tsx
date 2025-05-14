@@ -10,7 +10,7 @@ export function useProfilePosts({
   hexPubkey, 
   limit = 50,
   componentId // New parameter for component tracking
-}: UseProfilePostsProps & { componentId?: string }): UseProfilePostsReturn {
+}: UseProfilePostsProps): UseProfilePostsReturn {
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [media, setMedia] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(false);

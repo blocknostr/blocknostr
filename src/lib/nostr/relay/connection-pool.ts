@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 
 /**
@@ -160,7 +161,7 @@ export class ConnectionPool {
       const status = this.connectionStatus.get(relayUrl);
       if (status) {
         status.status = 'disconnected';
-        this.connectionStatus.set(url, status);
+        this.connectionStatus.set(relayUrl, status);
       }
       
       console.log(`Manually disconnected from relay: ${relayUrl}`);
@@ -179,9 +180,9 @@ export class ConnectionPool {
     this.connections.clear();
     
     // Update all statuses
-    this.connectionStatus.forEach((status, url) => {
+    this.connectionStatus.forEach((status, relayUrl) => {
       status.status = 'disconnected';
-      this.connectionStatus.set(url, status);
+      this.connectionStatus.set(relayUrl, status);
     });
   }
   
