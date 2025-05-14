@@ -1,89 +1,36 @@
 
-import * as React from "react";
-import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
+import { useState, useCallback, useRef } from "react";
+import { nostrService } from "@/lib/nostr";
 
-export function useProfileFetcher() {
-  const [profiles, setProfiles] = React.useState<Record<string, any>>({});
-  const [fetchErrors, setFetchErrors] = React.useState<Record<string, string>>({});
+export function useProfileFetcher(initialProfiles = {}) {
+  const [profiles, setProfiles] = useState<Record<string, any>>(initialProfiles);
+  const fetchingRef = useRef<Set<string>>(new Set());
   
-  const fetchProfileData = React.useCallback(async (pubkey: string) => {
-    if (!pubkey) {
-      console.warn("[useProfileFetcher] No pubkey provided");
-      return;
-    }
+  const fetchProfileData = useCallback(async (pubkey: string) => {
+    // Skip if we're already fetching this profile
+    if (fetchingRef.current.has(pubkey)) return;
     
-    if (profiles[pubkey]) {
-      console.log(`[useProfileFetcher] Profile already loaded for ${pubkey.substring(0, 8)}`);
-      return;
-    }
+    // Skip if we already have this profile
+    if (profiles[pubkey]) return;
     
-    console.log(`[useProfileFetcher] Fetching profile for ${pubkey.substring(0, 8)}`);
+    // Mark as fetching
+    fetchingRef.current.add(pubkey);
     
     try {
-      // Use our unified profile service
-      const data = await unifiedProfileService.getProfile(pubkey);
-      
-      if (data) {
-        console.log(`[useProfileFetcher] Profile loaded for ${pubkey.substring(0, 8)}: ${data.name || data.display_name || 'No name'}`);
-        
+      const profileData = await nostrService.getProfileData(pubkey);
+      if (profileData) {
         setProfiles(prev => ({
           ...prev,
-          [pubkey]: data
-        }));
-        
-        // Clear any previous errors
-        if (fetchErrors[pubkey]) {
-          setFetchErrors(prev => {
-            const newErrors = {...prev};
-            delete newErrors[pubkey];
-            return newErrors;
-          });
-        }
-      } else {
-        console.warn(`[useProfileFetcher] No profile data returned for ${pubkey.substring(0, 8)}`);
-        setFetchErrors(prev => ({
-          ...prev,
-          [pubkey]: "No profile data found"
+          [pubkey]: profileData
         }));
       }
-    } catch (error) {
-      console.error(`[useProfileFetcher] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
-      setFetchErrors(prev => ({
-        ...prev,
-        [pubkey]: error instanceof Error ? error.message : "Unknown error"
-      }));
+    } catch (err) {
+      console.error(`Error fetching profile for ${pubkey}:`, err);
+    } finally {
+      // Remove from fetching set when done
+      fetchingRef.current.delete(pubkey);
     }
-  }, [profiles, fetchErrors]);
-  
-  // Subscribe to profile updates from the unified service
-  React.useEffect(() => {
-    const eventHandlers: (() => void)[] = [];
-    
-    // Get all pubkeys we're tracking
-    const trackedPubkeys = Object.keys(profiles);
-    
-    trackedPubkeys.forEach(pubkey => {
-      const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
-        console.log(`[useProfileFetcher] Profile update received for ${pubkey.substring(0, 8)}`, profile?.name || profile?.display_name);
-        
-        setProfiles(prev => ({
-          ...prev,
-          [pubkey]: profile
-        }));
-      });
-      
-      eventHandlers.push(unsubscribe);
-    });
-    
-    return () => {
-      // Cleanup all subscriptions
-      eventHandlers.forEach(unsubscribe => unsubscribe());
-    };
   }, [profiles]);
   
-  return {
-    profiles,
-    fetchProfileData,
-    fetchErrors
-  };
+  return { profiles, fetchProfileData, setProfiles };
 }

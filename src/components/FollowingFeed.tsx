@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import FeedEmptyState from "./feed/FeedEmptyState";
 import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
@@ -8,12 +8,28 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { NostrEvent } from "@/lib/nostr";
+
+interface FeedState {
+  scrollPosition: number;
+  events: NostrEvent[];
+  profiles: Record<string, any>;
+  repostData: Record<string, { pubkey: string, original: NostrEvent }>;
+  hasMore: boolean;
+  initialLoadComplete: boolean;
+}
 
 interface FollowingFeedProps {
   activeHashtag?: string;
+  feedState: FeedState;
+  onFeedStateChange: (state: Partial<FeedState>) => void;
 }
 
-const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
+const FollowingFeed: React.FC<FollowingFeedProps> = ({ 
+  activeHashtag, 
+  feedState,
+  onFeedStateChange
+}) => {
   const {
     events,
     profiles,
@@ -28,8 +44,37 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     loadingMore,
     hasMore,
     loadMoreEvents,
-    isRetrying
-  } = useFollowingFeed({ activeHashtag });
+    isRetrying,
+    setEvents,
+    setProfiles,
+    setRepostData
+  } = useFollowingFeed({ 
+    activeHashtag,
+    initialEvents: feedState.events,
+    initialProfiles: feedState.profiles,
+    initialRepostData: feedState.repostData,
+    initialHasMore: feedState.hasMore
+  });
+
+  // Update parent component with the latest feed state
+  useEffect(() => {
+    onFeedStateChange({ 
+      events, 
+      profiles, 
+      repostData, 
+      hasMore,
+      initialLoadComplete: true
+    });
+  }, [events, profiles, repostData, hasMore]);
+
+  // Restore state from feedState if we have cached data
+  useEffect(() => {
+    if (feedState.events.length > 0 && events.length === 0) {
+      setEvents(feedState.events);
+      setProfiles(feedState.profiles);
+      setRepostData(feedState.repostData);
+    }
+  }, []);
 
   return (
     <>
@@ -57,17 +102,17 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
       )}
       
       {/* Show loading state when no events and loading */}
-      {(loading || loadingFromCache) && events.length === 0 && (
+      {(loading || loadingFromCache) && events.length === 0 && !feedState.initialLoadComplete && (
         <FeedLoading activeHashtag={activeHashtag} />
       )}
       
       {/* Show empty state when no events and not loading */}
-      {events.length === 0 && !loading && !loadingFromCache && !isRetrying && (
+      {events.length === 0 && !loading && !loadingFromCache && !isRetrying && !feedState.initialLoadComplete && (
         <FeedEmptyState following={following} loading={loading} activeHashtag={activeHashtag} />
       )}
 
       {/* Show events list with auto-loading functionality */}
-      {events.length > 0 && (
+      {(events.length > 0 || feedState.initialLoadComplete) && (
         <FeedList 
           events={events}
           profiles={profiles}

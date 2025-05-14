@@ -1,14 +1,24 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { nostrService } from "@/lib/nostr";
+import { NostrEvent, nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
+  initialEvents?: NostrEvent[];
+  initialProfiles?: Record<string, any>;
+  initialRepostData?: Record<string, { pubkey: string, original: NostrEvent }>;
+  initialHasMore?: boolean;
 }
 
-export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
+export function useGlobalFeed({ 
+  activeHashtag,
+  initialEvents = [],
+  initialProfiles = {},
+  initialRepostData = {},
+  initialHasMore = true
+}: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
@@ -17,6 +27,9 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const loadMoreTimeoutRef = useRef<number | null>(null);
   const minLoadingTimeRef = useRef<number | null>(null);
   
+  // If we're provided with initial state, use it
+  const initialState = initialEvents.length > 0;
+  
   const { 
     events, 
     profiles, 
@@ -24,12 +37,18 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     subId, 
     setSubId, 
     setupSubscription, 
-    setEvents 
+    setEvents,
+    refreshFeed,
+    setProfiles,
+    repostData: hookRepostData
   } = useFeedEvents({
     since,
     until,
     activeHashtag,
-    limit: 20 // Initial load of 20 posts
+    limit: 20, // Initial load of 20 posts
+    initialEvents: initialEvents,
+    initialProfiles: initialProfiles,
+    initialRepostData: initialRepostData
   });
   
   // Function to retry loading posts with exponential backoff
@@ -118,7 +137,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     setHasMore,
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
+    initialLoad: !initialState, // Only do initial load if we don't have cached data
     threshold: 800,
     aggressiveness: 'high',
     preservePosition: true
@@ -126,25 +145,36 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
 
   // Set up minimum loading time of 6 seconds
   useEffect(() => {
-    // Set minimum loading time for better UX
-    minLoadingTimeRef.current = window.setTimeout(() => {
+    if (!initialState) {
+      // Set minimum loading time for better UX
+      minLoadingTimeRef.current = window.setTimeout(() => {
+        setMinLoadingTimeMet(true);
+      }, 6000); // 6 second minimum loading time
+    } else {
+      // If we have initial state, we can consider minimum loading time met
       setMinLoadingTimeMet(true);
-    }, 6000); // 6 second minimum loading time
+    }
     
     return () => {
       if (minLoadingTimeRef.current) {
         clearTimeout(minLoadingTimeRef.current);
       }
     };
-  }, [activeHashtag]);
+  }, [activeHashtag, initialState]);
 
   useEffect(() => {
     const initFeed = async () => {
+      // If we already have cached data, don't reload everything
+      if (initialState) {
+        setHasMore(initialHasMore || true);
+        setLoading(false);
+        return;
+      }
+      
       // Connect to relays
       await nostrService.connectToUserRelays();
       
       // Reset state when filter changes
-      setEvents([]);
       setHasMore(true);
       setLoading(true);
       setMinLoadingTimeMet(false);
@@ -179,18 +209,18 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         clearTimeout(minLoadingTimeRef.current);
       }
     };
-  }, [activeHashtag]);
+  }, [activeHashtag, initialState]);
 
   // Schedule retries if no events are loaded yet
   useEffect(() => {
-    if (events.length === 0 && loading && minLoadingTimeMet) {
+    if (events.length === 0 && loading && minLoadingTimeMet && !initialState) {
       const retryTimeout = setTimeout(() => {
         retryLoadPosts();
       }, 3000 + retryAttempt * 2000); // Exponential backoff
       
       return () => clearTimeout(retryTimeout);
     }
-  }, [events.length, loading, minLoadingTimeMet, retryAttempt, retryLoadPosts]);
+  }, [events.length, loading, minLoadingTimeMet, retryAttempt, retryLoadPosts, initialState]);
 
   // Only turn off loading when we have events or minimum loading time has elapsed
   useEffect(() => {
@@ -202,12 +232,15 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   return {
     events,
     profiles,
-    repostData,
+    repostData: { ...repostData, ...hookRepostData },
     loadMoreRef,
     loading,
     hasMore,
     loadMoreEvents,
     loadingMore: loadingMore || scrollLoadingMore,
-    minLoadingTimeMet
+    minLoadingTimeMet,
+    setEvents,
+    setProfiles,
+    setRepostData: () => {}, // This is populated from the hook
   };
 }
