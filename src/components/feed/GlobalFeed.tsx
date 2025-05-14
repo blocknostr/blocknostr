@@ -51,7 +51,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag, feedState, onFee
       hasMore,
       initialLoadComplete: true
     });
-  }, [events, profiles, repostData, hasMore]);
+  }, [events, profiles, repostData, hasMore, onFeedStateChange]);
 
   // Restore state from feedState if we have cached data
   useEffect(() => {
@@ -61,12 +61,12 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag, feedState, onFee
       setProfiles(feedState.profiles);
       setRepostData(feedState.repostData);
     }
-  }, []);
+  }, [feedState, events.length]);
 
   // Show loading state when no events and loading
   // Make sure we've given enough time to load events before showing empty state
   if ((loading || !minLoadingTimeMet) && events.length === 0 && !feedState.initialLoadComplete) {
-    return <FeedLoading activeHashtag={activeHashtag} />;
+    return <FeedLoading />;
   }
   
   // Show empty state when no events and not loading

@@ -17,7 +17,7 @@ export function useProfileFetcher(initialProfiles = {}) {
     fetchingRef.current.add(pubkey);
     
     try {
-      const profileData = await nostrService.getProfileData(pubkey);
+      const profileData = await nostrService.getUserProfile(pubkey);
       if (profileData) {
         setProfiles(prev => ({
           ...prev,

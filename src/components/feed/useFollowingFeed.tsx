@@ -42,7 +42,7 @@ export function useFollowingFeed({
   // Get the list of users the current user is following
   useEffect(() => {
     const fetchFollowing = async () => {
-      const followingList = await nostrService.getFollowingList();
+      const followingList = await nostrService.following;
       if (followingList && followingList.length > 0) {
         setFollowing(followingList);
       } else {
@@ -112,7 +112,7 @@ export function useFollowingFeed({
     
     // Fetch profile data if we don't have it already
     if (event.pubkey && !profiles[event.pubkey]) {
-      nostrService.getProfileData(event.pubkey).then(profileData => {
+      nostrService.getUserProfile(event.pubkey).then(profileData => {
         if (profileData) {
           setProfiles(prev => ({
             ...prev,
@@ -130,7 +130,7 @@ export function useFollowingFeed({
         const originalEventId = eTags[0][1];
         
         // Try to find the original event
-        nostrService.getEvent(originalEventId, originalEvent => {
+        nostrService.getEventById(originalEventId).then(originalEvent => {
           if (originalEvent) {
             setRepostData(prev => ({
               ...prev,
@@ -139,7 +139,7 @@ export function useFollowingFeed({
             
             // Also fetch profile data for the original author
             if (originalEvent.pubkey && !profiles[originalEvent.pubkey]) {
-              nostrService.getProfileData(originalEvent.pubkey).then(profileData => {
+              nostrService.getUserProfile(originalEvent.pubkey).then(profileData => {
                 if (profileData) {
                   setProfiles(prev => ({
                     ...prev,

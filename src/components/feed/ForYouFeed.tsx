@@ -57,7 +57,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({
       hasMore,
       initialLoadComplete: true
     });
-  }, [events, profiles, repostData, hasMore]);
+  }, [events, profiles, repostData, hasMore, onFeedStateChange]);
 
   // Restore state from feedState if we have cached data
   useEffect(() => {
@@ -66,7 +66,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({
       setProfiles(feedState.profiles);
       setRepostData(feedState.repostData);
     }
-  }, []);
+  }, [feedState, events.length]);
 
   // Record view interactions for displayed events
   React.useEffect(() => {
@@ -76,11 +76,11 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({
         recordInteraction('view', event);
       });
     }
-  }, [events]);
+  }, [events, recordInteraction]);
 
   // Show loading state when no events and loading or minimum loading time not met yet
   if ((loading || !minLoadingTimeMet) && events.length === 0 && !feedState.initialLoadComplete) {
-    return <FeedLoading activeHashtag={activeHashtag} />;
+    return <FeedLoading />;
   }
   
   // Show empty state when no events and not loading

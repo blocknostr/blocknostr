@@ -72,59 +72,62 @@ export function useEventSubscription({
     
     const currentSubId = Math.random().toString(36).substring(2, 15);
     
-    nostrService.subscribe({ filter, eventHandler: (event) => {
-      if (!event) return;
-      
-      // Skip if we already have this event
-      if (eventDeduplication.current.hasEvent(event)) {
-        return;
-      }
-      
-      eventDeduplication.current.addEvent(event);
-      
-      // Check if this is a repost (kind 1 with 'e' tag and no content)
-      if (event.kind === 1 &&
-          event.tags &&
-          event.tags.some(tag => tag[0] === 'e')) {
+    nostrService.subscribe({ 
+      filter,
+      eventHandler: (event) => {
+        if (!event) return;
         
-        const eTags = event.tags.filter(tag => tag[0] === 'e');
-        if (eTags.length > 0 && (!event.content || event.content.trim() === '')) {
-          // This is a repost, find the original event
-          const originalEventId = eTags[0][1];
-          
-          // Try to find the original event
-          nostrService.getEvent(originalEventId, originalEvent => {
-            if (originalEvent) {
-              handleRepost(event.pubkey, originalEvent);
-              setEvents(prev => [originalEvent, ...prev]);
-              
-              // Also fetch profile data for the original author
-              if (originalEvent.pubkey) {
-                fetchProfileData(originalEvent.pubkey);
-              }
-            }
-          });
+        // Skip if we already have this event
+        if (eventDeduplication.current.hasEvent(event)) {
           return;
         }
-      }
-      
-      // Fetch profile data for the author
-      if (event.pubkey) {
-        fetchProfileData(event.pubkey);
-      }
-      
-      // Add event to the list
-      setEvents(prev => {
-        // Check if this event is already in the list
-        if (prev.some(e => e.id === event.id)) {
-          return prev;
+        
+        eventDeduplication.current.addEvent(event);
+        
+        // Check if this is a repost (kind 1 with 'e' tag and no content)
+        if (event.kind === 1 &&
+            event.tags &&
+            event.tags.some(tag => tag[0] === 'e')) {
+          
+          const eTags = event.tags.filter(tag => tag[0] === 'e');
+          if (eTags.length > 0 && (!event.content || event.content.trim() === '')) {
+            // This is a repost, find the original event
+            const originalEventId = eTags[0][1];
+            
+            // Try to find the original event
+            nostrService.getEventById(originalEventId).then(originalEvent => {
+              if (originalEvent) {
+                handleRepost(event.pubkey, originalEvent);
+                setEvents(prev => [originalEvent, ...prev]);
+                
+                // Also fetch profile data for the original author
+                if (originalEvent.pubkey) {
+                  fetchProfileData(originalEvent.pubkey);
+                }
+              }
+            });
+            return;
+          }
         }
         
-        // Add the new event to the beginning of the list
-        return [event, ...prev];
-      });
-      
-    }, id: currentSubId });
+        // Fetch profile data for the author
+        if (event.pubkey) {
+          fetchProfileData(event.pubkey);
+        }
+        
+        // Add event to the list
+        setEvents(prev => {
+          // Check if this event is already in the list
+          if (prev.some(e => e.id === event.id)) {
+            return prev;
+          }
+          
+          // Add the new event to the beginning of the list
+          return [event, ...prev];
+        });
+      },
+      id: currentSubId
+    });
     
     setSubId(currentSubId);
     return currentSubId;
