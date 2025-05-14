@@ -72,9 +72,10 @@ export function useEventSubscription({
     
     const currentSubId = Math.random().toString(36).substring(2, 15);
     
+    // Fix: Pass the parameters in the correct format expected by nostrService.subscribe
     nostrService.subscribe(
-      currentSubId, 
-      filter,
+      [currentSubId], // Convert to array to match expected type
+      [filter],
       (event) => {
         if (!event) return;
         

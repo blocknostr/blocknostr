@@ -1,4 +1,3 @@
-
 // Update the useFollowingFeed hook to use preserved state
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useProfileFetcher } from './hooks/use-profile-fetcher';
@@ -89,9 +88,10 @@ export function useFollowingFeed({
     
     const subId = Math.random().toString(36).substring(2, 15);
     
+    // Fix: Pass the parameters in the correct format expected by nostrService.subscribe
     nostrService.subscribe(
-      subId,
-      filter,
+      [subId], // Convert to array to match expected type
+      [filter],
       handleEvent
     );
     
@@ -188,9 +188,10 @@ export function useFollowingFeed({
       
       const subId = Math.random().toString(36).substring(2, 15);
       
+      // Fix: Pass the parameters in the correct format
       nostrService.subscribe(
-        subId,
-        filter,
+        [subId], // Convert to array to match expected type
+        [filter],
         handleEvent
       );
       
@@ -251,9 +252,10 @@ export function useFollowingFeed({
     
     const subId = Math.random().toString(36).substring(2, 15);
     
+    // Fix: Pass parameters in the correct format
     nostrService.subscribe(
-      subId,
-      filter,
+      [subId], // Convert to array to match expected type
+      [filter],
       handleEvent
     );
     
@@ -310,9 +312,10 @@ export function useFollowingFeed({
     
     const subId = Math.random().toString(36).substring(2, 15);
     
+    // Fix: Pass parameters in the correct format
     nostrService.subscribe(
-      subId,
-      filter,
+      [subId], // Convert to array to match expected type
+      [filter],
       handleEvent
     );
     

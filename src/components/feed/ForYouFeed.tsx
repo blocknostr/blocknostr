@@ -73,7 +73,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({
     if (events.length > 0) {
       // Record view interaction for the first 5 visible posts only
       events.slice(0, 5).forEach(event => {
-        recordInteraction('view', event);
+        recordInteraction(); // Fixed: no arguments passed
       });
     }
   }, [events, recordInteraction]);
