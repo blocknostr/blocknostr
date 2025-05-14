@@ -1,16 +1,17 @@
 
-import React from 'react';
-import { Button } from "@/components/ui/button";
-import FormattingToolbar from './FormattingToolbar';
-import CharacterCounter from './CharacterCounter';
+import React, { RefObject } from 'react';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon } from 'lucide-react';
 import SubmitButton from './SubmitButton';
-import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-interface NoteFormFooterProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+export interface NoteFormFooterProps {
+  textareaRef: RefObject<HTMLTextAreaElement>;
   content: string;
   setContent: (content: string) => void;
-  onMediaAdded: (url: string) => void;
   scheduledDate: Date | null;
   setScheduledDate: (date: Date | null) => void;
   charsLeft: number;
@@ -23,7 +24,6 @@ const NoteFormFooter: React.FC<NoteFormFooterProps> = ({
   textareaRef,
   content,
   setContent,
-  onMediaAdded,
   scheduledDate,
   setScheduledDate,
   charsLeft,
@@ -31,32 +31,63 @@ const NoteFormFooter: React.FC<NoteFormFooterProps> = ({
   isOverLimit,
   isSubmitting
 }) => {
+  // Handle scheduling a post
+  const handleSchedule = (date: Date | undefined) => {
+    if (date) {
+      // Make sure date is in the future
+      if (date.getTime() <= Date.now()) {
+        // Set to the next hour
+        const nextHour = new Date();
+        nextHour.setHours(nextHour.getHours() + 1);
+        nextHour.setMinutes(0);
+        nextHour.setSeconds(0);
+        nextHour.setMilliseconds(0);
+        setScheduledDate(nextHour);
+      } else {
+        setScheduledDate(date);
+      }
+    }
+  };
+  
   return (
-    <div className="flex justify-between items-center">
-      <div className="flex items-center">
-        <FormattingToolbar 
-          textareaRef={textareaRef}
-          content={content}
-          setContent={setContent}
-          onMediaAdded={onMediaAdded}
-          scheduledDate={scheduledDate}
-          setScheduledDate={setScheduledDate}
-        />
+    <div className="flex items-center justify-between pt-3 border-t">
+      <div className="flex items-center space-x-2">
+        {/* Schedule button */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full"
+              type="button"
+              disabled={isSubmitting}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              <span className="sr-only">Schedule post</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={scheduledDate || undefined}
+              onSelect={handleSchedule}
+              initialFocus
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return date < today;
+              }}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
-      
-      <div className="flex items-center gap-2">
-        <CharacterCounter 
-          charsLeft={charsLeft} 
-          isNearLimit={isNearLimit} 
-          isOverLimit={isOverLimit} 
-        />
-        
-        <SubmitButton 
-          isSubmitting={isSubmitting}
-          disabled={content.length === 0 || isOverLimit}
-          scheduledDate={scheduledDate}
-        />
-      </div>
+
+      {/* Submit button */}
+      <SubmitButton 
+        isSubmitting={isSubmitting} 
+        disabled={isOverLimit || !content || content.trim().length === 0}
+        scheduledDate={scheduledDate}
+      />
     </div>
   );
 };

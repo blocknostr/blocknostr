@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import NoteCardComments from '../NoteCardComments';
 
 interface RenderRepliesAccordionProps {
@@ -16,29 +16,27 @@ interface RenderRepliesAccordionProps {
   onReplyAdded: () => void;
 }
 
-const RenderRepliesAccordion: React.FC<RenderRepliesAccordionProps> = ({ 
-  eventId, 
-  replyCount, 
+const RenderRepliesAccordion: React.FC<RenderRepliesAccordionProps> = ({
+  eventId,
+  replyCount,
   replyUpdated,
   pubkey,
   onReplyAdded
 }) => {
-  if (!eventId || replyCount <= 0) {
-    return null;
-  }
+  if (!replyCount || replyCount <= 0 || !eventId) return null;
   
   return (
-    <Accordion type="single" collapsible className="mt-2 border-t pt-2">
+    <Accordion type="single" collapsible className="mt-2" data-accordion-item>
       <AccordionItem value="replies" className="border-none">
-        <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:no-underline">
-          {replyCount} {replyCount === 1 ? 'Reply' : 'Replies'}
+        <AccordionTrigger className="py-2 text-sm font-normal text-muted-foreground">
+          {replyCount === 1 ? '1 reply' : `${replyCount} replies`}
         </AccordionTrigger>
         <AccordionContent>
           <NoteCardComments 
             eventId={eventId} 
-            pubkey={pubkey || ''}
+            pubkey={pubkey || ''} 
+            replyUpdated={replyUpdated} 
             onReplyAdded={onReplyAdded}
-            key={`comments-${replyUpdated}`}
           />
         </AccordionContent>
       </AccordionItem>
@@ -46,4 +44,4 @@ const RenderRepliesAccordion: React.FC<RenderRepliesAccordionProps> = ({
   );
 };
 
-export default RenderRepliesAccordion;
+export default React.memo(RenderRepliesAccordion);

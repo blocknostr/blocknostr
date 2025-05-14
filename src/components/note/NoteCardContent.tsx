@@ -1,15 +1,10 @@
 
-import React, { useState, useMemo, useRef } from 'react';
-import { MessageSquare } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
-import EnhancedMediaContent from '../media/EnhancedMediaContent';
-import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
-import { getMediaUrlsFromEvent, getLinkPreviewUrlsFromEvent } from '@/lib/nostr/utils';
-import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface NoteCardContentProps {
   content?: string;
@@ -30,24 +25,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
-  const isMounted = useRef(true);
-  
-  // Setup cleanup when component unmounts
-  React.useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      
-      // Clear URL registry on unmount to prevent stale entries
-      // But only do this after the component is fully unmounted (next tick)
-      // to prevent issues with other components still using the registry
-      setTimeout(() => {
-        if (!document.body.contains(document.activeElement)) {
-          // If we're navigating away, clear the registry
-          UrlRegistry.clearAll();
-        }
-      }, 100);
-    };
-  }, []);
   
   // Check if content is longer than 280 characters
   const isLong = contentToUse.length > 280;
@@ -60,7 +37,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
-  // Extract hashtags from tags array - add null safety checks
+  // Extract hashtags from tags array
   const hashtags = useMemo(() => {
     if (!Array.isArray(tagsToUse)) return [];
     
@@ -69,16 +46,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags using our utility
-  const mediaUrls = useMemo(() => {
-    return getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-  }, [contentToUse, tagsToUse, event]);
-  
-  // Extract link preview URLs (non-media URLs)
-  const linkPreviewUrls = useMemo(() => {
-    return getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-  }, [contentToUse, tagsToUse, event]);
-  
   // Handle hashtag click
   const handleHashtagClick = (e: React.MouseEvent, tag: string) => {
     e.stopPropagation();
@@ -86,13 +53,31 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
+  // Extract image URLs - simple, NIP-compliant approach
+  const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+    const content = contentToUse;
+    
+    // Simple regex to find image URLs
+    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
+    let match;
+    
+    while ((match = imgRegex.exec(content)) !== null) {
+      if (match[0]) {
+        urls.push(match[0]);
+      }
+    }
+    
+    return urls;
+  }, [contentToUse]);
+  
   return (
     <div className="mt-2">
       <div className="prose max-w-none dark:prose-invert text-sm">
         {formattedContent}
       </div>
       
-      {/* Show more/less button - Moved above media content */}
+      {/* Show more/less button */}
       {isLong && (
         <Button 
           variant="link" 
@@ -107,47 +92,27 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Media preview section */}
-      {mediaUrls && mediaUrls.length > 0 && (
+      {/* Simple image rendering */}
+      {imageUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
-          mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
+          imageUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
         )}>
-          {mediaUrls.slice(0, 4).map((url, index) => (
-            <EnhancedMediaContent 
-              key={`${url}-${index}`}
-              url={url}
-              alt={`Post media ${index + 1}`}
-              index={index}
-              totalItems={mediaUrls.length}
-            />
-          ))}
-          {mediaUrls.length > 4 && (
-            <div className="col-span-2 text-center text-sm text-muted-foreground mt-1">
-              +{mediaUrls.length - 4} more media items
+          {imageUrls.slice(0, 4).map((url, index) => (
+            <div key={`${index}`} className="relative aspect-square overflow-hidden rounded-md border border-border/10">
+              <img 
+                src={url} 
+                alt="Media content" 
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
-          )}
+          ))}
         </div>
       )}
       
-      {/* Link preview section */}
-      {linkPreviewUrls && linkPreviewUrls.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {linkPreviewUrls.slice(0, 2).map((url, index) => (
-            <LinkPreview 
-              key={`link-${url}-${index}`} 
-              url={url}
-            />
-          ))}
-          {linkPreviewUrls.length > 2 && (
-            <div className="text-center text-sm text-muted-foreground">
-              +{linkPreviewUrls.length - 2} more links
-            </div>
-          )}
-        </div>
-      )}
-      
-      {hashtags && hashtags.length > 0 && (
+      {/* Hashtags section */}
+      {hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
             <HashtagButton
@@ -157,13 +122,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
               variant="small"
             />
           ))}
-        </div>
-      )}
-      
-      {reachCount !== undefined && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          <MessageSquare className="inline mr-1 h-3 w-3" />
-          {reachCount.toLocaleString()} views
         </div>
       )}
     </div>

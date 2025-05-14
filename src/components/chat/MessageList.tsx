@@ -1,9 +1,8 @@
-
 import React, { useRef, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageItem from "./MessageItem";
 import { NostrEvent } from "@/lib/nostr/types";
-import { Loader2, MessageSquare } from "lucide-react";
+import { MessageSquare, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MessageListProps {
@@ -45,6 +44,41 @@ const MessageList: React.FC<MessageListProps> = ({
       }
     }
   }, [messages]);
+
+  // Channel changing state - show no loading indicator, just keep current messages visible
+  if (loading && messages.length > 0) {
+    return (
+      <CardContent className="p-0 overflow-hidden flex-1 relative z-10">
+        <div ref={scrollContainerRef} className="h-full">
+          <ScrollArea 
+            className="h-full custom-scrollbar"
+            type="always"
+            scrollHideDelay={3000} 
+          >
+            <div className="p-2 flex flex-col h-full">
+              {/* Display existing messages while changing channels */}
+              {[...messages].reverse().map((message, index) => {
+                const previousMessage = index > 0 ? [...messages].reverse()[index - 1] : undefined;
+                
+                return (
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    previousMessage={previousMessage}
+                    emojiReactions={emojiReactions[message.id] || []}
+                    profiles={profiles}
+                    isLoggedIn={isLoggedIn}
+                    onAddReaction={(emoji) => onAddReaction(emoji, message.id)}
+                  />
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+        </div>
+      </CardContent>
+    );
+  }
 
   if (loading) {
     return (

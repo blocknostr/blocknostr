@@ -4,6 +4,7 @@ import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
 import { toast } from "sonner";
+import { retry } from "@/lib/utils/retry";
 
 interface UseFollowingFeedProps {
   activeHashtag?: string;
@@ -19,6 +20,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [loadingFromCache, setLoadingFromCache] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const { 
     events, 
@@ -138,6 +140,38 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     return false;
   };
 
+  // Function to automatically retry loading posts if none are found
+  const retryLoadingPosts = async () => {
+    if (events.length === 0 && !isRetrying) {
+      setIsRetrying(true);
+      
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Close previous subscription
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+      
+      // Create new subscription with slightly extended time range
+      const currentTime = Math.floor(Date.now() / 1000);
+      const twoWeeksAgo = currentTime - 24 * 60 * 60 * 14; // 2 weeks for retry
+      
+      setSince(twoWeeksAgo);
+      setUntil(currentTime);
+      
+      // Start the new subscription with the extended timestamp range
+      const newSubId = setupSubscription(twoWeeksAgo, currentTime);
+      setSubId(newSubId);
+      
+      // Also try to load from cache with extended range
+      loadFromCache('following', twoWeeksAgo, currentTime);
+      
+      // End retry state after a delay
+      setTimeout(() => setIsRetrying(false), 3000);
+    }
+  };
+
   const initFeed = async (forceReconnect = false) => {
     setLoading(true);
     const currentTime = Math.floor(Date.now() / 1000);
@@ -252,13 +286,21 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       setIsLoadingMore(false);
     }
   }, [events, loading, isLoadingMore]);
+  
+  // Add automatic retry if no events are found after initial loading
+  useEffect(() => {
+    // Check if loading has finished but we have no events
+    if (!loading && events.length === 0 && !isRetrying && following.length > 0) {
+      retryLoadingPosts();
+    }
+  }, [loading, events.length, isRetrying, following.length]);
 
   return {
     events,
     profiles,
     repostData,
     loadMoreRef,
-    loading,
+    loading: loading || isRetrying, // Consider still loading during retry
     loadingFromCache,
     loadingMore: isLoadingMore,
     following,
@@ -267,6 +309,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     loadMoreEvents,
     connectionAttempted,
     lastUpdated,
-    cacheHit
+    cacheHit,
+    isRetrying
   };
 }

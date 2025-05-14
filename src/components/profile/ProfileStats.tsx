@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 interface ProfileStatsProps {
   followers: string[];
   following: string[];
-  postsCount: number;
+  postsCount?: number;
   currentUserPubkey: string | null;
   isCurrentUser: boolean;
   relays: Relay[];
@@ -40,6 +40,12 @@ const ProfileStats = ({
   const [showRelays, setShowRelays] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // Ensure we have valid values with defaults to prevent "undefined.toLocaleString()" errors
+  const safePostsCount = postsCount !== undefined ? postsCount : 0;
+  const safeFollowersCount = followers?.length || 0;
+  const safeFollowingCount = following?.length || 0;
+  const safeRelaysCount = relays?.length || 0;
+  
   const handleRefresh = () => {
     if (onRefresh) {
       setIsRefreshing(true);
@@ -55,24 +61,24 @@ const ProfileStats = ({
       <div className="grid grid-cols-4 divide-x">
         <StatItem 
           label="Posts" 
-          value={postsCount.toLocaleString()} 
+          value={safePostsCount.toLocaleString()} 
           isLoading={isLoading}
         />
         <StatItem 
           label="Following" 
-          value={following.length.toLocaleString()}
-          onClick={() => !isLoading && following.length > 0 && setShowFollowing(true)} 
+          value={safeFollowingCount.toLocaleString()}
+          onClick={() => !isLoading && safeFollowingCount > 0 && setShowFollowing(true)} 
           isLoading={isLoading}
         />
         <StatItem 
           label="Followers" 
-          value={followers.length.toLocaleString()} 
-          onClick={() => !isLoading && followers.length > 0 && setShowFollowers(true)}
+          value={safeFollowersCount.toLocaleString()} 
+          onClick={() => !isLoading && safeFollowersCount > 0 && setShowFollowers(true)}
           isLoading={isLoading}
         />
         <StatItem 
           label="Relays" 
-          value={relays.length.toLocaleString()} 
+          value={safeRelaysCount.toLocaleString()} 
           onClick={() => !isLoading && setShowRelays(true)}
           isLoading={isLoading}
           actionButton={
@@ -101,7 +107,7 @@ const ProfileStats = ({
             <DialogTitle>Following</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {following.length === 0 ? (
+            {safeFollowingCount === 0 ? (
               <div className="text-center text-muted-foreground">Not following anyone yet</div>
             ) : (
               <div className="space-y-4">
@@ -125,7 +131,7 @@ const ProfileStats = ({
             <DialogTitle>Followers</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {followers.length === 0 ? (
+            {safeFollowersCount === 0 ? (
               <div className="text-center text-muted-foreground">No followers yet</div>
             ) : (
               <div className="space-y-4">
@@ -146,7 +152,7 @@ const ProfileStats = ({
       <ProfileRelaysDialog
         open={showRelays}
         onOpenChange={setShowRelays}
-        relays={relays}
+        relays={relays || []}
         onRelaysChange={onRelaysChange}
         isCurrentUser={isCurrentUser}
         userNpub={userNpub}

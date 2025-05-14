@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from "react";
-import { nostrService } from "@/lib/nostr";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
@@ -44,7 +44,7 @@ export const useMessageSubscription = (
   const [loading, setLoading] = useState(true);
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   
-  const isLoggedIn = !!nostrService.publicKey;
+  const isLoggedIn = !!chatNostrService.publicKey;
 
   // Reset messages when chat tag changes
   useEffect(() => {
@@ -85,7 +85,7 @@ export const useMessageSubscription = (
 
     // Clean up any existing subscriptions
     subscriptions.forEach(subId => {
-      if (subId) nostrService.unsubscribe(subId);
+      if (subId) chatNostrService.unsubscribe(subId);
     });
     
     // Use a separate state update function to prevent excessive re-renders
@@ -119,7 +119,7 @@ export const useMessageSubscription = (
     };
     
     // Subscribe to chat messages with the specific tag
-    const messagesSub = nostrService.subscribe(
+    const messagesSub = chatNostrService.subscribe(
       [
         {
           kinds: [EVENT_KINDS.TEXT_NOTE],
@@ -136,7 +136,7 @@ export const useMessageSubscription = (
     
     // Cleanup function
     return () => {
-      if (messagesSub) nostrService.unsubscribe(messagesSub);
+      if (messagesSub) chatNostrService.unsubscribe(messagesSub);
     };
   }, [connectionStatus, fetchProfile, chatTag]);
 

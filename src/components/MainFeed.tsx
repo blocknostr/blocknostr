@@ -5,9 +5,8 @@ import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
 import GlobalFeed from "./feed/GlobalFeed";
 import ForYouFeed from "./feed/ForYouFeed";
-import MediaFeed from "./feed/MediaFeed";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Image } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -22,7 +21,7 @@ interface MainFeedProps {
 }
 
 const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
-  const { preferences } = useUserPreferences();
+  const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
@@ -73,28 +72,27 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   // Handler for tab changes that ensures we only set valid FeedType values
   const handleTabChange = (value: string) => {
     // Ensure the value is a valid FeedType before setting it
-    if (value === 'global' || value === 'following' || value === 'for-you' || value === 'media') {
-      setActiveTab(value);
+    if (value === 'global' || value === 'following' || value === 'for-you') {
+      setActiveTab(value as FeedType);
     }
   };
 
   return (
     <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
-      {/* Fixed header container for both CreateNoteForm and Tabs */}
-      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md pb-1 shadow-sm">
-        {/* Offline banner */}
-        {isOffline && (
-          <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
-            <span>You're currently offline. Viewing cached content.</span>
-          </div>
-        )}
-        
-        {/* Create Note Form */}
-        <div className="mb-4 pt-4 px-2 sm:px-0">
-          <CreateNoteForm />
+      {/* Offline banner */}
+      {isOffline && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
+          <span>You're currently offline. Viewing cached content.</span>
         </div>
-        
-        {/* Tabs navigation */}
+      )}
+      
+      {/* Create Note Form - No longer in sticky container */}
+      <div className="mb-4 px-2 sm:px-0 pt-2">
+        <CreateNoteForm />
+      </div>
+      
+      {/* Tabs navigation - Still sticky */}
+      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md">
         <div className={cn(
           "border-b border-border/50",
           scrolledDown ? "shadow-sm" : ""
@@ -106,7 +104,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           >
             <TabsList className={cn(
               "w-full",
-              isMobile ? "grid grid-cols-5" : "flex"
+              isMobile ? "grid grid-cols-4" : "flex"
             )}>
               <TabsTrigger value="global" className="flex-1">Global</TabsTrigger>
               <TabsTrigger 
@@ -118,10 +116,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
               </TabsTrigger>
               <TabsTrigger value="for-you" className="flex-1">
                 For You
-              </TabsTrigger>
-              <TabsTrigger value="media" className="flex-1">
-                <Image className="h-4 w-4 mr-1" />
-                Media
               </TabsTrigger>
               <Button 
                 variant="ghost" 
@@ -137,13 +131,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       </div>
       
-      {/* Connection Status Banner - Below the fixed header */}
-      <div className="pt-4">
+      {/* Connection Status Banner */}
+      <div className="pt-2">
         {isLoggedIn && <ConnectionStatusBanner />}
       </div>
       
-      {/* Feed content that will scroll under the fixed header */}
-      <div className="mt-2">
+      {/* Feed content */}
+      <div className="mt-2 space-y-4">
         <Tabs 
           value={activeTab} 
           onValueChange={handleTabChange}
@@ -166,10 +160,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           <TabsContent value="for-you">
             <ForYouFeed activeHashtag={activeHashtag} />
           </TabsContent>
-          
-          <TabsContent value="media">
-            <MediaFeed activeHashtag={activeHashtag} />
-          </TabsContent>
         </Tabs>
       </div>
 
@@ -180,6 +170,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       />
     </div>
   );
-}
+};
 
 export default MainFeed;

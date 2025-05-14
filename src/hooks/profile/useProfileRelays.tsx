@@ -10,10 +10,12 @@ interface UseProfileRelaysProps {
 
 export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysProps) {
   const [relays, setRelays] = useState<Relay[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefetching, setIsRefetching] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const initialLoadDoneRef = useRef(false);
   
   // Track if component is still mounted
   useEffect(() => {
@@ -24,7 +26,10 @@ export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysP
   }, []);
   
   useEffect(() => {
-    if (!hexPubkey) return;
+    if (!hexPubkey) {
+      setIsLoading(false);
+      return;
+    }
     
     // Reset state when pubkey changes
     setRelays([]);
@@ -40,6 +45,8 @@ export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysP
           if (mountedRef.current) {
             setRelays(relayStatus);
             setIsLoading(false);
+            setIsRefetching(false);
+            initialLoadDoneRef.current = true;
           }
         } else {
           // For other users, try to get their relays
@@ -56,43 +63,69 @@ export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysP
           if (mountedRef.current) {
             setRelays(userRelays);
             setIsLoading(false);
+            setIsRefetching(false);
+            initialLoadDoneRef.current = true;
           }
         }
       } catch (error) {
         console.error("Error fetching relays:", error);
         if (mountedRef.current) {
           setIsLoading(false);
+          setIsRefetching(false);
           setHasError(true);
           setErrorMessage("Failed to load relays");
           
           // If we couldn't get relays, set some defaults
-          setRelays([
-            { url: "wss://relay.damus.io", status: 'connected', read: true, write: true },
-            { url: "wss://nos.lol", status: 'connected', read: true, write: true },
-            { url: "wss://relay.nostr.band", status: 'connected', read: true, write: true }
-          ]);
+          if (relays.length === 0) {
+            setRelays([
+              { url: "wss://relay.damus.io", status: 'connected', read: true, write: true },
+              { url: "wss://nos.lol", status: 'connected', read: true, write: true },
+              { url: "wss://relay.nostr.band", status: 'connected', read: true, write: true }
+            ]);
+          }
         }
       }
     };
     
     fetchRelays();
-  }, [hexPubkey, isCurrentUser]);
+  }, [hexPubkey, isCurrentUser, relays.length]);
+  
+  const refetch = async () => {
+    if (!hexPubkey) return;
+    
+    // Don't refetch if we're already fetching
+    if (isRefetching) return;
+    
+    setIsRefetching(true);
+    
+    // Don't set isLoading to true if we already have data
+    if (!initialLoadDoneRef.current) {
+      setIsLoading(true);
+    }
+    
+    setHasError(false);
+    setErrorMessage(null);
+    
+    try {
+      // This will trigger the useEffect above
+      const event = new CustomEvent('refetchRelays', { detail: { pubkey: hexPubkey } });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.error("Error refetching relays:", error);
+      setIsLoading(false);
+      setIsRefetching(false);
+      setHasError(true);
+      setErrorMessage("Failed to refetch relays");
+      toast.error("Failed to load relay information");
+    }
+  };
   
   return {
     relays,
     isLoading,
+    isRefetching,
     hasError,
     errorMessage,
-    refetch: () => {
-      if (!hexPubkey) return;
-      
-      setIsLoading(true);
-      setHasError(false);
-      setErrorMessage(null);
-      
-      // This will trigger the useEffect above
-      const event = new CustomEvent('refetchRelays', { detail: { pubkey: hexPubkey } });
-      window.dispatchEvent(event);
-    }
+    refetch
   };
 }

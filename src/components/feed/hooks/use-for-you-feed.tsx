@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
@@ -12,6 +12,8 @@ interface UseForYouFeedProps {
 export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreTimeoutRef = useRef<number | null>(null);
   
   const { 
     events, 
@@ -24,7 +26,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   } = useFeedEvents({
     since,
     until,
-    activeHashtag
+    activeHashtag,
+    limit: 20 // Initial load of 20 posts
   });
   
   // Track user interactions for personalized feed
@@ -121,8 +124,14 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     });
   };
   
-  const loadMoreEvents = () => {
-    if (!subId) return;
+  const loadMoreEvents = useCallback(async () => {
+    if (!subId || loadingMore) return;
+    setLoadingMore(true);
+    
+    // Cancel any existing timeout
+    if (loadMoreTimeoutRef.current) {
+      clearTimeout(loadMoreTimeoutRef.current);
+    }
     
     // Close previous subscription
     if (subId) {
@@ -136,7 +145,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
+      const newSince = newUntil - 48 * 60 * 60;
       
       setSince(newSince);
       setUntil(newUntil);
@@ -145,7 +155,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setSubId(newSubId);
     } else {
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60;
+      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
+      const newSince = newUntil - 48 * 60 * 60;
       
       setSince(newSince);
       setUntil(newUntil);
@@ -153,15 +164,27 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-  };
+    
+    // Set loading more to false after a shorter delay
+    loadMoreTimeoutRef.current = window.setTimeout(() => {
+      setLoadingMore(false);
+      loadMoreTimeoutRef.current = null;
+    }, 1500); // Reduced from 2000ms to 1500ms
+  }, [subId, since, until, events, setupSubscription, loadingMore]);
   
   const {
     loadMoreRef,
     loading,
     setLoading,
     hasMore,
-    setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+    setHasMore,
+    loadingMore: scrollLoadingMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 800, // Increased from 400 to 800 for earlier loading
+    aggressiveness: 'high', // Set to high for the most aggressive loading
+    preservePosition: true // Enable scroll position preservation
+  });
 
   useEffect(() => {
     const initFeed = async () => {
@@ -184,17 +207,17 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
       setLoading(false);
-      
-      toast("For You feed is personalized based on your interactions", {
-        description: "Keep interacting with content you enjoy for a better experience",
-      });
     };
     
     initFeed();
     
+    // Cleanup subscription and timeout when component unmounts
     return () => {
       if (subId) {
         nostrService.unsubscribe(subId);
+      }
+      if (loadMoreTimeoutRef.current) {
+        clearTimeout(loadMoreTimeoutRef.current);
       }
     };
   }, [activeHashtag]);
@@ -202,10 +225,6 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   useEffect(() => {
     if (events.length > 0 && loading) {
       setLoading(false);
-    }
-    
-    if (events.length >= 100) {
-      setHasMore(false);
     }
   }, [events, loading]);
 
@@ -216,6 +235,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     loadMoreRef,
     loading,
     hasMore,
-    recordInteraction
+    loadMoreEvents,
+    recordInteraction,
+    loadingMore: loadingMore || scrollLoadingMore
   };
 }

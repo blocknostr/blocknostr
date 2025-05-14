@@ -1,7 +1,8 @@
+
 import { BrowserEventEmitter } from "../BrowserEventEmitter";
 import { nostrService } from "@/lib/nostr";
 import { contentCache } from "@/lib/nostr/cache";
-import { getMediaUrlsFromEvent, isValidMediaUrl } from "@/lib/nostr/utils";
+import { getMediaUrlsFromEvent, isValidMediaUrl } from "@/lib/nostr/utils/media-extraction";
 
 /**
  * Service to handle profile post loading

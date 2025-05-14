@@ -69,26 +69,17 @@ const WorldChatHeader: React.FC<WorldChatHeaderProps> = ({
       </DropdownMenu>
       
       <div className={cn(
-        "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full",
+        "flex items-center justify-center w-6 h-6 rounded-full",
         connectionStatus === 'connected' ? "text-green-500 bg-green-500/10" : 
         connectionStatus === 'connecting' ? "text-yellow-500 bg-yellow-500/10" : 
         "text-red-500 bg-red-500/10"
       )}>
         {connectionStatus === 'connected' ? (
-          <>
-            <Wifi className="h-3 w-3" />
-            <span className="font-medium">Connected</span>
-          </>
+          <Wifi className="h-3.5 w-3.5" />
         ) : connectionStatus === 'connecting' ? (
-          <>
-            <Wifi className="h-3 w-3" />
-            <span className="font-medium">Connecting...</span>
-          </>
+          <Wifi className="h-3.5 w-3.5" />
         ) : (
-          <>
-            <WifiOff className="h-3 w-3" />
-            <span className="font-medium">Disconnected</span>
-          </>
+          <WifiOff className="h-3.5 w-3.5" />
         )}
       </div>
     </CardHeader>

@@ -1,23 +1,23 @@
 
 import { useState, useCallback } from "react";
-import { nostrService } from "@/lib/nostr";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 
 /**
- * Hook to handle fetching and caching profile information
+ * Hook to manage profile fetching for the chat
  */
 export const useProfileFetcher = () => {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
 
-  // Fetch profile info with error handling
+  // Fetch a profile by pubkey
   const fetchProfile = useCallback(async (pubkey: string) => {
     if (!pubkey || profiles[pubkey]) return;
-    
+
     try {
-      const profile = await nostrService.getUserProfile(pubkey);
-      if (profile) {
+      const metadata = await chatNostrService.getUserProfile(pubkey);
+      if (metadata) {
         setProfiles(prev => ({
           ...prev,
-          [pubkey]: profile
+          [pubkey]: metadata
         }));
       }
     } catch (error) {
@@ -25,8 +25,8 @@ export const useProfileFetcher = () => {
     }
   }, [profiles]);
 
-  return {
-    profiles,
-    fetchProfile
+  return { 
+    profiles, 
+    fetchProfile 
   };
 };

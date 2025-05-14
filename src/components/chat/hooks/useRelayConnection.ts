@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect } from "react";
-import { nostrService } from "@/lib/nostr";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 import { toast } from "sonner";
 import { retry } from "@/lib/utils/retry";
 
@@ -19,7 +19,7 @@ export const useRelayConnection = () => {
 
   // Function to get relay connection status
   const updateConnectionStatus = useCallback(() => {
-    const relays = nostrService.getRelayStatus();
+    const relays = chatNostrService.getRelayStatus();
     const connected = relays.filter(r => r.status === 'connected').length;
     
     if (connected > 0) {
@@ -37,8 +37,8 @@ export const useRelayConnection = () => {
     try {
       await retry(
         async () => {
-          await nostrService.connectToUserRelays();
-          const relays = nostrService.getRelayStatus();
+          await chatNostrService.connectToUserRelays();
+          const relays = chatNostrService.getRelayStatus();
           const connected = relays.filter(r => r.status === 'connected').length;
           if (connected === 0) throw new Error("No relays connected");
           return connected;
@@ -47,7 +47,7 @@ export const useRelayConnection = () => {
           maxAttempts: RECONNECT_ATTEMPTS,
           baseDelay: 1000,
           onRetry: (attempt) => {
-            console.log(`Retry #${attempt} connecting to relays...`);
+            console.log(`Retry #${attempt} connecting to relays for chat...`);
             setConnectionStatus('connecting');
           }
         }
@@ -56,7 +56,7 @@ export const useRelayConnection = () => {
       updateConnectionStatus();
       return true;
     } catch (error) {
-      console.error("Failed to connect to any relays:", error);
+      console.error("Failed to connect to any relays for chat:", error);
       setConnectionStatus('disconnected');
       setError("Unable to connect to relays. Please try again later.");
       return false;
@@ -69,13 +69,13 @@ export const useRelayConnection = () => {
     
     try {
       setIsReconnecting(true);
-      toast.loading("Reconnecting to relays...");
-      await nostrService.connectToUserRelays();
+      toast.loading("Reconnecting to chat relays...");
+      await chatNostrService.connectToUserRelays();
       updateConnectionStatus();
-      toast.success("Reconnection attempt completed");
+      toast.success("Chat reconnection attempt completed");
     } catch (err) {
-      toast.error("Failed to reconnect");
-      console.error("Reconnection error:", err);
+      toast.error("Failed to reconnect chat");
+      console.error("Chat reconnection error:", err);
     } finally {
       setIsReconnecting(false);
     }

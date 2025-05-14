@@ -1,7 +1,7 @@
 
 import React from 'react';
+import { HeartIcon, RepeatIcon, ArrowUpRight } from 'lucide-react';
 import NoteCardRepostHeader from '../NoteCardRepostHeader';
-import { Heart } from 'lucide-react';
 import { NostrEvent } from '@/lib/nostr';
 
 interface RenderIndicatorsProps {
@@ -21,32 +21,41 @@ const RenderIndicators: React.FC<RenderIndicatorsProps> = ({
   reactionData, 
   isReply 
 }) => {
+  // Skip rendering if no indicators
+  if (!repostData && !reactionData && !isReply) return null;
+  
   return (
     <>
-      {/* Render repost header if this is a repost */}
+      {/* Repost header */}
       {repostData && (
-        <NoteCardRepostHeader
-          reposterPubkey={repostData.reposterPubkey}
-          reposterProfile={repostData.reposterProfile}
-        />
-      )}
-      
-      {/* Render reaction header if this is a reaction */}
-      {reactionData && (
-        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
-          <Heart className="h-3.5 w-3.5" />
-          <span>Liked this post</span>
+        <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+          <RepeatIcon className="h-4 w-4" />
+          <span className="truncate">
+            <NoteCardRepostHeader 
+              reposterPubkey={repostData.reposterPubkey} 
+              reposterProfile={repostData.reposterProfile} 
+            />
+          </span>
         </div>
       )}
       
-      {/* Render reply indicator if this is a reply */}
+      {/* Reaction header */}
+      {reactionData && (
+        <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+          <HeartIcon className="h-4 w-4 text-red-500" />
+          <span>Liked</span>
+        </div>
+      )}
+      
+      {/* Reply indicator */}
       {isReply && (
-        <div className="bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground flex items-center gap-1.5">
-          <span>Reply to a post</span>
+        <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+          <ArrowUpRight className="h-4 w-4" />
+          <span>Reply</span>
         </div>
       )}
     </>
   );
 };
 
-export default RenderIndicators;
+export default React.memo(RenderIndicators);

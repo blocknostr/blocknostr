@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 
@@ -7,24 +6,30 @@ interface UseProfileRepostsProps {
   originalPostProfiles: Record<string, any>;
   setOriginalPostProfiles: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   enabled?: boolean;
+  initialLimit?: number;
 }
 
 export function useProfileReposts({ 
   hexPubkey,
   originalPostProfiles, 
   setOriginalPostProfiles,
-  enabled = true
+  enabled = true,
+  initialLimit = 10
 }: UseProfileRepostsProps) {
   const [reposts, setReposts] = useState<{ 
     originalEvent: NostrEvent; 
     repostEvent: NostrEvent;
   }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
   
-  const [replies, setReplies] = useState<NostrEvent[]>([]);
+  const [repostEvents, setRepostEvents] = useState<NostrEvent[]>([]);
   const subscriptionsRef = useRef<Set<string>>(new Set());
   const timeoutsRef = useRef<Set<number>>(new Set());
   const isMounted = useRef(true);
+  const lastTimestamp = useRef<number | null>(null);
   
   // Set up the mounted ref for cleanup
   useEffect(() => {
@@ -127,24 +132,126 @@ export function useProfileReposts({
     timeoutsRef.current.add(timeoutId);
   };
 
+  // Function to load more reposts
+  const loadMore = () => {
+    if (!hexPubkey || loading || loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    setPage(prev => prev + 1);
+    
+    // If we have reposts, use the oldest one's timestamp as 'until'
+    const until = lastTimestamp.current 
+      ? lastTimestamp.current - 1 // Subtract 1 to avoid duplication
+      : undefined;
+    
+    console.log(`Loading more reposts for profile: ${hexPubkey}, page: ${page + 1}, until: ${until}`);
+    
+    // Subscribe to next batch of user's reposts
+    const subId = nostrService.subscribe(
+      [
+        {
+          kinds: [6], // Reposts
+          authors: [hexPubkey],
+          until: until,
+          limit: initialLimit
+        }
+      ],
+      (repostEvent) => {
+        if (!isMounted.current) return;
+        
+        // Track the oldest timestamp for pagination
+        if (!lastTimestamp.current || repostEvent.created_at < lastTimestamp.current) {
+          lastTimestamp.current = repostEvent.created_at;
+        }
+        
+        // Save repost event to our local array
+        setRepostEvents(prev => {
+          if (prev.some(e => e.id === repostEvent.id)) {
+            return prev;
+          }
+          return [...prev, repostEvent];
+        });
+        
+        // Get the original event ID
+        const eTag = repostEvent.tags?.find(tag => 
+          Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
+        );
+        
+        if (eTag && eTag[1]) {
+          fetchOriginalPost(eTag[1], repostEvent.pubkey, repostEvent);
+        }
+      }
+    );
+    
+    // Add subscription to our tracking set
+    subscriptionsRef.current.add(subId);
+    
+    // Set loading to false after some time
+    const timeoutId = window.setTimeout(() => {
+      if (isMounted.current) {
+        setLoadingMore(false);
+        
+        // If we received fewer than the limit, assume there are no more
+        if (repostEvents.length < initialLimit * page) {
+          setHasMore(false);
+        }
+      }
+      
+      if (subscriptionsRef.current.has(subId)) {
+        nostrService.unsubscribe(subId);
+        subscriptionsRef.current.delete(subId);
+      }
+    }, 5000);
+    
+    // Track timeout
+    timeoutsRef.current.add(timeoutId);
+  };
+
   // Add new fetchReposts function to be called when hexPubkey or enabled changes
   useEffect(() => {
     if (!hexPubkey || !enabled) return;
     
     const fetchReposts = async () => {
+      console.log("Fetching initial reposts for profile:", hexPubkey);
       setLoading(true);
+      setPage(1);
+      setReposts([]);
+      setRepostEvents([]);
+      lastTimestamp.current = null;
+      setHasMore(true);
       
       try {
+        // Clean up existing subscriptions
+        subscriptionsRef.current.forEach(subId => {
+          nostrService.unsubscribe(subId);
+        });
+        subscriptionsRef.current.clear();
+        
         // Subscribe to user's reposts (kind 6)
         const subId = nostrService.subscribe(
           [
             {
               kinds: [6], // Reposts
               authors: [hexPubkey],
-              limit: 30
+              limit: initialLimit
             }
           ],
           (repostEvent) => {
+            if (!isMounted.current) return;
+            
+            // Track the oldest timestamp for pagination
+            if (!lastTimestamp.current || repostEvent.created_at < lastTimestamp.current) {
+              lastTimestamp.current = repostEvent.created_at;
+            }
+            
+            // Save repost event to our local array
+            setRepostEvents(prev => {
+              if (prev.some(e => e.id === repostEvent.id)) {
+                return prev;
+              }
+              return [...prev, repostEvent];
+            });
+            
             // Get the original event ID
             const eTag = repostEvent.tags?.find(tag => 
               Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
@@ -159,13 +266,13 @@ export function useProfileReposts({
         // Add subscription to our tracking set
         subscriptionsRef.current.add(subId);
         
-        // Cleanup subscription after some time
+        // Set loading to false after some time
         const timeoutId = window.setTimeout(() => {
-          if (subscriptionsRef.current.has(subId)) {
-            nostrService.unsubscribe(subId);
-            subscriptionsRef.current.delete(subId);
+          if (isMounted.current) {
+            setLoading(false);
           }
-          setLoading(false);
+          
+          // Don't auto-unsubscribe on initial load to keep receiving events
         }, 5000);
         
         // Track timeout
@@ -191,7 +298,13 @@ export function useProfileReposts({
       });
       timeoutsRef.current.clear();
     };
-  }, [hexPubkey, enabled]);
+  }, [hexPubkey, enabled, initialLimit]);
 
-  return { reposts, replies, fetchOriginalPost, loading };
+  return { 
+    reposts, 
+    loading, 
+    loadingMore,
+    hasMore,
+    loadMore
+  };
 }
