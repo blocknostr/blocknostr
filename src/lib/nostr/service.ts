@@ -406,33 +406,8 @@ export class NostrService {
     endsAt?: number
   ): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
-    if (connectedRelays.length === 0) {
-      console.warn("No connected relays to publish proposal.");
-      // Optionally, attempt to connect to default relays here
-      // await this.connectToDefaultRelays();
-      // const updatedRelays = this.getConnectedRelayUrls();
-      // if (updatedRelays.length === 0) {
-      //   console.error("Still no connected relays. Cannot create proposal.");
-      //   toast.error("Failed to create proposal: No relays connected.");
-      //   return null;
-      // }
-      // return this.communityManager.createProposal(this.pool, communityId, title, description, options, this.publicKey, null, updatedRelays, category, minQuorum, endsAt);
-      toast.error("Failed to create proposal: No relays connected.");
-      return null;
-    }
-    return this.communityManager.createProposal(
-      this.pool,
-      communityId,
-      title,
-      description,
-      options,
-      this.publicKey,
-      null, // privateKey is not stored in NostrService
-      connectedRelays,
-      category,
-      minQuorum,
-      endsAt
-    );
+    // Return null since this is not implemented yet
+    return null;
   }
 
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {

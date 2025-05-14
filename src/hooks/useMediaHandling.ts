@@ -11,88 +11,73 @@ interface MediaHandlingOptions {
 export function useMediaHandling({
   url,
   isVideo = false,
-  variant = 'inline', // Default variant
+  variant = 'inline',
   preload = false,
 }: MediaHandlingOptions) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [everInView, setEverInView] = useState(false);
-
-  // Log the options passed to the hook
-  useEffect(() => {
-    console.log(`[useMediaHandling] Options for ${url}:`, { isVideo, variant, preload });
-  }, [url, isVideo, variant, preload]);
+  const [everInView, setEverInView] = useState(false); // New state
 
   const { ref, inView } = useInView({
-    threshold: 0.1,
-    skip: preload,
+    threshold: 0.1, // Start loading when 10% of the item is visible
+    // triggerOnce is false by default in the provided useInView hook, which is what we want for dynamic video play/pause
+    skip: preload, // If preload is true, skip intersection observer and load immediately
   });
 
-  // Log the raw inView value from useInView
-  useEffect(() => {
-    console.log(`[useMediaHandling] Raw inView for ${url}: ${inView}`);
-  }, [url, inView]);
-
+  // Update everInView when inView becomes true
   useEffect(() => {
     if (inView && !everInView) {
-      console.log(`[useMediaHandling] ${url} came into view (inView: ${inView}), setting everInView to true.`);
       setEverInView(true);
     }
-  }, [inView, everInView, url]);
+  }, [inView, everInView]);
 
+  // Reset state when URL changes
   useEffect(() => {
-    console.log(`[useMediaHandling] URL/Preload/IsVideo changed for ${url}. Resetting state. Preload: ${preload}, IsVideo: ${isVideo}`);
     setIsLoaded(false);
     setError(false);
     setPlaying(false);
-    setEverInView(preload);
+    setEverInView(preload); // If preloading, it's considered as having been in view
     if (preload && isVideo) {
       setPlaying(true);
     }
   }, [url, preload, isVideo]);
 
+  // Determine if we should load the media
+  // Media should load if it has ever been in view or if preload is true.
   const shouldLoad = everInView || preload;
 
-  useEffect(() => {
-    console.log(`[useMediaHandling] Decision for ${url}: everInView=${everInView}, preload=${preload} => shouldLoad=${shouldLoad}`);
-  }, [url, everInView, preload, shouldLoad]);
-
+  // Effect to manage video playing state based on inView
   useEffect(() => {
     if (isVideo) {
       if (inView || preload) {
-        if (!playing) {
-          setPlaying(true);
-        }
+        setPlaying(true); // Play if in view or preloading
       } else {
-        if (playing) {
-          setPlaying(false);
-        }
+        setPlaying(false); // Pause if not in view (and not preloading)
       }
     }
-  }, [inView, isVideo, preload, playing, url]);
+  }, [inView, isVideo, preload]);
 
   const handleLoad = useCallback(() => {
-    console.log(`[useMediaHandling] Media loaded successfully: ${url}`);
     setIsLoaded(true);
     setError(false);
-  }, [url]);
+  }, []);
 
   const handleError = useCallback(() => {
-    console.error(`[useMediaHandling] Media failed to load (handleError): ${url}`);
     setError(true);
     setIsLoaded(false);
+    console.error(`Media failed to load: ${url}`);
   }, [url]);
 
   return {
     ref,
-    inView,
+    inView, // Expose inView for debugging or other conditional logic if needed
     isLoaded,
     error,
     playing,
     shouldLoad,
     handleLoad,
     handleError,
-    everInView,
+    everInView, // Expose everInView for debugging or other conditional logic
   };
 }

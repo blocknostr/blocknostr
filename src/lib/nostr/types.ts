@@ -1,3 +1,4 @@
+
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -31,23 +32,20 @@ export interface NostrProfileMetadata {
   nip05?: string;
   lud16?: string;
   website?: string;
-  created_at?: number; // Explicitly define created_at as number
-  [key: string]: unknown; // Changed from any to unknown
+  [key: string]: any;
 }
 
 export type NostrFilter = {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  '#e'?: string[]; // Specific tags like this are compatible with the generic signature below
+  '#e'?: string[];
   '#p'?: string[];
   '#t'?: string[];
   since?: number;
   until?: number;
   limit?: number;
-  search?: string; // For NIP-50 search queries
-} & {
-  [key: `#${string}`]: string[] | undefined; // Allows any #<char> tag with string array value, compatible with nostr-tools
+  [key: string]: any;
 };
 
 export interface NostrSubscription {

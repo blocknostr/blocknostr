@@ -63,8 +63,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
     if (!isValidUrl || !normalizedUrl) return false;
     try {
       const pathname = new URL(normalizedUrl).pathname;
-      // Ensure this regex matches the comprehensive list of video extensions
-      return pathname.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv|m4v|ogv)$/i) !== null;
+      return pathname.match(/\.(mp4|webm|mov|avi|wmv|mkv|flv|m4v)$/i) !== null;
     } catch (err) {
       return false;
     }
@@ -146,18 +145,12 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
           />
         )
       ) : shouldLoad && !isLoaded ? ( // Loading state for when we should load but haven't yet
-        <>
-          {console.log(`[EnhancedMediaContent] Rendering: MediaLoadingState for ${normalizedUrl}`)}
-          <MediaLoadingState />
-        </>
+        <MediaLoadingState />
       ) : (
         // Fallback for when !shouldLoad (e.g., not in view, no preload)
         // This ensures the div with the ref is in the DOM.
         // You can put a very lightweight placeholder here if desired, e.g., bg-muted/30
-        <>
-          {console.log(`[EnhancedMediaContent] Rendering: Placeholder (shouldLoad: ${shouldLoad}) for ${normalizedUrl}`)}
-          <div className="w-full h-full bg-muted/10" />
-        </>
+        <div className="w-full h-full bg-muted/10" />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,23 +7,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import NoteCardHeader from '@/components/note/NoteCardHeader';
 import NoteCardContent from '@/components/note/NoteCardContent';
 import NoteCardComments from '@/components/note/NoteCardComments';
-import NoteCardActions from '@/components/note/NoteCardActions';
+import NoteCardActions from '@/components/note/NoteCardActions'; 
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { nostrService, NostrEvent } from '@/lib/nostr'; // Added NostrEvent
+import { nostrService } from '@/lib/nostr';
 import { SimplePool } from 'nostr-tools';
 import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 import { Note } from '@/components/notebin/hooks/types';
-import { useUserProfile } from '@/hooks/queries/useProfileQueries';
-
-// Using NostrEvent directly for currentNote state
 
 const PostPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [isLoadingNote, setIsLoadingNote] = useState(true);
-  const [currentNote, setCurrentNote] = useState<NostrEvent | null>(null); // Use NostrEvent type
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentNote, setCurrentNote] = useState<any>(null);
+  const [profileData, setProfileData] = useState<Record<string, any> | null>(null);
   const [reactionCounts, setReactionCounts] = useState({
     likes: 0,
     reposts: 0,
@@ -35,56 +33,32 @@ const PostPage = () => {
   const [replyUpdated, setReplyUpdated] = useState(0);
   const [pool] = useState(() => new SimplePool());
 
-  const socialManager = useMemo(() => new SocialManager(pool, {}), [pool]); // Memoize socialManager
-  const defaultRelays = useMemo(() => ["wss://relay.damus.io", "wss://nos.lol"], []);
+  // Create SocialManager instance with the SimplePool
+  const socialManager = new SocialManager(pool, {});
+  
+  // Define default relays if nostrService.relays is not available
+  const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
 
-  const {
-    data: userProfile,
-    isLoading: isProfileLoading,
-    error: profileError
-  } = useUserProfile(currentNote?.pubkey, {
-    enabled: !!currentNote?.pubkey,
-  });
-
-  useEffect(() => {
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      toast.error("Failed to load author's profile.");
-    }
-  }, [profileError]);
-
-  const fetchReactionCounts = useCallback(async (eventId: string) => {
-    try {
-      if (!eventId) return;
-      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
-      setReactionCounts(counts);
-    } catch (error) {
-      console.error("Error fetching reaction counts:", error);
-      toast.error("Failed to load reaction counts.");
-    }
-  }, [socialManager, defaultRelays]);
-
-  const handleEvent = useCallback((event: NostrEvent) => {
-    setCurrentNote(event);
-    if (event && event.id) {
-      fetchReactionCounts(event.id);
-    }
-  }, [fetchReactionCounts]);
-
+  // Fetch the note data on component mount
   useEffect(() => {
     if (!id) return;
 
     const fetchNote = async () => {
       try {
-        setIsLoadingNote(true);
+        setIsLoading(true);
+        
+        // Connect to relays
         await nostrService.connectToUserRelays();
+        
+        // Subscribe to the specific note using the ID
         const filters = [{ ids: [id] }];
-
+        
         if (nostrService.subscribe) {
-          const sub = nostrService.subscribe(filters, (event: NostrEvent) => { // Type event here
+          const sub = nostrService.subscribe(filters, (event) => {
             handleEvent(event);
           }, defaultRelays);
-
+          
+          // Cleanup subscription
           return () => {
             if (sub && nostrService.unsubscribe) {
               nostrService.unsubscribe(sub);
@@ -95,13 +69,54 @@ const PostPage = () => {
         console.error('Error fetching note:', error);
         toast.error('Failed to load post');
       } finally {
-        setIsLoadingNote(false);
+        setIsLoading(false);
       }
     };
 
     fetchNote();
-  }, [id, handleEvent, defaultRelays]);
+  }, [id]);
+  
+  // Handle received events
+  const handleEvent = (event: any) => {
+    setCurrentNote(event);
+    
+    // If we have the event, fetch the author's profile
+    if (event && event.pubkey) {
+      fetchAuthorProfile(event.pubkey);
+    }
 
+    // Also fetch reaction counts
+    if (event && event.id) {
+      fetchReactionCounts(event.id);
+    }
+  };
+
+  // Fetch the author's profile data
+  const fetchAuthorProfile = async (pubkey: string) => {
+    try {
+      const profile = await nostrService.getUserProfile(pubkey);
+      if (profile) {
+        setProfileData(profile);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  // Fetch reaction counts for the post
+  const fetchReactionCounts = async (eventId: string) => {
+    try {
+      if (!eventId) return;
+      
+      // Get reaction counts from the social manager with correct parameters
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
+      setReactionCounts(counts);
+    } catch (error) {
+      console.error("Error fetching reaction counts:", error);
+    }
+  };
+  
+  // Fix the stats section to use the right properties
   const renderStats = () => {
     return (
       <div className="flex gap-4 text-xs text-muted-foreground py-2 border-b px-4 md:px-6">
@@ -126,31 +141,33 @@ const PostPage = () => {
     );
   };
 
+  // Handle back navigation
   const handleBack = () => {
     navigate(-1);
   };
 
+  // Convert the event to a Note object for NoteCardActions
   const getAsNote = (): Note => {
     return {
       id: currentNote?.id || '',
       author: currentNote?.pubkey || '',
       content: currentNote?.content || '',
       createdAt: currentNote?.created_at || 0,
-      event: currentNote // currentNote can be null, Note.event expects NostrEvent | undefined
+      event: currentNote
     };
   };
 
+  // Handle reply being added
   const handleReplyAdded = () => {
+    // Update reaction counts
     if (currentNote?.id) {
       fetchReactionCounts(currentNote.id);
+      // Force comments component to refresh
       setReplyUpdated(prev => prev + 1);
     }
   };
 
-  // Combined loading state for initial data (note and its profile)
-  const isInitiallyLoading = isLoadingNote || (!!currentNote?.pubkey && isProfileLoading && !userProfile);
-
-  if (isInitiallyLoading) {
+  if (isLoading) {
     return (
       <div className="container py-6">
         <div className="mb-6">
@@ -158,7 +175,7 @@ const PostPage = () => {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         </div>
-
+        
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4 mb-4">
@@ -168,7 +185,7 @@ const PostPage = () => {
                 <Skeleton className="h-4 w-[150px]" />
               </div>
             </div>
-
+            
             <div className="space-y-2 mt-4">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-full" />
@@ -188,7 +205,7 @@ const PostPage = () => {
             <ArrowLeft className="mr-2 h-4 w-4" /> Back
           </Button>
         </div>
-
+        
         <Card>
           <CardContent className="p-6 text-center py-12">
             <h2 className="text-2xl font-bold mb-2">Post not found</h2>
@@ -206,34 +223,39 @@ const PostPage = () => {
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </div>
-
+      
       <Card className="mb-4">
         <CardContent className="p-0">
           <div className="p-4 md:p-6">
-            <NoteCardHeader
-              pubkey={currentNote.pubkey} // currentNote is guaranteed to be non-null here
-              createdAt={currentNote.created_at}
-              profileData={userProfile || undefined}
+            {/* Note header with author info */}
+            <NoteCardHeader 
+              pubkey={currentNote?.pubkey} 
+              createdAt={currentNote?.created_at} 
+              profileData={profileData || undefined}
             />
-
-            <NoteCardContent
-              content={currentNote.content}
-              tags={currentNote.tags}
+            
+            {/* Note content */}
+            <NoteCardContent 
+              content={currentNote?.content} 
+              tags={currentNote?.tags}
               event={currentNote}
             />
-
+            
+            {/* Note Actions */}
             <div className="mt-3">
-              <NoteCardActions
-                note={getAsNote()} // getAsNote handles potential nullability for its return type
+              <NoteCardActions 
+                note={getAsNote()}
                 setActiveReply={() => setShowReplies(true)}
               />
             </div>
           </div>
 
+          {/* Render stats */}
           {renderStats()}
-
-          {currentNote.id && (
-            <NoteCardComments
+          
+          {/* Comments section */}
+          {currentNote?.id && (
+            <NoteCardComments 
               eventId={currentNote.id}
               pubkey={currentNote.pubkey}
               onReplyAdded={handleReplyAdded}
