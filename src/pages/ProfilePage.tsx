@@ -7,13 +7,11 @@ import { useProfileRelations } from '@/hooks/profile/useProfileRelations';
 import { useBasicProfile } from '@/hooks/useBasicProfile';
 import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
-import ProfileStats from '@/components/profile/ProfileStats';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 
 // Lazy load components that aren't needed immediately
-const LazyProfileStats = React.lazy(() => import('@/components/profile/ProfileStats'));
 const LazyProfileTabs = React.lazy(() => import('@/components/profile/ProfileTabs'));
 
 const ProfilePage = () => {
@@ -106,31 +104,18 @@ const ProfilePage = () => {
         </div>
       ) : (
         <>
-          {/* Render profile header immediately */}
+          {/* Render profile header with stats data */}
           <ProfileHeader 
             profile={profile} 
             npub={npub} 
-            hexPubkey={hexPubkey} 
+            hexPubkey={hexPubkey}
+            followers={followers || []}
+            following={following || []}
+            relays={relays || []}
+            isLoading={relationsLoading || relaysLoading}
+            onRefresh={handleRefresh}
+            currentUserPubkey={currentUserPubkey}
           />
-          
-          {/* Lazy load the stats component */}
-          <Suspense fallback={
-            <div className="mt-4 p-4 bg-muted/40 rounded-md animate-pulse">
-              <div className="h-10 bg-muted rounded"></div>
-            </div>
-          }>
-            <LazyProfileStats
-              followers={followers || []}
-              following={following || []}
-              postsCount={postsCount}
-              currentUserPubkey={currentUserPubkey}
-              isCurrentUser={isCurrentUser}
-              relays={relays || []}
-              userNpub={npub}
-              isLoading={relationsLoading || relaysLoading}
-              onRefresh={handleRefresh}
-            />
-          </Suspense>
           
           {/* Lazy load the tabs component */}
           <Suspense fallback={
