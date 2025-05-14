@@ -1,13 +1,11 @@
 
-import React, { useEffect, useState, lazy, Suspense } from "react";
+import React, { useState, useEffect } from "react";
+import MainFeed from "@/components/MainFeed";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
+import { AlertTriangle, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Lazy load MainFeed to improve initial page load
-const MainFeed = lazy(() => import("@/components/MainFeed"));
 
 const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
@@ -157,18 +155,15 @@ const Index: React.FC = () => {
       
       {isLoggedIn && isInitializing ? (
         <div className="py-12 flex flex-col items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
+          <div className="h-8 w-8 animate-spin text-primary/60 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          </div>
           <p className="text-muted-foreground">Initializing connection...</p>
         </div>
       ) : isLoggedIn ? (
-        <Suspense fallback={
-          <div className="py-12 flex flex-col items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
-            <p className="text-muted-foreground">Loading feed...</p>
-          </div>
-        }>
-          <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
-        </Suspense>
+        <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
       ) : (
         <div className="py-8 text-center">
           <p className="text-muted-foreground">

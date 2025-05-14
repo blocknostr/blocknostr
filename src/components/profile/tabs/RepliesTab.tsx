@@ -1,70 +1,121 @@
-
-import React from "react";
-import NoteCard from "@/components/NoteCard";
-import { NostrEvent } from "@/lib/nostr";
-import { Loader2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { Event } from 'nostr-tools';
+import { nip19 } from 'nostr-tools';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useInView } from 'react-intersection-observer';
+import { useProfile } from '@/hooks/useProfile';
+import { NoteCard } from '@/components/NoteCard';
+import { ProfilePostsParams } from '@/lib/nostr/profile';
+import { getProfilePosts } from '@/lib/nostr/profile';
 
 interface RepliesTabProps {
-  loading: boolean;
-  loadingMore?: boolean;
-  hasMore?: boolean;
-  displayedReplies: NostrEvent[];
-  profileData: any;
-  loadMoreRef?: (node: HTMLDivElement | null) => void;
+  npub: string;
 }
 
-export const RepliesTab: React.FC<RepliesTabProps> = ({ 
-  loading, 
-  loadingMore = false,
-  hasMore = false,
-  displayedReplies, 
-  profileData,
-  loadMoreRef
-}) => {
-  if (loading && (!displayedReplies || displayedReplies.length === 0)) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading replies...</span>
-      </div>
-    );
-  }
+const RepliesTab: React.FC<RepliesTabProps> = ({ npub }) => {
+  const [searchParams] = useSearchParams();
+  const { profile } = useProfile({ npub });
+  const pubkey = profile?.pubkey || '';
+  const [limit, setLimit] = useState(20);
+  const [eventIds, setEventIds] = useState<string[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
-  if (!displayedReplies || displayedReplies.length === 0) {
-    return (
-      <div className="py-8 text-center text-muted-foreground">
-        No replies found.
-      </div>
-    );
-  }
+  const { ref, inView } = useInView({
+    threshold: 0,
+  });
+
+  const fetchReplies = async ({ pageParam }: { pageParam?: string }) => {
+    if (!pubkey) {
+      return { events: [], next: undefined };
+    }
+
+    const params: ProfilePostsParams = {
+      pubkey: pubkey,
+      limit: limit,
+      offset: pageParam,
+      replyTo: eventIds,
+    };
+
+    try {
+      const { events, next } = await getProfilePosts(params);
+      return { events: events, next: next };
+    } catch (error: any) {
+      toast.error(`Failed to fetch replies: ${error.message}`);
+      return { events: [], next: undefined };
+    }
+  };
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+  } = useInfiniteQuery(
+    ['profileReplies', pubkey, limit, eventIds],
+    fetchReplies,
+    {
+      getNextPageParam: (lastPage) => lastPage.next,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      setLoadMoreLoading(true);
+      fetchNextPage().finally(() => setLoadMoreLoading(false));
+    }
+  }, [inView, hasNextPage, fetchNextPage, isFetchingNextPage]);
+
+  useEffect(() => {
+    if (data) {
+      const newEvents = data.pages.flatMap((page) => page.events);
+      setAllEvents((prevEvents) => [...prevEvents, ...newEvents]);
+    }
+  }, [data]);
+
+  const loadMoreRef = useRef(null);
 
   return (
-    <div className="space-y-4">
-      {displayedReplies.map(event => (
-        <NoteCard 
-          key={event.id} 
-          event={event} 
-          profileData={profileData || undefined}
-          isReply={true}
-        />
-      ))}
-      
-      {/* Infinite scroll loader */}
-      {hasMore && (
-        <div 
-          ref={loadMoreRef} 
-          className="py-4 flex justify-center"
-        >
-          {loadingMore ? (
-            <div className="flex items-center">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span className="text-sm text-muted-foreground">Loading more replies...</span>
-            </div>
-          ) : (
-            <div className="h-8" /> /* Spacer for intersection observer */
-          )}
+    <div>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-4">
+          <span className="text-sm text-muted-foreground">Loading replies...</span>
+        </div>
+      ) : isError ? (
+        <div className="flex items-center justify-center py-4">
+          <span className="text-sm text-muted-foreground">Error: {error.message}</span>
+        </div>
+      ) : allEvents.length === 0 ? (
+        <div className="flex items-center justify-center py-4">
+          <span className="text-sm text-muted-foreground">No replies found.</span>
+        </div>
+      ) : (
+        <div>
+          {allEvents.map((event) => (
+            <NoteCard key={event.id} event={event} />
+          ))}
         </div>
       )}
+
+      <div ref={loadMoreRef} className="py-2 text-center">
+        {loadMoreLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <span className="text-sm text-muted-foreground">Loading more replies...</span>
+          </div>
+        ) : (
+          <div className="h-8">{/* Spacer for intersection observer */}</div>
+        )}
+      </div>
     </div>
   );
 };
+
+export default RepliesTab;

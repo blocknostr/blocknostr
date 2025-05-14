@@ -171,6 +171,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       />
     </div>
   );
-}
+};
 
 export default MainFeed;

@@ -1,104 +1,118 @@
-
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
+import { nostrService } from "@/lib/nostr";
+import { useProfileFeed } from "../hooks/useProfileFeed";
 import NoteCard from "@/components/NoteCard";
-import { NostrEvent } from "@/lib/nostr";
-import { Loader2 } from "lucide-react";
 
 interface LikesTabProps {
-  loading: boolean;
-  loadingMore?: boolean;
-  hasMore?: boolean;
-  loadingProfiles: boolean;
-  displayedReactions: NostrEvent[];
-  referencedEvents: Record<string, any>;
-  profiles: Record<string, any>;
-  loadMoreRef?: (node: HTMLDivElement | null) => void;
+  npub: string;
 }
 
-export const LikesTab: React.FC<LikesTabProps> = ({ 
-  loading, 
-  loadingMore = false,
-  hasMore = false,
-  loadingProfiles,
-  displayedReactions, 
-  referencedEvents,
-  profiles,
-  loadMoreRef
-}) => {
-  if (loading && (!displayedReactions || displayedReactions.length === 0)) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading likes...</span>
-      </div>
-    );
-  }
+const LikesTab: React.FC<LikesTabProps> = ({ npub }) => {
+  const [since, setSince] = useState<number | undefined>(undefined);
+  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
+  const { events, profiles, repostData, subId, setSubId, setupSubscription, setEvents } = useProfileFeed({
+    npub,
+    since,
+    until,
+    kind: 7, // Kind 7 is for likes
+  });
 
-  if (!displayedReactions || displayedReactions.length === 0) {
-    return (
-      <div className="py-8 text-center text-muted-foreground">
-        No likes found.
-      </div>
-    );
-  }
+  const loadMoreEvents = () => {
+    if (!subId) return;
+
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
+    }
+
+    // Create new subscription with older timestamp range
+    if (!since) {
+      const oldestEvent =
+        events.length > 0
+          ? events.reduce((oldest, current) => (oldest.created_at < current.created_at ? oldest : current))
+          : null;
+
+      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
+
+      setSince(newSince);
+      setUntil(newUntil);
+
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    } else {
+      const newUntil = since;
+      const newSince = newUntil - 24 * 60 * 60;
+
+      setSince(newSince);
+      setUntil(newUntil);
+
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
+    }
+  };
+
+  const { loadMoreRef, loading: loadMoreLoading, hasMore, setHasMore } = useInfiniteScroll(loadMoreEvents, {
+    initialLoad: true,
+  });
+
+  useEffect(() => {
+    const initFeed = async () => {
+      // Reset state when filter changes
+      setEvents([]);
+      setHasMore(true);
+
+      // Reset the timestamp range for new subscription
+      const currentTime = Math.floor(Date.now() / 1000);
+      setSince(undefined);
+      setUntil(currentTime);
+
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      setSubId(newSubId);
+    };
+
+    initFeed();
+
+    return () => {
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+    };
+  }, [npub]);
 
   return (
-    <div className="space-y-4">
-      {displayedReactions.map(reactionEvent => {
-        // Safely extract the eventId from tags with null checks
-        let eventId = '';
-        if (reactionEvent && reactionEvent.tags && Array.isArray(reactionEvent.tags)) {
-          const eTag = reactionEvent.tags.find(tag => 
-            Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e'
-          );
-          eventId = eTag ? eTag[1] : '';
-        }
-        
-        if (!eventId) return null;
-        
-        const originalEvent = referencedEvents[eventId];
-        
-        if (!originalEvent) {
-          return (
-            <div key={reactionEvent.id} className="p-4 border rounded-md flex items-center justify-center">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              <span className="text-sm text-muted-foreground">Loading liked post...</span>
-            </div>
-          );
-        }
-        
-        // Get the profile data for the author of the original post with null checks
-        const originalAuthorProfileData = originalEvent.pubkey && profiles ? profiles[originalEvent.pubkey] : undefined;
-        
-        return (
-          <NoteCard 
-            key={reactionEvent.id}
-            event={originalEvent}
-            profileData={originalAuthorProfileData}
-            reactionData={{
-              emoji: reactionEvent.content || '+',
-              reactionEvent: reactionEvent
-            }}
-          />
-        );
-      }).filter(Boolean)}
-      
-      {/* Infinite scroll loader */}
-      {hasMore && (
-        <div 
-          ref={loadMoreRef} 
-          className="py-4 flex justify-center"
-        >
-          {loadingMore ? (
-            <div className="flex items-center">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span className="text-sm text-muted-foreground">Loading more likes...</span>
-            </div>
-          ) : (
-            <div className="h-8" /> /* Spacer for intersection observer */
-          )}
-        </div>
-      )}
+    <div>
+      {events.map((event) => (
+        <NoteCard
+          key={event.id}
+          event={event}
+          profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+          repostData={
+            event.id && repostData[event.id]
+              ? {
+                  reposterPubkey: repostData[event.id].pubkey,
+                  reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined,
+                }
+              : undefined
+          }
+        />
+      ))}
+      <div ref={loadMoreRef} className="py-2 text-center">
+        {loadMoreLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <span className="text-sm text-muted-foreground">Loading more likes...</span>
+          </div>
+        ) : (
+          <div className="h-8">{/* Spacer for intersection observer */}</div>
+        )}
+      </div>
     </div>
   );
 };
+
+export default LikesTab;
