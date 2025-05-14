@@ -94,6 +94,9 @@ const ProfilePage = () => {
   // Only show loading for the initial profile data
   const isLoading = profileLoading;
   
+  // Calculate posts count safely
+  const postsCount = hasEvents && events ? events.length : undefined;
+  
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
       {isLoading ? (
@@ -117,12 +120,12 @@ const ProfilePage = () => {
             </div>
           }>
             <LazyProfileStats
-              followers={followers}
-              following={following}
-              postsCount={hasEvents ? events.length : undefined}
+              followers={followers || []}
+              following={following || []}
+              postsCount={postsCount}
               currentUserPubkey={currentUserPubkey}
               isCurrentUser={isCurrentUser}
-              relays={relays}
+              relays={relays || []}
               userNpub={npub}
               isLoading={relationsLoading || relaysLoading}
               onRefresh={handleRefresh}
@@ -137,8 +140,8 @@ const ProfilePage = () => {
             </div>
           }>
             <LazyProfileTabs 
-              events={events} 
-              media={media}
+              events={events || []} 
+              media={media || []}
               reposts={[]}
               profileData={profile}
               originalPostProfiles={profiles}
