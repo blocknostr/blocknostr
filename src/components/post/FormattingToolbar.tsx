@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Bold, Italic, Link, Quote, List, ListOrdered, Image } from 'lucide-react';
-import { ToolbarButton } from '../ui/button';
+import { ToolbarButton } from '@/components/ui/toolbar-button';
 
 interface FormattingToolbarProps {
   onFormatClick: (format: string) => void;

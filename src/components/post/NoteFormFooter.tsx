@@ -2,7 +2,7 @@
 import React, { RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon } from 'lucide-react';
-import { SubmitButton } from './SubmitButton';
+import SubmitButton from './SubmitButton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -85,9 +85,8 @@ const NoteFormFooter: React.FC<NoteFormFooterProps> = ({
       {/* Submit button */}
       <SubmitButton 
         isSubmitting={isSubmitting} 
-        isOverLimit={isOverLimit} 
-        isEmpty={!content || content.trim().length === 0}
-        isScheduled={!!scheduledDate}
+        disabled={isOverLimit || !content || content.trim().length === 0}
+        scheduledDate={scheduledDate}
       />
     </div>
   );

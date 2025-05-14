@@ -2,8 +2,8 @@
 import React, { useRef, useEffect, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { CharacterCounter } from './CharacterCounter';
-import { ScheduledIndicator } from './ScheduledIndicator';
+import CharacterCounter from './CharacterCounter';
+import ScheduledIndicator from './ScheduledIndicator';
 import NoteFormFooter from './NoteFormFooter';
 import FormattingToolbar from './FormattingToolbar';
 import EmojiPicker from './EmojiPicker';
@@ -153,14 +153,13 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       {scheduledDate && (
         <ScheduledIndicator 
           scheduledDate={scheduledDate} 
-          onCancelSchedule={() => setScheduledDate(null)} 
         />
       )}
       
       {/* Formatting toolbar and emoji picker */}
       <div className="flex items-center justify-between border-t pt-2">
         <FormattingToolbar onFormatClick={handleFormatClick} />
-        <EmojiPicker onEmojiSelected={handleEmojiSelected} />
+        <EmojiPicker onEmojiSelect={handleEmojiSelected} />
       </div>
       
       {/* Footer actions */}
