@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -26,6 +26,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
+  const [prevEventsLength, setPrevEventsLength] = useState(events.length);
   
   // Add early loading triggers at multiple points in the feed
   const earlyTriggerRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -77,6 +78,9 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     if (missingProfiles.size > 0) {
       console.log(`[OptimizedFeedList] Fetching ${missingProfiles.size} profiles`);
     }
+    
+    // Update previous events length for optimization
+    setPrevEventsLength(events.length);
   }, [events, profiles]);
   
   // Calculate positions for early triggers

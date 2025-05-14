@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
@@ -12,6 +13,7 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreTimeoutRef = useRef<number | null>(null);
   
   const { 
     events, 
@@ -126,6 +128,11 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     if (!subId || loadingMore) return;
     setLoadingMore(true);
     
+    // Cancel any existing timeout
+    if (loadMoreTimeoutRef.current) {
+      clearTimeout(loadMoreTimeoutRef.current);
+    }
+    
     // Close previous subscription
     if (subId) {
       nostrService.unsubscribe(subId);
@@ -159,8 +166,9 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     }
     
     // Set loading more to false after a shorter delay
-    setTimeout(() => {
+    loadMoreTimeoutRef.current = window.setTimeout(() => {
       setLoadingMore(false);
+      loadMoreTimeoutRef.current = null;
     }, 1500); // Reduced from 2000ms to 1500ms
   }, [subId, since, until, events, setupSubscription, loadingMore]);
   
@@ -174,7 +182,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
     threshold: 800, // Increased from 400 to 800 for earlier loading
-    aggressiveness: 'high' // Set to high for the most aggressive loading
+    aggressiveness: 'high', // Set to high for the most aggressive loading
+    preservePosition: true // Enable scroll position preservation
   });
 
   useEffect(() => {
@@ -202,9 +211,13 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     
     initFeed();
     
+    // Cleanup subscription and timeout when component unmounts
     return () => {
       if (subId) {
         nostrService.unsubscribe(subId);
+      }
+      if (loadMoreTimeoutRef.current) {
+        clearTimeout(loadMoreTimeoutRef.current);
       }
     };
   }, [activeHashtag]);
