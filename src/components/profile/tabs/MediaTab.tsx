@@ -1,6 +1,7 @@
 
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
+import { getImageUrlsFromEvent } from "@/lib/nostr/utils";
 
 interface MediaTabProps {
   displayedMedia: NostrEvent[];
@@ -15,21 +16,13 @@ export const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia }) => {
     );
   }
 
-  // Extract image URLs from event content
-  const getFirstImageUrl = (event: NostrEvent): string | null => {
-    if (!event.content) return null;
-    
-    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/i;
-    const match = event.content.match(imgRegex);
-    
-    return match ? match[0] : null;
-  };
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {displayedMedia.map(event => {
-        const imageUrl = getFirstImageUrl(event);
-        if (!imageUrl) return null;
+        const imageUrls = getImageUrlsFromEvent(event);
+        if (!imageUrls || imageUrls.length === 0) return null;
+        
+        const primaryImage = imageUrls[0]; // Just use the first image
         
         return (
           <div 
@@ -40,7 +33,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia }) => {
             }}
           >
             <img
-              src={imageUrl}
+              src={primaryImage}
               alt="Media"
               className="h-full w-full object-cover"
               loading="lazy"

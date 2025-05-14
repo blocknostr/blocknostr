@@ -1,83 +1,46 @@
-import { useState, useCallback } from 'react';
-import { isVideoUrl } from '@/lib/nostr/utils/media-extraction';
 
-interface UseMediaNavigationProps {
-  urls: string[];
-  initialIndex?: number;
-}
+import { useCallback, useState } from 'react';
+import { getMediaUrlsFromEvent } from '@/lib/nostr/utils/media-extraction';
+import { NostrEvent } from '@/lib/nostr';
 
-export function useMediaNavigation({ urls, initialIndex = 0 }: UseMediaNavigationProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState(false);
+/**
+ * Hook for navigating through media items in a list of events
+ */
+export function useMediaNavigation(events: NostrEvent[]) {
+  const [currentIndex, setCurrentIndex] = useState(0);
   
-  // Get current URL
-  const currentUrl = urls[currentIndex] || '';
+  // Get all media URLs from all events
+  const mediaUrls = events.flatMap(event => getMediaUrlsFromEvent(event));
   
-  // Check if current URL is a video
-  const isVideo = isVideoUrl(currentUrl);
-  
-  // Check if there's only one item
-  const isSingleItem = urls.length <= 1;
-  
-  // Handler for navigation
-  const handleNext = useCallback(() => {
-    if (currentIndex < urls.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setIsLoaded(false);
-      setError(false);
-    } else {
-      // Loop back to the first item
-      setCurrentIndex(0);
-      setIsLoaded(false);
-      setError(false);
+  // Navigate to next media item
+  const next = useCallback(() => {
+    if (mediaUrls.length > 0) {
+      setCurrentIndex(prev => (prev + 1) % mediaUrls.length);
     }
-  }, [currentIndex, urls.length]);
+  }, [mediaUrls.length]);
   
-  const handlePrev = useCallback(() => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setIsLoaded(false);
-      setError(false);
-    } else {
-      // Loop to the last item
-      setCurrentIndex(urls.length - 1);
-      setIsLoaded(false);
-      setError(false);
+  // Navigate to previous media item
+  const prev = useCallback(() => {
+    if (mediaUrls.length > 0) {
+      setCurrentIndex(prev => (prev - 1 + mediaUrls.length) % mediaUrls.length);
     }
-  }, [currentIndex, urls.length]);
+  }, [mediaUrls.length]);
   
-  // Go to specific index
-  const goToIndex = useCallback((index: number) => {
-    if (index >= 0 && index < urls.length) {
+  // Go to a specific index
+  const goTo = useCallback((index: number) => {
+    if (mediaUrls.length > 0 && index >= 0 && index < mediaUrls.length) {
       setCurrentIndex(index);
-      setIsLoaded(false);
-      setError(false);
     }
-  }, [urls.length]);
-  
-  // Handlers for media loading
-  const handleMediaLoad = useCallback(() => {
-    setIsLoaded(true);
-    setError(false);
-  }, []);
-  
-  const handleError = useCallback(() => {
-    setIsLoaded(true);
-    setError(true);
-  }, []);
+  }, [mediaUrls.length]);
   
   return {
+    currentMedia: mediaUrls[currentIndex] || null,
     currentIndex,
-    currentUrl,
-    isVideo,
-    isSingleItem,
-    isLoaded,
-    error,
-    handleNext,
-    handlePrev,
-    handleMediaLoad,
-    handleError,
-    goToIndex
+    totalCount: mediaUrls.length,
+    next,
+    prev,
+    goTo
   };
 }
+
+export default useMediaNavigation;

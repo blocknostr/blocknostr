@@ -1,7 +1,7 @@
 
 import { useRef, useCallback } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils';
+import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
 import { contentCache } from '@/lib/nostr';
 
 interface UsePostsSubscriptionProps {

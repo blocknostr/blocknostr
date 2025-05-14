@@ -65,3 +65,7 @@ export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string}): s
   // Return unique URLs
   return [...new Set(urls)];
 };
+
+// Export the functions needed by other files
+export { getMediaUrlsFromEvent, isValidMediaUrl } from './media-extraction';
+
