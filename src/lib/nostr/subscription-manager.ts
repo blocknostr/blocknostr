@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -53,7 +52,6 @@ export class SubscriptionManager {
    * @returns Subscription ID string
    */
   subscribe(
-    relays: string[],
     filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
     options: {
@@ -64,6 +62,9 @@ export class SubscriptionManager {
       limit?: number;        // Maximum number of events to receive before closing
     } = {}
   ): string {
+    // Get relays from connection pool - we no longer pass relays directly
+    const relays = this.connectionPool.getConnectedRelays();
+    
     if (relays.length === 0) {
       console.error("No relays provided for subscription");
       return "";
@@ -113,7 +114,7 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Fix: Use subscribeMany with correct parameters structure
+          // Fix: Use subscribeMany with correct parameter structure
           const sub = poolInstance.subscribeMany(relays, [nostrToolsFilter], {
             onevent: (event) => {
               onEvent(event as NostrEvent);
