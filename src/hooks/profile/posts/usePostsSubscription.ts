@@ -107,7 +107,6 @@ export function usePostsSubscription() {
             console.error("Error processing event:", err);
           }
         },
-        undefined,
         {
           componentId: options.componentId // Pass component ID for tracking
         }
