@@ -107,8 +107,11 @@ export function usePostsSubscription() {
             console.error("Error processing event:", err);
           }
         },
+        // The third parameter should be an object that includes the options
         {
-          componentId: options.componentId // Pass component ID for tracking
+          ttl: 20000, // 20-second subscription
+          isRenewable: false,
+          componentId: options.componentId
         }
       );
       
