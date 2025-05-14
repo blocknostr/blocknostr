@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
@@ -21,7 +20,7 @@ interface MainFeedProps {
 }
 
 const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
-  const { preferences } = useUserPreferences();
+  const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
@@ -138,7 +137,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       </div>
       
       {/* Feed content that will scroll under the fixed header */}
-      <div className="mt-2">
+      <div className="mt-2 space-y-4">
         <Tabs 
           value={activeTab} 
           onValueChange={handleTabChange}

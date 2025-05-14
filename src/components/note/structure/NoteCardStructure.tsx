@@ -93,7 +93,7 @@ const NoteCardStructure = ({
   };
   
   return (
-    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
+    <Card className="mb-4 border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
           onClick={handleCardClick}>
       
       {/* Render indicators (repost header, reaction header, reply indicator) */}

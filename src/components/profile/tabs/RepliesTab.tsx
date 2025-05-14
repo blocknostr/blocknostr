@@ -24,7 +24,7 @@ const RepliesTab: React.FC<RepliesTabProps> = ({
   loadMoreRef
 }) => {
   return (
-    <div>
+    <div className="space-y-4">
       {loading ? (
         <div className="flex items-center justify-center py-4">
           <span className="text-sm text-muted-foreground">Loading replies...</span>
@@ -34,7 +34,7 @@ const RepliesTab: React.FC<RepliesTabProps> = ({
           <span className="text-sm text-muted-foreground">No replies found.</span>
         </div>
       ) : (
-        <div>
+        <div className="space-y-4">
           {displayedReplies.map((event) => (
             <NoteCard key={event.id} event={event} />
           ))}

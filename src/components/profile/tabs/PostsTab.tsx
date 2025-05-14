@@ -23,7 +23,7 @@ const PostsTab: React.FC<PostsTabProps> = ({ displayedPosts, profileData, hasMor
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
   return (
-    <div>
+    <div className="space-y-4">
       {displayedPosts.length === 0 ? (
         <div className="py-4 text-center">
           <p className="text-muted-foreground">No posts found.</p>

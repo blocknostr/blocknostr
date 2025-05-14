@@ -43,7 +43,7 @@ const RepostsTab: React.FC<RepostsTabProps> = ({
 
   return (
     <ScrollArea className="h-[calc(100vh-10rem)] w-full pb-2">
-      <div className="relative">
+      <div className="relative space-y-4">
         {reposts.length === 0 ? (
           <div className="py-4 text-center">
             <p className="text-muted-foreground">No reposts found.</p>
