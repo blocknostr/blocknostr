@@ -56,6 +56,15 @@ export const UrlRegistry = {
   },
 
   /**
+   * Filter out URLs that are already registered
+   * Returns only the URLs that are not already in the registry
+   */
+  filterUnregisteredUrls(urls: string[]): string[] {
+    if (!Array.isArray(urls)) return [];
+    return urls.filter(url => !this.isUrlRegistered(url));
+  },
+
+  /**
    * Unregister URL from registry
    */
   unregisterUrl(url: string): void {
