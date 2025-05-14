@@ -8,7 +8,7 @@ export class SubscriptionTracker {
     cleanup: () => void,
     createdAt: number,
     componentId: string,
-    category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp',
+    category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other',
     priority?: number
   }> = new Map();
   
@@ -28,8 +28,7 @@ export class SubscriptionTracker {
     profile: 20,
     feed: 10,
     chat: 5,
-    relay: 10,
-    temp: 15 // Added temp category limit
+    relay: 10
   };
   
   // Component subscription tracking
@@ -76,7 +75,7 @@ export class SubscriptionTracker {
     cleanup: () => void, 
     componentId: string, 
     options: { 
-      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp',
+      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other',
       priority?: number // 1 = highest, 10 = lowest
     } = {}
   ): void {

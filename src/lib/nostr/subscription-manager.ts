@@ -1,5 +1,5 @@
 
-import { SimplePool, Filter } from 'nostr-tools';
+import { SimplePool } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
 import { ConnectionPool } from './relay/connection-pool';
@@ -46,6 +46,7 @@ export class SubscriptionManager {
   
   /**
    * Subscribe to events with optional TTL
+   * @param relays Relay URLs to subscribe to
    * @param filters Event filters to match
    * @param onEvent Callback function for matched events
    * @param options Additional subscription options
@@ -55,10 +56,13 @@ export class SubscriptionManager {
     relays: string[],
     filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
-    componentId?: string,
-    category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp',
-    ttl?: number | null,
-    isRenewable?: boolean
+    options: {
+      ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
+      isRenewable?: boolean;  // Whether this subscription should be auto-renewed
+      componentId?: string;  // Identifier for the component creating this subscription
+      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp';
+      limit?: number;        // Maximum number of events to receive before closing
+    } = {}
   ): string {
     if (relays.length === 0) {
       console.error("No relays provided for subscription");
@@ -72,17 +76,15 @@ export class SubscriptionManager {
     
     const id = `sub_${this.nextId++}_${uuidv4().slice(0, 8)}`;
     const now = Date.now();
-    
-    // Default values
-    const actualComponentId = componentId || 'unknown';
-    const actualCategory = category || 'other';
+    const componentId = options.componentId || 'unknown';
+    const category = options.category || 'other';
     
     // Get appropriate TTL based on category
-    let actualTtl = ttl;
-    if (actualTtl === undefined) {
-      if (actualCategory === 'profile') actualTtl = this.profileTTL;
-      else if (actualCategory === 'temp') actualTtl = this.tempTTL;
-      else actualTtl = this.defaultTTL;
+    let ttl = options.ttl;
+    if (ttl === undefined) {
+      if (category === 'profile') ttl = this.profileTTL;
+      else if (category === 'temp') ttl = this.tempTTL;
+      else ttl = this.defaultTTL;
     }
     
     try {
@@ -98,40 +100,29 @@ export class SubscriptionManager {
       // Use the pool instance from connection pool
       const poolInstance = this.connectionPool.getPool();
       
-      // Create an array to hold subscription closers
-      const subClosers: any[] = [];
-      
       // Track received event count for limited subscriptions
       let receivedEventCount = 0;
-      const limit = 100; // Default limit
+      const limit = options.limit || Number.MAX_SAFE_INTEGER;
+      
+      // Create an array to hold subscription closers
+      const subClosers: any[] = [];
       
       // Process each filter individually
       filters.forEach(filter => {
         try {
-          // Cast NostrFilter to Filter to match nostr-tools type
-          const nostrToolsFilter = filter as unknown as Filter;
-          
-          // FIX: The error is here - subscribeMany expects a single options object
-          // The function signature changed in the nostr-tools library
-          const sub = poolInstance.subscribeMany(
-            relays,
-            [nostrToolsFilter],
-            {
-              onevent: (event) => {
-                onEvent(event as NostrEvent);
-                
-                // Check if we've reached the limit
-                receivedEventCount++;
-                if (receivedEventCount >= limit) {
-                  // Close this subscription automatically
-                  this.unsubscribe(id);
-                }
-              },
-              onclose: () => {
-                // Handle close event if needed
+          // Fix: Use the correct signature for SimplePool.subscribe
+          const sub = poolInstance.subscribe(relays, [filter], {
+            onevent: (event) => {
+              onEvent(event as NostrEvent);
+              
+              // Check if we've reached the limit
+              receivedEventCount++;
+              if (receivedEventCount >= limit) {
+                // Close this subscription automatically
+                this.unsubscribe(id);
               }
             }
-          );
+          });
           
           // Add the closer function
           subClosers.push(sub);
@@ -141,8 +132,8 @@ export class SubscriptionManager {
       });
       
       // Calculate expiration time if TTL is provided
-      const expiresAt = actualTtl !== null 
-        ? now + actualTtl
+      const expiresAt = ttl !== null 
+        ? now + ttl
         : null;
       
       // Store subscription details for later unsubscribe
@@ -152,19 +143,19 @@ export class SubscriptionManager {
         subClosers,
         createdAt: now,
         expiresAt,
-        isRenewable: !!isRenewable,
-        componentId: actualComponentId,
-        category: actualCategory
+        isRenewable: !!options.isRenewable,
+        componentId,
+        category
       });
       
       // Register with the tracker
       this.tracker.register(
         id, 
         () => this.unsubscribe(id), 
-        actualComponentId, 
+        componentId, 
         { 
-          category: actualCategory, 
-          priority: actualCategory === 'profile' ? 4 : 5 
+          category, 
+          priority: category === 'profile' ? 4 : 5 
         }
       );
       

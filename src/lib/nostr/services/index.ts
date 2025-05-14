@@ -1,3 +1,4 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { EventManager } from '../event';
 
@@ -17,12 +18,11 @@ export function subscribeToEvents(
     // Create a unique subscription ID
     const subId = 'subscription-' + Math.random().toString(36).substring(2, 10);
     
-    // Subscribe to events using the correct signature for nostr-tools
-    const subscription = pool.subscribeMany(
-      relays,
-      filters,
-      callbacks
-    );
+    // Subscribe to events using the available API format
+    const subscription = pool.subscribeMany(relays, filters, {
+      onevent: callbacks.onevent,
+      onclose: callbacks.onclose
+    });
     
     // Return the subscription ID and unsubscribe function
     return {

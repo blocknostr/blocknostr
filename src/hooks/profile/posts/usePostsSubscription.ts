@@ -39,10 +39,7 @@ export function usePostsSubscription() {
           timeoutRef.current = null;
         }, 10000); // 10 second timeout (was 30s)
         
-        // Get the available relays
-        const relays = nostrService.getRelayUrls();
-        
-        // Call subscribe with the correct parameters for the current API
+        // Subscribe to events - match the expected parameter order from subscription-manager.ts
         const subId = nostrService.subscribe(
           filters,
           (event) => {
@@ -54,9 +51,7 @@ export function usePostsSubscription() {
             
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
-          },
-          relays,
-          options.componentId
+          }
         );
         
         subscriptionRef.current = subId;
@@ -68,7 +63,7 @@ export function usePostsSubscription() {
               nostrService.unsubscribe(subscriptionRef.current);
               subscriptionRef.current = null;
             }
-          }, options.componentId, { category: 'profile' });
+          }, options.componentId);
         }
       });
     } catch (error) {
