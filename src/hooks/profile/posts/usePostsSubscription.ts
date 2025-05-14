@@ -52,7 +52,7 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
-          // Fix: Options must be passed as the third parameter
+          // Fix: Options as a single object as the third parameter
           {
             ttl: 20000, // 20-second subscription
             isRenewable: false,

@@ -45,7 +45,6 @@ export class SubscriptionManager {
   
   /**
    * Subscribe to events with optional TTL
-   * @param relays Relay URLs to subscribe to
    * @param filters Event filters to match
    * @param onEvent Callback function for matched events
    * @param options Additional subscription options
@@ -114,7 +113,7 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Fix: Use subscribeMany with correct parameter structure
+          // Fix: Use subscribeMany with correct parameter structure - nostr-tools expects only ONE argument here
           const sub = poolInstance.subscribeMany(relays, [nostrToolsFilter], {
             onevent: (event) => {
               onEvent(event as NostrEvent);
