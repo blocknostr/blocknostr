@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
 import { ConnectionPool } from './relay/connection-pool';
@@ -110,8 +110,11 @@ export class SubscriptionManager {
       // Process each filter individually
       filters.forEach(filter => {
         try {
-          // Fix: Use the correct signature for SimplePool.subscribe
-          const sub = poolInstance.subscribe(relays, [filter], {
+          // Cast NostrFilter to Filter to match nostr-tools type
+          const nostrToolsFilter = filter as unknown as Filter;
+          
+          // Subscribe using the correct method signature
+          const sub = poolInstance.subscribeMany(relays, [nostrToolsFilter], {
             onevent: (event) => {
               onEvent(event as NostrEvent);
               
