@@ -31,7 +31,10 @@ const RenderIndicators: React.FC<RenderIndicatorsProps> = ({
         <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
           <RepeatIcon className="h-4 w-4" />
           <span className="truncate">
-            <NoteCardRepostHeader pubkey={repostData.reposterPubkey} profile={repostData.reposterProfile} />
+            <NoteCardRepostHeader 
+              reposterPubkey={repostData.reposterPubkey} 
+              reposterProfile={repostData.reposterProfile} 
+            />
           </span>
         </div>
       )}

@@ -34,7 +34,7 @@ const RenderRepliesAccordion: React.FC<RenderRepliesAccordionProps> = ({
         <AccordionContent>
           <NoteCardComments 
             eventId={eventId} 
-            authorPubkey={pubkey} 
+            pubkey={pubkey || ''} 
             replyUpdated={replyUpdated} 
             onReplyAdded={onReplyAdded}
           />
