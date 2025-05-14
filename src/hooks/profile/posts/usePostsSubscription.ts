@@ -51,6 +51,13 @@ export function usePostsSubscription() {
             
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
+          },
+          undefined, // Use default relays
+          {
+            ttl: 20000, // 20-second subscription
+            isRenewable: false,
+            componentId: options.componentId, // Pass component ID for tracking
+            category: 'profile' // Explicitly set category to profile
           }
         );
         
@@ -63,7 +70,7 @@ export function usePostsSubscription() {
               nostrService.unsubscribe(subscriptionRef.current);
               subscriptionRef.current = null;
             }
-          }, options.componentId);
+          }, options.componentId, { category: 'profile' });
         }
       });
     } catch (error) {

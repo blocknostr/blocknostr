@@ -113,7 +113,7 @@ export class SubscriptionManager {
           // Cast NostrFilter to Filter to match nostr-tools type
           const nostrToolsFilter = filter as unknown as Filter;
           
-          // Subscribe using the correct method signature
+          // Subscribe using the correct method signature - Fix: Only pass one parameter
           const sub = poolInstance.subscribeMany(relays, [nostrToolsFilter], {
             onevent: (event) => {
               onEvent(event as NostrEvent);
