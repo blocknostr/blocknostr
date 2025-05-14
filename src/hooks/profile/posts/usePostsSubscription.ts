@@ -1,150 +1,87 @@
-
-import { useRef, useCallback } from 'react';
-import { NostrEvent, nostrService } from '@/lib/nostr';
-import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
-import { contentCache } from '@/lib/nostr';
-import { UsePostsSubscriptionProps } from './types';
+import { useRef } from 'react';
+import { nostrService } from '@/lib/nostr';
+import { PostsSubscriptionOptions } from './types';
+import { SubscriptionTracker } from '@/lib/nostr/subscription-tracker';
 
 export function usePostsSubscription() {
   const subscriptionRef = useRef<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
-  const eventCountRef = useRef<number>(0);
   
-  const subscribe = useCallback(async (
-    hexPubkey: string | undefined, 
-    options: UsePostsSubscriptionProps
-  ) => {
-    if (!hexPubkey) {
-      options.onComplete();
-      return () => {};
-    }
+  const subscribe = (pubkey: string, options: PostsSubscriptionOptions) => {
+    // Clean up any existing subscription first
+    cleanup();
     
-    // Cleanup previous subscription and timeout
-    if (subscriptionRef.current) {
-      nostrService.unsubscribe(subscriptionRef.current);
-      subscriptionRef.current = null;
-    }
+    // Get the subscription tracker
+    const tracker = SubscriptionTracker.getInstance();
     
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    
-    try {
-      // First make sure we're connected to relays
-      await nostrService.connectToUserRelays();
-      
-      // Check cache first for immediate rendering
-      const cachedEvents = contentCache.getEventsByAuthors([hexPubkey]) || [];
-      if (cachedEvents.length > 0) {
-        console.log(`[usePostsSubscription] Found ${cachedEvents.length} cached events`);
-        
-        // Process cached events
-        const noteEvents = cachedEvents
-          .filter(event => event.kind === 1)
-          .sort((a, b) => b.created_at - a.created_at)
-          .slice(0, options.limit);
-          
-        noteEvents.forEach(event => {
-          const mediaUrls = getMediaUrlsFromEvent(event);
-          const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
-          const isMediaEvent = validMediaUrls.length > 0;
-          
-          eventCountRef.current++;
-          options.onEvent(event, isMediaEvent);
-        });
-        
-        // If we have enough cached events, complete early
-        if (noteEvents.length >= options.limit) {
-          console.log(`[usePostsSubscription] Found ${noteEvents.length} cached events, completing early`);
-          setTimeout(() => options.onComplete(), 0);
-          // Still subscribe to get newer posts but with shorter timeout
-        } else if (noteEvents.length > 0) {
-          // We have some cached events but not enough, so mark as partially complete
-          // This helps the UI show something immediately
-          setTimeout(() => {
-            console.log(`[usePostsSubscription] Partial data available, triggering UI update`);
-            options.onComplete();
-          }, 0);
-        }
+    // Define filters for posts and media
+    const filters = [
+      {
+        kinds: [1], // Regular notes
+        authors: [pubkey],
+        limit: options.limit || 50
       }
-      
-      console.log("[usePostsSubscription] Subscribing to posts");
-      
-      // Subscribe to user's notes (kind 1)
-      const notesSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [1],
-            authors: [hexPubkey],
-            limit: options.limit
-          }
-        ],
-        (event) => {
-          try {
-            // Skip if we already have this event from cache
-            if (cachedEvents.some(e => e.id === event.id)) {
-              return;
-            }
-            
-            console.log("[usePostsSubscription] Received new post:", event.id.substring(0, 8));
-            
-            // Cache the event
-            try {
-              contentCache.cacheEvent(event);
-            } catch (cacheError) {
-              console.warn("Failed to cache event:", cacheError);
-            }
-
-            // Check if note contains media
-            const mediaUrls = getMediaUrlsFromEvent(event);
-            const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
-            const isMediaEvent = validMediaUrls.length > 0;
-            
-            eventCountRef.current++;
-            options.onEvent(event, isMediaEvent);
-          } catch (err) {
-            console.error("Error processing event:", err);
-          }
-        },
-        // The third parameter should be an object that includes the options
-        {
-          ttl: 20000, // 20-second subscription
-          isRenewable: false,
-          componentId: options.componentId
-        }
-      );
-      
-      // Store the subscription ID for cleanup
-      subscriptionRef.current = notesSubId;
-      
-      // Set a timeout to check if we got any events and mark loading as complete
-      // Reduced from 5s to 3s
-      timeoutRef.current = window.setTimeout(() => {
-        console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
-        options.onComplete();
-      }, 3000);
-      
-      // Return a cleanup function
-      return () => {
-        if (subscriptionRef.current) {
-          nostrService.unsubscribe(subscriptionRef.current);
-          subscriptionRef.current = null;
+    ];
+    
+    // Subscribe to events
+    try {
+      // First connect to relays
+      nostrService.connectToUserRelays().then(() => {
+        // Set timeout for loading status
+        if (timeoutRef.current) {
+          window.clearTimeout(timeoutRef.current);
         }
         
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+        // Create a reasonably short timeout for a better UX
+        timeoutRef.current = window.setTimeout(() => {
+          options.onComplete();
           timeoutRef.current = null;
+        }, 10000); // 10 second timeout (was 30s)
+        
+        // Subscribe to events
+        const subId = nostrService.subscribe(
+          filters,
+          (event) => {
+            // Detect if this is a media event
+            const isMediaEvent = event.tags.some(tag => 
+              tag.length >= 2 && tag[0] === 'r' && 
+              /\.(jpg|jpeg|png|gif|webp)$/i.test(tag[1])
+            );
+            
+            // Call the onEvent callback
+            options.onEvent(event, isMediaEvent);
+          },
+          {
+            ttl: 20000, // 20-second subscription
+            isRenewable: false,
+            componentId: options.componentId // Pass component ID for tracking
+          }
+        );
+        
+        subscriptionRef.current = subId;
+        
+        // Register with the tracker manually as well (belt and suspenders)
+        if (options.componentId) {
+          tracker.register(subId, () => {
+            if (subscriptionRef.current) {
+              nostrService.unsubscribe(subscriptionRef.current);
+              subscriptionRef.current = null;
+            }
+          }, options.componentId);
         }
-      };
-    } catch (err) {
-      console.error("Error in usePostsSubscription:", err);
-      options.onComplete();
-      return () => {};
+      });
+    } catch (error) {
+      console.error("Error subscribing to posts:", error);
+      options.onComplete(); // Ensure loading state is ended
     }
-  }, []);
+    
+    // Return cleanup function
+    return () => {
+      cleanup();
+    };
+  };
   
-  const cleanup = useCallback(() => {
+  const cleanup = () => {
     if (subscriptionRef.current) {
       nostrService.unsubscribe(subscriptionRef.current);
       subscriptionRef.current = null;
@@ -154,7 +91,11 @@ export function usePostsSubscription() {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-  }, []);
-
-  return { subscribe, cleanup, subscriptionRef };
+  };
+  
+  return {
+    subscribe,
+    cleanup,
+    subscriptionRef
+  };
 }
