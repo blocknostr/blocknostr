@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
@@ -8,7 +9,7 @@ interface UseEventSubscriptionProps {
   since?: number;
   until?: number;
   limit: number;
-  setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>> | ((event: NostrEvent) => void);
+  setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>;
   handleRepost: (event: NostrEvent, setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => void;
   fetchProfileData: (pubkey: string) => void;
   feedType?: string;
@@ -101,18 +102,50 @@ export function useEventSubscription({
       (event) => {
         if (event.kind === 1) {
           // Regular note
-          // Use our wrapper function that handles both single events and state updates
-          setEvents(event);
-          
-          // Add event to collection for caching
-          collectedEvents.push(event);
-          
-          // Cache the event individually
-          contentCache.cacheEvent(event);
+          setEvents(prev => {
+            // Check if we already have this event using deduplication
+            if (EventDeduplication.hasEventId(prev, event.id)) {
+              return prev;
+            }
+            
+            // Add the new event
+            const newEvents = [...prev, event];
+            
+            // Deduplicate the events
+            const uniqueEvents = EventDeduplication.deduplicateById(newEvents);
+            
+            // Sort by creation time (newest first)
+            uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+            
+            // Add event to collection for caching
+            collectedEvents.push(event);
+            
+            // Cache the event individually
+            contentCache.cacheEvent(event);
+            
+            // Every 5 events, update the feed cache for better performance
+            if (collectedEvents.length % 5 === 0) {
+              // Use current state to ensure we have the latest events
+              contentCache.cacheFeed(
+                feedType,
+                uniqueEvents,
+                {
+                  authorPubkeys: following,
+                  hashtag: activeHashtag,
+                  since: sinceFetch,
+                  until: untilFetch,
+                  mediaOnly
+                },
+                true // Mark as important for offline use
+              );
+            }
+            
+            return uniqueEvents;
+          });
         }
         else if (event.kind === 6) {
           // Repost - extract the referenced event
-          handleRepost(event, setEvents as React.Dispatch<React.SetStateAction<NostrEvent[]>>);
+          handleRepost(event, setEvents);
         }
         
         // Fetch profile data for this pubkey if we don't have it yet
@@ -132,21 +165,11 @@ export function useEventSubscription({
       const cacheIntervalId = setInterval(() => {
         if (collectedEvents.length > 0) {
           // Get current events from state to ensure we have everything
-          setEvents((currentEvents: NostrEvent[] | ((prevState: NostrEvent[]) => NostrEvent[])) => {
-            // We need to handle the case where setEvents might receive a function
-            let events: NostrEvent[] = [];
-            if (typeof currentEvents === 'function') {
-              // This is a complex case and might not be needed
-              console.warn("Received function in setEvents during caching");
-              return currentEvents;
-            } else {
-              events = currentEvents;
-            }
-            
+          setEvents(currentEvents => {
             // Cache all events we have
             contentCache.cacheFeed(
               feedType,
-              events,
+              currentEvents,
               {
                 authorPubkeys: following,
                 hashtag: activeHashtag,
@@ -160,7 +183,7 @@ export function useEventSubscription({
             // Update the last updated timestamp in localStorage 
             localStorage.setItem(`${feedType}_last_updated`, Date.now().toString());
             
-            return events;
+            return currentEvents;
           });
         }
       }, 10000); // Every 10 seconds

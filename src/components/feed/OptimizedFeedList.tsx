@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import { useInView } from "../shared/useInView";
 import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
@@ -43,17 +43,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     handleLoadMore 
   } = useFeedPagination({ events });
   
-  // Track scroll position
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [lastScrollHeight, setLastScrollHeight] = useState(0);
-  const [lastScrollTop, setLastScrollTop] = useState(0);
-  const [isScrollPaused, setIsScrollPaused] = useState(false);
-  
-  // Use our custom hook for intersection observer with reduced sensitivity
+  // Use our custom hook for intersection observer
   const { ref: loadMoreRef, inView } = useInView({
-    threshold: 0.1, // Reduced from 0.5 to be less sensitive
-    triggerOnce: false,
-    rootMargin: '300px' // Only trigger when closer to the viewport
+    threshold: 0.5,
+    triggerOnce: false
   });
 
   // Use our unified profile fetcher with enhanced features
@@ -62,29 +55,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   // Combine initial profiles with unified profiles with unified profiles taking precedence
   const combinedProfiles = { ...initialProfiles, ...unifiedProfiles };
   
-  // Save scroll position before updates
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      setLastScrollHeight(scrollContainerRef.current.scrollHeight);
-      setLastScrollTop(scrollContainerRef.current.scrollTop);
-    }
-  }, [events.length]);
-  
-  // Restore scroll position after updates
-  useEffect(() => {
-    if (scrollContainerRef.current && lastScrollHeight > 0) {
-      // Calculate height difference
-      const newHeight = scrollContainerRef.current.scrollHeight;
-      const heightDiff = newHeight - lastScrollHeight;
-      
-      // Only adjust if we're not at the top of the feed and content was added
-      if (lastScrollTop > 0 && heightDiff > 0) {
-        scrollContainerRef.current.scrollTop = lastScrollTop + heightDiff;
-      }
-    }
-  }, [visibleEvents.length, lastScrollHeight, lastScrollTop]);
-  
-  // Batch fetch profiles for better performance
+  // Fetch profiles for authors that aren't already loaded
   useEffect(() => {
     if (events.length > 0) {
       console.log(`[OptimizedFeedList] Checking profiles for ${events.length} events`);
@@ -115,64 +86,54 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     }
   }, [events, repostData, fetchProfiles, combinedProfiles]);
   
-  // Less aggressive infinite scroll loading
+  // Log profile coverage stats
   useEffect(() => {
-    if (inView && hasMore && !loadMoreLoading && !isScrollPaused && visibleCount >= events.length) {
+    if (events.length > 0) {
+      const totalProfiles = events.length;
+      let profilesWithNames = 0;
+      
+      events.forEach(event => {
+        if (event.pubkey && combinedProfiles[event.pubkey] && 
+            (combinedProfiles[event.pubkey].name || combinedProfiles[event.pubkey].display_name)) {
+          profilesWithNames++;
+        }
+      });
+      
+      const coverage = (profilesWithNames / totalProfiles) * 100;
+      console.log(`[OptimizedFeedList] Profile coverage: ${profilesWithNames}/${totalProfiles} events (${coverage.toFixed(1)}%)`);
+    }
+  }, [events, combinedProfiles]);
+
+  // Load more content when the load more element comes into view
+  useEffect(() => {
+    if (inView && hasMore && !loadMoreLoading && visibleCount >= events.length) {
       console.log('[OptimizedFeedList] Load more triggered by scrolling');
       onLoadMore();
     }
-  }, [inView, hasMore, loadMoreLoading, onLoadMore, events.length, visibleCount, isScrollPaused]);
-
-  // Toggle automatic loading
-  const toggleScrollPause = () => {
-    setIsScrollPaused(prev => !prev);
-  };
+  }, [inView, hasMore, loadMoreLoading, onLoadMore, events.length, visibleCount]);
 
   if (loading && events.length === 0) {
     return <FeedLoadingSkeleton count={3} />;
   }
 
   return (
-    <div className="space-y-4" ref={scrollContainerRef}>
-      {/* Optional refresh button with pause/resume functionality */}
-      <div className="flex justify-between items-center">
-        <FeedRefreshButton onRefresh={onRefresh} loading={loading} />
-        
-        {/* Pause/resume auto-loading button */}
-        {events.length > 0 && (
-          <button 
-            onClick={toggleScrollPause}
-            className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
-              isScrollPaused 
-                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" 
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {isScrollPaused ? "Resume Auto-Loading" : "Pause Auto-Loading"}
-          </button>
-        )}
-      </div>
+    <div className="space-y-4">
+      {/* Optional refresh button */}
+      <FeedRefreshButton onRefresh={onRefresh} loading={loading} />
       
       {/* Feed counter showing visible blocks */}
       <FeedCounter visibleCount={visibleCount} eventsLength={events.length} />
       
-      {/* Staggered rendering with reduced animation for improved performance */}
+      {/* Staggered rendering for improved perceived performance */}
       <div className="space-y-4">
         {visibleEvents.map((event, index) => (
-          <div 
+          <FeedItem 
             key={event.id || index}
-            className="transition-all duration-200 ease-out"
-            style={{ 
-              animationDelay: `${Math.min(index * 50, 500)}ms` // Cap the delay for better UX
-            }}
-          >
-            <FeedItem 
-              event={event}
-              index={index}
-              profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
-              repostData={event.id && repostData[event.id]}
-            />
-          </div>
+            event={event}
+            index={index}
+            profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
+            repostData={event.id && repostData[event.id]}
+          />
         ))}
         
         {/* "Load More" button */}
@@ -185,9 +146,8 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         <div ref={loadMoreRef}>
           <FeedLoadingIndicator 
             loading={loadMoreLoading} 
-            hasMore={hasMore && !isScrollPaused} 
+            hasMore={hasMore} 
             inView={visibleCount >= events.length}
-            isPaused={isScrollPaused}
           />
         </div>
         

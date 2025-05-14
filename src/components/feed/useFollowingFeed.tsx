@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
@@ -19,85 +19,6 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [loadingFromCache, setLoadingFromCache] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [pendingEvents, setPendingEvents] = useState<any[]>([]);
-  const [lastBatchTime, setLastBatchTime] = useState(0);
-  
-  // Helper function to load data from cache - defined before it's used
-  const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
-    if (!navigator.onLine || contentCache.isOffline()) {
-      setLoadingFromCache(true);
-    }
-    
-    // Get feed cache object from contentCache
-    const feedCache = contentCache.feedCache;
-    if (!feedCache) return false;
-    
-    // Check if we have a cached feed for these parameters
-    const cachedEvents = feedCache.getFeed(feedType, {
-      authorPubkeys: following,
-      hashtag: activeHashtag,
-      since: cacheSince,
-      until: cacheUntil,
-    });
-    
-    if (cachedEvents && cachedEvents.length > 0) {
-      // We have cached data
-      setCacheHit(true);
-      setLastUpdated(new Date());
-      
-      // If offline or first load, replace events with cached events
-      if (contentCache.isOffline() || events.length === 0) {
-        setEvents(cachedEvents);
-        setLoading(false);
-      } else {
-        // Otherwise, append unique events
-        setEvents(prevEvents => {
-          const existingIds = new Set(prevEvents.map(e => e.id));
-          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
-          
-          // Return combined events sorted by timestamp
-          return [...prevEvents, ...newEvents]
-            .sort((a, b) => b.created_at - a.created_at);
-        });
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }, [following, activeHashtag]);
-  
-  // Create a debounced batch update function
-  const processPendingEvents = useCallback(() => {
-    if (pendingEvents.length > 0) {
-      console.log(`[useFollowingFeed] Processing batch of ${pendingEvents.length} events`);
-      
-      // Update events with the batch
-      setEvents(prevEvents => {
-        // Filter out duplicates
-        const newEvents = pendingEvents.filter(
-          e => !prevEvents.some(existing => existing.id === e.id)
-        );
-        
-        // Combine and sort
-        return [...prevEvents, ...newEvents]
-          .sort((a, b) => b.created_at - a.created_at);
-      });
-      
-      // Clear pending batch
-      setPendingEvents([]);
-      setLastBatchTime(Date.now());
-    }
-  }, [pendingEvents]);
-  
-  // Set up batch processing interval
-  useEffect(() => {
-    const batchInterval = setInterval(() => {
-      processPendingEvents();
-    }, 2000); // Process batches every 2 seconds
-    
-    return () => clearInterval(batchInterval);
-  }, [processPendingEvents]);
   
   const { 
     events, 
@@ -111,27 +32,14 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     following,
     since,
     until,
-    activeHashtag,
-    batchUpdate: (event: any) => {
-      // Instead of immediately updating state, add to pending batch
-      setPendingEvents(prev => [...prev, event]);
-      
-      // If we have enough events or it's been a while since last batch, process immediately
-      if (pendingEvents.length > 15 || (Date.now() - lastBatchTime > 5000)) {
-        setTimeout(processPendingEvents, 0);
-      }
-    }
+    activeHashtag
   });
   
-  // Modified load more function with better state management
-  const loadMoreEvents = useCallback(() => {
-    if (!subId || following.length === 0 || isLoadingMore) return;
+  const loadMoreEvents = () => {
+    if (!subId || following.length === 0) return;
     
     // Set loading state
     setIsLoadingMore(true);
-    
-    // Save current scroll position
-    const scrollPos = window.scrollY;
     
     // Close previous subscription
     if (subId) {
@@ -174,15 +82,8 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     }
     
     // End loading after a delay regardless of whether data was loaded
-    setTimeout(() => {
-      setIsLoadingMore(false);
-      
-      // Restore scroll position after a delay to let the DOM update
-      setTimeout(() => {
-        window.scrollTo(0, scrollPos);
-      }, 100);
-    }, 3000);
-  }, [subId, following, since, until, events, isLoadingMore, setupSubscription, setSubId, loadFromCache]);
+    setTimeout(() => setIsLoadingMore(false), 3000);
+  };
   
   const {
     loadMoreRef,
@@ -190,14 +91,54 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setLoading,
     hasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    rootMargin: "0px 0px 400px 0px", // Increased margin to load earlier
-    debounceMs: 800 // Add debounce to prevent rapid firing
-  });
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
-  // Initialize feed with better state management
-  const initFeed = useCallback(async (forceReconnect = false) => {
+  // Helper function to load data from cache
+  const loadFromCache = (feedType: string, cacheSince?: number, cacheUntil?: number) => {
+    if (!navigator.onLine || contentCache.isOffline()) {
+      setLoadingFromCache(true);
+    }
+    
+    // Get feed cache object from contentCache
+    const feedCache = contentCache.feedCache;
+    if (!feedCache) return false;
+    
+    // Check if we have a cached feed for these parameters
+    const cachedEvents = feedCache.getFeed(feedType, {
+      authorPubkeys: following,
+      hashtag: activeHashtag,
+      since: cacheSince,
+      until: cacheUntil,
+    });
+    
+    if (cachedEvents && cachedEvents.length > 0) {
+      // We have cached data
+      setCacheHit(true);
+      setLastUpdated(new Date());
+      
+      // If offline or first load, replace events with cached events
+      if (contentCache.isOffline() || events.length === 0) {
+        setEvents(cachedEvents);
+        setLoading(false);
+      } else {
+        // Otherwise, append unique events
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e.id));
+          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
+          
+          // Return combined events sorted by timestamp
+          return [...prevEvents, ...newEvents]
+            .sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  };
+
+  const initFeed = async (forceReconnect = false) => {
     setLoading(true);
     const currentTime = Math.floor(Date.now() / 1000);
     const weekAgo = currentTime - 24 * 60 * 60 * 7;
@@ -218,7 +159,6 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       
       // Reset state when filter changes (if not loading from cache)
       if (!cacheLoaded) {
-        // Only reset events if not loading from cache to prevent flicker
         setEvents([]);
       }
       setHasMore(true);
@@ -255,25 +195,14 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     } finally {
       setLoadingFromCache(false);
     }
-  }, [loadFromCache, subId, following, events, setEvents, setupSubscription, setSubId, retryCount]);
+  };
   
-  // Refresh feed function with scroll position preservation
-  const refreshFeed = useCallback(() => {
-    // Save scroll position
-    const scrollPos = window.scrollY;
-    
-    // Reset state
+  // Refresh feed function for manual refresh
+  const refreshFeed = () => {
     setRetryCount(0);
     setCacheHit(false);
-    
-    // Re-initialize feed
     initFeed(true);
-    
-    // Restore scroll position after a delay
-    setTimeout(() => {
-      window.scrollTo(0, scrollPos);
-    }, 100);
-  }, [initFeed]);
+  };
   
   // Cache the feed data when events update
   useEffect(() => {
@@ -295,7 +224,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setLastUpdated(new Date());
       }
     }
-  }, [events, following, activeHashtag, cacheHit, since, until]);
+  }, [events, following, activeHashtag, cacheHit]);
   
   useEffect(() => {
     initFeed();
@@ -314,7 +243,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     }
     
     // If we've reached the limit, set hasMore to false
-    if (events.length >= 200) { // Increased from 100 to reduce loading frequency
+    if (events.length >= 100) {
       setHasMore(false);
     }
     
@@ -322,7 +251,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     if (events.length > 0 && isLoadingMore) {
       setIsLoadingMore(false);
     }
-  }, [events, loading, isLoadingMore, setLoading]);
+  }, [events, loading, isLoadingMore]);
 
   return {
     events,

@@ -1,42 +1,29 @@
 
 import React from "react";
-import { Loader2, Hand } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface FeedLoadingIndicatorProps {
   loading: boolean;
   hasMore: boolean;
   inView: boolean;
-  isPaused?: boolean;
 }
 
-const FeedLoadingIndicator = ({ 
-  loading,
-  hasMore,
-  inView,
-  isPaused = false
-}: FeedLoadingIndicatorProps) => {
-  if (!hasMore || !inView) return null;
-  
-  if (isPaused) {
-    return (
-      <div className="py-4 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-md text-sm">
-          <Hand className="h-3.5 w-3.5" />
-          <span>Auto-loading paused</span>
-        </div>
-      </div>
-    );
+const FeedLoadingIndicator: React.FC<FeedLoadingIndicatorProps> = ({ 
+  loading, 
+  hasMore, 
+  inView 
+}) => {
+  if (!hasMore || !inView) {
+    return null;
   }
 
   return (
     <div className="py-4 text-center">
-      {loading ? (
-        <div className="inline-flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-primary/70" />
-          <span className="text-muted-foreground text-sm">Loading more posts...</span>
+      {loading && (
+        <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading more posts...
         </div>
-      ) : (
-        <span className="text-muted-foreground text-xs">Scroll down for more</span>
       )}
     </div>
   );
