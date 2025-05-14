@@ -78,7 +78,7 @@ A global, interoperable social platform uniting users across multiple layer-1 bl
 
 BlockNostr’s modular, dual-blockchain architecture integrates **Nostr**, **Alephium**, and **Polygon** to deliver a scalable, secure, and compliant ecosystem. The **Nostr Relay** serves as a central hub, connecting ecosystems via standardized protocols (e.g., NIP39) for seamless interoperability.
 
-#### Dual-Blockchain Design
+#### Blockchain + Nostr Hybrid Design
 
 1. **Polygon**/Google wallet: Powers **ZKP KYC** for identity verification and regulatory compliance, ensuring user privacy.
 2. **Alephium**: Drives **secure, scalable DeFi interactions** with robust smart contract capabilities.
@@ -93,7 +93,7 @@ BlockNostr’s modular, dual-blockchain architecture integrates **Nostr**, **Ale
 
 #### Future-Proof Modularity
 
-The system’s flexible architecture supports integration of additional blockchains (e.g., Solana), enabling continuous evolution to meet emerging needs and drive innovation.
+The system’s flexible architecture supports integration of additional blockchains (e.g., Ergo, Kaspa), enabling continuous evolution to meet emerging needs and drive innovation.
 
 ---
 
@@ -101,7 +101,7 @@ The system’s flexible architecture supports integration of additional blockcha
 
 BlockNostr leverages **Nostr’s decentralized relays** for non-critical events and **Alephium’s blockchain** for critical transactions. Relays will be deployed across **AWS**, **Google Cloud**, **Azure**, and **Flux** for optimal performance.
 
-#### Phase 1: Open Beta (Alph + Nostr)
+#### Phase 1: Closed Beta (Alph + Nostr)
 
 **Objective**: Build a decentralized social platform, starting with Alephium’s ~50,000 X followers.
 
@@ -131,7 +131,7 @@ BlockNostr leverages **Nostr’s decentralized relays** for non-critical events 
 - Crowdfunding platform.
 - Full open-source release.
 
-#### Phase 3: Mature Ecosystem, Fully Decentralized
+#### Phase 3: Full Release. Mature Ecosystem, Fully Decentralized
 
 **Objective**: Transition to full decentralization.
 
@@ -148,6 +148,6 @@ BlockNostr leverages **Nostr’s decentralized relays** for non-critical events 
 
 ---
 
-### Conclusion
+### 
 
 BlockNostr is a movement to redefine Web3 social ecosystems. By merging **Nostr’s open protocol** with **Alephium’s scalable blockchain**, BlockNostr empowers users with **autonomy**, **security**, and **innovation**. From simplified onboarding to trustless DeFi and interoperable communication, BlockNostr is paving the way for a decentralized future. Join us in shaping the next era of Web3.
