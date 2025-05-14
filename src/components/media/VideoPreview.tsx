@@ -1,20 +1,20 @@
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 
 interface VideoPreviewProps {
   url: string;
-  onLoad: () => void;
-  onError: () => void;
+  onLoadedData?: () => void;
+  onError?: () => void;
   autoPlay?: boolean;
   controls?: boolean;
   className?: string;
   quality?: 'low' | 'medium' | 'high';
 }
 
-const VideoPreview = ({ 
+const VideoPreview: React.FC<VideoPreviewProps> = ({ 
   url, 
-  onLoad, 
+  onLoadedData, 
   onError, 
   autoPlay = false,
   controls = false,
@@ -103,7 +103,7 @@ const VideoPreview = ({
       loop
       playsInline
       onClick={handleVideoClick}
-      onLoadedData={onLoad}
+      onLoadedData={onLoadedData}
       onError={onError}
       {...qualitySettings}
     />

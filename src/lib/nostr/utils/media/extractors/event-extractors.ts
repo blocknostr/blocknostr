@@ -11,6 +11,9 @@ import { extractMediaFromTags } from './tag-extractors';
 import { extractMediaItems } from './content-extractors';
 import { extractMediaUrls, extractLinkPreviewUrls, extractFirstImageUrl } from './core';
 
+// Cache for event media URLs to prevent repeated extraction
+const eventMediaCache = new Map<string, string[]>();
+
 /**
  * Helper function to extract media URLs from both content and tags
  * For backward compatibility, with URL registry integration
@@ -21,7 +24,14 @@ export const getMediaUrlsFromEvent = (event: NostrEvent | {content: string, tags
   
   if (!content && (!tags || !Array.isArray(tags))) return [];
   
-  const urls: Set<string> = new Set();
+  // Check cache first for events with IDs
+  const eventId = ('id' in event && event.id) ? event.id : '';
+  if (eventId && eventMediaCache.has(eventId)) {
+    return eventMediaCache.get(eventId) || [];
+  }
+  
+  // Set to track unique URLs
+  const uniqueUrls = new Set<string>();
   
   // First prioritize structured data from tags
   if (Array.isArray(tags)) {
@@ -32,25 +42,35 @@ export const getMediaUrlsFromEvent = (event: NostrEvent | {content: string, tags
     );
     
     mediaTags.forEach(tag => {
-      if (tag[1] && !UrlRegistry.isUrlRegistered(tag[1])) {
-        urls.add(tag[1]);
+      if (tag[1]) {
+        uniqueUrls.add(tag[1]);
       }
     });
   }
   
-  // Then extract URLs from content, filtering out already registered ones
+  // Then extract URLs from content, only adding new ones
   if (content) {
     const contentUrls = extractMediaUrls(content);
     contentUrls.forEach(url => {
-      if (!UrlRegistry.isUrlRegistered(url)) {
-        urls.add(url);
-      }
+      uniqueUrls.add(url);
     });
   }
   
-  // Register all found URLs as media
-  const mediaUrls = [...urls];
-  UrlRegistry.registerUrls(mediaUrls, 'media');
+  // Convert set to array
+  const mediaUrls = Array.from(uniqueUrls);
+  
+  // Cache the results for events with IDs
+  if (eventId) {
+    eventMediaCache.set(eventId, mediaUrls);
+    
+    // Limit cache size
+    if (eventMediaCache.size > 1000) {
+      // Remove oldest entries
+      const keys = Array.from(eventMediaCache.keys());
+      const keysToRemove = keys.slice(0, 200);
+      keysToRemove.forEach(key => eventMediaCache.delete(key));
+    }
+  }
   
   return mediaUrls;
 };
@@ -71,17 +91,14 @@ export const getLinkPreviewUrlsFromEvent = (event: NostrEvent | {content: string
   // Get media URLs that we don't want to show as link previews
   const mediaUrls = new Set(getMediaUrlsFromEvent(event));
   
-  // Filter out media URLs and already registered URLs to get only regular links for previews
+  // Filter out media URLs to get only regular links for previews
   const linkUrls = allUrls.filter(url => 
     !mediaUrls.has(url) && 
-    !isMediaUrl(url) && 
-    !UrlRegistry.isUrlRegistered(url)
+    !isMediaUrl(url)
   );
   
-  // Register these URLs as links
-  UrlRegistry.registerUrls(linkUrls, 'link');
-  
-  return linkUrls;
+  // Return unique links
+  return Array.from(new Set(linkUrls));
 };
 
 /**

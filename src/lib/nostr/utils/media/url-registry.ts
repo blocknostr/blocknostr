@@ -1,4 +1,3 @@
-
 import { normalizeUrl } from './media-validation';
 
 /**
@@ -9,6 +8,9 @@ import { normalizeUrl } from './media-validation';
 // Global registry of URLs being rendered
 // This is a singleton that persists across component renders
 const urlRegistry = new Map<string, 'media' | 'link' | 'text'>();
+
+// Keep track of registration counts to handle shared URLs
+const urlRegistrationCount = new Map<string, number>();
 
 export const UrlRegistry = {
   /**
@@ -23,6 +25,15 @@ export const UrlRegistry = {
     try {
       const normalizedUrl = normalizeUrl(url);
       urlRegistry.set(normalizedUrl, type);
+      
+      // Increment registration count
+      const currentCount = urlRegistrationCount.get(normalizedUrl) || 0;
+      urlRegistrationCount.set(normalizedUrl, currentCount + 1);
+      
+      // Log duplicate registrations for debugging
+      if (currentCount > 0) {
+        console.debug(`URL registered ${currentCount + 1} times:`, normalizedUrl);
+      }
     } catch (error) {
       console.error('Error registering URL in UrlRegistry:', url, error);
       // Still try to register the original URL to prevent rendering issues
@@ -39,7 +50,10 @@ export const UrlRegistry = {
       return;
     }
     
-    urls.forEach(url => {
+    // Deduplicate URLs before registration
+    const uniqueUrls = Array.from(new Set(urls));
+    
+    uniqueUrls.forEach(url => {
       if (url && typeof url === 'string') {
         this.registerUrl(url, type);
       }
@@ -91,6 +105,28 @@ export const UrlRegistry = {
   },
 
   /**
+   * Decrement registration count for a URL and clear if count reaches 0
+   */
+  unregisterUrl(url: string): void {
+    if (!url || typeof url !== 'string') return;
+    
+    try {
+      const normalizedUrl = normalizeUrl(url);
+      const count = urlRegistrationCount.get(normalizedUrl) || 0;
+      
+      if (count <= 1) {
+        urlRegistry.delete(normalizedUrl);
+        urlRegistrationCount.delete(normalizedUrl);
+      } else {
+        urlRegistrationCount.set(normalizedUrl, count - 1);
+      }
+    } catch (error) {
+      console.error('Error unregistering URL from UrlRegistry:', url, error);
+      urlRegistry.delete(url);
+    }
+  },
+
+  /**
    * Clear specific URL from registry
    */
   clearUrl(url: string): void {
@@ -99,6 +135,7 @@ export const UrlRegistry = {
     try {
       const normalizedUrl = normalizeUrl(url);
       urlRegistry.delete(normalizedUrl);
+      urlRegistrationCount.delete(normalizedUrl);
     } catch (error) {
       console.error('Error clearing URL from UrlRegistry:', url, error);
       urlRegistry.delete(url);
@@ -111,6 +148,7 @@ export const UrlRegistry = {
    */
   clearAll(): void {
     urlRegistry.clear();
+    urlRegistrationCount.clear();
   },
 
   /**
@@ -119,7 +157,10 @@ export const UrlRegistry = {
   filterUnregisteredUrls(urls: string[]): string[] {
     if (!Array.isArray(urls)) return [];
     
-    return urls.filter(url => {
+    // Deduplicate the input URLs first
+    const uniqueUrls = Array.from(new Set(urls));
+    
+    return uniqueUrls.filter(url => {
       if (!url || typeof url !== 'string') return false;
       return !this.isUrlRegistered(url);
     });
@@ -130,6 +171,17 @@ export const UrlRegistry = {
    */
   getSize(): number {
     return urlRegistry.size;
+  },
+  
+  /**
+   * Debug: get registration counts
+   */
+  getRegistrationCounts(): Record<string, number> {
+    const counts: Record<string, number> = {};
+    urlRegistrationCount.forEach((count, url) => {
+      counts[url] = count;
+    });
+    return counts;
   }
 };
 

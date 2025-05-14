@@ -31,21 +31,13 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   
   const [expanded, setExpanded] = useState(false);
   const isMounted = useRef(true);
+  const didUnmountRef = useRef(false);
   
   // Setup cleanup when component unmounts
   React.useEffect(() => {
     return () => {
       isMounted.current = false;
-      
-      // Clear URL registry on unmount to prevent stale entries
-      // But only do this after the component is fully unmounted (next tick)
-      // to prevent issues with other components still using the registry
-      setTimeout(() => {
-        if (!document.body.contains(document.activeElement)) {
-          // If we're navigating away, clear the registry
-          UrlRegistry.clearAll();
-        }
-      }, 100);
+      didUnmountRef.current = true;
     };
   }, []);
   
@@ -69,14 +61,18 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags using our utility
+  // Extract media URLs from content and tags using our utility with deduplication
   const mediaUrls = useMemo(() => {
-    return getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+    const extractedUrls = getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+    // Ensure uniqueness of URLs
+    return Array.from(new Set(extractedUrls));
   }, [contentToUse, tagsToUse, event]);
   
   // Extract link preview URLs (non-media URLs)
   const linkPreviewUrls = useMemo(() => {
-    return getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+    const extractedUrls = getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
+    // Ensure uniqueness of URLs
+    return Array.from(new Set(extractedUrls));
   }, [contentToUse, tagsToUse, event]);
   
   // Handle hashtag click
@@ -85,6 +81,32 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     // Dispatch custom event to be caught by parent components
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
+  
+  // Register URLs when component mounts
+  React.useEffect(() => {
+    // Register media URLs
+    mediaUrls.forEach(url => {
+      UrlRegistry.registerUrl(url, 'media');
+    });
+    
+    // Register link URLs
+    linkPreviewUrls.forEach(url => {
+      UrlRegistry.registerUrl(url, 'link');
+    });
+    
+    return () => {
+      // Unregister URLs when component unmounts
+      if (didUnmountRef.current) {
+        mediaUrls.forEach(url => {
+          UrlRegistry.unregisterUrl(url);
+        });
+        
+        linkPreviewUrls.forEach(url => {
+          UrlRegistry.unregisterUrl(url);
+        });
+      }
+    };
+  }, [mediaUrls, linkPreviewUrls]);
   
   return (
     <div className="mt-2">
@@ -120,6 +142,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
               alt={`Post media ${index + 1}`}
               index={index}
               totalItems={mediaUrls.length}
+              variant="inline"
             />
           ))}
           {mediaUrls.length > 4 && (

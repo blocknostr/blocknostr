@@ -35,7 +35,7 @@ const MediaContent: React.FC<MediaContentProps> = ({
       {isVideo ? (
         <VideoPreview
           url={url}
-          onLoad={onLoad}
+          onLoadedData={onLoad}
           onError={onError}
           autoPlay={isLightbox}
           controls={isLightbox}

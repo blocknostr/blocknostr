@@ -1,5 +1,5 @@
 
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
@@ -29,15 +29,21 @@ const OptimizedNoteCardContent = memo(({
     : content;
   
   // Use the standardized utility to extract media URLs
-  const mediaUrls = getMediaUrlsFromEvent({ content: displayContent, tags });
+  const mediaUrls = useMemo(() => {
+    const extractedUrls = getMediaUrlsFromEvent({ content: displayContent, tags });
+    // Ensure uniqueness of URLs
+    return Array.from(new Set(extractedUrls));
+  }, [displayContent, tags]);
   
   // Process content for rendering, excluding image URLs
   const formattedContent = contentFormatter.formatContent(displayContent);
   
   // Find hashtags in the content
-  const hashtags = tags
-    .filter(tag => tag[0] === 't')
-    .map(tag => tag[1]);
+  const hashtags = useMemo(() => {
+    return tags
+      .filter(tag => tag[0] === 't')
+      .map(tag => tag[1]);
+  }, [tags]);
   
   return (
     <div className="mt-2">

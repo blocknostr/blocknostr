@@ -18,6 +18,8 @@ interface EnhancedMediaContentProps {
   className?: string;
   onLoad?: () => void;
   onError?: () => void;
+  autoPlayVideos?: boolean;
+  dataSaverMode?: boolean;
 }
 
 // Create an in-memory cache to track which media URLs have already been loaded
@@ -32,7 +34,9 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
   variant = 'inline',
   className,
   onLoad: externalOnLoad,
-  onError: externalOnError
+  onError: externalOnError,
+  autoPlayVideos = false,
+  dataSaverMode = false
 }) => {
   // Normalize the URL to ensure consistent handling
   const normalizedUrl = React.useMemo(() => {
@@ -190,10 +194,10 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
           {isVideo ? (
             <VideoPreview
               url={normalizedUrl}
-              onLoad={handleLoad}
-              onError={handleError}
-              autoPlay={isLightbox}
+              autoPlay={isLightbox && autoPlayVideos}
               controls={isLightbox}
+              onLoadedData={handleLoad}
+              onError={handleError}
               className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
             />
           ) : (
@@ -203,7 +207,7 @@ const EnhancedMediaContent: React.FC<EnhancedMediaContentProps> = ({
               onLoad={handleLoad}
               onError={handleError}
               className={isLightbox ? "w-full h-auto max-h-[80vh] object-contain" : undefined}
-              lazyLoad={!isLightbox}
+              lazyLoad={!isLightbox && !dataSaverMode}
               maxRetries={2}
             />
           )}
