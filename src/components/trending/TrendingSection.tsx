@@ -1,23 +1,48 @@
 
 import React from 'react';
-import { TrendingTopics } from './TrendingTopics';
-import { cacheManager } from '@/lib/utils/cacheManager';
+import TrendingTopicsList from './TrendingTopicsList';
+import { useTrendingTopicsData } from './hooks/useTrendingTopicsData';
+import TrendingFilters from './TrendingFilters';
 
 interface TrendingSectionProps {
-  onHashtagClick?: (hashtag: string) => void;
-  className?: string;
+  onTopicClick?: (topic: string) => void;
+  activeHashtag?: string;
+  onClearHashtag?: () => void;
 }
 
 const TrendingSection: React.FC<TrendingSectionProps> = ({ 
-  onHashtagClick,
-  className 
+  onTopicClick,
+  activeHashtag,
+  onClearHashtag
 }) => {
+  const {
+    trendingTopics,
+    activeFilter,
+    timeRange,
+    setActiveFilter,
+    setTimeRange,
+    isFilterOpen,
+    setIsFilterOpen,
+    filterOptions,
+    timeOptions,
+    currentFilter,
+    currentTime
+  } = useTrendingTopicsData();
+
   return (
-    <div className={className}>
-      <TrendingTopics 
-        onHashtagClick={onHashtagClick} 
-        compact={true}
-        showFilters={true}
+    <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
+      <div className="p-3 border-b">
+        <h3 className="text-sm font-medium">Trending Topics</h3>
+      </div>
+      
+      <TrendingFilters 
+        currentFilter={currentFilter}
+        currentTime={currentTime}
+      />
+      
+      <TrendingTopicsList 
+        topics={trendingTopics}
+        onTopicClick={onTopicClick}
       />
     </div>
   );

@@ -19,8 +19,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
     recordInteraction,
     hasMore,
     loadMoreEvents,
-    loadingMore,
-    minLoadingTimeMet
+    loadingMore
   } = useForYouFeed({ activeHashtag });
 
   // Record view interactions for displayed events
@@ -33,8 +32,8 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
     }
   }, [events]);
 
-  // Show loading state when no events and loading or minimum loading time not met yet
-  if ((loading || !minLoadingTimeMet) && events.length === 0) {
+  // Show loading state when no events and loading
+  if (loading && events.length === 0) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -44,7 +43,7 @@ const ForYouFeed: React.FC<ForYouFeedProps> = ({ activeHashtag }) => {
       <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag in your personalized feed` :
-          "We couldn't find any posts for your personalized feed. Try interacting with more content to improve recommendations."
+          "Keep interacting with posts to improve your personalized feed"
         }
       </div>
     );
