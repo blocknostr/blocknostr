@@ -1,9 +1,9 @@
 
 import React from 'react';
-import CreateNoteFormContainer from './post/CreateNoteFormContainer';
+import SimpleNoteForm from './SimpleNoteForm';
 
 const CreateNoteForm = () => {
-  return <CreateNoteFormContainer />;
+  return <SimpleNoteForm />;
 };
 
 export default CreateNoteForm;

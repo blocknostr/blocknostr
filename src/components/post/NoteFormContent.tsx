@@ -153,6 +153,7 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
       {scheduledDate && (
         <ScheduledIndicator 
           scheduledDate={scheduledDate} 
+          onCancelSchedule={() => setScheduledDate(null)}
         />
       )}
       

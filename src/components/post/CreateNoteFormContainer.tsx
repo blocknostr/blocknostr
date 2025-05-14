@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useNoteFormState } from '@/hooks/useNoteFormState';
 import { useNoteSubmission } from '@/hooks/useNoteSubmission';
@@ -7,9 +7,6 @@ import NoteFormAvatar from './NoteFormAvatar';
 import NoteFormContent from './NoteFormContent';
 import { toast } from 'sonner';
 import { nostrService } from '@/lib/nostr';
-
-// Maximum note length in characters
-const MAX_NOTE_LENGTH = 280;
 
 const CreateNoteFormContainer: React.FC = () => {
   // Get the current user's public key
@@ -19,16 +16,16 @@ const CreateNoteFormContainer: React.FC = () => {
   const {
     content,
     setContent,
+    mediaUrls,
     scheduledDate,
     setScheduledDate,
+    textareaRef,
+    MAX_NOTE_LENGTH,
     resetForm
   } = useNoteFormState();
   
   // Submission state and handler
   const { isSubmitting, submitNote } = useNoteSubmission();
-  
-  // Reference to the textarea element
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
