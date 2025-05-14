@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
@@ -9,9 +9,7 @@ import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
-
-// Lazy load components that aren't needed immediately
-const LazyProfileTabs = React.lazy(() => import('@/components/profile/ProfileTabs'));
+import ProfileTabs from '@/components/profile/ProfileTabs';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -124,23 +122,16 @@ const ProfilePage = () => {
             currentUserPubkey={currentUserPubkey}
           />
           
-          {/* Loading state for tabs */}
-          <Suspense fallback={
-            <div className="mt-6 p-4 bg-muted/40 rounded-md animate-pulse">
-              <div className="h-8 bg-muted rounded mb-4"></div>
-              <div className="h-24 bg-muted rounded"></div>
-            </div>
-          }>
-            <LazyProfileTabs 
-              events={events || []} 
-              media={media || []}
-              reposts={[]}
-              profileData={profile}
-              originalPostProfiles={profiles}
-              hexPubkey={hexPubkey}
-              replies={[]}
-            />
-          </Suspense>
+          {/* Profile tabs without suspension/lazy loading */}
+          <ProfileTabs 
+            events={events || []} 
+            media={media || []}
+            reposts={[]}
+            profileData={profile}
+            originalPostProfiles={profiles}
+            hexPubkey={hexPubkey}
+            replies={[]}
+          />
         </>
       )}
     </div>
