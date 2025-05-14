@@ -40,7 +40,11 @@ const UnifiedFeedTab: React.FC<UnifiedFeedTabProps> = ({
         </div>
       ) : feedItems.length === 0 ? (
         <div className="flex items-center justify-center py-8 border border-dashed border-muted-foreground/20 rounded-lg">
-          <span className="text-sm text-muted-foreground">No posts found.</span>
+          <span className="text-sm text-muted-foreground">
+            {profileData?.name || profileData?.displayName ? 
+              `${profileData.name || profileData.displayName} hasn't posted anything yet.` : 
+              "No posts found for this profile."}
+          </span>
         </div>
       ) : (
         <div className="space-y-4">

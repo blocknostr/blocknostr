@@ -14,9 +14,6 @@ const FeedLoading: React.FC<FeedLoadingProps> = ({ activeHashtag, mediaOnly }) =
       <p className="text-sm text-muted-foreground">
         Loading {mediaOnly ? 'media ' : ''}posts{activeHashtag ? ` with #${activeHashtag}` : ''}...
       </p>
-      <p className="text-xs text-muted-foreground/70">
-        Connecting to relays and fetching content
-      </p>
     </div>
   );
 };

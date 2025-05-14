@@ -1,5 +1,5 @@
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
@@ -18,11 +18,12 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     hasMore,
     loadMoreEvents,
     loadingMore,
-    isInitialLoadingTimeout
+    minLoadingTimeMet
   } = useGlobalFeed({ activeHashtag });
 
-  // Show loading state when no events and loading or in initial loading timeout period
-  if ((loading || isInitialLoadingTimeout) && events.length === 0) {
+  // Show loading state when no events and loading
+  // Make sure we've given enough time to load events before showing empty state
+  if ((loading || !minLoadingTimeMet) && events.length === 0) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -32,7 +33,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
       <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag` :
-          "No posts available. Try again later or explore other feeds."
+          "No posts found. Try refreshing or check your relay connections."
         }
       </div>
     );
