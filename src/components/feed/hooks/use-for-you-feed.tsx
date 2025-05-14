@@ -13,7 +13,10 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
+  const [minLoadingTimeMet, setMinLoadingTimeMet] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const loadMoreTimeoutRef = useRef<number | null>(null);
+  const minLoadingTimeRef = useRef<number | null>(null);
   
   const { 
     events, 
@@ -123,6 +126,32 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       return newWeights;
     });
   };
+
+  // Function to retry loading posts with exponential backoff
+  const retryLoadPosts = useCallback(() => {
+    if (retryAttempt >= 2 || events.length > 0) return; // Max 3 attempts (0, 1, 2)
+    
+    const newRetryAttempt = retryAttempt + 1;
+    setRetryAttempt(newRetryAttempt);
+    
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
+    }
+    
+    // Set up a new subscription with a larger time window for each retry
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timeWindow = 24 * 60 * 60 * (newRetryAttempt + 1); // Increase time window with each retry
+    const newSince = currentTime - timeWindow;
+    
+    console.log(`Retry attempt ${newRetryAttempt}: Fetching personalized posts from the last ${timeWindow / (24 * 60 * 60)} days`);
+    
+    setSince(undefined);
+    setUntil(currentTime);
+    
+    const newSubId = setupSubscription(newSince, currentTime);
+    setSubId(newSubId);
+  }, [retryAttempt, events.length, subId, setupSubscription]);
   
   const loadMoreEvents = useCallback(async () => {
     if (!subId || loadingMore) return;
@@ -181,10 +210,24 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
-    threshold: 800, // Increased from 400 to 800 for earlier loading
-    aggressiveness: 'high', // Set to high for the most aggressive loading
-    preservePosition: true // Enable scroll position preservation
+    threshold: 800,
+    aggressiveness: 'high',
+    preservePosition: true
   });
+
+  // Set up minimum loading time of 6 seconds
+  useEffect(() => {
+    // Set minimum loading time for better UX
+    minLoadingTimeRef.current = window.setTimeout(() => {
+      setMinLoadingTimeMet(true);
+    }, 6000); // 6 second minimum loading time
+    
+    return () => {
+      if (minLoadingTimeRef.current) {
+        clearTimeout(minLoadingTimeRef.current);
+      }
+    };
+  }, [activeHashtag]);
 
   useEffect(() => {
     const initFeed = async () => {
@@ -194,6 +237,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setEvents([]);
       setHasMore(true);
       setLoading(true);
+      setMinLoadingTimeMet(false);
+      setRetryAttempt(0);
 
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
@@ -206,7 +251,6 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       
       const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
       setSubId(newSubId);
-      setLoading(false);
     };
     
     initFeed();
@@ -219,14 +263,29 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
+      if (minLoadingTimeRef.current) {
+        clearTimeout(minLoadingTimeRef.current);
+      }
     };
   }, [activeHashtag]);
 
+  // Schedule retries if no events are loaded yet
   useEffect(() => {
-    if (events.length > 0 && loading) {
+    if (events.length === 0 && loading && minLoadingTimeMet) {
+      const retryTimeout = setTimeout(() => {
+        retryLoadPosts();
+      }, 3000 + retryAttempt * 2000); // Exponential backoff
+      
+      return () => clearTimeout(retryTimeout);
+    }
+  }, [events.length, loading, minLoadingTimeMet, retryAttempt, retryLoadPosts]);
+
+  // Only turn off loading when we have events or minimum loading time has elapsed
+  useEffect(() => {
+    if ((events.length > 0 || (minLoadingTimeMet && retryAttempt >= 2)) && loading) {
       setLoading(false);
     }
-  }, [events, loading]);
+  }, [events, loading, minLoadingTimeMet, retryAttempt]);
 
   return {
     events,
@@ -237,6 +296,7 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
     hasMore,
     loadMoreEvents,
     recordInteraction,
-    loadingMore: loadingMore || scrollLoadingMore
+    loadingMore: loadingMore || scrollLoadingMore,
+    minLoadingTimeMet
   };
 }

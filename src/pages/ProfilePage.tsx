@@ -14,6 +14,7 @@ import ProfileTabs from '@/components/profile/ProfileTabs';
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
+  const [minLoadingTimeMet, setMinLoadingTimeMet] = useState(false);
   const { profile, loading: profileLoading, error: profileError } = useBasicProfile(npub);
   const { profiles, fetchProfile } = useUnifiedProfileFetcher();
   
@@ -32,6 +33,15 @@ const ProfilePage = () => {
         console.error('Invalid npub:', error);
       }
     }
+    
+    // Set minimum loading time for better UX
+    const minLoadingTimer = setTimeout(() => {
+      setMinLoadingTimeMet(true);
+    }, 6000); // 6 second minimum loading time
+    
+    return () => {
+      clearTimeout(minLoadingTimer);
+    };
   }, [npub, fetchProfile]);
   
   // Determine if this is the current user's profile
@@ -93,9 +103,8 @@ const ProfilePage = () => {
     );
   }
   
-  // Show a minimal loading state only for the very initial profile data
-  // Everything else will load progressively
-  const isInitialLoading = profileLoading && !profile?.name && !profile?.displayName;
+  // Show a loading state for a minimum period of time or until profile data loads
+  const isInitialLoading = (profileLoading && !profile?.name && !profile?.displayName) || (!minLoadingTimeMet && !hasEvents);
   
   // Calculate posts count safely
   const postsCount = hasEvents && events ? events.length : undefined;

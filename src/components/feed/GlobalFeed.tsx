@@ -17,11 +17,13 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     loading,
     hasMore,
     loadMoreEvents,
-    loadingMore
+    loadingMore,
+    minLoadingTimeMet
   } = useGlobalFeed({ activeHashtag });
 
   // Show loading state when no events and loading
-  if (loading && events.length === 0) {
+  // Make sure we've given enough time to load events before showing empty state
+  if ((loading || !minLoadingTimeMet) && events.length === 0) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -31,7 +33,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
       <div className="py-8 text-center text-muted-foreground">
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag` :
-          "No posts found. Connect to more relays to see posts here."
+          "No posts found. Try refreshing or check your relay connections."
         }
       </div>
     );
