@@ -13,7 +13,7 @@ interface SubscriptionDetails {
   expiresAt: number | null;
   isRenewable: boolean;
   componentId: string;
-  category?: string;
+  category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other'; // Updated type definition
 }
 
 export class SubscriptionManager {
@@ -60,7 +60,7 @@ export class SubscriptionManager {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
       isRenewable?: boolean;  // Whether this subscription should be auto-renewed
       componentId?: string;  // Identifier for the component creating this subscription
-      category?: string;     // Category of subscription (e.g., 'profile', 'feed')
+      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other';  // Updated type definition
       limit?: number;        // Maximum number of events to receive before closing
     } = {}
   ): string {
@@ -107,8 +107,8 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        return poolInstance.subscribe(relays, filter, {
-          onevent: (event) => {
+        return poolInstance.subscribe(relays, filter, 
+          event => { // Fix: Using arrow function instead of options object
             onEvent(event as NostrEvent);
             
             // Check if we've reached the limit
@@ -118,7 +118,7 @@ export class SubscriptionManager {
               this.unsubscribe(id);
             }
           }
-        });
+        );
       });
       
       // Calculate expiration time if TTL is provided
@@ -135,7 +135,7 @@ export class SubscriptionManager {
         expiresAt,
         isRenewable: !!options.isRenewable,
         componentId,
-        category
+        category // Now properly typed
       });
       
       // Register with the tracker
@@ -144,7 +144,7 @@ export class SubscriptionManager {
         () => this.unsubscribe(id), 
         componentId, 
         { 
-          category: options.category, 
+          category, // Pass correct category type
           priority: category === 'profile' ? 4 : 5 
         }
       );

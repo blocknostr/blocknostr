@@ -8,7 +8,7 @@ export class SubscriptionTracker {
     cleanup: () => void,
     createdAt: number,
     componentId: string,
-    category?: string,
+    category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other',
     priority?: number
   }> = new Map();
   
@@ -395,7 +395,7 @@ export class SubscriptionTracker {
    * Find and clean up duplicate subscriptions (same component and similar creation time)
    */
   public cleanupDuplicates(): number {
-    const groupedByComponent: Record<string, Map<string, number[]>> = {};
+    const groupedByComponent: Record<string, Map<number, string[]>> = {};
     
     // Group subscriptions by component
     this.subscriptions.forEach((details, id) => {
@@ -404,20 +404,20 @@ export class SubscriptionTracker {
         groupedByComponent[componentId] = new Map();
       }
       
-      // We use a fuzzy time window for potential duplicates
+      // We use a fuzzy time window for potential duplicates - Fixed: now using number type
       const timeWindow = Math.floor(details.createdAt / 1000);
-      if (!groupedByComponent[componentId].has(String(timeWindow))) {
-        groupedByComponent[componentId].set(String(timeWindow), []);
+      if (!groupedByComponent[componentId].has(timeWindow)) {
+        groupedByComponent[componentId].set(timeWindow, []);
       }
       
-      groupedByComponent[componentId].get(String(timeWindow))!.push(id);
+      groupedByComponent[componentId].get(timeWindow)!.push(id);
     });
     
     let removedCount = 0;
     
     // Find potential duplicates (multiple subscriptions from same component in same second)
     Object.entries(groupedByComponent).forEach(([componentId, timeWindows]) => {
-      timeWindows.forEach((subIds) => {
+      timeWindows.forEach((subIds, timeWindow) => { // Fixed: Using number here
         // If we have multiple subscriptions in the same time window, keep only one
         if (subIds.length > 1) {
           // Keep the newest one

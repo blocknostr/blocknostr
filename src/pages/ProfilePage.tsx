@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -67,7 +66,7 @@ const ProfilePage = () => {
   useEffect(() => {
     // Get the connection pool instance
     const connectionPool = ConnectionPool.getInstance();
-    const relayCount = connectionPool.getConnectedRelayCount();
+    const relayCount = connectionPool.getConnectedRelays().length; // Fixed: use getConnectedRelays().length
     
     // Only connect to default relays if we don't have enough connections
     if (relayCount < 2) {
@@ -76,10 +75,7 @@ const ProfilePage = () => {
         "wss://relay.damus.io", 
         "wss://nos.lol", 
         "wss://relay.nostr.band"
-      ], { 
-        limit: 3, // Limit connections for better performance
-        timeout: 5000 // 5s timeout for faster rendering
-      }).catch(err => {
+      ]).catch(err => { // Fixed: Removed extra options parameter
         console.error("Failed to connect to default relays:", err);
       });
     } else {
