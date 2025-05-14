@@ -19,14 +19,16 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Add explicit extensions to help resolving
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-components': ['@/components/ui'],
-          'nostr-core': ['@/lib/nostr'],
+          'ui-components': ['@/components/ui/button', '@/components/ui/toast', '@/components/ui/dialog'], // Specify actual components instead of the directory
+          'nostr-core': ['@/lib/nostr/index', '@/lib/nostr/social', '@/lib/nostr/service']
         }
       }
     }
