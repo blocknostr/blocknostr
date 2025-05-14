@@ -1,30 +1,34 @@
 
-import React, { useState, useEffect } from "react";
-import MainFeed from "@/components/MainFeed";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { toast } from "sonner";
-import { AlertTriangle, HardDrive, Shield, ExternalLink } from "lucide-react";
+import { AlertTriangle, Loader2, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Lazy load MainFeed to improve initial page load
+const MainFeed = lazy(() => import("@/components/MainFeed"));
 
 const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [storageErrorDismissed, setStorageErrorDismissed] = useState(false);
   const isLoggedIn = !!nostrService.publicKey;
   
   useEffect(() => {
-    // Connect to relays in the background if logged in
+    // Only init connection to relays when logged in and auto-connect is enabled
     const initNostr = async () => {
       try {
         // Only connect to relays if logged in
         if (isLoggedIn) {
-          // Connect in the background without showing loading state
           await nostrService.connectToUserRelays();
         }
       } catch (error) {
         console.error("Error initializing Nostr:", error);
         toast.error("Failed to connect to relays");
+      } finally {
+        setIsInitializing(false);
       }
     };
     
@@ -151,9 +155,20 @@ const Index: React.FC = () => {
         </div>
       )}
       
-      {/* Directly render MainFeed for logged-in users */}
-      {isLoggedIn ? (
-        <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
+      {isLoggedIn && isInitializing ? (
+        <div className="py-12 flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
+          <p className="text-muted-foreground">Initializing connection...</p>
+        </div>
+      ) : isLoggedIn ? (
+        <Suspense fallback={
+          <div className="py-12 flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary/60 mb-3" />
+            <p className="text-muted-foreground">Loading feed...</p>
+          </div>
+        }>
+          <MainFeed activeHashtag={activeHashtag} onClearHashtag={clearHashtag} />
+        </Suspense>
       ) : (
         <div className="py-8 text-center">
           <p className="text-muted-foreground">

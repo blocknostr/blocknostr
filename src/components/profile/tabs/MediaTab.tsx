@@ -1,43 +1,44 @@
 
 import React from "react";
-import NoteCard from "@/components/NoteCard";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { NostrEvent } from "@/lib/nostr";
+import { getFirstImageUrlFromEvent } from "@/lib/nostr/utils";
+import EnhancedMediaContent from "@/components/media/EnhancedMediaContent";
 
 interface MediaTabProps {
-  displayedMedia: any[];
-  hasMore: boolean;
-  loadMoreRef: (node: HTMLDivElement | null) => void;
+  displayedMedia: NostrEvent[];
 }
 
-const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia, hasMore, loadMoreRef }) => {
-  const [loadMoreLoading, setLoadMoreLoading] = React.useState(false);
+export const MediaTab: React.FC<MediaTabProps> = ({ displayedMedia }) => {
+  if (!displayedMedia || displayedMedia.length === 0) {
+    return (
+      <div className="py-8 text-center text-muted-foreground">
+        No media found.
+      </div>
+    );
+  }
 
   return (
-    <div>
-      {displayedMedia.length === 0 ? (
-        <div className="py-4 text-center text-muted-foreground">
-          No media found for this profile.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {displayedMedia.map((event) => (
-            <NoteCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
-
-      <div ref={loadMoreRef} className="py-2 text-center">
-        {loadMoreLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <span className="text-sm text-muted-foreground">Loading more media...</span>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {displayedMedia.map(event => {
+        const imageUrl = getFirstImageUrlFromEvent(event);
+        if (!imageUrl) return null;
+        
+        return (
+          <div 
+            key={event.id} 
+            className="aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
+            onClick={() => {
+              window.location.href = `/post/${event.id}`;
+            }}
+          >
+            <EnhancedMediaContent
+              url={imageUrl}
+              alt="Media"
+              className="h-full w-full object-cover"
+            />
           </div>
-        ) : (
-          <div className="h-8">{/* Spacer for intersection observer */}</div>
-        )}
-      </div>
+        );
+      }).filter(Boolean)}
     </div>
   );
 };
-
-export default MediaTab;

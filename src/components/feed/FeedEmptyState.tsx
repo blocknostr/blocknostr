@@ -15,7 +15,7 @@ const FeedEmptyState: React.FC<FeedEmptyStateProps> = ({
   if (loading && !activeHashtag) {
     return (
       <div className="py-8 text-center text-muted-foreground">
-        Loading posts...
+        Loading posts from people you follow...
       </div>
     );
   }
@@ -23,22 +23,24 @@ const FeedEmptyState: React.FC<FeedEmptyStateProps> = ({
   if (activeHashtag && !loading) {
     return (
       <div className="py-4 text-center text-muted-foreground">
-        No posts found with #{activeHashtag}
+        No posts found with #{activeHashtag} hashtag from people you follow
       </div>
     );
   }
 
-  // Show this only if not following anyone yet
   if (following.length === 0) {
     return (
       <div className="py-8 text-center text-muted-foreground">
-        Follow some users to see their posts here
+        You're not following anyone yet. Follow some users to see their posts here.
       </div>
     );
   }
 
-  // Return empty div instead of "no posts" message
-  return null;
+  return (
+    <div className="py-8 text-center text-muted-foreground">
+      No posts from people you follow yet. Try following more users or connecting to more relays.
+    </div>
+  );
 };
 
 export default FeedEmptyState;

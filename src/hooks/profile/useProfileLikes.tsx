@@ -5,24 +5,15 @@ import { NostrEvent, nostrService, contentCache } from '@/lib/nostr';
 interface UseProfileLikesProps {
   hexPubkey: string | undefined;
   enabled?: boolean;
-  initialLimit?: number;
 }
 
-export function useProfileLikes({ 
-  hexPubkey, 
-  enabled = true, 
-  initialLimit = 10 
-}: UseProfileLikesProps) {
+export function useProfileLikes({ hexPubkey, enabled = true }: UseProfileLikesProps) {
   const [reactions, setReactions] = useState<NostrEvent[]>([]);
   const [referencedEvents, setReferencedEvents] = useState<Record<string, NostrEvent>>({});
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
   const subscriptionsRef = useRef<Set<string>>(new Set());
   const timeoutRef = useRef<number | null>(null);
   const isMounted = useRef(true);
-  const lastTimestamp = useRef<number | null>(null);
   
   // Set up the mounted ref for cleanup
   useEffect(() => {
@@ -31,92 +22,12 @@ export function useProfileLikes({
     };
   }, []);
   
-  // Function to load more reactions
-  const loadMore = () => {
-    if (!hexPubkey || loading || loadingMore || !hasMore) return;
-    
-    setLoadingMore(true);
-    setPage(prev => prev + 1);
-    
-    // If we have reactions, use the oldest one's timestamp as 'until'
-    const until = lastTimestamp.current 
-      ? lastTimestamp.current - 1 // Subtract 1 to avoid duplication
-      : undefined;
-    
-    console.log(`Loading more reactions for profile: ${hexPubkey}, page: ${page + 1}, until: ${until}`);
-    
-    // Clean up previous subscriptions if any
-    subscriptionsRef.current.forEach(subId => {
-      nostrService.unsubscribe(subId);
-    });
-    subscriptionsRef.current.clear();
-    
-    // Subscribe to user's reactions (kind 7 - NIP-25)
-    const reactionsSubId = nostrService.subscribe(
-      [
-        {
-          kinds: [7], // Reaction events (NIP-25)
-          authors: [hexPubkey],
-          until: until,
-          limit: initialLimit
-        }
-      ],
-      (event) => {
-        if (!isMounted.current) return;
-        
-        // Process reaction event
-        setReactions(prev => {
-          // Check if we already have this event
-          if (prev.some(e => e.id === event.id)) {
-            return prev;
-          }
-          
-          // Track the oldest timestamp for pagination
-          if (!lastTimestamp.current || event.created_at < lastTimestamp.current) {
-            lastTimestamp.current = event.created_at;
-          }
-          
-          // Add new reaction and sort by creation time (newest first)
-          return [...prev, event].sort((a, b) => b.created_at - a.created_at);
-        });
-        
-        // Get the event ID that was reacted to
-        const reactedEventId = getReactedToEventId(event);
-        
-        // Fetch the referenced event if we have its ID
-        if (reactedEventId) {
-          fetchReferencedEvent(reactedEventId);
-        }
-      }
-    );
-    
-    // Track subscription for cleanup
-    subscriptionsRef.current.add(reactionsSubId);
-    
-    // Set loading to false after some time
-    timeoutRef.current = window.setTimeout(() => {
-      if (isMounted.current) {
-        setLoadingMore(false);
-        
-        // If we received fewer than the limit, assume there are no more
-        if (reactions.length < initialLimit * page) {
-          setHasMore(false);
-        }
-      }
-    }, 5000);
-  };
-  
   useEffect(() => {
     // Only fetch data if enabled and we have a pubkey
     if (!enabled || !hexPubkey) return;
     
-    console.log("Fetching initial reactions for profile:", hexPubkey);
+    console.log("Fetching likes for profile:", hexPubkey);
     setLoading(true);
-    setPage(1);
-    setReactions([]);
-    setReferencedEvents({});
-    lastTimestamp.current = null;
-    setHasMore(true);
     
     // Clean up previous subscriptions if any
     subscriptionsRef.current.forEach(subId => {
@@ -130,7 +41,7 @@ export function useProfileLikes({
         {
           kinds: [7], // Reaction events (NIP-25)
           authors: [hexPubkey],
-          limit: initialLimit
+          limit: 50
         }
       ],
       (event) => {
@@ -141,11 +52,6 @@ export function useProfileLikes({
           // Check if we already have this event
           if (prev.some(e => e.id === event.id)) {
             return prev;
-          }
-          
-          // Track the oldest timestamp for pagination
-          if (!lastTimestamp.current || event.created_at < lastTimestamp.current) {
-            lastTimestamp.current = event.created_at;
           }
           
           // Add new reaction and sort by creation time (newest first)
@@ -185,7 +91,7 @@ export function useProfileLikes({
         timeoutRef.current = null;
       }
     };
-  }, [hexPubkey, enabled, initialLimit]);
+  }, [hexPubkey, enabled]);
   
   // Helper to extract event ID from NIP-25 reaction
   const getReactedToEventId = (event: NostrEvent): string | null => {
@@ -268,9 +174,6 @@ export function useProfileLikes({
   return { 
     reactions, 
     referencedEvents,
-    loading,
-    loadingMore,
-    hasMore,
-    loadMore
+    loading 
   };
 }

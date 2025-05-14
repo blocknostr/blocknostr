@@ -6,17 +6,10 @@ import { Topic } from "./types";
 
 interface TrendingTopicsListProps {
   topics: Topic[];
-  onTopicClick?: (topic: string) => void;
-  activeHashtag?: string;
-  onClearHashtag?: () => void;
+  onTopicClick: (topic: string) => void;
 }
 
-const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({ 
-  topics, 
-  onTopicClick = () => {},
-  activeHashtag,
-  onClearHashtag
-}) => {
+const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({ topics, onTopicClick }) => {
   // Limit to only 6 topics
   const displayTopics = topics.slice(0, 6);
   

@@ -1,7 +1,7 @@
 
 import { useCallback } from "react";
 import { NostrEvent } from "@/lib/nostr/types";
-import { chatNostrService } from "@/lib/nostr/chat-service";
+import { nostrService } from "@/lib/nostr";
 import { contentFormatter } from "@/lib/nostr";
 import { extractMentions } from "@/lib/nostr/utils/nip/nip27";
 import { toast } from "sonner";
@@ -17,7 +17,7 @@ export const useMessageSender = (
   setError: React.Dispatch<React.SetStateAction<string | null>>,
   chatTag: string = "world-chat"
 ) => {
-  const isLoggedIn = !!chatNostrService.publicKey;
+  const isLoggedIn = !!nostrService.publicKey;
   
   // Send message with improved error handling
   const sendMessage = useCallback(async (messageContent: string) => {
@@ -64,7 +64,7 @@ export const useMessageSender = (
       }
       
       // Create a message with the specified chat tag and any mention tags
-      const eventId = await chatNostrService.publishEvent({
+      const eventId = await nostrService.publishEvent({
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
         content: processedContent,
         tags: tags
@@ -78,7 +78,7 @@ export const useMessageSender = (
       // Optimistically add the message to the UI for instant feedback
       const tempEvent: NostrEvent = {
         id: eventId,
-        pubkey: chatNostrService.publicKey!,
+        pubkey: nostrService.publicKey!,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1, // EVENT_KINDS.TEXT_NOTE,
         tags: tags,

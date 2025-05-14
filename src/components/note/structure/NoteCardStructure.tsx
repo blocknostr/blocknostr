@@ -18,6 +18,9 @@ import RenderReplySection from './RenderReplySection';
 import RenderRepliesAccordion from './RenderRepliesAccordion';
 import RenderIndicators from './RenderIndicators';
 
+// Import the Note type from the shared location
+import { Note } from '@/components/notebin/hooks/types';
+
 interface NoteCardProps {
   event: NostrEvent;
   profileData?: Record<string, any>;
@@ -93,7 +96,7 @@ const NoteCardStructure = ({
   };
   
   return (
-    <Card className="mb-4 border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
+    <Card className="shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
           onClick={handleCardClick}>
       
       {/* Render indicators (repost header, reaction header, reply indicator) */}

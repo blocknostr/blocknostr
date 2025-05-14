@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
@@ -11,8 +11,6 @@ interface UseGlobalFeedProps {
 export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
-  const [loadingMore, setLoadingMore] = useState(false);
-  const loadMoreTimeoutRef = useRef<number | null>(null);
   
   const { 
     events, 
@@ -25,18 +23,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   } = useFeedEvents({
     since,
     until,
-    activeHashtag,
-    limit: 20 // Initial load of 20 posts
+    activeHashtag
   });
   
-  const loadMoreEvents = useCallback(async () => {
-    if (!subId || loadingMore) return;
-    setLoadingMore(true);
-    
-    // Cancel any existing timeout
-    if (loadMoreTimeoutRef.current) {
-      clearTimeout(loadMoreTimeoutRef.current);
-    }
+  const loadMoreEvents = () => {
+    if (!subId) return;
     
     // Close previous subscription
     if (subId) {
@@ -51,8 +42,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
-      const newSince = newUntil - 48 * 60 * 60; 
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -63,8 +53,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      // Get older posts from the last 48 hours instead of 24 for more aggressive loading
-      const newSince = newUntil - 48 * 60 * 60;
+      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
       
       setSince(newSince);
       setUntil(newUntil);
@@ -73,27 +62,15 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       const newSubId = setupSubscription(newSince, newUntil);
       setSubId(newSubId);
     }
-    
-    // Set loading more to false after a shorter delay to be more responsive
-    loadMoreTimeoutRef.current = window.setTimeout(() => {
-      setLoadingMore(false);
-      loadMoreTimeoutRef.current = null;
-    }, 1500);  // Reduced from 2000ms to 1500ms
-  }, [subId, events, since, until, setupSubscription, loadingMore]);
+  };
   
   const {
     loadMoreRef,
     loading,
     setLoading,
     hasMore,
-    setHasMore,
-    loadingMore: scrollLoadingMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    threshold: 800, // Increased from 400 to 800 for earlier loading
-    aggressiveness: 'high', // Set to high for the most aggressive loading
-    preservePosition: true // Enable scroll position preservation
-  });
+    setHasMore
+  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
 
   useEffect(() => {
     const initFeed = async () => {
@@ -123,13 +100,10 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     
     initFeed();
     
-    // Cleanup subscription and timeout when component unmounts
+    // Cleanup subscription when component unmounts
     return () => {
       if (subId) {
         nostrService.unsubscribe(subId);
-      }
-      if (loadMoreTimeoutRef.current) {
-        clearTimeout(loadMoreTimeoutRef.current);
       }
     };
   }, [activeHashtag]);
@@ -139,6 +113,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     if (events.length > 0 && loading) {
       setLoading(false);
     }
+    
+    // If we've reached the limit, set hasMore to false
+    if (events.length >= 100) {
+      setHasMore(false);
+    }
   }, [events, loading]);
 
   return {
@@ -147,8 +126,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     repostData,
     loadMoreRef,
     loading,
-    hasMore,
-    loadMoreEvents,
-    loadingMore: loadingMore || scrollLoadingMore
+    hasMore
   };
 }

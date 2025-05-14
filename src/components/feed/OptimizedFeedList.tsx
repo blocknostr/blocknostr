@@ -1,129 +1,208 @@
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "@/components/note/NoteCard";
+import NoteCard from "../note/MemoizedNoteCard";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useInView } from "../shared/useInView";
+import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
+import { useUnifiedProfileFetcher } from "@/hooks/useUnifiedProfileFetcher";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
   profiles: Record<string, any>;
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
-  loading?: boolean;
+  loading: boolean;
   onRefresh?: () => void;
-  onLoadMore?: () => void;
-  hasMore?: boolean;
+  onLoadMore: () => void;
+  hasMore: boolean;
   loadMoreLoading?: boolean;
 }
 
+const INITIAL_DISPLAY_COUNT = 15;
+
 const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   events,
-  profiles,
+  profiles: initialProfiles,
   repostData,
-  loading = false,
+  loading,
   onRefresh,
   onLoadMore,
-  hasMore = true,
+  hasMore,
   loadMoreLoading = false
 }) => {
-  const lastRef = useRef<HTMLDivElement>(null);
-  const [prevEventsLength, setPrevEventsLength] = useState(events.length);
+  // State to track how many posts to display
+  const [visibleCount, setVisibleCount] = useState(INITIAL_DISPLAY_COUNT);
   
-  // Add early loading triggers at multiple points in the feed
-  const earlyTriggerRefs = useRef<Array<HTMLDivElement | null>>([]);
+  // Use our custom hook for intersection observer
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.5,
+    triggerOnce: false
+  });
+
+  // Use our unified profile fetcher with enhanced features
+  const { profiles: unifiedProfiles, fetchProfiles, isLoading: profilesLoading } = useUnifiedProfileFetcher();
   
+  // Combine initial profiles with unified profiles with unified profiles taking precedence
+  const combinedProfiles = { ...initialProfiles, ...unifiedProfiles };
+  
+  // Fetch profiles for authors that aren't already loaded
   useEffect(() => {
-    // Set up early loading triggers
-    const earlyTriggerObserver = new IntersectionObserver(
-      (entries) => {
-        // If any early trigger becomes visible and we're not already loading
-        if (entries.some(entry => entry.isIntersecting) && hasMore && !loadMoreLoading && onLoadMore) {
-          console.log("[OptimizedFeedList] Early loading trigger activated");
-          onLoadMore();
+    if (events.length > 0) {
+      console.log(`[OptimizedFeedList] Checking profiles for ${events.length} events`);
+      
+      // Collect all unique pubkeys that need profiles
+      const pubkeysToFetch = new Set<string>();
+      
+      // Add authors
+      events.forEach(event => {
+        if (event.pubkey && !combinedProfiles[event.pubkey]) {
+          pubkeysToFetch.add(event.pubkey);
         }
-      },
-      { threshold: 0.1, rootMargin: '0px 0px 1500px 0px' }  // Very large bottom margin for early detection
-    );
-    
-    // Observe early trigger refs
-    earlyTriggerRefs.current.forEach(ref => {
-      if (ref) earlyTriggerObserver.observe(ref);
-    });
-    
-    return () => {
-      earlyTriggerObserver.disconnect();
-    };
-  }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
-  
-  useEffect(() => {
-    // Check how many profiles we're missing
-    const totalEvents = events.length;
-    let hasProfileCount = 0;
-    
-    events.forEach(event => {
-      if (event.pubkey && profiles[event.pubkey]) {
-        hasProfileCount++;
+      });
+      
+      // Add reposters
+      Object.values(repostData).forEach(data => {
+        if (data.pubkey && !combinedProfiles[data.pubkey]) {
+          pubkeysToFetch.add(data.pubkey);
+        }
+      });
+      
+      if (pubkeysToFetch.size > 0) {
+        console.log(`[OptimizedFeedList] Fetching ${pubkeysToFetch.size} profiles`);
+        fetchProfiles(Array.from(pubkeysToFetch));
+      } else {
+        console.log('[OptimizedFeedList] All profiles are already loaded');
       }
-    });
-    
-    console.log(`[OptimizedFeedList] Profile coverage: ${hasProfileCount}/${totalEvents} events (${(hasProfileCount/totalEvents*100).toFixed(1)}%)`);
-    
-    // Prefetch missing profiles
-    const missingProfiles = new Set<string>();
-    events.forEach(event => {
-      if (event.pubkey && !profiles[event.pubkey]) {
-        missingProfiles.add(event.pubkey);
-      }
-    });
-    
-    if (missingProfiles.size > 0) {
-      console.log(`[OptimizedFeedList] Fetching ${missingProfiles.size} profiles`);
     }
-    
-    // Update previous events length for optimization
-    setPrevEventsLength(events.length);
-  }, [events, profiles]);
+  }, [events, repostData, fetchProfiles]);
   
-  // Calculate positions for early triggers
-  const earlyTriggerPositions = events.length > 10 ? [
-    Math.floor(events.length * 0.5),  // Halfway through the list
-    Math.floor(events.length * 0.75), // Three quarters through the list
-  ] : [];
-  
+  // Log profile coverage stats
+  useEffect(() => {
+    if (events.length > 0) {
+      const totalProfiles = events.length;
+      let profilesWithNames = 0;
+      
+      events.forEach(event => {
+        if (event.pubkey && combinedProfiles[event.pubkey] && 
+            (combinedProfiles[event.pubkey].name || combinedProfiles[event.pubkey].display_name)) {
+          profilesWithNames++;
+        }
+      });
+      
+      const coverage = (profilesWithNames / totalProfiles) * 100;
+      console.log(`[OptimizedFeedList] Profile coverage: ${profilesWithNames}/${totalProfiles} events (${coverage.toFixed(1)}%)`);
+    }
+  }, [events, combinedProfiles]);
+
+  // Load more content when the load more element comes into view
+  useEffect(() => {
+    if (inView && hasMore && !loadMoreLoading && visibleCount >= events.length) {
+      console.log('[OptimizedFeedList] Load more triggered by scrolling');
+      onLoadMore();
+    }
+  }, [inView, hasMore, loadMoreLoading, onLoadMore, events.length, visibleCount]);
+
+  // Handler for "Load More" button click
+  const handleLoadMoreClick = useCallback(() => {
+    // Show more posts in increments
+    setVisibleCount(prev => Math.min(prev + INITIAL_DISPLAY_COUNT, events.length));
+  }, [events.length]);
+
+  if (loading && events.length === 0) {
+    return <FeedLoadingSkeleton count={3} />;
+  }
+
+  // Determine if we should show the "Load More" button
+  const hasMoreToShow = visibleCount < events.length;
+  // Get only the events we want to display
+  const visibleEvents = events.slice(0, visibleCount);
+
   return (
     <div className="space-y-4">
-      {/* Render all events as note cards */}
-      {events.map((event, index) => (
-        <React.Fragment key={event.id}>
-          <NoteCard 
-            event={event} 
-            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-            repostData={event.id && repostData[event.id] ? {
-              reposterPubkey: repostData[event.id].pubkey,
-              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-            } : undefined}
-          />
-          
-          {/* Add early loading triggers at specific positions */}
-          {earlyTriggerPositions.includes(index) && (
-            <div 
-              ref={el => earlyTriggerRefs.current[earlyTriggerPositions.indexOf(index)] = el}
-              className="h-0 w-full" /* Invisible trigger element */
-            />
-          )}
-        </React.Fragment>
-      ))}
-      
-      {/* Auto-loading indicator - no more button */}
-      {hasMore && (
-        <div className="py-4 text-center" ref={lastRef}>
-          {loadMoreLoading && (
-            <div className="flex items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Loading more posts...
-            </div>
-          )}
+      {/* Optional refresh button */}
+      {onRefresh && (
+        <div className="flex justify-center mb-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Refresh Feed
+          </Button>
         </div>
       )}
+      
+      {/* Feed counter showing visible blocks */}
+      {events.length > 0 && (
+        <div className="text-sm text-muted-foreground text-center mb-2">
+          Showing {visibleCount} Blocks
+        </div>
+      )}
+      
+      {/* Staggered rendering for improved perceived performance */}
+      <div className="space-y-4">
+        {visibleEvents.map((event, index) => (
+          <React.Fragment key={event.id || index}>
+            {/* Add staggered animation delay based on index */}
+            <div 
+              className="animate-fade-in" 
+              style={{ 
+                animationDelay: `${Math.min(index * 50, 500)}ms`,
+                animationFillMode: 'both'
+              }}
+            >
+              <NoteCard 
+                event={event} 
+                profileData={event.pubkey ? combinedProfiles[event.pubkey] : undefined}
+                repostData={event.id && repostData[event.id] ? {
+                  reposterPubkey: repostData[event.id].pubkey,
+                  reposterProfile: repostData[event.id].pubkey ? 
+                    combinedProfiles[repostData[event.id].pubkey] : undefined
+                } : undefined}
+              />
+            </div>
+          </React.Fragment>
+        ))}
+        
+        {/* "Load More" button */}
+        {hasMoreToShow && (
+          <div className="flex justify-center py-4">
+            <Button
+              variant="outline"
+              onClick={handleLoadMoreClick}
+              className="px-8 py-2"
+            >
+              Load More
+            </Button>
+          </div>
+        )}
+        
+        {/* Loading indicator at the bottom that triggers more content from the API */}
+        {hasMore && visibleCount >= events.length && (
+          <div 
+            ref={loadMoreRef} 
+            className="py-4 text-center"
+          >
+            {loadMoreLoading && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading more posts...
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* End of feed message */}
+        {!hasMore && visibleCount >= events.length && events.length > 0 && (
+          <div className="text-center py-8 text-muted-foreground border-t">
+            You've reached the end of your feed
+          </div>
+        )}
+      </div>
     </div>
   );
 };

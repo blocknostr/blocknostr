@@ -54,7 +54,7 @@ export function HeaderRelayStatus() {
     return "text-green-500 bg-green-500/10";
   };
 
-  // Get status text - Make "connecting" more prominent
+  // Get status text
   const getStatusText = () => {
     if (!isOnline) return "Offline";
     if (connectionStatus === 'connecting' || isReconnecting) return "Connecting...";
@@ -66,7 +66,7 @@ export function HeaderRelayStatus() {
   const getStatusMessage = () => {
     if (!isOnline) return "Browser offline";
     if (connectionStatus === 'connecting' || isReconnecting) return "Connecting to relays...";
-    if (connectedCount === 0) return "No relays connected. Click to reconnect";
+    if (connectedCount === 0) return "No relays connected";
     if (connectedCount === totalCount) return "All relays connected";
     return `${connectedCount}/${totalCount} relays connected`;
   };

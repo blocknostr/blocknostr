@@ -17,16 +17,6 @@ export const useNoteFormState = () => {
   // Max note length (for UI only, actual limit depends on relays)
   const MAX_NOTE_LENGTH = 280;
   
-  // Function to reset the form state
-  const resetForm = () => {
-    setContent("");
-    setMediaUrls([]);
-    setScheduledDate(null);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-  };
-  
   return {
     content,
     setContent,
@@ -37,7 +27,6 @@ export const useNoteFormState = () => {
     textareaRef,
     pubkey,
     detectedHashtags,
-    MAX_NOTE_LENGTH,
-    resetForm
+    MAX_NOTE_LENGTH
   };
 };

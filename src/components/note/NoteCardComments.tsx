@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,18 +31,10 @@ interface NoteCardCommentsProps {
   pubkey: string;
   initialComments?: Comment[];
   initialCommentText?: string;
-  replyUpdated?: number;
   onReplyAdded: () => void;
 }
 
-const NoteCardComments = ({ 
-  eventId, 
-  pubkey, 
-  initialComments = [], 
-  initialCommentText = "", 
-  replyUpdated = 0,
-  onReplyAdded 
-}: NoteCardCommentsProps) => {
+const NoteCardComments = ({ eventId, pubkey, initialComments = [], initialCommentText = "", onReplyAdded }: NoteCardCommentsProps) => {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState(initialCommentText);
   const [replyToDelete, setReplyToDelete] = useState<string | null>(null);

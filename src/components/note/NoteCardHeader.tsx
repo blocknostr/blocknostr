@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -7,7 +6,6 @@ import { formatPubkey, getNpubFromHex } from '@/lib/nostr/utils/keys';
 import { Skeleton } from "@/components/ui/skeleton";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
 import { toast } from "@/components/ui/use-toast";
-import { cn } from "@/lib/utils";
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -21,58 +19,26 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     profileData || null
   );
   const [isLoading, setIsLoading] = useState(!profileData && !!pubkey);
-  const [transitionStage, setTransitionStage] = useState<'initial' | 'loading' | 'loaded'>('initial');
-  
-  // Generate stable npub and display values upfront, avoiding regeneration on re-renders
-  const stableValues = useMemo(() => {
-    let npub = '';
-    let shortNpub = '';
-    let displayName = '';
-    let avatarFallback = '';
-    
-    try {
-      // Generate consistent values even before profile loads
-      if (pubkey) {
-        npub = getNpubFromHex(pubkey);
-        shortNpub = npub ? `${npub.substring(0, 7)}...${npub.substring(npub.length - 4)}` : 'unknown';
-        displayName = shortNpub;
-        avatarFallback = displayName.charAt(0).toUpperCase();
-      } else {
-        npub = 'npub1unknown';
-        shortNpub = 'unknown';
-        displayName = 'Unknown';
-        avatarFallback = 'U';
-      }
-    } catch (error) {
-      console.error('Error in NoteCardHeader with pubkey:', pubkey, error);
-      npub = 'npub1unknown';
-      shortNpub = 'unknown';
-      displayName = 'Unknown';
-      avatarFallback = 'U';
-    }
-    
-    return { npub, shortNpub, displayName, avatarFallback };
-  }, [pubkey]);
+  const [fetchAttempts, setFetchAttempts] = useState(0);
   
   // Effect to fetch profile data if not provided
   useEffect(() => {
     // Update local state if profile data prop changes
     if (profileData) {
+      console.log(`[NoteCardHeader] Received profileData for ${pubkey?.substring(0, 8)}:`, 
+        profileData.name || profileData.display_name);
       setLocalProfileData(profileData);
       setIsLoading(false);
-      setTransitionStage('loaded');
       return;
     }
     
     if (!pubkey) {
       setIsLoading(false);
-      setTransitionStage('loaded');
       return;
     }
     
-    // Set loading state with slight delay to prevent flash
+    console.log(`[NoteCardHeader] No profile data provided for ${pubkey.substring(0, 8)}, fetching...`);
     setIsLoading(true);
-    setTransitionStage('loading');
     
     // Fetch profile if not provided
     const fetchProfile = async () => {
@@ -80,21 +46,28 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         const profile = await unifiedProfileService.getProfile(pubkey);
         
         if (profile) {
-          // Use timeout to create smooth transition
-          setTimeout(() => {
-            setLocalProfileData(profile);
-            setIsLoading(false);
-            setTransitionStage('loaded');
-          }, 100);
-        } else {
-          // If no profile found, still transition to loaded state
+          console.log(`[NoteCardHeader] Fetched profile for ${pubkey.substring(0, 8)}:`, 
+            profile.name || profile.display_name || 'No name');
+          setLocalProfileData(profile);
           setIsLoading(false);
-          setTransitionStage('loaded');
+        } else {
+          // If profile is null, increment fetch attempts
+          setFetchAttempts(prev => prev + 1);
+          console.warn(`[NoteCardHeader] No profile returned for ${pubkey.substring(0, 8)}, attempt ${fetchAttempts + 1}`);
+          
+          // After 3 attempts, give up on loading state but keep subscribed to updates
+          if (fetchAttempts >= 2) {
+            setIsLoading(false);
+          }
         }
       } catch (error) {
         console.error(`[NoteCardHeader] Error fetching profile for ${pubkey}:`, error);
-        setIsLoading(false);
-        setTransitionStage('loaded');
+        setFetchAttempts(prev => prev + 1);
+        
+        // After 3 attempts, give up on loading state
+        if (fetchAttempts >= 2) {
+          setIsLoading(false);
+        }
       }
     };
     
@@ -102,61 +75,78 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     
     // Subscribe to profile updates
     const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
-      if (profile) {
-        setLocalProfileData(profile);
-        setIsLoading(false);
-        setTransitionStage('loaded');
-      }
+      console.log(`[NoteCardHeader] Profile update for ${pubkey.substring(0, 8)}:`, 
+        profile?.name || profile?.display_name);
+      setLocalProfileData(profile);
+      setIsLoading(false);
     });
     
     return () => {
       unsubscribe();
     };
-  }, [pubkey, profileData]);
+  }, [pubkey, profileData, fetchAttempts]);
   
-  // Format the created at timestamp
-  const timeAgo = useMemo(() => {
-    try {
-      if (createdAt && createdAt > 0) {
-        return formatDistanceToNow(
-          new Date(createdAt * 1000),
-          { addSuffix: true }
-        );
-      }
-      return 'some time ago';
-    } catch (error) {
-      return 'some time ago';
+  // Ensure we have a valid pubkey
+  const hexPubkey = pubkey || '';
+  
+  // Use our improved utility functions with built-in validation and fallbacks
+  let npub = '';
+  let shortNpub = '';
+  
+  try {
+    if (hexPubkey) {
+      // Use the enhanced getNpubFromHex with built-in validation
+      npub = getNpubFromHex(hexPubkey);
+      
+      // Handle short display of npub (first 9 and last 5 chars)
+      // This will always work since our utility returns valid strings even for errors
+      shortNpub = `${npub.substring(0, 9)}...${npub.substring(npub.length - 5)}`;
+    } else {
+      // Consistent fallbacks for empty input
+      npub = 'npub1unknown';
+      shortNpub = 'unknown';
     }
-  }, [createdAt]);
-
+  } catch (error) {
+    // Extra safety in case of unexpected errors
+    console.error('Error in NoteCardHeader with pubkey:', hexPubkey, error);
+    npub = 'npub1unknown';
+    shortNpub = 'unknown';
+  }
+  
   // Get profile info if available
-  const name = localProfileData?.name || stableValues.shortNpub;
+  const name = localProfileData?.name || shortNpub;
   const displayName = localProfileData?.display_name || name;
   const picture = localProfileData?.picture || '';
+  
+  // Get the first character of the display name for the avatar fallback
+  const avatarFallback = displayName ? displayName.charAt(0).toUpperCase() : 'N';
+  
+  // Format the created at timestamp
+  let timeAgo = 'some time ago';
+  try {
+    if (createdAt && createdAt > 0) {
+      timeAgo = formatDistanceToNow(
+        new Date(createdAt * 1000),
+        { addSuffix: true }
+      );
+    }
+  } catch (error) {
+    console.error('Error formatting time:', error);
+  }
 
   return (
     <div className="flex justify-between">
       <div className="flex">
-        <Link to={`/profile/${stableValues.npub}`} className="mr-3 shrink-0">
-          <Avatar className={cn(
-            "h-11 w-11 border border-muted transition-opacity duration-300",
-            transitionStage === 'loading' ? "opacity-70" : "opacity-100"
-          )}>
+        <Link to={`/profile/${npub}`} className="mr-3 shrink-0">
+          <Avatar className="h-11 w-11 border border-muted">
             {isLoading ? (
-              <AvatarFallback className="bg-muted/50 transition-all duration-300">
-                {stableValues.avatarFallback}
+              <AvatarFallback className="bg-muted animate-pulse">
+                <span className="opacity-0">{avatarFallback}</span>
               </AvatarFallback>
             ) : (
               <>
-                <AvatarImage 
-                  src={picture} 
-                  alt={displayName} 
-                  className="transition-opacity duration-300"
-                  onLoad={() => setTransitionStage('loaded')}
-                />
-                <AvatarFallback className="bg-primary/10 text-primary">
-                  {stableValues.avatarFallback}
-                </AvatarFallback>
+                <AvatarImage src={picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/10 text-primary">{avatarFallback}</AvatarFallback>
               </>
             )}
           </Avatar>
@@ -164,23 +154,17 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
-            <Link to={`/profile/${stableValues.npub}`} className="font-bold truncate hover:underline">
+            <Link to={`/profile/${npub}`} className="font-bold truncate hover:underline">
               {isLoading ? (
-                <span className="inline-block transition-all duration-300">
-                  {stableValues.displayName}
-                </span>
+                <Skeleton className="h-4 w-20 rounded inline-block" />
               ) : (
-                <span className="transition-all duration-300">{displayName}</span>
+                displayName
               )}
             </Link>
             
-            <span className="text-muted-foreground text-sm truncate">
-              @{stableValues.shortNpub}
-            </span>
+            <span className="text-muted-foreground text-sm truncate">@{shortNpub}</span>
             <span className="text-muted-foreground text-sm mx-0.5">·</span>
-            <span className="text-muted-foreground text-sm hover:underline cursor-pointer">
-              {timeAgo}
-            </span>
+            <span className="text-muted-foreground text-sm hover:underline cursor-pointer">{timeAgo}</span>
           </div>
         </div>
       </div>

@@ -1,57 +1,46 @@
 
 import { nostrService } from "@/lib/nostr";
-import { cacheManager } from "@/lib/utils/cacheManager";
 
 /**
- * Simple service for fetching profile metadata
+ * Simple profile service stub that can be used as a placeholder
+ * until a full profile implementation is created
  */
-class SimpleProfileService {
+export class SimpleProfileService {
   /**
-   * Get metadata for a profile with optimized caching
+   * Get basic profile metadata for a user
    */
-  async getProfileMetadata(pubkeyOrNpub: string): Promise<any> {
-    if (!pubkeyOrNpub) {
-      throw new Error("No pubkey or npub provided");
-    }
-    
-    let hexPubkey: string;
-    
-    // Convert npub to hex if needed
-    if (pubkeyOrNpub.startsWith('npub')) {
-      try {
-        hexPubkey = nostrService.getHexFromNpub(pubkeyOrNpub);
-      } catch (error) {
-        console.error("Invalid npub:", error);
-        throw new Error("Invalid npub format");
+  public async getProfileMetadata(pubkeyOrNpub: string): Promise<any | null> {
+    try {
+      // Convert npub to hex if needed
+      let pubkey = pubkeyOrNpub;
+      if (pubkeyOrNpub.startsWith('npub1')) {
+        pubkey = nostrService.getHexFromNpub(pubkeyOrNpub);
       }
-    } else {
-      hexPubkey = pubkeyOrNpub;
+      
+      // Get basic profile data
+      return await nostrService.getUserProfile(pubkey);
+    } catch (error) {
+      console.error("Error fetching profile metadata:", error);
+      return null;
     }
-    
-    // Check cache first
-    const cacheKey = `profile:${hexPubkey}`;
-    const cachedProfile = cacheManager.get(cacheKey);
-    
-    if (cachedProfile) {
-      console.log(`[simpleProfileService] Cache hit for ${hexPubkey.substring(0, 8)}`);
-      return cachedProfile;
-    }
-    
-    console.log(`[simpleProfileService] Fetching profile for ${hexPubkey.substring(0, 8)}`);
-    
-    // Make sure we're connected to relays
-    await nostrService.connectToUserRelays();
-    
-    // Fetch profile
-    const profile = await nostrService.getUserProfile(hexPubkey);
-    
-    if (profile) {
-      // Cache profile for 5 minutes
-      cacheManager.set(cacheKey, profile, 5 * 60 * 1000);
-    }
-    
-    return profile;
+  }
+
+  /**
+   * Check if a profile exists
+   */
+  public async profileExists(pubkeyOrNpub: string): Promise<boolean> {
+    const profile = await this.getProfileMetadata(pubkeyOrNpub);
+    return !!profile;
+  }
+  
+  /**
+   * Format a name for display purposes
+   */
+  public formatDisplayName(profile: any | null): string {
+    if (!profile) return 'Unknown User';
+    return profile.display_name || profile.name || 'Unknown User';
   }
 }
 
+// Export a singleton instance
 export const simpleProfileService = new SimpleProfileService();

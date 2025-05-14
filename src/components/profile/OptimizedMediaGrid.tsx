@@ -1,74 +1,47 @@
 
 import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
-import { useNavigate } from 'react-router-dom';
-import { getImageUrlsFromEvent } from '@/lib/nostr/utils';
+import { getFirstImageUrlFromEvent } from '@/lib/nostr/utils';
+import EnhancedMediaContent from '../media/EnhancedMediaContent';
 
 interface OptimizedMediaGridProps {
-  events: NostrEvent[];
-  columns?: number;
-  maxItems?: number;
+  media: NostrEvent[];
+  postsLimit: number;
 }
 
-const OptimizedMediaGrid: React.FC<OptimizedMediaGridProps> = ({
-  events,
-  columns = 3,
-  maxItems = 9
-}) => {
-  const navigate = useNavigate();
+const OptimizedMediaGrid: React.FC<OptimizedMediaGridProps> = ({ media, postsLimit }) => {
+  const displayedMedia = media.slice(0, postsLimit);
   
-  if (!events || events.length === 0) {
+  if (!displayedMedia || displayedMedia.length === 0) {
     return (
-      <div className="text-center text-muted-foreground">
-        No media found
+      <div className="py-8 text-center text-muted-foreground">
+        No media found.
       </div>
     );
   }
-  
-  // Limit the number of events to display
-  const limitedEvents = events.slice(0, maxItems);
-  
+
   return (
-    <div 
-      className="grid gap-2 relative"
-      style={{ 
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` 
-      }}
-    >
-      {limitedEvents.map(event => {
-        // Get all image URLs from the event
-        const imageUrls = getImageUrlsFromEvent(event);
-        
-        // Skip this event if there are no images
-        if (!imageUrls || imageUrls.length === 0) return null;
-        
-        // Just use the first image
-        const primaryImage = imageUrls[0];
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {displayedMedia.map(event => {
+        const imageUrl = getFirstImageUrlFromEvent(event);
+        if (!imageUrl) return null;
         
         return (
           <div 
             key={event.id} 
-            className="aspect-square overflow-hidden rounded-sm cursor-pointer border"
-            onClick={() => navigate(`/post/${event.id}`)}
+            className="aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
+            onClick={() => {
+              window.location.href = `/post/${event.id}`;
+            }}
           >
-            <img
-              src={primaryImage}
+            <EnhancedMediaContent
+              url={imageUrl}
               alt="Media"
               className="h-full w-full object-cover"
-              loading="lazy"
             />
           </div>
         );
       }).filter(Boolean)}
-      
-      {/* Show more indicator if there are more events */}
-      {events.length > maxItems && (
-        <div 
-          className="absolute bottom-2 right-2 bg-background/80 text-xs font-medium px-2 py-1 rounded"
-        >
-          +{events.length - maxItems} more
-        </div>
-      )}
     </div>
   );
 };

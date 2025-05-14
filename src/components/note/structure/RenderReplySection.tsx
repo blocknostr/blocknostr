@@ -1,5 +1,6 @@
 
 import React from 'react';
+import NoteCardComments from '../NoteCardComments';
 import QuickReplies from '@/components/post/QuickReplies';
 
 interface RenderReplySectionProps {
@@ -11,7 +12,7 @@ interface RenderReplySectionProps {
   onReplySelected: (text: string) => void;
 }
 
-const RenderReplySection: React.FC<RenderReplySectionProps> = ({ 
+const RenderReplySection: React.FC<RenderReplySectionProps> = ({
   showReplyInput,
   eventId,
   pubkey,
@@ -19,19 +20,25 @@ const RenderReplySection: React.FC<RenderReplySectionProps> = ({
   onReplyAdded,
   onReplySelected
 }) => {
-  if (!showReplyInput) return null;
+  if (!showReplyInput || !eventId) {
+    return null;
+  }
   
   return (
-    <div className="mt-3 pt-3 border-t border-border">
-      <QuickReplies
-        eventId={eventId}
+    <div className="mt-3 border-t pt-3">
+      <NoteCardComments 
+        eventId={eventId} 
         pubkey={pubkey}
-        content={replyContent}
+        initialCommentText={replyContent}
         onReplyAdded={onReplyAdded}
-        onSelected={onReplySelected}
       />
+      
+      {/* Quick Replies */}
+      <div className="mt-2 pb-1">
+        <QuickReplies onReplySelected={onReplySelected} />
+      </div>
     </div>
   );
 };
 
-export default React.memo(RenderReplySection);
+export default RenderReplySection;

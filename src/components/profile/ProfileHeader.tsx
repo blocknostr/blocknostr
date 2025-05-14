@@ -1,49 +1,20 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Link as LinkIcon, MapPin, Users, User, Network, Loader2 } from 'lucide-react';
+import { Calendar, Link as LinkIcon, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { isCurrentUser } from '@/lib/utils/pubkeyUtils';
 import { nostrService } from '@/lib/nostr';
 import FollowButton from '@/components/FollowButton';
-import ProfileRelaysDialog from './ProfileRelaysDialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Relay } from "@/lib/nostr";
 
 interface ProfileHeaderProps {
   profile: any;
   npub: string;
   hexPubkey: string;
-  followers?: string[];
-  following?: string[];
-  relays?: Relay[];
-  isLoading?: boolean;
-  statsLoading?: {
-    followers?: boolean;
-    following?: boolean;
-    relays?: boolean;
-  };
-  onRefresh?: () => void;
-  currentUserPubkey?: string | null;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({ 
-  profile, 
-  npub, 
-  hexPubkey,
-  followers = [],
-  following = [], 
-  relays = [],
-  isLoading = false,
-  statsLoading = {},
-  onRefresh,
-  currentUserPubkey
-}) => {
-  const [showFollowers, setShowFollowers] = useState(false);
-  const [showFollowing, setShowFollowing] = useState(false);
-  const [showRelays, setShowRelays] = useState(false);
-  
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, npub, hexPubkey }) => {
   const name = profile?.name || npub;
   const displayName = profile?.display_name || name;
   const picture = profile?.picture || '';
@@ -73,32 +44,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       return npub.substring(0, 15) + '...';
     }
   })();
-  
-  // Format stats counts
-  const followersCount = followers.length;
-  const followingCount = following.length;
-  const relaysCount = relays.length;
-  
-  // Helper function to render user list items for dialogs
-  const renderUserListItem = (pubkey: string) => {
-    const npubStr = nostrService.getNpubFromHex(pubkey);
-    const shortNpubStr = `${npubStr.substring(0, 8)}...${npubStr.substring(npubStr.length - 5)}`;
-    
-    return (
-      <div key={pubkey} className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>{pubkey.substring(0, 2)}</AvatarFallback>
-          </Avatar>
-          <div>{shortNpubStr}</div>
-        </div>
-        
-        {currentUserPubkey && currentUserPubkey !== pubkey && (
-          <FollowButton pubkey={pubkey} variant="outline" size="sm" />
-        )}
-      </div>
-    );
-  };
   
   return (
     <div className="mb-6">
@@ -165,117 +110,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               </div>
             )}
           </div>
-          
-          {/* Stats counters */}
-          <div className="mt-4 flex items-center space-x-5 text-sm">
-            {/* Following count */}
-            <button 
-              onClick={() => followingCount > 0 && setShowFollowing(true)} 
-              className="flex items-center hover:text-primary transition-colors"
-              disabled={statsLoading.following || followingCount === 0}
-            >
-              {statsLoading.following ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  <span className="font-medium text-muted-foreground">Loading</span>
-                </>
-              ) : (
-                <>
-                  <User className="h-4 w-4 mr-1.5" />
-                  <span className="font-medium">{followingCount}</span>
-                  <span className="ml-1 text-muted-foreground">Following</span>
-                </>
-              )}
-            </button>
-            
-            {/* Followers count */}
-            <button 
-              onClick={() => followersCount > 0 && setShowFollowers(true)} 
-              className="flex items-center hover:text-primary transition-colors"
-              disabled={statsLoading.followers || followersCount === 0}
-            >
-              {statsLoading.followers ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  <span className="font-medium text-muted-foreground">Loading</span>
-                </>
-              ) : (
-                <>
-                  <Users className="h-4 w-4 mr-1.5" />
-                  <span className="font-medium">{followersCount}</span>
-                  <span className="ml-1 text-muted-foreground">Followers</span>
-                </>
-              )}
-            </button>
-            
-            {/* Relays count */}
-            <button 
-              onClick={() => relaysCount > 0 && setShowRelays(true)} 
-              className="flex items-center hover:text-primary transition-colors"
-              disabled={statsLoading.relays || relaysCount === 0}
-            >
-              {statsLoading.relays ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  <span className="font-medium text-muted-foreground">Loading</span>
-                </>
-              ) : (
-                <>
-                  <Network className="h-4 w-4 mr-1.5" />
-                  <span className="font-medium">{relaysCount}</span>
-                  <span className="ml-1 text-muted-foreground">Relays</span>
-                </>
-              )}
-            </button>
-          </div>
         </div>
       </div>
-      
-      {/* Following Dialog */}
-      <Dialog open={showFollowing} onOpenChange={setShowFollowing}>
-        <DialogContent className="sm:max-w-[420px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Following</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            {followingCount === 0 ? (
-              <div className="text-center text-muted-foreground">Not following anyone yet</div>
-            ) : (
-              <div className="space-y-1">
-                {following.map(pubkey => renderUserListItem(pubkey))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Followers Dialog */}
-      <Dialog open={showFollowers} onOpenChange={setShowFollowers}>
-        <DialogContent className="sm:max-w-[420px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Followers</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            {followersCount === 0 ? (
-              <div className="text-center text-muted-foreground">No followers yet</div>
-            ) : (
-              <div className="space-y-1">
-                {followers.map(pubkey => renderUserListItem(pubkey))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Relays Dialog - Reuse the existing ProfileRelaysDialog component */}
-      <ProfileRelaysDialog
-        open={showRelays}
-        onOpenChange={setShowRelays}
-        relays={relays}
-        onRelaysChange={() => onRefresh?.()}
-        isCurrentUser={currentUserOwnsProfile}
-        userNpub={npub}
-      />
     </div>
   );
 };

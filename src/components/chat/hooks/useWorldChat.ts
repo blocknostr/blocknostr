@@ -5,7 +5,6 @@ import { useProfileFetcher } from "./useProfileFetcher";
 import { useMessageSubscription } from "./useMessageSubscription";
 import { useReactionHandler } from "./useReactionHandler";
 import { useMessageSender } from "./useMessageSender";
-import { chatNostrService } from "@/lib/nostr/chat-service";
 
 export type { ConnectionStatus } from "./useRelayConnection";
 

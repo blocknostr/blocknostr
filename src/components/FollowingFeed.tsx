@@ -27,8 +27,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     loadingFromCache,
     loadingMore,
     hasMore,
-    loadMoreEvents,
-    isRetrying
+    loadMoreEvents
   } = useFollowingFeed({ activeHashtag });
 
   return (
@@ -62,11 +61,11 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
       )}
       
       {/* Show empty state when no events and not loading */}
-      {events.length === 0 && !loading && !loadingFromCache && !isRetrying && (
+      {events.length === 0 && !loading && !loadingFromCache && (
         <FeedEmptyState following={following} loading={loading} activeHashtag={activeHashtag} />
       )}
 
-      {/* Show events list with auto-loading functionality */}
+      {/* Show events list */}
       {events.length > 0 && (
         <FeedList 
           events={events}

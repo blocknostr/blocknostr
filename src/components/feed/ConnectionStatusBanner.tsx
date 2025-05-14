@@ -25,8 +25,8 @@ export function ConnectionStatusBanner() {
       setConnectedRelays(connected);
       setTotalRelays(relays.length);
       
-      // Only show banner if browser is offline
-      setShowBanner(!navigator.onLine);
+      // Show banner if offline or not enough relays connected
+      setShowBanner(!navigator.onLine || (relays.length > 0 && connected === 0));
     };
     
     // Update immediately
@@ -48,16 +48,62 @@ export function ConnectionStatusBanner() {
   
   if (!showBanner) return null;
   
-  // We now only show the offline message, not the relay connection status
+  const handleReconnect = async () => {
+    if (isReconnecting || isOffline) return;
+    
+    try {
+      setIsReconnecting(true);
+      toast.loading("Reconnecting to relays...");
+      await nostrService.connectToUserRelays();
+      
+      // Check if connected after attempt
+      const relays = nostrService.getRelayStatus();
+      const connected = relays.filter(r => r.status === 'connected').length;
+      
+      if (connected > 0) {
+        toast.success(`Connected to ${connected} relays`);
+        setShowBanner(false);
+      } else {
+        toast.error("Couldn't connect to any relays");
+      }
+    } catch (error) {
+      console.error("Reconnection error:", error);
+      toast.error("Failed to reconnect to relays");
+    } finally {
+      setIsReconnecting(false);
+    }
+  };
+  
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <WifiOff className="h-4 w-4" />
+          {isOffline ? (
+            <WifiOff className="h-4 w-4" />
+          ) : (
+            <Wifi className="h-4 w-4" />
+          )}
           <AlertDescription>
-            You're offline. Showing cached content only.
+            {isOffline 
+              ? "You're offline. Showing cached content only." 
+              : `Not connected to relays (0/${totalRelays}). Limited functionality available.`}
           </AlertDescription>
         </div>
+        <Button 
+          size="sm" 
+          onClick={handleReconnect}
+          disabled={isOffline || isReconnecting}
+          variant={isOffline ? "outline" : "secondary"}
+        >
+          {isReconnecting ? (
+            <>
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+              Reconnecting
+            </>
+          ) : (
+            "Reconnect"
+          )}
+        </Button>
       </div>
     </Alert>
   );

@@ -11,14 +11,12 @@ interface UseProfileRelationsProps {
 export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRelationsProps) {
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isRefetching, setIsRefetching] = useState<boolean>(false);
   const subscriptionsRef = useRef<string[]>([]);
   const timeoutsRef = useRef<number[]>([]);
   const mountedRef = useRef(true);
-  const initialLoadDoneRef = useRef(false);
   
   // Track if component is still mounted
   useEffect(() => {
@@ -42,19 +40,13 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
   }, []);
   
   useEffect(() => {
-    if (!hexPubkey) {
-      setIsLoading(false);
-      return;
-    }
+    if (!hexPubkey) return;
     
     // Reset state when pubkey changes
     setFollowers([]);
     setFollowing([]);
     setHasError(false);
     setErrorMessage(null);
-    
-    // We're now loading new data
-    setIsLoading(true);
     
     // Clear existing subscriptions when pubkey changes
     subscriptionsRef.current.forEach(subId => {
@@ -68,7 +60,8 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
     });
     timeoutsRef.current = [];
     
-    // Track when data has been found
+    setIsLoading(true);
+    
     let followersFound = false;
     let followingFound = false;
     
@@ -110,12 +103,6 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
               if (mountedRef.current) {
                 setFollowing(followingList);
                 
-                if (followersFound) {
-                  // Both followers and following lists received, we can stop loading
-                  setIsLoading(false);
-                  initialLoadDoneRef.current = true;
-                }
-                
                 // If this is the current user, we access the following list using public methods
                 if (isCurrentUser) {
                   // No need to directly access userManager anymore
@@ -156,38 +143,27 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
                 if (prev.includes(followerPubkey)) return prev;
                 return [...prev, followerPubkey];
               });
-              
-              if (followingFound) {
-                // Both followers and following lists received, we can stop loading
-                setIsLoading(false);
-                initialLoadDoneRef.current = true;
-              }
             }
           }
         );
         
         subscriptionsRef.current.push(followersSubId);
         
-        // Set a timeout to mark loading as complete much quicker (was 15000)
-        // This will show the UI faster with whatever data we have
+        // Set a timeout to mark loading as complete after 15 seconds max
         const timeoutId = window.setTimeout(() => {
           if (!mountedRef.current) return;
           
           console.log("Relations loading timeout - Following found:", followingFound, "Followers found:", followersFound);
           
-          // Consider the initial load done at this point
-          initialLoadDoneRef.current = true;
           setIsLoading(false);
-          setIsRefetching(false);
           
           if (!followingFound && !followersFound) {
             console.warn("No relations found for profile");
-            // Just mark as not loading rather than showing error, since this is now background loading
-            // setHasError(true);
-            // setErrorMessage("No relations data found. Try refreshing.");
+            setHasError(true);
+            setErrorMessage("No relations data found. Try refreshing.");
           }
           
-        }, 0); // Reduced from 15000 to 0 for immediate UI update
+        }, 15000);
         
         // Set a shorter timeout to check progress and try retry if needed
         const checkProgressId = window.setTimeout(() => {
@@ -203,7 +179,7 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
               "wss://relay.snort.social"
             ]).catch(err => console.error("Failed to connect to additional relays:", err));
           }
-        }, 2000); // Reduced from 5000 to 2000ms
+        }, 5000);
         
         timeoutsRef.current.push(timeoutId);
         timeoutsRef.current.push(checkProgressId);
@@ -212,7 +188,6 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
         console.error("Error setting up profile relations subscriptions:", error);
         if (mountedRef.current) {
           setIsLoading(false);
-          setIsRefetching(false);
           setHasError(true);
           setErrorMessage("Failed to load profile relations");
           toast.error("Failed to load profile connections");
@@ -233,56 +208,48 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
     };
   }, [hexPubkey, isCurrentUser]);
 
-  const refetch = async () => {
-    if (hexPubkey) {
-      // If we're already refetching, don't start again
-      if (isRefetching) return;
-      
-      // Clear state and retry
-      setIsRefetching(true);
-      
-      // Don't set isLoading to true if we already have data
-      // to avoid flickering the UI, but use isRefetching state
-      // for background updates
-      if (!initialLoadDoneRef.current) {
-        setIsLoading(true);
-      }
-      
-      setHasError(false);
-      setErrorMessage(null);
-      
-      // Unsubscribe from all current subscriptions
-      subscriptionsRef.current.forEach(subId => {
-        if (subId) nostrService.unsubscribe(subId);
-      });
-      subscriptionsRef.current = [];
-      
-      // Force reconnect to relays and retry
-      try {
-        await nostrService.connectToUserRelays();
-        
-        // This will trigger the effect again with the same pubkey
-        // which will refresh the data
-        const event = new CustomEvent('refetchRelations', { detail: { pubkey: hexPubkey } });
-        window.dispatchEvent(event);
-      } catch (err) {
-        console.error("Failed to reconnect to relays:", err);
-        setIsLoading(false);
-        setIsRefetching(false);
-        setHasError(true);
-        setErrorMessage("Failed to reconnect to relays");
-        toast.error("Failed to connect to relays");
-      }
-    }
-  };
-
   return { 
     followers, 
     following, 
     isLoading,
-    isRefetching,
     hasError,
     errorMessage,
-    refetch
+    refetch: () => {
+      if (hexPubkey) {
+        // Clear state and retry
+        setFollowers([]);
+        setFollowing([]);
+        setHasError(false);
+        setErrorMessage(null);
+        setIsLoading(true);
+        
+        // Unsubscribe from all current subscriptions
+        subscriptionsRef.current.forEach(subId => {
+          if (subId) nostrService.unsubscribe(subId);
+        });
+        subscriptionsRef.current = [];
+        
+        // Force reconnect to relays and retry
+        nostrService.connectToUserRelays()
+          .then(() => {
+            // This will trigger the effect again
+            // This is a simple way to force a refetch
+            const temp = hexPubkey;
+            setFollowing([]);
+            setFollowers([]);
+            
+            // Will trigger useEffect above
+            const event = new CustomEvent('refetchRelations', { detail: { pubkey: temp } });
+            window.dispatchEvent(event);
+          })
+          .catch(err => {
+            console.error("Failed to reconnect to relays:", err);
+            setIsLoading(false);
+            setHasError(true);
+            setErrorMessage("Failed to reconnect to relays");
+            toast.error("Failed to connect to relays");
+          });
+      }
+    }
   };
 }

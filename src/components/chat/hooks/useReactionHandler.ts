@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect } from "react";
-import { chatNostrService } from "@/lib/nostr/chat-service";
+import { nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ export const useReactionHandler = (
   const [emojiReactions, setEmojiReactions] = useState<Record<string, string[]>>({});
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   
-  const isLoggedIn = !!chatNostrService.publicKey;
+  const isLoggedIn = !!nostrService.publicKey;
   
   // Reset reactions when chat tag changes
   useEffect(() => {
@@ -65,11 +65,11 @@ export const useReactionHandler = (
     
     // Clean up any existing subscriptions
     subscriptions.forEach(subId => {
-      if (subId) chatNostrService.unsubscribe(subId);
+      if (subId) nostrService.unsubscribe(subId);
     });
     
     // Subscribe to reactions (NIP-25) for this specific chat tag
-    const reactionsSub = chatNostrService.subscribe(
+    const reactionsSub = nostrService.subscribe(
       [
         {
           kinds: [EVENT_KINDS.REACTION],
@@ -84,7 +84,7 @@ export const useReactionHandler = (
     
     // Cleanup function
     return () => {
-      if (reactionsSub) chatNostrService.unsubscribe(reactionsSub);
+      if (reactionsSub) nostrService.unsubscribe(reactionsSub);
     };
   }, [connectionStatus, handleReaction, chatTag]);
 
@@ -114,7 +114,7 @@ export const useReactionHandler = (
       });
       
       // Send reaction to Nostr relays per NIP-25 with channel tag
-      await chatNostrService.publishEvent({
+      await nostrService.publishEvent({
         kind: EVENT_KINDS.REACTION,
         content: emoji,
         tags: [

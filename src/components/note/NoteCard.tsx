@@ -1,3 +1,3 @@
 
-// Re-export the memoized component from the proper path
+// Re-export the memoized component
 export { default } from './MemoizedNoteCard';

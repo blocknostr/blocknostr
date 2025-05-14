@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import { contentCache } from '@/lib/nostr';
-import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
+import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils';
 import { CacheCheckResult } from './types';
 
 /**

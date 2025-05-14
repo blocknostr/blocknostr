@@ -3,8 +3,11 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NostrEvent } from "@/lib/nostr";
 import { useProfileTabsData } from "./hooks/useProfileTabsData";
-import MediaTab from "./tabs/MediaTab";
-import UnifiedFeedTab from "./tabs/UnifiedFeedTab";
+import { PostsTab } from "./tabs/PostsTab";
+import { RepliesTab } from "./tabs/RepliesTab";
+import { RepostsTab } from "./tabs/RepostsTab";
+import { MediaTab } from "./tabs/MediaTab";
+import { LikesTab } from "./tabs/LikesTab";
 
 interface ProfileTabsProps {
   events: NostrEvent[];
@@ -32,14 +35,19 @@ const ProfileTabs = ({
   const {
     activeTab,
     handleTabChange,
-    unifiedFeedItems,
+    postsLimit,
+    profiles,
+    displayedPosts,
     displayedMedia,
-    unifiedFeedLoading,
-    unifiedFeedLoadingMore,
-    unifiedFeedHasMore,
-    mediaHasMore,
-    unifiedFeedLoadMoreRef,
-    mediaLoadMoreRef
+    displayedReplies,
+    displayedReactions,
+    repliesLoading,
+    repostsLoading,
+    reactionsLoading,
+    loadingReactionProfiles,
+    tabReposts,
+    tabReferencedEvents,
+    localOriginalPostProfiles
   } = useProfileTabsData({
     events,
     media,
@@ -55,33 +63,61 @@ const ProfileTabs = ({
   return (
     <div className="mt-6">
       <Tabs 
-        defaultValue="feed" 
+        defaultValue="posts" 
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="feed">Feed</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-5">
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="replies">Replies</TabsTrigger>
+          <TabsTrigger value="reposts">Reposts</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="likes">Likes</TabsTrigger>
         </TabsList>
         
-        {/* Unified Feed Tab */}
-        <TabsContent value="feed" className="mt-4">
-          <UnifiedFeedTab 
-            loading={unifiedFeedLoading}
-            loadingMore={unifiedFeedLoadingMore}
-            hasMore={unifiedFeedHasMore}
-            feedItems={unifiedFeedItems}
+        {/* Posts Tab */}
+        <TabsContent value="posts" className="mt-4">
+          <PostsTab 
+            displayedPosts={displayedPosts} 
+            profileData={profileData} 
+          />
+        </TabsContent>
+        
+        {/* Replies Tab */}
+        <TabsContent value="replies" className="mt-4">
+          <RepliesTab 
+            loading={repliesLoading}
+            displayedReplies={displayedReplies}
             profileData={profileData}
-            loadMoreRef={unifiedFeedLoadMoreRef}
+          />
+        </TabsContent>
+
+        {/* Reposts Tab */}
+        <TabsContent value="reposts" className="mt-4">
+          <RepostsTab 
+            loading={repostsLoading}
+            reposts={tabReposts.length > 0 ? tabReposts : reposts}
+            postsLimit={postsLimit}
+            profileData={profileData}
+            originalPostProfiles={localOriginalPostProfiles}
           />
         </TabsContent>
         
         {/* Media Tab */}
         <TabsContent value="media" className="mt-4">
-          <MediaTab 
-            displayedMedia={displayedMedia} 
-            hasMore={mediaHasMore}
-            loadMoreRef={mediaLoadMoreRef}
+          <MediaTab displayedMedia={displayedMedia} />
+        </TabsContent>
+        
+        {/* Likes Tab */}
+        <TabsContent value="likes" className="mt-4">
+          <LikesTab 
+            loading={reactionsLoading}
+            loadingProfiles={loadingReactionProfiles}
+            displayedReactions={displayedReactions}
+            referencedEvents={tabReferencedEvents && Object.keys(tabReferencedEvents).length > 0 
+              ? tabReferencedEvents 
+              : referencedEvents || {}}
+            profiles={profiles}
           />
         </TabsContent>
       </Tabs>
