@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -13,7 +12,7 @@ interface SubscriptionDetails {
   expiresAt: number | null;
   isRenewable: boolean;
   componentId: string;
-  category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other'; // Updated type definition
+  category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other'; 
 }
 
 export class SubscriptionManager {
@@ -60,7 +59,7 @@ export class SubscriptionManager {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
       isRenewable?: boolean;  // Whether this subscription should be auto-renewed
       componentId?: string;  // Identifier for the component creating this subscription
-      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other';  // Updated type definition
+      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other';
       limit?: number;        // Maximum number of events to receive before closing
     } = {}
   ): string {
@@ -83,7 +82,7 @@ export class SubscriptionManager {
     let ttl = options.ttl;
     if (ttl === undefined) {
       if (category === 'profile') ttl = this.profileTTL;
-      else if (category === 'temp') ttl = this.tempTTL;
+      // Use a short TTL for temporary subscriptions - but 'temp' is not a valid category
       else ttl = this.defaultTTL;
     }
     
@@ -107,8 +106,9 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
+        // Fix: SimplePool.subscribe implementation has changed, update accordingly
         return poolInstance.subscribe(relays, filter, 
-          event => { // Fix: Using arrow function instead of options object
+          event => {
             onEvent(event as NostrEvent);
             
             // Check if we've reached the limit
@@ -135,7 +135,7 @@ export class SubscriptionManager {
         expiresAt,
         isRenewable: !!options.isRenewable,
         componentId,
-        category // Now properly typed
+        category
       });
       
       // Register with the tracker
@@ -144,7 +144,7 @@ export class SubscriptionManager {
         () => this.unsubscribe(id), 
         componentId, 
         { 
-          category, // Pass correct category type
+          category, 
           priority: category === 'profile' ? 4 : 5 
         }
       );
