@@ -72,10 +72,10 @@ export function useEventSubscription({
     
     const currentSubId = Math.random().toString(36).substring(2, 15);
     
-    nostrService.subscribe({
-      id: currentSubId, 
+    nostrService.subscribe(
+      currentSubId, 
       filter,
-      eventHandler: (event) => {
+      (event) => {
         if (!event) return;
         
         // Skip if we already have this event
@@ -127,7 +127,7 @@ export function useEventSubscription({
           return [event, ...prev];
         });
       }
-    });
+    );
     
     setSubId(currentSubId);
     return currentSubId;
