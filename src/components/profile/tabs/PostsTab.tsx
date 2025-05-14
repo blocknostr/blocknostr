@@ -1,88 +1,41 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Event } from "nostr-tools";
 import { nip19 } from "nostr-tools";
 import { toast } from "@/components/ui/use-toast";
 import { useInView } from "react-intersection-observer";
-import { useProfile } from "@/hooks/useProfile";
-import { NoteCard } from "@/components/NoteCard";
+// Using temporary interface since we don't have the actual useProfile hook
+import NoteCard from "@/components/NoteCard";
 
-interface PostsTabProps {
-  npub: string;
+interface ProfileData {
+  pubkey?: string;
 }
 
-const fetchPosts = async (pubkey: string, cursor: string | null) => {
-  const filter = {
-    authors: [pubkey],
-    kinds: [1],
-    limit: 20,
-    ...(cursor ? { until: parseInt(cursor) } : {}),
-  };
+interface PostsTabProps {
+  displayedPosts: Event[];
+  profileData: ProfileData;
+  hasMore: boolean;
+  loadMoreRef: (node: HTMLDivElement | null) => void;
+}
 
-  try {
-    const events = await window.nostr.getRelayPool().list(undefined, [filter]);
-    return events;
-  } catch (error) {
-    console.error("Error fetching posts:", error);
-    toast({
-      title: "Error",
-      description: "Failed to fetch posts.",
-    });
-    return [];
-  }
-};
-
-const PostsTab: React.FC<PostsTabProps> = ({ npub }) => {
-  const { data: profile } = useProfile(npub);
-  const pubkey = profile?.pubkey;
-  const [events, setEvents] = useState<Event[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+const PostsTab: React.FC<PostsTabProps> = ({ displayedPosts, profileData, hasMore, loadMoreRef }) => {
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
-
-  const { ref: loadMoreRef, inView } = useInView();
-
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isError,
-    error,
-  } = useInfiniteQuery(
-    ["posts", pubkey],
-    async ({ pageParam }) => {
-      if (!pubkey) return [];
-      const posts = await fetchPosts(pubkey, pageParam as string | null);
-      return posts;
-    },
-    {
-      getNextPageParam: (lastPage) => {
-        if (!lastPage || lastPage.length === 0) return undefined;
-        const lastEvent = lastPage[lastPage.length - 1];
-        return lastEvent.created_at.toString();
-      },
-      enabled: !!pubkey,
-    }
-  );
-
-  useEffect(() => {
-    if (data) {
-      const allEvents = data.pages.flat();
-      setEvents(allEvents);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, fetchNextPage, isFetchingNextPage]);
 
   return (
     <div>
-      {events.map((event) => (
-        <NoteCard key={event.id} event={event} />
-      ))}
+      {displayedPosts.length === 0 ? (
+        <div className="py-4 text-center">
+          <p className="text-muted-foreground">No posts found.</p>
+        </div>
+      ) : (
+        <>
+          {displayedPosts.map((event) => (
+            <NoteCard key={event.id} event={event} />
+          ))}
+        </>
+      )}
+      
       <div ref={loadMoreRef} className="py-2 text-center">
         {loadMoreLoading ? (
           <div className="flex items-center justify-center py-4">

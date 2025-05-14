@@ -1,13 +1,12 @@
-
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NostrEvent } from "@/lib/nostr";
 import { useProfileTabsData } from "./hooks/useProfileTabsData";
-import { PostsTab } from "./tabs/PostsTab";
-import { RepliesTab } from "./tabs/RepliesTab";
-import { RepostsTab } from "./tabs/RepostsTab";
-import { MediaTab } from "./tabs/MediaTab";
-import { LikesTab } from "./tabs/LikesTab";
+import PostsTab from "./tabs/PostsTab";
+import RepliesTab from "./tabs/RepliesTab";
+import RepostsTab from "./tabs/RepostsTab";
+import MediaTab from "./tabs/MediaTab";
+import LikesTab from "./tabs/LikesTab";
 
 interface ProfileTabsProps {
   events: NostrEvent[];

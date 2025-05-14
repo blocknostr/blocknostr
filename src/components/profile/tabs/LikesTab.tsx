@@ -1,109 +1,63 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
-import { nostrService } from "@/lib/nostr";
-import { useProfileFeed } from "../hooks/useProfileFeed";
+
+import React from "react";
 import NoteCard from "@/components/NoteCard";
 
 interface LikesTabProps {
-  npub: string;
+  loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  loadingProfiles: boolean;
+  displayedReactions: any[];
+  referencedEvents: Record<string, any>;
+  profiles: Record<string, any>;
+  loadMoreRef: (node: HTMLDivElement | null) => void;
 }
 
-const LikesTab: React.FC<LikesTabProps> = ({ npub }) => {
-  const [since, setSince] = useState<number | undefined>(undefined);
-  const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
-  const { events, profiles, repostData, subId, setSubId, setupSubscription, setEvents } = useProfileFeed({
-    npub,
-    since,
-    until,
-    kind: 7, // Kind 7 is for likes
-  });
-
-  const loadMoreEvents = () => {
-    if (!subId) return;
-
-    // Close previous subscription
-    if (subId) {
-      nostrService.unsubscribe(subId);
-    }
-
-    // Create new subscription with older timestamp range
-    if (!since) {
-      const oldestEvent =
-        events.length > 0
-          ? events.reduce((oldest, current) => (oldest.created_at < current.created_at ? oldest : current))
-          : null;
-
-      const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60; // 24 hours before until
-
-      setSince(newSince);
-      setUntil(newUntil);
-
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
-    } else {
-      const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60;
-
-      setSince(newSince);
-      setUntil(newUntil);
-
-      const newSubId = setupSubscription(newSince, newUntil);
-      setSubId(newSubId);
-    }
-  };
-
-  const { loadMoreRef, loading: loadMoreLoading, hasMore, setHasMore } = useInfiniteScroll(loadMoreEvents, {
-    initialLoad: true,
-  });
-
-  useEffect(() => {
-    const initFeed = async () => {
-      // Reset state when filter changes
-      setEvents([]);
-      setHasMore(true);
-
-      // Reset the timestamp range for new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
-      setSince(undefined);
-      setUntil(currentTime);
-
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
-      setSubId(newSubId);
-    };
-
-    initFeed();
-
-    return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-    };
-  }, [npub]);
-
+const LikesTab: React.FC<LikesTabProps> = ({
+  loading,
+  loadingMore,
+  hasMore,
+  loadingProfiles,
+  displayedReactions,
+  referencedEvents,
+  profiles,
+  loadMoreRef
+}) => {
   return (
     <div>
-      {events.map((event) => (
-        <NoteCard
-          key={event.id}
-          event={event}
-          profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-          repostData={
-            event.id && repostData[event.id]
-              ? {
-                  reposterPubkey: repostData[event.id].pubkey,
-                  reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined,
-                }
-              : undefined
-          }
-        />
-      ))}
+      {loading ? (
+        <div className="flex items-center justify-center py-4">
+          <span className="text-sm text-muted-foreground">Loading likes...</span>
+        </div>
+      ) : displayedReactions.length === 0 ? (
+        <div className="py-4 text-center">
+          <p className="text-muted-foreground">No likes found.</p>
+        </div>
+      ) : (
+        <>
+          {displayedReactions.map((reaction) => {
+            // Find the original post that was liked
+            const eventId = reaction.tags?.find(
+              (tag: string[]) => tag[0] === "e"
+            )?.[1];
+            const referencedEvent = eventId ? referencedEvents[eventId] : null;
+            
+            // Only show if we have the referenced event
+            if (!referencedEvent) return null;
+            
+            return (
+              <NoteCard
+                key={reaction.id}
+                event={referencedEvent}
+                profileData={referencedEvent.pubkey ? profiles[referencedEvent.pubkey] : undefined}
+              />
+            );
+          })}
+        </>
+      )}
+
       <div ref={loadMoreRef} className="py-2 text-center">
-        {loadMoreLoading ? (
+        {loadingMore ? (
           <div className="flex items-center justify-center py-4">
             <span className="text-sm text-muted-foreground">Loading more likes...</span>
           </div>
