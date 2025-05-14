@@ -7,7 +7,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "@/components/auth/LoginDialog";
 import WorldChat from "@/components/chat/WorldChat";
 
@@ -33,7 +33,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
 }) => {
   const { preferences } = useUserPreferences();
   const location = useLocation();
-  const isLoggedIn = !!nostrService.publicKey;
+  const isLoggedIn = !!chatNostrService.publicKey;
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
   const shouldShowTrending = () => {

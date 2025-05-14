@@ -7,7 +7,7 @@ import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "../auth/LoginDialog";
 import { cn } from "@/lib/utils";
 import MessageList from "./MessageList";
@@ -23,7 +23,7 @@ const WorldChat = () => {
   const [currentChatTag, setCurrentChatTag] = useState(DEFAULT_CHAT_TAG);
   // Add a state to track channel switches for UI feedback
   const [isChangingChannel, setIsChangingChannel] = useState(false);
-  const isLoggedIn = !!nostrService.publicKey;
+  const isLoggedIn = !!chatNostrService.publicKey;
 
   const {
     messages,
@@ -124,7 +124,7 @@ const WorldChat = () => {
           <div className="flex justify-between w-full items-center">
             <div className="flex items-center gap-2">
               <WifiOff className="h-3.5 w-3.5" />
-              <AlertDescription className="text-xs">Not connected to relays</AlertDescription>
+              <AlertDescription className="text-xs">Not connected to chat relays</AlertDescription>
             </div>
             <Button 
               variant="outline" 
@@ -151,7 +151,7 @@ const WorldChat = () => {
           <div className="flex items-center gap-2">
             <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
             <AlertDescription className="text-xs text-blue-700 dark:text-blue-400">
-              Connecting to relays...
+              Connecting to chat relays...
             </AlertDescription>
           </div>
         </Alert>
