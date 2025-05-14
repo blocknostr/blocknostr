@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 const Sidebar = () => {
   const isMobile = useIsMobile();
   const { isLoggedIn, userProfile, isLoading } = useSidebarProfile();
-
+  
   return (
     <aside
       className={cn(
@@ -37,9 +37,9 @@ const Sidebar = () => {
             BlockNostr
           </Link>
         </div>
-
+        
         <SidebarNav isLoggedIn={isLoggedIn} />
-
+        
         <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (
             <ErrorBoundary

@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { nostrService, NostrEvent } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
-import { getMediaUrlsFromEvent, getMediaItemsFromEvent } from "@/lib/nostr/utils/media-extraction";
 
 interface UseMediaFeedProps {
   activeHashtag?: string;
@@ -24,38 +23,30 @@ export function useMediaFeed({ activeHashtag }: UseMediaFeedProps) {
     since,
     until,
     activeHashtag,
-    limit: 100, // Higher limit for media posts to ensure we get enough media
-    feedType: 'media',
-    mediaOnly: true // Signal to the cache manager this is a media-specific feed
+    limit: 100 // Higher limit for media posts to ensure we get enough media
   });
   
-  // Filter events to only include media posts using proper utilities
+  // Filter events to only include media posts
   const [mediaEvents, setMediaEvents] = useState<NostrEvent[]>([]);
   
   useEffect(() => {
-    // Process events to extract only those with media using proper utilities
-    try {
-      console.log(`[MediaFeed] Processing ${allEvents.length} events for media content`);
+    // Process events to extract only those with media
+    const eventsWithMedia = allEvents.filter(event => {
+      // Check for URLs in content pointing to images or videos
+      const hasImageUrl = 
+        /https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)/i.test(event.content);
+      const hasVideoUrl = 
+        /https?:\/\/\S+\.(mp4|webm|mov|avi)/i.test(event.content);
       
-      const eventsWithMedia = allEvents.filter(event => {
-        try {
-          // Use the robust utility function to check for media
-          const mediaUrls = getMediaUrlsFromEvent(event);
-          const mediaItems = getMediaItemsFromEvent(event);
-          
-          // Event has media if we found any URLs or media items
-          return (mediaUrls.length > 0 || mediaItems.length > 0);
-        } catch (error) {
-          console.error(`[MediaFeed] Error detecting media in event ${event.id}:`, error);
-          return false; // Skip events that cause errors
-        }
-      });
+      // Check for nostr mime tags
+      const hasMimeTag = event.tags && event.tags.some(tag => 
+        tag[0] === 'media' || tag[0] === 'image' || tag[0] === 'video'
+      );
       
-      console.log(`[MediaFeed] Found ${eventsWithMedia.length} events with media out of ${allEvents.length} total`);
-      setMediaEvents(eventsWithMedia);
-    } catch (error) {
-      console.error("[MediaFeed] Error processing events for media:", error);
-    }
+      return hasImageUrl || hasVideoUrl || hasMimeTag;
+    });
+    
+    setMediaEvents(eventsWithMedia);
   }, [allEvents]);
   
   const loadMoreEvents = () => {
@@ -102,30 +93,25 @@ export function useMediaFeed({ activeHashtag }: UseMediaFeedProps) {
 
   useEffect(() => {
     const initFeed = async () => {
-      try {
-        await nostrService.connectToUserRelays();
-        
-        // Reset state when filter changes
-        setMediaEvents([]);
-        setHasMore(true);
-        setLoading(true);
+      await nostrService.connectToUserRelays();
+      
+      // Reset state when filter changes
+      setMediaEvents([]);
+      setHasMore(true);
+      setLoading(true);
 
-        // Reset the timestamp range for new subscription
-        const currentTime = Math.floor(Date.now() / 1000);
-        setSince(undefined);
-        setUntil(currentTime);
+      // Reset the timestamp range for new subscription
+      const currentTime = Math.floor(Date.now() / 1000);
+      setSince(undefined);
+      setUntil(currentTime);
 
-        if (subId) {
-          nostrService.unsubscribe(subId);
-        }
-        
-        const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
-        setSubId(newSubId);
-        setLoading(false);
-      } catch (error) {
-        console.error("[MediaFeed] Error initializing feed:", error);
-        setLoading(false);
+      if (subId) {
+        nostrService.unsubscribe(subId);
       }
+      
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      setSubId(newSubId);
+      setLoading(false);
     };
     
     initFeed();

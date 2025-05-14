@@ -1,23 +1,28 @@
-export default {
+
+module.exports = {
   preset: 'ts-jest',
-  // Enable ESM transformations and ts-jest ESM mode
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
-  transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', { useESM: true }]
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['./jest.setup.js'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1'
   },
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/'
+  ],
+  collectCoverageFrom: [
+    'src/lib/nostr/utils/*.ts'
+  ],
+  // Add TypeScript-specific configuration
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+    }],
+  },
+  // Add global support for Jest types
   globals: {
     'ts-jest': {
-      useESM: true,
-      tsconfig: 'tsconfig.json'
+      isolatedModules: true
     }
-  },
-  // Transform ESM packages in node_modules for @noble
-  transformIgnorePatterns: [
-    'node_modules/(?!(?:@noble/hashes|@noble/curves|@noble/secp256k1)/)'
-  ],
-  testEnvironment: 'jsdom',
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  }
 };

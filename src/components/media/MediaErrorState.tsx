@@ -30,7 +30,7 @@ const MediaErrorState: React.FC<MediaErrorStateProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 bg-muted/80 backdrop-blur-sm flex flex-col items-center justify-center text-muted-foreground gap-2">
+    <div className="absolute inset-0 bg-muted/50 backdrop-blur-sm flex flex-col items-center justify-center text-muted-foreground gap-2">
       {isVideo ? (
         <FileVideo className="h-8 w-8 opacity-70" />
       ) : (
@@ -42,7 +42,7 @@ const MediaErrorState: React.FC<MediaErrorStateProps> = ({
         {canRetry && onRetry && (
           <button 
             onClick={handleRetry} 
-            className="text-xs px-2 py-1 bg-background/90 hover:bg-background rounded-md text-foreground flex items-center gap-1"
+            className="text-xs px-2 py-1 bg-background/80 hover:bg-background rounded-md text-foreground flex items-center gap-1"
           >
             <AlertTriangle className="h-3 w-3" />
             Retry
@@ -52,7 +52,7 @@ const MediaErrorState: React.FC<MediaErrorStateProps> = ({
         {url && (
           <button 
             onClick={handleViewSource} 
-            className="text-xs px-2 py-1 bg-background/90 hover:bg-background rounded-md text-foreground flex items-center gap-1"
+            className="text-xs px-2 py-1 bg-background/80 hover:bg-background rounded-md text-foreground flex items-center gap-1"
           >
             <ExternalLink className="h-3 w-3" />
             View Source
@@ -63,4 +63,4 @@ const MediaErrorState: React.FC<MediaErrorStateProps> = ({
   );
 };
 
-export default React.memo(MediaErrorState);
+export default MediaErrorState;

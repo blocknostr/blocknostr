@@ -10,17 +10,16 @@ import ProfileStats from '@/components/profile/ProfileStats';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
-import { Card } from '@/components/ui/card';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
   const { profiles, fetchProfileData } = useProfileFetcher();
-
+  
   // Get the current user's pubkey
   const currentUserPubkey = nostrService.publicKey;
-
+  
   // Convert npub to hex pubkey
   useEffect(() => {
     if (npub) {
@@ -32,10 +31,10 @@ const ProfilePage = () => {
       }
     }
   }, [npub]);
-
+  
   // Determine if this is the current user's profile
   const isCurrentUser = currentUserPubkey === hexPubkey;
-
+  
   // Fetch posts with limited initial count
   const {
     events,
@@ -43,11 +42,11 @@ const ProfilePage = () => {
     loading: postsLoading,
     error,
     refetch: refetchPosts
-  } = useProfilePosts({
+  } = useProfilePosts({ 
     hexPubkey,
     limit: 10 // Only load first 10 posts initially
   });
-
+  
   // Fetch followers and following
   const {
     followers,
@@ -58,7 +57,7 @@ const ProfilePage = () => {
     hexPubkey,
     isCurrentUser
   });
-
+  
   // Fetch relays
   const {
     relays,
@@ -68,14 +67,14 @@ const ProfilePage = () => {
     hexPubkey,
     isCurrentUser
   });
-
+  
   // Combined refetch function
   const handleRefresh = () => {
     refetchPosts();
     refetchRelations();
     refetchRelays();
   };
-
+  
   if (!npub || !hexPubkey) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -84,50 +83,45 @@ const ProfilePage = () => {
       </div>
     );
   }
-
+  
   const isLoading = profileLoading || (postsLoading && events.length === 0);
-
+  
   return (
-    <div className="container mx-auto px-4 py-6 max-w-full md:max-w-4xl lg:max-w-5xl">
+    <div className="container max-w-3xl mx-auto px-4 py-6">
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
           <p className="text-muted-foreground">Loading profile...</p>
         </div>
       ) : (
-        <div className="space-y-6">
-          <Card className="overflow-hidden">
-            <ProfileHeader
-              profile={profile}
-              npub={npub}
-              hexPubkey={hexPubkey}
-              isCurrentUser={isCurrentUser} // <-- Pass isCurrentUser
-            />
-          </Card>
-          <Card className="overflow-hidden">
-            <ProfileStats
-              followers={followers}
-              following={following}
-              postsCount={events.length}
-              currentUserPubkey={currentUserPubkey}
-              isCurrentUser={isCurrentUser}
-              relays={relays}
-              userNpub={npub}
-              isLoading={relationsLoading || relaysLoading}
-              onRefresh={handleRefresh}
-            />
-          </Card>
-          <Card className="overflow-hidden">
-            <ProfileTabs
-              events={events}
-              media={media}
-              reposts={[]}
-              profileData={profile}
-              originalPostProfiles={profiles}
-              hexPubkey={hexPubkey}
-            />
-          </Card>
-        </div>
+        <>
+          <ProfileHeader 
+            profile={profile} 
+            npub={npub} 
+            hexPubkey={hexPubkey} 
+          />
+          
+          <ProfileStats
+            followers={followers}
+            following={following}
+            postsCount={events.length}
+            currentUserPubkey={currentUserPubkey}
+            isCurrentUser={isCurrentUser}
+            relays={relays}
+            userNpub={npub}
+            isLoading={relationsLoading || relaysLoading}
+            onRefresh={handleRefresh}
+          />
+          
+          <ProfileTabs 
+            events={events} 
+            media={media}
+            reposts={[]}
+            profileData={profile}
+            originalPostProfiles={profiles}
+            hexPubkey={hexPubkey}
+          />
+        </>
       )}
     </div>
   );

@@ -1,66 +1,112 @@
-import React, { useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
 
 interface VideoPreviewProps {
   url: string;
-  playing: boolean; // Added playing prop
-  onLoadedData: () => void; // Renamed from onLoad and made mandatory
-  onError: () => void; // Made mandatory
+  onLoad: () => void;
+  onError: () => void;
+  autoPlay?: boolean;
+  controls?: boolean;
   className?: string;
-  // Removed autoPlay, controls, quality, enableHoverPlay as they are handled by useMediaHandling or not part of the new design
+  quality?: 'low' | 'medium' | 'high';
 }
 
-const VideoPreview = ({
-  url,
-  playing,
-  onLoadedData,
-  onError,
+const VideoPreview = ({ 
+  url, 
+  onLoad, 
+  onError, 
+  autoPlay = false,
+  controls = false,
   className,
+  quality = 'high'
 }: VideoPreviewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
-
-    // Event listeners are attached directly to the video element
-    // and call the passed-in handlers from useMediaHandling.
-    videoElement.addEventListener('loadeddata', onLoadedData);
-    videoElement.addEventListener('error', onError);
-
-    // Clean up event listeners
-    return () => {
-      videoElement.removeEventListener('loadeddata', onLoadedData);
-      videoElement.removeEventListener('error', onError);
-    };
-  }, [url, onLoadedData, onError]); // url dependency in case src changes and needs re-binding
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-    if (videoElement) {
-      if (playing) {
-        videoElement.play().catch(error => {
-          console.error('Error attempting to play video:', error);
-          // Optionally call onError here if play itself fails, though 'error' event should also catch it
-        });
+  const [isPlaying, setIsPlaying] = useState(autoPlay);
+  
+  // Handle quality settings
+  const getQualitySettings = () => {
+    switch (quality) {
+      case 'low':
+        return { preload: 'metadata' as const };
+      case 'medium':
+        return { preload: 'auto' as const };
+      case 'high':
+        return { preload: 'auto' as const };
+      default:
+        return { preload: 'auto' as const };
+    }
+  };
+  
+  const qualitySettings = getQualitySettings();
+  
+  // Toggle play/pause when clicked if not in controls mode
+  const handleVideoClick = () => {
+    if (controls) return;
+    
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
       } else {
-        videoElement.pause();
+        videoRef.current.pause();
+        setIsPlaying(false);
       }
     }
-  }, [playing]); // Rerun only when playing state changes
+  };
+  
+  // Pause video when it goes out of view
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    
+    if (!videoElement) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          // Only affect videos that were autoplaying
+          if (autoPlay) {
+            if (entry.isIntersecting) {
+              if (videoElement.paused && isPlaying) {
+                videoElement.play().catch(() => {
+                  // Autoplay might be blocked by browser, ignore
+                });
+              }
+            } else {
+              if (!videoElement.paused) {
+                videoElement.pause();
+              }
+            }
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+    
+    observer.observe(videoElement);
+    
+    return () => {
+      if (videoElement) {
+        observer.unobserve(videoElement);
+      }
+    };
+  }, [autoPlay, isPlaying]);
 
   return (
-    <video
+    <video 
       ref={videoRef}
       src={url}
-      className={cn("w-full h-full object-contain", className)}
-      muted // Always muted for autoplay according to requirements
-      loop // Loop according to requirements
-      playsInline // Essential for autoplay on iOS
-      preload="metadata" // Good practice for videos, helps with loadeddata event
-    // Removed controls, autoPlay - autoPlay is now handled by `playing` prop effect
+      className={cn("w-full h-full object-cover transition-opacity duration-300", className)}
+      controls={controls}
+      autoPlay={autoPlay}
+      muted
+      loop
+      playsInline
+      onClick={handleVideoClick}
+      onLoadedData={onLoad}
+      onError={onError}
+      {...qualitySettings}
     />
-    // Removed internal loading/error states as they are handled by EnhancedMediaContent via useMediaHandling
   );
 };
 

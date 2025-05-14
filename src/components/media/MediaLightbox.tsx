@@ -1,11 +1,11 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
 import { X } from 'lucide-react';
-import EnhancedMediaContent from './EnhancedMediaContent';
+import MediaContent from './MediaContent';
 import MediaNavigation from './MediaNavigation';
 import { useMediaNavigation } from '@/hooks/use-media-navigation';
 import { useSwipeable } from '@/hooks/use-swipeable';
@@ -39,32 +39,6 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
     initialIndex
   });
   
-  // Add keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      
-      switch (e.key) {
-        case 'ArrowLeft':
-          handlePrev();
-          break;
-        case 'ArrowRight':
-          handleNext();
-          break;
-        case 'Escape':
-          onOpenChange(false);
-          break;
-        default:
-          break;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, handlePrev, handleNext, onOpenChange]);
-  
   // Setup swipe handlers for mobile
   const swipeHandlers = useSwipeable({
     onSwipedLeft: handleNext,
@@ -88,12 +62,16 @@ const MediaLightbox: React.FC<MediaLightboxProps> = ({
           </button>
           
           <div className="max-w-full max-h-full p-8">
-            <EnhancedMediaContent 
+            <MediaContent 
               url={currentUrl}
-              variant="lightbox"
+              isVideo={isVideo}
+              isLoaded={isLoaded}
+              error={error}
+              onLoad={handleMediaLoad}
+              onError={handleError}
               index={currentIndex}
               totalItems={urls.length}
-              autoPlayVideos={true}
+              variant="lightbox"
             />
             
             <MediaNavigation 

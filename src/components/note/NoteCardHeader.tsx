@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { formatPubkey, getNpubFromHex } from '@/lib/nostr/utils/keys';
 import { Skeleton } from "@/components/ui/skeleton";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
+import { toast } from "@/components/ui/use-toast";
 
 interface NoteCardHeaderProps {
   pubkey: string;
@@ -20,31 +21,14 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const [isLoading, setIsLoading] = useState(!profileData && !!pubkey);
   const [fetchAttempts, setFetchAttempts] = useState(0);
   
-  // Refs for stable handling of profile updates
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  const updateTimeoutRef = useRef<number | null>(null);
-  const initialRenderRef = useRef<boolean>(true);
-  
   // Effect to fetch profile data if not provided
   useEffect(() => {
     // Update local state if profile data prop changes
     if (profileData) {
-      if (initialRenderRef.current) {
-        // First render with profileData, set immediately
-        setLocalProfileData(profileData);
-        setIsLoading(false);
-        initialRenderRef.current = false;
-      } else {
-        // On subsequent profile updates, debounce the update
-        if (updateTimeoutRef.current) {
-          window.clearTimeout(updateTimeoutRef.current);
-        }
-        
-        updateTimeoutRef.current = window.setTimeout(() => {
-          setLocalProfileData(profileData);
-          setIsLoading(false);
-        }, 300); // Debounce for 300ms
-      }
+      console.log(`[NoteCardHeader] Received profileData for ${pubkey?.substring(0, 8)}:`, 
+        profileData.name || profileData.display_name);
+      setLocalProfileData(profileData);
+      setIsLoading(false);
       return;
     }
     
@@ -53,12 +37,8 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
       return;
     }
     
-    // First render without profileData
-    if (initialRenderRef.current) {
-      console.log(`[NoteCardHeader] No profile data provided for ${pubkey.substring(0, 8)}, fetching...`);
-      setIsLoading(true);
-      initialRenderRef.current = false;
-    }
+    console.log(`[NoteCardHeader] No profile data provided for ${pubkey.substring(0, 8)}, fetching...`);
+    setIsLoading(true);
     
     // Fetch profile if not provided
     const fetchProfile = async () => {
@@ -66,18 +46,14 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         const profile = await unifiedProfileService.getProfile(pubkey);
         
         if (profile) {
-          // Set profile data with debounce to prevent flickering
-          if (updateTimeoutRef.current) {
-            window.clearTimeout(updateTimeoutRef.current);
-          }
-          
-          updateTimeoutRef.current = window.setTimeout(() => {
-            setLocalProfileData(profile);
-            setIsLoading(false);
-          }, 300);
+          console.log(`[NoteCardHeader] Fetched profile for ${pubkey.substring(0, 8)}:`, 
+            profile.name || profile.display_name || 'No name');
+          setLocalProfileData(profile);
+          setIsLoading(false);
         } else {
           // If profile is null, increment fetch attempts
           setFetchAttempts(prev => prev + 1);
+          console.warn(`[NoteCardHeader] No profile returned for ${pubkey.substring(0, 8)}, attempt ${fetchAttempts + 1}`);
           
           // After 3 attempts, give up on loading state but keep subscribed to updates
           if (fetchAttempts >= 2) {
@@ -97,37 +73,16 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     
     fetchProfile();
     
-    // Clean up previous subscription
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-    
-    // Subscribe to profile updates with debouncing
-    unsubscribeRef.current = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
-      if (!profile) return;
-      
-      // Debounce profile updates
-      if (updateTimeoutRef.current) {
-        window.clearTimeout(updateTimeoutRef.current);
-      }
-      
-      updateTimeoutRef.current = window.setTimeout(() => {
-        setLocalProfileData(profile);
-        setIsLoading(false);
-      }, 300);
+    // Subscribe to profile updates
+    const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
+      console.log(`[NoteCardHeader] Profile update for ${pubkey.substring(0, 8)}:`, 
+        profile?.name || profile?.display_name);
+      setLocalProfileData(profile);
+      setIsLoading(false);
     });
     
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-      
-      if (updateTimeoutRef.current) {
-        window.clearTimeout(updateTimeoutRef.current);
-        updateTimeoutRef.current = null;
-      }
+      unsubscribe();
     };
   }, [pubkey, profileData, fetchAttempts]);
   
@@ -199,11 +154,11 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
-            <Link to={`/profile/${npub}`} className="font-bold truncate hover:underline transition-all duration-300">
+            <Link to={`/profile/${npub}`} className="font-bold truncate hover:underline">
               {isLoading ? (
                 <Skeleton className="h-4 w-20 rounded inline-block" />
               ) : (
-                <span className="transition-all duration-300">{displayName}</span>
+                displayName
               )}
             </Link>
             

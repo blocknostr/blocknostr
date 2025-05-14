@@ -1,5 +1,5 @@
+
 import { nostrService } from "@/lib/nostr";
-import type { CachedUserProfile } from '../UnifiedProfileService'; // Import the interface
 
 /**
  * Simple profile service stub that can be used as a placeholder
@@ -9,22 +9,16 @@ export class SimpleProfileService {
   /**
    * Get basic profile metadata for a user
    */
-  public async getProfileMetadata(pubkeyOrNpub: string): Promise<CachedUserProfile | null> {
+  public async getProfileMetadata(pubkeyOrNpub: string): Promise<any | null> {
     try {
       // Convert npub to hex if needed
       let pubkey = pubkeyOrNpub;
       if (pubkeyOrNpub.startsWith('npub1')) {
         pubkey = nostrService.getHexFromNpub(pubkeyOrNpub);
       }
-
+      
       // Get basic profile data
-      const metadata = await nostrService.getUserProfile(pubkey);
-
-      if (metadata) {
-        // Explicitly add the pubkey to the returned object
-        return { ...metadata, pubkey: pubkey };
-      }
-      return null;
+      return await nostrService.getUserProfile(pubkey);
     } catch (error) {
       console.error("Error fetching profile metadata:", error);
       return null;
@@ -38,11 +32,11 @@ export class SimpleProfileService {
     const profile = await this.getProfileMetadata(pubkeyOrNpub);
     return !!profile;
   }
-
+  
   /**
    * Format a name for display purposes
    */
-  public formatDisplayName(profile: CachedUserProfile | null): string {
+  public formatDisplayName(profile: any | null): string {
     if (!profile) return 'Unknown User';
     return profile.display_name || profile.name || 'Unknown User';
   }

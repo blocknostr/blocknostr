@@ -1,49 +1,32 @@
+
 /**
  * Validation utilities for media URLs
  */
-
-// List of trusted media domains for Nostr
-const TRUSTED_MEDIA_HOSTS = [
-  'i.imgur.com',
-  'media.nostr.band',
-  'void.cat',
-  'nostr.build',
-  'primal.net',
-  'mako.co.il',
-  'v.nostr.build',
-  'image.nostr.build',
-  'cdn.nostr.build',
-  'nostrcheck.me',
-  'media.snort.social',
-  'files.zbd.gg',
-  'imgproxy.snort.social'
-];
 
 /**
  * Normalizes a URL by ensuring it has a protocol
  * @param url The URL to normalize
  * @returns The normalized URL
  */
-export const normalizeUrl = (url: string | undefined | null): string => {
-  if (!url || typeof url !== 'string') return ''; // Ensure it's a string and not empty
-
+export const normalizeUrl = (url: string): string => {
+  if (!url) return '';
+  
   // Trim whitespace
-  const trimmedUrl = url.trim(); // Use const as it's not reassigned
-
+  url = url.trim();
+  
   // Check if the URL already has a protocol
-  if (!/^https?:\/\//i.test(trimmedUrl)) {
+  if (!/^https?:\/\//i.test(url)) {
     // Try to prepend https:// and see if it's valid
     try {
-      new URL(`https://${trimmedUrl}`);
-      return `https://${trimmedUrl}`;
+      new URL(`https://${url}`);
+      return `https://${url}`;
     } catch (e) {
-      // If that fails, just return the original trimmed URL if it might be a path or fragment
-      // or an empty string if it's likely not usable
-      return trimmedUrl.includes('/') || trimmedUrl.startsWith('#') ? trimmedUrl : '';
+      // If that fails, just return the original
+      return url;
     }
   }
-
-  return trimmedUrl;
+  
+  return url;
 };
 
 /**
@@ -51,24 +34,22 @@ export const normalizeUrl = (url: string | undefined | null): string => {
  * @param url The URL to validate
  * @returns Boolean indicating if the URL is valid
  */
-export const isValidMediaUrl = (url: string | undefined | null): boolean => {
-  if (!url || typeof url !== 'string' || url.trim() === '') return false; // Early exit for invalid input
-
+export const isValidMediaUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  
   try {
     // Normalize URL
-    const normalizedUrl = normalizeUrl(url); // url is guaranteed to be a string here
-
-    if (!normalizedUrl) return false; // If normalization results in an empty string, it's invalid
-
+    const normalizedUrl = normalizeUrl(url);
+    
     // Basic URL validation
     new URL(normalizedUrl);
-
+    
     // Additional checks for media URLs
     // Ensure it has http/https protocol
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       return false;
     }
-
+    
     // Check for common URL-shortener services that might redirect
     const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
     for (const shortener of commonShorteners) {
@@ -78,20 +59,16 @@ export const isValidMediaUrl = (url: string | undefined | null): boolean => {
     }
 
     // Check for known media hosting domains
-    for (const host of TRUSTED_MEDIA_HOSTS) {
+    const mediaHosts = ['i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 'primal.net', 'mako.co.il', 'v.nostr.build'];
+    for (const host of mediaHosts) {
       if (normalizedUrl.includes(host)) {
         return true; // Common Nostr media hosts
       }
     }
-
-    // Check for common media extensions
-    if (isImageUrl(normalizedUrl) || isVideoUrl(normalizedUrl) || isAudioUrl(normalizedUrl)) {
-      return true;
-    }
-
-    return true; // If it passed URL validation, we'll give it a chance
+    
+    return true;
   } catch (error) {
-    console.error('Invalid URL:', url, error);
+    console.log('Invalid URL:', url, error);
     return false;
   }
 };
@@ -100,33 +77,24 @@ export const isValidMediaUrl = (url: string | undefined | null): boolean => {
  * Tests if a URL is an image by extension
  */
 export const isImageUrl = (url: string): boolean => {
-  try {
-    return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp|tiff)(\?.*)?$/i);
-  } catch (e) {
-    return false;
-  }
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i);
 };
 
 /**
  * Tests if a URL is a video by extension
  */
 export const isVideoUrl = (url: string): boolean => {
-  try {
-    return !!url.match(/\.(mp4|webm|mov|m4v|ogv|avi|mkv|flv)(\?.*)?$/i);
-  } catch (e) {
-    return false;
-  }
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i);
 };
 
 /**
  * Tests if a URL is audio by extension
  */
 export const isAudioUrl = (url: string): boolean => {
-  try {
-    return !!url.match(/\.(mp3|wav|ogg|flac|aac|m4a)(\?.*)?$/i);
-  } catch (e) {
-    return false;
-  }
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i);
 };
 
 /**
@@ -136,4 +104,3 @@ export const isSecureUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return url.startsWith('https://');
 };
-
