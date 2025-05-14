@@ -1,6 +1,7 @@
 
 import { BrowserEventEmitter } from "../BrowserEventEmitter";
 import { nostrService } from "@/lib/nostr";
+import { cacheManager } from "@/lib/utils/cacheManager";
 
 /**
  * Service to handle profile metadata loading
@@ -28,15 +29,34 @@ export class ProfileMetadataService {
     if (!pubkey) return;
     
     try {
-      // Update loading state
-      loadingStatus.metadata = 'loading';
-      this.emitter.emit('loading-state-changed', pubkey, loadingStatus);
+      // First check cache for immediate rendering
+      const cachedProfile = cacheManager.get<Record<string, any>>(`profile:${pubkey}`);
       
-      // Fetch profile data
+      if (cachedProfile) {
+        // Emit cached data immediately for fast rendering
+        this.emitter.emit('metadata-received', pubkey, cachedProfile);
+        
+        // Still mark as loading to fetch fresh data in background
+        loadingStatus.metadata = 'loading';
+        this.emitter.emit('loading-state-changed', pubkey, loadingStatus);
+      } else {
+        // No cached data, mark as loading
+        loadingStatus.metadata = 'loading';
+        this.emitter.emit('loading-state-changed', pubkey, loadingStatus);
+      }
+      
+      // Now fetch latest data from relays
       const profileData = await nostrService.getUserProfile(pubkey);
       
-      // Emit data
-      this.emitter.emit('metadata-received', pubkey, profileData);
+      if (profileData) {
+        // Cache for future use
+        cacheManager.set(`profile:${pubkey}`, profileData, 5 * 60 * 1000); // 5 minutes
+        
+        // Emit fresh data
+        this.emitter.emit('metadata-received', pubkey, profileData);
+      }
+      
+      // Update loading status
       loadingStatus.metadata = 'success';
       this.emitter.emit('loading-state-changed', pubkey, loadingStatus);
     } catch (error) {

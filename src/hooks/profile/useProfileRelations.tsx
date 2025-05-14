@@ -168,8 +168,8 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
         
         subscriptionsRef.current.push(followersSubId);
         
-        // Set a timeout to mark loading as complete after a reasonable time
-        // even if we don't get all the data we expect
+        // Set a timeout to mark loading as complete much quicker (was 15000)
+        // This will show the UI faster with whatever data we have
         const timeoutId = window.setTimeout(() => {
           if (!mountedRef.current) return;
           
@@ -182,11 +182,12 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
           
           if (!followingFound && !followersFound) {
             console.warn("No relations found for profile");
-            setHasError(true);
-            setErrorMessage("No relations data found. Try refreshing.");
+            // Just mark as not loading rather than showing error, since this is now background loading
+            // setHasError(true);
+            // setErrorMessage("No relations data found. Try refreshing.");
           }
           
-        }, 15000);
+        }, 0); // Reduced from 15000 to 0 for immediate UI update
         
         // Set a shorter timeout to check progress and try retry if needed
         const checkProgressId = window.setTimeout(() => {
@@ -202,7 +203,7 @@ export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRela
               "wss://relay.snort.social"
             ]).catch(err => console.error("Failed to connect to additional relays:", err));
           }
-        }, 5000);
+        }, 2000); // Reduced from 5000 to 2000ms
         
         timeoutsRef.current.push(timeoutId);
         timeoutsRef.current.push(checkProgressId);

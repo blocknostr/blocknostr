@@ -7,7 +7,6 @@ import { useProfileRelations } from '@/hooks/profile/useProfileRelations';
 import { useBasicProfile } from '@/hooks/useBasicProfile';
 import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
-import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 
@@ -17,7 +16,7 @@ const LazyProfileTabs = React.lazy(() => import('@/components/profile/ProfileTab
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
-  const { profile, loading: profileLoading } = useBasicProfile(npub);
+  const { profile, loading: profileLoading, error: profileError } = useBasicProfile(npub);
   const { profiles, fetchProfile } = useUnifiedProfileFetcher();
   
   // Get the current user's pubkey
@@ -53,7 +52,7 @@ const ProfilePage = () => {
     limit: 5 // Only load first 5 posts initially
   });
   
-  // Fetch relations and relays only after profile is loaded
+  // Use true lazy loading for relations/followers data - only trigger after basic profile is ready
   const {
     followers,
     following,
@@ -96,22 +95,23 @@ const ProfilePage = () => {
     );
   }
   
-  // Only show loading for the initial profile data
-  const isLoading = profileLoading;
+  // Show a minimal loading state only for the very initial profile data
+  // Everything else will load progressively
+  const isInitialLoading = profileLoading && !profile?.name && !profile?.displayName;
   
   // Calculate posts count safely
   const postsCount = hasEvents && events ? events.length : undefined;
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
-      {isLoading ? (
+      {isInitialLoading ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
           <p className="text-muted-foreground">Loading profile...</p>
         </div>
       ) : (
         <>
-          {/* Render profile header with stats data */}
+          {/* Render profile header with stats data - show immediately even if still loading some data */}
           <ProfileHeader 
             profile={profile} 
             npub={npub} 
@@ -124,7 +124,7 @@ const ProfilePage = () => {
             currentUserPubkey={currentUserPubkey}
           />
           
-          {/* Lazy load the tabs component */}
+          {/* Loading state for tabs */}
           <Suspense fallback={
             <div className="mt-6 p-4 bg-muted/40 rounded-md animate-pulse">
               <div className="h-8 bg-muted rounded mb-4"></div>

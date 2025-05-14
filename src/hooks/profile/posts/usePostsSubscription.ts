@@ -1,3 +1,4 @@
+
 import { useRef, useCallback } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
@@ -63,6 +64,13 @@ export function usePostsSubscription() {
           console.log(`[usePostsSubscription] Found ${noteEvents.length} cached events, completing early`);
           setTimeout(() => onComplete(), 0);
           // Still subscribe to get newer posts but with shorter timeout
+        } else if (noteEvents.length > 0) {
+          // We have some cached events but not enough, so mark as partially complete
+          // This helps the UI show something immediately
+          setTimeout(() => {
+            console.log(`[usePostsSubscription] Partial data available, triggering UI update`);
+            onComplete();
+          }, 0);
         }
       }
       
@@ -110,11 +118,11 @@ export function usePostsSubscription() {
       subscriptionRef.current = notesSubId;
       
       // Set a timeout to check if we got any events and mark loading as complete
-      // Keeping the 5s timeout as requested by user
+      // Reduced from 5s to 3s
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
         onComplete();
-      }, 5000);
+      }, 3000);
       
       // Return a cleanup function
       return () => {
