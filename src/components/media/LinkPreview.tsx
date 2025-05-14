@@ -45,7 +45,7 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
     // Register this URL with the registry
     if (!UrlRegistry.isUrlRegistered(url)) {
       UrlRegistry.registerUrl(url, 'link');
-    } else if (UrlRegistry.isUrlRegisteredAsMedia(url)) {
+    } else if (UrlRegistry.getUrlType(url) === 'media') {
       // If it's already registered as media, don't render it
       setShouldRender(false);
       return;
