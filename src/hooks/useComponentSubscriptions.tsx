@@ -10,8 +10,8 @@ import { SubscriptionTracker } from '@/lib/nostr/subscription-tracker';
  */
 export function useComponentSubscriptions() {
   // Generate a stable component ID
-  const componentIdRef = useRef<string>(`component_${uuidv4().slice(0, 8)}`);
-  const cleanupFunctionsRef = useRef<(() => void)[]>([]);
+  const componentIdRef = useRef(`component_${uuidv4().slice(0, 8)}`);
+  const cleanupFunctionsRef = useRef<Array<() => void>>([]);
   
   // On unmount, clean up all subscriptions
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useComponentSubscriptions() {
       console.log(`Cleaning up subscriptions for component ${componentIdRef.current}`);
       
       // Execute all cleanup functions
-      cleanupFunctionsRef.current.forEach(cleanup => {
+      cleanupFunctionsRef.current.forEach((cleanup) => {
         try {
           cleanup();
         } catch (error) {
@@ -43,7 +43,7 @@ export function useComponentSubscriptions() {
   /**
    * Get the component ID for use in subscription options
    */
-  const getComponentId = (): string => {
+  const getComponentId = () => {
     return componentIdRef.current;
   };
   

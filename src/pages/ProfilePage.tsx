@@ -12,6 +12,7 @@ import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
 import ProfileTabs from '@/components/profile/ProfileTabs';
 import { useComponentSubscriptions } from '@/hooks/useComponentSubscriptions';
 import { ConnectionPool } from '@/lib/nostr/relay/connection-pool';
+import { SubscriptionTracker } from '@/lib/nostr/subscription-tracker';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
@@ -26,6 +27,8 @@ const ProfilePage = () => {
   
   // Convert npub to hex pubkey
   useEffect(() => {
+    let cleanupTimer: number | null = null;
+    
     if (npub) {
       try {
         const hex = nostrService.getHexFromNpub(npub);
@@ -38,35 +41,55 @@ const ProfilePage = () => {
     }
     
     // Set minimum loading time for better UX
-    const minLoadingTimer = setTimeout(() => {
+    cleanupTimer = window.setTimeout(() => {
       setMinLoadingTimeMet(true);
-    }, 3000); // Reduced from 6s to 3s for better UX
+    }, 2000); // Reduced from 3s to 2s for faster feedback
     
-    // Clean up resources when unmounting
+    // Clean up resources when unmounting or when npub changes
     return () => {
-      clearTimeout(minLoadingTimer);
+      if (cleanupTimer) window.clearTimeout(cleanupTimer);
+      
+      // Explicitly clean up profile-related subscriptions when changing profile
+      if (hexPubkey) {
+        console.log(`[ProfilePage] Navigating away from profile ${hexPubkey.substring(0, 8)}, cleaning up subscriptions`);
+        
+        // Use the tracker to clean up subscriptions
+        const tracker = SubscriptionTracker.getInstance();
+        tracker.cleanupForComponent(componentId);
+        
+        // Force cleanup of potential duplicate subscriptions
+        tracker.cleanupDuplicates();
+      }
     };
-  }, [npub, fetchProfile]);
+  }, [npub, fetchProfile, componentId]);
   
   // Ensure relay connections are managed properly
   useEffect(() => {
     // Get the connection pool instance
     const connectionPool = ConnectionPool.getInstance();
+    const relayCount = connectionPool.getConnectedRelayCount();
     
-    // Connect to default relays to ensure we have at least some connections
-    connectionPool.connectToRelays([
-      "wss://relay.damus.io", 
-      "wss://nos.lol", 
-      "wss://relay.nostr.band"
-    ]).catch(err => {
-      console.error("Failed to connect to default relays:", err);
-    });
-    
-    // On cleanup, no need to disconnect - connection pool handles this globally
+    // Only connect to default relays if we don't have enough connections
+    if (relayCount < 2) {
+      // Connect to default relays to ensure we have at least some connections
+      connectionPool.connectToRelays([
+        "wss://relay.damus.io", 
+        "wss://nos.lol", 
+        "wss://relay.nostr.band"
+      ], { 
+        limit: 3, // Limit connections for better performance
+        timeout: 5000 // 5s timeout for faster rendering
+      }).catch(err => {
+        console.error("Failed to connect to default relays:", err);
+      });
+    } else {
+      console.log(`[ProfilePage] Using ${relayCount} existing relay connections`);
+    }
     
     // Register a cleanup function
     registerCleanup(() => {
       console.log("Profile page cleanup complete");
+      // No need to disconnect - connection pool handles this globally
     });
   }, [registerCleanup]);
   

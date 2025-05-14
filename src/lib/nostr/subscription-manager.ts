@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -12,6 +13,7 @@ interface SubscriptionDetails {
   expiresAt: number | null;
   isRenewable: boolean;
   componentId: string;
+  category?: string;
 }
 
 export class SubscriptionManager {
@@ -21,10 +23,14 @@ export class SubscriptionManager {
   private tracker: SubscriptionTracker;
   private connectionPool: ConnectionPool;
   
-  // Default TTL is 15 minutes
-  private defaultTTL: number = 15 * 60 * 1000;
+  // Default TTL is 5 minutes for most subscriptions
+  private defaultTTL: number = 5 * 60 * 1000;
   
-  // Cleanup interval (every 60 seconds)
+  // More aggressive TTLs for specific contexts
+  private profileTTL: number = 2 * 60 * 1000; // 2 minutes for profile data
+  private tempTTL: number = 30 * 1000; // 30 seconds for temporary subscriptions
+  
+  // Cleanup interval (every 30 seconds)
   private cleanupInterval: number;
   
   constructor(pool: SimplePool) {
@@ -35,7 +41,7 @@ export class SubscriptionManager {
     // Set up periodic cleanup for expired subscriptions
     this.cleanupInterval = window.setInterval(() => {
       this.cleanupExpiredSubscriptions();
-    }, 60 * 1000);
+    }, 30 * 1000);
   }
   
   /**
@@ -54,6 +60,8 @@ export class SubscriptionManager {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
       isRenewable?: boolean;  // Whether this subscription should be auto-renewed
       componentId?: string;  // Identifier for the component creating this subscription
+      category?: string;     // Category of subscription (e.g., 'profile', 'feed')
+      limit?: number;        // Maximum number of events to receive before closing
     } = {}
   ): string {
     if (relays.length === 0) {
@@ -69,15 +77,32 @@ export class SubscriptionManager {
     const id = `sub_${this.nextId++}_${uuidv4().slice(0, 8)}`;
     const now = Date.now();
     const componentId = options.componentId || 'unknown';
+    const category = options.category || 'other';
+    
+    // Get appropriate TTL based on category
+    let ttl = options.ttl;
+    if (ttl === undefined) {
+      if (category === 'profile') ttl = this.profileTTL;
+      else if (category === 'temp') ttl = this.tempTTL;
+      else ttl = this.defaultTTL;
+    }
     
     try {
-      // First connect to relays we need
-      this.connectionPool.connectToRelays(relays).catch(err => {
+      // First connect to relays we need - but limit the number to prevent connection explosions
+      const connectLimit = Math.min(relays.length, 3);
+      this.connectionPool.connectToRelays(relays.slice(0, connectLimit), {
+        limit: connectLimit,
+        timeout: 5000 // 5s timeout
+      }).catch(err => {
         console.error("Error connecting to relays:", err);
       });
       
       // Use the pool instance from connection pool
       const poolInstance = this.connectionPool.getPool();
+      
+      // Track received event count for limited subscriptions
+      let receivedEventCount = 0;
+      const limit = options.limit || Number.MAX_SAFE_INTEGER;
       
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
@@ -85,13 +110,20 @@ export class SubscriptionManager {
         return poolInstance.subscribe(relays, filter, {
           onevent: (event) => {
             onEvent(event as NostrEvent);
+            
+            // Check if we've reached the limit
+            receivedEventCount++;
+            if (receivedEventCount >= limit) {
+              // Close this subscription automatically
+              this.unsubscribe(id);
+            }
           }
         });
       });
       
       // Calculate expiration time if TTL is provided
-      const expiresAt = options.ttl !== null 
-        ? now + (options.ttl || this.defaultTTL)
+      const expiresAt = ttl !== null 
+        ? now + ttl
         : null;
       
       // Store subscription details for later unsubscribe
@@ -102,11 +134,20 @@ export class SubscriptionManager {
         createdAt: now,
         expiresAt,
         isRenewable: !!options.isRenewable,
-        componentId
+        componentId,
+        category
       });
       
       // Register with the tracker
-      this.tracker.register(id, () => this.unsubscribe(id), componentId);
+      this.tracker.register(
+        id, 
+        () => this.unsubscribe(id), 
+        componentId, 
+        { 
+          category: options.category, 
+          priority: category === 'profile' ? 4 : 5 
+        }
+      );
       
       return id;
     } catch (error) {
@@ -132,6 +173,10 @@ export class SubscriptionManager {
         
         // Also unregister from tracker
         this.tracker.unregister(subId);
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[SubscriptionManager] Closed subscription ${subId.slice(0, 8)} from component ${subscription.componentId}`);
+        }
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);
       }
@@ -146,6 +191,10 @@ export class SubscriptionManager {
     const componentSubs = Array.from(this.subscriptions.entries())
       .filter(([_, details]) => details.componentId === componentId)
       .map(([id]) => id);
+    
+    if (componentSubs.length > 0) {
+      console.log(`[SubscriptionManager] Cleaning up ${componentSubs.length} subscriptions for component ${componentId}`);
+    }
     
     // Unsubscribe from each one
     componentSubs.forEach(id => this.unsubscribe(id));
@@ -193,16 +242,33 @@ export class SubscriptionManager {
     });
     
     // Unsubscribe expired subscriptions
-    expiredIds.forEach(id => {
-      console.log(`Cleaning up expired subscription: ${id}`);
-      this.unsubscribe(id);
-    });
+    if (expiredIds.length > 0) {
+      console.log(`[SubscriptionManager] Cleaning up ${expiredIds.length} expired subscriptions`);
+      
+      expiredIds.forEach(id => {
+        const subscription = this.subscriptions.get(id);
+        if (subscription) {
+          console.log(`[SubscriptionManager] Cleaning up expired subscription: ${id.slice(0, 8)} from component ${subscription.componentId}`);
+        }
+        this.unsubscribe(id);
+      });
+    }
     
     // Renew renewable subscriptions
     renewableIds.forEach(id => {
-      console.log(`Renewing subscription: ${id}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[SubscriptionManager] Renewing subscription: ${id.slice(0, 8)}`);
+      }
       this.renewSubscription(id);
     });
+    
+    // Check subscription count and log metrics in development
+    if (process.env.NODE_ENV === 'development') {
+      const subCount = this.subscriptions.size;
+      if (subCount > 30) {
+        console.warn(`[SubscriptionManager] High subscription count: ${subCount}`);
+      }
+    }
   }
   
   /**

@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
 import { nostrService } from "@/lib/nostr";
@@ -13,7 +14,7 @@ export function useUnifiedProfileFetcher() {
   const [fetchErrors, setFetchErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState<Record<string, boolean>>({});
   
-  // Use a ref for active subscriptions to prevent memory leaks
+  // Use a ref to track active subscriptions for cleanup
   const activeSubscriptions = React.useRef<Record<string, () => void>>({});
   
   // Generate a component ID for subscription tracking
@@ -22,6 +23,8 @@ export function useUnifiedProfileFetcher() {
   // Clean up subscriptions when the component unmounts
   React.useEffect(() => {
     return () => {
+      console.log(`[useUnifiedProfileFetcher] Cleaning up ${Object.keys(activeSubscriptions.current).length} active subscriptions`);
+      
       // Execute local cleanup functions
       Object.values(activeSubscriptions.current).forEach(unsubscribe => {
         if (unsubscribe) {
@@ -32,6 +35,9 @@ export function useUnifiedProfileFetcher() {
           }
         }
       });
+      
+      // Clear activeSubscriptions ref after cleanup
+      activeSubscriptions.current = {};
       
       // Also clean up via the global tracker as a safety measure
       const tracker = SubscriptionTracker.getInstance();
@@ -67,7 +73,7 @@ export function useUnifiedProfileFetcher() {
         
         // Set up subscription for updates if not already subscribed
         if (!activeSubscriptions.current[pubkey]) {
-          activeSubscriptions.current[pubkey] = unifiedProfileService.subscribeToUpdates(pubkey, (updatedProfile) => {
+          const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (updatedProfile) => {
             if (updatedProfile) {
               console.log(`[useUnifiedProfileFetcher] Received profile update for ${pubkey.substring(0, 8)}`, 
                 updatedProfile.name || updatedProfile.display_name);
@@ -75,9 +81,22 @@ export function useUnifiedProfileFetcher() {
             }
           });
           
+          activeSubscriptions.current[pubkey] = unsubscribe;
+          
           // Register with the tracker for safety
           const tracker = SubscriptionTracker.getInstance();
-          tracker.register(`profile_sub_${pubkey}`, activeSubscriptions.current[pubkey], componentId);
+          tracker.register(
+            `profile_sub_${pubkey}`, 
+            () => {
+              // Cleanup function that calls unsubscribe
+              if (activeSubscriptions.current[pubkey]) {
+                activeSubscriptions.current[pubkey]();
+                delete activeSubscriptions.current[pubkey];
+              }
+            }, 
+            componentId,
+            { category: 'profile', priority: 4 }
+          );
         }
         
         return profile;
@@ -108,8 +127,8 @@ export function useUnifiedProfileFetcher() {
   const fetchProfiles = React.useCallback(async (pubkeys: string[], options: { force?: boolean } = {}) => {
     if (!pubkeys.length) return {};
     
-    // Deduplicate pubkeys
-    const uniquePubkeys = [...new Set(pubkeys)];
+    // Deduplicate pubkeys and limit batch size to prevent excessive subscriptions
+    const uniquePubkeys = [...new Set(pubkeys)].slice(0, 20); // Limit to 20 at once
     console.log(`[useUnifiedProfileFetcher] Batch fetching ${uniquePubkeys.length} profiles`);
     
     // Mark all as loading
@@ -122,7 +141,7 @@ export function useUnifiedProfileFetcher() {
     // Set up subscriptions for all pubkeys
     uniquePubkeys.forEach(pubkey => {
       if (!activeSubscriptions.current[pubkey]) {
-        activeSubscriptions.current[pubkey] = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
+        const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
           if (profile) {
             console.log(`[useUnifiedProfileFetcher] Received profile update for ${pubkey.substring(0, 8)}`, 
               profile.name || profile.display_name);
@@ -130,9 +149,21 @@ export function useUnifiedProfileFetcher() {
           }
         });
         
+        activeSubscriptions.current[pubkey] = unsubscribe;
+        
         // Register with the tracker
         const tracker = SubscriptionTracker.getInstance();
-        tracker.register(`profile_sub_${pubkey}`, activeSubscriptions.current[pubkey], componentId);
+        tracker.register(
+          `profile_sub_${pubkey}`, 
+          () => {
+            if (activeSubscriptions.current[pubkey]) {
+              activeSubscriptions.current[pubkey]();
+              delete activeSubscriptions.current[pubkey];
+            }
+          }, 
+          componentId,
+          { category: 'profile', priority: 4 }
+        );
       }
     });
     
