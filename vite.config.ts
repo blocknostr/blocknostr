@@ -27,8 +27,9 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-components': ['@/components/ui/button', '@/components/ui/toast', '@/components/ui/dialog'], // Specify actual components instead of the directory
-          'nostr-core': ['@/lib/nostr/index', '@/lib/nostr/social', '@/lib/nostr/service']
+          'ui-components': ['@/components/ui/button', '@/components/ui/dialog', '@/components/ui/sheet'],
+          'nostr-core': ['@/lib/nostr/index', '@/lib/nostr/social', '@/lib/nostr/service'],
+          'chat-components': ['@/components/chat/WorldChat', '@/components/chat/hooks/useWorldChat']
         }
       }
     }
