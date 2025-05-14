@@ -3,11 +3,21 @@ import React from "react";
 import NoteCard from "@/components/NoteCard";
 import { NostrEvent } from "@/lib/nostr";
 
+interface ExtendedNostrEvent extends NostrEvent {
+  postType?: 'post' | 'reply' | 'repost';
+  repost?: boolean;
+  repostData?: {
+    created_at?: number;
+    pubkey?: string;
+    id?: string;
+  };
+}
+
 interface UnifiedFeedTabProps {
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
-  feedItems: NostrEvent[];
+  feedItems: ExtendedNostrEvent[];
   profileData: any;
   loadMoreRef: (node: HTMLDivElement | null) => void;
 }

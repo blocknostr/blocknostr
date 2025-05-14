@@ -6,6 +6,17 @@ import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
+// Define extended types for the different event types
+interface ExtendedNostrEvent extends NostrEvent {
+  postType?: 'post' | 'reply' | 'repost';
+  repost?: boolean;
+  repostData?: {
+    created_at?: number;
+    pubkey?: string;
+    id?: string;
+  };
+}
+
 interface UseProfileTabsDataProps {
   events: NostrEvent[];
   media: NostrEvent[];
@@ -34,7 +45,7 @@ export function useProfileTabsData({
   const [postsLimit, setPostsLimit] = useState(10);
   
   // State for the unified feed items
-  const [unifiedFeedItems, setUnifiedFeedItems] = useState<NostrEvent[]>([]);
+  const [unifiedFeedItems, setUnifiedFeedItems] = useState<ExtendedNostrEvent[]>([]);
   const [displayedMedia, setDisplayedMedia] = useState<NostrEvent[]>([]);
   
   // Fetch replies using the hook
@@ -101,7 +112,7 @@ export function useProfileTabsData({
       ...events.map(event => ({ ...event, postType: 'post' })),
       ...replyEvents.map(event => ({ ...event, postType: 'reply' })),
       ...repostEvents.map(event => ({ ...event, postType: 'repost' }))
-    ];
+    ] as ExtendedNostrEvent[];
     
     // Sort by created_at (newest first)
     const sortedEvents = allEvents.sort((a, b) => {
@@ -134,11 +145,13 @@ export function useProfileTabsData({
     }
   }, [events.length, loadMoreReplies, loadMoreReposts, postsLimit, repliesHasMore]);
   
+  // Define loadingMore state for unified feed since useInfiniteScroll doesn't provide it
+  const [unifiedFeedLoadingMore, setUnifiedFeedLoadingMore] = useState(false);
+  
   // Set up infinite scroll for unified feed
   const {
     loadMoreRef: unifiedFeedLoadMoreRef,
     loading: unifiedFeedLoading,
-    loadingMore: unifiedFeedLoadingMore,
     hasMore: unifiedFeedHasMore,
     setHasMore: setUnifiedFeedHasMore
   } = useInfiniteScroll(loadMoreUnifiedFeed, { 
@@ -170,7 +183,10 @@ export function useProfileTabsData({
       repliesHasMore || 
       repostsHasMore
     );
-  }, [events, tabReplies, tabReposts, postsLimit, mergeFeedItems, repliesHasMore, repostsHasMore]);
+    
+    // Update loadingMore state based on replies and reposts loading states
+    setUnifiedFeedLoadingMore(repliesLoadingMore || repostsLoadingMore);
+  }, [events, tabReplies, tabReposts, postsLimit, mergeFeedItems, repliesHasMore, repostsHasMore, repliesLoadingMore, repostsLoadingMore]);
   
   // Update displayed media based on limit
   useEffect(() => {
@@ -194,7 +210,7 @@ export function useProfileTabsData({
     unifiedFeedItems,
     displayedMedia,
     unifiedFeedLoading: isUnifiedFeedLoading,
-    unifiedFeedLoadingMore: repliesLoadingMore || repostsLoadingMore,
+    unifiedFeedLoadingMore,
     unifiedFeedHasMore,
     mediaHasMore,
     unifiedFeedLoadMoreRef,
