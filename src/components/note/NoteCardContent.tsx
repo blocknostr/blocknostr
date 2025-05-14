@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { LinkPreview } from '../media/LinkPreview';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
 import { getMediaUrlsFromEvent, getLinkPreviewUrlsFromEvent } from '@/lib/nostr/utils';
-import UrlRegistry from '@/lib/nostr/utils/media/url-registry';
 
 interface NoteCardContentProps {
   content?: string;
@@ -30,16 +29,6 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
-  const isMounted = useRef(true);
-  const didUnmountRef = useRef(false);
-  
-  // Setup cleanup when component unmounts
-  React.useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      didUnmountRef.current = true;
-    };
-  }, []);
   
   // Check if content is longer than 280 characters
   const isLong = contentToUse.length > 280;
@@ -52,7 +41,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   // Process content for rendering
   const formattedContent = contentFormatter.formatContent(displayContent);
   
-  // Extract hashtags from tags array - add null safety checks
+  // Extract hashtags from tags array
   const hashtags = useMemo(() => {
     if (!Array.isArray(tagsToUse)) return [];
     
@@ -61,18 +50,18 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       .map(tag => tag[1]);
   }, [tagsToUse]);
   
-  // Extract media URLs from content and tags using our utility with deduplication
+  // Extract media URLs from content and tags
   const mediaUrls = useMemo(() => {
     const extractedUrls = getMediaUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
     // Ensure uniqueness of URLs
-    return Array.from(new Set(extractedUrls));
+    return Array.from(new Set(extractedUrls)).slice(0, 4); // Limit to 4 media items
   }, [contentToUse, tagsToUse, event]);
   
   // Extract link preview URLs (non-media URLs)
   const linkPreviewUrls = useMemo(() => {
     const extractedUrls = getLinkPreviewUrlsFromEvent(event || { content: contentToUse, tags: tagsToUse });
-    // Ensure uniqueness of URLs
-    return Array.from(new Set(extractedUrls));
+    // Ensure uniqueness of URLs and limit to 2
+    return Array.from(new Set(extractedUrls)).slice(0, 2);
   }, [contentToUse, tagsToUse, event]);
   
   // Handle hashtag click
@@ -82,39 +71,13 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
-  // Register URLs when component mounts
-  React.useEffect(() => {
-    // Register media URLs
-    mediaUrls.forEach(url => {
-      UrlRegistry.registerUrl(url, 'media');
-    });
-    
-    // Register link URLs
-    linkPreviewUrls.forEach(url => {
-      UrlRegistry.registerUrl(url, 'link');
-    });
-    
-    return () => {
-      // Unregister URLs when component unmounts
-      if (didUnmountRef.current) {
-        mediaUrls.forEach(url => {
-          UrlRegistry.unregisterUrl(url);
-        });
-        
-        linkPreviewUrls.forEach(url => {
-          UrlRegistry.unregisterUrl(url);
-        });
-      }
-    };
-  }, [mediaUrls, linkPreviewUrls]);
-  
   return (
     <div className="mt-2">
       <div className="prose max-w-none dark:prose-invert text-sm">
         {formattedContent}
       </div>
       
-      {/* Show more/less button - Moved above media content */}
+      {/* Show more/less button */}
       {isLong && (
         <Button 
           variant="link" 
@@ -130,12 +93,12 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
       )}
       
       {/* Media preview section */}
-      {mediaUrls && mediaUrls.length > 0 && (
+      {mediaUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
           mediaUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
         )}>
-          {mediaUrls.slice(0, 4).map((url, index) => (
+          {mediaUrls.map((url, index) => (
             <EnhancedMediaContent 
               key={`${url}-${index}`}
               url={url}
@@ -145,32 +108,23 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
               variant="inline"
             />
           ))}
-          {mediaUrls.length > 4 && (
-            <div className="col-span-2 text-center text-sm text-muted-foreground mt-1">
-              +{mediaUrls.length - 4} more media items
-            </div>
-          )}
         </div>
       )}
       
       {/* Link preview section */}
-      {linkPreviewUrls && linkPreviewUrls.length > 0 && (
+      {linkPreviewUrls.length > 0 && (
         <div className="mt-3 space-y-2">
-          {linkPreviewUrls.slice(0, 2).map((url, index) => (
+          {linkPreviewUrls.map((url, index) => (
             <LinkPreview 
               key={`link-${url}-${index}`} 
               url={url}
             />
           ))}
-          {linkPreviewUrls.length > 2 && (
-            <div className="text-center text-sm text-muted-foreground">
-              +{linkPreviewUrls.length - 2} more links
-            </div>
-          )}
         </div>
       )}
       
-      {hashtags && hashtags.length > 0 && (
+      {/* Hashtags section */}
+      {hashtags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {hashtags.map((tag, index) => (
             <HashtagButton
@@ -183,6 +137,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </div>
       )}
       
+      {/* View count if available */}
       {reachCount !== undefined && (
         <div className="mt-2 text-xs text-muted-foreground">
           <MessageSquare className="inline mr-1 h-3 w-3" />

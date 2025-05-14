@@ -1,64 +1,26 @@
 
-import { normalizeUrl } from './media-validation';
-
 /**
- * URL Registry for tracking rendered URLs across components
- * Helps prevent duplicate rendering of the same URL in different formats
+ * Basic URL Registry for tracking URLs across components
  */
 
 // Global registry of URLs being rendered
-// This is a singleton that persists across component renders
 const urlRegistry = new Map<string, 'media' | 'link' | 'text'>();
-
-// Keep track of registration counts to handle shared URLs
-const urlRegistrationCount = new Map<string, number>();
-
-// Dedicated image loading registry to track which component is handling loading
-// This prevents multiple components from trying to load the same image
-const imageLoadingRegistry = new Map<string, string>();
 
 export const UrlRegistry = {
   /**
    * Register a URL as being rendered in a specific format
    */
   registerUrl(url: string, type: 'media' | 'link' | 'text'): void {
-    if (!url || typeof url !== 'string') {
-      console.warn('Attempted to register invalid URL in UrlRegistry:', url);
-      return;
-    }
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      urlRegistry.set(normalizedUrl, type);
-      
-      // Increment registration count
-      const currentCount = urlRegistrationCount.get(normalizedUrl) || 0;
-      urlRegistrationCount.set(normalizedUrl, currentCount + 1);
-      
-      // Log duplicate registrations for debugging
-      if (currentCount > 0) {
-        console.debug(`URL registered ${currentCount + 1} times:`, normalizedUrl);
-      }
-    } catch (error) {
-      console.error('Error registering URL in UrlRegistry:', url, error);
-      // Still try to register the original URL to prevent rendering issues
-      urlRegistry.set(url, type);
-    }
+    if (!url || typeof url !== 'string') return;
+    urlRegistry.set(url, type);
   },
 
   /**
    * Register multiple URLs at once
    */
   registerUrls(urls: string[], type: 'media' | 'link' | 'text'): void {
-    if (!Array.isArray(urls)) {
-      console.warn('Attempted to register non-array URLs in UrlRegistry:', urls);
-      return;
-    }
-    
-    // Deduplicate URLs before registration
-    const uniqueUrls = Array.from(new Set(urls));
-    
-    uniqueUrls.forEach(url => {
+    if (!Array.isArray(urls)) return;
+    urls.forEach(url => {
       if (url && typeof url === 'string') {
         this.registerUrl(url, type);
       }
@@ -66,80 +28,17 @@ export const UrlRegistry = {
   },
 
   /**
-   * Register an image URL as being actively loaded by a specific component instance
-   * Returns true if this is the first component to claim this image, false otherwise
-   */
-  claimImageLoad(url: string, componentId: string): boolean {
-    if (!url || typeof url !== 'string') return false;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      
-      // If no component is currently loading this image, claim it
-      if (!imageLoadingRegistry.has(normalizedUrl)) {
-        imageLoadingRegistry.set(normalizedUrl, componentId);
-        return true;
-      }
-      
-      // If this component already claimed it, return true
-      if (imageLoadingRegistry.get(normalizedUrl) === componentId) {
-        return true;
-      }
-      
-      // Another component is loading this image
-      return false;
-    } catch (error) {
-      console.error('Error claiming image load in UrlRegistry:', url, error);
-      return false;
-    }
-  },
-  
-  /**
-   * Release an image URL from being loaded by a specific component instance
-   */
-  releaseImageLoad(url: string, componentId: string): void {
-    if (!url || typeof url !== 'string') return;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      
-      // Only release if this component claimed it
-      if (imageLoadingRegistry.get(normalizedUrl) === componentId) {
-        imageLoadingRegistry.delete(normalizedUrl);
-      }
-    } catch (error) {
-      console.error('Error releasing image load in UrlRegistry:', url, error);
-    }
-  },
-
-  /**
    * Check if a URL is already being rendered
    */
   isUrlRegistered(url: string): boolean {
-    if (!url || typeof url !== 'string') return false;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      return urlRegistry.has(normalizedUrl);
-    } catch (error) {
-      console.error('Error checking URL in UrlRegistry:', url, error);
-      return urlRegistry.has(url);
-    }
+    return urlRegistry.has(url);
   },
 
   /**
    * Get the render type for a URL
    */
   getUrlType(url: string): 'media' | 'link' | 'text' | undefined {
-    if (!url || typeof url !== 'string') return undefined;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      return urlRegistry.get(normalizedUrl);
-    } catch (error) {
-      console.error('Error getting URL type from UrlRegistry:', url, error);
-      return urlRegistry.get(url);
-    }
+    return urlRegistry.get(url);
   },
 
   /**
@@ -157,42 +56,10 @@ export const UrlRegistry = {
   },
 
   /**
-   * Decrement registration count for a URL and clear if count reaches 0
+   * Unregister URL from registry
    */
   unregisterUrl(url: string): void {
-    if (!url || typeof url !== 'string') return;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      const count = urlRegistrationCount.get(normalizedUrl) || 0;
-      
-      if (count <= 1) {
-        urlRegistry.delete(normalizedUrl);
-        urlRegistrationCount.delete(normalizedUrl);
-      } else {
-        urlRegistrationCount.set(normalizedUrl, count - 1);
-      }
-    } catch (error) {
-      console.error('Error unregistering URL from UrlRegistry:', url, error);
-      urlRegistry.delete(url);
-    }
-  },
-
-  /**
-   * Clear specific URL from registry
-   */
-  clearUrl(url: string): void {
-    if (!url || typeof url !== 'string') return;
-    
-    try {
-      const normalizedUrl = normalizeUrl(url);
-      urlRegistry.delete(normalizedUrl);
-      urlRegistrationCount.delete(normalizedUrl);
-      imageLoadingRegistry.delete(normalizedUrl);
-    } catch (error) {
-      console.error('Error clearing URL from UrlRegistry:', url, error);
-      urlRegistry.delete(url);
-    }
+    urlRegistry.delete(url);
   },
 
   /**
@@ -201,23 +68,6 @@ export const UrlRegistry = {
    */
   clearAll(): void {
     urlRegistry.clear();
-    urlRegistrationCount.clear();
-    imageLoadingRegistry.clear();
-  },
-
-  /**
-   * Filter an array of URLs to only those not already registered
-   */
-  filterUnregisteredUrls(urls: string[]): string[] {
-    if (!Array.isArray(urls)) return [];
-    
-    // Deduplicate the input URLs first
-    const uniqueUrls = Array.from(new Set(urls));
-    
-    return uniqueUrls.filter(url => {
-      if (!url || typeof url !== 'string') return false;
-      return !this.isUrlRegistered(url);
-    });
   },
 
   /**
@@ -225,22 +75,7 @@ export const UrlRegistry = {
    */
   getSize(): number {
     return urlRegistry.size;
-  },
-  
-  /**
-   * Debug: get registration counts
-   */
-  getRegistrationCounts(): Record<string, number> {
-    const counts: Record<string, number> = {};
-    urlRegistrationCount.forEach((count, url) => {
-      counts[url] = count;
-    });
-    return counts;
   }
 };
-
-// Auto-clear the registry every 5 minutes to prevent memory leaks
-// This assumes most components won't be mounted that long
-setInterval(() => UrlRegistry.clearAll(), 5 * 60 * 1000);
 
 export default UrlRegistry;
