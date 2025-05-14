@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
@@ -14,12 +13,17 @@ export function useRelays() {
     const relayStatus = nostrService.getRelayStatus();
     setRelays(relayStatus);
     
+    // Update connection status based on relay connections
     const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
-    setConnectionStatus(
-      connectedCount === 0 ? 'disconnected' : 
-      connectedCount < relayStatus.length ? 'connected' : 'connected'
-    );
-  }, []);
+    
+    if (connectedCount > 0) {
+      setConnectionStatus('connected');
+    } else if (isConnecting) {
+      setConnectionStatus('connecting');
+    } else {
+      setConnectionStatus('disconnected');
+    }
+  }, [isConnecting]);
 
   // Optimize connection to relays
   const connectToRelays = useCallback(async (customRelays?: string[]) => {
