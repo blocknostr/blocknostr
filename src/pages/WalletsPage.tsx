@@ -1,8 +1,11 @@
-
 import React from "react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
+import { WalletSummary } from "@/components/wallet/WalletSummary";
+import { useWallet } from "@alephium/web3-react"; // To check if wallet is connected
 
 const WalletsPage = () => {
+  const { account } = useWallet();
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <div className="flex flex-col items-center justify-center space-y-6 text-center">
@@ -10,11 +13,11 @@ const WalletsPage = () => {
         <p className="text-muted-foreground max-w-md">
           Connect your Nostr wallet to access exclusive features, post content, and interact with the BlockNoster community.
         </p>
-        
+
         <div className="w-full max-w-md my-8">
           <WalletConnectButton />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
           <div className="p-4 border rounded-lg bg-card">
             <h3 className="font-medium mb-2">Secure Transactions</h3>
@@ -32,6 +35,19 @@ const WalletsPage = () => {
             <h3 className="font-medium mb-2">Cross-Platform</h3>
             <p className="text-sm text-muted-foreground">Works seamlessly with mobile and browser wallets</p>
           </div>
+        </div>
+
+        <div className="container mx-auto p-4 space-y-8">
+          <h1 className="text-2xl font-bold">My Alephium Wallet & Nostr DMs</h1>
+
+          {!account && (
+            <div className="p-4 bg-yellow-100 text-yellow-700 rounded-md">
+              Please connect your Alephium wallet to use these features.
+            </div>
+          )}
+
+          {/* Wallet Summary will show a connect message if account is not present */}
+          <WalletSummary />
         </div>
       </div>
     </div>

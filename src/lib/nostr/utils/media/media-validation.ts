@@ -1,16 +1,15 @@
-
 /**
  * Validation utilities for media URLs
  */
 
 // List of trusted media domains for Nostr
 const TRUSTED_MEDIA_HOSTS = [
-  'i.imgur.com', 
-  'media.nostr.band', 
-  'void.cat', 
-  'nostr.build', 
-  'primal.net', 
-  'mako.co.il', 
+  'i.imgur.com',
+  'media.nostr.band',
+  'void.cat',
+  'nostr.build',
+  'primal.net',
+  'mako.co.il',
   'v.nostr.build',
   'image.nostr.build',
   'cdn.nostr.build',
@@ -25,25 +24,26 @@ const TRUSTED_MEDIA_HOSTS = [
  * @param url The URL to normalize
  * @returns The normalized URL
  */
-export const normalizeUrl = (url: string): string => {
-  if (!url) return '';
-  
+export const normalizeUrl = (url: string | undefined | null): string => {
+  if (!url || typeof url !== 'string') return ''; // Ensure it's a string and not empty
+
   // Trim whitespace
-  url = url.trim();
-  
+  const trimmedUrl = url.trim(); // Use const as it's not reassigned
+
   // Check if the URL already has a protocol
-  if (!/^https?:\/\//i.test(url)) {
+  if (!/^https?:\/\//i.test(trimmedUrl)) {
     // Try to prepend https:// and see if it's valid
     try {
-      new URL(`https://${url}`);
-      return `https://${url}`;
+      new URL(`https://${trimmedUrl}`);
+      return `https://${trimmedUrl}`;
     } catch (e) {
-      // If that fails, just return the original
-      return url;
+      // If that fails, just return the original trimmed URL if it might be a path or fragment
+      // or an empty string if it's likely not usable
+      return trimmedUrl.includes('/') || trimmedUrl.startsWith('#') ? trimmedUrl : '';
     }
   }
-  
-  return url;
+
+  return trimmedUrl;
 };
 
 /**
@@ -51,22 +51,24 @@ export const normalizeUrl = (url: string): string => {
  * @param url The URL to validate
  * @returns Boolean indicating if the URL is valid
  */
-export const isValidMediaUrl = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  
+export const isValidMediaUrl = (url: string | undefined | null): boolean => {
+  if (!url || typeof url !== 'string' || url.trim() === '') return false; // Early exit for invalid input
+
   try {
     // Normalize URL
-    const normalizedUrl = normalizeUrl(url);
-    
+    const normalizedUrl = normalizeUrl(url); // url is guaranteed to be a string here
+
+    if (!normalizedUrl) return false; // If normalization results in an empty string, it's invalid
+
     // Basic URL validation
     new URL(normalizedUrl);
-    
+
     // Additional checks for media URLs
     // Ensure it has http/https protocol
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       return false;
     }
-    
+
     // Check for common URL-shortener services that might redirect
     const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
     for (const shortener of commonShorteners) {
@@ -81,12 +83,12 @@ export const isValidMediaUrl = (url: string): boolean => {
         return true; // Common Nostr media hosts
       }
     }
-    
+
     // Check for common media extensions
     if (isImageUrl(normalizedUrl) || isVideoUrl(normalizedUrl) || isAudioUrl(normalizedUrl)) {
       return true;
     }
-    
+
     return true; // If it passed URL validation, we'll give it a chance
   } catch (error) {
     console.error('Invalid URL:', url, error);

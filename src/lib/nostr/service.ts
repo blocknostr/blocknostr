@@ -149,25 +149,41 @@ export class NostrService {
   }
 
   // Event publication
-  public async publishEvent(event: Partial<NostrEvent>): Promise<string | null> {
+  public async publishEvent(event: Partial<NostrEvent>, difficulty: number = 0): Promise<string | null> {
     const connectedRelays = this.getConnectedRelayUrls();
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays to publish event.");
+      // Optionally, attempt to connect to default relays here if desired
+      // await this.connectToDefaultRelays();
+      // connectedRelays = this.getConnectedRelayUrls();
+      // if (connectedRelays.length === 0) {
+      //   console.error("Still no connected relays after attempting to connect. Cannot publish.");
+      //   return null;
+      // }
+    }
     return this.eventManager.publishEvent(
       this.pool,
       this.publicKey,
-      null, // We're not storing private keys
+      null, // We\'re not storing private keys in NostrService directly
       event,
-      connectedRelays
+      connectedRelays,
+      difficulty // Pass difficulty
     );
   }
 
-  public async publishProfileMetadata(metadata: NostrProfileMetadata): Promise<boolean> {
+  public async publishProfileMetadata(metadata: NostrProfileMetadata, difficulty: number = 0): Promise<boolean> {
     const connectedRelays = this.getConnectedRelayUrls();
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays to publish profile metadata.");
+      // See comment in publishEvent regarding attempting connection
+    }
     return this.eventManager.publishProfileMetadata(
       this.pool,
       this.publicKey,
-      null, // We're not storing private keys
+      null, // We\'re not storing private keys in NostrService directly
       metadata,
-      connectedRelays
+      connectedRelays,
+      difficulty // Pass difficulty
     );
   }
 

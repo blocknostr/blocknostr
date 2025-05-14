@@ -1,195 +1,67 @@
-
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from "@/lib/utils";
-import { Play, Pause, Volume, VolumeOff } from "lucide-react";
 
 interface VideoPreviewProps {
   url: string;
-  onLoad: () => void;
-  onError: () => void;
-  autoPlay?: boolean;
-  controls?: boolean;
+  playing: boolean; // Added playing prop
+  onLoadedData: () => void; // Renamed from onLoad and made mandatory
+  onError: () => void; // Made mandatory
   className?: string;
-  quality?: 'low' | 'medium' | 'high';
+  // Removed autoPlay, controls, quality, enableHoverPlay as they are handled by useMediaHandling or not part of the new design
 }
 
-const VideoPreview = ({ 
-  url, 
-  onLoad, 
-  onError, 
-  autoPlay = false,
-  controls = false,
+const VideoPreview = ({
+  url,
+  playing,
+  onLoadedData,
+  onError,
   className,
-  quality = 'high'
 }: VideoPreviewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(autoPlay);
-  const [isMuted, setIsMuted] = useState(true);
-  const [showControls, setShowControls] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [errorOccurred, setErrorOccurred] = useState(false);
-  
-  // Handle quality settings
-  const getQualitySettings = () => {
-    switch (quality) {
-      case 'low':
-        return { preload: 'none' as const };
-      case 'medium':
-        return { preload: 'metadata' as const };
-      case 'high':
-        return { preload: 'auto' as const };
-      default:
-        return { preload: 'auto' as const };
-    }
-  };
-  
-  const qualitySettings = getQualitySettings();
-  
-  // Toggle play/pause when clicked if not in controls mode
-  const handleTogglePlay = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation();
-    
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => {
-            console.error("Error playing video:", err);
-            // Might be blocked by browser policy
-          });
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
-      }
-    }
-  }, []);
-  
-  // Toggle mute state
-  const handleToggleMute = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation();
-    
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
-  }, []);
-  
-  // Show/hide controls on hover
-  const handleMouseEnter = () => setShowControls(true);
-  const handleMouseLeave = () => setShowControls(false);
-  
-  // Handle video loaded data event
-  const handleLoadedData = useCallback(() => {
-    setHasLoaded(true);
-    onLoad();
-    
-    // Auto-play if requested (and if the browser allows it)
-    if (autoPlay && videoRef.current) {
-      videoRef.current.play().catch(err => {
-        console.warn("Auto-play blocked by browser:", err);
-      });
-    }
-  }, [autoPlay, onLoad]);
-  
-  // Handle video error event
-  const handleError = useCallback(() => {
-    setErrorOccurred(true);
-    console.error("Video failed to load:", url);
-    onError();
-  }, [url, onError]);
-  
-  // Pause video when it goes out of view
+
   useEffect(() => {
     const videoElement = videoRef.current;
-    
     if (!videoElement) return;
-    
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          // Only affect videos that were autoplaying
-          if (autoPlay) {
-            if (entry.isIntersecting) {
-              if (videoElement.paused && isPlaying) {
-                videoElement.play().catch(() => {
-                  // Autoplay might be blocked by browser, ignore
-                });
-              }
-            } else {
-              if (!videoElement.paused) {
-                videoElement.pause();
-                // Don't update isPlaying state to remember previous state
-              }
-            }
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-    
-    observer.observe(videoElement);
-    
+
+    // Event listeners are attached directly to the video element
+    // and call the passed-in handlers from useMediaHandling.
+    videoElement.addEventListener('loadeddata', onLoadedData);
+    videoElement.addEventListener('error', onError);
+
+    // Clean up event listeners
     return () => {
-      if (videoElement) {
-        observer.unobserve(videoElement);
-      }
+      videoElement.removeEventListener('loadeddata', onLoadedData);
+      videoElement.removeEventListener('error', onError);
     };
-  }, [autoPlay, isPlaying]);
+  }, [url, onLoadedData, onError]); // url dependency in case src changes and needs re-binding
+
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      if (playing) {
+        videoElement.play().catch(error => {
+          console.error('Error attempting to play video:', error);
+          // Optionally call onError here if play itself fails, though 'error' event should also catch it
+        });
+      } else {
+        videoElement.pause();
+      }
+    }
+  }, [playing]); // Rerun only when playing state changes
 
   return (
-    <div 
-      className="relative w-full h-full"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <video 
-        ref={videoRef}
-        src={url}
-        className={cn("w-full h-full object-cover transition-opacity duration-300", className)}
-        controls={controls}
-        autoPlay={autoPlay}
-        muted
-        loop
-        playsInline
-        onClick={controls ? undefined : handleTogglePlay}
-        onLoadedData={handleLoadedData}
-        onError={handleError}
-        {...qualitySettings}
-      />
-      
-      {/* Custom video controls overlay */}
-      {!controls && showControls && hasLoaded && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 hover:opacity-100 transition-opacity"
-          onClick={handleTogglePlay}
-        >
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <button
-              onClick={handleTogglePlay}
-              className="p-1 rounded-full bg-background/80 text-foreground"
-            >
-              {isPlaying ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-            </button>
-            
-            <button
-              onClick={handleToggleMute}
-              className="p-1 rounded-full bg-background/80 text-foreground"
-            >
-              {isMuted ? (
-                <VolumeOff className="h-4 w-4" />
-              ) : (
-                <Volume className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <video
+      ref={videoRef}
+      src={url}
+      className={cn("w-full h-full object-contain", className)}
+      muted // Always muted for autoplay according to requirements
+      loop // Loop according to requirements
+      playsInline // Essential for autoplay on iOS
+      preload="metadata" // Good practice for videos, helps with loadeddata event
+    // Removed controls, autoPlay - autoPlay is now handled by `playing` prop effect
+    />
+    // Removed internal loading/error states as they are handled by EnhancedMediaContent via useMediaHandling
   );
 };
 
-export default React.memo(VideoPreview);
+export default VideoPreview;

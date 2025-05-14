@@ -1,22 +1,11 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { useMediaPreferences } from './useMediaPreferences';
 import { useInView } from '../components/shared/useInView';
-
-interface MediaHandlingConfig {
-  autoPlayVideos?: boolean;
-  lazyLoadImages?: boolean;
-  preferredQuality?: 'high' | 'medium' | 'low';
-  disablePreloading?: boolean;
-  lightboxEnabled?: boolean;
-}
 
 interface MediaHandlingOptions {
   url: string;
   isVideo?: boolean;
   variant?: 'lightbox' | 'carousel' | 'inline' | 'profile';
   preload?: boolean;
-  quality?: 'high' | 'medium' | 'low';
 }
 
 export function useMediaHandling({
@@ -24,90 +13,71 @@ export function useMediaHandling({
   isVideo = false,
   variant = 'inline',
   preload = false,
-  quality
 }: MediaHandlingOptions) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const { mediaPrefs } = useMediaPreferences();
-  
-  // Use intersection observer to detect when media is in view
+  const [everInView, setEverInView] = useState(false); // New state
+
   const { ref, inView } = useInView({
-    threshold: 0.1,
-    triggerOnce: false,
-    // Always load media in lightbox mode
-    skip: variant === 'lightbox' || preload
+    threshold: 0.1, // Start loading when 10% of the item is visible
+    // triggerOnce is false by default in the provided useInView hook, which is what we want for dynamic video play/pause
+    skip: preload, // If preload is true, skip intersection observer and load immediately
   });
-  
+
+  // Update everInView when inView becomes true
+  useEffect(() => {
+    if (inView && !everInView) {
+      setEverInView(true);
+    }
+  }, [inView, everInView]);
+
   // Reset state when URL changes
   useEffect(() => {
     setIsLoaded(false);
     setError(false);
     setPlaying(false);
-  }, [url]);
-  
-  // Determine if we should load the media based on user preferences
-  const shouldLoad = useCallback(() => {
-    // Always load in these cases regardless of preferences
-    if (variant === 'lightbox') return true;
-    if (preload) return true;
-    
-    // If not yet in view, don't load
-    if (!inView) return false;
-    
-    // In data saver mode, require explicit user action except for in-view images
-    if (mediaPrefs.dataSaverMode) {
-      // In data saver mode, load images but not videos
-      return !isVideo;
+    setEverInView(preload); // If preloading, it's considered as having been in view
+    if (preload && isVideo) {
+      setPlaying(true);
     }
-    
-    // Normal mode - load according to preferences
+  }, [url, preload, isVideo]);
+
+  // Determine if we should load the media
+  // Media should load if it has ever been in view or if preload is true.
+  const shouldLoad = everInView || preload;
+
+  // Effect to manage video playing state based on inView
+  useEffect(() => {
     if (isVideo) {
-      return mediaPrefs.autoPlayVideos || inView;
+      if (inView || preload) {
+        setPlaying(true); // Play if in view or preloading
+      } else {
+        setPlaying(false); // Pause if not in view (and not preloading)
+      }
     }
-    
-    return mediaPrefs.autoLoadImages || inView;
-  }, [variant, preload, inView, isVideo, mediaPrefs]);
-  
-  // Determine media quality based on user preferences and data saver mode
-  const getMediaQuality = useCallback((): string => {
-    const preferredQuality = quality || mediaPrefs.preferredQuality;
-    
-    if (mediaPrefs.dataSaverMode) {
-      // Always use low quality in data saver mode
-      return 'low';
-    }
-    
-    return preferredQuality;
-  }, [quality, mediaPrefs]);
-  
-  // Handle media load event
+  }, [inView, isVideo, preload]);
+
   const handleLoad = useCallback(() => {
     setIsLoaded(true);
     setError(false);
   }, []);
-  
-  // Handle media error event
+
   const handleError = useCallback(() => {
     setError(true);
+    setIsLoaded(false);
     console.error(`Media failed to load: ${url}`);
   }, [url]);
-  
-  // Handle play/pause for videos
-  const handlePlayPause = useCallback(() => {
-    setPlaying(prev => !prev);
-  }, []);
-  
+
   return {
     ref,
-    inView,
+    inView, // Expose inView for debugging or other conditional logic if needed
     isLoaded,
     error,
     playing,
-    shouldLoad: shouldLoad(),
-    quality: getMediaQuality(),
+    shouldLoad,
     handleLoad,
     handleError,
-    handlePlayPause
+    everInView, // Expose everInView for debugging or other conditional logic
   };
 }
