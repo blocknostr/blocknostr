@@ -1,7 +1,7 @@
 
-import React, { memo } from 'react';
-import NoteCardStructure from './structure/NoteCardStructure';
+import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
+import NoteCardStructure from './structure/NoteCardStructure';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -18,17 +18,35 @@ interface NoteCardProps {
   };
 }
 
-// Basic memo comparison function
-const arePropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProps) => {
-  // Only compare event IDs for basic implementation
-  return prevProps.event?.id === nextProps.event?.id;
-};
+// Memoize the component to prevent unnecessary re-renders
+const MemoizedNoteCard = React.memo(
+  function NoteCard({ 
+    event, 
+    profileData, 
+    hideActions, 
+    repostData, 
+    isReply, 
+    reactionData 
+  }: NoteCardProps) {
+    if (!event || !event.id) return null;
 
-const NoteCard = (props: NoteCardProps) => {
-  return <NoteCardStructure {...props} />;
-};
-
-// Use memo to prevent unnecessary re-renders
-const MemoizedNoteCard = memo(NoteCard, arePropsEqual);
+    return (
+      <NoteCardStructure
+        event={event}
+        profileData={profileData}
+        hideActions={hideActions}
+        repostData={repostData}
+        isReply={isReply}
+        reactionData={reactionData}
+      />
+    );
+  },
+  // Custom comparison function to prevent unnecessary re-renders
+  (prevProps, nextProps) => {
+    // Only re-render if the event ID changes or profile data updates
+    return prevProps.event.id === nextProps.event.id && 
+           JSON.stringify(prevProps.profileData) === JSON.stringify(nextProps.profileData);
+  }
+);
 
 export default MemoizedNoteCard;

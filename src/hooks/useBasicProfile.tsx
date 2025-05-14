@@ -1,35 +1,77 @@
 
-import { useState, useEffect } from "react";
-import { simpleProfileService } from "@/lib/services/profile/simpleProfileService";
+import { useState, useEffect } from 'react';
+import { nostrService } from '@/lib/nostr';
+import { cacheManager } from '@/lib/utils/cacheManager';
 
-/**
- * Simple hook to fetch basic profile information
- */
-export function useBasicProfile(pubkeyOrNpub: string | undefined) {
-  const [profile, setProfile] = useState<any | null>(null);
-  const [loading, setLoading] = useState(false);
+export function useBasicProfile(npub: string | undefined) {
+  const [profile, setProfile] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  
   useEffect(() => {
-    if (!pubkeyOrNpub) return;
+    if (!npub) {
+      setLoading(false);
+      return;
+    }
     
-    const fetchProfile = async () => {
+    let hexPubkey: string;
+    
+    try {
+      hexPubkey = nostrService.getHexFromNpub(npub);
+    } catch (error) {
+      console.error('Invalid npub:', error);
+      setError('Invalid profile identifier');
+      setLoading(false);
+      return;
+    }
+    
+    const loadProfile = async () => {
       setLoading(true);
-      setError(null);
       
+      // Check cache first for immediate rendering
+      const cachedProfile = cacheManager.get<Record<string, any>>(`profile:${hexPubkey}`);
+      if (cachedProfile) {
+        console.log(`[useBasicProfile] Using cached profile for ${hexPubkey.substring(0, 8)}`);
+        setProfile(cachedProfile);
+        setLoading(false);
+        
+        // Continue fetching in background for fresh data
+        fetchProfileData(hexPubkey);
+        return;
+      }
+      
+      // No cache hit, fetch directly
+      await fetchProfileData(hexPubkey);
+    };
+    
+    const fetchProfileData = async (pubkey: string) => {
       try {
-        const profileData = await simpleProfileService.getProfileMetadata(pubkeyOrNpub);
-        setProfile(profileData);
-      } catch (error) {
-        console.error("Error fetching basic profile:", error);
-        setError(error instanceof Error ? error.message : "Failed to load profile");
+        // Make sure we're connected to relays
+        await nostrService.connectToUserRelays();
+        
+        // Get profile data
+        const profileData = await nostrService.getUserProfile(pubkey);
+        
+        if (profileData) {
+          // Cache the profile data
+          cacheManager.set(`profile:${pubkey}`, profileData, 5 * 60 * 1000); // 5 minutes
+          
+          // Update state
+          setProfile(profileData);
+          setError(null);
+        } else {
+          setError('Profile not found');
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+        setError('Failed to load profile');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProfile();
-  }, [pubkeyOrNpub]);
-
+    loadProfile();
+  }, [npub]);
+  
   return { profile, loading, error };
 }

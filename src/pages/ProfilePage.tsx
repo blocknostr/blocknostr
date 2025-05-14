@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
@@ -8,14 +9,18 @@ import { Loader2 } from 'lucide-react';
 import ProfileHeader from '@/components/profile/ProfileHeader';
 import ProfileStats from '@/components/profile/ProfileStats';
 import ProfileTabs from '@/components/profile/ProfileTabs';
-import { useProfileFetcher } from '@/components/feed/hooks/use-profile-fetcher';
+import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
+
+// Lazy load components that aren't needed immediately
+const LazyProfileStats = React.lazy(() => import('@/components/profile/ProfileStats'));
+const LazyProfileTabs = React.lazy(() => import('@/components/profile/ProfileTabs'));
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading } = useBasicProfile(npub);
-  const { profiles, fetchProfileData } = useProfileFetcher();
+  const { profiles, fetchProfile } = useUnifiedProfileFetcher();
   
   // Get the current user's pubkey
   const currentUserPubkey = nostrService.publicKey;
@@ -26,28 +31,31 @@ const ProfilePage = () => {
       try {
         const hex = nostrService.getHexFromNpub(npub);
         setHexPubkey(hex);
+        // Pre-fetch profile immediately 
+        fetchProfile(hex);
       } catch (error) {
         console.error('Invalid npub:', error);
       }
     }
-  }, [npub]);
+  }, [npub, fetchProfile]);
   
   // Determine if this is the current user's profile
   const isCurrentUser = currentUserPubkey === hexPubkey;
   
-  // Fetch posts with limited initial count
+  // Fetch posts with limited initial count and progressive loading
   const {
     events,
     media,
     loading: postsLoading,
     error,
-    refetch: refetchPosts
+    refetch: refetchPosts,
+    hasEvents
   } = useProfilePosts({ 
     hexPubkey,
-    limit: 10 // Only load first 10 posts initially
+    limit: 5 // Only load first 5 posts initially
   });
   
-  // Fetch followers and following
+  // Fetch relations and relays only after profile is loaded
   const {
     followers,
     following,
@@ -58,7 +66,6 @@ const ProfilePage = () => {
     isCurrentUser
   });
   
-  // Fetch relays
   const {
     relays,
     isLoading: relaysLoading,
@@ -84,7 +91,8 @@ const ProfilePage = () => {
     );
   }
   
-  const isLoading = profileLoading || (postsLoading && events.length === 0);
+  // Only show loading for the initial profile data
+  const isLoading = profileLoading;
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
@@ -95,32 +103,48 @@ const ProfilePage = () => {
         </div>
       ) : (
         <>
+          {/* Render profile header immediately */}
           <ProfileHeader 
             profile={profile} 
             npub={npub} 
             hexPubkey={hexPubkey} 
           />
           
-          <ProfileStats
-            followers={followers}
-            following={following}
-            postsCount={events.length}
-            currentUserPubkey={currentUserPubkey}
-            isCurrentUser={isCurrentUser}
-            relays={relays}
-            userNpub={npub}
-            isLoading={relationsLoading || relaysLoading}
-            onRefresh={handleRefresh}
-          />
+          {/* Lazy load the stats component */}
+          <Suspense fallback={
+            <div className="mt-4 p-4 bg-muted/40 rounded-md animate-pulse">
+              <div className="h-10 bg-muted rounded"></div>
+            </div>
+          }>
+            <LazyProfileStats
+              followers={followers}
+              following={following}
+              postsCount={hasEvents ? events.length : undefined}
+              currentUserPubkey={currentUserPubkey}
+              isCurrentUser={isCurrentUser}
+              relays={relays}
+              userNpub={npub}
+              isLoading={relationsLoading || relaysLoading}
+              onRefresh={handleRefresh}
+            />
+          </Suspense>
           
-          <ProfileTabs 
-            events={events} 
-            media={media}
-            reposts={[]}
-            profileData={profile}
-            originalPostProfiles={profiles}
-            hexPubkey={hexPubkey}
-          />
+          {/* Lazy load the tabs component */}
+          <Suspense fallback={
+            <div className="mt-6 p-4 bg-muted/40 rounded-md animate-pulse">
+              <div className="h-8 bg-muted rounded mb-4"></div>
+              <div className="h-24 bg-muted rounded"></div>
+            </div>
+          }>
+            <LazyProfileTabs 
+              events={events} 
+              media={media}
+              reposts={[]}
+              profileData={profile}
+              originalPostProfiles={profiles}
+              hexPubkey={hexPubkey}
+            />
+          </Suspense>
         </>
       )}
     </div>
