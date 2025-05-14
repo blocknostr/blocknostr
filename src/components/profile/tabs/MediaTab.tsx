@@ -65,7 +65,7 @@ export const MediaTab: React.FC<MediaTabProps> = ({
               <span className="text-sm text-muted-foreground">Loading more media...</span>
             </div>
           ) : (
-            <div className="h-8" /> {/* Spacer for intersection observer */}
+            <div className="h-8" /> /* Spacer for intersection observer */
           )}
         </div>
       )}

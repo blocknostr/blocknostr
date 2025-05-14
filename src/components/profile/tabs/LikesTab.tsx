@@ -95,7 +95,7 @@ export const LikesTab: React.FC<LikesTabProps> = ({
               <span className="text-sm text-muted-foreground">Loading more likes...</span>
             </div>
           ) : (
-            <div className="h-8" /> {/* Spacer for intersection observer */}
+            <div className="h-8" /> /* Spacer for intersection observer */
           )}
         </div>
       )}

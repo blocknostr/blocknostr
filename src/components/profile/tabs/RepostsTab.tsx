@@ -78,7 +78,7 @@ export const RepostsTab: React.FC<RepostsTabProps> = ({
               <span className="text-sm text-muted-foreground">Loading more reposts...</span>
             </div>
           ) : (
-            <div className="h-8" /> {/* Spacer for intersection observer */}
+            <div className="h-8" /> /* Spacer for intersection observer */
           )}
         </div>
       )}
