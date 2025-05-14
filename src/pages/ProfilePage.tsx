@@ -138,6 +138,7 @@ const ProfilePage = () => {
               profileData={profile}
               originalPostProfiles={profiles}
               hexPubkey={hexPubkey}
+              replies={[]}
             />
           </Suspense>
         </>

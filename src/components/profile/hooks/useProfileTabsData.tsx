@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import { useProfileFetcher } from "@/components/feed/hooks/use-profile-fetcher";
 import { useProfileReplies } from "@/hooks/profile/useProfileReplies";
-import { useProfileLikes } from "@/hooks/profile/useProfileLikes";
 import { useProfileReposts } from "@/hooks/profile/useProfileReposts";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 
@@ -26,21 +25,19 @@ export function useProfileTabsData({
   profileData,
   originalPostProfiles = {},
   replies = [],
-  reactions = [],
   referencedEvents = {},
   hexPubkey = ""
 }: UseProfileTabsDataProps) {
-  const { profiles, fetchProfileData } = useProfileFetcher();
-  const [activeTab, setActiveTab] = useState("posts");
-  const [loadingReactionProfiles, setLoadingReactionProfiles] = useState(false);
+  const { fetchProfileData } = useProfileFetcher();
+  const [activeTab, setActiveTab] = useState("feed");
   const [localOriginalPostProfiles, setLocalOriginalPostProfiles] = useState(originalPostProfiles);
   const [postsLimit, setPostsLimit] = useState(10);
   
-  // State for displayed posts (with pagination)
-  const [displayedPosts, setDisplayedPosts] = useState<NostrEvent[]>([]);
+  // State for the unified feed items
+  const [unifiedFeedItems, setUnifiedFeedItems] = useState<NostrEvent[]>([]);
   const [displayedMedia, setDisplayedMedia] = useState<NostrEvent[]>([]);
   
-  // Tab-specific data loading hooks with progressive loading
+  // Fetch replies using the hook
   const { 
     replies: tabReplies, 
     loading: repliesLoading,
@@ -49,24 +46,11 @@ export function useProfileTabsData({
     loadMore: loadMoreReplies 
   } = useProfileReplies({ 
     hexPubkey, 
-    enabled: activeTab === "replies", 
+    enabled: true, // Always fetch replies regardless of tab
     initialLimit: 10
   });
   
-  const { 
-    reactions: tabReactions, 
-    referencedEvents: tabReferencedEvents, 
-    loading: reactionsLoading,
-    loadingMore: reactionsLoadingMore,
-    hasMore: reactionsHasMore,
-    loadMore: loadMoreReactions
-  } = useProfileLikes({ 
-    hexPubkey, 
-    enabled: activeTab === "likes",
-    initialLimit: 10
-  });
-  
-  // Properly use the hook at the component level
+  // Fetch reposts using the hook
   const {
     reposts: tabReposts,
     loading: repostsLoading,
@@ -77,13 +61,9 @@ export function useProfileTabsData({
     hexPubkey,
     originalPostProfiles: localOriginalPostProfiles,
     setOriginalPostProfiles: setLocalOriginalPostProfiles,
-    enabled: activeTab === "reposts",
+    enabled: true, // Always fetch reposts regardless of tab
     initialLimit: 10
   });
-  
-  // State for displayed replies and reactions
-  const [displayedReplies, setDisplayedReplies] = useState<NostrEvent[]>([]);
-  const [displayedReactions, setDisplayedReactions] = useState<NostrEvent[]>([]);
   
   // Handle tab change
   const handleTabChange = (value: string) => {
@@ -91,20 +71,79 @@ export function useProfileTabsData({
     setPostsLimit(10); // Reset pagination when changing tabs
   };
   
-  // Load more handler for posts tab
-  const loadMorePosts = useCallback(() => {
-    setPostsLimit(prev => prev + 10);
-  }, []);
+  // Function to merge and sort all feed items
+  const mergeFeedItems = useCallback(() => {
+    // Prepare reposts array - extract original events from reposts
+    const repostEvents = tabReposts.length > 0 
+      ? tabReposts.map(repost => ({
+          ...repost.originalEvent,
+          repost: true,
+          repostData: {
+            created_at: repost.repostEvent.created_at,
+            pubkey: repost.repostEvent.pubkey,
+            id: repost.repostEvent.id
+          }
+        }))
+      : reposts.map(repost => ({
+          ...repost.originalEvent,
+          repost: true,
+          repostData: {
+            pubkey: repost.repostEvent?.pubkey,
+            id: repost.repostEvent?.id
+          }
+        }));
+
+    // Get reply events
+    const replyEvents = tabReplies.length > 0 ? tabReplies : replies || [];
+    
+    // Combine all events
+    const allEvents = [
+      ...events.map(event => ({ ...event, postType: 'post' })),
+      ...replyEvents.map(event => ({ ...event, postType: 'reply' })),
+      ...repostEvents.map(event => ({ ...event, postType: 'repost' }))
+    ];
+    
+    // Sort by created_at (newest first)
+    const sortedEvents = allEvents.sort((a, b) => {
+      // Use repostData.created_at if available (for accurate repost time)
+      const timeA = a.repostData?.created_at || a.created_at;
+      const timeB = b.repostData?.created_at || b.created_at;
+      return timeB - timeA;
+    });
+    
+    // Remove duplicates based on event.id
+    const uniqueEvents = sortedEvents.filter((event, index, self) =>
+      index === self.findIndex((e) => e.id === event.id)
+    );
+    
+    return uniqueEvents;
+  }, [events, tabReplies, tabReposts, reposts, replies]);
   
-  // Set up infinite scroll for posts tab
+  // Load more handler for unified feed
+  const loadMoreUnifiedFeed = useCallback(() => {
+    setPostsLimit(prev => prev + 10);
+    
+    // If we've loaded all posts, load more replies
+    if (events.length <= postsLimit) {
+      loadMoreReplies();
+    }
+    
+    // If we've loaded all replies, load more reposts
+    if (!repliesHasMore) {
+      loadMoreReposts();
+    }
+  }, [events.length, loadMoreReplies, loadMoreReposts, postsLimit, repliesHasMore]);
+  
+  // Set up infinite scroll for unified feed
   const {
-    loadMoreRef: postsLoadMoreRef,
-    loading: postsLoading,
-    setLoading: setPostsLoading,
-    hasMore: postsHasMore,
-    setHasMore: setPostsHasMore
-  } = useInfiniteScroll(loadMorePosts, { 
-    disabled: activeTab !== "posts" || events.length <= postsLimit
+    loadMoreRef: unifiedFeedLoadMoreRef,
+    loading: unifiedFeedLoading,
+    loadingMore: unifiedFeedLoadingMore,
+    hasMore: unifiedFeedHasMore,
+    setHasMore: setUnifiedFeedHasMore
+  } = useInfiniteScroll(loadMoreUnifiedFeed, { 
+    disabled: activeTab !== "feed" || 
+      (!events.length && !repliesHasMore && !repostsHasMore)
   });
   
   // Set up infinite scroll for media tab
@@ -120,37 +159,18 @@ export function useProfileTabsData({
     disabled: activeTab !== "media" || media.length <= postsLimit
   });
   
-  // Set up infinite scroll for replies tab
-  const {
-    loadMoreRef: repliesLoadMoreRef
-  } = useInfiniteScroll(loadMoreReplies, { 
-    disabled: activeTab !== "replies" || !repliesHasMore || repliesLoadingMore
-  });
-  
-  // Set up infinite scroll for reposts tab
-  const {
-    loadMoreRef: repostsLoadMoreRef
-  } = useInfiniteScroll(loadMoreReposts, { 
-    disabled: activeTab !== "reposts" || !repostsHasMore || repostsLoadingMore
-  });
-  
-  // Set up infinite scroll for likes tab
-  const {
-    loadMoreRef: likesLoadMoreRef
-  } = useInfiniteScroll(loadMoreReactions, { 
-    disabled: activeTab !== "likes" || !reactionsHasMore || reactionsLoadingMore
-  });
-  
-  // Update displayed posts based on limit
+  // Update unified feed items when data changes
   useEffect(() => {
-    const slicedPosts = events.slice(0, postsLimit);
-    setDisplayedPosts(slicedPosts);
+    const mergedItems = mergeFeedItems();
+    setUnifiedFeedItems(mergedItems.slice(0, postsLimit));
     
-    // Update hasMore state
-    if (activeTab === "posts") {
-      setPostsHasMore(slicedPosts.length < events.length);
-    }
-  }, [events, postsLimit, activeTab]);
+    // Update hasMore state for unified feed
+    setUnifiedFeedHasMore(
+      mergedItems.length > postsLimit || 
+      repliesHasMore || 
+      repostsHasMore
+    );
+  }, [events, tabReplies, tabReposts, postsLimit, mergeFeedItems, repliesHasMore, repostsHasMore]);
   
   // Update displayed media based on limit
   useEffect(() => {
@@ -163,92 +183,22 @@ export function useProfileTabsData({
     }
   }, [media, postsLimit, activeTab]);
   
-  // Update displayed replies based on the tab replies
-  useEffect(() => {
-    if (activeTab === "replies") {
-      const repliesData = tabReplies.length > 0 ? tabReplies : replies;
-      setDisplayedReplies(repliesData);
-    }
-  }, [activeTab, tabReplies, replies]);
-  
-  // Update displayed reactions based on tab reactions
-  useEffect(() => {
-    if (activeTab === "likes") {
-      const reactionsData = tabReactions.length > 0 ? tabReactions : reactions || [];
-      setDisplayedReactions(reactionsData);
-    }
-  }, [activeTab, tabReactions, reactions]);
-  
-  // Fetch profiles for reaction posts when likes tab is active
-  useEffect(() => {
-    const fetchReactionProfiles = async () => {
-      // Only fetch if we're on the likes tab and have referenced events
-      if (activeTab !== "likes" || !tabReferencedEvents || Object.keys(tabReferencedEvents).length === 0) {
-        return;
-      }
-      
-      setLoadingReactionProfiles(true);
-      
-      try {
-        // Get unique author pubkeys from referenced events
-        const authorPubkeys = Object.values(tabReferencedEvents)
-          .filter(event => !!event?.pubkey)
-          .map(event => event.pubkey);
-        
-        if (authorPubkeys.length === 0) {
-          setLoadingReactionProfiles(false);
-          return;
-        }
-        
-        // Fetch profiles for all authors
-        const uniquePubkeys = [...new Set(authorPubkeys)];
-        
-        for (const pubkey of uniquePubkeys) {
-          try {
-            await fetchProfileData(pubkey);
-          } catch (error) {
-            console.error(`Error fetching profile for ${pubkey}:`, error);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching reaction profiles:", error);
-      } finally {
-        setLoadingReactionProfiles(false);
-      }
-    };
-    
-    fetchReactionProfiles();
-  }, [activeTab, tabReferencedEvents, fetchProfileData]);
+  // Combined loading state for unified feed
+  const isUnifiedFeedLoading = 
+    (events.length === 0 && !tabReplies.length && !tabReposts.length) && 
+    (repliesLoading || repostsLoading);
 
   return {
     activeTab,
     handleTabChange,
-    postsLimit,
-    profiles,
-    displayedPosts,
+    unifiedFeedItems,
     displayedMedia,
-    displayedReplies,
-    displayedReactions,
-    repliesLoading,
-    repostsLoading,
-    reactionsLoading,
-    repliesLoadingMore,
-    repostsLoadingMore,
-    reactionsLoadingMore,
-    repliesHasMore,
-    repostsHasMore,
-    reactionsHasMore,
-    loadingReactionProfiles,
-    tabReposts,
-    tabReferencedEvents,
-    localOriginalPostProfiles,
-    referencedEvents,
-    postsLoadMoreRef,
+    unifiedFeedLoading: isUnifiedFeedLoading,
+    unifiedFeedLoadingMore: repliesLoadingMore || repostsLoadingMore,
+    unifiedFeedHasMore,
+    mediaHasMore,
+    unifiedFeedLoadMoreRef,
     mediaLoadMoreRef,
-    repliesLoadMoreRef,
-    repostsLoadMoreRef,
-    likesLoadMoreRef,
-    postsHasMore,
-    mediaHasMore
+    localOriginalPostProfiles
   };
 }

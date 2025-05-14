@@ -1,25 +1,22 @@
 
-import React from 'react';
-import NoteCard from '@/components/NoteCard';
+import React from "react";
+import NoteCard from "@/components/NoteCard";
+import { NostrEvent } from "@/lib/nostr";
 
-interface ProfileData {
-  pubkey?: string;
-}
-
-interface RepliesTabProps {
+interface UnifiedFeedTabProps {
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
-  displayedReplies: any[];
-  profileData: ProfileData;
+  feedItems: NostrEvent[];
+  profileData: any;
   loadMoreRef: (node: HTMLDivElement | null) => void;
 }
 
-const RepliesTab: React.FC<RepliesTabProps> = ({
+const UnifiedFeedTab: React.FC<UnifiedFeedTabProps> = ({
   loading,
   loadingMore,
   hasMore,
-  displayedReplies,
+  feedItems,
   profileData,
   loadMoreRef
 }) => {
@@ -27,15 +24,15 @@ const RepliesTab: React.FC<RepliesTabProps> = ({
     <div className="space-y-4">
       {loading ? (
         <div className="flex items-center justify-center py-4">
-          <span className="text-sm text-muted-foreground">Loading replies...</span>
+          <span className="text-sm text-muted-foreground">Loading posts...</span>
         </div>
-      ) : displayedReplies.length === 0 ? (
+      ) : feedItems.length === 0 ? (
         <div className="flex items-center justify-center py-4">
-          <span className="text-sm text-muted-foreground">No replies found.</span>
+          <span className="text-sm text-muted-foreground">No posts found.</span>
         </div>
       ) : (
         <div className="space-y-4">
-          {displayedReplies.map((event) => (
+          {feedItems.map((event) => (
             <NoteCard key={event.id} event={event} />
           ))}
         </div>
@@ -44,7 +41,7 @@ const RepliesTab: React.FC<RepliesTabProps> = ({
       <div ref={loadMoreRef} className="py-2 text-center">
         {loadingMore ? (
           <div className="flex items-center justify-center py-4">
-            <span className="text-sm text-muted-foreground">Loading more replies...</span>
+            <span className="text-sm text-muted-foreground">Loading more posts...</span>
           </div>
         ) : (
           <div className="h-8">{/* Spacer for intersection observer */}</div>
@@ -54,4 +51,4 @@ const RepliesTab: React.FC<RepliesTabProps> = ({
   );
 };
 
-export default RepliesTab;
+export default UnifiedFeedTab;
