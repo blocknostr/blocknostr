@@ -104,9 +104,9 @@ const SimpleNoteForm: React.FC = () => {
   // If user is not logged in
   if (!pubkey) {
     return (
-      <Card className="mb-2">
-        <CardContent className="p-3">
-          <div className="text-center py-2">
+      <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="text-center py-4">
             <p className="text-muted-foreground">
               Please log in to create notes
             </p>
@@ -117,12 +117,12 @@ const SimpleNoteForm: React.FC = () => {
   }
   
   return (
-    <Card className="mb-2">
-      <CardContent className="p-3">
-        <form onSubmit={handleSubmit} className="space-y-2">
+    <Card className="mb-4">
+      <CardContent className="p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-3">
             {/* User avatar */}
-            <Avatar className="h-9 w-9">
+            <Avatar className="h-10 w-10">
               <AvatarImage src={profile?.picture} alt={profile?.name || 'User'} />
               <AvatarFallback>
                 {profile?.name ? profile.name.charAt(0).toUpperCase() : '?'}
@@ -136,12 +136,12 @@ const SimpleNoteForm: React.FC = () => {
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="What's happening?"
-                className="min-h-18 resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-base"
+                className="min-h-20 resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-base"
                 disabled={isSubmitting}
               />
               
               {/* Action row with character counter and submit button */}
-              <div className="flex justify-between items-center pt-1">
+              <div className="flex justify-between items-center pt-2">
                 {/* Character counter */}
                 <div className={cn(
                   "text-xs font-medium",
