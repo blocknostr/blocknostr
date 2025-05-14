@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Link as LinkIcon, MapPin, Users, User, Network } from 'lucide-react';
+import { Calendar, Link as LinkIcon, MapPin, Users, User, Network, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { isCurrentUser } from '@/lib/utils/pubkeyUtils';
@@ -10,7 +10,6 @@ import FollowButton from '@/components/FollowButton';
 import ProfileRelaysDialog from './ProfileRelaysDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Relay } from "@/lib/nostr";
-import { Loader2 } from 'lucide-react';
 
 interface ProfileHeaderProps {
   profile: any;
@@ -20,6 +19,11 @@ interface ProfileHeaderProps {
   following?: string[];
   relays?: Relay[];
   isLoading?: boolean;
+  statsLoading?: {
+    followers?: boolean;
+    following?: boolean;
+    relays?: boolean;
+  };
   onRefresh?: () => void;
   currentUserPubkey?: string | null;
 }
@@ -32,6 +36,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   following = [], 
   relays = [],
   isLoading = false,
+  statsLoading = {},
   onRefresh,
   currentUserPubkey
 }) => {
@@ -167,33 +172,60 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             <button 
               onClick={() => followingCount > 0 && setShowFollowing(true)} 
               className="flex items-center hover:text-primary transition-colors"
-              disabled={isLoading || followingCount === 0}
+              disabled={statsLoading.following || followingCount === 0}
             >
-              <User className="h-4 w-4 mr-1.5" />
-              <span className="font-medium">{isLoading ? '...' : followingCount}</span>
-              <span className="ml-1 text-muted-foreground">Following</span>
+              {statsLoading.following ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <span className="font-medium text-muted-foreground">Loading</span>
+                </>
+              ) : (
+                <>
+                  <User className="h-4 w-4 mr-1.5" />
+                  <span className="font-medium">{followingCount}</span>
+                  <span className="ml-1 text-muted-foreground">Following</span>
+                </>
+              )}
             </button>
             
             {/* Followers count */}
             <button 
               onClick={() => followersCount > 0 && setShowFollowers(true)} 
               className="flex items-center hover:text-primary transition-colors"
-              disabled={isLoading || followersCount === 0}
+              disabled={statsLoading.followers || followersCount === 0}
             >
-              <Users className="h-4 w-4 mr-1.5" />
-              <span className="font-medium">{isLoading ? '...' : followersCount}</span>
-              <span className="ml-1 text-muted-foreground">Followers</span>
+              {statsLoading.followers ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <span className="font-medium text-muted-foreground">Loading</span>
+                </>
+              ) : (
+                <>
+                  <Users className="h-4 w-4 mr-1.5" />
+                  <span className="font-medium">{followersCount}</span>
+                  <span className="ml-1 text-muted-foreground">Followers</span>
+                </>
+              )}
             </button>
             
             {/* Relays count */}
             <button 
               onClick={() => relaysCount > 0 && setShowRelays(true)} 
               className="flex items-center hover:text-primary transition-colors"
-              disabled={isLoading || relaysCount === 0}
+              disabled={statsLoading.relays || relaysCount === 0}
             >
-              <Network className="h-4 w-4 mr-1.5" />
-              <span className="font-medium">{isLoading ? '...' : relaysCount}</span>
-              <span className="ml-1 text-muted-foreground">Relays</span>
+              {statsLoading.relays ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  <span className="font-medium text-muted-foreground">Loading</span>
+                </>
+              ) : (
+                <>
+                  <Network className="h-4 w-4 mr-1.5" />
+                  <span className="font-medium">{relaysCount}</span>
+                  <span className="ml-1 text-muted-foreground">Relays</span>
+                </>
+              )}
             </button>
           </div>
         </div>

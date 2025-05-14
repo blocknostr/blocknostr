@@ -73,6 +73,13 @@ const ProfilePage = () => {
     isCurrentUser
   });
   
+  // Track individual loading states for stats
+  const statsLoading = {
+    followers: relationsLoading,
+    following: relationsLoading,
+    relays: relaysLoading
+  };
+  
   // Combined refetch function
   const handleRefresh = () => {
     refetchPosts();
@@ -112,7 +119,7 @@ const ProfilePage = () => {
             followers={followers || []}
             following={following || []}
             relays={relays || []}
-            isLoading={relationsLoading || relaysLoading}
+            statsLoading={statsLoading}
             onRefresh={handleRefresh}
             currentUserPubkey={currentUserPubkey}
           />
