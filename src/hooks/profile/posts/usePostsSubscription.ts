@@ -39,7 +39,10 @@ export function usePostsSubscription() {
           timeoutRef.current = null;
         }, 10000); // 10 second timeout (was 30s)
         
-        // Use proper parameters for subscribe method
+        // Get the available relays
+        const relays = nostrService.getRelayUrls();
+        
+        // Call subscribe with the correct parameters for the current API
         const subId = nostrService.subscribe(
           filters,
           (event) => {
@@ -52,7 +55,7 @@ export function usePostsSubscription() {
             // Call the onEvent callback
             options.onEvent(event, isMediaEvent);
           },
-          options.componentId // Optional componentId for subscription tracking
+          relays
         );
         
         subscriptionRef.current = subId;

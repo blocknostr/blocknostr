@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 import { SubscriptionTracker } from './subscription-tracker';
@@ -52,19 +51,14 @@ export class SubscriptionManager {
    * @returns Subscription ID string
    */
   subscribe(
+    relays: string[],
     filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
-    options: {
-      ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
-      isRenewable?: boolean;  // Whether this subscription should be auto-renewed
-      componentId?: string;  // Identifier for the component creating this subscription
-      category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp';
-      limit?: number;        // Maximum number of events to receive before closing
-    } = {}
+    componentId?: string,
+    category?: 'profile' | 'feed' | 'chat' | 'relay' | 'other' | 'temp',
+    ttl?: number | null,
+    isRenewable?: boolean
   ): string {
-    // Get relays from connection pool - we no longer pass relays directly
-    const relays = this.connectionPool.getConnectedRelays();
-    
     if (relays.length === 0) {
       console.error("No relays provided for subscription");
       return "";
@@ -77,15 +71,17 @@ export class SubscriptionManager {
     
     const id = `sub_${this.nextId++}_${uuidv4().slice(0, 8)}`;
     const now = Date.now();
-    const componentId = options.componentId || 'unknown';
-    const category = options.category || 'other';
+    
+    // Default values
+    const actualComponentId = componentId || 'unknown';
+    const actualCategory = category || 'other';
     
     // Get appropriate TTL based on category
-    let ttl = options.ttl;
-    if (ttl === undefined) {
-      if (category === 'profile') ttl = this.profileTTL;
-      else if (category === 'temp') ttl = this.tempTTL;
-      else ttl = this.defaultTTL;
+    let actualTtl = ttl;
+    if (actualTtl === undefined) {
+      if (actualCategory === 'profile') actualTtl = this.profileTTL;
+      else if (actualCategory === 'temp') actualTtl = this.tempTTL;
+      else actualTtl = this.defaultTTL;
     }
     
     try {
@@ -101,12 +97,12 @@ export class SubscriptionManager {
       // Use the pool instance from connection pool
       const poolInstance = this.connectionPool.getPool();
       
-      // Track received event count for limited subscriptions
-      let receivedEventCount = 0;
-      const limit = options.limit || Number.MAX_SAFE_INTEGER;
-      
       // Create an array to hold subscription closers
       const subClosers: any[] = [];
+      
+      // Track received event count for limited subscriptions
+      let receivedEventCount = 0;
+      const limit = 100; // Default limit
       
       // Process each filter individually
       filters.forEach(filter => {
@@ -115,20 +111,25 @@ export class SubscriptionManager {
           const nostrToolsFilter = filter as unknown as Filter;
           
           // Use the correct signature for subscribeMany with a single options parameter
-          const sub = poolInstance.subscribeMany({
+          const sub = poolInstance.subscribeMany(
             relays,
-            filters: [nostrToolsFilter],
-            onevent: (event) => {
-              onEvent(event as NostrEvent);
-              
-              // Check if we've reached the limit
-              receivedEventCount++;
-              if (receivedEventCount >= limit) {
-                // Close this subscription automatically
-                this.unsubscribe(id);
+            [nostrToolsFilter],
+            {
+              onevent: (event) => {
+                onEvent(event as NostrEvent);
+                
+                // Check if we've reached the limit
+                receivedEventCount++;
+                if (receivedEventCount >= limit) {
+                  // Close this subscription automatically
+                  this.unsubscribe(id);
+                }
+              },
+              onclose: () => {
+                // Handle close event if needed
               }
             }
-          });
+          );
           
           // Add the closer function
           subClosers.push(sub);
@@ -138,8 +139,8 @@ export class SubscriptionManager {
       });
       
       // Calculate expiration time if TTL is provided
-      const expiresAt = ttl !== null 
-        ? now + ttl
+      const expiresAt = actualTtl !== null 
+        ? now + actualTtl
         : null;
       
       // Store subscription details for later unsubscribe
@@ -149,19 +150,19 @@ export class SubscriptionManager {
         subClosers,
         createdAt: now,
         expiresAt,
-        isRenewable: !!options.isRenewable,
-        componentId,
-        category
+        isRenewable: !!isRenewable,
+        componentId: actualComponentId,
+        category: actualCategory
       });
       
       // Register with the tracker
       this.tracker.register(
         id, 
         () => this.unsubscribe(id), 
-        componentId, 
+        actualComponentId, 
         { 
-          category, 
-          priority: category === 'profile' ? 4 : 5 
+          category: actualCategory, 
+          priority: actualCategory === 'profile' ? 4 : 5 
         }
       );
       
