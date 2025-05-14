@@ -1,5 +1,4 @@
-
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useLayoutEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -27,10 +26,93 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
   const [prevEventsLength, setPrevEventsLength] = useState(events.length);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [estimatedHeight, setEstimatedHeight] = useState(0);
+  const [isInitialMount, setIsInitialMount] = useState(true);
+  const heightMeasurements = useRef<Record<string, number>>({});
+  
+  // Keep track of scroll position
+  const scrollPositionRef = useRef(0);
+  const documentHeightRef = useRef(0);
   
   // Add early loading triggers at multiple points in the feed
   const earlyTriggerRefs = useRef<Array<HTMLDivElement | null>>([]);
   
+  // Calculate average post height after render for better estimations
+  useLayoutEffect(() => {
+    if (events.length > 0 && containerRef.current) {
+      const postElements = containerRef.current.querySelectorAll('.post-card');
+      let totalHeight = 0;
+      let measuredCount = 0;
+      
+      postElements.forEach((element, index) => {
+        const height = element.getBoundingClientRect().height;
+        if (height > 0) {
+          const id = events[index]?.id || `post-${index}`;
+          heightMeasurements.current[id] = height;
+          totalHeight += height;
+          measuredCount++;
+        }
+      });
+      
+      if (measuredCount > 0) {
+        const avgHeight = totalHeight / measuredCount;
+        // Update estimated height for unmeasured posts
+        const unmeasuredCount = events.length - Object.keys(heightMeasurements.current).length;
+        setEstimatedHeight(prevHeight => {
+          const newEstimate = avgHeight * 1.1; // Add 10% buffer
+          return prevHeight === 0 ? newEstimate : (prevHeight * 0.7 + newEstimate * 0.3);
+        });
+      }
+    }
+  }, [events]);
+  
+  // Save scroll position before loading more content
+  useEffect(() => {
+    const handleScroll = () => {
+      scrollPositionRef.current = window.scrollY;
+      documentHeightRef.current = document.body.scrollHeight;
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+  
+  // Restore scroll position after content changes
+  useEffect(() => {
+    if (!isInitialMount && events.length > prevEventsLength && prevEventsLength > 0) {
+      // Use requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        const newDocumentHeight = document.body.scrollHeight;
+        const heightDifference = newDocumentHeight - documentHeightRef.current;
+        
+        if (heightDifference > 0 && scrollPositionRef.current > 0) {
+          window.scrollTo({
+            top: scrollPositionRef.current + heightDifference,
+            behavior: 'auto' // Use 'auto' for immediate position restoration
+          });
+          
+          // Debug log
+          console.log("[OptimizedFeedList] Restored scroll position:", {
+            before: scrollPositionRef.current,
+            after: scrollPositionRef.current + heightDifference,
+            heightDiff: heightDifference
+          });
+        }
+      });
+    }
+    
+    if (isInitialMount) {
+      setIsInitialMount(false);
+    }
+    
+    // Update previous events length for optimization
+    setPrevEventsLength(events.length);
+  }, [events.length, prevEventsLength, isInitialMount]);
+  
+  // Set up early loading triggers
   useEffect(() => {
     // Set up early loading triggers
     const earlyTriggerObserver = new IntersectionObserver(
@@ -78,9 +160,6 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     if (missingProfiles.size > 0) {
       console.log(`[OptimizedFeedList] Fetching ${missingProfiles.size} profiles`);
     }
-    
-    // Update previous events length for optimization
-    setPrevEventsLength(events.length);
   }, [events, profiles]);
   
   // Calculate positions for early triggers
@@ -88,20 +167,32 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     Math.floor(events.length * 0.5),  // Halfway through the list
     Math.floor(events.length * 0.75), // Three quarters through the list
   ] : [];
+
+  // Calculate the placeholder heights for new posts
+  const getPlaceholderHeight = (eventId: string) => {
+    return heightMeasurements.current[eventId] || estimatedHeight || 320; // Default fallback
+  };
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={containerRef}>
       {/* Render all events as note cards */}
       {events.map((event, index) => (
         <React.Fragment key={event.id}>
-          <NoteCard 
-            event={event} 
-            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-            repostData={event.id && repostData[event.id] ? {
-              reposterPubkey: repostData[event.id].pubkey,
-              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-            } : undefined}
-          />
+          <div 
+            className="post-card transition-all duration-300"
+            style={{ 
+              minHeight: `${getPlaceholderHeight(event.id)}px`,
+            }}
+          >
+            <NoteCard 
+              event={event} 
+              profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+              repostData={event.id && repostData[event.id] ? {
+                reposterPubkey: repostData[event.id].pubkey,
+                reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+              } : undefined}
+            />
+          </div>
           
           {/* Add early loading triggers at specific positions */}
           {earlyTriggerPositions.includes(index) && (

@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
-import { NostrEvent } from '@/lib/nostr';
+import React, { memo } from 'react';
 import NoteCardStructure from './structure/NoteCardStructure';
+import { NostrEvent } from '@/lib/nostr';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -18,41 +18,39 @@ interface NoteCardProps {
   };
 }
 
-// Memoize the component to prevent unnecessary re-renders
-const MemoizedNoteCard = React.memo(
-  function NoteCard({ 
-    event, 
-    profileData, 
-    hideActions, 
-    repostData, 
-    isReply, 
-    reactionData 
+// Memoized version of the NoteCard component
+const MemoizedNoteCard = memo(
+  function NoteCard({
+    event,
+    profileData,
+    hideActions = false,
+    repostData,
+    isReply = false,
+    reactionData,
   }: NoteCardProps) {
-    // Validate event before rendering
-    const isValidEvent = useMemo(() => {
-      return event && event.id && event.pubkey;
-    }, [event]);
-    
-    // Return null if event is invalid to prevent errors
-    if (!isValidEvent) return null;
-    
     return (
-      <NoteCardStructure
-        event={event}
-        profileData={profileData}
-        hideActions={hideActions}
-        repostData={repostData}
-        isReply={isReply}
-        reactionData={reactionData}
-      />
+      <div data-id={event?.id} className="note-card-wrapper">
+        <NoteCardStructure
+          event={event}
+          profileData={profileData}
+          hideActions={hideActions}
+          repostData={repostData}
+          isReply={isReply}
+          reactionData={reactionData}
+        />
+      </div>
     );
   },
-  // Custom comparison function to prevent unnecessary re-renders
   (prevProps, nextProps) => {
-    // Only re-render if event ID changes, profile data updates, or reaction data changes
-    return prevProps.event.id === nextProps.event.id && 
-           JSON.stringify(prevProps.profileData) === JSON.stringify(nextProps.profileData) &&
-           JSON.stringify(prevProps.reactionData) === JSON.stringify(nextProps.reactionData);
+    // Only re-render if the event ID changes or profiles/repost data changes
+    const isSameEvent = prevProps.event?.id === nextProps.event?.id;
+    const isSameProfile = prevProps.profileData === nextProps.profileData;
+    const isSameRepostData = prevProps.repostData === nextProps.repostData;
+    const isSameReactionData = 
+      (!prevProps.reactionData && !nextProps.reactionData) || 
+      (prevProps.reactionData?.emoji === nextProps.reactionData?.emoji);
+    
+    return isSameEvent && isSameProfile && isSameRepostData && isSameReactionData;
   }
 );
 

@@ -12,7 +12,7 @@ type UseInfiniteScrollOptions = {
 export const useInfiniteScroll = (
   onLoadMore: () => void,
   { 
-    threshold = 800, // Increased from 400 to 800
+    threshold = 800,
     initialLoad = true, 
     disabled = false,
     aggressiveness = 'medium',
@@ -36,6 +36,12 @@ export const useInfiniteScroll = (
   const prevDocumentHeightRef = useRef<number>(0);
   // Store the scroll position before loading new content
   const scrollPositionRef = useRef<number>(0);
+  // Store the viewport height
+  const viewportHeightRef = useRef<number>(0);
+  // Store a list of element positions for scroll anchoring
+  const elementPositionsRef = useRef<Map<string, { top: number, height: number }>>(new Map());
+  // Reference to the anchor element
+  const anchorElementRef = useRef<{ id: string, position: number } | null>(null);
 
   // Get actual threshold based on aggressiveness setting
   const getActualThreshold = useCallback(() => {
@@ -47,34 +53,89 @@ export const useInfiniteScroll = (
     }
   }, [aggressiveness, threshold]);
 
-  // Update scroll velocity tracking
+  // Update scroll velocity tracking and capture element positions
   useEffect(() => {
     const trackScrollVelocity = () => {
       const now = Date.now();
+      const currentScrollY = window.scrollY;
+      
+      // Update scroll velocity
       const timeDiff = now - lastScrollTime.current;
       if (timeDiff > 0) {
-        const currentScrollY = window.scrollY;
         const distance = Math.abs(currentScrollY - lastScrollY.current);
         scrollVelocity.current = distance / timeDiff; // pixels per ms
         
         lastScrollY.current = currentScrollY;
         lastScrollTime.current = now;
         
+        // Store current viewport height
+        viewportHeightRef.current = window.innerHeight;
+        
         // If scrolling quickly and near bottom, preload more aggressively
         if (scrollVelocity.current > 0.5 && 
-            window.innerHeight + window.scrollY > document.body.offsetHeight - getActualThreshold() * 1.5) {
+            currentScrollY + viewportHeightRef.current > document.body.offsetHeight - getActualThreshold() * 1.5) {
           if (!isFetchingRef.current && hasMore && !disabled) {
             handleObserver([{ isIntersecting: true } as IntersectionObserverEntry]);
+          }
+        }
+        
+        // Find potential anchor elements (posts near the viewport)
+        if (preservePosition) {
+          const viewportMiddle = currentScrollY + (viewportHeightRef.current / 2);
+          const posts = document.querySelectorAll('.post-card');
+          
+          // Reset anchor if we've scrolled significantly
+          if (Math.abs(currentScrollY - (anchorElementRef.current?.position || 0)) > viewportHeightRef.current / 2) {
+            anchorElementRef.current = null;
+          }
+          
+          // Find closest post to viewport middle if we don't have an anchor
+          if (!anchorElementRef.current && posts.length > 0) {
+            let closestDistance = Infinity;
+            let closestElement = null;
+            
+            posts.forEach((post) => {
+              const rect = post.getBoundingClientRect();
+              const postTop = currentScrollY + rect.top;
+              const distance = Math.abs(postTop - viewportMiddle);
+              
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestElement = post;
+              }
+            });
+            
+            if (closestElement && closestDistance < viewportHeightRef.current) {
+              const id = closestElement.getAttribute('data-id') || 
+                         closestElement.querySelector('[data-id]')?.getAttribute('data-id') || 
+                         `post-${Date.now()}`;
+              
+              anchorElementRef.current = {
+                id,
+                position: currentScrollY
+              };
+              
+              console.log("[InfiniteScroll] Set anchor element:", anchorElementRef.current);
+            }
           }
         }
       }
     };
     
+    // Capture current scroll position before loading more
+    const captureScrollPosition = () => {
+      scrollPositionRef.current = window.scrollY;
+      prevDocumentHeightRef.current = document.body.scrollHeight;
+    };
+    
     window.addEventListener('scroll', trackScrollVelocity, { passive: true });
+    window.addEventListener('scrollend', captureScrollPosition, { passive: true });
+    
     return () => {
       window.removeEventListener('scroll', trackScrollVelocity);
+      window.removeEventListener('scrollend', captureScrollPosition);
     };
-  }, [hasMore, disabled, getActualThreshold]);
+  }, [hasMore, disabled, getActualThreshold, preservePosition]);
 
   const handleObserver = useCallback(
     async (entries: IntersectionObserverEntry[]) => {
@@ -103,7 +164,10 @@ export const useInfiniteScroll = (
               // Only adjust if the height actually changed and we're not at the top
               if (heightDifference > 0 && scrollPositionRef.current > 0) {
                 // Restore the scroll position plus the height difference
-                window.scrollTo(0, scrollPositionRef.current + heightDifference);
+                window.scrollTo({
+                  top: scrollPositionRef.current + heightDifference,
+                  behavior: 'auto' // Use 'auto' instead of 'smooth' for immediate positioning
+                });
                 
                 // Debug log
                 console.log("[InfiniteScroll] Preserved scroll position:", {
@@ -115,7 +179,7 @@ export const useInfiniteScroll = (
             });
           }
         } finally {
-          // Reset the fetching flag after a shorter delay (reduced from 500ms to 300ms)
+          // Reset the fetching flag after a shorter delay
           setTimeout(() => {
             isFetchingRef.current = false;
             setLoadingMore(false);
