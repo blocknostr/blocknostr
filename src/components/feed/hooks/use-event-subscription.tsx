@@ -96,69 +96,69 @@ export function useEventSubscription({
     // Create accumulators for events to be cached
     let collectedEvents: NostrEvent[] = [];
     
-    // Subscribe to events
-    const newSubId = nostrService.subscribe(
-      filters,
-      (event) => {
-        if (event.kind === 1) {
-          // Regular note
-          setEvents(prev => {
-            // Check if we already have this event using deduplication
-            if (EventDeduplication.hasEventId(prev, event.id)) {
-              return prev;
-            }
-            
-            // Add the new event
-            const newEvents = [...prev, event];
-            
-            // Deduplicate the events
-            const uniqueEvents = EventDeduplication.deduplicateById(newEvents);
-            
-            // Sort by creation time (newest first)
-            uniqueEvents.sort((a, b) => b.created_at - a.created_at);
-            
-            // Add event to collection for caching
-            collectedEvents.push(event);
-            
-            // Cache the event individually
-            contentCache.cacheEvent(event);
-            
-            // Every 5 events, update the feed cache for better performance
-            if (collectedEvents.length % 5 === 0) {
-              // Use current state to ensure we have the latest events
-              contentCache.cacheFeed(
-                feedType,
-                uniqueEvents,
-                {
-                  authorPubkeys: following,
-                  hashtag: activeHashtag,
-                  since: sinceFetch,
-                  until: untilFetch,
-                  mediaOnly
-                },
-                true // Mark as important for offline use
-              );
-            }
-            
-            return uniqueEvents;
-          });
-        }
-        else if (event.kind === 6) {
-          // Repost - extract the referenced event
-          handleRepost(event, setEvents);
-        }
-        
-        // Fetch profile data for this pubkey if we don't have it yet
-        if (event.pubkey) {
-          // Check cache first
-          const cachedProfile = contentCache.getProfile(event.pubkey);
-          if (!cachedProfile) {
-            // Fetch from relays if not in cache
-            fetchProfileData(event.pubkey);
+    // Define the event handler function
+    const onEventReceived = (event: NostrEvent) => {
+      if (event.kind === 1) {
+        // Regular note
+        setEvents(prev => {
+          // Check if we already have this event using deduplication
+          if (EventDeduplication.hasEventId(prev, event.id)) {
+            return prev;
           }
+          
+          // Add the new event
+          const newEvents = [...prev, event];
+          
+          // Deduplicate the events
+          const uniqueEvents = EventDeduplication.deduplicateById(newEvents);
+          
+          // Sort by creation time (newest first)
+          uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+          
+          // Add event to collection for caching
+          collectedEvents.push(event);
+          
+          // Cache the event individually
+          contentCache.cacheEvent(event);
+          
+          // Every 5 events, update the feed cache for better performance
+          if (collectedEvents.length % 5 === 0) {
+            // Use current state to ensure we have the latest events
+            contentCache.cacheFeed(
+              feedType,
+              uniqueEvents,
+              {
+                authorPubkeys: following,
+                hashtag: activeHashtag,
+                since: sinceFetch,
+                until: untilFetch,
+                mediaOnly
+              },
+              true // Mark as important for offline use
+            );
+          }
+          
+          return uniqueEvents;
+        });
+      }
+      else if (event.kind === 6) {
+        // Repost - extract the referenced event
+        handleRepost(event, setEvents);
+      }
+      
+      // Fetch profile data for this pubkey if we don't have it yet
+      if (event.pubkey) {
+        // Check cache first
+        const cachedProfile = contentCache.getProfile(event.pubkey);
+        if (!cachedProfile) {
+          // Fetch from relays if not in cache
+          fetchProfileData(event.pubkey);
         }
       }
-    );
+    };
+
+    // Subscribe to events
+    const newSubId = nostrService.subscribe(filters, onEventReceived);
     
     // Set up a scheduled task to periodically cache all collected events
     if (newSubId) {

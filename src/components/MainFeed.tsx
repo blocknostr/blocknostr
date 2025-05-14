@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -14,6 +14,7 @@ import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
+import { cacheManager } from "@/lib/utils/cacheManager";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -25,9 +26,54 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
+  const [backgroundLoaded, setBackgroundLoaded] = useState<Record<string, boolean>>({
+    global: false,
+    following: false,
+    'for-you': false,
+  });
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
+  
+  // Optimize initial relays connection
+  useEffect(() => {
+    // Connect to relays once on initial load
+    const connectRelays = async () => {
+      try {
+        await nostrService.connectToUserRelays();
+        cacheManager.set('relays_connected_at', Date.now().toString());
+      } catch (err) {
+        console.error("Failed to connect to relays:", err);
+      }
+    };
+    
+    const lastConnected = Number(cacheManager.get('relays_connected_at') || '0');
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    
+    if (lastConnected < fiveMinutesAgo) {
+      connectRelays();
+    }
+  }, []);
+
+  // Track and save active tab for persistent navigation
+  useEffect(() => {
+    if (activeTab) {
+      sessionStorage.setItem('last_active_tab', activeTab);
+    }
+  }, [activeTab]);
+
+  // Restore last active tab from session storage
+  useEffect(() => {
+    const lastTab = sessionStorage.getItem('last_active_tab') as FeedType | null;
+    if (lastTab && ['global', 'following', 'for-you'].includes(lastTab)) {
+      // Don't switch to following tab if not logged in
+      if (lastTab === 'following' && !isLoggedIn) {
+        setActiveTab('global');
+      } else {
+        setActiveTab(lastTab as FeedType);
+      }
+    }
+  }, [isLoggedIn]);
 
   // When preferences change, update the active tab if it's the default feed
   useEffect(() => {
@@ -49,6 +95,16 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     };
   }, []);
 
+  // Update background loading status when tabs change
+  useEffect(() => {
+    if (activeTab) {
+      setBackgroundLoaded(prev => ({
+        ...prev,
+        [activeTab]: true
+      }));
+    }
+  }, [activeTab]);
+
   const handleTopicClick = (topic: string) => {
     if (onClearHashtag) {
       // First clear any existing hashtag
@@ -62,20 +118,35 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     }
   };
 
+  // Optimize tab switching
+  const handleTabChange = useCallback((value: string) => {
+    // Ensure the value is a valid FeedType before setting it
+    if (value === 'global' || value === 'following' || value === 'for-you') {
+      // Save current scroll position for the tab we're leaving
+      if (activeTab) {
+        const scrollY = window.scrollY;
+        sessionStorage.setItem(`${activeTab}_scroll_position`, scrollY.toString());
+      }
+      
+      // Update active tab
+      setActiveTab(value as FeedType);
+      
+      // Restore scroll position for the new tab
+      setTimeout(() => {
+        const savedPosition = sessionStorage.getItem(`${value}_scroll_position`);
+        if (savedPosition) {
+          window.scrollTo({ top: parseInt(savedPosition, 10) });
+        }
+      }, 100);
+    }
+  }, [activeTab]);
+
   // Apply font size from preferences to the feed container
   const fontSizeClass = preferences.uiPreferences.fontSize === 'small' 
     ? 'text-sm' 
     : preferences.uiPreferences.fontSize === 'large' 
       ? 'text-lg' 
       : 'text-base';
-
-  // Handler for tab changes that ensures we only set valid FeedType values
-  const handleTabChange = (value: string) => {
-    // Ensure the value is a valid FeedType before setting it
-    if (value === 'global' || value === 'following' || value === 'for-you') {
-      setActiveTab(value as FeedType);
-    }
-  };
 
   return (
     <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
@@ -143,11 +214,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           onValueChange={handleTabChange}
           className="relative"
         >
-          <TabsContent value="global">
+          {/* Global feed - render it even when not active to load in background */}
+          <TabsContent value="global" className="m-0">
             <GlobalFeed activeHashtag={activeHashtag} />
           </TabsContent>
           
-          <TabsContent value="following">
+          {/* Following feed - only show if logged in */}
+          <TabsContent value="following" className="m-0">
             {!isLoggedIn ? (
               <div className="py-8 text-center text-muted-foreground">
                 You need to log in to see posts from people you follow.
@@ -157,7 +230,8 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
             )}
           </TabsContent>
           
-          <TabsContent value="for-you">
+          {/* For You feed */}
+          <TabsContent value="for-you" className="m-0">
             <ForYouFeed activeHashtag={activeHashtag} />
           </TabsContent>
         </Tabs>

@@ -18,7 +18,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     hasMore,
     loadMoreEvents,
     loadingMore,
-    minLoadingTimeMet
+    minLoadingTimeMet,
+    refreshFeed
   } = useGlobalFeed({ activeHashtag });
 
   // Show loading state when no events and loading
@@ -47,6 +48,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
       repostData={repostData}
       loadMoreRef={loadMoreRef}
       loading={loading}
+      onRefresh={refreshFeed}
       onLoadMore={loadMoreEvents}
       hasMore={hasMore}
       loadMoreLoading={loadingMore}
