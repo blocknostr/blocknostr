@@ -1,19 +1,15 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
 import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
-import { ConnectionPool } from '@/lib/nostr/relay/connection-pool';
 
 export function useRelays() {
   const [relays, setRelays] = useState<any[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
-  const connectionPool = ConnectionPool.getInstance();
 
   // Function to refresh relay status
   const refreshRelays = useCallback(() => {
-    // Get status from both the service and the connection pool
     const relayStatus = nostrService.getRelayStatus();
     setRelays(relayStatus);
     
@@ -27,11 +23,7 @@ export function useRelays() {
     } else {
       setConnectionStatus('disconnected');
     }
-    
-    // Log connection metrics from the pool
-    const metrics = connectionPool.getMetrics();
-    console.log(`Relay metrics: ${metrics.activeConnections}/${metrics.totalConnections} active connections (max: ${metrics.maxConnections})`);
-  }, [isConnecting, connectionPool]);
+  }, [isConnecting]);
 
   // Optimize connection to relays
   const connectToRelays = useCallback(async (customRelays?: string[]) => {
@@ -41,14 +33,14 @@ export function useRelays() {
     setConnectionStatus('connecting');
     
     try {
-      // Use our connection pool for relay connections
+      // First connect to user's relays
+      await nostrService.connectToUserRelays();
+      
+      // If custom relays provided, add those too
       if (customRelays && customRelays.length > 0) {
-        await connectionPool.connectToRelays(customRelays);
+        await nostrService.addMultipleRelays(customRelays);
       } else {
-        // First connect to user's relays
-        await nostrService.connectToUserRelays();
-        
-        // Use default set of reliable relays
+        // Otherwise use our default set of reliable relays
         const defaultRelays = [
           "wss://relay.damus.io",
           "wss://nos.lol",
@@ -62,7 +54,7 @@ export function useRelays() {
           count: 3
         });
         
-        await connectionPool.connectToRelays(bestRelays);
+        await nostrService.addMultipleRelays(bestRelays);
       }
       
       // Update relay status
@@ -72,7 +64,7 @@ export function useRelays() {
     } finally {
       setIsConnecting(false);
     }
-  }, [isConnecting, refreshRelays, connectionPool]);
+  }, [isConnecting, refreshRelays]);
 
   // Listen for relay connection changes
   useEffect(() => {
@@ -85,8 +77,8 @@ export function useRelays() {
     // Initial relay status
     refreshRelays();
     
-    // Set up periodic refresh - reduced interval to catch problems earlier
-    const intervalId = setInterval(refreshRelays, 5000);
+    // Set up periodic refresh
+    const intervalId = setInterval(refreshRelays, 10000);
     
     return () => {
       eventBus.off(EVENTS.RELAY_CONNECTED, handleRelayConnected);

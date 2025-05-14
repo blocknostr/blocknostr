@@ -6,14 +6,9 @@ import { toast } from 'sonner';
 interface UseProfileRelationsProps {
   hexPubkey: string | undefined;
   isCurrentUser: boolean;
-  componentId?: string; // Add component ID for subscription tracking
 }
 
-export function useProfileRelations({ 
-  hexPubkey, 
-  isCurrentUser,
-  componentId 
-}: UseProfileRelationsProps) {
+export function useProfileRelations({ hexPubkey, isCurrentUser }: UseProfileRelationsProps) {
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);

@@ -6,14 +6,9 @@ import { toast } from 'sonner';
 interface UseProfileRelaysProps {
   hexPubkey: string | undefined;
   isCurrentUser: boolean;
-  componentId?: string; // Add component ID for subscription tracking
 }
 
-export function useProfileRelays({ 
-  hexPubkey, 
-  isCurrentUser,
-  componentId 
-}: UseProfileRelaysProps) {
+export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysProps) {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefetching, setIsRefetching] = useState<boolean>(false);

@@ -1,9 +1,8 @@
+
 import * as React from "react";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
 import { nostrService } from "@/lib/nostr";
 import { eventBus, EVENTS } from "@/lib/services/EventBus";
-import { SubscriptionTracker } from "@/lib/nostr/subscription-tracker";
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Unified hook for fetching and managing profile data across components
@@ -12,32 +11,16 @@ export function useUnifiedProfileFetcher() {
   const [profiles, setProfiles] = React.useState<Record<string, any>>({});
   const [fetchErrors, setFetchErrors] = React.useState<Record<string, string>>({});
   const [loading, setLoading] = React.useState<Record<string, boolean>>({});
-  
-  // Use a ref for active subscriptions to prevent memory leaks
   const activeSubscriptions = React.useRef<Record<string, () => void>>({});
   
-  // Generate a component ID for subscription tracking
-  const componentId = React.useRef<string>(`profile_fetcher_${uuidv4().slice(0, 8)}`).current;
-  
-  // Clean up subscriptions when the component unmounts
+  // Clean up subscriptions on unmount
   React.useEffect(() => {
     return () => {
-      // Execute local cleanup functions
       Object.values(activeSubscriptions.current).forEach(unsubscribe => {
-        if (unsubscribe) {
-          try {
-            unsubscribe();
-          } catch (error) {
-            console.error("Error unsubscribing:", error);
-          }
-        }
+        if (unsubscribe) unsubscribe();
       });
-      
-      // Also clean up via the global tracker as a safety measure
-      const tracker = SubscriptionTracker.getInstance();
-      tracker.cleanupForComponent(componentId);
     };
-  }, [componentId]);
+  }, []);
   
   /**
    * Fetch a single profile
@@ -65,21 +48,6 @@ export function useUnifiedProfileFetcher() {
           });
         }
         
-        // Set up subscription for updates if not already subscribed
-        if (!activeSubscriptions.current[pubkey]) {
-          activeSubscriptions.current[pubkey] = unifiedProfileService.subscribeToUpdates(pubkey, (updatedProfile) => {
-            if (updatedProfile) {
-              console.log(`[useUnifiedProfileFetcher] Received profile update for ${pubkey.substring(0, 8)}`, 
-                updatedProfile.name || updatedProfile.display_name);
-              setProfiles(prev => ({ ...prev, [pubkey]: updatedProfile }));
-            }
-          });
-          
-          // Register with the tracker for safety
-          const tracker = SubscriptionTracker.getInstance();
-          tracker.register(`profile_sub_${pubkey}`, activeSubscriptions.current[pubkey], componentId);
-        }
-        
         return profile;
       } else {
         console.warn(`[useUnifiedProfileFetcher] No profile data returned for ${pubkey.substring(0, 8)}`);
@@ -100,7 +68,7 @@ export function useUnifiedProfileFetcher() {
       // Mark as no longer loading
       setLoading(prev => ({ ...prev, [pubkey]: false }));
     }
-  }, [fetchErrors, componentId]);
+  }, [fetchErrors]);
   
   /**
    * Fetch multiple profiles at once
@@ -119,7 +87,7 @@ export function useUnifiedProfileFetcher() {
     });
     setLoading(prev => ({ ...prev, ...loadingUpdates }));
     
-    // Set up subscriptions for all pubkeys
+    // Set up subscriptions for all pubkeys if not already subscribed
     uniquePubkeys.forEach(pubkey => {
       if (!activeSubscriptions.current[pubkey]) {
         activeSubscriptions.current[pubkey] = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
@@ -129,10 +97,6 @@ export function useUnifiedProfileFetcher() {
             setProfiles(prev => ({ ...prev, [pubkey]: profile }));
           }
         });
-        
-        // Register with the tracker
-        const tracker = SubscriptionTracker.getInstance();
-        tracker.register(`profile_sub_${pubkey}`, activeSubscriptions.current[pubkey], componentId);
       }
     });
     
@@ -185,7 +149,7 @@ export function useUnifiedProfileFetcher() {
       });
       setLoading(prev => ({ ...prev, ...loadingUpdates }));
     }
-  }, [fetchErrors, componentId]);
+  }, [fetchErrors]);
   
   /**
    * Refresh a profile (force fetch)

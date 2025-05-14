@@ -1,8 +1,6 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
-import { SubscriptionTracker } from './subscription-tracker';
-import { ConnectionPool } from './relay/connection-pool';
-import { v4 as uuidv4 } from 'uuid';
 
 interface SubscriptionDetails {
   relays: string[];
@@ -11,15 +9,12 @@ interface SubscriptionDetails {
   createdAt: number;
   expiresAt: number | null;
   isRenewable: boolean;
-  componentId: string;
 }
 
 export class SubscriptionManager {
   private pool: SimplePool;
   private subscriptions: Map<string, SubscriptionDetails> = new Map();
   private nextId = 0;
-  private tracker: SubscriptionTracker;
-  private connectionPool: ConnectionPool;
   
   // Default TTL is 15 minutes
   private defaultTTL: number = 15 * 60 * 1000;
@@ -29,8 +24,6 @@ export class SubscriptionManager {
   
   constructor(pool: SimplePool) {
     this.pool = pool;
-    this.tracker = SubscriptionTracker.getInstance();
-    this.connectionPool = ConnectionPool.getInstance();
     
     // Set up periodic cleanup for expired subscriptions
     this.cleanupInterval = window.setInterval(() => {
@@ -53,7 +46,6 @@ export class SubscriptionManager {
     options: {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite
       isRenewable?: boolean;  // Whether this subscription should be auto-renewed
-      componentId?: string;  // Identifier for the component creating this subscription
     } = {}
   ): string {
     if (relays.length === 0) {
@@ -66,23 +58,14 @@ export class SubscriptionManager {
       return "";
     }
     
-    const id = `sub_${this.nextId++}_${uuidv4().slice(0, 8)}`;
+    const id = `sub_${this.nextId++}`;
     const now = Date.now();
-    const componentId = options.componentId || 'unknown';
     
     try {
-      // First connect to relays we need
-      this.connectionPool.connectToRelays(relays).catch(err => {
-        console.error("Error connecting to relays:", err);
-      });
-      
-      // Use the pool instance from connection pool
-      const poolInstance = this.connectionPool.getPool();
-      
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        return poolInstance.subscribe(relays, filter, {
+        return this.pool.subscribe(relays, filter, {
           onevent: (event) => {
             onEvent(event as NostrEvent);
           }
@@ -101,12 +84,8 @@ export class SubscriptionManager {
         subClosers,
         createdAt: now,
         expiresAt,
-        isRenewable: !!options.isRenewable,
-        componentId
+        isRenewable: !!options.isRenewable
       });
-      
-      // Register with the tracker
-      this.tracker.register(id, () => this.unsubscribe(id), componentId);
       
       return id;
     } catch (error) {
@@ -129,29 +108,10 @@ export class SubscriptionManager {
           }
         });
         this.subscriptions.delete(subId);
-        
-        // Also unregister from tracker
-        this.tracker.unregister(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);
       }
     }
-  }
-  
-  /**
-   * Clean up all subscriptions for a specific component
-   */
-  cleanupForComponent(componentId: string): void {
-    // Find all subscriptions for this component
-    const componentSubs = Array.from(this.subscriptions.entries())
-      .filter(([_, details]) => details.componentId === componentId)
-      .map(([id]) => id);
-    
-    // Unsubscribe from each one
-    componentSubs.forEach(id => this.unsubscribe(id));
-    
-    // Also ask the tracker to clean up (as a safety measure)
-    this.tracker.cleanupForComponent(componentId);
   }
   
   /**
