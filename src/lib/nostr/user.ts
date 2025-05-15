@@ -62,14 +62,10 @@ export class UserManager {
   
   async login(): Promise<boolean> {
     try {
-      console.log("UserManager: Attempting login...");
       // Try NIP-07 browser extension
       if (window.nostr) {
-        console.log("UserManager: Nostr extension found");
         try {
           const pubkey = await window.nostr.getPublicKey();
-          console.log("UserManager: Got public key from extension:", pubkey);
-          
           if (pubkey) {
             this._publicKey = pubkey;
             localStorage.setItem('nostr_pubkey', pubkey);
@@ -77,10 +73,7 @@ export class UserManager {
             // Try to get relays from extension if supported (NIP-07 extension)
             try {
               if ('getRelays' in window.nostr && typeof window.nostr.getRelays === 'function') {
-                console.log("UserManager: Requesting relays from extension...");
                 const relays = await window.nostr.getRelays();
-                console.log("UserManager: Got relays from extension:", relays);
-                
                 if (relays) {
                   localStorage.setItem('nostr_extension_relays', JSON.stringify(relays));
                 }
@@ -91,21 +84,13 @@ export class UserManager {
             
             toast.success("Successfully connected with extension");
             return true;
-          } else {
-            console.error("UserManager: Extension returned empty public key");
-            toast.error("Extension returned empty public key");
           }
         } catch (err) {
           console.error("Failed to get public key from extension:", err);
-          toast.error("Extension permission denied", {
-            description: "Please approve the connection request in your extension"
-          });
+          toast.error("Failed to connect with Nostr extension");
         }
       } else {
-        console.error("UserManager: No Nostr extension found");
-        toast.error("No Nostr extension found", {
-          description: "Please install one (like nos2x or Alby)"
-        });
+        toast.error("No Nostr extension found. Please install one (like nos2x or Alby)");
       }
       
       return false;

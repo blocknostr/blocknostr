@@ -136,13 +136,9 @@ export class CommunityService {
     };
     
     try {
-      // Get the private key for signing
-      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-      
       await this.communityManager.publishEvent(
         event,
         this.publicKey,
-        privateKey,
         relays,
         this.pool
       );
@@ -166,13 +162,7 @@ export class CommunityService {
     endsAt?: number
   ): Promise<string | null> {
     if (!this.publicKey || !communityId) return null;
-    
-    console.log("Creating proposal in service:", { 
-      communityId, title, description, options, category 
-    });
-    
-    // Try to find specialized relays for community operations
-    const relays = this.getSpecializedRelaysForCommunity(communityId);
+    const relays = this.getConnectedRelayUrls();
     
     // Default end time is 7 days from now if not specified per NIP-172
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -202,15 +192,7 @@ export class CommunityService {
     };
     
     try {
-      // Get the private key for signing
       const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-      
-      console.log("Publishing proposal with:", {
-        privateKey: privateKey ? "Available" : "Not available",
-        relays,
-        event
-      });
-      
       const eventId = await this.communityManager.publishEvent(
         event,
         this.publicKey,
@@ -249,11 +231,9 @@ export class CommunityService {
     };
     
     try {
-      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
       const eventId = await this.communityManager.publishEvent(
         event,
         this.publicKey,
-        privateKey,
         relays,
         this.pool
       );
@@ -262,35 +242,5 @@ export class CommunityService {
       console.error("Error voting on proposal:", error);
       return null;
     }
-  }
-  
-  /**
-   * Get specialized relays that might work better for community operations
-   * This helps address the "please use a dedicated relay" error
-   */
-  private getSpecializedRelaysForCommunity(communityId: string): string[] {
-    // Start with user's connected relays
-    const userRelays = this.getConnectedRelayUrls();
-    
-    // Add relays known to work well with community operations
-    const communityRelays = [
-      "wss://relay.nostr.band",      // Good general relay
-      "wss://relay.current.fyi",     // Community-friendly relay
-      "wss://relay.snort.social",    // Feature-rich relay
-      "wss://purplepag.es"           // Community-oriented relay
-    ];
-    
-    // Combine and deduplicate
-    const combinedRelays = [...new Set([...userRelays, ...communityRelays])];
-    
-    // If we have too many relays, prioritize the community-focused ones
-    if (combinedRelays.length > 5) {
-      // Try to use at least some user relays
-      const userRelaysToKeep = userRelays.slice(0, 2);
-      const communityRelaysToAdd = communityRelays.slice(0, 3);
-      return [...new Set([...userRelaysToKeep, ...communityRelaysToAdd])];
-    }
-    
-    return combinedRelays;
   }
 }

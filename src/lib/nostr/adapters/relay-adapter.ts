@@ -1,8 +1,6 @@
-
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
-import { Relay } from '../types';
 
 /**
  * Adapter for relay operations

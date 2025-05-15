@@ -4,7 +4,7 @@ import { NostrEvent, NostrFilter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
   private nextId = 0;
   
   constructor(pool: SimplePool) {
@@ -13,7 +13,7 @@ export class SubscriptionManager {
   
   subscribe(
     relays: string[],
-    filters: Filter[],
+    filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void
   ): string {
     if (relays.length === 0) {

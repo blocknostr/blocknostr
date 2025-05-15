@@ -43,7 +43,7 @@ export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysP
           // For current user, get relays from nostrService
           const relayStatus = nostrService.getRelayStatus();
           if (mountedRef.current) {
-            setRelays(relayStatus as Relay[]);
+            setRelays(relayStatus);
             setIsLoading(false);
             setIsRefetching(false);
             initialLoadDoneRef.current = true;
@@ -77,12 +77,11 @@ export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysP
           
           // If we couldn't get relays, set some defaults
           if (relays.length === 0) {
-            const defaultRelays: Relay[] = [
+            setRelays([
               { url: "wss://relay.damus.io", status: 'connected', read: true, write: true },
               { url: "wss://nos.lol", status: 'connected', read: true, write: true },
               { url: "wss://relay.nostr.band", status: 'connected', read: true, write: true }
-            ];
-            setRelays(defaultRelays);
+            ]);
           }
         }
       }

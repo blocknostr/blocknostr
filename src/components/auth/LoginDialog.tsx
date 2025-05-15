@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -55,9 +56,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
 
   const handleConnect = async () => {
     if (!hasExtension) {
-      toast.error("No Nostr extension detected", {
-        description: "Please install an extension like Alby or nos2x"
-      });
       return;
     }
 
@@ -65,11 +63,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
     setConnectStatus('connecting');
     
     try {
-      console.log("Attempting login with Nostr extension...");
       const success = await nostrService.login();
       
       if (success) {
-        console.log("Login successful, user public key:", nostrService.publicKey);
         setConnectStatus('success');
         toast.success("Connected successfully", {
           description: "Welcome to BlockNoster"
@@ -85,17 +81,16 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
           }, 300);
         }, 700);
       } else {
-        console.error("Login failed: No success value returned");
         setConnectStatus('error');
         toast.error("Connection failed", {
-          description: "Extension didn't provide authentication"
+          description: "Please try again or check your extension"
         });
       }
     } catch (error) {
       console.error("Login error:", error);
       setConnectStatus('error');
       toast.error("Connection error", {
-        description: "Please check your extension permissions"
+        description: "Please check your extension settings"
       });
     } finally {
       if (connectStatus !== 'success') {

@@ -1,29 +1,24 @@
 
 import { SimplePool, nip19, type Event, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
-import { EventManager } from '../event';
 
-// Define the interface for EventManager
-export interface IEventManager {
+// EventManager interface 
+export interface EventManager {
   getEvents(filters: Filter[], relays: string[]): Promise<any[]>;
   getEventById(id: string, relays: string[]): Promise<any | null>;
   getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
   getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null>;
   verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean>;
-  publishEvent(pool: SimplePool, publicKey: string, privateKey: string, event: any, relays: string[]): Promise<string | null>;
-  signEvent(event: any, privateKey: string): Promise<string>;
 }
 
 /**
  * EventManager for handling Nostr events
  */
-export class NostrEventManagerImpl implements IEventManager {
+export class NostrEventManager implements EventManager {
   private pool: SimplePool;
-  private eventManager: EventManager;
   
   constructor() {
     this.pool = new SimplePool();
-    this.eventManager = new EventManager();
   }
 
   /**
@@ -124,32 +119,7 @@ export class NostrEventManagerImpl implements IEventManager {
       return false;
     }
   }
-
-  /**
-   * Publish an event with the provided data
-   * Implementation delegated to the EventManager class
-   */
-  async publishEvent(
-    pool: SimplePool,
-    publicKey: string,
-    privateKey: string,
-    event: any,
-    relays: string[]
-  ): Promise<string | null> {
-    // Use the instance we created in the constructor
-    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
-  }
-
-  /**
-   * Sign an event with a private key
-   * Implementation delegated to the EventManager class
-   */
-  async signEvent(event: any, privateKey: string): Promise<string> {
-    return this.eventManager.signEvent(event, privateKey);
-  }
 }
 
 // Create and export a singleton instance
-export const eventManager = new NostrEventManagerImpl();
-// Export the renamed class for compatibility
-export type NostrEventManager = NostrEventManagerImpl;
+export const eventManager = new NostrEventManager();

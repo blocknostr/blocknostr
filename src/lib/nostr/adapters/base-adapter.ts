@@ -1,15 +1,14 @@
 
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from '../utils/keys';
 import { nostrService } from '../service';
-import { NostrServiceInterface } from '../types/service-interface';
 
 /**
  * Base adapter class that provides core functionality
  */
 export class BaseAdapter {
-  protected service: NostrServiceInterface;
+  protected service: typeof nostrService;
   
-  constructor(service: NostrServiceInterface) {
+  constructor(service: typeof nostrService) {
     this.service = service;
   }
 
@@ -32,23 +31,14 @@ export class BaseAdapter {
   
   // Utilities
   formatPubkey(pubkey: string) {
-    if (this.service.formatPubkey) {
-      return this.service.formatPubkey(pubkey);
-    }
     return formatPubkey(pubkey);
   }
   
   getNpubFromHex(hexPubkey: string) {
-    if (this.service.getNpubFromHex) {
-      return this.service.getNpubFromHex(hexPubkey);
-    }
     return getNpubFromHex(hexPubkey);
   }
   
   getHexFromNpub(npub: string) {
-    if (this.service.getHexFromNpub) {
-      return this.service.getHexFromNpub(npub);
-    }
     return getHexFromNpub(npub);
   }
   

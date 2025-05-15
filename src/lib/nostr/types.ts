@@ -1,10 +1,4 @@
 
-import { Filter } from 'nostr-tools';
-import { CircuitState } from './relay/circuit/circuit-breaker';
-
-// Re-export the Filter type from nostr-tools as NostrFilter
-export type NostrFilter = Filter;
-
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -15,6 +9,9 @@ export interface NostrEvent {
   sig: string;
 }
 
+/**
+ * Extended Relay interface with performance metrics
+ */
 export interface Relay {
   url: string;
   status: 'connected' | 'connecting' | 'disconnected' | 'failed';
@@ -22,19 +19,42 @@ export interface Relay {
   write: boolean;
   score?: number;
   avgResponse?: number;
-  circuitStatus?: CircuitState | string;
-  isRequired?: boolean;
+  supportedNips?: number[];
+  load?: number;
 }
 
-// Add NostrProfileMetadata type for user.ts
 export interface NostrProfileMetadata {
   name?: string;
   display_name?: string;
   about?: string;
   picture?: string;
   banner?: string;
-  website?: string;
   nip05?: string;
   lud16?: string;
-  [key: string]: string | undefined;
+  website?: string;
+  [key: string]: any;
+}
+
+export type NostrFilter = {
+  ids?: string[];
+  authors?: string[];
+  kinds?: number[];
+  '#e'?: string[];
+  '#p'?: string[];
+  '#t'?: string[];
+  since?: number;
+  until?: number;
+  limit?: number;
+  [key: string]: any;
+};
+
+export interface NostrSubscription {
+  sub: string;
+  filters: NostrFilter[];
+  relays: string[];
+  callbacks: {
+    onevent: (event: NostrEvent) => void;
+    onclose: () => void;
+  };
+  unsub?: () => void;
 }

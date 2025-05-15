@@ -1,10 +1,10 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
-import { NostrEvent } from './types';
+import { SimplePool } from 'nostr-tools';
+import { NostrEvent, NostrFilter } from './types';
 
 interface SubscriptionDetails {
   relays: string[];
-  filters: Filter[];
+  filters: NostrFilter[];
   subClosers: any[];
   createdAt: number;
   expiresAt: number | null;
@@ -41,7 +41,7 @@ export class SubscriptionManager {
    */
   subscribe(
     relays: string[],
-    filters: Filter[],
+    filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
     options: {
       ttl?: number | null;  // Time-to-live in milliseconds, null for indefinite

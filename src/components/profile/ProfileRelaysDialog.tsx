@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -46,7 +47,7 @@ const ProfileRelaysDialog = ({
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
     if (onRelaysChange) {
-      onRelaysChange(relayStatus as Relay[]);
+      onRelaysChange(relayStatus);
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
@@ -61,14 +62,11 @@ const ProfileRelaysDialog = ({
       const circuitStatus = circuitBreaker.getState(relay.url);
       
       return {
-        url: relay.url,
-        status: relay.status,
-        read: relay.read,
-        write: relay.write,
+        ...relay,
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
-        circuitStatus,
-      } as Relay;
+        circuitStatus
+      };
     });
     
     if (onRelaysChange) {
@@ -108,14 +106,7 @@ const ProfileRelaysDialog = ({
       }
       
       // Use the imported adapatedNostrService directly
-      const success = await adaptedNostrService.publishRelayList(
-        sortedRelays.map(relay => ({
-          url: relay.url,
-          read: relay.read,
-          write: relay.write
-        }))
-      );
-      
+      const success = await adaptedNostrService.publishRelayList(sortedRelays);
       if (success) {
         toast.success("Relay preferences updated");
         return true;
@@ -185,13 +176,10 @@ const ProfileRelaysDialog = ({
       const updatedRelays = nostrService.getRelayStatus().map(relay => {
         const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
         return {
-          url: relay.url,
-          status: relay.status,
-          read: relay.read,
-          write: relay.write,
+          ...relay,
           score: perfData?.score || 50,
-          avgResponse: perfData?.avgResponseTime,
-        } as Relay;
+          avgResponse: perfData?.avgResponseTime
+        };
       });
       
       if (onRelaysChange) {
@@ -240,7 +228,7 @@ const ProfileRelaysDialog = ({
 
   // Check for circuit breaker status
   const hasBlockedRelays = relays.some(relay => {
-    const state = relay.circuitStatus;
+    const state = circuitBreaker.getState(relay.url);
     return state === CircuitState.OPEN;
   });
 

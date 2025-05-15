@@ -18,12 +18,7 @@ const RelaysTab = () => {
   useEffect(() => {
     const loadRelays = () => {
       const relayStatus = nostrService.getRelayStatus();
-      const formattedRelays = relayStatus.map(relay => ({
-        ...relay,
-        read: relay.read || true,
-        write: relay.write || true
-      })) as Relay[];
-      setRelays(formattedRelays);
+      setRelays(relayStatus);
     };
     
     loadRelays();
@@ -53,13 +48,7 @@ const RelaysTab = () => {
           description: `Successfully connected to ${newRelayUrl}`
         });
         setNewRelayUrl("");
-        const relayStatus = nostrService.getRelayStatus();
-        const formattedRelays = relayStatus.map(relay => ({
-          ...relay,
-          read: relay.read || true,
-          write: relay.write || true
-        })) as Relay[];
-        setRelays(formattedRelays);
+        setRelays(nostrService.getRelayStatus());
       } else {
         toast.error("Connection failed", {
           description: `Could not connect to ${newRelayUrl}`
@@ -76,19 +65,13 @@ const RelaysTab = () => {
   
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
-    const relayStatus = nostrService.getRelayStatus();
-    const formattedRelays = relayStatus.map(relay => ({
-      ...relay,
-      read: relay.read || true,
-      write: relay.write || true
-    })) as Relay[];
-    setRelays(formattedRelays);
+    setRelays(nostrService.getRelayStatus());
     toast.success("Relay removed", {
       description: `Removed relay: ${relayUrl}`
     });
   };
 
-  const getStatusIcon = (status: Relay['status']) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
         return <Check className="h-4 w-4 text-green-500" />;
@@ -99,7 +82,7 @@ const RelaysTab = () => {
     }
   };
   
-  const getStatusClass = (status: Relay['status']) => {
+  const getStatusClass = (status: string) => {
     switch (status) {
       case 'connected':
         return "bg-green-500/5 border-green-500/20";
