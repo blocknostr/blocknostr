@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -39,17 +38,12 @@ const WalletsPage = () => {
   }, [connected, wallet.account]);
 
   const handleDisconnect = () => {
-    // Disconnect from wallet using available methods
+    // The SignerProvider doesn't have a direct disconnect method
+    // We need to properly terminate the connection
     if (wallet && wallet.signer) {
       try {
-        // Try various methods that might be available on the signer
-        if (typeof wallet.signer.disconnect === 'function') {
-          (wallet.signer as any).disconnect();
-        } else if (typeof wallet.signer.requestDisconnection === 'function') {
-          (wallet.signer as any).requestDisconnection();
-        } else {
-          console.warn("No direct disconnect method found on wallet signer");
-        }
+        // Use the disconnect() method properly
+        wallet.signer.disconnect?.() || wallet.signer.requestDisconnection?.();
         toast.info("Wallet disconnected");
       } catch (error) {
         console.error("Failed to disconnect wallet:", error);

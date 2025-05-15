@@ -32,18 +32,12 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = () => {
-    // Connect to wallet using available methods
+    // The SignerProvider doesn't have a direct connect method
+    // We need to request the connection from the wallet
     if (wallet && wallet.signer) {
       try {
-        // Call the connect method or use any available method to request connection
-        // Since the exact method isn't available in the type definitions, we'll use a more generic approach
-        if (typeof wallet.signer.connect === 'function') {
-          wallet.signer.connect();
-        } else if (typeof wallet.signer.requestConnection === 'function') {
-          (wallet.signer as any).requestConnection();
-        } else {
-          console.error("No connection method available on wallet signer");
-        }
+        // Use the requestConnection() method instead of connect()
+        wallet.signer.requestConnection();
       } catch (error) {
         console.error("Failed to connect wallet:", error);
       }
