@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
@@ -14,7 +13,6 @@ export function useNotebin() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
   
   // Use our custom localStorage hook for saved notes
   const [savedNotes, setSavedNotes] = useLocalStorage<Note[]>('notebin_saved_notes', []);
@@ -108,9 +106,6 @@ export function useNotebin() {
       return [note, ...prev];
     });
 
-    // Clear the current note ID after saving
-    setCurrentNoteId(note.id);
-
     // Refresh notes from network after saving a new one
     if (isLoggedIn) {
       setTimeout(() => {
@@ -124,10 +119,6 @@ export function useNotebin() {
 
   // View a note (load into editor)
   const viewNote = useCallback((note: Note) => {
-    // Set the current note being edited
-    setCurrentNoteId(note.id);
-    
-    // Set the editor form values from the note
     setTitle(note.title);
     setContent(note.content);
     setLanguage(note.language || "text");
@@ -135,15 +126,6 @@ export function useNotebin() {
     
     // Scroll to editor when viewing a note
     document.getElementById('noteEditor')?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-
-  // Clear editor and reset current note
-  const clearEditor = useCallback(() => {
-    setTitle("");
-    setContent("");
-    setLanguage("text");
-    setTags([]);
-    setCurrentNoteId(null);
   }, []);
 
   // Refresh notes on login status change
@@ -167,7 +149,6 @@ export function useNotebin() {
     view,
     sortOption,
     searchQuery,
-    currentNoteId,
     handleViewToggle,
     handleSortChange,
     handleSearch,
@@ -176,7 +157,6 @@ export function useNotebin() {
     viewNote,
     setNoteToDelete,
     fetchNote: noteFetcher.fetchNote,
-    refreshNotes: noteFetcher.refreshNotes,
-    clearEditor
+    refreshNotes: noteFetcher.refreshNotes
   };
 }
