@@ -4,6 +4,7 @@ import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
+import eventPrioritization from "@/lib/nostr/utils/event-prioritization";
 
 interface UseFeedEventsProps {
   following?: string[];
@@ -14,6 +15,8 @@ interface UseFeedEventsProps {
   feedType?: string;
   mediaOnly?: boolean;
 }
+
+const PROFILE_BATCH_SIZE = 10; // Process profiles in batches for better performance
 
 export function useFeedEvents({
   following,
@@ -28,8 +31,10 @@ export function useFeedEvents({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [cacheHit, setCacheHit] = useState<boolean>(false);
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
+  const [pubkeysToFetch, setPubkeysToFetch] = useState<Set<string>>(new Set());
+  const [prioritizationApplied, setPrioritizationApplied] = useState<boolean>(false);
   
-  const { profiles, fetchProfileData } = useProfileFetcher();
+  const { profiles, fetchProfileData, fetchProfiles } = useProfileFetcher();
   const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
   
   // Handle event subscription
@@ -39,12 +44,66 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents,
+    setEvents: (newEvents) => {
+      // Apply event prioritization for better feed quality
+      const prioritizedEvents = eventPrioritization.prioritizeEvents(newEvents);
+      setEvents(prioritizedEvents);
+      setPrioritizationApplied(true);
+      
+      // Extract public keys for batch fetching
+      const authorPubkeys = new Set<string>();
+      prioritizedEvents.forEach(event => {
+        if (event.pubkey) {
+          authorPubkeys.add(event.pubkey);
+        }
+      });
+      
+      // Update pubkeys to fetch
+      setPubkeysToFetch(authorPubkeys);
+    },
     handleRepost,
     fetchProfileData,
     feedType,
     mediaOnly,
   });
+  
+  // Process profile fetching in batches for better performance
+  useEffect(() => {
+    if (pubkeysToFetch.size > 0) {
+      const pubkeysArray = Array.from(pubkeysToFetch);
+      
+      // Process in smaller batches to avoid overwhelming the system
+      const processBatch = async (startIdx: number) => {
+        const endIdx = Math.min(startIdx + PROFILE_BATCH_SIZE, pubkeysArray.length);
+        const batchPubkeys = pubkeysArray.slice(startIdx, endIdx);
+        
+        if (batchPubkeys.length > 0) {
+          await fetchProfiles(batchPubkeys);
+          
+          // Process next batch if there are more pubkeys
+          if (endIdx < pubkeysArray.length) {
+            // Short delay between batches
+            setTimeout(() => processBatch(endIdx), 100);
+          }
+        }
+      };
+      
+      // Start processing batches
+      processBatch(0);
+      
+      // Clear the set after initiating fetching
+      setPubkeysToFetch(new Set());
+    }
+  }, [pubkeysToFetch, fetchProfiles]);
+  
+  // Periodically re-prioritize events if we have enough of them
+  useEffect(() => {
+    if (events.length > 15 && !prioritizationApplied) {
+      const prioritizedEvents = eventPrioritization.prioritizeEvents(events);
+      setEvents(prioritizedEvents);
+      setPrioritizationApplied(true);
+    }
+  }, [events, prioritizationApplied]);
   
   // Try to load from cache first when component mounts
   useEffect(() => {
@@ -61,9 +120,13 @@ export function useFeedEvents({
       });
       
       if (cachedFeed && cachedFeed.length > 0) {
-        // Use cached feed
-        setEvents(cachedFeed);
+        // Apply event prioritization to cached feed
+        const prioritizedFeed = eventPrioritization.prioritizeEvents(cachedFeed);
+        
+        // Use cached feed with prioritization
+        setEvents(prioritizedFeed);
         setCacheHit(true);
+        setPrioritizationApplied(true);
         
         // Get cache timestamp
         const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
@@ -79,21 +142,18 @@ export function useFeedEvents({
           setLastUpdated(new Date(cacheEntry.timestamp));
         }
         
-        // Only fetch profiles for visible posts to reduce initial load
-        // This is more efficient than prefetching all profiles
-        const visiblePosts = cachedFeed.slice(0, 10); // Only first 10 visible posts
-        const visibleAuthors = new Set<string>();
-        
-        visiblePosts.forEach(event => {
+        // Extract public keys for batch profile fetching
+        const authorPubkeys = new Set<string>();
+        prioritizedFeed.slice(0, 15).forEach(event => { // Focus on visible posts first
           if (event.pubkey) {
-            visibleAuthors.add(event.pubkey);
+            authorPubkeys.add(event.pubkey);
           }
         });
         
-        // Fetch profiles for visible authors only
-        visibleAuthors.forEach(pubkey => {
-          fetchProfileData(pubkey);
-        });
+        // Update pubkeys to fetch for batch processing
+        if (authorPubkeys.size > 0) {
+          setPubkeysToFetch(authorPubkeys);
+        }
       }
       
       setLoadingFromCache(false);
@@ -115,6 +175,7 @@ export function useFeedEvents({
     
     setCacheHit(false);
     setLastUpdated(null);
+    setPrioritizationApplied(false);
     
     // Cancel existing subscription
     if (subId) {

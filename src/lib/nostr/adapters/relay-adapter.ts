@@ -1,6 +1,13 @@
+
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
+
+// Max number of initial relays for faster loading
+const MAX_INITIAL_RELAYS = 4;
+
+// Timeout for initial connection attempts
+const CONNECTION_TIMEOUT_MS = 2500; // 2.5 seconds
 
 /**
  * Adapter for relay operations
@@ -63,7 +70,7 @@ export class RelayAdapter extends BaseAdapter {
           }
         );
         
-        // Set timeout for fallback logic
+        // Set timeout for fallback logic - reduced from 5s to 3s
         timeoutId = setTimeout(() => {
           if (!resolved) {
             this.service.unsubscribe(subId);
@@ -78,7 +85,7 @@ export class RelayAdapter extends BaseAdapter {
             console.log(`No relay list found for ${pubkey}, using fallback relays`);
             resolve(defaultRelays);
           }
-        }, 5000); // 5 second timeout for relay response
+        }, 3000); // Reduced from 5s to 3s for faster response
       });
     } catch (error) {
       console.error("Error fetching user relays:", error);
@@ -101,10 +108,80 @@ export class RelayAdapter extends BaseAdapter {
   }
   
   /**
-   * Connect to user's relays
+   * Connect to user's relays with improved connection strategy
+   * - Starts with a limited set of high-performing relays
+   * - Uses timeout to avoid waiting too long
+   * - Adds more relays in background after initial content is loaded
    */
   async connectToUserRelays() {
-    return this.service.connectToUserRelays();
+    try {
+      // Get all available relays
+      const availableRelays = this.service.getRelayUrls();
+      
+      if (!availableRelays || availableRelays.length === 0) {
+        console.log('No relays configured, using default relays.');
+        return this.service.connectToDefaultRelays();
+      }
+      
+      // Select a limited set of relays for initial connection (max 4)
+      // We prioritize known fast relays for initial connection
+      const fastRelaysFirst = [...availableRelays].sort((a, b) => {
+        // Known fast relays get priority
+        const fastRelays = [
+          'wss://relay.damus.io',
+          'wss://nos.lol',
+          'wss://relay.nostr.band',
+          'wss://purplepag.es'
+        ];
+        
+        const aIsFast = fastRelays.includes(a);
+        const bIsFast = fastRelays.includes(b);
+        
+        if (aIsFast && !bIsFast) return -1;
+        if (!aIsFast && bIsFast) return 1;
+        return 0;
+      });
+      
+      // Take just the first few for initial connection (faster startup)
+      const initialRelays = fastRelaysFirst.slice(0, MAX_INITIAL_RELAYS);
+      console.log(`Connecting to ${initialRelays.length} initial relays:`, initialRelays);
+      
+      // Connect to initial relays with timeout
+      const initialConnectionPromise = Promise.race([
+        // Attempt to connect to initial relays
+        this.service.relayManager.addMultipleRelays(initialRelays),
+        
+        // Timeout after 2.5 seconds to avoid waiting too long
+        new Promise<number>((resolve) => {
+          setTimeout(() => {
+            console.log(`Connection timeout reached after ${CONNECTION_TIMEOUT_MS}ms`);
+            resolve(0);
+          }, CONNECTION_TIMEOUT_MS);
+        })
+      ]);
+      
+      // Wait for initial connections
+      const connectedCount = await initialConnectionPromise;
+      console.log(`Connected to ${connectedCount} initial relays`);
+      
+      // If we have remaining relays, connect to them in the background
+      if (availableRelays.length > MAX_INITIAL_RELAYS) {
+        const remainingRelays = fastRelaysFirst.slice(MAX_INITIAL_RELAYS);
+        
+        // Connect to remaining relays in the background
+        setTimeout(() => {
+          console.log(`Connecting to ${remainingRelays.length} additional relays in background`);
+          this.service.relayManager.addMultipleRelays(remainingRelays).then((count) => {
+            console.log(`Connected to ${count} additional relays`);
+          });
+        }, 100);
+      }
+      
+      return connectedCount > 0;
+    } catch (error) {
+      console.error('Error connecting to relays:', error);
+      return false;
+    }
   }
   
   /**
@@ -118,19 +195,29 @@ export class RelayAdapter extends BaseAdapter {
     let successCount = 0;
     const failedRelays: string[] = [];
     
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) {
-          successCount++;
-        } else {
-          failedRelays.push(url);
-        }
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-        failedRelays.push(url);
-      }
-    }
+    // Use Promise.allSettled for parallel connection attempts with faster timeouts
+    const connectionPromises = relayUrls.map(url => {
+      return Promise.race([
+        this.addRelay(url).then(success => {
+          if (success) {
+            successCount++;
+            return { url, success: true };
+          } else {
+            failedRelays.push(url);
+            return { url, success: false };
+          }
+        }),
+        // Individual timeout per relay to avoid slow relays blocking everything
+        new Promise<{url: string, success: false}>(resolve => {
+          setTimeout(() => {
+            failedRelays.push(url);
+            resolve({ url, success: false });
+          }, 2000); // 2 second timeout per relay
+        })
+      ]);
+    });
+    
+    await Promise.allSettled(connectionPromises);
     
     // Notify user about failed relays if any
     if (failedRelays.length > 0 && successCount > 0) {
