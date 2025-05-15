@@ -1,59 +1,91 @@
 
-import React from 'react';
-import { Hash, SlidersHorizontal, Clock } from "lucide-react";
-import TrendingTopicsList from './TrendingTopicsList';
-import { useTrendingTopicsData } from './hooks/useTrendingTopicsData';
-import TrendingFilters from './TrendingFilters';
-import { useUserPreferences } from '@/hooks/useUserPreferences';
+import { FC, useState, useEffect } from "react";
+import TrendingTopicsList from "./TrendingTopicsList";
+import TrendingFilters from "./TrendingFilters";
+import { useTrendingTopicsData } from "./hooks/useTrendingTopicsData";
+import { FilterType, TimeRange } from "./types";
 
-export interface TrendingSectionProps {
-  onTopicClick?: (topic: string) => void;
-  activeHashtag?: string;
-  onClearHashtag?: () => void;
-  className?: string;
-}
-
-const TrendingSection: React.FC<TrendingSectionProps> = ({ 
-  onTopicClick,
-  activeHashtag,
-  onClearHashtag,
-  className = ''
-}) => {
-  const { preferences } = useUserPreferences();
+const TrendingSection: FC = () => {
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [activeTimeRange, setActiveTimeRange] = useState<TimeRange>("day");
+  
   const {
     trendingTopics,
-    activeFilter,
-    timeRange,
-    setActiveFilter,
-    setTimeRange,
-    isFilterOpen,
-    setIsFilterOpen,
-    filterOptions,
-    timeOptions,
-    currentFilter,
-    currentTime
+    isLoading,
+    error,
+    fetchTrendingTopics,
   } = useTrendingTopicsData();
 
-  // Hide trending section if user preference is set to false
-  if (!preferences.uiPreferences.showTrending) {
-    return null;
-  }
+  useEffect(() => {
+    // Initial data fetch
+    fetchTrendingTopics();
+    
+    // Set up periodic refresh (every 5 minutes)
+    const intervalId = setInterval(() => {
+      fetchTrendingTopics();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [fetchTrendingTopics]);
+
+  // Filter topics based on the selected filter and time range
+  const filteredTopics = trendingTopics.filter((topic) => {
+    if (activeFilter === "all") {
+      return true;
+    }
+    
+    if (activeFilter === "hashtags") {
+      return topic.isHashtag;
+    }
+    
+    if (activeFilter === "topics") {
+      return !topic.isHashtag;
+    }
+    
+    return true;
+  });
+
+  const handleFilterChange = (filter: FilterType) => {
+    setActiveFilter(filter);
+  };
+
+  const handleTimeRangeChange = (timeRange: TimeRange) => {
+    setActiveTimeRange(timeRange);
+    // Reload data with new time range
+    fetchTrendingTopics();
+  };
 
   return (
-    <div className={`bg-background border rounded-lg shadow-sm overflow-hidden ${className}`}>
-      <div className="p-3 border-b">
-        <h3 className="text-sm font-medium">Trending Topics</h3>
+    <div className="bg-card rounded-md shadow-sm mb-4 overflow-hidden">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-medium">Trending</h2>
       </div>
       
-      <TrendingFilters 
-        currentFilter={currentFilter}
-        currentTime={currentTime}
+      <TrendingFilters
+        activeFilter={activeFilter}
+        activeTimeRange={activeTimeRange}
+        onFilterChange={handleFilterChange}
+        onTimeRangeChange={handleTimeRangeChange}
       />
       
-      <TrendingTopicsList 
-        topics={trendingTopics}
-        onTopicClick={onTopicClick}
+      <TrendingTopicsList
+        topics={filteredTopics}
+        isLoading={isLoading}
+        error={error}
       />
+      
+      <div className="p-3 text-center border-t">
+        <button
+          onClick={() => {
+            setActiveFilter("all");
+            setActiveTimeRange("day");
+            fetchTrendingTopics();
+          }}
+          className="text-sm text-primary hover:underline"
+        >
+          View all trending topics
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,8 +1,7 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import { verifyNip05, fetchNip05Data } from '../nip05';
+import { verifyNip05, fetchNip05Data } from '../utils/nip';
 
 /**
  * Profile service that handles user profile-related methods
@@ -171,8 +170,7 @@ export class ProfileService {
    * @returns True if the NIP-05 identifier resolves to the expected pubkey
    */
   async verifyNip05(identifier: string, expectedPubkey: string): Promise<boolean> {
-    const pubkey = await verifyNip05(identifier);
-    return pubkey !== null && pubkey === expectedPubkey;
+    return verifyNip05(identifier, expectedPubkey);
   }
 
   /**
