@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from "react"
 import { useWallet } from "@alephium/web3-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -40,6 +39,38 @@ export const WalletSummary: React.FC = () => {
     const [balances, setBalances] = useState<TokenBalance[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    // Format token amount from raw balance and decimals
+    const formatTokenAmount = (balance: string, decimals: number): string => {
+        try {
+            // Use BigInt for precise calculations with large numbers
+            const rawValue = BigInt(balance);
+            if (rawValue === BigInt(0)) return "0.00";
+            
+            const divisor = BigInt(10 ** decimals);
+            
+            // Calculate whole and fractional parts
+            const wholePart = rawValue / divisor;
+            const fractionalPart = rawValue % divisor;
+            
+            // Format the fractional part with proper precision
+            let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+            
+            // Trim trailing zeros but keep reasonable precision
+            const significantDecimals = Math.min(8, decimals); // Limit to 8 decimals max for display
+            fractionalStr = fractionalStr.slice(0, significantDecimals);
+            
+            // Format the whole part with thousands separators
+            const formattedWhole = wholePart.toLocaleString();
+            
+            return fractionalPart > 0 
+                ? `${formattedWhole}.${fractionalStr}` 
+                : `${formattedWhole}.00`;
+        } catch (error) {
+            console.error(`[formatTokenAmount] Error formatting amount with ${decimals} decimals:`, error);
+            return "Error";
+        }
+    };
 
     const publishWalletSummary = useCallback(
         async (summary: WalletSummaryPayload) => {
@@ -131,7 +162,7 @@ export const WalletSummary: React.FC = () => {
 
                 // 4) Enrich + filter out zero balances
                 const enriched: TokenBalance[] = data
-                    .filter((item) => item.balance !== "0")
+                    .filter((item) => item.balance !== "0") // Skip zero balances
                     .map((item) => {
                         const meta = tokenMap.get(item.tokenId);
                         let decimals, symbol, name, logoURI;
@@ -192,35 +223,16 @@ export const WalletSummary: React.FC = () => {
                     const summaryPayload: WalletSummaryPayload = {
                         address,
                         balances: enriched.map(tok => {
-                            // Safely divide by 10**decimals and format
-                            try {
-                                const rawValue = parseFloat(tok.balance);
-                                if (isNaN(rawValue)) {
-                                    throw new Error("Invalid balance value");
-                                }
-                                
-                                const humanValue = rawValue / Math.pow(10, tok.decimals);
-                                const formatted = humanValue.toLocaleString(undefined, {
-                                    maximumFractionDigits: tok.decimals,
-                                });
-                                
-                                return {
-                                    id: tok.id,
-                                    amount: formatted,
-                                    symbol: tok.symbol,
-                                    name: tok.name,
-                                    logoURI: tok.logoURI,
-                                };
-                            } catch (err) {
-                                console.error(`[WalletSummary] Error formatting token ${tok.symbol}:`, err);
-                                return {
-                                    id: tok.id,
-                                    amount: "Error",
-                                    symbol: tok.symbol,
-                                    name: tok.name,
-                                    logoURI: tok.logoURI,
-                                };
-                            }
+                            // Format the balance using the correct decimal precision
+                            const formattedAmount = formatTokenAmount(tok.balance, tok.decimals);
+                            
+                            return {
+                                id: tok.id,
+                                amount: formattedAmount,
+                                symbol: tok.symbol,
+                                name: tok.name,
+                                logoURI: tok.logoURI,
+                            };
                         })
                     }
                     await publishWalletSummary(summaryPayload);
@@ -295,22 +307,8 @@ export const WalletSummary: React.FC = () => {
                 {!loading && !error && balances.length > 0 && (
                     <div className="space-y-2">
                         {balances.map(tok => {
-                            // Safely convert & format for display
-                            let formatted;
-                            try {
-                                const rawValue = parseFloat(tok.balance);
-                                if (isNaN(rawValue)) {
-                                    throw new Error("Invalid balance");
-                                }
-                                
-                                const humanValue = rawValue / Math.pow(10, tok.decimals);
-                                formatted = humanValue.toLocaleString(undefined, {
-                                    maximumFractionDigits: tok.decimals,
-                                });
-                            } catch (err) {
-                                console.error(`[WalletSummary] Error formatting token ${tok.symbol}:`, err);
-                                formatted = "Error";
-                            }
+                            // Format the token amount using the correct decimal precision
+                            const formatted = formatTokenAmount(tok.balance, tok.decimals);
                             
                             return (
                                 <div
@@ -328,7 +326,7 @@ export const WalletSummary: React.FC = () => {
                                                     const target = e.target as HTMLImageElement;
                                                     target.style.display = 'none';
                                                     // Using optional chaining and type assertion for nextElementSibling
-                                                    const nextElement = target.nextElementSibling as HTMLElement;
+                                                    const nextElement = target.nextElementSibling as HTMLElement | null;
                                                     if (nextElement) {
                                                         nextElement.style.display = 'flex';
                                                     }
