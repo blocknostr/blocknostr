@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { handleError } from "@/lib/utils/errorHandling";
 
 interface Transaction {
   id: string;
@@ -18,16 +19,16 @@ interface Transaction {
 }
 
 interface AlephiumTransactionResponse {
-  txId: string;
+  hash: string;
   blockHash: string;
   timestamp: number;
   inputs: Array<{
     address: string;
-    attoAlphAmount: string;
+    amount: string;
   }>;
   outputs: Array<{
     address: string;
-    attoAlphAmount: string;
+    amount: string;
   }>;
 }
 
@@ -46,8 +47,8 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Fetch transaction data from the Alephium Explorer API
-        const response = await fetch(`https://explorer-backend.mainnet.alephium.org/addresses/${address}/transactions?limit=10`);
+        // Using the correct Alephium Explorer API endpoint
+        const response = await fetch(`https://explorer.alephium.org/api/addresses/${address}/transactions?page=0&limit=10`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
@@ -59,6 +60,8 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           throw new Error('Invalid response format');
         }
         
+        console.log('API Response:', data); // Log the response for debugging
+        
         // Transform the data into our transaction format
         const formattedTransactions: Transaction[] = data.transactions.map((tx: AlephiumTransactionResponse) => {
           // Determine if the transaction is sent or received
@@ -67,29 +70,46 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           // Calculate the total amount
           let amount = '0';
           if (isSent) {
-            // For sent, sum the outputs that don't go back to the sender
-            const nonSelfOutputs = tx.outputs.filter(output => output.address !== address);
-            amount = nonSelfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
+            // For sent, calculate the net amount leaving the address
+            // First, sum all inputs from this address
+            const selfInputs = tx.inputs.filter(input => input.address === address);
+            const inputSum = selfInputs.reduce((sum, input) => 
+              (BigInt(sum) + BigInt(input.amount)).toString(), '0');
+            
+            // Then, sum all outputs going back to this address
+            const selfOutputs = tx.outputs.filter(output => output.address === address);
+            const outputSum = selfOutputs.reduce((sum, output) => 
+              (BigInt(sum) + BigInt(output.amount)).toString(), '0');
+            
+            // The amount sent is the difference
+            amount = (BigInt(inputSum) - BigInt(outputSum)).toString();
           } else {
             // For received, sum outputs that go to the current address
             const selfOutputs = tx.outputs.filter(output => output.address === address);
             amount = selfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
+              (BigInt(sum) + BigInt(output.amount)).toString(), '0');
           }
           
           // Format amount to ALPH (1 ALPH = 10^18 attoALPH)
-          const formattedAmount = (Number(amount) / 10**18).toString();
+          const formattedAmount = (Number(BigInt(amount)) / 10**18).toString();
+          
+          // Find the counterparty address (first non-self address in inputs or outputs)
+          let counterpartyAddress = '';
+          if (isSent) {
+            // For sent, get the first recipient that isn't the sender
+            counterpartyAddress = tx.outputs.find(output => output.address !== address)?.address || 'Unknown';
+          } else {
+            // For received, get the first sender
+            counterpartyAddress = tx.inputs.find(input => input.address !== address)?.address || 'Unknown';
+          }
           
           return {
-            id: tx.txId,
+            id: tx.hash,
             type: isSent ? 'sent' : 'received',
             amount: formattedAmount,
-            timestamp: tx.timestamp,
+            timestamp: tx.timestamp * 1000, // Convert to milliseconds
             status: 'confirmed',
-            address: isSent 
-              ? (tx.outputs[0]?.address || 'Unknown') 
-              : (tx.inputs[0]?.address || 'Unknown'),
+            address: counterpartyAddress,
             blockHash: tx.blockHash
           };
         });
@@ -98,40 +118,46 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       } catch (error) {
         console.error('Error fetching transactions:', error);
         
+        await handleError(error, {
+          toastMessage: "Could not fetch transaction history",
+          logMessage: "Transaction fetch error for address: " + address,
+          type: 'error',
+        });
+        
         // If we're using the fixed demo address, show mock data
         if (address === "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r") {
           const mockTransactions: Transaction[] = [
             {
-              id: "0xf67ab1c44630ef4a9e9531a17bded756a1aa2fcd65de998ce785aaf55190588f",
+              id: "d35e3ceed8151d62af033c7949e9634afdb76e19197a30741e5951d60c9fbc61",
               type: "received",
               amount: "5.00",
               timestamp: Date.now() - 3600000 * 2,
               status: "confirmed",
-              address: "0xabcdef123456789"
+              address: "raLxxuVR1W8GV1J5EGcmAXnYLJDcwYwEX5fHdavZpS7c"
             },
             {
-              id: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+              id: "f9cb93e871d31c0c5c8efdc67c3fbc5bd4eb28d3abc3ac331421d93aeb5cf2b1",
               type: "sent",
               amount: "2.25",
               timestamp: Date.now() - 86400000,
               status: "confirmed",
-              address: "0x567890abcdef123"
+              address: "ra2VbGCNvxJvdPFSXNuTK8f85NqMnQEjmTNLQEwp2FG1"
             },
             {
-              id: "0x3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
+              id: "517dbcd142a21c34163173ff890d056a8388e9446b32766fb3f5d1c8225e8cb9",
               type: "received",
               amount: "1.75",
               timestamp: Date.now() - 86400000 * 3,
               status: "confirmed",
-              address: "0x123abcdef456789"
+              address: "raLVdGg8mWdtvwjNoHFGMdArKfy9jmysFvWx1vpFJSRA"
             },
             {
-              id: "0x5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f",
+              id: "e2e5b116e9051c5eda5f823c5bf6500e1ece424a456502df88c66338429e3927",
               type: "sent",
               amount: "0.50",
               timestamp: Date.now() - 86400000 * 7,
               status: "confirmed",
-              address: "0x789abcdef123456"
+              address: "ra2B7pHFJDYLpH8bEawYxcDQbAUAkNf1wjoYCT5xbGz8"
             }
           ];
           
@@ -140,11 +166,6 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
             description: "Connect your own wallet to see real transaction history"
           });
         } else {
-          toast.error("Could not fetch transaction history", {
-            description: "Using sample data instead"
-          });
-          
-          // Fallback to empty state
           setTransactions([]);
         }
       } finally {
