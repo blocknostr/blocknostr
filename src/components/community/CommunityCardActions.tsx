@@ -20,13 +20,15 @@ interface CommunityCardActionsProps {
   isMember: boolean;
   isCreator: boolean;
   currentUserPubkey: string | null;
+  disableNonMemberActions?: boolean;
 }
 
 const CommunityCardActions = ({ 
   community, 
   isMember, 
   isCreator, 
-  currentUserPubkey 
+  currentUserPubkey,
+  disableNonMemberActions = false
 }: CommunityCardActionsProps) => {
   const [showInviteLink, setShowInviteLink] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -96,6 +98,14 @@ const CommunityCardActions = ({
   const shareInviteLink = (e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Don't allow non-members to share invite links
+    if (disableNonMemberActions && !isMember) {
+      toast.info("Join to share", {
+        description: "You need to be a member to share this community"
+      });
+      return;
+    }
+    
     const inviteUrl = `${window.location.origin}/communities/${community.id}`;
     
     if (navigator.clipboard) {
@@ -161,10 +171,21 @@ const CommunityCardActions = ({
               size="icon"
               onClick={shareInviteLink}
               title="Share invite link"
+              disabled={disableNonMemberActions && !isMember}
             >
               <LinkIcon className="h-4 w-4" />
             </Button>
           </>
+        )}
+        {!isMember && !isCreator && !currentUserPubkey && (
+          <Button 
+            variant="outline" 
+            className="flex-1 flex items-center justify-center gap-2"
+            onClick={navigateToCommunity}
+          >
+            <Eye className="h-4 w-4" />
+            <span>View</span>
+          </Button>
         )}
       </div>
       {showInviteLink && (

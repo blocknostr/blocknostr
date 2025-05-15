@@ -8,6 +8,7 @@ import { formatSerialNumber } from "@/lib/community-utils";
 import LeaveCommunityButton from "./LeaveCommunityButton";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export interface Community {
   id: string;
@@ -25,14 +26,26 @@ interface CommunityCardProps {
   community: Community;
   isMember: boolean;
   currentUserPubkey: string | null;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCardProps) => {
+const CommunityCard = ({ 
+  community, 
+  isMember, 
+  currentUserPubkey,
+  isSelected,
+  onSelect
+}: CommunityCardProps) => {
   const navigate = useNavigate();
   const isCreator = community.creator === currentUserPubkey;
   
   const navigateToCommunity = () => {
-    navigate(`/communities/${community.id}`);
+    if (onSelect) {
+      onSelect();
+    } else {
+      navigate(`/communities/${community.id}`);
+    }
   };
   
   const formatDate = (timestamp: number) => {
@@ -88,7 +101,10 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer border border-border/40"
+      className={cn(
+        "overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer border border-border/40",
+        isSelected && "ring-2 ring-primary border-primary"
+      )}
       onClick={navigateToCommunity}
     >
       <div className="relative">
@@ -147,6 +163,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
           isMember={isMember}
           isCreator={isCreator}
           currentUserPubkey={currentUserPubkey}
+          disableNonMemberActions={!isMember}
         />
       </CardFooter>
     </Card>
