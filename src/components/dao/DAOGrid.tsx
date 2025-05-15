@@ -12,6 +12,7 @@ interface DAOGridProps {
   loading: boolean;
   currentUserPubkey: string | null;
   onCreateCommunity: () => void;
+  searchTerm: string;
 }
 
 const DAOGrid = ({
@@ -21,6 +22,7 @@ const DAOGrid = ({
   loading,
   currentUserPubkey,
   onCreateCommunity,
+  searchTerm
 }: DAOGridProps) => {
   if (loading) {
     return (

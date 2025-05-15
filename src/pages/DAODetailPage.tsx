@@ -52,6 +52,57 @@ const DAODetailPage = () => {
     handleSetCommunityTags
   } = useCommunity(id);
   
+  // Wrapper functions to ensure return type is Promise<boolean>
+  const handleSetGuidelinesWrapper = async (guidelines: string): Promise<boolean> => {
+    try {
+      await handleSetGuidelines(guidelines);
+      return true;
+    } catch (error) {
+      console.error("Error setting guidelines:", error);
+      return false;
+    }
+  };
+  
+  const handleSetPrivateWrapper = async (isPrivate: boolean): Promise<boolean> => {
+    try {
+      await handleSetPrivate(isPrivate);
+      return true;
+    } catch (error) {
+      console.error("Error setting privacy:", error);
+      return false;
+    }
+  };
+  
+  const handleSetCommunityTagsWrapper = async (tags: string[]): Promise<boolean> => {
+    try {
+      await handleSetCommunityTags(tags);
+      return true;
+    } catch (error) {
+      console.error("Error setting tags:", error);
+      return false;
+    }
+  };
+  
+  const handleAddModeratorWrapper = async (pubkey: string): Promise<boolean> => {
+    try {
+      await handleAddModerator(pubkey);
+      return true;
+    } catch (error) {
+      console.error("Error adding moderator:", error);
+      return false;
+    }
+  };
+  
+  const handleRemoveModeratorWrapper = async (pubkey: string): Promise<boolean> => {
+    try {
+      await handleRemoveModerator(pubkey);
+      return true;
+    } catch (error) {
+      console.error("Error removing moderator:", error);
+      return false;
+    }
+  };
+  
   if (loading) {
     return <CommunityLoading />;
   }
@@ -117,7 +168,7 @@ const DAODetailPage = () => {
                   <DAOGuidelines
                     guidelines={community.guidelines}
                     canEdit={canSetGuidelines}
-                    onUpdate={handleSetGuidelines}
+                    onUpdate={handleSetGuidelinesWrapper}
                   />
                 </TabsContent>
                 
@@ -128,10 +179,10 @@ const DAODetailPage = () => {
                       community={community}
                       isCreator={isCreator}
                       isModerator={isModerator}
-                      onSetPrivate={handleSetPrivate}
-                      onUpdateTags={handleSetCommunityTags}
-                      onAddModerator={handleAddModerator}
-                      onRemoveModerator={handleRemoveModerator}
+                      onSetPrivate={handleSetPrivateWrapper}
+                      onUpdateTags={handleSetCommunityTagsWrapper}
+                      onAddModerator={handleAddModeratorWrapper}
+                      onRemoveModerator={handleRemoveModeratorWrapper}
                     />
                   </TabsContent>
                 )}

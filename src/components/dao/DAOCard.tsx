@@ -84,7 +84,7 @@ const DAOCard = ({ community, isUserMember, currentUserPubkey }: DAOCardProps) =
           </div>
           
           {community.creator === currentUserPubkey && (
-            <Badge variant="secondary" size="sm" className="text-xs">
+            <Badge variant="secondary" className="text-xs">
               Owner
             </Badge>
           )}
