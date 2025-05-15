@@ -67,10 +67,8 @@ export class EventManager {
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     
-    // Fix: Extract just the signature bytes from the SignatureWithRecovery object
-    const signatureObj = await secp.sign(eventHash, privateKey);
-    // The compact() method extracts just the 64-byte signature without recovery info
-    const signatureBytes = secp.Signature.fromDER(signatureObj).toCompactRawBytes();
+    // Fix: Use standard signing and convert the signature directly to hex
+    const signatureBytes = await secp.sign(eventHash, privateKey, { der: false });
     return bytesToHex(signatureBytes);
   }
 }
