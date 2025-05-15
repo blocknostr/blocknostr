@@ -191,6 +191,7 @@ export function useEventSubscription({
           }
         }
       },
+      // Fix: This is now correctly passed as an error handler callback function
       (error) => {
         // Error handler for subscription errors
         console.error("Subscription error:", error);

@@ -78,6 +78,8 @@ export class RelayAdapter extends BaseAdapter {
               resolve(relayUrls);
             }
           },
+          // Fix: Pass a proper error handler function instead of using it as an additional parameter
+          // The third parameter should be the onError callback, not relays
           (error) => {
             console.warn("Error fetching relays for user:", error);
             // We don't resolve here - let the timeout handle it

@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 
@@ -41,7 +42,7 @@ export class SubscriptionManager {
       // SimplePool.subscribe expects a single filter
       // We'll create multiple subscriptions, one for each filter
       const subClosers = filters.map(filter => {
-        return this.pool.subscribe(relays, filter, {
+        return this.pool.subscribe(relays, filter as Filter, {
           onevent: (event) => {
             try {
               // Add relay URL to event for tracking
@@ -49,7 +50,7 @@ export class SubscriptionManager {
                 // Use a safe approach to store the relay URL
                 const customEvent = event as NostrEvent;
                 // Store relay URL in a custom property that doesn't clash with standard properties
-                (customEvent as any)._relay_url = (event as any).relay?.url;
+                (customEvent as any)._relay_url = event.relay?.url;
               }
               
               onEvent(event as NostrEvent);
@@ -145,13 +146,13 @@ export class SubscriptionManager {
       
       // Create new subscriptions with updated relay list
       const newSubClosers = subscription.filters.map(filter => {
-        return this.pool.subscribe(newRelays, filter, {
+        return this.pool.subscribe(newRelays, filter as Filter, {
           onevent: (event) => {
             if (subscription.onEvent) {
               // Add relay URL to event for tracking
               if (event && typeof event === 'object') {
                 // Store relay URL in a custom property
-                (event as any)._relay_url = (event as any).relay?.url;
+                (event as any)._relay_url = event.relay?.url;
               }
               
               subscription.onEvent(event as NostrEvent);
