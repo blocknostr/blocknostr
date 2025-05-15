@@ -1,11 +1,13 @@
 
 import { BaseAdapter } from './base-adapter';
+import { EventAdapter } from './event-adapter';
 import { toast } from 'sonner';
 
 /**
  * Adapter for community operations
+ * Extends EventAdapter to ensure it has event publishing capabilities
  */
-export class CommunityAdapter extends BaseAdapter {
+export class CommunityAdapter extends EventAdapter {
   // Community methods with proper authentication and error handling
   async createCommunity(name: string, description: string) {
     if (!this.service.isLoggedIn()) {

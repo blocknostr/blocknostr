@@ -4,6 +4,7 @@ import { SocialAdapter } from './social-adapter';
 import { RelayAdapter } from './relay-adapter';
 import { DataAdapter } from './data-adapter';
 import { CommunityAdapter } from './community-adapter';
+import { EventAdapter } from './event-adapter';
 
 /**
  * Main NostrAdapter that implements all functionality through composition
@@ -14,6 +15,7 @@ export class NostrAdapter extends BaseAdapter {
   private relayAdapter: RelayAdapter;
   private dataAdapter: DataAdapter;
   private communityAdapter: CommunityAdapter;
+  private eventAdapter: EventAdapter;
   
   constructor(service: typeof nostrService) {
     super(service);
@@ -23,6 +25,7 @@ export class NostrAdapter extends BaseAdapter {
     this.relayAdapter = new RelayAdapter(service);
     this.dataAdapter = new DataAdapter(service);
     this.communityAdapter = new CommunityAdapter(service);
+    this.eventAdapter = new EventAdapter(service);
   }
 
   // Add following property getter for compatibility
@@ -32,13 +35,26 @@ export class NostrAdapter extends BaseAdapter {
 
   // Forward methods to appropriate adapters
   
-  // Authentication helper
+  // Authentication helper (already in base adapter)
   isLoggedIn() {
     return this.service.isLoggedIn();
   }
   
   hasConnectedRelays() {
     return this.service.hasConnectedRelays();
+  }
+  
+  // Event methods
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    return this.eventAdapter.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string): void {
+    return this.eventAdapter.unsubscribe(subId);
+  }
+  
+  async publishEvent(event: any): Promise<string | null> {
+    return this.eventAdapter.publishEvent(event);
   }
   
   // Social methods
@@ -155,19 +171,6 @@ export class NostrAdapter extends BaseAdapter {
     return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
   }
   
-  // Event management methods, previously missing
-  async publishEvent(event: any): Promise<string | null> {
-    return this.service.publishEvent(event);
-  }
-  
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
-    return this.service.subscribe(filters, onEvent, relays);
-  }
-  
-  unsubscribe(subId: string): void {
-    return this.service.unsubscribe(subId);
-  }
-  
   // Manager getters
   get socialManager() {
     return this.socialAdapter.socialManager;
@@ -179,5 +182,10 @@ export class NostrAdapter extends BaseAdapter {
   
   get communityManager() {
     return this.communityAdapter.communityManager;
+  }
+  
+  // Add the event manager getter
+  get eventManager() {
+    return this.eventAdapter;
   }
 }

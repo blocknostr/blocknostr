@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for the NostrAdapter interfaces
  */
@@ -12,17 +13,19 @@ export interface BaseAdapterInterface {
   getNpubFromHex(hexPubkey: string): string;
   getHexFromNpub(npub: string): string;
   
-  // Add missing methods
+  // Authentication methods
   isLoggedIn(): boolean;
   hasConnectedRelays(): boolean;
   
-  // Add missing event subscription methods
+  // Account info methods
+  getAccountCreationDate(pubkey: string): Promise<number | null>;
+}
+
+export interface EventAdapterInterface extends BaseAdapterInterface {
+  // Event methods
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
   unsubscribe(subId: string): void;
   publishEvent(event: any): Promise<string | null>;
-  
-  // Add missing account creation date method
-  getAccountCreationDate(pubkey: string): Promise<number | null>;
 }
 
 export interface SocialAdapterInterface extends BaseAdapterInterface {
@@ -73,7 +76,7 @@ export interface DataAdapterInterface extends BaseAdapterInterface {
   verifyNip05(identifier: string, pubkey: string): Promise<boolean>;
 }
 
-export interface CommunityAdapterInterface extends BaseAdapterInterface {
+export interface CommunityAdapterInterface extends BaseAdapterInterface, EventAdapterInterface {
   createCommunity(name: string, description: string): Promise<string | null>;
   createProposal(communityId: string, title: string, description: string, options: string[], category: string): Promise<string | null>;
   voteOnProposal(proposalId: string, optionIndex: number): Promise<boolean>;
@@ -85,20 +88,13 @@ export interface NostrAdapterInterface extends BaseAdapterInterface,
   SocialAdapterInterface,
   RelayAdapterInterface,
   DataAdapterInterface,
-  CommunityAdapterInterface {
+  CommunityAdapterInterface,
+  EventAdapterInterface {
   
   // Domain-specific property accessors
   readonly social: SocialAdapterInterface;
   readonly relay: RelayAdapterInterface;
   readonly data: DataAdapterInterface;
   readonly community: CommunityAdapterInterface;
-  
-  // Event management methods (from EventAdapter)
-  publishEvent(event: any): Promise<string | null>;
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
-  unsubscribe(subId: string): void;
-  
-  // Add missing methods
-  isLoggedIn(): boolean;
-  hasConnectedRelays(): boolean;
+  readonly event: EventAdapterInterface;
 }

@@ -1,8 +1,12 @@
+
 import { useParams } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { useCommunity } from "@/hooks/useCommunity";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Import our components
 import MembersList from "@/components/MembersList";
@@ -24,6 +28,7 @@ const CommunityPage = () => {
     kickProposals,
     inviteLinks,
     loading,
+    error,
     currentUserPubkey,
     
     // Roles and permissions
@@ -53,6 +58,30 @@ const CommunityPage = () => {
   
   if (loading) {
     return <CommunityLoading />;
+  }
+  
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-6 max-w-7xl">
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Error loading community</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              className="mt-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reload
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   if (!community) {

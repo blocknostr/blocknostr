@@ -652,35 +652,31 @@ export class NostrService {
     if (!pubkey) return null;
     
     try {
-      const connectedRelays = this.getConnectedRelayUrls();
+      // Try to find the earliest metadata event for this user
+      const relayUrls = this.getConnectedRelayUrls();
+      if (relayUrls.length === 0) return null;
       
-      return new Promise((resolve) => {
-        // Construct filter to get oldest metadata events
-        const filters = [{
-          kinds: [EVENT_KINDS.META],
-          authors: [pubkey],
-          limit: 10,
-          // Query for historical events
-          until: Math.floor(Date.now() / 1000)
-        }];
-        
-        let oldestTimestamp: number | null = null;
-        
-        const subId = this.subscribe(
-          filters,
-          (event) => {
-            if (!oldestTimestamp || event.created_at < oldestTimestamp) {
-              oldestTimestamp = event.created_at;
-            }
-          }
-        );
-        
-        // Set a timeout to resolve with the found timestamp or null
-        setTimeout(() => {
-          this.unsubscribe(subId);
-          resolve(oldestTimestamp);
-        }, 5000);
-      });
+      const events = await this.pool.list(relayUrls, [{
+        kinds: [0], // Metadata events
+        authors: [pubkey],
+        limit: 1
+      }]);
+      
+      if (events && events.length > 0) {
+        return events[0].created_at;
+      }
+      
+      // Try to find the earliest event of any kind from this user
+      const anyEvents = await this.pool.list(relayUrls, [{
+        authors: [pubkey],
+        limit: 1
+      }]);
+      
+      if (anyEvents && anyEvents.length > 0) {
+        return anyEvents[0].created_at;
+      }
+      
+      return null;
     } catch (error) {
       console.error("Error fetching account creation date:", error);
       return null;
