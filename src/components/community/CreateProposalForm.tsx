@@ -1,3 +1,4 @@
+// src/components/community/CreateProposalForm.tsx
 
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -32,25 +33,35 @@ import {
 } from "@/components/ui/alert";
 import type { ProposalCategory } from "@/types/community";
 
-// Validation schema using zod
+// ─── Validation schema ─────────────────────────────────────────
 const formSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title must be less than 100 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
+  title: z
+    .string()
+    .min(3, "Title must be at least 3 characters")
+    .max(100, "Title must be less than 100 characters"),
+  description: z
+    .string()
+    .min(10, "Description must be at least 10 characters"),
   duration: z.string().default("7"),
   category: z.string().default("other"),
 });
+
+type FormData = z.infer<typeof formSchema>;
 
 interface CreateProposalFormProps {
   communityId: string;
   onProposalCreated: () => void;
 }
 
-const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFormProps) => {
+const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
+  communityId,
+  onProposalCreated,
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [options, setOptions] = useState<string[]>(["Yes", "No"]);
   const isLoggedIn = !!nostrService.publicKey;
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -65,7 +76,7 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       toast.warning("Maximum of 10 options allowed");
       return;
     }
-    setOptions([...options, ""]);
+    setOptions((prev) => [...prev, ""]);
   };
 
   const removeOption = (index: number) => {
@@ -73,58 +84,45 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       toast.warning("At least two options are required");
       return;
     }
-    const newOptions = [...options];
-    newOptions.splice(index, 1);
-    setOptions(newOptions);
+    setOptions((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
+    setOptions((prev) =>
+      prev.map((opt, i) => (i === index ? value : opt))
+    );
   };
 
-  const onSubmit = async (data: z.infer<typeof formSchema>) => {
+  const onSubmit = async (data: FormData) => {
     if (!isLoggedIn) {
       toast.error("You must be logged in to create a proposal", {
-        description: "Click the login button in the top right corner"
+        description: "Click the login button in the top right corner",
       });
       return;
     }
-    
-    if (!communityId) {
-      toast.error("Invalid community ID", {
-        description: "Please make sure you're viewing a valid community"
-      });
-      return;
-    }
-    
+
     if (options.length < 2) {
       toast.error("You need at least two options");
       return;
     }
-    
-    // Check for empty options
-    if (options.some(option => !option.trim())) {
+
+    if (options.some((opt) => !opt.trim())) {
       toast.error("All options must have content");
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
-      // Log authentication status
-      console.log("Creating proposal with auth status:", { 
-        isLoggedIn: !!nostrService.publicKey,
-        publicKey: nostrService.publicKey,
-        communityId
+      console.log("Creating proposal with:", {
+        communityId,
+        title: data.title,
+        description: data.description,
+        options,
+        category: data.category,
       });
-      
-      // Calculate the end date based on duration
-      const durationDays = parseInt(data.duration);
-      
-      // Fixed: Update to match the expected number of parameters (5 instead of 7)
-      // The expected parameters are: communityId, title, description, options, category
+
+      // **Pass exactly five arguments** per your service signature:
       const result = await nostrService.createProposal(
         communityId,
         data.title,
@@ -132,7 +130,7 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         options,
         data.category as ProposalCategory
       );
-      
+
       if (result) {
         toast.success("Proposal created successfully!");
         form.reset();
@@ -140,12 +138,15 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         onProposalCreated();
       } else {
         toast.error("Failed to create proposal", {
-          description: "Please make sure you're logged in and have selected a valid community."
+          description:
+            "Please make sure you’re logged in and have a valid community ID.",
         });
       }
-    } catch (error) {
-      console.error("Error creating proposal:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create proposal");
+    } catch (err) {
+      console.error("Error creating proposal:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Unexpected error creating proposal"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -157,19 +158,8 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Authentication Required</AlertTitle>
         <AlertDescription>
-          You need to be logged in to create proposals. Please click the login button in the top right corner.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!communityId) {
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Invalid Community</AlertTitle>
-        <AlertDescription>
-          Could not determine which community this proposal is for. Please make sure you're viewing a valid community.
+          You need to be logged in to create proposals. Please click the login
+          button above.
         </AlertDescription>
       </Alert>
     );
@@ -177,7 +167,8 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Title */}
         <FormField
           control={form.control}
           name="title"
@@ -192,6 +183,7 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
           )}
         />
 
+        {/* Description */}
         <FormField
           control={form.control}
           name="description"
@@ -199,10 +191,10 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Describe your proposal in detail..." 
-                  className="min-h-[120px]" 
-                  {...field} 
+                <Textarea
+                  placeholder="Describe your proposal"
+                  className="min-h-[120px]"
+                  {...field}
                 />
               </FormControl>
               <FormMessage />
@@ -210,21 +202,17 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
           )}
         />
 
+        {/* Category */}
         <FormField
           control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                </FormControl>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a category" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="governance">Governance</SelectItem>
                   <SelectItem value="feature">Feature Request</SelectItem>
@@ -237,21 +225,17 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
           )}
         />
 
+        {/* Duration */}
         <FormField
           control={form.control}
           name="duration"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Duration (days)</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select duration" />
-                  </SelectTrigger>
-                </FormControl>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">1 day</SelectItem>
                   <SelectItem value="3">3 days</SelectItem>
@@ -268,42 +252,40 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
           )}
         />
 
+        {/* Options */}
         <div className="space-y-2">
           <FormLabel>Options</FormLabel>
-          <div className="space-y-2">
-            {options.map((option, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Input
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
-                  className="flex-1"
-                />
-                {options.length > 2 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeOption(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
+          {options.map((opt, idx) => (
+            <div key={idx} className="flex gap-2 items-center">
+              <Input
+                value={opt}
+                onChange={(e) => handleOptionChange(idx, e.target.value)}
+                placeholder={`Option #${idx + 1}`}
+                className="flex-1"
+              />
+              {options.length > 2 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeOption(idx)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={addOption}
-            className="mt-2"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Option
           </Button>
         </div>
 
+        {/* Submit */}
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
