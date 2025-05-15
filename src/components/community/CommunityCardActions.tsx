@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Link as LinkIcon } from "lucide-react";
+import { UserPlus, Link as LinkIcon, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,7 @@ const CommunityCardActions = ({
   currentUserPubkey 
 }: CommunityCardActionsProps) => {
   const [showInviteLink, setShowInviteLink] = useState(false);
+  const [joining, setJoining] = useState(false);
   const navigate = useNavigate();
 
   const handleJoinClick = async (e: React.MouseEvent) => {
@@ -42,6 +44,7 @@ const CommunityCardActions = ({
     }
     
     try {
+      setJoining(true);
       // Get the existing community data and members
       const updatedMembers = [...community.members, currentUserPubkey];
       
@@ -63,15 +66,31 @@ const CommunityCardActions = ({
         ]
       };
       
-      await nostrService.publishEvent(event);
-      toast.success(`Joined ${community.name}!`, {
-        description: "You can now participate in this community"
-      });
+      const result = await nostrService.publishEvent(event);
+      
+      if (result) {
+        toast.success(`Joined ${community.name}!`, {
+          description: "You can now participate in this community",
+          action: {
+            label: "View Community",
+            onClick: () => navigate(`/communities/${community.id}`),
+          }
+        });
+        
+        // Navigate to the community page after successful join
+        setTimeout(() => {
+          navigate(`/communities/${community.id}`);
+        }, 500);
+      } else {
+        throw new Error("Failed to publish join event");
+      }
     } catch (error) {
       console.error("Error joining community:", error);
       toast.error("Failed to join community", {
         description: "Please try again or check your connection"
       });
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -174,17 +193,26 @@ const CommunityCardActions = ({
       <div className="flex w-full gap-2">
         {!isMember && !isCreator && currentUserPubkey && (
           <Button 
-            variant="outline" 
-            className="flex-1 flex items-center gap-2" 
+            variant="default" 
+            className="flex-1 flex items-center justify-center gap-2" 
             onClick={handleJoinClick}
+            disabled={joining}
           >
-            <UserPlus className="h-4 w-4" />
-            Join
+            {joining ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Joining...</span>
+              </>
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4" />
+                <span>Join Community</span>
+              </>
+            )}
           </Button>
         )}
         {(isMember || isCreator) && (
           <>
-            {/* Show view button - now full width */}
             <Button 
               variant="outline" 
               className="flex-1"

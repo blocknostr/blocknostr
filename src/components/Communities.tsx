@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -5,6 +6,9 @@ import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
+import { toast } from "sonner";
+import { Button } from "./ui/button";
+import { PlusCircle } from "lucide-react";
 
 const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -16,24 +20,32 @@ const Communities = () => {
   
   useEffect(() => {
     const loadCommunities = async () => {
-      await nostrService.connectToUserRelays();
-      
-      // Subscribe to community events
-      const communitySubId = nostrService.subscribe(
-        [
-          {
-            kinds: [EVENT_KINDS.COMMUNITY],
-            limit: 30
-          }
-        ],
-        handleCommunityEvent
-      );
-      
-      setLoading(false);
-      
-      return () => {
-        nostrService.unsubscribe(communitySubId);
-      };
+      try {
+        await nostrService.connectToUserRelays();
+        
+        // Subscribe to community events
+        const communitySubId = nostrService.subscribe(
+          [
+            {
+              kinds: [EVENT_KINDS.COMMUNITY],
+              limit: 30
+            }
+          ],
+          handleCommunityEvent
+        );
+        
+        setLoading(false);
+        
+        return () => {
+          nostrService.unsubscribe(communitySubId);
+        };
+      } catch (error) {
+        console.error("Error connecting to relays:", error);
+        toast.error("Failed to load communities", {
+          description: "There was an error connecting to relays. Please try again."
+        });
+        setLoading(false);
+      }
     };
     
     loadCommunities();
@@ -136,11 +148,22 @@ const Communities = () => {
   return (
     <div className="flex flex-col">
       <div className="mb-6 space-y-4">
-        <SearchBar 
-          searchTerm={searchTerm} 
-          setSearchTerm={setSearchTerm} 
-          placeholderText="Search by name or #ABC123" 
-        />
+        <div className="flex items-center justify-between gap-4">
+          <SearchBar 
+            searchTerm={searchTerm} 
+            setSearchTerm={setSearchTerm} 
+            placeholderText="Search by name or #ABC123" 
+            className="flex-1"
+          />
+          
+          <Button 
+            onClick={() => setIsDialogOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <PlusCircle className="h-4 w-4" />
+            New Community
+          </Button>
+        </div>
         
         <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
       </div>

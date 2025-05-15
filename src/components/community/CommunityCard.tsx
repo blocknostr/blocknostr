@@ -88,7 +88,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col"
+      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer"
       onClick={navigateToCommunity}
     >
       <div className="relative">
@@ -141,7 +141,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         </div>
       </CardContent>
       
-      <CardFooter className="pt-3 border-t mt-auto">
+      <CardFooter className="pt-3 border-t mt-auto" onClick={e => e.stopPropagation()}>
         <CommunityCardActions 
           community={community}
           isMember={isMember}
