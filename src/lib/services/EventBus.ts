@@ -7,8 +7,15 @@ export const EVENTS = {
   POST_CREATED: 'post:created',
   POST_DELETED: 'post:deleted',
   RELAY_CONNECTED: 'relay:connected',
-  RELAY_DISCONNECTED: 'relay:disconnected'
+  RELAY_DISCONNECTED: 'relay:disconnected',
+  COMMUNITY_CREATED: 'community:created',
+  COMMUNITY_UPDATED: 'community:updated',
+  PROPOSAL_CREATED: 'proposal:created',
+  VOTE_RECORDED: 'vote:recorded'
 };
+
+// Export the type definition based on the EVENTS object
+export type EventType = keyof typeof EVENTS | (string & {});
 
 class EventBus {
   private events: Map<string, Array<(...args: any[]) => void>>;
@@ -17,7 +24,7 @@ class EventBus {
     this.events = new Map();
   }
 
-  on(event: string, callback: (...args: any[]) => void): void {
+  on(event: EventType, callback: (...args: any[]) => void): void {
     if (!this.events.has(event)) {
       this.events.set(event, []);
     }
@@ -25,7 +32,7 @@ class EventBus {
     this.events.get(event)?.push(callback);
   }
 
-  off(event: string, callback: (...args: any[]) => void): void {
+  off(event: EventType, callback: (...args: any[]) => void): void {
     const callbacks = this.events.get(event);
     
     if (callbacks) {
@@ -36,7 +43,7 @@ class EventBus {
     }
   }
 
-  emit(event: string, ...args: any[]): void {
+  emit(event: EventType, ...args: any[]): void {
     const callbacks = this.events.get(event);
     
     if (callbacks) {

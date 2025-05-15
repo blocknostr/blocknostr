@@ -28,6 +28,15 @@ export class NostrAdapter extends BaseAdapter {
 
   // Forward methods to appropriate adapters
   
+  // Authentication helper
+  isLoggedIn() {
+    return this.service.isLoggedIn();
+  }
+  
+  hasConnectedRelays() {
+    return this.service.hasConnectedRelays();
+  }
+  
   // Social methods
   isFollowing(pubkey: string) {
     return this.socialAdapter.isFollowing(pubkey);

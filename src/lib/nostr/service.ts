@@ -26,6 +26,7 @@ export class NostrService {
   public communityManager: CommunityManager;
   private pool: SimplePool;
   private adapter: NostrServiceAdapter;
+  private communityServiceInstance: CommunityService | null = null;
   
   constructor() {
     // Initialize SimplePool first
@@ -59,6 +60,21 @@ export class NostrService {
     if (this.publicKey) {
       this.fetchFollowingList();
     }
+    
+    // Initialize the community service
+    this.initializeCommunityService();
+  }
+  
+  // Initialize the community service with all necessary dependencies
+  private initializeCommunityService(): void {
+    if (this.publicKey) {
+      this.communityServiceInstance = new CommunityService(
+        this.communityManager,
+        this.getConnectedRelayUrls.bind(this),
+        this.pool,
+        this.publicKey
+      );
+    }
   }
   
   // Expose the adapter as getter
@@ -84,12 +100,21 @@ export class NostrService {
     const success = await this.userManager.login();
     if (success) {
       await this.fetchFollowingList();
+      // Initialize community service after login
+      this.initializeCommunityService();
     }
     return success;
   }
   
   public signOut(): void {
     this.userManager.signOut();
+    // Reset community service on logout
+    this.communityServiceInstance = null;
+  }
+
+  // Authentication helper - new method
+  public isLoggedIn(): boolean {
+    return this.publicKey !== null;
   }
 
   // Relay management
@@ -355,15 +380,62 @@ export class NostrService {
   
   // Community methods
   public async fetchCommunity(communityId: string): Promise<any> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Just return empty object since this is not implemented yet
-    return {};
+    if (!this.isLoggedIn()) {
+      console.warn("User is not logged in to fetch community");
+      return null;
+    }
+    
+    if (!this.hasConnectedRelays()) {
+      console.warn("No connected relays available to fetch community");
+      await this.connectToUserRelays();
+    }
+    
+    try {
+      if (this.communityServiceInstance) {
+        return await this.communityServiceInstance.fetchCommunity(communityId);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching community:", error);
+      return null;
+    }
   }
   
   public async createCommunity(name: string, description: string): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    if (!this.isLoggedIn()) {
+      console.warn("User is not logged in to create community");
+      return null;
+    }
+    
+    if (!this.hasConnectedRelays()) {
+      console.warn("No connected relays available to create community");
+      await this.connectToUserRelays();
+      
+      if (!this.hasConnectedRelays()) {
+        console.error("Failed to connect to relays");
+        return null;
+      }
+    }
+    
+    try {
+      // Initialize community service if needed
+      if (!this.communityServiceInstance && this.publicKey) {
+        this.communityServiceInstance = new CommunityService(
+          this.communityManager,
+          this.getConnectedRelayUrls.bind(this),
+          this.pool,
+          this.publicKey
+        );
+      }
+      
+      if (this.communityServiceInstance) {
+        return await this.communityServiceInstance.createCommunity(name, description);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error creating community:", error);
+      return null;
+    }
   }
   
   public async createProposal(
@@ -375,15 +447,65 @@ export class NostrService {
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    if (!this.isLoggedIn()) {
+      console.warn("User is not logged in to create proposal");
+      return null;
+    }
+    
+    if (!this.hasConnectedRelays()) {
+      console.warn("No connected relays available to create proposal");
+      await this.connectToUserRelays();
+      
+      if (!this.hasConnectedRelays()) {
+        console.error("Failed to connect to relays");
+        return null;
+      }
+    }
+    
+    try {
+      if (this.communityServiceInstance) {
+        return await this.communityServiceInstance.createProposal(
+          communityId,
+          title,
+          description,
+          options,
+          category,
+          minQuorum,
+          endsAt
+        );
+      }
+      return null;
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      return null;
+    }
   }
   
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    if (!this.isLoggedIn()) {
+      console.warn("User is not logged in to vote on proposal");
+      return null;
+    }
+    
+    if (!this.hasConnectedRelays()) {
+      console.warn("No connected relays available to vote on proposal");
+      await this.connectToUserRelays();
+      
+      if (!this.hasConnectedRelays()) {
+        console.error("Failed to connect to relays");
+        return null;
+      }
+    }
+    
+    try {
+      if (this.communityServiceInstance) {
+        return await this.communityServiceInstance.voteOnProposal(proposalId, optionIndex);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error voting on proposal:", error);
+      return null;
+    }
   }
   
   // Additional methods needed for other components
@@ -774,6 +896,11 @@ export class NostrService {
       console.error("Error getting blocked users:", error);
       return [];
     }
+  }
+  
+  // Connection validation helper - new method
+  public hasConnectedRelays(): boolean {
+    return this.getConnectedRelayUrls().length > 0;
   }
 }
 
