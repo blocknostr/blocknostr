@@ -12,6 +12,7 @@ import type { ProposalCategory } from '@/types/community';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
+import { CommunityService } from './services/community-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -24,6 +25,7 @@ export class NostrService {
   private eventManager: EventManager;
   private socialManagerInstance: SocialManager;
   public communityManager: CommunityManager;
+  private communityService: CommunityService;
   private pool: SimplePool;
   private adapter: NostrServiceAdapter;
   
@@ -44,6 +46,15 @@ export class NostrService {
     });
     
     this.communityManager = new CommunityManager(this.eventManager);
+
+    // Initialize CommunityService with dependencies
+    this.communityService = new CommunityService(
+      this.communityManager,
+      () => this.getConnectedRelayUrls(),
+      this.pool,
+      this.publicKey,
+      () => null // We don't store private keys
+    );
     
     // Initialize adapter
     this.adapter = new NostrServiceAdapter(this);
@@ -355,15 +366,11 @@ export class NostrService {
   
   // Community methods
   public async fetchCommunity(communityId: string): Promise<any> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Just return empty object since this is not implemented yet
-    return {};
+    return this.communityService.fetchCommunity(communityId);
   }
   
   public async createCommunity(name: string, description: string): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    return this.communityService.createCommunity(name, description);
   }
   
   public async createProposal(
@@ -375,15 +382,22 @@ export class NostrService {
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    console.log("NostrService.createProposal called with:", {
+      communityId, title, description, options, category
+    });
+    return this.communityService.createProposal(
+      communityId,
+      title,
+      description,
+      options,
+      category,
+      minQuorum,
+      endsAt
+    );
   }
   
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    const connectedRelays = this.getConnectedRelayUrls();
-    // Return null since this is not implemented yet
-    return null;
+    return this.communityService.voteOnProposal(proposalId, optionIndex);
   }
   
   // Additional methods needed for other components
@@ -595,9 +609,16 @@ export class NostrService {
   }
   
   private getConnectedRelayUrls(): string[] {
-    return this.getRelayStatus()
+    const relays = this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
+      
+    if (relays.length === 0) {
+      // Fallback to common Nostr relays if none connected
+      return ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
+    }
+    
+    return relays;
   }
   
   // User Moderation (NIP-51)

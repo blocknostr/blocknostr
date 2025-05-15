@@ -2,6 +2,7 @@
 import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
+import * as secp from '@noble/secp256k1';
 
 export class EventManager {
   async publishEvent(
@@ -76,7 +77,7 @@ export class EventManager {
             return null;
           }
           
-          // Use private key for signing
+          // Use private key for signing - handle properly with nostr-tools
           signedEvent = finalizeEvent(fullEvent, privateKeyBytes);
           
         } catch (keyError) {

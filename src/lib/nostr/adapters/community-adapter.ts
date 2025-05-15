@@ -17,7 +17,29 @@ export class CommunityAdapter extends BaseAdapter {
   // Create proposal compliant with NIP-172
   async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
     console.log("Creating proposal via adapter:", { communityId, title, description, options, category });
-    return this.service.createProposal(communityId, title, description, options, category as ProposalCategory);
+    
+    // Ensure proper handling of ProposalCategory
+    const validCategory = this.ensureValidProposalCategory(category);
+    
+    return this.service.createProposal(
+      communityId, 
+      title, 
+      description, 
+      options, 
+      validCategory
+    );
+  }
+  
+  // Helper method to ensure the category is valid
+  private ensureValidProposalCategory(category: string): ProposalCategory {
+    const validCategories: ProposalCategory[] = ["governance", "feature", "poll", "other"];
+    
+    if (validCategories.includes(category as ProposalCategory)) {
+      return category as ProposalCategory;
+    }
+    
+    console.warn(`Invalid category "${category}", defaulting to "other"`);
+    return "other";
   }
 
   // Vote on proposal compliant with NIP-172

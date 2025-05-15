@@ -136,13 +136,19 @@ export class CommunityService {
     };
     
     try {
-      await this.communityManager.publishEvent(
-        event,
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
         this.publicKey,
-        relays,
-        this.pool
+        privateKey,
+        event,
+        relays
       );
-      return uniqueId; // Return the community ID on success
+      
+      if (eventId) {
+        return uniqueId; // Return the community ID on success
+      }
+      return null;
     } catch (error) {
       console.error("Error creating community:", error);
       return null;
@@ -161,8 +167,13 @@ export class CommunityService {
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
-    if (!this.publicKey || !communityId) return null;
+    if (!this.publicKey || !communityId) {
+      console.error("Cannot create proposal: missing pubkey or communityId");
+      return null;
+    }
+    
     const relays = this.getConnectedRelayUrls();
+    console.log("Creating proposal on relays:", relays);
     
     // Default end time is 7 days from now if not specified per NIP-172
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -192,6 +203,8 @@ export class CommunityService {
     };
     
     try {
+      console.log("Publishing proposal event:", event);
+      
       const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
       const eventId = await this.communityManager.publishEvent(
         event,
@@ -201,8 +214,13 @@ export class CommunityService {
         this.pool
       );
       
-      console.log("Created proposal with ID:", eventId);
-      return eventId; // Return the event ID on success
+      if (eventId) {
+        console.log("Created proposal with ID:", eventId);
+        return eventId;
+      } else {
+        console.error("Failed to create proposal: no event ID returned");
+        return null;
+      }
     } catch (error) {
       console.error("Error creating proposal:", error);
       return null;
@@ -231,9 +249,11 @@ export class CommunityService {
     };
     
     try {
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
       const eventId = await this.communityManager.publishEvent(
         event,
         this.publicKey,
+        privateKey,
         relays,
         this.pool
       );
