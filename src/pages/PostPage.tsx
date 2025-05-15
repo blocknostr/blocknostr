@@ -147,7 +147,7 @@ const PostPage = () => {
   };
 
   // Convert the event to a Note object for NoteCardActions
-  const getAsNote = (): Note => {
+  const getAsNote = () => {
     return {
       id: currentNote?.id || '',
       author: currentNote?.pubkey || '',
@@ -229,15 +229,15 @@ const PostPage = () => {
           <div className="p-4 md:p-6">
             {/* Note header with author info */}
             <NoteCardHeader 
-              pubkey={currentNote?.pubkey} 
-              createdAt={currentNote?.created_at} 
+              pubkey={currentNote?.pubkey || ''} 
+              createdAt={currentNote?.created_at || 0} 
               profileData={profileData || undefined}
             />
             
             {/* Note content */}
             <NoteCardContent 
-              content={currentNote?.content} 
-              tags={currentNote?.tags}
+              content={currentNote?.content || ''} 
+              tags={currentNote?.tags || []}
               event={currentNote}
             />
             

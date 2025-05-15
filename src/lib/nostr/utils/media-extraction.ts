@@ -1,7 +1,13 @@
-
 import { NostrEvent } from '@/lib/nostr';
 import { mediaRegex, extractUrlsFromContent } from './media/media-detection';
 import { isValidMediaUrl } from './media/media-validation';
+
+// Define MediaItem interface here instead of importing it
+interface MediaItem {
+  url: string;
+  type: 'image' | 'video' | 'audio' | 'unknown';
+  alt?: string;
+}
 
 /**
  * Extract media URLs from a Nostr event
@@ -73,12 +79,6 @@ export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string, tag
 /**
  * Get media items with metadata from event
  */
-export interface MediaItem {
-  url: string;
-  type: 'image' | 'video' | 'audio' | 'unknown';
-  alt?: string;
-}
-
 export const getMediaItemsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): MediaItem[] => {
   const urls = getMediaUrlsFromEvent(event);
   const tags = Array.isArray(event?.tags) ? event.tags : [];
@@ -132,4 +132,3 @@ export const extractMediaUrls = (content: string): string[] => {
 };
 
 export { isValidMediaUrl, isImageUrl, isVideoUrl } from './media/media-validation';
-
