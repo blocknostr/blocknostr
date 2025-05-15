@@ -67,8 +67,8 @@ export class EventManager {
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     
-    // Fix: Use the schnorr signing and convert to hex properly
-    const signature = await secp.schnorr.sign(eventHash, privateKey);
+    // Fix: Use standard secp256k1 signing instead of schnorr since it's not available
+    const signature = await secp.sign(eventHash, privateKey);
     return bytesToHex(signature);
   }
 }

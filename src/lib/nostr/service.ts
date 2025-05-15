@@ -38,7 +38,7 @@ export class NostrService {
     this.communityManager = new CommunityManager(this.eventManager);
     this.socialManager = new SocialManager();
     
-    // Fix: Pass only the pool to RelayManager constructor
+    // Fix: Pass the SimplePool instance to the RelayManager constructor
     this.relayManager = new RelayManager(this.pool);
     
     // Initialize services
