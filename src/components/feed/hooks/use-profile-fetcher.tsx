@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
 
@@ -69,8 +68,11 @@ export function useProfileFetcher() {
     
     console.log(`[useProfileFetcher] Batch fetching ${pubkeysToFetch.length} profiles`);
     
-    for (const pubkey of pubkeysToFetch) {
-      await fetchProfileData(pubkey);
+    try {
+      // Use our unified profile service for batch fetching
+      await unifiedProfileService.getProfiles(pubkeysToFetch);
+    } catch (error) {
+      console.error(`[useProfileFetcher] Error batch fetching profiles:`, error);
     }
   }, [profiles, fetchProfileData]);
   
@@ -103,7 +105,7 @@ export function useProfileFetcher() {
   return {
     profiles,
     fetchProfileData,
-    fetchProfiles, // Export the new method
+    fetchProfiles,
     fetchErrors
   };
 }

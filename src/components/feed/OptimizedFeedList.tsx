@@ -8,8 +8,8 @@ interface OptimizedFeedListProps {
   events: NostrEvent[];
   profiles: Record<string, any>;
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
+  loadMoreRef?: React.RefObject<HTMLDivElement>;
   loading?: boolean;
-  onRefresh?: () => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadMoreLoading?: boolean;
@@ -19,15 +19,12 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   events,
   profiles,
   repostData,
+  loadMoreRef,
   loading = false,
-  onRefresh,
   onLoadMore,
   hasMore = true,
   loadMoreLoading = false
 }) => {
-  const lastRef = useRef<HTMLDivElement>(null);
-  
-  // Create two trigger points for more aggressive early loading
   const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
   const veryEarlyTriggerRef = useRef<HTMLDivElement | null>(null);
   
@@ -74,16 +71,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   // Implement weighted event rendering for prioritized display
   const prioritizedEvents = events.slice(0); // Create a copy before potentially sorting
   
-  // Prioritize events with media for better visual engagement
+  // Prioritize events with media for better visual engagement (iris.to-like behavior)
   if (prioritizedEvents.length > 10) {
     const hasMediaContent = (event: NostrEvent) => 
-      event.tags?.some(tag => tag[0] === 'image' || tag[0] === 'media');
+      event.tags?.some(tag => tag[0] === 'image' || tag[0] === 'media' || 
+        (tag[0] === 'r' && /\.(jpg|jpeg|png|gif|webp|mp4)$/i.test(tag[1])));
       
     // Move some media posts higher in the feed if they're not already at the top
     const mediaEvents = prioritizedEvents.filter(hasMediaContent);
     if (mediaEvents.length > 3) {
       // Pull a couple media posts from later in the feed to the front
-      // This mimics the "engagement-based" sorting seen in iris.to
       for (let i = Math.min(10, prioritizedEvents.length - 1); i >= 5; i--) {
         if (hasMediaContent(prioritizedEvents[i]) && !hasMediaContent(prioritizedEvents[i-4])) {
           // Swap positions to bring media content forward
@@ -130,7 +127,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center" ref={lastRef}>
+        <div className="py-4 text-center" ref={loadMoreRef}>
           {loadMoreLoading && (
             <div className="flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

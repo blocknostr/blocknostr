@@ -126,7 +126,7 @@ export class RelayAdapter extends BaseAdapter {
       // Select a limited set of relays for initial connection (max 4)
       // We prioritize known fast relays for initial connection
       const fastRelaysFirst = [...availableRelays].sort((a, b) => {
-        // Known fast relays get priority
+        // Known fast relays get priority - similar to iris.to approach
         const fastRelays = [
           'wss://relay.damus.io',
           'wss://nos.lol',

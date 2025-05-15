@@ -1,10 +1,11 @@
+
 import React, { useCallback, useState, useEffect } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
+import OptimizedFeedList from "./OptimizedFeedList"; // Use the optimized version
 import { useGlobalFeed } from "./hooks/use-global-feed";
 import { Button } from "../ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
@@ -60,7 +61,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     }
   }, [events.length, extendedLoading]);
   
-  const handleRetry = () => {
+  const handleRetry = useCallback(() => {
     setExtendedLoading(true);
     setShowRetry(false);
     
@@ -71,8 +72,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     // Set timeout to show retry again if still no events after 3.5 seconds
     setTimeout(() => {
       setExtendedLoading(false);
-    }, 3500); // Reduced from 7s to 3.5s
-  };
+    }, 3500);
+  }, []);
 
   // Show partial content immediately when available, but still loading more
   if (events.length > 0) {
@@ -88,8 +89,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
           </div>
         )}
         
-        {/* Show events list - now we always show partial results when available */}
-        <FeedList 
+        {/* Use OptimizedFeedList for better performance */}
+        <OptimizedFeedList 
           events={events}
           profiles={profiles}
           repostData={repostData}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
@@ -44,22 +43,27 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: (newEvents: NostrEvent[]) => {
-      // Apply event prioritization for better feed quality
-      const prioritizedEvents = eventPrioritization.prioritizeEvents(newEvents);
-      setEvents(prioritizedEvents);
-      setPrioritizationApplied(true);
-      
-      // Extract public keys for batch fetching
-      const authorPubkeys = new Set<string>();
-      prioritizedEvents.forEach(event => {
-        if (event.pubkey) {
-          authorPubkeys.add(event.pubkey);
-        }
-      });
-      
-      // Update pubkeys to fetch
-      setPubkeysToFetch(authorPubkeys);
+    setEvents: (newEventsOrUpdater: NostrEvent[] | ((prev: NostrEvent[]) => NostrEvent[])) => {
+      // Handle both direct assignment and updater function
+      if (typeof newEventsOrUpdater === 'function') {
+        setEvents(newEventsOrUpdater);
+      } else {
+        // Apply event prioritization for better feed quality
+        const prioritizedEvents = eventPrioritization.prioritizeEvents(newEventsOrUpdater);
+        setEvents(prioritizedEvents);
+        setPrioritizationApplied(true);
+        
+        // Extract public keys for batch fetching
+        const authorPubkeys = new Set<string>();
+        prioritizedEvents.forEach(event => {
+          if (event.pubkey) {
+            authorPubkeys.add(event.pubkey);
+          }
+        });
+        
+        // Update pubkeys to fetch
+        setPubkeysToFetch(authorPubkeys);
+      }
     },
     handleRepost,
     fetchProfileData,
@@ -199,7 +203,33 @@ export function useFeedEvents({
     setSubId,
     setupSubscription,
     setEvents,
-    refreshFeed,
+    refreshFeed: () => {
+      // Clear the specific feed from cache
+      contentCache.feedCache.clearFeed(feedType, {
+        authorPubkeys: following,
+        hashtag: activeHashtag,
+        since,
+        until,
+        mediaOnly
+      });
+      
+      setCacheHit(false);
+      setLastUpdated(null);
+      setPrioritizationApplied(false);
+      
+      // Cancel existing subscription
+      if (subId) {
+        nostrService.unsubscribe(subId);
+        setSubId(null);
+      }
+      
+      // Setup a new subscription
+      const currentTime = Math.floor(Date.now() / 1000);
+      const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
+      
+      const newSubId = setupSubscription(newSince, currentTime);
+      setSubId(newSubId);
+    },
     lastUpdated,
     cacheHit,
     loadingFromCache
