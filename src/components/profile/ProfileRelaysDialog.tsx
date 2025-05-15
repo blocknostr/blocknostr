@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -47,7 +46,7 @@ const ProfileRelaysDialog = ({
     // Update relay status
     const relayStatus = nostrService.getRelayStatus();
     if (onRelaysChange) {
-      onRelaysChange(relayStatus);
+      onRelaysChange(relayStatus as Relay[]);
     }
     toast.success(`Removed relay: ${relayUrl}`);
   };
@@ -66,9 +65,7 @@ const ProfileRelaysDialog = ({
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
         circuitStatus,
-        read: relay.read || true,
-        write: relay.write || true
-      };
+      } as Relay;
     });
     
     if (onRelaysChange) {
@@ -111,8 +108,8 @@ const ProfileRelaysDialog = ({
       const success = await adaptedNostrService.publishRelayList(
         sortedRelays.map(relay => ({
           url: relay.url,
-          read: relay.read || true,
-          write: relay.write || true
+          read: relay.read,
+          write: relay.write
         }))
       );
       
@@ -188,9 +185,7 @@ const ProfileRelaysDialog = ({
           ...relay,
           score: perfData?.score || 50,
           avgResponse: perfData?.avgResponseTime,
-          read: relay.read || true,
-          write: relay.write || true
-        };
+        } as Relay;
       });
       
       if (onRelaysChange) {

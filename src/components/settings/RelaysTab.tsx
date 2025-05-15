@@ -22,7 +22,7 @@ const RelaysTab = () => {
         ...relay,
         read: relay.read || true,
         write: relay.write || true
-      }));
+      })) as Relay[];
       setRelays(formattedRelays);
     };
     
@@ -58,7 +58,7 @@ const RelaysTab = () => {
           ...relay,
           read: relay.read || true,
           write: relay.write || true
-        }));
+        })) as Relay[];
         setRelays(formattedRelays);
       } else {
         toast.error("Connection failed", {
@@ -81,14 +81,14 @@ const RelaysTab = () => {
       ...relay,
       read: relay.read || true,
       write: relay.write || true
-    }));
+    })) as Relay[];
     setRelays(formattedRelays);
     toast.success("Relay removed", {
       description: `Removed relay: ${relayUrl}`
     });
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: Relay['status']) => {
     switch (status) {
       case 'connected':
         return <Check className="h-4 w-4 text-green-500" />;
@@ -99,7 +99,7 @@ const RelaysTab = () => {
     }
   };
   
-  const getStatusClass = (status: string) => {
+  const getStatusClass = (status: Relay['status']) => {
     switch (status) {
       case 'connected':
         return "bg-green-500/5 border-green-500/20";

@@ -6,6 +6,7 @@ import { SocialManager } from './social';
 import { RelayManager } from './relay';
 import { CommunityService } from './services/community-service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { Relay } from './types';
 
 /**
  * Main Nostr service that coordinates all Nostr-related functionality
@@ -144,10 +145,10 @@ export class NostrService {
    * Get relay status information
    * Required by adapters
    */
-  getRelayStatus(): Array<{ url: string; status: string; read: boolean; write: boolean }> {
+  getRelayStatus(): Relay[] {
     return this.relayManager.getRelays().map(relay => ({
       url: relay.url,
-      status: relay.status,
+      status: relay.status as 'connected' | 'connecting' | 'disconnected' | 'failed',
       read: true,
       write: true
     }));
