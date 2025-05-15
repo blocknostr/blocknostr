@@ -23,7 +23,7 @@ export class MessagingAdapter extends BaseAdapter {
       // Always use NIP-04 for external compatibility
       let encryptedContent: string;
       let tags = [['p', recipientPubkey]];
-      let kind = EVENT_KINDS.ENCRYPTED_DM; // Default to kind 4 (NIP-04)
+      let kind = EVENT_KINDS.ENCRYPTED_DIRECT_MESSAGE; // Use the constant from EVENT_KINDS
       
       console.log(`Sending message to ${recipientPubkey}`);
       

@@ -4,12 +4,16 @@
  * See NIP-01 for more details
  */
 export const EVENT_KINDS = {
+  // Standard kinds (NIP-01 & extensions)
   METADATA: 0,
+  META: 0, // Alias for METADATA for backward compatibility
   TEXT_NOTE: 1,
   RECOMMENDED_RELAY: 2,
   CONTACTS: 3,
   ENCRYPTED_DIRECT_MESSAGE: 4,
+  ENCRYPTED_DM: 4, // Alias for compatibility
   EVENT_DELETION: 5,
+  DELETE: 5, // Alias for compatibility
   REPOST: 6,
   REACTION: 7,
   BADGE_AWARD: 8,
@@ -20,6 +24,14 @@ export const EVENT_KINDS = {
   CHANNEL_MESSAGE: 42,
   CHANNEL_HIDE_MESSAGE: 43,
   CHANNEL_MUTE_USER: 44,
+  
+  // NIP-51 Lists
+  CONTACTS_LIST: 3, // Same as CONTACTS for backward compatibility
+  BOOKMARK_LIST: 10003, // Bookmarked notes (NIP-51)
+  BOOKMARK_COLLECTIONS: 30001, // Custom bookmark collections
+  BOOKMARK_METADATA: 30003, // Metadata for bookmarks
+  MUTE_LIST: 10000, // Muted users (NIP-51)
+  BLOCK_LIST: 16462, // Blocked users
   
   // Custom event kinds for our app
   COMMUNITY: 34550,
