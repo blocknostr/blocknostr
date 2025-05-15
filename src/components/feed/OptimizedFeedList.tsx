@@ -3,7 +3,6 @@ import React, { useRef, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -14,8 +13,6 @@ interface OptimizedFeedListProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadMoreLoading?: boolean;
-  isEagerLoading?: boolean;
-  partialLoaded?: boolean;
 }
 
 const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
@@ -26,9 +23,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   onRefresh,
   onLoadMore,
   hasMore = true,
-  loadMoreLoading = false,
-  isEagerLoading = false,
-  partialLoaded = false
+  loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
   
@@ -45,7 +40,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
             onLoadMore();
           }
         },
-        { threshold: 0.1, rootMargin: '0px 0px 2500px 0px' } // Even larger bottom margin for earlier detection
+        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Much larger bottom margin for earlier detection
       );
       
       if (earlyTriggerRef.current) {
@@ -60,24 +55,6 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   
   return (
     <div className="space-y-4">
-      {/* Eager loading indicator */}
-      {isEagerLoading && (
-        <div className="flex justify-center mb-2">
-          <Badge variant="outline" className="text-xs bg-background animate-pulse">
-            Loading initial posts...
-          </Badge>
-        </div>
-      )}
-      
-      {/* Partial content loaded indicator */}
-      {partialLoaded && !isEagerLoading && (
-        <div className="flex justify-center mb-2">
-          <Badge variant="outline" className="text-xs bg-muted/30">
-            Showing recent posts - loading more...
-          </Badge>
-        </div>
-      )}
-      
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 

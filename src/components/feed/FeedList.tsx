@@ -13,8 +13,6 @@ interface FeedListProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadMoreLoading?: boolean;
-  isEagerLoading?: boolean;
-  partialLoaded?: boolean;
 }
 
 // Simplified FeedList component that directly passes props to OptimizedFeedList
