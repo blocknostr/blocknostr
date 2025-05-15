@@ -1,12 +1,12 @@
 
-import { Loader2, CoinIcon } from "lucide-react";
+import { Loader2, Coins } from "lucide-react";
 import { Community } from "./CommunityCard";
 import EmptyCommunityState from "./EmptyCommunityState";
 import UserCommunitiesSection from "./UserCommunitiesSection";
 import DiscoverCommunitiesSection from "./DiscoverCommunitiesSection";
 import { Button } from "@/components/ui/button";
 import { AlephiumCommunity } from "@/lib/alephium/communityService";
-import { ConnectorStatus } from "@alephium/web3-react";
+import { ConnectionStatus } from "@alephium/web3-react";
 
 interface CommunitiesGridProps {
   communities: Community[];
@@ -17,7 +17,7 @@ interface CommunitiesGridProps {
   onCreateCommunity: () => void;
   onChainCommunities?: AlephiumCommunity[]; // New prop for on-chain communities
   filterBlockchain?: 'all' | 'onchain' | 'offchain'; // New prop for filtering
-  walletStatus?: ConnectorStatus; // Wallet connection status
+  walletStatus?: ConnectionStatus; // Wallet connection status
 }
 
 const CommunitiesGrid = ({ 
@@ -48,7 +48,7 @@ const CommunitiesGrid = ({
       <div className="py-4">
         {filterBlockchain === 'onchain' ? (
           <div className="text-center py-8">
-            <CoinIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <Coins className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-xl font-semibold mb-2">No On-chain Communities</h3>
             <p className="text-muted-foreground mb-6">
               {isWalletConnected ? 
@@ -57,7 +57,7 @@ const CommunitiesGrid = ({
               }
             </p>
             <Button onClick={onCreateCommunity} disabled={!isWalletConnected}>
-              <CoinIcon className="h-4 w-4 mr-2" />
+              <Coins className="h-4 w-4 mr-2" />
               Create On-chain Community
             </Button>
           </div>
@@ -74,11 +74,11 @@ const CommunitiesGrid = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold flex items-center">
-              <CoinIcon className="h-5 w-5 mr-2 text-amber-500" />
+              <Coins className="h-5 w-5 mr-2 text-amber-500" />
               On-chain Communities
             </h2>
             <Button variant="outline" size="sm" onClick={onCreateCommunity} disabled={!isWalletConnected}>
-              <CoinIcon className="h-4 w-4 mr-2" />
+              <Coins className="h-4 w-4 mr-2" />
               Create On-chain Community
             </Button>
           </div>
@@ -89,7 +89,7 @@ const CommunitiesGrid = ({
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold flex items-center">
                     {community.name}
-                    <CoinIcon className="h-4 w-4 ml-2 text-amber-500" />
+                    <Coins className="h-4 w-4 ml-2 text-amber-500" />
                   </h3>
                   
                   {community.isPrivate && (

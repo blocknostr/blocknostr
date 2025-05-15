@@ -1,6 +1,7 @@
 
-import { web3, Contract, NodeProvider, SignerProvider, 
-  ExplorerProvider, SubscribeOptions, Script, BuildScriptTxResult } from '@alephium/web3'
+import { NodeProvider, SignerProvider, 
+  ExplorerProvider, Script, BuildScriptTxResult } from '@alephium/web3'
+import { web3 } from '@alephium/web3'
 import { getContractBytecode, executeAndSubscribe } from '@/lib/alephium/utils'
 import { toast } from 'sonner'
 

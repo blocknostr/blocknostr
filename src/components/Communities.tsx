@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -8,7 +7,7 @@ import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
 import { useWallet } from "@alephium/web3-react";
 import { Button } from "./ui/button";
-import { CoinIcon } from "lucide-react";
+import { Coins } from "lucide-react";
 import { AlephiumCommunity } from "@/lib/alephium/communityService";
 
 const Communities = () => {
@@ -209,7 +208,7 @@ const Communities = () => {
               onClick={() => setFilterBlockchain('onchain')}
               size="sm"
             >
-              <CoinIcon className="h-4 w-4 mr-2" />
+              <Coins className="h-4 w-4 mr-2" />
               On-chain
             </Button>
             <Button 

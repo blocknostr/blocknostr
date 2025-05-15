@@ -1,11 +1,10 @@
-
 import { useState } from "react";
-import { Loader2, Plus, CoinIcon } from "lucide-react";
+import { Loader2, Plus, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -267,7 +266,7 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
                               onChange={e => field.onChange(parseFloat(e.target.value))} 
                               value={field.value}
                             />
-                            <CoinIcon className="h-4 w-4 absolute top-3 right-3 text-muted-foreground" />
+                            <Coins className="h-4 w-4 absolute top-3 right-3 text-muted-foreground" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -306,7 +305,7 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
                 {isCreatingCommunity ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : blockchainEnabled ? (
-                  <CoinIcon className="h-4 w-4 mr-2" />
+                  <Coins className="h-4 w-4 mr-2" />
                 ) : (
                   <Plus className="h-4 w-4 mr-2" />
                 )}

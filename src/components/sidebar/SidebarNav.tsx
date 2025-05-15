@@ -10,7 +10,7 @@ import {
   FileText, 
   Wallet, 
   Crown,
-  CoinIcon
+  Coins
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
