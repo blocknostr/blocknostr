@@ -10,7 +10,7 @@ import CommunityPage from './pages/CommunityPage';
 import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
-import NotesPage from './pages/NotesPage';
+import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
 import ProfilePage from './pages/ProfilePage';
 import WalletsPage from './pages/WalletsPage';
@@ -34,7 +34,7 @@ function App() {
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/post/:id" element={<PostPage />} />
-                <Route path="/notes" element={<NotesPage />} />
+                <Route path="/notebin" element={<NotebinPage />} />
                 <Route path="/wallets" element={<WalletsPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
                 <Route path="/profile/:npub" element={<ProfilePage />} />

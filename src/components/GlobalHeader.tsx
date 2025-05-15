@@ -45,7 +45,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
     if (path === '/messages') return 'Messages';
     if (path === '/notifications') return 'Notifications';
     if (path.startsWith('/post/')) return 'Post';
-    if (path === '/notes') return 'Notes';
+    if (path === '/notebin') return 'Notebin';
     if (path === '/wallets') return 'Wallets';
     if (path === '/premium') return 'Premium';
     

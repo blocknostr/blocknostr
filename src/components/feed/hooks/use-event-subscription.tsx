@@ -1,214 +1,219 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
-
-interface EventWithProfile {
-  content: string;
-  created_at: number;
-  id: string;
-  kind: number;
-  pubkey: string;
-  sig: string;
-  tags: string[][];
-  // Add profile data
-  profile?: {
-    name?: string;
-    displayName?: string;
-    picture?: string;
-    nip05?: string;
-    about?: string;
-    banner?: string;
-    website?: string;
-    lud16?: string;
-  };
-}
+import { useState, useEffect } from "react";
+import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
+import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
 
 interface UseEventSubscriptionProps {
-  filters: any[];
-  options?: {
-    enabled?: boolean;
-    fetchUserProfiles?: boolean;
-    limit?: number;
-  };
-}
-
-interface UseEventSubscriptionReturn {
-  events: EventWithProfile[];
-  fetchedProfiles: Set<string>;
-  isLoading: boolean;
-  error: Error | null;
-  fetchMore: () => void;
-  hasMore: boolean;
+  following?: string[];
+  activeHashtag?: string;
+  since?: number;
+  until?: number;
+  limit: number;
+  setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>;
+  handleRepost: (event: NostrEvent, setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => void;
+  fetchProfileData: (pubkey: string) => void;
+  feedType?: string;
+  mediaOnly?: boolean;
 }
 
 export function useEventSubscription({
-  filters,
-  options = {},
-}: UseEventSubscriptionProps): UseEventSubscriptionReturn {
-  const {
-    enabled = true,
-    fetchUserProfiles = true,
-    limit = 20,
-  } = options;
-
-  const [events, setEvents] = useState<EventWithProfile[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [page, setPage] = useState<number>(1);
-  const fetchedProfiles = useRef<Set<string>>(new Set());
-  const subscriptionId = useRef<string | null>(null);
-  const relayConnectionAttempted = useRef<boolean>(false);
-
-  // Function to fetch user profiles for events
-  const fetchProfiles = useCallback(async (pubkeys: string[]) => {
-    try {
-      const uniquePubkeys = pubkeys.filter(
-        (pubkey) => !fetchedProfiles.current.has(pubkey)
-      );
-
-      if (uniquePubkeys.length === 0) return;
-
-      console.log(`Fetching profiles for ${uniquePubkeys.length} users`);
-      
-      // Mark these pubkeys as fetched to avoid duplicate requests
-      uniquePubkeys.forEach((pubkey) => fetchedProfiles.current.add(pubkey));
-
-      const profiles = await nostrService.getProfilesByPubkeys(uniquePubkeys);
-
-      // Update events with profile data
-      setEvents((currentEvents) => {
-        return currentEvents.map((event) => {
-          const profile = profiles.find(
-            (profile) => profile.pubkey === event.pubkey
-          );
-          if (profile) {
-            return {
-              ...event,
-              profile: {
-                name: profile.name,
-                displayName: profile.displayName,
-                picture: profile.picture,
-                nip05: profile.nip05,
-                about: profile.about,
-                banner: profile.banner,
-                website: profile.website,
-                lud16: profile.lud16,
-              },
-            };
-          }
-          return event;
-        });
-      });
-    } catch (err) {
-      console.error("Error fetching profiles:", err);
+  following,
+  activeHashtag,
+  since,
+  until,
+  limit,
+  setEvents,
+  handleRepost,
+  fetchProfileData,
+  feedType = 'generic',
+  mediaOnly = false,
+}: UseEventSubscriptionProps) {
+  const [subId, setSubId] = useState<string | null>(null);
+  
+  const setupSubscription = (sinceFetch: number, untilFetch?: number) => {
+    // Check if we're online before setting up subscription
+    if (!navigator.onLine) {
+      console.log("Browser is offline, skipping subscription setup");
+      return null;
     }
-  }, []);
-
-  // Connect to relays and subscribe to events
-  useEffect(() => {
-    let isMounted = true;
     
-    const connectAndSubscribe = async () => {
-      if (!enabled || !isMounted) return;
-      
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Connect to relays if not already connected
-        if (!relayConnectionAttempted.current) {
-          try {
-            await nostrService.connectToUserRelays();
-            relayConnectionAttempted.current = true;
-          } catch (connectError) {
-            console.error("Failed to connect to relays:", connectError);
-            if (isMounted) {
-              toast.error("Failed to connect to relays. Trying to continue...");
+    // Check if we have connected relays
+    const relayStatus = nostrService.getRelayStatus();
+    const connectedRelays = relayStatus.filter(r => r.status === 'connected');
+    
+    if (connectedRelays.length === 0) {
+      console.log("No connected relays, skipping subscription setup");
+      return null;
+    }
+    
+    // Create filters based on whether this is a following feed or global feed
+    let filters: any[] = [];
+    
+    if (following && following.length > 0) {
+      // Following feed - filter by authors
+      filters = [
+        {
+          kinds: [1], // Regular notes
+          authors: following,
+          limit: limit,
+          since: sinceFetch,
+          until: untilFetch
+        },
+        {
+          kinds: [6], // Reposts
+          authors: following,
+          limit: Math.floor(limit * 0.4), // Fewer reposts than original posts
+          since: sinceFetch,
+          until: untilFetch
+        }
+      ];
+    } else {
+      // Global feed - no author filter
+      filters = [
+        {
+          kinds: [1], // Regular notes
+          limit: limit,
+          since: sinceFetch,
+          until: untilFetch
+        },
+        {
+          kinds: [6], // Reposts
+          limit: Math.floor(limit * 0.4), // Fewer reposts than original posts
+          since: sinceFetch,
+          until: untilFetch
+        }
+      ];
+    }
+    
+    // If we have an active hashtag, filter by it
+    if (activeHashtag) {
+      filters = filters.map(filter => ({
+        ...filter,
+        "#t": [activeHashtag.toLowerCase()]
+      }));
+    }
+    
+    // Create accumulators for events to be cached
+    let collectedEvents: NostrEvent[] = [];
+    
+    // Subscribe to events
+    const newSubId = nostrService.subscribe(
+      filters,
+      (event) => {
+        if (event.kind === 1) {
+          // Regular note
+          setEvents(prev => {
+            // Check if we already have this event using deduplication
+            if (EventDeduplication.hasEventId(prev, event.id)) {
+              return prev;
             }
-          }
+            
+            // Add the new event
+            const newEvents = [...prev, event];
+            
+            // Deduplicate the events
+            const uniqueEvents = EventDeduplication.deduplicateById(newEvents);
+            
+            // Sort by creation time (newest first)
+            uniqueEvents.sort((a, b) => b.created_at - a.created_at);
+            
+            // Add event to collection for caching
+            collectedEvents.push(event);
+            
+            // Cache the event individually
+            contentCache.cacheEvent(event);
+            
+            // Every 5 events, update the feed cache for better performance
+            if (collectedEvents.length % 5 === 0) {
+              // Use current state to ensure we have the latest events
+              contentCache.cacheFeed(
+                feedType,
+                uniqueEvents,
+                {
+                  authorPubkeys: following,
+                  hashtag: activeHashtag,
+                  since: sinceFetch,
+                  until: untilFetch,
+                  mediaOnly
+                },
+                true // Mark as important for offline use
+              );
+            }
+            
+            return uniqueEvents;
+          });
+        }
+        else if (event.kind === 6) {
+          // Repost - extract the referenced event
+          handleRepost(event, setEvents);
         }
         
-        // Calculate limit based on page
-        const currentLimit = page * limit;
-        
-        // Create subscription filters with pagination
-        const paginatedFilters = filters.map(filter => ({
-          ...filter,
-          limit: currentLimit
-        }));
-        
-        // Subscribe to events
-        const subId = nostrService.subscribe(
-          paginatedFilters,
-          (event) => {
-            if (!isMounted) return;
-            
-            // Add event to state if it doesn't already exist
-            setEvents((prevEvents) => {
-              // Check if event already exists in our list
-              const exists = prevEvents.some((e) => e.id === event.id);
-              if (exists) return prevEvents;
-              
-              // Add the new event
-              const newEvent = { ...event, profile: undefined };
-              return [newEvent, ...prevEvents].sort((a, b) => b.created_at - a.created_at);
-            });
-            
-            // Fetch profile for this event if needed
-            if (fetchUserProfiles && event.pubkey) {
-              fetchProfiles([event.pubkey]);
-            }
-          },
-          // EOSE callback - End of Stored Events
-          () => {
-            if (!isMounted) return;
-            setIsLoading(false);
-          },
-          // Error handler as a function
-          (err) => {
-            if (!isMounted) return;
-            console.error("Subscription error:", err);
-            setError(new Error("Failed to fetch events"));
-            setIsLoading(false);
+        // Fetch profile data for this pubkey if we don't have it yet
+        if (event.pubkey) {
+          // Check cache first
+          const cachedProfile = contentCache.getProfile(event.pubkey);
+          if (!cachedProfile) {
+            // Fetch from relays if not in cache
+            fetchProfileData(event.pubkey);
           }
-        );
-        
-        // Save subscription ID for cleanup
-        subscriptionId.current = subId;
-        
-      } catch (err) {
-        if (!isMounted) return;
-        console.error("Error setting up event subscription:", err);
-        setError(err instanceof Error ? err : new Error("Unknown error"));
-        setIsLoading(false);
+        }
       }
-    };
+    );
     
-    connectAndSubscribe();
+    // Set up a scheduled task to periodically cache all collected events
+    if (newSubId) {
+      const cacheIntervalId = setInterval(() => {
+        if (collectedEvents.length > 0) {
+          // Get current events from state to ensure we have everything
+          setEvents(currentEvents => {
+            // Cache all events we have
+            contentCache.cacheFeed(
+              feedType,
+              currentEvents,
+              {
+                authorPubkeys: following,
+                hashtag: activeHashtag,
+                since: sinceFetch,
+                until: untilFetch,
+                mediaOnly
+              },
+              true // Mark as important for offline use
+            );
+            
+            // Update the last updated timestamp in localStorage 
+            localStorage.setItem(`${feedType}_last_updated`, Date.now().toString());
+            
+            return currentEvents;
+          });
+        }
+      }, 10000); // Every 10 seconds
+      
+      // Clean up the interval when unsubscribing
+      const originalUnsubscribe = nostrService.unsubscribe;
+      nostrService.unsubscribe = (id) => {
+        if (id === newSubId) {
+          clearInterval(cacheIntervalId);
+          nostrService.unsubscribe = originalUnsubscribe;
+        }
+        return originalUnsubscribe.call(nostrService, id);
+      };
+    }
     
-    // Cleanup function
+    return newSubId;
+  };
+  
+  useEffect(() => {
+    // Cleanup function to handle subscription cleanup
     return () => {
-      isMounted = false;
-      if (subscriptionId.current) {
-        nostrService.unsubscribe(subscriptionId.current);
-        subscriptionId.current = null;
+      if (subId) {
+        nostrService.unsubscribe(subId);
       }
     };
-  }, [enabled, filters, fetchUserProfiles, fetchProfiles, page, limit]);
-  
-  // Function to fetch more events
-  const fetchMore = useCallback(() => {
-    setPage((prevPage) => prevPage + 1);
-  }, []);
-  
+  }, [subId]);
+
   return {
-    events,
-    fetchedProfiles: fetchedProfiles.current,
-    isLoading,
-    error,
-    fetchMore,
-    hasMore
+    subId,
+    setSubId,
+    setupSubscription
   };
 }
