@@ -1,3 +1,4 @@
+
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -118,6 +119,55 @@ export class NostrAdapter extends BaseAdapter {
   
   async isUserBlocked(pubkey: string) {
     return this.socialAdapter.isUserBlocked(pubkey);
+  }
+  
+  // Profile methods
+  async updateProfile(profileData: Record<string, string>): Promise<boolean> {
+    if (!this.service.publicKey) {
+      console.error("Cannot update profile: not logged in");
+      return false;
+    }
+    
+    try {
+      console.log("Updating profile metadata with:", profileData);
+      
+      // Create and publish a metadata (kind 0) event according to NIP-01
+      const event = {
+        kind: 0,  // Metadata event according to NIP-01
+        content: JSON.stringify(profileData),
+        tags: []  // No tags needed for metadata event
+      };
+      
+      // Use relay selector to pick best write relays for metadata
+      const bestRelays = relaySelector.selectBestRelays(
+        this.relayAdapter.getRelayUrls(),
+        { 
+          operation: 'write', 
+          count: 3,
+          requireWriteSupport: true,
+          minScore: 40
+        }
+      );
+      
+      // Connect to these relays first if available
+      if (bestRelays.length > 0) {
+        await this.relayAdapter.addMultipleRelays(bestRelays);
+      }
+      
+      // Publish the event
+      const eventId = await this.service.publishEvent(event);
+      
+      if (eventId) {
+        console.log(`Profile updated successfully with event ID: ${eventId}`);
+        return true;
+      } else {
+        console.warn("Failed to publish profile update event");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      return false;
+    }
   }
   
   // Relay methods with enhanced performance tracking

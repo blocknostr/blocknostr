@@ -10,6 +10,7 @@ import FollowButton from '@/components/FollowButton';
 import ProfileRelaysDialog from './ProfileRelaysDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Relay } from "@/lib/nostr";
+import EditProfileDialog from './edit-profile/EditProfileDialog';
 
 interface ProfileHeaderProps {
   profile: any;
@@ -43,6 +44,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showRelays, setShowRelays] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   const name = profile?.name || npub;
   const displayName = profile?.display_name || name;
@@ -100,6 +102,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     );
   };
   
+  // Handle profile update
+  const handleProfileUpdate = () => {
+    // Refresh the profile data
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+  
   return (
     <div className="mb-6">
       {/* Banner */}
@@ -120,7 +130,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           {/* Action buttons */}
           <div className="mt-4 flex space-x-2">
             {currentUserOwnsProfile ? (
-              <Button variant="outline">Edit Profile</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowEditProfile(true)}
+              >
+                Edit Profile
+              </Button>
             ) : (
               <FollowButton pubkey={hexPubkey} variant="default" />
             )}
@@ -275,6 +290,14 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         onRelaysChange={() => onRefresh?.()}
         isCurrentUser={currentUserOwnsProfile}
         userNpub={npub}
+      />
+      
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog
+        open={showEditProfile}
+        onOpenChange={setShowEditProfile}
+        profile={profile}
+        onProfileUpdate={handleProfileUpdate}
       />
     </div>
   );
