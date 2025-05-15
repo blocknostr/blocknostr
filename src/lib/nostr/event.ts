@@ -66,10 +66,9 @@ export class EventManager {
    */
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
-    // Fixed: Convert the signature to the correct format for Nostr
-    // Use the schnorr implementation directly to get a compatible signature
-    const signatureBytes = await secp.utils.randomPrivateKey(); // Temporary random bytes
-    const signature = await secp.sign(eventHash, privateKey, { der: false }); // Get non-DER signature
-    return bytesToHex(signature); // This will work as signature is now a Uint8Array
+    
+    // Fix: Use the schnorr signing and convert to hex properly
+    const signature = await secp.schnorr.sign(eventHash, privateKey);
+    return bytesToHex(signature);
   }
 }
