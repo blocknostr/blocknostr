@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,7 +9,6 @@ import ProfileRelaysDialog from "./ProfileRelaysDialog";
 import { Link } from "react-router-dom";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useUnifiedProfileFetcher } from "@/hooks/useUnifiedProfileFetcher";
 
 interface ProfileStatsProps {
   followers: string[];
@@ -39,28 +39,12 @@ const ProfileStats = ({
   const [showFollowing, setShowFollowing] = useState(false);
   const [showRelays, setShowRelays] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { profiles, fetchProfiles } = useUnifiedProfileFetcher();
   
   // Ensure we have valid values with defaults to prevent "undefined.toLocaleString()" errors
   const safePostsCount = postsCount !== undefined ? postsCount : 0;
   const safeFollowersCount = followers?.length || 0;
   const safeFollowingCount = following?.length || 0;
   const safeRelaysCount = relays?.length || 0;
-  
-  // Load profiles when dialogs are opened
-  useEffect(() => {
-    if (showFollowers && followers.length > 0) {
-      console.log('Batch fetching follower profiles:', followers.length);
-      fetchProfiles(followers);
-    }
-  }, [showFollowers, followers, fetchProfiles]);
-  
-  useEffect(() => {
-    if (showFollowing && following.length > 0) {
-      console.log('Batch fetching following profiles:', following.length);
-      fetchProfiles(following);
-    }
-  }, [showFollowing, following, fetchProfiles]);
   
   const handleRefresh = () => {
     if (onRefresh) {
@@ -132,7 +116,6 @@ const ProfileStats = ({
                     key={pubkey} 
                     pubkey={pubkey} 
                     currentUserPubkey={currentUserPubkey}
-                    profile={profiles[pubkey]}
                   />
                 ))}
               </div>
@@ -157,7 +140,6 @@ const ProfileStats = ({
                     key={pubkey} 
                     pubkey={pubkey}
                     currentUserPubkey={currentUserPubkey}
-                    profile={profiles[pubkey]}
                   />
                 ))}
               </div>
@@ -211,31 +193,22 @@ const StatItem = ({ label, value, icon, onClick, isLoading = false, actionButton
 interface UserListItemProps {
   pubkey: string;
   currentUserPubkey: string | null;
-  profile?: any; // Profile data passed from parent
 }
 
-const UserListItem = ({ pubkey, currentUserPubkey, profile }: UserListItemProps) => {
-  const [isLoading, setIsLoading] = useState(!profile);
-  const [profileData, setProfileData] = useState<any>(profile);
+const UserListItem = ({ pubkey, currentUserPubkey }: UserListItemProps) => {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const npub = nostrService.getNpubFromHex(pubkey);
   const shortNpub = `${npub.substring(0, 8)}...${npub.substring(npub.length - 5)}`;
   
-  // Load profile data only if not provided by parent
+  // Load profile data
   useEffect(() => {
-    // If profile is provided by parent, use it immediately
-    if (profile) {
-      setProfileData(profile);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Otherwise, fetch it individually as fallback
     const fetchProfileData = async () => {
       try {
         setIsLoading(true);
-        const fetchedProfile = await nostrService.getUserProfile(pubkey);
-        if (fetchedProfile) {
-          setProfileData(fetchedProfile);
+        const profile = await nostrService.getUserProfile(pubkey);
+        if (profile) {
+          setProfileData(profile);
         }
       } catch (e) {
         console.error('Failed to fetch profile metadata:', e);
@@ -245,15 +218,7 @@ const UserListItem = ({ pubkey, currentUserPubkey, profile }: UserListItemProps)
     };
     
     fetchProfileData();
-  }, [pubkey, profile]);
-
-  // Update local state when profile changes from parent
-  useEffect(() => {
-    if (profile) {
-      setProfileData(profile);
-      setIsLoading(false);
-    }
-  }, [profile]);
+  }, [pubkey]);
   
   const name = profileData?.display_name || profileData?.name || shortNpub;
   const username = profileData?.name || shortNpub;
