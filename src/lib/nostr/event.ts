@@ -102,7 +102,37 @@ export class EventManager {
         return null;
       }
       
-      await pool.publish(relays, signedEvent);
+      // Add retry logic for event publication
+      let publishSuccess = false;
+      let lastError = null;
+      
+      try {
+        // Try publishing to all relays at once first
+        await pool.publish(relays, signedEvent);
+        publishSuccess = true;
+      } catch (publishError) {
+        console.warn("Error publishing to all relays:", publishError);
+        lastError = publishError;
+        
+        // If bulk publish fails, try relays one by one
+        for (const relay of relays) {
+          try {
+            await pool.publish([relay], signedEvent);
+            publishSuccess = true;
+            console.log(`Successfully published to relay: ${relay}`);
+            break; // At least one relay worked, so we can stop
+          } catch (singleRelayError) {
+            console.warn(`Failed to publish to relay ${relay}:`, singleRelayError);
+            lastError = singleRelayError;
+          }
+        }
+      }
+      
+      if (!publishSuccess) {
+        console.error("Failed to publish to any relays:", lastError);
+        return null;
+      }
+      
       return eventId;
       
     } catch (error) {

@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
@@ -109,6 +110,16 @@ export class CommunityManager {
     relays: string[],
     pool: SimplePool
   ): Promise<string | null> {
+    console.log("Publishing event via community manager:", {
+      event: {
+        kind: event.kind,
+        hasContent: !!event.content,
+        tags: event.tags
+      },
+      privateKey: privateKey ? "Available" : "Not available",
+      relaysCount: relays.length
+    });
+    
     return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
   
