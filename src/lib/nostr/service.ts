@@ -5,7 +5,7 @@ import { SocialManager } from './social';
 import { RelayManager } from './relay';
 import { CommunityService } from './services/community-service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
-import { Relay } from './types';
+import { Relay, NostrFilter } from './types';
 
 /**
  * Main Nostr service that coordinates all Nostr-related functionality
@@ -111,11 +111,13 @@ export class NostrService {
    * Subscribe to Nostr events
    * Required by adapters
    */
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+  subscribe(filters: NostrFilter[], onEvent: (event: any) => void, relays?: string[]): string {
     const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-    // Use subscribeMany instead of sub
-    const sub = this.pool.subscribeMany(relays || this.getConnectedRelayUrls(), filters);
-    sub.on('event', onEvent);
+    // Use subscribeMany with options object
+    const sub = this.pool.subscribeMany(relays || this.getConnectedRelayUrls(), filters, {
+      onevent: onEvent
+    });
+    
     return subId;
   }
   
@@ -124,8 +126,8 @@ export class NostrService {
    * Required by adapters
    */
   unsubscribe(subId: string): void {
-    // Implementation for unsubscribing
-    this.pool.close([subId]); // Pass as array since it expects string[]
+    // Pass the subId as an array since it expects string[]
+    this.pool.close([subId]);
   }
   
   /**
@@ -147,7 +149,14 @@ export class NostrService {
    * Required by adapters
    */
   getRelayStatus(): Relay[] {
-    return this.relayManager.getRelayStatus();
+    const relayStatus = this.relayManager.getRelayStatus();
+    // Ensure all required properties are present
+    return relayStatus.map(relay => ({
+      url: relay.url,
+      status: relay.status,
+      read: relay.read || false, // Provide defaults for required properties
+      write: relay.write || false
+    })) as Relay[];
   }
   
   /**

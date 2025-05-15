@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
+import { NostrEvent } from "@/lib/nostr/types";
+import { Filter as NostrFilter } from "nostr-tools";
 
 const MAX_MESSAGES = 500; // Increased from 100 to 500 messages
 const INITIAL_LOAD_LIMIT = 200; // Increased from 50 to 200 for initial batch
