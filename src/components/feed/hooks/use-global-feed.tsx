@@ -26,7 +26,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     since,
     until,
     activeHashtag,
-    limit: 30 // Increased initial batch size for faster fill
+    limit: 20 // Reduced from 30 for better performance/bandwidth
   });
   
   const loadMoreEvents = useCallback(async () => {
@@ -51,8 +51,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      // Get older posts from the last 72 hours instead of 48 for more aggressive loading
-      const newSince = newUntil - 72 * 60 * 60; 
+      // Get older posts from the last 48 hours instead of 72 for more reasonable loading
+      const newSince = newUntil - 48 * 60 * 60; 
       
       setSince(newSince);
       setUntil(newUntil);
@@ -63,8 +63,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      // Get older posts from the last 72 hours for more aggressive loading
-      const newSince = newUntil - 72 * 60 * 60;
+      // Get older posts from the last 48 hours for more reasonable loading
+      const newSince = newUntil - 48 * 60 * 60;
       
       setSince(newSince);
       setUntil(newUntil);
@@ -74,11 +74,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setSubId(newSubId);
     }
     
-    // Set loading more to false after a shorter delay for responsiveness
+    // Set loading more to false after a delay
     loadMoreTimeoutRef.current = window.setTimeout(() => {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
-    }, 1000);  // Further reduced from 1500ms to 1000ms
+    }, 2000); 
   }, [subId, events, since, until, setupSubscription, loadingMore]);
   
   const {
@@ -90,8 +90,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
-    threshold: 1200, // Increased from 800 to 1200 for much earlier loading
-    aggressiveness: 'high', // Set to high for the most aggressive loading
+    threshold: 800, // Reduced from 1200 to 800 for less aggressive loading
+    aggressiveness: 'medium', // Changed from 'high' to 'medium'
     preservePosition: true // Enable scroll position preservation
   });
 

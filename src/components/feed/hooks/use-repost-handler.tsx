@@ -10,7 +10,7 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
   const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({});
   
   // Fetch the original post when a repost is encountered
-  const fetchOriginalPost = (eventId: string) => {
+  const fetchOriginalPost = (eventId: string, originalPubkey?: string) => {
     // Subscribe to a specific event by ID
     const eventSubId = nostrService.subscribe(
       [
@@ -51,47 +51,77 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
     // Store the setEvents function for use in fetchOriginalPost
     setEvents = setEventsFunction;
     
+    // Improved repost detection supporting multiple client formats
+    
+    // Method 1: Try to parse JSON content (some clients use this format)
     try {
-      // Some clients store the original event in content as JSON
-      const content = JSON.parse(event.content);
-      
-      if (content.event && content.event.id) {
-        const originalEventId = content.event.id;
-        const originalEventPubkey = content.event.pubkey;
+      if (event.content && event.content.startsWith('{') && event.content.endsWith('}')) {
+        const content = JSON.parse(event.content);
         
-        // Track repost data for later display
-        setRepostData(prev => ({
-          ...prev,
-          [originalEventId]: { 
-            pubkey: event.pubkey || '',  // The reposter
-            original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
-          }
-        }));
-        
-        // Fetch the original post
-        fetchOriginalPost(originalEventId);
+        if (content.event && content.event.id) {
+          const originalEventId = content.event.id;
+          const originalEventPubkey = content.event.pubkey;
+          
+          // Track repost data for later display
+          setRepostData(prev => ({
+            ...prev,
+            [originalEventId]: { 
+              pubkey: event.pubkey || '',  // The reposter
+              original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
+            }
+          }));
+          
+          // Fetch the original post
+          fetchOriginalPost(originalEventId, originalEventPubkey);
+          return; // Found the repost data, exit early
+        }
       }
     } catch (e) {
-      // If parsing fails, try to get event reference from tags
+      // JSON parsing failed, continue to other methods
+    }
+    
+    // Method 2: Look for 'e' tag (standard NIP-10 way)
+    const eventReference = event.tags?.find(tag => tag[0] === 'e');
+    if (eventReference && eventReference[1]) {
+      const originalEventId = eventReference[1];
+      
+      // Find pubkey reference (NIP-10)
+      const pubkeyReference = event.tags?.find(tag => tag[0] === 'p');
+      const originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
+      
+      // Track repost data
+      setRepostData(prev => ({
+        ...prev,
+        [originalEventId]: { 
+          pubkey: event.pubkey || '',  // The reposter
+          original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
+        }
+      }));
+      
+      // Fetch the original post
+      fetchOriginalPost(originalEventId, originalEventPubkey);
+      return; // Found the repost data, exit early
+    }
+    
+    // Method 3: Empty content with e and p tags (another common format)
+    if (event.content === "" && event.tags && event.tags.length > 0) {
+      // Already checked 'e' tag above, but content being empty makes this more likely a repost
       const eventReference = event.tags.find(tag => tag[0] === 'e');
       if (eventReference && eventReference[1]) {
         const originalEventId = eventReference[1];
-        
-        // Find pubkey reference
+        // Handle the same way as Method 2
         const pubkeyReference = event.tags.find(tag => tag[0] === 'p');
         const originalEventPubkey = pubkeyReference ? pubkeyReference[1] : null;
         
-        // Track repost data
         setRepostData(prev => ({
           ...prev,
           [originalEventId]: { 
-            pubkey: event.pubkey || '',  // The reposter
+            pubkey: event.pubkey || '',
             original: { id: originalEventId, pubkey: originalEventPubkey } as NostrEvent
           }
         }));
         
-        // Fetch the original post
-        fetchOriginalPost(originalEventId);
+        fetchOriginalPost(originalEventId, originalEventPubkey);
       }
     }
   };

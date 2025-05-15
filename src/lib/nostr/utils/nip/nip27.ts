@@ -4,6 +4,7 @@
  * https://github.com/nostr-protocol/nips/blob/master/27.md
  */
 
+import { nip19 } from 'nostr-tools';
 import { nostrService } from '@/lib/nostr';
 import { simpleProfileService } from '@/lib/services/profile/simpleProfileService';
 
@@ -70,6 +71,7 @@ export function shortenIdentifier(identifier: string): string {
 
 /**
  * Convert a nostr URL to its corresponding hex value
+ * Fixed to use proper nip19 library for bech32 conversion
  */
 export function getHexFromNostrUrl(url: string): string | null {
   if (!url.startsWith('nostr:')) return null;
@@ -79,21 +81,29 @@ export function getHexFromNostrUrl(url: string): string | null {
   
   const identifier = parts[1];
   
-  if (identifier.startsWith('npub1')) {
-    return nostrService.getHexFromNpub(identifier);
-  } else if (identifier.startsWith('note1') || identifier.startsWith('nevent1')) {
-    // Use a safer approach since getHexFromNote doesn't exist
-    try {
-      // For note1 identifiers, simply convert from bech32 to hex
-      // This is a placeholder - in a real implementation, use the appropriate
-      // bech32-to-hex conversion function from your nostr library
-      return identifier.startsWith('note1') 
-        ? identifier.substring(5) // Simplified for example - should use proper conversion
-        : identifier.substring(7); // nevent1 prefix is 7 chars
-    } catch (error) {
-      console.error("Error converting note to hex:", error);
-      return null;
+  try {
+    // Handle different bech32 identifiers properly
+    if (identifier.startsWith('npub1')) {
+      // Decode npub to get hex pubkey
+      const { type, data } = nip19.decode(identifier);
+      if (type !== 'npub') return null;
+      return data as string;
+    } 
+    else if (identifier.startsWith('note1')) {
+      // Decode note to get hex note id
+      const { type, data } = nip19.decode(identifier);
+      if (type !== 'note') return null;
+      return data as string;
     }
+    else if (identifier.startsWith('nevent1')) {
+      // Decode nevent to get event data
+      const { type, data } = nip19.decode(identifier);
+      if (type !== 'nevent') return null;
+      return data.id as string; // nevent contains id, relays, etc.
+    }
+  } catch (error) {
+    console.error("Error converting nostr URL to hex:", error);
+    return null;
   }
   
   return null;

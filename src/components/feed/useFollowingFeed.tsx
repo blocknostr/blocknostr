@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { nostrService, contentCache } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -34,7 +33,8 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     following,
     since,
     until,
-    activeHashtag
+    activeHashtag,
+    limit: 20 // Reduced from default for better performance
   });
   
   const loadMoreEvents = () => {
@@ -56,7 +56,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         null;
       
       const newUntil = oldestEvent ? oldestEvent.created_at - 1 : until - 24 * 60 * 60;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60 * 3; // 3 days before until (reduced from 7)
       
       setSince(newSince);
       setUntil(newUntil);
@@ -70,7 +70,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
-      const newSince = newUntil - 24 * 60 * 60 * 7; // 7 days before until
+      const newSince = newUntil - 24 * 60 * 60 * 3; // 3 days before until (reduced from 7)
       
       setSince(newSince);
       setUntil(newUntil);
@@ -93,7 +93,11 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setLoading,
     hasMore,
     setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { initialLoad: true });
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 800, // Reduced for less aggressive loading
+    aggressiveness: 'medium' // Changed from default to 'medium'
+  });
 
   // Helper function to load data from cache
   const loadFromCache = (feedType: string, cacheSince?: number, cacheUntil?: number) => {
@@ -155,17 +159,17 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       
       // Create new subscription with slightly extended time range
       const currentTime = Math.floor(Date.now() / 1000);
-      const twoWeeksAgo = currentTime - 24 * 60 * 60 * 14; // 2 weeks for retry
+      const oneWeekAgo = currentTime - 24 * 60 * 60 * 7; // 1 week for retry (reduced from 2 weeks)
       
-      setSince(twoWeeksAgo);
+      setSince(oneWeekAgo);
       setUntil(currentTime);
       
       // Start the new subscription with the extended timestamp range
-      const newSubId = setupSubscription(twoWeeksAgo, currentTime);
+      const newSubId = setupSubscription(oneWeekAgo, currentTime);
       setSubId(newSubId);
       
       // Also try to load from cache with extended range
-      loadFromCache('following', twoWeeksAgo, currentTime);
+      loadFromCache('following', oneWeekAgo, currentTime);
       
       // End retry state after a delay
       setTimeout(() => setIsRetrying(false), 3000);
@@ -247,7 +251,28 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       // Cache the current feed state
       const feedCache = contentCache.feedCache;
       if (feedCache) {
-        feedCache.cacheFeed('following', events, {
+        // First, group events by id to handle replacements (NIP-16)
+        const eventsByIds: Record<string, NostrEvent> = {};
+        
+        // Process events, keeping only the most recent version of each event
+        events.forEach(event => {
+          if (!event.id) return;
+          
+          // If we already have this event ID, only replace if this one is newer
+          if (eventsByIds[event.id]) {
+            if (event.created_at > eventsByIds[event.id].created_at) {
+              eventsByIds[event.id] = event;
+            }
+          } else {
+            eventsByIds[event.id] = event;
+          }
+        });
+        
+        // Convert back to array for caching
+        const deduplicatedEvents = Object.values(eventsByIds);
+        
+        // Cache the deduplicated events
+        feedCache.cacheFeed('following', deduplicatedEvents, {
           authorPubkeys: following,
           hashtag: activeHashtag,
           since,
