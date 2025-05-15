@@ -94,6 +94,8 @@ export class NostrService {
   public async login(): Promise<boolean> {
     const success = await this.userManager.login();
     if (success) {
+      console.log("Login successful, public key:", this.userManager.publicKey);
+      
       // Update communityService with the new public key after login
       this.communityService = new CommunityService(
         this.communityManager,
@@ -102,7 +104,15 @@ export class NostrService {
         this.userManager.publicKey,
         () => this.userManager.getPrivateKey?.()
       );
+      
+      // Connect to relays immediately after login
+      await this.connectToUserRelays();
       await this.fetchFollowingList();
+      
+      // Emit logged in event (can be useful for UI components)
+      eventBus.emit(EVENTS.USER_LOGGED_IN, this.userManager.publicKey);
+    } else {
+      console.error("Login failed");
     }
     return success;
   }

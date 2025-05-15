@@ -35,7 +35,7 @@ export class CommunityManager {
     
     if (!publicKey) {
       console.error("Cannot publish event: missing publicKey");
-      return null;
+      throw new Error("Public key required to publish event");
     }
     
     if (relays.length === 0) {
@@ -48,6 +48,30 @@ export class CommunityManager {
       ];
     }
     
-    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    try {
+      // Ensure we're connected to at least some of these relays
+      const connectedRelays = [];
+      for (const relay of relays) {
+        try {
+          await pool.ensureRelay(relay);
+          connectedRelays.push(relay);
+        } catch (err) {
+          console.warn(`Failed to connect to relay ${relay}:`, err);
+        }
+      }
+      
+      if (connectedRelays.length === 0) {
+        console.error("Failed to connect to any relays");
+        throw new Error("Unable to connect to any relays");
+      }
+      
+      console.log(`Connected to ${connectedRelays.length} relays for publishing`);
+      
+      // Now publish using the event manager
+      return this.eventManager.publishEvent(pool, publicKey, privateKey, event, connectedRelays);
+    } catch (error) {
+      console.error("Error in CommunityManager.publishEvent:", error);
+      throw error;
+    }
   }
 }

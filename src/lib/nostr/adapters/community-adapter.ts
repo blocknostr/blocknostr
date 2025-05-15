@@ -11,7 +11,20 @@ import type { ProposalCategory } from '@/types/community';
 export class CommunityAdapter extends BaseAdapter {
   // Create community compliant with NIP-172
   async createCommunity(name: string, description: string) {
-    return this.service.createCommunity(name, description);
+    console.log("Creating community via adapter:", { name });
+    
+    // Check if user is logged in
+    if (!this.service.publicKey) {
+      console.error("Cannot create community: user not logged in");
+      throw new Error("You must be logged in to create a community");
+    }
+    
+    try {
+      return await this.service.createCommunity(name, description);
+    } catch (error) {
+      console.error("Error in community adapter createCommunity:", error);
+      throw error;
+    }
   }
   
   // Create proposal compliant with NIP-172

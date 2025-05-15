@@ -15,13 +15,31 @@ const Communities = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [connectedToRelays, setConnectedToRelays] = useState(false);
 
   const currentUserPubkey = nostrService.publicKey;
   
   useEffect(() => {
     const loadCommunities = async () => {
       try {
-        await nostrService.connectToUserRelays();
+        // Connect to relays and verify connection status
+        const connectedRelays = await nostrService.connectToUserRelays();
+        
+        if (connectedRelays.length === 0) {
+          console.warn("No relays connected, trying default relays");
+          await nostrService.connectToDefaultRelays();
+        }
+        
+        const finalRelayUrls = nostrService.getRelayUrls();
+        console.log("Connected to relays:", finalRelayUrls);
+        
+        setConnectedToRelays(finalRelayUrls.length > 0);
+        
+        if (finalRelayUrls.length === 0) {
+          toast.error("Failed to connect to any relays", {
+            description: "Please try refreshing the page or check your network connection"
+          });
+        }
         
         // Subscribe to community events
         const communitySubId = nostrService.subscribe(
@@ -145,6 +163,40 @@ const Communities = () => {
     community.members.includes(currentUserPubkey || '')
   );
   
+  const handleCreateCommunityClick = async () => {
+    // Verify login status
+    if (!currentUserPubkey) {
+      toast.error("You must be logged in to create a community", {
+        description: "Please login first using the button in the header"
+      });
+      return;
+    }
+    
+    // Verify relay connections
+    if (!connectedToRelays) {
+      try {
+        const connectedRelays = await nostrService.connectToUserRelays();
+        setConnectedToRelays(connectedRelays.length > 0);
+        
+        if (connectedRelays.length === 0) {
+          toast.error("Cannot connect to relays", {
+            description: "Please check your network connection and try again"
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to connect to relays:", error);
+        toast.error("Connection error", {
+          description: "Failed to connect to Nostr relays"
+        });
+        return;
+      }
+    }
+    
+    // Open dialog if checks passed
+    setIsDialogOpen(true);
+  };
+  
   return (
     <div className="flex flex-col">
       <div className="mb-6 space-y-4">
@@ -157,7 +209,7 @@ const Communities = () => {
           />
           
           <Button 
-            onClick={() => setIsDialogOpen(true)}
+            onClick={handleCreateCommunityClick}
             className="flex items-center gap-2"
           >
             <PlusCircle className="h-4 w-4" />
@@ -175,7 +227,7 @@ const Communities = () => {
           filteredCommunities={filteredCommunities}
           loading={loading}
           currentUserPubkey={currentUserPubkey}
-          onCreateCommunity={() => setIsDialogOpen(true)}
+          onCreateCommunity={handleCreateCommunityClick}
         />
       </div>
     </div>

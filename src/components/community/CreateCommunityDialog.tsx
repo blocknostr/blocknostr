@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,13 +51,18 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
   
   const handleCreateCommunity = async (values: z.infer<typeof formSchema>) => {
     if (!currentUserPubkey) {
-      toast.error("You must be logged in to create a community");
+      toast.error("You must be logged in to create a community", {
+        description: "Please login to create a new community."
+      });
       return;
     }
     
     setIsCreatingCommunity(true);
     
     try {
+      // First ensure we're connected to relays
+      await nostrService.connectToUserRelays();
+      
       const communityId = await nostrService.createCommunity(
         values.name.trim(),
         values.description.trim()
@@ -82,7 +88,7 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
     } catch (error) {
       console.error("Error creating community:", error);
       toast.error("Failed to create community", {
-        description: "Please try again or check your connection."
+        description: error instanceof Error ? error.message : "Please try again or check your connection."
       });
     } finally {
       setIsCreatingCommunity(false);

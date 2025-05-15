@@ -117,7 +117,7 @@ export class CommunityService {
         return eventId;
       } else {
         console.error("Failed to create proposal: no event ID returned");
-        return null;
+        throw new Error("Failed to publish proposal to relays");
       }
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -131,7 +131,26 @@ export class CommunityService {
   async createCommunity(name: string, description: string): Promise<string | null> {
     if (!this.publicKey) {
       console.error("Cannot create community: not logged in");
-      return null;
+      throw new Error("You must be logged in to create a community");
+    }
+    
+    console.log("Creating community with auth status:", {
+      pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
+      hasPrivateKeyGetter: !!this.getPrivateKey
+    });
+    
+    const relays = this.getConnectedRelayUrls();
+    
+    // If no relays connected, try connecting to backup relays
+    if (relays.length === 0) {
+      console.warn("No relays connected, trying backup relays");
+      const backupRelays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band'
+      ];
+      
+      await this.connectToBackupRelays(backupRelays);
     }
     
     // Create community event according to NIP-172
@@ -144,7 +163,14 @@ export class CommunityService {
     };
     
     try {
+      console.log("Publishing community event to relays:", this.getConnectedRelayUrls());
+      
       const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      
+      if (!privateKey && !window.nostr) {
+        console.error("No private key or nostr extension available");
+        throw new Error("Unable to sign the event. Please check your login or extension.");
+      }
       
       const eventId = await this.communityManager.publishEvent(
         this.pool,
@@ -154,10 +180,14 @@ export class CommunityService {
         this.getConnectedRelayUrls()
       );
       
+      if (!eventId) {
+        throw new Error("Failed to publish community to relays");
+      }
+      
       return eventId;
     } catch (error) {
       console.error("Error creating community:", error);
-      return null;
+      throw error;
     }
   }
 
