@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink, Send } from "lucide-react";
@@ -12,6 +11,7 @@ import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import SendTransactionModal from "@/components/wallet/SendTransactionModal";
+import WalletSummary from "@/components/wallet/WalletSummary";
 
 // Define an extended signer interface for type safety
 interface ExtendedSigner {
@@ -209,6 +209,9 @@ const WalletsPage = () => {
         )}
 
         <WalletBalanceCard balance={balance} isLoading={isLoading} address={walletAddress} />
+
+        {/* Add the WalletSummary component here */}
+        {connected && <WalletSummary />}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md">
