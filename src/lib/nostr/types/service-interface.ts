@@ -24,10 +24,12 @@ export interface NostrServiceInterface {
   // Relay methods
   getConnectedRelayUrls(): string[];
   connectToUserRelays(): Promise<boolean>;
-  getRelayStatus(): Array<{ url: string; status: string; }>;
+  getRelayStatus(): Array<{ url: string; status: string; read: boolean; write: boolean; }>;
   getRelayUrls(): string[];
   addRelay(relayUrl: string, readWrite?: boolean): Promise<boolean>;
   removeRelay(relayUrl: string): void;
+  getRelaysForUser(pubkey: string): Promise<string[]>;
+  addMultipleRelays(relayUrls: string[]): Promise<number>;
   
   // Community methods
   createCommunity(name: string, description: string): Promise<string | null>;
@@ -65,6 +67,12 @@ export interface NostrServiceInterface {
   blockUser(pubkey: string): Promise<boolean>;
   unblockUser(pubkey: string): Promise<boolean>;
   isUserBlocked(pubkey: string): Promise<boolean>;
+  
+  // Utils methods
+  formatPubkey?(pubkey: string): string;
+  getNpubFromHex?(hexPubkey: string): string;
+  getHexFromNpub?(npub: string): string;
+  publishProfileMetadata?(metadata: Record<string, any>): Promise<string | null>;
   
   // Cleanup
   cleanup(): void;

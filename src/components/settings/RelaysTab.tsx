@@ -18,7 +18,12 @@ const RelaysTab = () => {
   useEffect(() => {
     const loadRelays = () => {
       const relayStatus = nostrService.getRelayStatus();
-      setRelays(relayStatus);
+      const formattedRelays = relayStatus.map(relay => ({
+        ...relay,
+        read: relay.read || true,
+        write: relay.write || true
+      }));
+      setRelays(formattedRelays);
     };
     
     loadRelays();
@@ -48,7 +53,13 @@ const RelaysTab = () => {
           description: `Successfully connected to ${newRelayUrl}`
         });
         setNewRelayUrl("");
-        setRelays(nostrService.getRelayStatus());
+        const relayStatus = nostrService.getRelayStatus();
+        const formattedRelays = relayStatus.map(relay => ({
+          ...relay,
+          read: relay.read || true,
+          write: relay.write || true
+        }));
+        setRelays(formattedRelays);
       } else {
         toast.error("Connection failed", {
           description: `Could not connect to ${newRelayUrl}`
@@ -65,7 +76,13 @@ const RelaysTab = () => {
   
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
-    setRelays(nostrService.getRelayStatus());
+    const relayStatus = nostrService.getRelayStatus();
+    const formattedRelays = relayStatus.map(relay => ({
+      ...relay,
+      read: relay.read || true,
+      write: relay.write || true
+    }));
+    setRelays(formattedRelays);
     toast.success("Relay removed", {
       description: `Removed relay: ${relayUrl}`
     });

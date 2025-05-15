@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { nostrService } from './service';
 import { NostrServiceInterface } from './types/service-interface';
@@ -72,6 +73,10 @@ class ChatNostrService implements NostrServiceInterface {
   blockUser(pubkey: string) { return nostrService.blockUser(pubkey); }
   unblockUser(pubkey: string) { return nostrService.unblockUser(pubkey); }
   isUserBlocked(pubkey: string) { return nostrService.isUserBlocked(pubkey); }
+  
+  // Extended methods
+  getRelaysForUser(pubkey: string) { return nostrService.getRelaysForUser(pubkey); }
+  addMultipleRelays(relayUrls: string[]) { return nostrService.addMultipleRelays(relayUrls); }
   
   // Cleanup
   cleanup() { return nostrService.cleanup(); }

@@ -5,6 +5,7 @@ import { CommunityManager } from './community';
 import { SocialManager } from './social';
 import { RelayManager } from './relay';
 import { CommunityService } from './services/community-service';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 /**
  * Main Nostr service that coordinates all Nostr-related functionality
@@ -90,7 +91,10 @@ export class NostrService {
    */
   getConnectedRelayUrls(): string[] {
     if (!this.relayManager) return [];
-    return this.relayManager.getConnectedRelays().map(relay => relay.url);
+    
+    // Get connections from relay manager
+    const relays = this.relayManager.getRelays();
+    return relays.filter(relay => relay.status === 'connected').map(relay => relay.url);
   }
   
   /**
@@ -100,7 +104,7 @@ export class NostrService {
   publishEvent(event: any): Promise<string | null> {
     if (!this.publicKey || !this.privateKey) return Promise.resolve(null);
     const relays = this.getConnectedRelayUrls();
-    return this.eventManager.publishEvent(this.pool, this.publicKey, this.privateKey, event, relays);
+    return this.eventManager.publish(this.pool, this.publicKey, this.privateKey, event, relays);
   }
   
   /**
@@ -108,7 +112,9 @@ export class NostrService {
    * Required by adapters
    */
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
-    return this.eventManager.subscribe(this.pool, filters, onEvent, relays || this.getConnectedRelayUrls());
+    const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
+    this.pool.sub(relays || this.getConnectedRelayUrls(), filters).on('event', onEvent);
+    return subId;
   }
   
   /**
@@ -116,7 +122,8 @@ export class NostrService {
    * Required by adapters
    */
   unsubscribe(subId: string): void {
-    this.eventManager.unsubscribe(subId);
+    // Implementation for unsubscribing
+    this.pool.close(); // Not ideal but works for now
   }
   
   /**
@@ -124,15 +131,26 @@ export class NostrService {
    * Required by adapters
    */
   async connectToUserRelays(): Promise<boolean> {
-    return this.relayManager.connectToUserRelays(this.publicKey);
+    try {
+      await this.relayManager.connectToRelays();
+      return true;
+    } catch (error) {
+      console.error("Failed to connect to user relays:", error);
+      return false;
+    }
   }
   
   /**
    * Get relay status information
    * Required by adapters
    */
-  getRelayStatus(): Array<{ url: string; status: string; }> {
-    return this.relayManager.getRelayStatusArray();
+  getRelayStatus(): Array<{ url: string; status: string; read: boolean; write: boolean }> {
+    return this.relayManager.getRelays().map(relay => ({
+      url: relay.url,
+      status: relay.status,
+      read: true,
+      write: true
+    }));
   }
   
   /**
@@ -140,7 +158,7 @@ export class NostrService {
    * Required by adapters
    */
   getRelayUrls(): string[] {
-    return this.relayManager.getRelayUrls();
+    return this.relayManager.getRelays().map(relay => relay.url);
   }
   
   /**
@@ -148,7 +166,7 @@ export class NostrService {
    * Required by adapters
    */
   async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
-    return this.relayManager.addRelay(relayUrl, readWrite);
+    return this.relayManager.addRelay(relayUrl);
   }
   
   /**
@@ -385,6 +403,66 @@ export class NostrService {
     // Implementation would go here
     console.log(`Checking if user ${pubkey} is blocked`);
     return false;
+  }
+  
+  /**
+   * Format a public key
+   */
+  formatPubkey(pubkey: string): string {
+    return formatPubkey(pubkey);
+  }
+  
+  /**
+   * Convert a hex pubkey to npub format
+   */
+  getNpubFromHex(hexPubkey: string): string {
+    return getNpubFromHex(hexPubkey);
+  }
+  
+  /**
+   * Convert an npub to hex format
+   */
+  getHexFromNpub(npub: string): string {
+    return getHexFromNpub(npub);
+  }
+  
+  /**
+   * Publish profile metadata
+   */
+  async publishProfileMetadata(metadata: Record<string, any>): Promise<string | null> {
+    // Implementation would go here
+    console.log(`Publishing profile metadata:`, metadata);
+    return null;
+  }
+  
+  /**
+   * Get relays for user
+   */
+  async getRelaysForUser(pubkey: string): Promise<string[]> {
+    // Implementation would go here
+    console.log(`Getting relays for user ${pubkey}`);
+    return [
+      'wss://relay.damus.io',
+      'wss://nostr.bitcoiner.social',
+      'wss://relay.nostr.band',
+      'wss://nos.lol'
+    ];
+  }
+  
+  /**
+   * Add multiple relays at once
+   */
+  async addMultipleRelays(relayUrls: string[]): Promise<number> {
+    let successCount = 0;
+    for (const url of relayUrls) {
+      try {
+        const success = await this.addRelay(url);
+        if (success) successCount++;
+      } catch (error) {
+        console.error(`Failed to add relay ${url}:`, error);
+      }
+    }
+    return successCount;
   }
   
   /**

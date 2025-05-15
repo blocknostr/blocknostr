@@ -21,6 +21,7 @@ export interface Relay {
   avgResponse?: number;
   supportedNips?: number[];
   load?: number;
+  circuitStatus?: any;
 }
 
 export interface NostrProfileMetadata {

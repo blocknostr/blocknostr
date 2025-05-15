@@ -65,7 +65,9 @@ const ProfileRelaysDialog = ({
         ...relay,
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
-        circuitStatus
+        circuitStatus,
+        read: relay.read || true,
+        write: relay.write || true
       };
     });
     
@@ -106,7 +108,14 @@ const ProfileRelaysDialog = ({
       }
       
       // Use the imported adapatedNostrService directly
-      const success = await adaptedNostrService.publishRelayList(sortedRelays);
+      const success = await adaptedNostrService.publishRelayList(
+        sortedRelays.map(relay => ({
+          url: relay.url,
+          read: relay.read || true,
+          write: relay.write || true
+        }))
+      );
+      
       if (success) {
         toast.success("Relay preferences updated");
         return true;
@@ -178,7 +187,9 @@ const ProfileRelaysDialog = ({
         return {
           ...relay,
           score: perfData?.score || 50,
-          avgResponse: perfData?.avgResponseTime
+          avgResponse: perfData?.avgResponseTime,
+          read: relay.read || true,
+          write: relay.write || true
         };
       });
       

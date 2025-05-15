@@ -32,14 +32,23 @@ export class BaseAdapter {
   
   // Utilities
   formatPubkey(pubkey: string) {
+    if (this.service.formatPubkey) {
+      return this.service.formatPubkey(pubkey);
+    }
     return formatPubkey(pubkey);
   }
   
   getNpubFromHex(hexPubkey: string) {
+    if (this.service.getNpubFromHex) {
+      return this.service.getNpubFromHex(hexPubkey);
+    }
     return getNpubFromHex(hexPubkey);
   }
   
   getHexFromNpub(npub: string) {
+    if (this.service.getHexFromNpub) {
+      return this.service.getHexFromNpub(npub);
+    }
     return getHexFromNpub(npub);
   }
   
