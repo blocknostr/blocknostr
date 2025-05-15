@@ -67,8 +67,9 @@ export class EventManager {
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     
-    // Generate signature bytes - Using standard sign without DER option
-    const signatureBytes = await secp.sign(eventHash, privateKey);
+    // Generate signature bytes
+    // Fix: Use compact representation without recovery info which returns Uint8Array
+    const signatureBytes = await secp.sign(eventHash, privateKey, { recovered: false });
     
     // Convert the signature to hex string
     return bytesToHex(signatureBytes);
