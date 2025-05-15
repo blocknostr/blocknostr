@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Shield, Users, PlusCircle, Lock, AlertCircle } from "lucide-react";
@@ -12,6 +11,7 @@ import { useCommunity } from "@/hooks/useCommunity";
 import CommunitiesGrid from "@/components/community/CommunitiesGrid";
 import CreateCommunityDialog from "@/components/community/CreateCommunityDialog";
 import { DAOContractService } from "@/lib/alephium/services/dao-contract-service";
+import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 
 const DAOPage = () => {
   const wallet = useWallet();
@@ -40,10 +40,6 @@ const DAOPage = () => {
           const mockDerivedPubkey = `npub_derived_${wallet.account.address.substring(0, 10)}`;
           
           setDerivedNostrPubkey(mockDerivedPubkey);
-          
-          // Assign the derived key to nostrService for operations
-          // This is just for demonstration - actual implementation would use proper key derivation
-          // nostrService.setPublicKey(mockDerivedPubkey);
           
           toast.info("Alephium wallet connected", {
             description: "Your DAO identity is now active"
@@ -262,7 +258,7 @@ const DAOPage = () => {
     }
   };
   
-  // If not connected, show the wallet connect prompt
+  // If not connected, show the wallet connect prompt with in-page connection option
   if (!connected) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
@@ -282,12 +278,7 @@ const DAOPage = () => {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center space-y-4">
-                <Button variant="outline" className="w-full" asChild>
-                  <a href="/wallets">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Go to Wallets Page
-                  </a>
-                </Button>
+                <WalletConnectButton className="w-full" />
               </div>
             </CardContent>
           </Card>
