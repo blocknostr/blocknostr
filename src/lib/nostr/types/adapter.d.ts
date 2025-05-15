@@ -67,32 +67,17 @@ export interface CommunityAdapterInterface extends BaseAdapterInterface {
   communityManager: any; // Define specific community manager interface if needed
 }
 
-export interface BookmarkAdapterInterface extends BaseAdapterInterface {
-  isBookmarked(eventId: string): Promise<boolean>;
-  addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean>;
-  removeBookmark(eventId: string): Promise<boolean>;
-  getBookmarks(): Promise<any[]>;
-  getBookmarkCollections(): Promise<any[]>;
-  getBookmarkMetadata(): Promise<any>;
-  createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null>;
-  processPendingOperations(): Promise<boolean>;
-  
-  bookmarkManager: any; // Define specific bookmark manager interface if needed
-}
-
 export interface NostrAdapterInterface extends BaseAdapterInterface,
   SocialAdapterInterface,
   RelayAdapterInterface,
   DataAdapterInterface,
-  CommunityAdapterInterface,
-  BookmarkAdapterInterface {
+  CommunityAdapterInterface {
   
   // Domain-specific property accessors
   readonly social: SocialAdapterInterface;
   readonly relay: RelayAdapterInterface;
   readonly data: DataAdapterInterface;
   readonly community: CommunityAdapterInterface;
-  readonly bookmark: BookmarkAdapterInterface;
   
   // Event management methods (from EventAdapter)
   publishEvent(event: any): Promise<string | null>;

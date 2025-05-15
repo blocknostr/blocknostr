@@ -1,7 +1,6 @@
 
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
-import { BookmarkCollection, BookmarkWithMetadata } from "@/lib/nostr/bookmark";
 import { AlertTriangle } from "lucide-react";
 
 // Note: This file is no longer used - kept for backward compatibility
@@ -9,8 +8,6 @@ interface BookmarksListProps {
   loading: boolean;
   isLoggedIn: boolean;
   paginatedEvents: NostrEvent[];
-  bookmarkMetadata: BookmarkWithMetadata[];
-  collections: BookmarkCollection[];
   profiles: Record<string, any>;
   viewMode: "list" | "grid";
   page: number;

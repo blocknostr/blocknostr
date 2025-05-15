@@ -78,38 +78,6 @@ export class NostrServiceAdapter {
     return this.service.publishProfileMetadata(metadata);
   }
   
-  async bookmarkEvent(eventId: string, collectionId?: string, tags?: string[], note?: string) {
-    return this.service.addBookmark(eventId, collectionId, tags, note);
-  }
-  
-  async unbookmarkEvent(eventId: string) {
-    return this.service.removeBookmark(eventId);
-  }
-  
-  async isEventBookmarked(eventId: string) {
-    return this.service.isBookmarked(eventId);
-  }
-  
-  async getBookmarkedEvents() {
-    return this.service.getBookmarks();
-  }
-  
-  async createBookmarkCollection(name: string, color?: string, description?: string) {
-    return this.service.createBookmarkCollection(name, color, description);
-  }
-  
-  async getBookmarkCollections() {
-    return this.service.getBookmarkCollections();
-  }
-  
-  async getBookmarkMetadata() {
-    return this.service.getBookmarkMetadata();
-  }
-  
-  async processPendingBookmarkOperations() {
-    return this.service.processPendingOperations();
-  }
-  
   async muteUser(pubkey: string) {
     return this.service.muteUser(pubkey);
   }

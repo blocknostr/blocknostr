@@ -1,3 +1,4 @@
+
 import { BookmarkCollection, BookmarkWithMetadata, BookmarkStatus, QueuedOperation } from '../types';
 
 export interface BookmarkStorageInterface {

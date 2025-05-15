@@ -7,10 +7,8 @@ import { SubscriptionManager } from './subscription';
 import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
-import { BookmarkManagerFacade } from './bookmark';
 import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
-import type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
@@ -26,7 +24,6 @@ export class NostrService {
   private eventManager: EventManager;
   private socialManagerInstance: SocialManager;
   public communityManager: CommunityManager;
-  public bookmarkManager: BookmarkManagerFacade;
   private pool: SimplePool;
   private adapter: NostrServiceAdapter;
   
@@ -47,7 +44,6 @@ export class NostrService {
     });
     
     this.communityManager = new CommunityManager(this.eventManager);
-    this.bookmarkManager = new BookmarkManagerFacade();
     
     // Initialize adapter
     this.adapter = new NostrServiceAdapter(this);
@@ -388,39 +384,6 @@ export class NostrService {
     const connectedRelays = this.getConnectedRelayUrls();
     // Return null since this is not implemented yet
     return null;
-  }
-  
-  // Bookmark methods (simplified to use the facade without arguments)
-  public async isBookmarked(eventId: string): Promise<boolean> {
-    return false;
-  }
-  
-  public async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
-    return false;
-  }
-  
-  public async removeBookmark(eventId: string): Promise<boolean> {
-    return false;
-  }
-  
-  public async getBookmarks(): Promise<string[]> {
-    return [];
-  }
-  
-  public async getBookmarkCollections(): Promise<BookmarkCollection[]> {
-    return [];
-  }
-  
-  public async getBookmarkMetadata(): Promise<BookmarkWithMetadata[]> {
-    return [];
-  }
-  
-  public async createBookmarkCollection(name: string, color?: string, description?: string): Promise<string | null> {
-    return null;
-  }
-  
-  public async processPendingOperations(): Promise<void> {
-    return;
   }
   
   // Additional methods needed for other components
