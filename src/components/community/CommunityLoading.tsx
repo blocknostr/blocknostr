@@ -1,6 +1,6 @@
 
 import { Loader2 } from "lucide-react";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/sidebar/Sidebar";
 
 const CommunityLoading = () => {
   return (

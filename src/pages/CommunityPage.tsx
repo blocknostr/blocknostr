@@ -1,5 +1,6 @@
+
 import { useParams } from "react-router-dom";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/sidebar/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { useCommunity } from "@/hooks/useCommunity";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

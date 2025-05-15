@@ -5,7 +5,7 @@ import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
 import { NostrService } from './service';
-import { nostrServiceInstance as nostrService } from './nostr-adapter';
+import { nostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
