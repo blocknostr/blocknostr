@@ -22,6 +22,20 @@ const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({
   
   return (
     <CardContent className="px-3 py-2">
+      {activeHashtag && (
+        <div className="mb-2 px-2 py-1 bg-accent rounded-md flex justify-between items-center">
+          <div className="text-sm font-medium">#{activeHashtag}</div>
+          {onClearHashtag && (
+            <button 
+              onClick={onClearHashtag}
+              className="text-xs text-muted-foreground hover:text-primary"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+      
       {displayTopics.length > 0 ? (
         <div className="grid grid-cols-2 gap-x-2 gap-y-2">
           {displayTopics.map((topic) => (

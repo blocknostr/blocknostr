@@ -1,7 +1,8 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import { verifyNip05, fetchNip05Data } from '../utils/nip';
+import { verifyNip05, fetchNip05Data, discoverNip05Relays } from '../utils/nip';
 
 /**
  * Profile service that handles user profile-related methods
@@ -165,6 +166,7 @@ export class ProfileService {
 
   /**
    * Verify a NIP-05 identifier and check if it matches the expected pubkey
+   * Uses our consolidated NIP-05 implementation
    * @param identifier - NIP-05 identifier in the format username@domain.com
    * @param expectedPubkey - The pubkey that should match the NIP-05 identifier
    * @returns True if the NIP-05 identifier resolves to the expected pubkey
@@ -184,5 +186,14 @@ export class ProfileService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
+  }
+  
+  /**
+   * Discover relays for a user via their NIP-05 identifier
+   * @param identifier - NIP-05 identifier in the format username@domain.com
+   * @returns Array of relay URLs that should be used to connect to the user
+   */
+  async discoverRelaysViaNip05(identifier: string): Promise<string[]> {
+    return discoverNip05Relays(identifier);
   }
 }

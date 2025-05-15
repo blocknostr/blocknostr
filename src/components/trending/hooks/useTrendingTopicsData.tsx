@@ -21,75 +21,75 @@ export const useTrendingTopicsData = () => {
   ];
   
   // This would be fetched from Nostr in a real implementation
-  const allTimeTrendingTopics = [
-    { name: "Bitcoin", posts: "124K" },
-    { name: "Nostr", posts: "87K" },
-    { name: "Lightning", posts: "65K" },
-    { name: "Decentralization", posts: "42K" },
-    { name: "Web5", posts: "38K" },
+  const allTimeTrendingTopics: Topic[] = [
+    { name: "Bitcoin", posts: "124K", isHashtag: true },
+    { name: "Nostr", posts: "87K", isHashtag: true },
+    { name: "Lightning", posts: "65K", isHashtag: true },
+    { name: "Decentralization", posts: "42K", isHashtag: false },
+    { name: "Web5", posts: "38K", isHashtag: false },
   ];
 
-  const last24HTrendingTopics = [
-    { name: "Bitcoin", posts: "18K" },
-    { name: "AI", posts: "15K" },
-    { name: "Nostr", posts: "12K" },
-    { name: "OpenAI", posts: "10K" },
-    { name: "Tech", posts: "8K" },
+  const last24HTrendingTopics: Topic[] = [
+    { name: "Bitcoin", posts: "18K", isHashtag: true },
+    { name: "AI", posts: "15K", isHashtag: true },
+    { name: "Nostr", posts: "12K", isHashtag: true },
+    { name: "OpenAI", posts: "10K", isHashtag: false },
+    { name: "Tech", posts: "8K", isHashtag: true },
   ];
 
-  const last7DTrendingTopics = [
-    { name: "Bitcoin", posts: "56K" },
-    { name: "Nostr", posts: "43K" },
-    { name: "Lightning", posts: "32K" },
-    { name: "Ethereum", posts: "28K" },
-    { name: "Privacy", posts: "21K" },
+  const last7DTrendingTopics: Topic[] = [
+    { name: "Bitcoin", posts: "56K", isHashtag: true },
+    { name: "Nostr", posts: "43K", isHashtag: true },
+    { name: "Lightning", posts: "32K", isHashtag: true },
+    { name: "Ethereum", posts: "28K", isHashtag: true },
+    { name: "Privacy", posts: "21K", isHashtag: true },
   ];
 
   const mostZappedTopics = {
     all: [
-      { name: "Bitcoin", posts: "98K" },
-      { name: "Nostr", posts: "76K" },
-      { name: "Sats", posts: "54K" },
-      { name: "Lightning", posts: "41K" },
-      { name: "BTC", posts: "32K" },
+      { name: "Bitcoin", posts: "98K", isHashtag: true },
+      { name: "Nostr", posts: "76K", isHashtag: true },
+      { name: "Sats", posts: "54K", isHashtag: true },
+      { name: "Lightning", posts: "41K", isHashtag: true },
+      { name: "BTC", posts: "32K", isHashtag: true },
     ],
     "24h": [
-      { name: "Bitcoin", posts: "14K" },
-      { name: "Nostr", posts: "11K" },
-      { name: "Lightning", posts: "8K" },
-      { name: "Sats", posts: "7K" },
-      { name: "Decentralization", posts: "5K" },
+      { name: "Bitcoin", posts: "14K", isHashtag: true },
+      { name: "Nostr", posts: "11K", isHashtag: true },
+      { name: "Lightning", posts: "8K", isHashtag: true },
+      { name: "Sats", posts: "7K", isHashtag: true },
+      { name: "Decentralization", posts: "5K", isHashtag: false },
     ],
     "7d": [
-      { name: "Bitcoin", posts: "46K" },
-      { name: "Nostr", posts: "38K" },
-      { name: "Sats", posts: "29K" },
-      { name: "Lightning", posts: "21K" },
-      { name: "BTC", posts: "16K" },
+      { name: "Bitcoin", posts: "46K", isHashtag: true },
+      { name: "Nostr", posts: "38K", isHashtag: true },
+      { name: "Sats", posts: "29K", isHashtag: true },
+      { name: "Lightning", posts: "21K", isHashtag: true },
+      { name: "BTC", posts: "16K", isHashtag: true },
     ]
   };
 
   const mostLikedTopics = {
     all: [
-      { name: "Nostr", posts: "42K" },
-      { name: "Bitcoin", posts: "38K" },
-      { name: "AI", posts: "25K" },
-      { name: "Web5", posts: "19K" },
-      { name: "Tech", posts: "12K" },
+      { name: "Nostr", posts: "42K", isHashtag: true },
+      { name: "Bitcoin", posts: "38K", isHashtag: true },
+      { name: "AI", posts: "25K", isHashtag: true },
+      { name: "Web5", posts: "19K", isHashtag: false },
+      { name: "Tech", posts: "12K", isHashtag: true },
     ],
     "24h": [
-      { name: "Nostr", posts: "8K" },
-      { name: "Bitcoin", posts: "7K" },
-      { name: "AI", posts: "5K" },
-      { name: "Tech", posts: "3K" },
-      { name: "Privacy", posts: "2K" },
+      { name: "Nostr", posts: "8K", isHashtag: true },
+      { name: "Bitcoin", posts: "7K", isHashtag: true },
+      { name: "AI", posts: "5K", isHashtag: true },
+      { name: "Tech", posts: "3K", isHashtag: true },
+      { name: "Privacy", posts: "2K", isHashtag: true },
     ],
     "7d": [
-      { name: "Nostr", posts: "24K" },
-      { name: "Bitcoin", posts: "21K" },
-      { name: "AI", posts: "16K" },
-      { name: "Web5", posts: "12K" },
-      { name: "Tech", posts: "9K" },
+      { name: "Nostr", posts: "24K", isHashtag: true },
+      { name: "Bitcoin", posts: "21K", isHashtag: true },
+      { name: "AI", posts: "16K", isHashtag: true },
+      { name: "Web5", posts: "12K", isHashtag: false },
+      { name: "Tech", posts: "9K", isHashtag: true },
     ]
   };
   
@@ -101,9 +101,9 @@ export const useTrendingTopicsData = () => {
         if (timeRange === "7d") return last7DTrendingTopics;
         return allTimeTrendingTopics;
       case "zapped":
-        return mostZappedTopics[timeRange];
+        return mostZappedTopics[timeRange as keyof typeof mostZappedTopics];
       case "liked":
-        return mostLikedTopics[timeRange];
+        return mostLikedTopics[timeRange as keyof typeof mostLikedTopics];
       default:
         return allTimeTrendingTopics;
     }

@@ -1,5 +1,11 @@
 
-import { isValidNip05Format, verifyNip05, fetchNip05Data } from '../nip';
+import { 
+  isValidNip05Format, 
+  verifyNip05, 
+  fetchNip05Data,
+  getNip05Pubkey,
+  discoverNip05Relays 
+} from '../nip';
 
 describe('NIP-05 Identifier Format Validation', () => {
   test('should validate correct NIP-05 identifiers', () => {
@@ -127,9 +133,46 @@ describe('NIP-05 Verification', () => {
     const result = await verifyNip05('alice@example.com', 'pubkey123');
     expect(result).toBe(false);
   });
+});
+
+describe('NIP-05 Relay Discovery', () => {
+  test('should return relay list for valid NIP-05 identifier', async () => {
+    // Mock successful response with relay information
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        names: {
+          alice: 'pubkey123'
+        },
+        relays: {
+          'pubkey123': {
+            'wss://relay1.example.com': { read: true, write: true },
+            'wss://relay2.example.com': { read: true, write: false },
+            'wss://relay3.example.com': { read: false, write: true }
+          }
+        }
+      })
+    });
+    
+    const relays = await discoverNip05Relays('alice@example.com');
+    // Should only include relays with read permission
+    expect(relays).toContain('wss://relay1.example.com');
+    expect(relays).toContain('wss://relay2.example.com');
+    expect(relays).not.toContain('wss://relay3.example.com');
+  });
   
-  test('should handle npub format pubkeys', async () => {
-    // This test would need to mock nip19.decode - we'll just verify the structure
-    expect(verifyNip05).toBeInstanceOf(Function);
+  test('should return empty array for NIP-05 without relays', async () => {
+    (fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        names: {
+          alice: 'pubkey123'
+        }
+        // No relays field
+      })
+    });
+    
+    const relays = await discoverNip05Relays('alice@example.com');
+    expect(relays).toEqual([]);
   });
 });

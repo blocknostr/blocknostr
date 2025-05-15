@@ -4,42 +4,45 @@ import TrendingTopicsList from "./TrendingTopicsList";
 import TrendingFilters from "./TrendingFilters";
 import { useTrendingTopicsData } from "./hooks/useTrendingTopicsData";
 import { FilterType, TimeRange } from "./types";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import TrendingFilterButton from "./TrendingFilterButton";
+import TrendingFilterMenu from "./TrendingFilterMenu";
 
-const TrendingSection: FC = () => {
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [activeTimeRange, setActiveTimeRange] = useState<TimeRange>("day");
-  
+interface TrendingSectionProps {
+  onTopicClick?: (topic: string) => void;
+  activeHashtag?: string;
+  onClearHashtag?: () => void;
+}
+
+const TrendingSection: FC<TrendingSectionProps> = ({ 
+  onTopicClick,
+  activeHashtag,
+  onClearHashtag
+}) => {
   const {
+    activeFilter,
+    setActiveFilter,
+    timeRange,
+    setTimeRange,
+    filterOptions,
+    timeOptions,
     trendingTopics,
-    isLoading,
-    error,
-    fetchTrendingTopics,
+    currentFilter,
+    currentTime
   } = useTrendingTopicsData();
-
-  useEffect(() => {
-    // Initial data fetch
-    fetchTrendingTopics();
-    
-    // Set up periodic refresh (every 5 minutes)
-    const intervalId = setInterval(() => {
-      fetchTrendingTopics();
-    }, 5 * 60 * 1000);
-    
-    return () => clearInterval(intervalId);
-  }, [fetchTrendingTopics]);
-
+  
   // Filter topics based on the selected filter and time range
   const filteredTopics = trendingTopics.filter((topic) => {
-    if (activeFilter === "all") {
+    if (activeFilter === "popular") {
       return true;
     }
     
-    if (activeFilter === "hashtags") {
-      return topic.isHashtag;
+    if (activeFilter === "zapped") {
+      return true;
     }
     
-    if (activeFilter === "topics") {
-      return !topic.isHashtag;
+    if (activeFilter === "liked") {
+      return true;
     }
     
     return true;
@@ -50,42 +53,37 @@ const TrendingSection: FC = () => {
   };
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
-    setActiveTimeRange(timeRange);
-    // Reload data with new time range
-    fetchTrendingTopics();
+    setTimeRange(timeRange);
   };
 
   return (
     <div className="bg-card rounded-md shadow-sm mb-4 overflow-hidden">
-      <div className="p-4 border-b">
+      <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-lg font-medium">Trending</h2>
+        <DropdownMenu>
+          <TrendingFilterButton />
+          <TrendingFilterMenu 
+            filterOptions={filterOptions}
+            timeOptions={timeOptions}
+            activeFilter={activeFilter}
+            timeRange={timeRange}
+            setActiveFilter={handleFilterChange}
+            setTimeRange={handleTimeRangeChange}
+          />
+        </DropdownMenu>
       </div>
       
       <TrendingFilters
-        activeFilter={activeFilter}
-        activeTimeRange={activeTimeRange}
-        onFilterChange={handleFilterChange}
-        onTimeRangeChange={handleTimeRangeChange}
+        currentFilter={currentFilter}
+        currentTime={currentTime}
       />
       
       <TrendingTopicsList
         topics={filteredTopics}
-        isLoading={isLoading}
-        error={error}
+        onTopicClick={onTopicClick || (() => {})}
+        activeHashtag={activeHashtag}
+        onClearHashtag={onClearHashtag}
       />
-      
-      <div className="p-3 text-center border-t">
-        <button
-          onClick={() => {
-            setActiveFilter("all");
-            setActiveTimeRange("day");
-            fetchTrendingTopics();
-          }}
-          className="text-sm text-primary hover:underline"
-        >
-          View all trending topics
-        </button>
-      </div>
     </div>
   );
 };

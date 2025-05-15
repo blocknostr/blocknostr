@@ -18,4 +18,5 @@ export type TimeOption = {
 export type Topic = {
   name: string;
   posts: string;
+  isHashtag?: boolean;
 };
