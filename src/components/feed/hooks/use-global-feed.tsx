@@ -36,14 +36,12 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     setSubId, 
     setupSubscription, 
     setEvents,
-    cacheHit,
-    isRetrying
+    cacheHit
   } = useFeedEvents({
     since,
     until,
     activeHashtag,
-    limit: INITIAL_BATCH_SIZE, // Reduced from 20 to 15 for better initial performance
-    feedType: activeHashtag ? `hashtag-${activeHashtag}` : 'global'
+    limit: INITIAL_BATCH_SIZE // Reduced from 20 to 15 for better initial performance
   });
   
   // Handle parallel loading for better content discovery
@@ -197,20 +195,13 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       const newSubId = setupSubscription(initialSince, currentTime);
       setSubId(newSubId);
       
-      // Set timeout to reduce initial loading wait time to 3 seconds
+      // Set timeout to reduce initial loading wait time to 3.5 seconds
       setTimeout(() => {
         if (events.length === 0) {
           setLoading(false);
         }
-      }, 3000); // Reduced from 7000 to 3000ms
+      }, 3500); // Reduced from 7000 to 3500ms
     };
-    
-    // Listen for refresh events
-    const handleRefresh = () => {
-      initFeed();
-    };
-    
-    window.addEventListener('refetch-global-feed', handleRefresh);
     
     initFeed();
     
@@ -222,7 +213,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
-      window.removeEventListener('refetch-global-feed', handleRefresh);
     };
   }, [activeHashtag]);
 
@@ -244,7 +234,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     loadingMore: loadingMore || scrollLoadingMore,
     // Add new properties for optimization
     earlyEventsLoaded,
-    cacheHit,
-    isRetrying
+    cacheHit
   };
 }
