@@ -2,6 +2,8 @@
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
+import { relaySelector } from '../relay/selection/relay-selector';
+import { circuitBreaker, CircuitState } from '../relay/circuit/circuit-breaker';
 
 // Max number of initial relays for faster loading
 const MAX_INITIAL_RELAYS = 4;
@@ -14,6 +16,14 @@ const CONNECTION_TIMEOUT_MS = 2500; // 2.5 seconds
  * Implements NIP-65 (Relay List Metadata) for relay management
  */
 export class RelayAdapter extends BaseAdapter {
+  private readonly DEFAULT_RELAYS = [
+    "wss://relay.damus.io",
+    "wss://nos.lol", 
+    "wss://relay.nostr.band",
+    "wss://relay.snort.social",
+    "wss://purplepag.es"
+  ];
+  
   // Relay methods
   async addRelay(relayUrl: string, readWrite: boolean = true) {
     return this.service.addRelay(relayUrl, readWrite);
@@ -67,36 +77,29 @@ export class RelayAdapter extends BaseAdapter {
               resolved = true;
               resolve(relayUrls);
             }
+          },
+          (error) => {
+            console.warn("Error fetching relays for user:", error);
+            // We don't resolve here - let the timeout handle it
           }
         );
         
-        // Set timeout for fallback logic - reduced from 5s to 3s
+        // Set timeout for fallback logic - reduced from 3s to 2.5s
         timeoutId = setTimeout(() => {
           if (!resolved) {
             this.service.unsubscribe(subId);
             
             // Fallback to default relays if no NIP-65 event found
-            const defaultRelays = [
-              'wss://relay.damus.io',
-              'wss://nostr.bitcoiner.social',
-              'wss://relay.nostr.band',
-              'wss://nos.lol'
-            ];
             console.log(`No relay list found for ${pubkey}, using fallback relays`);
-            resolve(defaultRelays);
+            resolve(this.DEFAULT_RELAYS);
           }
-        }, 3000); // Reduced from 5s to 3s for faster response
+        }, 2500); // Reduced from 3s to 2.5s for faster response
       });
     } catch (error) {
       console.error("Error fetching user relays:", error);
       
       // Fallback to default relays in case of error
-      return [
-        'wss://relay.damus.io',
-        'wss://nostr.bitcoiner.social',
-        'wss://relay.nostr.band',
-        'wss://nos.lol'
-      ];
+      return this.DEFAULT_RELAYS;
     }
   }
   
@@ -104,7 +107,18 @@ export class RelayAdapter extends BaseAdapter {
    * Connect to default relays from configuration
    */
   async connectToDefaultRelays() {
-    return this.service.connectToUserRelays(); // Using existing method
+    try {
+      // Select the most reliable relays from our defaults
+      const relaysToConnect = relaySelector.getBalancedRelaySet(
+        this.DEFAULT_RELAYS, 
+        4
+      );
+      
+      return await this.addMultipleRelays(relaysToConnect);
+    } catch (error) {
+      console.error("Error connecting to default relays:", error);
+      return false;
+    }
   }
   
   /**
@@ -120,36 +134,37 @@ export class RelayAdapter extends BaseAdapter {
       
       if (!availableRelays || availableRelays.length === 0) {
         console.log('No relays configured, using default relays.');
-        return this.service.connectToDefaultRelays();
+        return this.connectToDefaultRelays();
       }
       
-      // Select a limited set of relays for initial connection (max 4)
-      // We prioritize known fast relays for initial connection
-      const fastRelaysFirst = [...availableRelays].sort((a, b) => {
-        // Known fast relays get priority - similar to iris.to approach
-        const fastRelays = [
-          'wss://relay.damus.io',
-          'wss://nos.lol',
-          'wss://relay.nostr.band',
-          'wss://purplepag.es'
-        ];
-        
-        const aIsFast = fastRelays.includes(a);
-        const bIsFast = fastRelays.includes(b);
-        
-        if (aIsFast && !bIsFast) return -1;
-        if (!aIsFast && bIsFast) return 1;
-        return 0;
+      // Filter out relays with open circuit breakers
+      const healthyRelays = availableRelays.filter(url => {
+        const state = circuitBreaker.getState(url);
+        return state !== CircuitState.OPEN;
       });
       
-      // Take just the first few for initial connection (faster startup)
-      const initialRelays = fastRelaysFirst.slice(0, MAX_INITIAL_RELAYS);
-      console.log(`Connecting to ${initialRelays.length} initial relays:`, initialRelays);
+      // If we have no healthy relays, reset some circuit breakers
+      if (healthyRelays.length === 0) {
+        console.log('All relays have open circuit breakers, resetting defaults');
+        this.DEFAULT_RELAYS.forEach(url => {
+          if (availableRelays.includes(url)) {
+            circuitBreaker.reset(url);
+          }
+        });
+      }
+      
+      // Select relays to use - prioritize healthy ones, fallback to all
+      const relaysToUse = healthyRelays.length > 0 ? healthyRelays : availableRelays;
+      
+      // Sort relays for optimal connection order
+      const sortedRelays = relaySelector.getBalancedRelaySet(relaysToUse, MAX_INITIAL_RELAYS);
+      
+      console.log(`Connecting to ${sortedRelays.length} initial relays:`, sortedRelays);
       
       // Connect to initial relays with timeout
       const initialConnectionPromise = Promise.race([
         // Attempt to connect to initial relays
-        this.service.relayManager.addMultipleRelays(initialRelays),
+        this.service.relayManager.addMultipleRelays(sortedRelays),
         
         // Timeout after 2.5 seconds to avoid waiting too long
         new Promise<number>((resolve) => {
@@ -166,7 +181,7 @@ export class RelayAdapter extends BaseAdapter {
       
       // If we have remaining relays, connect to them in the background
       if (availableRelays.length > MAX_INITIAL_RELAYS) {
-        const remainingRelays = fastRelaysFirst.slice(MAX_INITIAL_RELAYS);
+        const remainingRelays = availableRelays.filter(url => !sortedRelays.includes(url));
         
         // Connect to remaining relays in the background
         setTimeout(() => {
@@ -195,22 +210,44 @@ export class RelayAdapter extends BaseAdapter {
     let successCount = 0;
     const failedRelays: string[] = [];
     
+    // Filter out relays with open circuit breakers
+    const filteredRelays = relayUrls.filter(url => {
+      const state = circuitBreaker.getState(url);
+      if (state === CircuitState.OPEN) {
+        console.log(`Skipping relay ${url} due to open circuit breaker`);
+        return false;
+      }
+      return true;
+    });
+    
     // Use Promise.allSettled for parallel connection attempts with faster timeouts
-    const connectionPromises = relayUrls.map(url => {
+    const connectionPromises = filteredRelays.map(url => {
       return Promise.race([
         this.addRelay(url).then(success => {
           if (success) {
             successCount++;
+            // Reset failures or record success in circuit breaker
+            circuitBreaker.recordSuccess(url);
             return { url, success: true };
           } else {
             failedRelays.push(url);
+            // Record failure in circuit breaker
+            circuitBreaker.recordFailure(url);
             return { url, success: false };
           }
+        }).catch(error => {
+          console.warn(`Error connecting to relay ${url}:`, error);
+          failedRelays.push(url);
+          // Record failure in circuit breaker
+          circuitBreaker.recordFailure(url);
+          return { url, success: false };
         }),
         // Individual timeout per relay to avoid slow relays blocking everything
         new Promise<{url: string, success: false}>(resolve => {
           setTimeout(() => {
             failedRelays.push(url);
+            // Record timeout failure in circuit breaker
+            circuitBreaker.recordFailure(url);
             resolve({ url, success: false });
           }, 2000); // 2 second timeout per relay
         })
@@ -219,9 +256,11 @@ export class RelayAdapter extends BaseAdapter {
     
     await Promise.allSettled(connectionPromises);
     
-    // Notify user about failed relays if any
-    if (failedRelays.length > 0 && successCount > 0) {
+    // Notify user about failed relays if any (only if many failures)
+    if (failedRelays.length > 3 && successCount === 0) {
       console.warn(`Failed to add ${failedRelays.length} relays:`, failedRelays);
+      // Only show toast if no relays connected successfully
+      toast.error("Failed to connect to relays. Check your network connection.");
     }
     
     return successCount;

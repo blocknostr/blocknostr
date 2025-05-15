@@ -8,6 +8,7 @@ export class ConnectionManager {
   private relays: Map<string, WebSocket> = new Map();
   private connectionStatus: Map<string, { connected: boolean, lastAttempt: number, failures: number }> = new Map();
   private reconnectTimers: Map<string, number> = new Map();
+  private connectionTimeouts: Map<string, number> = new Map();
   
   constructor() {}
   
@@ -36,19 +37,52 @@ export class ConnectionManager {
       this.reconnectTimers.delete(relayUrl);
     }
     
+    // Clear any existing connection timeout
+    if (this.connectionTimeouts.has(relayUrl)) {
+      window.clearTimeout(this.connectionTimeouts.get(relayUrl));
+      this.connectionTimeouts.delete(relayUrl);
+    }
+    
     try {
       const socket = new WebSocket(relayUrl);
       
       return new Promise((resolve) => {
+        // Set a connection timeout (reduced to 3s for faster experience)
+        const timeoutId = window.setTimeout(() => {
+          if (socket.readyState !== WebSocket.OPEN) {
+            console.warn(`Connection to ${relayUrl} timed out`);
+            socket.close();
+            status.failures++;
+            resolve(false);
+          }
+        }, 3000); // 3 second timeout
+        
+        this.connectionTimeouts.set(relayUrl, timeoutId);
+        
         socket.onopen = () => {
           this.relays.set(relayUrl, socket);
           status.connected = true;
           status.failures = 0;
+          
+          // Clear the connection timeout
+          if (this.connectionTimeouts.has(relayUrl)) {
+            window.clearTimeout(this.connectionTimeouts.get(relayUrl));
+            this.connectionTimeouts.delete(relayUrl);
+          }
+          
           resolve(true);
         };
         
-        socket.onerror = () => {
+        socket.onerror = (error) => {
+          console.error(`Error connecting to relay ${relayUrl}:`, error);
           status.failures++;
+          
+          // Clear the connection timeout
+          if (this.connectionTimeouts.has(relayUrl)) {
+            window.clearTimeout(this.connectionTimeouts.get(relayUrl));
+            this.connectionTimeouts.delete(relayUrl);
+          }
+          
           resolve(false);
         };
         
@@ -56,9 +90,15 @@ export class ConnectionManager {
           status.connected = false;
           this.relays.delete(relayUrl);
           
-          // Exponential backoff for reconnection (max ~1 minute)
+          // Clear the connection timeout
+          if (this.connectionTimeouts.has(relayUrl)) {
+            window.clearTimeout(this.connectionTimeouts.get(relayUrl));
+            this.connectionTimeouts.delete(relayUrl);
+          }
+          
+          // Progressive exponential backoff for reconnection (max ~1 minute)
           if (retryCount < 6) {
-            const delay = Math.min(1000 * Math.pow(2, retryCount), 60000);
+            const delay = Math.min(1000 * Math.pow(1.5, retryCount), 60000);
             const timerId = window.setTimeout(() => {
               this.connectToRelay(relayUrl, retryCount + 1);
             }, delay);
@@ -75,14 +115,6 @@ export class ConnectionManager {
             console.error('Error parsing relay message:', e);
           }
         };
-        
-        // Set timeout for connection
-        setTimeout(() => {
-          if (socket.readyState !== WebSocket.OPEN) {
-            socket.close();
-            resolve(false);
-          }
-        }, 5000);
       });
     } catch (error) {
       console.error(`Failed to connect to relay ${relayUrl}:`, error);
@@ -97,8 +129,36 @@ export class ConnectionManager {
    * @returns Promise resolving when all connection attempts complete
    */
   async connectToRelays(relayUrls: string[]): Promise<void> {
-    const promises = relayUrls.map(url => this.connectToRelay(url));
-    await Promise.all(promises);
+    // Sort relays to prioritize known faster ones
+    const sortedRelays = [...relayUrls].sort((a, b) => {
+      // Known fast relays get priority
+      const fastRelays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band',
+        'wss://purplepag.es'
+      ];
+      
+      const aIsFast = fastRelays.includes(a);
+      const bIsFast = fastRelays.includes(b);
+      
+      if (aIsFast && !bIsFast) return -1;
+      if (!aIsFast && bIsFast) return 1;
+      return 0;
+    });
+    
+    // Connect to relays in batches to avoid overwhelming the browser
+    const batchSize = 3;
+    for (let i = 0; i < sortedRelays.length; i += batchSize) {
+      const batch = sortedRelays.slice(i, i + batchSize);
+      const promises = batch.map(url => this.connectToRelay(url));
+      await Promise.all(promises);
+      
+      // Small delay between batches to avoid overwhelming the browser
+      if (i + batchSize < sortedRelays.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
   }
   
   /**
@@ -130,6 +190,14 @@ export class ConnectionManager {
   }
   
   /**
+   * Get relay connection status
+   * @returns Map of relay URLs to their connection status
+   */
+  getConnectionStatus(): Map<string, { connected: boolean, lastAttempt: number, failures: number }> {
+    return this.connectionStatus;
+  }
+  
+  /**
    * Disconnect from a relay
    * @param relayUrl URL of the relay to disconnect from
    */
@@ -144,6 +212,12 @@ export class ConnectionManager {
     if (this.reconnectTimers.has(relayUrl)) {
       window.clearTimeout(this.reconnectTimers.get(relayUrl));
       this.reconnectTimers.delete(relayUrl);
+    }
+    
+    // Clear any connection timeout
+    if (this.connectionTimeouts.has(relayUrl)) {
+      window.clearTimeout(this.connectionTimeouts.get(relayUrl));
+      this.connectionTimeouts.delete(relayUrl);
     }
   }
   
@@ -166,5 +240,12 @@ export class ConnectionManager {
     });
     
     this.reconnectTimers.clear();
+    
+    // Clear all connection timeouts
+    this.connectionTimeouts.forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+    
+    this.connectionTimeouts.clear();
   }
 }

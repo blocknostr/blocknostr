@@ -1,7 +1,10 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
+import { toast } from "sonner";
+import { circuitBreaker, CircuitState } from "@/lib/nostr/relay/circuit/circuit-breaker";
+import { retry } from "@/lib/utils/retry";
 
 interface UseEventSubscriptionProps {
   following?: string[];
@@ -29,8 +32,9 @@ export function useEventSubscription({
   mediaOnly = false,
 }: UseEventSubscriptionProps) {
   const [subId, setSubId] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   
-  const setupSubscription = (sinceFetch: number, untilFetch?: number) => {
+  const setupSubscription = useCallback((sinceFetch: number, untilFetch?: number) => {
     // Check if we're online before setting up subscription
     if (!navigator.onLine) {
       console.log("Browser is offline, skipping subscription setup");
@@ -42,15 +46,20 @@ export function useEventSubscription({
     const connectedRelays = relayStatus.filter(r => r.status === 'connected');
     
     if (connectedRelays.length === 0) {
-      console.log("No connected relays, skipping subscription setup");
+      console.log("No connected relays, attempting to connect to defaults");
+      // Try to connect to some default relays
+      setTimeout(() => {
+        nostrService.connectToDefaultRelays();
+      }, 100);
       return null;
     }
-    
+
     // Create filters based on whether this is a following feed or global feed
+    // NIP-1 compliant filter structure
     let filters: any[] = [];
     
     if (following && following.length > 0) {
-      // Following feed - filter by authors
+      // Following feed - filter by authors with NIP-1 compliant structure
       filters = [
         {
           kinds: [1], // Regular notes
@@ -95,11 +104,36 @@ export function useEventSubscription({
     
     // Create accumulators for events to be cached
     let collectedEvents: NostrEvent[] = [];
+    let lastFetchTime = Date.now();
+    
+    // Try to select relays that aren't in OPEN circuit state
+    const availableRelays = nostrService.getRelayUrls().filter(url => {
+      return circuitBreaker.getState(url) !== CircuitState.OPEN;
+    });
+    
+    if (availableRelays.length === 0) {
+      console.warn("All relays are in circuit breaker OPEN state, resetting some to try again");
+      // Reset circuit breakers for a few popular relays to try again
+      const popularRelays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band'
+      ];
+      
+      popularRelays.forEach(url => circuitBreaker.reset(url));
+    }
     
     // Subscribe to events
     const newSubId = nostrService.subscribe(
       filters,
       (event) => {
+        // Record successful relay responses
+        const relayUrl = event._relay_url;
+        if (relayUrl) {
+          circuitBreaker.recordSuccess(relayUrl);
+          lastFetchTime = Date.now();
+        }
+        
         if (event.kind === 1) {
           // Regular note
           setEvents(prev => {
@@ -125,7 +159,6 @@ export function useEventSubscription({
             
             // Every 5 events, update the feed cache for better performance
             if (collectedEvents.length % 5 === 0) {
-              // Use current state to ensure we have the latest events
               contentCache.cacheFeed(
                 feedType,
                 uniqueEvents,
@@ -155,6 +188,56 @@ export function useEventSubscription({
           if (!cachedProfile) {
             // Fetch from relays if not in cache
             fetchProfileData(event.pubkey);
+          }
+        }
+      },
+      (error) => {
+        // Error handler for subscription errors
+        console.error("Subscription error:", error);
+        
+        // If we have a relay URL, mark it as failed in circuit breaker
+        if (error && error.relayUrl) {
+          circuitBreaker.recordFailure(error.relayUrl);
+        }
+        
+        // If we haven't received events in a while, try to reconnect
+        const timeSinceLastEvent = Date.now() - lastFetchTime;
+        if (timeSinceLastEvent > 10000) { // 10 seconds
+          console.warn("No events received for 10 seconds, retrying subscription");
+          
+          // Only retry if we're not already retrying
+          if (!isRetrying) {
+            setIsRetrying(true);
+            
+            // Cancel existing subscription
+            if (newSubId) {
+              nostrService.unsubscribe(newSubId);
+            }
+            
+            // Try to reconnect to relays
+            retry(
+              async () => await nostrService.connectToUserRelays(),
+              {
+                maxAttempts: 3,
+                baseDelay: 500,
+                backoffFactor: 1.5,
+                onRetry: (attempt) => {
+                  console.log(`Retrying relay connection, attempt ${attempt}`);
+                }
+              }
+            )
+              .then(() => {
+                // Setup a new subscription with the same parameters
+                const retriedSubId = setupSubscription(sinceFetch, untilFetch);
+                setSubId(retriedSubId);
+              })
+              .catch(err => {
+                console.error("Failed to reconnect to relays:", err);
+                toast.error("Having trouble connecting to relays. Please try again later.");
+              })
+              .finally(() => {
+                setIsRetrying(false);
+              });
           }
         }
       }
@@ -200,7 +283,7 @@ export function useEventSubscription({
     }
     
     return newSubId;
-  };
+  }, [following, activeHashtag, limit, setEvents, handleRepost, fetchProfileData, feedType, mediaOnly, isRetrying]);
   
   useEffect(() => {
     // Cleanup function to handle subscription cleanup
@@ -214,6 +297,7 @@ export function useEventSubscription({
   return {
     subId,
     setSubId,
-    setupSubscription
+    setupSubscription,
+    isRetrying
   };
 }

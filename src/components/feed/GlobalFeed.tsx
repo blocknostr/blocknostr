@@ -5,6 +5,7 @@ import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
 import { Button } from "../ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
@@ -21,36 +22,39 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     loadMoreEvents,
     loadingMore,
     earlyEventsLoaded,
-    cacheHit
+    cacheHit,
+    isRetrying
   } = useGlobalFeed({ activeHashtag });
   
   const [extendedLoading, setExtendedLoading] = useState(true);
   const [showRetry, setShowRetry] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   // Reset extended loading state when activeHashtag changes with shorter timeout
   useEffect(() => {
     setExtendedLoading(true);
     setShowRetry(false);
+    setRetryCount(0);
     
-    // Set a shorter timeout for showing retry button (3.5s instead of 7s)
+    // Set a shorter timeout for showing retry button (3s instead of 3.5s)
     const timeout = setTimeout(() => {
       setExtendedLoading(false);
       if (events.length === 0 && !loading) {
         setShowRetry(true);
       }
-    }, 3500); // Reduced from 7s to 3.5s for faster feedback
+    }, 3000); // Reduced from 3.5s to 3s for faster feedback
     
     return () => clearTimeout(timeout);
   }, [activeHashtag, loading]);
   
   // Update showRetry when events or loading state changes
   useEffect(() => {
-    if (!extendedLoading && events.length === 0 && !loading) {
+    if (!extendedLoading && events.length === 0 && !loading && !isRetrying) {
       setShowRetry(true);
-    } else if (events.length > 0 || loading) {
+    } else if (events.length > 0 || loading || isRetrying) {
       setShowRetry(false);
     }
-  }, [events, loading, extendedLoading]);
+  }, [events, loading, extendedLoading, isRetrying]);
   
   // Clear extended loading when we have some events to show (eager rendering)
   useEffect(() => {
@@ -63,15 +67,19 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
   const handleRetry = useCallback(() => {
     setExtendedLoading(true);
     setShowRetry(false);
+    setRetryCount(prev => prev + 1);
+    
+    // Show toast when retrying
+    toast.info("Connecting to relays...");
     
     // Force component to re-evaluate its logic
     const event = new CustomEvent('refetch-global-feed');
     window.dispatchEvent(event);
     
-    // Set timeout to show retry again if still no events after 3.5 seconds
+    // Set timeout to show retry again if still no events after 3 seconds
     setTimeout(() => {
       setExtendedLoading(false);
-    }, 3500);
+    }, 3000);
   }, []);
 
   // Show partial content immediately when available, but still loading more
@@ -103,8 +111,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     );
   }
   
-  // Show loading state when no events and loading or in extended loading period
-  if (loading || extendedLoading) {
+  // Show loading state when no events and loading, in extended loading period, or actively retrying
+  if (loading || extendedLoading || isRetrying) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -118,7 +126,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
         <p className="text-muted-foreground mb-4">
           {activeHashtag ? 
             `No posts found with #${activeHashtag} hashtag` :
-            "No posts found. Connect to more relays to see posts here."
+            "No posts found. Ensure you're connected to relays or try again."
           }
         </p>
         <Button 
@@ -128,8 +136,14 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
           className="flex items-center gap-2"
         >
           <RefreshCw className="h-4 w-4" />
-          Try Again
+          Try Again {retryCount > 0 ? `(${retryCount})` : ''}
         </Button>
+        
+        {retryCount > 2 && (
+          <p className="text-xs text-muted-foreground mt-4">
+            Tip: If this persists, try adding more relays in Settings → Relays
+          </p>
+        )}
       </div>
     );
   }

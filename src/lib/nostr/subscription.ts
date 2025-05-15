@@ -4,8 +4,15 @@ import { NostrEvent, NostrFilter } from './types';
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, { 
+    relays: string[], 
+    filters: NostrFilter[], 
+    subClosers: any[],
+    onEvent?: (event: NostrEvent) => void,
+    onError?: (error: any) => void
+  }> = new Map();
   private nextId = 0;
+  private subscriptionErrors: Map<string, {count: number, lastError: any}> = new Map();
   
   constructor(pool: SimplePool) {
     this.pool = pool;
@@ -14,15 +21,18 @@ export class SubscriptionManager {
   subscribe(
     relays: string[],
     filters: NostrFilter[],
-    onEvent: (event: NostrEvent) => void
+    onEvent: (event: NostrEvent) => void,
+    onError?: (error: any) => void
   ): string {
     if (relays.length === 0) {
       console.error("No relays provided for subscription");
+      if (onError) onError(new Error("No relays provided for subscription"));
       return "";
     }
     
     if (filters.length === 0) {
       console.error("No filters provided for subscription");
+      if (onError) onError(new Error("No filters provided for subscription"));
       return "";
     }
     
@@ -34,18 +44,49 @@ export class SubscriptionManager {
       const subClosers = filters.map(filter => {
         return this.pool.subscribe(relays, filter, {
           onevent: (event) => {
-            onEvent(event as NostrEvent);
+            try {
+              // Add relay URL to event for tracking
+              if (event && typeof event === 'object') {
+                (event as any)._relay_url = event.relay?.url;
+              }
+              
+              onEvent(event as NostrEvent);
+            } catch (error) {
+              console.error(`Error processing event in subscription ${id}:`, error);
+              this.recordSubscriptionError(id, error);
+              if (onError) onError(error);
+            }
+          },
+          oneose: () => {
+            // End of stored events
+            console.log(`Subscription ${id} reached EOSE for a filter`);
+          },
+          onerror: (error: any) => {
+            console.error(`Subscription ${id} encountered an error:`, error);
+            this.recordSubscriptionError(id, error);
+            if (onError) onError(error);
           }
         });
       });
       
       // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays, filters, subClosers });
+      this.subscriptions.set(id, { relays, filters, subClosers, onEvent, onError });
       
       return id;
     } catch (error) {
       console.error("Error creating subscription:", error);
+      if (onError) onError(error);
       return "";
+    }
+  }
+  
+  private recordSubscriptionError(subId: string, error: any) {
+    if (!this.subscriptionErrors.has(subId)) {
+      this.subscriptionErrors.set(subId, { count: 1, lastError: error });
+    } else {
+      const record = this.subscriptionErrors.get(subId)!;
+      record.count++;
+      record.lastError = error;
     }
   }
   
@@ -60,10 +101,16 @@ export class SubscriptionManager {
           }
         });
         this.subscriptions.delete(subId);
+        this.subscriptionErrors.delete(subId);
       } catch (error) {
         console.error(`Error unsubscribing from ${subId}:`, error);
       }
     }
+  }
+  
+  // Get subscription error info
+  getSubscriptionErrors(subId: string) {
+    return this.subscriptionErrors.get(subId);
   }
   
   // New method to check if a subscription exists
@@ -84,5 +131,45 @@ export class SubscriptionManager {
   // New method to get count of active subscriptions
   getActiveSubscriptionCount(): number {
     return this.subscriptions.size;
+  }
+  
+  // New method to update relay list for an existing subscription
+  updateRelays(subId: string, newRelays: string[]): boolean {
+    const subscription = this.subscriptions.get(subId);
+    if (!subscription) return false;
+    
+    try {
+      // Close existing subscriptions
+      subscription.subClosers.forEach(closer => {
+        if (closer && typeof closer.close === 'function') {
+          closer.close();
+        }
+      });
+      
+      // Create new subscriptions with updated relay list
+      const newSubClosers = subscription.filters.map(filter => {
+        return this.pool.subscribe(newRelays, filter, {
+          onevent: subscription.onEvent,
+          oneose: () => {
+            // End of stored events
+            console.log(`Updated subscription ${subId} reached EOSE for a filter`);
+          },
+          onerror: (error: any) => {
+            console.error(`Updated subscription ${subId} encountered an error:`, error);
+            this.recordSubscriptionError(subId, error);
+            if (subscription.onError) subscription.onError(error);
+          }
+        });
+      });
+      
+      // Update subscription with new relays and closers
+      subscription.relays = newRelays;
+      subscription.subClosers = newSubClosers;
+      
+      return true;
+    } catch (error) {
+      console.error(`Error updating relays for subscription ${subId}:`, error);
+      return false;
+    }
   }
 }

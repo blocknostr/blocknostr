@@ -28,17 +28,20 @@ export class CircuitBreaker {
     successful: number;
     lastFailure: number;
     nextAttempt: number;
+    recentFailureTimestamps: number[];
   }> = new Map();
   
   private readonly DEFAULT_OPTIONS: CircuitBreakerOptions = {
-    failureThreshold: 3,
-    resetTimeout: 60000, // 1 minute
-    halfOpenRequests: 1
+    failureThreshold: 3,    // 3 failures trips the breaker
+    resetTimeout: 30000,    // 30 seconds in OPEN state (reduced from 60s)
+    halfOpenRequests: 1     // Allow 1 request when testing
   };
+  
+  private readonly FAILURE_WINDOW_MS = 300000; // 5 minutes
   
   constructor(private options: CircuitBreakerOptions = {
     failureThreshold: 3,
-    resetTimeout: 60000,
+    resetTimeout: 30000,
     halfOpenRequests: 1
   }) {
     this.options = { ...this.DEFAULT_OPTIONS, ...options };
@@ -56,7 +59,8 @@ export class CircuitBreaker {
         failures: 0,
         successful: 0,
         lastFailure: 0,
-        nextAttempt: 0
+        nextAttempt: 0,
+        recentFailureTimestamps: []
       });
       return true;
     }
@@ -96,7 +100,8 @@ export class CircuitBreaker {
         failures: 0,
         successful: 0,
         lastFailure: 0,
-        nextAttempt: 0
+        nextAttempt: 0,
+        recentFailureTimestamps: []
       });
       return;
     }
@@ -111,10 +116,18 @@ export class CircuitBreaker {
         console.log(`Circuit for ${relayUrl} closing - service recovered`);
         circuit.state = CircuitState.CLOSED;
         circuit.failures = 0;
+        // Clear recent failures on recovery
+        circuit.recentFailureTimestamps = [];
       }
     } else if (circuit.state === CircuitState.CLOSED) {
-      // Reset failures counter on success
+      // Reset failures counter on success (gradual recovery)
       circuit.failures = Math.max(0, circuit.failures - 1);
+      
+      // Remove old failure timestamps that are outside the window
+      const now = Date.now();
+      circuit.recentFailureTimestamps = circuit.recentFailureTimestamps.filter(
+        timestamp => now - timestamp < this.FAILURE_WINDOW_MS
+      );
     }
   }
   
@@ -123,27 +136,49 @@ export class CircuitBreaker {
    * @param relayUrl URL of the relay
    */
   recordFailure(relayUrl: string): void {
+    const now = Date.now();
+    
     if (!this.circuits.has(relayUrl)) {
       this.circuits.set(relayUrl, {
         state: CircuitState.CLOSED,
         failures: 1, // First failure
         successful: 0,
-        lastFailure: Date.now(),
-        nextAttempt: 0
+        lastFailure: now,
+        nextAttempt: 0,
+        recentFailureTimestamps: [now]
       });
       return;
     }
     
     const circuit = this.circuits.get(relayUrl)!;
     circuit.failures++;
-    circuit.lastFailure = Date.now();
+    circuit.lastFailure = now;
     
+    // Add timestamp to recent failures list
+    circuit.recentFailureTimestamps.push(now);
+    
+    // Remove old failure timestamps that are outside the window
+    circuit.recentFailureTimestamps = circuit.recentFailureTimestamps.filter(
+      timestamp => now - timestamp < this.FAILURE_WINDOW_MS
+    );
+    
+    // Calculate failure rate in the window
+    const recentFailureCount = circuit.recentFailureTimestamps.length;
+    
+    // Trip circuit if we have enough recent failures or if in HALF_OPEN and had a failure
     if (circuit.state === CircuitState.HALF_OPEN || 
-        (circuit.state === CircuitState.CLOSED && circuit.failures >= this.options.failureThreshold)) {
+        (circuit.state === CircuitState.CLOSED && 
+         (circuit.failures >= this.options.failureThreshold || recentFailureCount >= this.options.failureThreshold * 2))) {
+      
       // Trip the circuit
-      console.log(`Circuit for ${relayUrl} opening - too many failures`);
+      console.log(`Circuit for ${relayUrl} opening - too many failures (${circuit.failures} direct, ${recentFailureCount} recent)`);
       circuit.state = CircuitState.OPEN;
-      circuit.nextAttempt = Date.now() + this.options.resetTimeout;
+      
+      // Set dynamic timeout based on failure rate
+      const failureRate = recentFailureCount / (this.options.failureThreshold * 2);
+      const dynamicTimeout = Math.min(this.options.resetTimeout * Math.max(failureRate, 0.5), this.options.resetTimeout);
+      
+      circuit.nextAttempt = now + dynamicTimeout;
     }
   }
   
@@ -157,7 +192,8 @@ export class CircuitBreaker {
       failures: 0,
       successful: 0,
       lastFailure: 0,
-      nextAttempt: 0
+      nextAttempt: 0,
+      recentFailureTimestamps: []
     });
   }
   
@@ -168,6 +204,30 @@ export class CircuitBreaker {
    */
   getState(relayUrl: string): CircuitState | undefined {
     return this.circuits.get(relayUrl)?.state;
+  }
+  
+  /**
+   * Get all circuit data
+   * @returns Map of relay URLs to circuit data
+   */
+  getAllCircuits() {
+    return this.circuits;
+  }
+  
+  /**
+   * Get the count of failures for a relay
+   * @param relayUrl URL of the relay
+   * @returns Number of failures
+   */
+  getFailureCount(relayUrl: string): number {
+    return this.circuits.get(relayUrl)?.failures || 0;
+  }
+  
+  /**
+   * Reset all circuits
+   */
+  resetAll(): void {
+    this.circuits.clear();
   }
 }
 

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
@@ -37,7 +38,7 @@ export function useFeedEvents({
   const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
   
   // Handle event subscription
-  const { subId, setSubId, setupSubscription } = useEventSubscription({
+  const { subId, setSubId, setupSubscription, isRetrying } = useEventSubscription({
     following,
     activeHashtag,
     since,
@@ -62,7 +63,11 @@ export function useFeedEvents({
         });
         
         // Update pubkeys to fetch
-        setPubkeysToFetch(authorPubkeys);
+        setPubkeysToFetch(prev => {
+          const combined = new Set(prev);
+          authorPubkeys.forEach(key => combined.add(key));
+          return combined;
+        });
       }
     },
     handleRepost,
@@ -167,7 +172,7 @@ export function useFeedEvents({
   }, [feedType, following, activeHashtag, since, until, mediaOnly, fetchProfileData]);
   
   // Refresh feed by clearing cache and setting up a new subscription
-  const refreshFeed = () => {
+  const refreshFeed = useCallback(() => {
     // Clear the specific feed from cache
     contentCache.feedCache.clearFeed(feedType, {
       authorPubkeys: following,
@@ -193,7 +198,7 @@ export function useFeedEvents({
     
     const newSubId = setupSubscription(newSince, currentTime);
     setSubId(newSubId);
-  };
+  }, [feedType, following, activeHashtag, since, until, mediaOnly, subId, setSubId, setupSubscription]);
 
   return {
     events,
@@ -203,35 +208,10 @@ export function useFeedEvents({
     setSubId,
     setupSubscription,
     setEvents,
-    refreshFeed: () => {
-      // Clear the specific feed from cache
-      contentCache.feedCache.clearFeed(feedType, {
-        authorPubkeys: following,
-        hashtag: activeHashtag,
-        since,
-        until,
-        mediaOnly
-      });
-      
-      setCacheHit(false);
-      setLastUpdated(null);
-      setPrioritizationApplied(false);
-      
-      // Cancel existing subscription
-      if (subId) {
-        nostrService.unsubscribe(subId);
-        setSubId(null);
-      }
-      
-      // Setup a new subscription
-      const currentTime = Math.floor(Date.now() / 1000);
-      const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
-      
-      const newSubId = setupSubscription(newSince, currentTime);
-      setSubId(newSubId);
-    },
+    refreshFeed,
     lastUpdated,
     cacheHit,
-    loadingFromCache
+    loadingFromCache,
+    isRetrying
   };
 }
