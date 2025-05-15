@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,13 +50,13 @@ const PostPage = () => {
         // Connect to relays
         await nostrService.connectToUserRelays();
         
-        // Fix the subscription call to match the expected interface
+        // Subscribe to the specific note using the ID
+        const filters = [{ ids: [id] }];
+        
         if (nostrService.subscribe) {
-          const sub = nostrService.subscribe(
-            defaultRelays, // relays
-            [{ ids: [id], kinds: [1] }], // filters
-            handleEvent // onEvent callback
-          );
+          const sub = nostrService.subscribe(filters, (event) => {
+            handleEvent(event);
+          }, defaultRelays);
           
           // Cleanup subscription
           return () => {
@@ -225,91 +224,46 @@ const PostPage = () => {
         </Button>
       </div>
       
-      {isLoading ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4 mb-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[200px]" />
-                <Skeleton className="h-4 w-[150px]" />
-              </div>
-            </div>
+      <Card className="mb-4">
+        <CardContent className="p-0">
+          <div className="p-4 md:p-6">
+            {/* Note header with author info */}
+            <NoteCardHeader 
+              pubkey={currentNote?.pubkey} 
+              createdAt={currentNote?.created_at} 
+              profileData={profileData || undefined}
+            />
             
-            <div className="space-y-2 mt-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          </CardContent>
-        </Card>
-      ) : !currentNote ? (
-        <Card>
-          <CardContent className="p-6 text-center py-12">
-            <h2 className="text-2xl font-bold mb-2">Post not found</h2>
-            <p className="text-muted-foreground">The note you're looking for doesn't exist or has been deleted.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="mb-4">
-          <CardContent className="p-0">
-            <div className="p-4 md:p-6">
-              {/* Note header with author info */}
-              <NoteCardHeader 
-                pubkey={currentNote?.pubkey} 
-                createdAt={currentNote?.created_at} 
-                profileData={profileData || undefined}
+            {/* Note content */}
+            <NoteCardContent 
+              content={currentNote?.content} 
+              tags={currentNote?.tags}
+              event={currentNote}
+            />
+            
+            {/* Note Actions */}
+            <div className="mt-3">
+              <NoteCardActions 
+                note={getAsNote()}
+                setActiveReply={() => setShowReplies(true)}
               />
-              
-              {/* Note content */}
-              <NoteCardContent 
-                content={currentNote?.content} 
-                tags={currentNote?.tags}
-                event={currentNote}
-              />
-              
-              {/* Note Actions */}
-              <div className="mt-3">
-                <NoteCardActions 
-                  note={getAsNote()}
-                  setActiveReply={() => setShowReplies(true)}
-                />
-              </div>
             </div>
+          </div>
 
-            {/* Render stats */}
-            <div className="flex gap-4 text-xs text-muted-foreground py-2 border-b px-4 md:px-6">
-              <div title="Replies">
-                <span className="font-medium">{reactionCounts.replies || 0}</span> {reactionCounts.replies === 1 ? 'Reply' : 'Replies'}
-              </div>
-              <div title="Reposts">
-                <span className="font-medium">{reactionCounts.reposts || 0}</span> {reactionCounts.reposts === 1 ? 'Repost' : 'Reposts'}
-              </div>
-              <div title="Likes">
-                <span className="font-medium">{reactionCounts.likes || 0}</span> {reactionCounts.likes === 1 ? 'Like' : 'Likes'}
-              </div>
-              <div title="Zaps">
-                <span className="font-medium">{reactionCounts.zaps || 0}</span> {reactionCounts.zaps === 1 ? 'Zap' : 'Zaps'}
-              </div>
-              {reactionCounts.zapAmount > 0 && (
-                <div title="Zap Amount">
-                  <span className="font-medium">{reactionCounts.zapAmount}</span> sats
-                </div>
-              )}
-            </div>
-            
-            {/* Comments section */}
-            {currentNote?.id && (
-              <NoteCardComments 
-                eventId={currentNote.id}
-                pubkey={currentNote.pubkey}
-                onReplyAdded={handleReplyAdded}
-                key={`comments-${replyUpdated}`}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
+          {/* Render stats */}
+          {renderStats()}
+          
+          {/* Comments section */}
+          {currentNote?.id && (
+            <NoteCardComments 
+              eventId={currentNote.id}
+              pubkey={currentNote.pubkey}
+              onReplyAdded={handleReplyAdded}
+              key={`comments-${replyUpdated}`}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

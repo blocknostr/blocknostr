@@ -1,61 +1,73 @@
 
-import { NostrService } from '../service';
+import { formatPubkey, getNpubFromHex, getHexFromNpub } from '../utils/keys';
+import { nostrService } from '../service';
 
 /**
- * Base adapter class that other adapters extend from
- * Provides access to the NostrService instance
+ * Base adapter class that provides core functionality
  */
 export class BaseAdapter {
-  protected service: NostrService;
+  protected service: typeof nostrService;
   
-  constructor(service: NostrService) {
+  constructor(service: typeof nostrService) {
     this.service = service;
   }
-  
-  // Common properties from service
-  get publicKey(): string | null {
+
+  // Auth methods
+  get publicKey() {
     return this.service.publicKey;
   }
   
-  get following(): string[] {
+  get following() {
     return this.service.following;
   }
   
-  get relays(): any[] {
-    return this.service.relays;
-  }
-  
-  // Common methods from service
   async login() {
     return this.service.login();
   }
   
-  async signOut() {
+  signOut() {
     return this.service.signOut();
   }
   
-  formatPubkey(pubkey: string, format?: 'short' | 'medium' | 'full') {
-    return this.service.formatPubkey(pubkey, format);
+  // Utilities
+  formatPubkey(pubkey: string) {
+    return formatPubkey(pubkey);
   }
   
-  getNpubFromHex(hex: string) {
-    return this.service.getNpubFromHex(hex);
+  getNpubFromHex(hexPubkey: string) {
+    return getNpubFromHex(hexPubkey);
   }
   
   getHexFromNpub(npub: string) {
-    return this.service.getHexFromNpub(npub);
+    return getHexFromNpub(npub);
   }
   
-  // Fixed signature for subscribe
-  subscribe(filters: any[], onEvent: (event: any) => void, options: any = {}) {
-    return this.service.subscribe(filters, onEvent, options);
+  // Core methods
+  async publishEvent(event: any) {
+    return this.service.publishEvent(event);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
   }
   
   unsubscribe(subId: string) {
     return this.service.unsubscribe(subId);
   }
   
-  publishEvent(event: any) {
-    return this.service.publishEvent(event);
+  /**
+   * Fetch user's oldest metadata event to determine account creation date (NIP-01)
+   * @param pubkey User's public key
+   * @returns Timestamp of the oldest metadata event or null
+   */
+  async getAccountCreationDate(pubkey: string): Promise<number | null> {
+    // Delegate to the underlying service implementation
+    if (this.service.getAccountCreationDate) {
+      return this.service.getAccountCreationDate(pubkey);
+    }
+    
+    // Fallback implementation if the service doesn't have this method
+    console.warn('getAccountCreationDate not implemented in underlying service');
+    return null;
   }
 }

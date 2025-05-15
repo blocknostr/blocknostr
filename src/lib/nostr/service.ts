@@ -1,5 +1,5 @@
 
-// Import the service from our new implementation file
+// Remove imports for deleted bookmark functionality
 import { NostrService } from './nostr-service';
 import { nostrService } from './nostr-service';
 
