@@ -38,7 +38,8 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "DAO",
       icon: Shield,
       href: "/dao",
-      requiresAuth: false
+      requiresAuth: false,
+      badge: "blockchain"
     },
     {
       name: "Notifications",
@@ -95,6 +96,7 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
               icon={item.icon}
               href={item.href}
               isActive={isActive}
+              badge={item.badge}
             />
           );
         })}

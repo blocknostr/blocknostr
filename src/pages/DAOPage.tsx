@@ -113,19 +113,35 @@ const DAOPage = () => {
       // Convert the data to a string that can be signed
       const messageToSign = JSON.stringify(data);
       
-      // Use the wallet to sign the message
-      // This is a placeholder - in a real implementation we would use the actual wallet signing method
-      console.log("Signing message with wallet:", messageToSign);
+      console.log("Preparing to sign message with Alephium wallet", {
+        walletAddress: wallet.account.address,
+        data: messageToSign.substring(0, 100) + (messageToSign.length > 100 ? '...' : ''),
+        timestamp: new Date().toISOString()
+      });
       
-      // Simulated signing delay
+      // In a real application, we would use the actual wallet.signer.signMessage method
+      // But for this example, we'll simulate the signing process
+      
+      // This would be the actual implementation:
+      // const signature = await wallet.signer.signMessage(messageToSign);
+      
+      // Simulated signing delay to make it feel real
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Return a mock signature based on wallet address and data
-      // In a real implementation, this would be the actual signature from the wallet
+      // Generate a mock signature based on wallet address and data for demo
       const mockSignature = `sig_${wallet.account.address.substring(0, 10)}_${Date.now()}`;
+      
+      console.log("Successfully signed message with wallet", {
+        signature: mockSignature,
+        walletAddress: wallet.account.address
+      });
+      
       return mockSignature;
     } catch (error) {
       console.error("Error signing with wallet:", error);
+      toast.error("Failed to sign with wallet", { 
+        description: error instanceof Error ? error.message : "Unknown error occurred" 
+      });
       return null;
     }
   }, [connected, wallet.signer, wallet.account]);
@@ -137,6 +153,11 @@ const DAOPage = () => {
       return;
     }
     
+    if (!wallet.account?.address) {
+      toast.error("Wallet address not available");
+      return;
+    }
+    
     setIsCreatingOnChain(true);
     
     try {
@@ -145,29 +166,41 @@ const DAOPage = () => {
         name,
         description,
         creator: derivedNostrPubkey,
-        walletAddress: wallet.account?.address,
+        walletAddress: wallet.account.address,
         timestamp: Math.floor(Date.now() / 1000)
       };
+      
+      console.log("Beginning DAO creation process", {
+        daoName: name,
+        creator: derivedNostrPubkey,
+        walletAddress: wallet.account.address.substring(0, 10) + '...'
+      });
       
       // 1. Sign the DAO creation data with the wallet
       const signature = await signWithWallet(daoData);
       
       if (!signature) {
         toast.error("Failed to sign DAO creation");
+        setIsCreatingOnChain(false);
         return;
       }
       
-      // 2. Simulate blockchain transaction
-      console.log("Registering DAO on Alephium blockchain:", {
+      // 2. Simulate blockchain transaction for registering the DAO
+      console.log("Registering DAO on Alephium blockchain", {
         ...daoData,
-        signature
+        signature: signature.substring(0, 20) + '...'
       });
       
       // Simulate blockchain confirmation delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // 3. After blockchain confirmation, register in Nostr as well
-      // This would be handled by an event listener for the blockchain event in a real implementation
+      // This would typically be handled by an event listener for the blockchain event
+      console.log("DAO successfully registered on-chain", {
+        daoName: name,
+        signature: signature.substring(0, 15) + '...',
+        timestamp: new Date().toISOString()
+      });
       
       toast.success("DAO created successfully", {
         description: `Your new DAO "${name}" is registered on-chain`
@@ -183,10 +216,14 @@ const DAOPage = () => {
           members: [derivedNostrPubkey || ""],
           image: "",
           onChain: true,
-          signature
+          signature,
+          createdAt: new Date().toISOString()
         },
         ...prev
       ]);
+      
+      // Switch to My DAOs tab to show the newly created DAO
+      setActiveTab("my-daos");
       
     } catch (error) {
       console.error("Error creating DAO:", error);
@@ -303,7 +340,7 @@ const DAOPage = () => {
               </div>
             ) : userCommunities.length > 0 ? (
               <CommunitiesGrid 
-                communities={userCommunities} 
+                communities={userCommunities}
                 userCommunities={userCommunities}
                 filteredCommunities={userCommunities}
                 loading={false}

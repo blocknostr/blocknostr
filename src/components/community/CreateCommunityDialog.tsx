@@ -91,6 +91,8 @@ const CreateCommunityDialog = ({
       let signature = null;
       if (walletSigningRequired && signWithWallet) {
         setIsSigningWithWallet(true);
+        
+        console.log("Requesting wallet signature for DAO creation...", communityData);
         signature = await signWithWallet(communityData);
         setIsSigningWithWallet(false);
         
@@ -102,6 +104,7 @@ const CreateCommunityDialog = ({
           return;
         }
         
+        console.log("Successfully obtained wallet signature:", signature);
         // Add the signature to community data
         Object.assign(communityData, { signature });
       }
