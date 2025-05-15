@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
@@ -186,5 +185,66 @@ export class ProfileService {
     [key: string]: any;
   } | null> {
     return fetchNip05Data(identifier);
+  }
+
+  /**
+   * Publish a metadata event (kind 0) with profile information
+   * Implements NIP-01 profile metadata
+   * @param metadata - Profile metadata object (name, display_name, about, picture, etc.)
+   * @returns The published event or null if failed
+   */
+  async publishMetadata(
+    metadata: {
+      name?: string;
+      display_name?: string;
+      about?: string;
+      picture?: string;
+      banner?: string;
+      website?: string;
+      nip05?: string;
+      lud16?: string;
+      [key: string]: any;
+    },
+    privateKey?: string
+  ): Promise<NostrEvent | null> {
+    try {
+      // Get connected relays
+      const connectedRelays = this.getConnectedRelayUrls();
+      
+      if (connectedRelays.length === 0) {
+        console.error('No connected relays available');
+        return null;
+      }
+      
+      // Create and sign the event
+      const content = JSON.stringify(metadata);
+      
+      if (!this.pool) {
+        console.error('No pool available');
+        return null;
+      }
+      
+      // Return the published event
+      return new Promise((resolve) => {
+        this.pool.publish(
+          connectedRelays,
+          {
+            kind: EVENT_KINDS.META,
+            content,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: []
+          },
+          privateKey
+        ).on('ok', (relay, event) => {
+          console.log(`Metadata published to ${relay}`, event);
+          resolve(event);
+        }).on('failed', (relay) => {
+          console.error(`Failed to publish metadata to ${relay}`);
+        });
+      });
+    } catch (error) {
+      console.error('Error publishing metadata:', error);
+      return null;
+    }
   }
 }

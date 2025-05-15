@@ -1,44 +1,37 @@
 
-import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AccountTab from "./AccountTab";
-import RelaysTab from "./RelaysTab";
-import PrivacyTab from "./PrivacyTab";
-import NotificationsTab from "./NotificationsTab";
-import AboutTab from "./AboutTab";
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SettingsTabs = () => {
-  const [activeTab, setActiveTab] = useState("account");
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isActive = (path: string) => currentPath === path;
+  
+  const tabs = [
+    { label: 'Profile', path: '/settings/profile' },
+    { label: 'Account', path: '/settings/account' },
+    { label: 'Relays', path: '/settings/relays' },
+    { label: 'Privacy', path: '/settings/privacy' },
+    { label: 'Notifications', path: '/settings/notifications' },
+    { label: 'About', path: '/settings/about' },
+  ];
 
   return (
-    <Tabs defaultValue="account" onValueChange={setActiveTab} value={activeTab}>
-      <TabsList className="mb-6">
-        <TabsTrigger value="account">Account</TabsTrigger>
-        <TabsTrigger value="relays">Relays</TabsTrigger>
-        <TabsTrigger value="privacy">Privacy</TabsTrigger>
-        <TabsTrigger value="notifications">Notifications</TabsTrigger>
-        <TabsTrigger value="about">About</TabsTrigger>
+    <Tabs value={currentPath} className="w-full">
+      <TabsList className="grid grid-cols-3 md:grid-cols-6">
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.path}
+            value={tab.path}
+            className={isActive(tab.path) ? 'data-[state=active]:bg-muted' : ''}
+            asChild
+          >
+            <NavLink to={tab.path}>{tab.label}</NavLink>
+          </TabsTrigger>
+        ))}
       </TabsList>
-      
-      <TabsContent value="account">
-        <AccountTab />
-      </TabsContent>
-      
-      <TabsContent value="relays">
-        <RelaysTab />
-      </TabsContent>
-      
-      <TabsContent value="privacy">
-        <PrivacyTab />
-      </TabsContent>
-      
-      <TabsContent value="notifications">
-        <NotificationsTab />
-      </TabsContent>
-      
-      <TabsContent value="about">
-        <AboutTab />
-      </TabsContent>
     </Tabs>
   );
 };

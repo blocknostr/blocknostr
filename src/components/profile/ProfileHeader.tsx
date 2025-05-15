@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Link as LinkIcon, MapPin, Users, User, Network, Loader2 } from 'lucide-react';
+import { Calendar, Link as LinkIcon, MapPin, Users, User, Network, Loader2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { isCurrentUser } from '@/lib/utils/pubkeyUtils';
@@ -10,6 +9,7 @@ import FollowButton from '@/components/FollowButton';
 import ProfileRelaysDialog from './ProfileRelaysDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Relay } from "@/lib/nostr";
+import { Link } from 'react-router-dom';
 
 interface ProfileHeaderProps {
   profile: any;
@@ -120,7 +120,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           {/* Action buttons */}
           <div className="mt-4 flex space-x-2">
             {currentUserOwnsProfile ? (
-              <Button variant="outline">Edit Profile</Button>
+              <Button variant="outline" as={Link} to="/settings/profile">
+                <Edit className="w-4 h-4 mr-1" />
+                Edit Profile
+              </Button>
             ) : (
               <FollowButton pubkey={hexPubkey} variant="default" />
             )}

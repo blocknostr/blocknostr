@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AlephiumWalletProvider } from '@alephium/web3-react';
@@ -15,6 +14,7 @@ import NotFound from './pages/NotFound';
 import ProfilePage from './pages/ProfilePage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
+import EditProfilePage from './pages/EditProfilePage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from 'sonner';
@@ -38,6 +38,7 @@ function App() {
                 <Route path="/wallets" element={<WalletsPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
                 <Route path="/profile/:npub" element={<ProfilePage />} />
+                <Route path="/settings/profile" element={<EditProfilePage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
