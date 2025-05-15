@@ -7,16 +7,21 @@ interface PageHeaderProps {
   rightContent?: React.ReactNode;
   icon?: React.ReactNode;
   description?: string;
+  className?: string;
 }
 
 export function PageHeader({ 
   title, 
   rightContent, 
   icon, 
-  description 
+  description,
+  className 
 }: PageHeaderProps) {
   return (
-    <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b">
+    <header className={cn(
+      "sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b",
+      className
+    )}>
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2">
           {icon && <span className="text-muted-foreground">{icon}</span>}

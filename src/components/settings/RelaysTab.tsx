@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { nostrService, Relay } from "@/lib/nostr";
-import { Plus, Trash2, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Trash2, Check, AlertCircle, Loader2, Network } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const RelaysTab = () => {
@@ -82,18 +82,37 @@ const RelaysTab = () => {
     }
   };
   
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return "bg-green-500/5 border-green-500/20";
+      case 'connecting':
+        return "bg-yellow-500/5 border-yellow-500/20";
+      default:
+        return "bg-red-500/5 border-red-500/20";
+    }
+  };
+  
   return (
     <Card className="border shadow-sm transition-all duration-200 hover:shadow-md">
       <CardHeader>
-        <CardTitle className="text-xl font-semibold">Relay Settings</CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Manage the Nostr relays you connect to
-        </CardDescription>
+        <div className="flex items-center gap-2">
+          <Network className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <CardTitle className="text-xl font-semibold">Relay Settings</CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Manage the Nostr relays you connect to
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="newRelay" className="font-medium">Add New Relay</Label>
+            <Label htmlFor="newRelay" className="font-medium flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add New Relay
+            </Label>
             <div className="flex items-center mt-1.5 gap-2">
               <Input 
                 id="newRelay" 
@@ -123,21 +142,23 @@ const RelaysTab = () => {
           </div>
           
           <div className="space-y-3">
-            <h3 className="text-sm font-medium">Connected Relays</h3>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-              {relays.length === 0 ? (
-                <div className="text-sm text-muted-foreground flex items-center justify-center p-6 border border-dashed rounded-md">
-                  <p>No relays connected yet. Add a relay above.</p>
-                </div>
-              ) : (
-                relays.map((relay) => (
+            <Label className="font-medium flex items-center gap-2">
+              <Network className="h-4 w-4" />
+              Connected Relays
+            </Label>
+            
+            {relays.length === 0 ? (
+              <div className="text-sm text-muted-foreground flex items-center justify-center p-6 border border-dashed rounded-md">
+                <p>No relays connected yet. Add a relay above.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar rounded-md border p-2">
+                {relays.map((relay) => (
                   <div 
                     key={relay.url} 
                     className={cn(
-                      "flex items-center justify-between border p-3 rounded-md transition-all",
-                      relay.status === 'connected' ? "bg-green-500/5 border-green-500/20" : 
-                      relay.status === 'connecting' ? "bg-yellow-500/5 border-yellow-500/20" : 
-                      "bg-red-500/5 border-red-500/20",
+                      "flex items-center justify-between p-3 rounded-md transition-all",
+                      getStatusClass(relay.status),
                       "hover:shadow-sm animate-fade-in"
                     )}
                   >
@@ -151,14 +172,15 @@ const RelaysTab = () => {
                         size="sm" 
                         className="h-7 w-7 p-0 hover:bg-red-500/10 hover:text-red-500"
                         onClick={() => handleRemoveRelay(relay.url)}
+                        title="Remove relay"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

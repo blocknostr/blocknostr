@@ -18,29 +18,40 @@ const AboutTab = () => {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Version</p>
-          <p className="text-sm text-muted-foreground">1.0.0</p>
-        </div>
-        
-        <div className="space-y-3">
-          <p className="text-sm font-medium">About</p>
-          <p className="text-sm text-muted-foreground">
-            BlockNoster is a decentralized application that combines 
-            Alephium's scalable blockchain with Nostr's decentralized communication protocol.
-          </p>
-          
-          <div className="pt-2 space-y-2">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Alephium Integration:</p>
+        <div className="p-4 bg-muted/20 rounded-md">
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <p className="text-sm font-medium">Version</p>
+              <p className="text-sm text-muted-foreground">1.0.0</p>
+            </div>
+            
+            <div>
+              <p className="text-sm font-medium mb-2">About</p>
               <p className="text-sm text-muted-foreground">
-                High-throughput blockchain for on-chain operations
+                BlockNoster is a decentralized application that combines 
+                Alephium's scalable blockchain with Nostr's decentralized communication protocol.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Nostr Integration:</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border p-4 rounded-md hover:bg-muted/20 transition-colors">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Alephium Integration</h3>
               <p className="text-sm text-muted-foreground">
-                Decentralized protocol for social interactions
+                High-throughput blockchain for on-chain operations with sharding technology 
+                that provides scalable and secure transaction processing.
+              </p>
+            </div>
+          </div>
+          
+          <div className="border p-4 rounded-md hover:bg-muted/20 transition-colors">
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Nostr Integration</h3>
+              <p className="text-sm text-muted-foreground">
+                Decentralized protocol for social interactions with censorship-resistant 
+                communication features and cryptographic security.
               </p>
             </div>
           </div>
