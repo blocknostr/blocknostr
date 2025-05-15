@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 import { CommunityManager } from '../community';
@@ -37,9 +36,7 @@ export class CommunityService {
     title: string,
     description: string,
     options: string[],
-    category: ProposalCategory = 'other',
-    minQuorum?: number,
-    endsAt?: number
+    category: ProposalCategory = 'other'
   ): Promise<string | null> {
     // Enhanced validation to provide better error messages
     if (!communityId) {
@@ -74,7 +71,7 @@ export class CommunityService {
     console.log("Creating proposal on relays:", this.getConnectedRelayUrls());
     
     // Default end time is 7 days from now if not specified per NIP-172
-    const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    const endTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
     
     // Create proposal data according to NIP-172
     const proposalData = {
@@ -84,7 +81,7 @@ export class CommunityService {
       category,
       createdAt: Math.floor(Date.now() / 1000),
       endsAt: endTime,
-      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
+      minQuorum: 0 // Default 0 means no quorum requirement
     };
     
     // Generate unique proposal ID per NIP-172

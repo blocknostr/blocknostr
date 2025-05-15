@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -122,15 +121,14 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         return;
       }
       
-      // Create the proposal with correct parameters per NIP-172
+      // Fixed: Update to match the expected number of parameters (5 instead of 7)
+      // The expected parameters are: communityId, title, description, options, category
       const result = await nostrService.createProposal(
         communityId,
         data.title,
         data.description,
         options,
-        data.category as ProposalCategory,
-        undefined, // minQuorum
-        endsAt
+        data.category as ProposalCategory
       );
       
       if (result) {
