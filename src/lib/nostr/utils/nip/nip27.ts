@@ -7,6 +7,7 @@
 import { nip19 } from 'nostr-tools';
 import { nostrService } from '@/lib/nostr';
 import { simpleProfileService } from '@/lib/services/profile/simpleProfileService';
+import { unifiedProfileService } from '@/lib/services/UnifiedProfileService';
 
 // Regex to match nostr: URLs as defined in NIP-21
 const NOSTR_URI_REGEX = /nostr:(npub1[a-z0-9]{6,}|nprofile1[a-z0-9]{6,}|nevent1[a-z0-9]{6,}|note1[a-z0-9]{6,})/gi;
@@ -43,7 +44,13 @@ export function extractMentions(content: string): string[] {
 export async function getDisplayNameFromNpub(npub: string): Promise<string> {
   try {
     // Try to get profile data for this npub
-    const profile = await simpleProfileService.getProfileMetadata(npub);
+    const hexPubkey = getHexFromNostrUrl(`nostr:${npub}`);
+    if (!hexPubkey) {
+      return shortenIdentifier(npub);
+    }
+    
+    // Use unified profile service for more reliable profile data
+    const profile = await unifiedProfileService.getProfile(hexPubkey);
     
     if (profile && (profile.name || profile.display_name)) {
       return profile.display_name || profile.name;
@@ -53,6 +60,24 @@ export async function getDisplayNameFromNpub(npub: string): Promise<string> {
     return shortenIdentifier(npub);
   } catch (error) {
     return shortenIdentifier(npub);
+  }
+}
+
+/**
+ * Get display name for a pubkey using UnifiedProfileService
+ */
+export async function getDisplayNameFromPubkey(pubkey: string): Promise<string> {
+  try {
+    const profile = await unifiedProfileService.getProfile(pubkey);
+    
+    if (profile && (profile.name || profile.display_name)) {
+      return profile.display_name || profile.name;
+    }
+    
+    // If no profile data, use shortened pubkey
+    return shortenIdentifier(pubkey);
+  } catch (error) {
+    return shortenIdentifier(pubkey);
   }
 }
 
@@ -101,6 +126,12 @@ export function getHexFromNostrUrl(url: string): string | null {
       if (type !== 'nevent') return null;
       return data.id as string; // nevent contains id, relays, etc.
     }
+    else if (identifier.startsWith('nprofile1')) {
+      // Decode nprofile to get profile data
+      const { type, data } = nip19.decode(identifier);
+      if (type !== 'nprofile') return null;
+      return data.pubkey as string; // nprofile contains pubkey, relays, etc.
+    }
   } catch (error) {
     console.error("Error converting nostr URL to hex:", error);
     return null;
@@ -130,7 +161,17 @@ export function getProfileUrl(pubkeyOrNpub: string): string {
  * Get the event URL for a given note/event ID
  */
 export function getEventUrl(noteId: string): string {
-  return `/post/${noteId}`;
+  try {
+    // Convert to note1 format if it's a hex ID
+    const noteIdToUse = noteId.startsWith('note1') 
+      ? noteId 
+      : nip19.noteEncode(noteId);
+      
+    return `/post/${noteIdToUse}`;
+  } catch (error) {
+    console.error("Error generating event URL:", error);
+    return `/post/${noteId}`;
+  }
 }
 
 /**
@@ -138,4 +179,17 @@ export function getEventUrl(noteId: string): string {
  */
 export function isNostrUrl(text: string): boolean {
   return NOSTR_URI_REGEX.test(text);
+}
+
+/**
+ * Get profile picture URL for a pubkey
+ */
+export async function getProfilePictureFromPubkey(pubkey: string): Promise<string | null> {
+  try {
+    const profile = await unifiedProfileService.getProfile(pubkey);
+    return profile?.picture || null;
+  } catch (error) {
+    console.error("Error getting profile picture:", error);
+    return null;
+  }
 }

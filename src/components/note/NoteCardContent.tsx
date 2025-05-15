@@ -37,8 +37,8 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     ? contentToUse.substring(0, 277) + '...' 
     : contentToUse;
   
-  // Process content for rendering
-  const formattedContent = contentFormatter.formatContent(displayContent);
+  // Process content for rendering - pass the full event for better mention handling
+  const formattedContent = contentFormatter.formatContent(displayContent, event);
   
   // Extract hashtags from tags array
   const hashtags = useMemo(() => {
