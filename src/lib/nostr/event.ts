@@ -67,8 +67,10 @@ export class EventManager {
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     
-    // Fix: Use standard signing and convert the signature directly to hex
-    const signatureBytes = await secp.sign(eventHash, privateKey, { der: false });
+    // Generate signature bytes - Using standard sign without DER option
+    const signatureBytes = await secp.sign(eventHash, privateKey);
+    
+    // Convert the signature to hex string
     return bytesToHex(signatureBytes);
   }
 }
