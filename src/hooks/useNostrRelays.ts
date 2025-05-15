@@ -19,11 +19,19 @@ export function useNostrRelays() {
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
     
+    const wasConnected = isConnected;
+    const nowConnected = connectedRelays.length > 0;
+    
     setRelays(connectedRelays);
-    setIsConnected(connectedRelays.length > 0);
+    setIsConnected(nowConnected);
+    
+    // Log relay status changes
+    if (wasConnected !== nowConnected) {
+      console.log(`[useNostrRelays] Relay connection status changed: ${nowConnected ? 'connected' : 'disconnected'}`);
+    }
     
     return connectedRelays;
-  }, []);
+  }, [isConnected]);
 
   // Connection function with improved error handling
   const connectToRelays = useCallback(async (options?: { 
@@ -37,8 +45,12 @@ export function useNostrRelays() {
       retryCount = 2 
     } = options || {};
     
-    if (isConnecting) return false;
+    if (isConnecting) {
+      console.log("[useNostrRelays] Already connecting to relays, skipping");
+      return false;
+    }
     
+    console.log("[useNostrRelays] Connecting to relays...");
     setIsConnecting(true);
     
     try {
@@ -50,12 +62,15 @@ export function useNostrRelays() {
       
       // If no user relays connected, try fallbacks
       if (connectedRelays.length === 0 && fallbackRelays.length > 0) {
+        console.log("[useNostrRelays] No user relays connected, trying fallbacks:", fallbackRelays);
+        
         if (showToast) {
           toast("Connecting to fallback relays...");
         }
         
         // Try adding each fallback relay
         for (let i = 0; i < fallbackRelays.length; i++) {
+          console.log(`[useNostrRelays] Trying fallback relay: ${fallbackRelays[i]}`);
           await nostrService.addRelay(fallbackRelays[i]);
         }
         
@@ -66,6 +81,8 @@ export function useNostrRelays() {
       const success = connectedRelays.length > 0;
       setIsConnected(success);
       
+      console.log(`[useNostrRelays] Connection ${success ? 'successful' : 'failed'}. Connected relays:`, connectedRelays);
+      
       if (!success && showToast) {
         toast.error("Failed to connect to any relays", {
           description: "Please check your network connection or try again later"
@@ -74,7 +91,7 @@ export function useNostrRelays() {
       
       return success;
     } catch (error) {
-      console.error("Error connecting to relays:", error);
+      console.error("[useNostrRelays] Error connecting to relays:", error);
       if (showToast) {
         toast.error("Connection error", {
           description: "Failed to connect to Nostr relays"
@@ -88,8 +105,15 @@ export function useNostrRelays() {
 
   // Listen for relay connection changes
   useEffect(() => {
-    const handleRelayConnected = () => refreshRelayStatus();
-    const handleRelayDisconnected = () => refreshRelayStatus();
+    const handleRelayConnected = (url: string) => {
+      console.log(`[useNostrRelays] Relay connected: ${url}`);
+      refreshRelayStatus();
+    };
+    
+    const handleRelayDisconnected = (url: string) => {
+      console.log(`[useNostrRelays] Relay disconnected: ${url}`);
+      refreshRelayStatus();
+    };
     
     eventBus.on(EVENTS.RELAY_CONNECTED, handleRelayConnected);
     eventBus.on(EVENTS.RELAY_DISCONNECTED, handleRelayDisconnected);

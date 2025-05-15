@@ -1,7 +1,7 @@
 
 // src/components/community/CreateProposalForm.tsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,6 +33,8 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import type { ProposalCategory } from "@/types/community";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useNostrRelays } from "@/hooks/useNostrRelays";
 
 // ─── Validation schema ─────────────────────────────────────────
 const formSchema = z.object({
@@ -60,7 +62,13 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [options, setOptions] = useState<string[]>(["Yes", "No"]);
-  const isLoggedIn = !!nostrService.publicKey;
+  
+  // Use the enhanced auth and relay hooks
+  const { isLoggedIn, currentUserPubkey } = useNostrAuth();
+  const { isConnected, connectToRelays } = useNostrRelays();
+  
+  // Additional state to track auth readiness
+  const [authChecked, setAuthChecked] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -71,6 +79,29 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
       category: "other",
     },
   });
+
+  // Verify auth status when component mounts
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("[CreateProposalForm] Checking auth status:", { 
+        isLoggedIn, 
+        isConnected,
+        pubkey: currentUserPubkey ? currentUserPubkey.substring(0, 8) + '...' : null 
+      });
+      
+      if (isLoggedIn && !isConnected) {
+        console.log("[CreateProposalForm] Logged in but not connected to relays, connecting...");
+        await connectToRelays({
+          showToast: true,
+          fallbackRelays: ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"]
+        });
+      }
+      
+      setAuthChecked(true);
+    };
+    
+    checkAuth();
+  }, [isLoggedIn, isConnected, currentUserPubkey, connectToRelays]);
 
   const addOption = () => {
     if (options.length >= 10) {
@@ -96,11 +127,25 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
 
   const onSubmit = async (data: FormData) => {
     // Enhanced validation before submitting
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !currentUserPubkey) {
       toast.error("You must be logged in to create a proposal", {
         description: "Click the login button in the top right corner",
       });
       return;
+    }
+
+    if (!isConnected) {
+      toast.error("No relay connections available", {
+        description: "Connecting to relays...",
+      });
+      
+      const connected = await connectToRelays();
+      if (!connected) {
+        toast.error("Failed to connect to relays", {
+          description: "Please check your network connection and try again",
+        });
+        return;
+      }
     }
 
     if (!communityId) {
@@ -123,12 +168,13 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
     setIsSubmitting(true);
 
     try {
-      console.log("Creating proposal with:", {
+      console.log("[CreateProposalForm] Creating proposal with:", {
         communityId,
         title: data.title,
         description: data.description,
         options,
         category: data.category,
+        pubkey: currentUserPubkey.substring(0, 8) + '...',
       });
 
       // Pass exactly 5 arguments as expected by the service signature
@@ -148,11 +194,11 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
       } else {
         toast.error("Failed to create proposal", {
           description:
-            "Please make sure you're logged in and have a valid community ID.",
+            "Please make sure you're logged in and connected to relays.",
         });
       }
     } catch (err) {
-      console.error("Error creating proposal:", err);
+      console.error("[CreateProposalForm] Error creating proposal:", err);
       toast.error(
         err instanceof Error ? err.message : "Unexpected error creating proposal"
       );
@@ -161,6 +207,18 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
     }
   };
 
+  // Improved authentication check with specific messaging
+  if (!authChecked) {
+    return (
+      <div className="py-4 text-center">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+        <p className="text-sm text-muted-foreground mt-2">
+          Checking authentication status...
+        </p>
+      </div>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <Alert variant="destructive" className="mb-4">
@@ -168,7 +226,29 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
         <AlertTitle>Authentication Required</AlertTitle>
         <AlertDescription>
           You need to be logged in to create proposals. Please click the login
-          button above.
+          button in the navigation bar.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <Alert variant="warning" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>No Relay Connections</AlertTitle>
+        <AlertDescription>
+          Your client is not connected to any Nostr relays. Please check your connection
+          or try again later.
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => connectToRelays()} 
+            className="mt-2"
+          >
+            <Loader2 className={`h-4 w-4 mr-2 ${isSubmitting ? 'animate-spin' : ''}`} />
+            Connect to Relays
+          </Button>
         </AlertDescription>
       </Alert>
     );

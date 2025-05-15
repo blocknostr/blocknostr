@@ -3,6 +3,7 @@ import { BaseAdapter } from './base-adapter';
 import { EVENT_KINDS } from '../constants';
 import { validateCommunityEvent } from '../utils/nip/nip172';
 import type { ProposalCategory } from '@/types/community';
+import { toast } from 'sonner';
 
 /**
  * Adapter for community operations following NIP-172
@@ -13,11 +14,7 @@ export class CommunityAdapter extends BaseAdapter {
   async createCommunity(name: string, description: string) {
     console.log("Creating community via adapter:", { name });
     
-    // Check if user is logged in
-    if (!this.service.publicKey) {
-      console.error("Cannot create community: user not logged in");
-      throw new Error("You must be logged in to create a community");
-    }
+    this.validateAuthentication("create a community");
     
     try {
       return await this.service.createCommunity(name, description);
@@ -35,17 +32,14 @@ export class CommunityAdapter extends BaseAdapter {
       category 
     });
     
+    this.validateAuthentication("create a proposal");
+    
     // Ensure proper handling of ProposalCategory
     const validCategory = this.ensureValidProposalCategory(category);
     
     if (!communityId) {
       console.error("Missing communityId in createProposal adapter call");
       throw new Error("Community ID is required to create a proposal");
-    }
-    
-    if (!this.service.publicKey) {
-      console.error("Missing public key in createProposal adapter call");
-      throw new Error("You must be logged in to create a proposal");
     }
     
     try {
@@ -58,7 +52,19 @@ export class CommunityAdapter extends BaseAdapter {
       );
     } catch (error) {
       console.error("Error in community adapter createProposal:", error);
-      throw error;
+      
+      // Provide clearer error messages for common failures
+      if (error instanceof Error) {
+        if (error.message.includes("relay") || error.message.includes("connection")) {
+          throw new Error("Failed to connect to relays. Please check your network connection.");
+        } else if (error.message.includes("logged in") || error.message.includes("pubkey")) {
+          throw new Error("You must be logged in to create a proposal. Please sign in and try again.");
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
     }
   }
   
@@ -76,12 +82,32 @@ export class CommunityAdapter extends BaseAdapter {
 
   // Vote on proposal compliant with NIP-172
   async voteOnProposal(proposalId: string, optionIndex: number) {
+    this.validateAuthentication("vote on a proposal");
     return this.service.voteOnProposal(proposalId, optionIndex);
   }
   
   // Validate if a community event follows NIP-172
-  validateCommunity(event: any) {
+  validateCommunityEvent(event: any) {
     return validateCommunityEvent(event);
+  }
+  
+  // Helper method to validate authentication and provide clear errors
+  private validateAuthentication(action: string): void {
+    if (!this.service.publicKey) {
+      console.error(`Cannot ${action}: user not logged in`);
+      const errorMessage = `You must be logged in to ${action}`;
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+    
+    // Check relay connections
+    const relays = this.service.getConnectedRelayUrls();
+    if (!relays || relays.length === 0) {
+      console.error(`Cannot ${action}: no relays connected`);
+      const errorMessage = `No relays connected. Unable to ${action}.`;
+      toast.error(errorMessage);
+      throw new Error(errorMessage);
+    }
   }
   
   get communityManager() {

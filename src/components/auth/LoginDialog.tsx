@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogIn, AlertCircle, Download, Key, KeyRound, Loader2 } from "lucide-react";
+import { LogIn, AlertCircle, Download, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useNostrRelays } from "@/hooks/useNostrRelays";
 
 interface LoginDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const [hasExtension, setHasExtension] = useState<boolean>(false);
   
   const { login, isLoggedIn } = useNostrAuth();
+  const { connectToRelays } = useNostrRelays();
   
   // Check if extension is available
   useEffect(() => {
@@ -52,10 +54,27 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
     setIsLoggingIn(true);
     
     try {
+      console.log("[LoginDialog] Attempting login with extension...");
       const success = await login();
       
       if (success) {
         toast.success("Successfully logged in");
+        
+        // After successful login, connect to relays
+        console.log("[LoginDialog] Login successful, connecting to relays...");
+        try {
+          const connected = await connectToRelays({
+            showToast: false, // Don't show toast for initial connection attempt
+          });
+          
+          if (!connected) {
+            console.warn("[LoginDialog] Initial relay connection failed, will retry silently");
+            // Don't show error here, as it might confuse users thinking the login failed
+          }
+        } catch (relayError) {
+          console.error("[LoginDialog] Error connecting to relays:", relayError);
+        }
+        
         onOpenChange(false);
       } else {
         toast.error("Login failed", {
@@ -63,7 +82,7 @@ const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
         });
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("[LoginDialog] Login error:", error);
       toast.error("Login error", {
         description: "An unexpected error occurred"
       });

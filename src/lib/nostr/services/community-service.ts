@@ -26,6 +26,8 @@ export class CommunityService {
     this.pool = pool;
     this.publicKey = publicKey;
     this.getPrivateKey = getPrivateKey;
+    
+    console.log("[CommunityService] Initialized with publicKey:", publicKey ? publicKey.slice(0, 8) + '...' : 'null');
   }
 
   /**
@@ -40,26 +42,28 @@ export class CommunityService {
   ): Promise<string | null> {
     // Enhanced validation with more detailed error logging
     if (!communityId) {
-      console.error("Cannot create proposal: missing communityId");
+      console.error("[CommunityService] Cannot create proposal: missing communityId");
       throw new Error("Community ID is required to create a proposal");
     }
     
     if (!this.publicKey) {
-      console.error("Cannot create proposal: not logged in (missing pubkey)");
+      console.error("[CommunityService] Cannot create proposal: not logged in (missing pubkey)");
       throw new Error("You must be logged in to create a proposal");
     }
     
-    console.log("Creating proposal with auth status:", {
+    console.log("[CommunityService] Creating proposal with auth status:", {
       pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
       hasPrivateKeyGetter: !!this.getPrivateKey,
       communityId: communityId.slice(0, 8) + '...'
     });
     
+    // Get connected relays
     const relays = this.getConnectedRelayUrls();
+    console.log("[CommunityService] Connected relays:", relays);
     
     // If no relays connected, try connecting to backup relays
     if (relays.length === 0) {
-      console.warn("No relays connected, trying backup relays");
+      console.warn("[CommunityService] No relays connected, trying backup relays");
       const backupRelays = [
         'wss://relay.damus.io',
         'wss://nos.lol',
@@ -67,9 +71,15 @@ export class CommunityService {
       ];
       
       await this.connectToBackupRelays(backupRelays);
+      
+      // Get updated relay list after connection attempts
+      const updatedRelays = this.getConnectedRelayUrls();
+      
+      if (updatedRelays.length === 0) {
+        console.error("[CommunityService] Failed to connect to any relays");
+        throw new Error("Failed to connect to any Nostr relays. Please check your network connection.");
+      }
     }
-    
-    console.log("Creating proposal on relays:", this.getConnectedRelayUrls());
     
     // Default end time is 7 days from now if not specified per NIP-172
     const endTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -99,9 +109,14 @@ export class CommunityService {
     };
     
     try {
-      console.log("Publishing proposal event:", event);
+      console.log("[CommunityService] Publishing proposal event:", event);
       
       const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      
+      if (!privateKey && !window.nostr) {
+        console.error("[CommunityService] No private key or nostr extension available");
+        throw new Error("Unable to sign the event. Please check your login or browser extension.");
+      }
       
       // Use the publishEvent method from the communityManager
       const eventId = await this.communityManager.publishEvent(
@@ -113,14 +128,14 @@ export class CommunityService {
       );
       
       if (eventId) {
-        console.log("Created proposal with ID:", eventId);
+        console.log("[CommunityService] Created proposal with ID:", eventId);
         return eventId;
       } else {
-        console.error("Failed to create proposal: no event ID returned");
+        console.error("[CommunityService] Failed to create proposal: no event ID returned");
         throw new Error("Failed to publish proposal to relays");
       }
     } catch (error) {
-      console.error("Error creating proposal:", error);
+      console.error("[CommunityService] Error creating proposal:", error);
       throw error;
     }
   }
@@ -130,20 +145,21 @@ export class CommunityService {
    */
   async createCommunity(name: string, description: string): Promise<string | null> {
     if (!this.publicKey) {
-      console.error("Cannot create community: not logged in");
+      console.error("[CommunityService] Cannot create community: not logged in");
       throw new Error("You must be logged in to create a community");
     }
     
-    console.log("Creating community with auth status:", {
+    console.log("[CommunityService] Creating community with auth status:", {
       pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
       hasPrivateKeyGetter: !!this.getPrivateKey
     });
     
     const relays = this.getConnectedRelayUrls();
+    console.log("[CommunityService] Connected relays:", relays);
     
     // If no relays connected, try connecting to backup relays
     if (relays.length === 0) {
-      console.warn("No relays connected, trying backup relays");
+      console.warn("[CommunityService] No relays connected, trying backup relays");
       const backupRelays = [
         'wss://relay.damus.io',
         'wss://nos.lol',
@@ -151,6 +167,14 @@ export class CommunityService {
       ];
       
       await this.connectToBackupRelays(backupRelays);
+      
+      // Get updated relay list after connection attempts
+      const updatedRelays = this.getConnectedRelayUrls();
+      
+      if (updatedRelays.length === 0) {
+        console.error("[CommunityService] Failed to connect to any relays");
+        throw new Error("Failed to connect to any Nostr relays. Please check your network connection.");
+      }
     }
     
     // Create community event according to NIP-172
@@ -163,12 +187,12 @@ export class CommunityService {
     };
     
     try {
-      console.log("Publishing community event to relays:", this.getConnectedRelayUrls());
+      console.log("[CommunityService] Publishing community event to relays:", this.getConnectedRelayUrls());
       
       const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
       
       if (!privateKey && !window.nostr) {
-        console.error("No private key or nostr extension available");
+        console.error("[CommunityService] No private key or nostr extension available");
         throw new Error("Unable to sign the event. Please check your login or extension.");
       }
       
@@ -186,7 +210,7 @@ export class CommunityService {
       
       return eventId;
     } catch (error) {
-      console.error("Error creating community:", error);
+      console.error("[CommunityService] Error creating community:", error);
       throw error;
     }
   }
@@ -250,9 +274,9 @@ export class CommunityService {
     for (const relay of relays) {
       try {
         await this.pool.ensureRelay(relay);
-        console.log(`Connected to backup relay: ${relay}`);
+        console.log(`[CommunityService] Connected to backup relay: ${relay}`);
       } catch (err) {
-        console.error(`Failed to connect to backup relay ${relay}:`, err);
+        console.error(`[CommunityService] Failed to connect to backup relay ${relay}:`, err);
       }
     }
   }

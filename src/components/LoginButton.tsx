@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from 'react';
-import { LogOut, User, AlertCircle, Shield } from "lucide-react";
+import { LogOut, User, AlertCircle, Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Tooltip, 
@@ -12,9 +12,12 @@ import {
 import LoginDialog from "./auth/LoginDialog";
 import { cn } from "@/lib/utils";
 import { useNostrAuth } from "@/hooks/useNostrAuth";
+import { useNostrRelays } from "@/hooks/useNostrRelays";
 
 const LoginButton = () => {
-  const { isLoggedIn, currentUserPubkey, logout } = useNostrAuth();
+  const { isLoggedIn, isAuthInitialized, currentUserPubkey, logout } = useNostrAuth();
+  const { isConnected, isConnecting, connectToRelays } = useNostrRelays();
+  
   const [npub, setNpub] = useState<string>("");
   const [hasExtension, setHasExtension] = useState<boolean>(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
@@ -40,6 +43,18 @@ const LoginButton = () => {
     return () => clearInterval(intervalId);
   }, [currentUserPubkey]);
   
+  // Connect to relays automatically when logged in
+  useEffect(() => {
+    const initRelays = async () => {
+      if (isLoggedIn && !isConnected && !isConnecting) {
+        console.log("[LoginButton] Logged in but not connected to relays, connecting...");
+        await connectToRelays({ showToast: false });
+      }
+    };
+    
+    initRelays();
+  }, [isLoggedIn, isConnected, isConnecting, connectToRelays]);
+  
   const handleLogin = async () => {
     // Open login dialog instead of direct login
     setLoginDialogOpen(true);
@@ -54,6 +69,16 @@ const LoginButton = () => {
       window.location.reload();
     }, 1000);
   };
+
+  // Show loading state if auth is not initialized yet
+  if (!isAuthInitialized) {
+    return (
+      <Button variant="ghost" size="sm" disabled>
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        <span>Loading...</span>
+      </Button>
+    );
+  }
   
   if (isLoggedIn) {
     const shortNpub = npub.length > 14 
@@ -62,6 +87,23 @@ const LoginButton = () => {
       
     return (
       <div className="flex items-center gap-2">
+        {!isConnected && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+            onClick={() => connectToRelays()}
+            disabled={isConnecting}
+          >
+            {isConnecting ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <AlertCircle className="h-3 w-3" />
+            )}
+            <span className="text-xs">Connect Relays</span>
+          </Button>
+        )}
+      
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
 
@@ -18,6 +18,11 @@ export function useNostrAuth() {
       setIsLoggedIn(!!pubkey);
       setCurrentUserPubkey(pubkey);
       setIsAuthInitialized(true);
+      
+      console.log("[useNostrAuth] Auth state initialized:", { 
+        isLoggedIn: !!pubkey, 
+        pubkey: pubkey ? pubkey.substring(0, 8) + '...' : null 
+      });
     };
 
     // Check initial login status
@@ -25,11 +30,13 @@ export function useNostrAuth() {
 
     // Listen for login/logout events
     const handleLogin = (pubkey: string) => {
+      console.log("[useNostrAuth] User logged in with pubkey:", pubkey.substring(0, 8) + '...');
       setIsLoggedIn(true);
       setCurrentUserPubkey(pubkey);
     };
 
     const handleLogout = () => {
+      console.log("[useNostrAuth] User logged out");
       setIsLoggedIn(false);
       setCurrentUserPubkey(null);
     };
@@ -43,20 +50,30 @@ export function useNostrAuth() {
     };
   }, []);
 
-  const login = async (): Promise<boolean> => {
+  const login = useCallback(async (): Promise<boolean> => {
     try {
+      console.log("[useNostrAuth] Attempting login...");
       const success = await nostrService.login();
+      
+      if (success) {
+        console.log("[useNostrAuth] Login successful");
+        // The login event will be handled by the listener
+      } else {
+        console.warn("[useNostrAuth] Login failed");
+      }
+      
       return success;
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("[useNostrAuth] Login error:", error);
       return false;
     }
-  };
+  }, []);
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
+    console.log("[useNostrAuth] Logging out...");
     nostrService.signOut();
     eventBus.emit(EVENTS.USER_LOGGED_OUT);
-  };
+  }, []);
 
   return {
     isLoggedIn,
