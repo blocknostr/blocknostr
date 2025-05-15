@@ -61,7 +61,7 @@ const WorldChat = () => {
   // Show login prompt if not logged in
   if (!isLoggedIn) {
     return (
-      <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm">
+      <Card className="chat-card flex flex-col h-full shadow-md overflow-hidden rounded-lg relative bg-background/90 backdrop-blur-sm border-border/50">
         <WorldChatHeader 
           connectionStatus="disconnected" 
           currentChatTag={currentChatTag} 
@@ -102,7 +102,7 @@ const WorldChat = () => {
   }
 
   return (
-    <Card className="flex flex-col h-full border shadow-md overflow-hidden rounded-lg relative bg-background/80 backdrop-blur-sm"> 
+    <Card className="chat-card flex flex-col h-full shadow-md overflow-hidden rounded-lg relative bg-background/90 backdrop-blur-sm border-accent/10"> 
       <WorldChatHeader 
         connectionStatus={connectionStatus}
         currentChatTag={currentChatTag}

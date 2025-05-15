@@ -53,7 +53,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   const renderChatSection = () => {
     if (!isLoggedIn) {
       return (
-        <div className="flex-grow flex flex-col mt-1 overflow-hidden relative border rounded-md bg-gradient-to-b from-background to-muted/10">
+        <div className="chat-container flex-grow mt-3 overflow-hidden relative rounded-lg border bg-gradient-to-b from-background to-muted/10">
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <div className="p-2 bg-primary/10 rounded-full mb-3">
               <Wallet className="h-5 w-5 text-primary" />
@@ -74,7 +74,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
     }
     
     return (
-      <div className="flex-grow flex flex-col mt-1 overflow-hidden relative">
+      <div className="chat-container flex-grow mt-3 overflow-hidden relative">
         <WorldChat />
       </div>
     );
@@ -84,17 +84,19 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   if (!isMobile && preferences.uiPreferences?.showTrending) {
     return (
       <aside className="w-80 p-4 hidden lg:block sticky top-14 h-[calc(100vh-3.5rem)] overflow-hidden">
-        <div className="flex flex-col h-full space-y-2 overflow-hidden">
-          <div>
+        <div className="flex flex-col h-full space-y-3 overflow-hidden">
+          <div className="search-section">
             <GlobalSearch />
           </div>
           
-          <Suspense fallback={hashtagsFallback}>
-            <SavedHashtags onTopicClick={onTopicClick} />
-          </Suspense>
+          <div className="hashtags-section">
+            <Suspense fallback={hashtagsFallback}>
+              <SavedHashtags onTopicClick={onTopicClick} />
+            </Suspense>
+          </div>
           
           {shouldShowTrending() && (
-            <div className="mb-0.5">
+            <div className="trending-section">
               <TrendingTopics 
                 onTopicClick={onTopicClick} 
                 activeHashtag={activeHashtag}
@@ -102,6 +104,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
               />
             </div>
           )}
+          
+          <div className="divider h-px bg-border/50 my-1" />
           
           {renderChatSection()}
         </div>
@@ -119,17 +123,19 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
     return (
       <Sheet open={rightPanelOpen} onOpenChange={setRightPanelOpen}>
         <SheetContent side="right" className="p-4 w-[80%] max-w-[300px] overflow-hidden">
-          <div className="flex flex-col h-full space-y-2 overflow-hidden">
-            <div>
+          <div className="flex flex-col h-full space-y-3 overflow-hidden">
+            <div className="search-section">
               <GlobalSearch />
             </div>
             
-            <Suspense fallback={hashtagsFallback}>
-              <SavedHashtags onTopicClick={onTopicClick} />
-            </Suspense>
+            <div className="hashtags-section">
+              <Suspense fallback={hashtagsFallback}>
+                <SavedHashtags onTopicClick={onTopicClick} />
+              </Suspense>
+            </div>
             
             {shouldShowTrending() && (
-              <div className="mb-0.5">
+              <div className="trending-section">
                 <TrendingTopics 
                   onTopicClick={onTopicClick} 
                   activeHashtag={activeHashtag}
@@ -137,6 +143,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
                 />
               </div>
             )}
+            
+            <div className="divider h-px bg-border/50 my-1" />
             
             {renderChatSection()}
           </div>

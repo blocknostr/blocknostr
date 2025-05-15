@@ -19,7 +19,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className={cn(
-      "sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b",
+      "sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm",
       className
     )}>
       <div className="flex items-center justify-between h-14 px-4">
