@@ -1,27 +1,11 @@
+
 import React, { useEffect, useState, useCallback } from "react"
 import { useWallet } from "@alephium/web3-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink } from "lucide-react"
 import { nostrService } from "@/lib/nostr";
-import { Event, getEventHash } from "nostr-tools"; // Ensure Event is imported
-
-// Helper interface for the structure of individual network-specific token lists
-interface NetworkSpecificTokenList {
-    name: string;
-    networkId: number;
-    tokens: AlephiumTokenMeta[];
-    logoURI?: string; // Optional, as it might not be used directly from here
-    keywords?: string[]; // Optional
-}
-
-// Helper interface for the root structure of the combined token list file
-interface CombinedTokenListFormat {
-    name?: string; // Optional root properties
-    timestamp?: string; // Optional
-    lists: NetworkSpecificTokenList[];
-    // other root properties can be added if needed
-}
+import { Event } from "nostr-tools" // Ensure Event is imported
 
 interface TokenBalance {
     id: string
@@ -70,18 +54,14 @@ export const WalletSummary: React.FC = () => {
                 content: JSON.stringify(summary),
             };
 
-            // The following lines are commented out to prevent potential errors
-            // if nostrService.signEvent or .publish are not available or have different signatures.
-            // Re-enable and test carefully if your nostrService is expected to handle these.
-            // nostrEvent.id = getEventHash(nostrEvent as Event);
-            // try {
-            //   nostrEvent.sig = await nostrService.signEvent(nostrEvent as Event);
-            //   await nostrService.publish(nostrEvent as Event);
-            //   console.log("[WalletSummary] Wallet summary published to Nostr:", nostrEvent);
-            // } catch (e) {
-            //   console.error("[WalletSummary] Failed to sign or publish Nostr event:", e);
-            // }
-            console.log("[WalletSummary] Nostr event creation (publishing part is commented out):", nostrEvent);
+            console.log("[WalletSummary] Nostr event creation:", nostrEvent);
+            
+            try {
+                await nostrService.publishEvent(nostrEvent as any);
+                console.log("[WalletSummary] Wallet summary published to Nostr");
+            } catch (e) {
+                console.error("[WalletSummary] Failed to publish Nostr event:", e);
+            }
         },
         []
     )
@@ -91,6 +71,8 @@ export const WalletSummary: React.FC = () => {
             setLoading(true)
             setError(null)
             try {
+                console.log(`[WalletSummary] Fetching balances for address: ${address}`)
+                
                 // 1) Fetch raw balances array
                 const res = await fetch(
                     `https://backend.mainnet.alephium.org/addresses/${address}/tokens-balance?page=1&limit=100`
@@ -99,28 +81,43 @@ export const WalletSummary: React.FC = () => {
                 const data = await res.json() as Array<{ tokenId: string; balance: string; lockedBalance: string }>
                 console.log("[WalletSummary] Raw balances API data:", data)
 
-                // 2) Fetch the combined token list file from raw.githubusercontent.com
+                // 2) Fetch the token list file
                 const listRes = await fetch(
-                    "https://raw.githubusercontent.com/alephium/token-list/refs/heads/master/tokens/mainnet.json" // Corrected URL for the combined token list
+                    "https://raw.githubusercontent.com/alephium/token-list/master/tokens/mainnet.json"
                 )
-                const listJson: CombinedTokenListFormat = listRes.ok ? await listRes.json() : { lists: [] };
-                console.log("[WalletSummary] Raw combined token list data (contains multiple lists):", listJson);
-
-                // Extract the mainnet token list (assuming networkId 1 is mainnet)
-                const mainnetTokenListData = listJson.lists?.find(list => list.networkId === 1);
-
-                let tokensForMap: AlephiumTokenMeta[] = [];
-                if (mainnetTokenListData) {
-                    tokensForMap = mainnetTokenListData.tokens || [];
-                    console.log(`[WalletSummary] Extracted ${tokensForMap.length} tokens from the mainnet list (networkId 1) named "${mainnetTokenListData.name}".`);
-                } else {
-                    console.warn("[WalletSummary] Mainnet token list (networkId 1) not found within the fetched combined list. Token information might be incomplete or use fallbacks.");
+                
+                if (!listRes.ok) {
+                    throw new Error("Failed to fetch token list");
                 }
+                
+                const listJson = await listRes.json();
+                console.log("[WalletSummary] Raw token list data:", listJson);
 
-                // 3) Build a lookup map from the extracted mainnet tokens
+                // Extract tokens from the response 
+                const tokens: AlephiumTokenMeta[] = listJson.tokens || [];
+                
+                if (!tokens || !Array.isArray(tokens)) {
+                    console.warn("[WalletSummary] Unexpected token list format:", listJson);
+                    throw new Error("Unexpected token list format");
+                }
+                
+                console.log(`[WalletSummary] Found ${tokens.length} tokens in the list`);
+
+                // 3) Build a lookup map from tokens
                 const tokenMap = new Map<string, AlephiumTokenMeta>(
-                    tokensForMap.map((t: AlephiumTokenMeta) => [t.id, t])
+                    tokens.map((t: AlephiumTokenMeta) => [t.id, t])
                 );
+                
+                // Add ALPH token if not already in the list
+                if (!tokenMap.has("0000000000000000000000000000000000000000000000000000000000000000")) {
+                    tokenMap.set("0000000000000000000000000000000000000000000000000000000000000000", {
+                        id: "0000000000000000000000000000000000000000000000000000000000000000",
+                        name: "Alephium",
+                        symbol: "ALPH",
+                        decimals: 18,
+                        logoURI: "https://raw.githubusercontent.com/alephium/token-list/master/logos/ALPH.png"
+                    });
+                }
 
                 // 4) Enrich + filter out zero balances
                 const enriched: TokenBalance[] = data
@@ -135,9 +132,8 @@ export const WalletSummary: React.FC = () => {
                             name = meta.name;
                             logoURI = meta.logoURI;
                         } else {
-                            // Log a warning if metadata is not found for a token in the extracted mainnet list
-                            console.warn(`[WalletSummary] Metadata not found for token ID: ${item.tokenId} in the extracted mainnet token data. Using fallback values (decimals: 0, name: "Unknown Token"). Source: alephium.tokenlist.json (networkId: 1 section)`);
-                            decimals = 0;
+                            console.warn(`[WalletSummary] Metadata not found for token ID: ${item.tokenId}`);
+                            decimals = 18; // Default to 18 decimals
                             symbol = item.tokenId.slice(0, 6);
                             name = "Unknown Token";
                             logoURI = undefined;
@@ -152,9 +148,31 @@ export const WalletSummary: React.FC = () => {
                             logoURI,
                         };
                     });
+                
+                // Add native ALPH balance as a token for consistent display
+                if (address) {
+                    try {
+                        const addressInfoRes = await fetch(`https://backend.mainnet.alephium.org/addresses/${address}`);
+                        if (addressInfoRes.ok) {
+                            const addressInfo = await addressInfoRes.json();
+                            if (addressInfo.balance && addressInfo.balance !== "0") {
+                                enriched.unshift({
+                                    id: "0000000000000000000000000000000000000000000000000000000000000000",
+                                    balance: addressInfo.balance,
+                                    decimals: 18,
+                                    symbol: "ALPH",
+                                    name: "Alephium",
+                                    logoURI: "https://raw.githubusercontent.com/alephium/token-list/master/logos/ALPH.png"
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error("[WalletSummary] Failed to fetch ALPH balance", err);
+                    }
+                }
 
-                console.log("[WalletSummary] Enriched balances (after parsing mainnet list):", enriched);
-                setBalances(enriched)
+                console.log("[WalletSummary] Enriched balances:", enriched);
+                setBalances(enriched);
 
                 // 5) Publish the human-readable summary on Nostr
                 if (nostrService.publicKey) {
@@ -178,7 +196,7 @@ export const WalletSummary: React.FC = () => {
                     }
                     await publishWalletSummary(summaryPayload);
                 }
-            } catch (err) { // Changed from err: any
+            } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : "Unable to load balances.";
                 console.error("Failed to fetch balances", err);
                 setError(errorMessage);
@@ -264,12 +282,18 @@ export const WalletSummary: React.FC = () => {
                                                 src={tok.logoURI}
                                                 alt={tok.symbol}
                                                 className="w-6 h-6 rounded"
+                                                onError={(e) => {
+                                                    // If image fails to load, replace with fallback
+                                                    (e.target as HTMLElement).style.display = 'none';
+                                                    (e.target as HTMLElement).nextElementSibling!.style.display = 'flex';
+                                                }}
                                             />
-                                        ) : (
-                                            <div className="w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600">
-                                                {tok.symbol.charAt(0)}
-                                            </div>
-                                        )}
+                                        ) : null}
+                                        <div 
+                                            className={`w-6 h-6 bg-gray-300 rounded flex items-center justify-center text-xs text-gray-600 ${tok.logoURI ? 'hidden' : ''}`}
+                                        >
+                                            {tok.symbol.charAt(0)}
+                                        </div>
                                         <div className="text-sm">
                                             <div className="font-medium">
                                                 {tok.symbol}
