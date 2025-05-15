@@ -1,6 +1,7 @@
 
 import { SimplePool, nip19, type Event, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
+import { EventManager as NostrEventManager } from '../event';
 
 // EventManager interface 
 export interface EventManager {
@@ -17,9 +18,11 @@ export interface EventManager {
  */
 export class NostrEventManager implements EventManager {
   private pool: SimplePool;
+  private eventManager: NostrEventManager;
   
   constructor() {
     this.pool = new SimplePool();
+    this.eventManager = new NostrEventManager();
   }
 
   /**
@@ -132,9 +135,8 @@ export class NostrEventManager implements EventManager {
     event: any,
     relays: string[]
   ): Promise<string | null> {
-    // Use EventManager implementation from event.ts
-    const eventManager = new EventManager();
-    return eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+    // Use the instance we created in the constructor
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
 }
 

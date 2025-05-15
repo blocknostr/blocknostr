@@ -1,5 +1,5 @@
 
-import { SimplePool, getEventHash } from 'nostr-tools';
+import { getEventHash } from 'nostr-tools';
 import * as secp from '@noble/secp256k1';
 
 export class EventManager {
@@ -13,7 +13,7 @@ export class EventManager {
    * @returns Promise resolving to event ID or null
    */
   async publishEvent(
-    pool: SimplePool,
+    pool: any,
     publicKey: string,
     privateKey: string,
     event: any,
@@ -34,7 +34,7 @@ export class EventManager {
       // Calculate the event hash
       eventWithMeta.id = getEventHash(eventWithMeta);
       
-      // Sign the event using noble-secp256k1 since nostr-tools doesn't export signEvent
+      // Sign the event using noble-secp256k1
       const sig = await this.signEvent(eventWithMeta, privateKey);
       eventWithMeta.sig = sig;
       
@@ -65,7 +65,8 @@ export class EventManager {
    */
   private async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
-    const signature = await secp.schnorr.sign(eventHash, privateKey);
-    return secp.utils.bytesToHex(signature);
+    // Using the correct secp256k1 signing method
+    const signatureBytes = await secp.sign(eventHash, privateKey);
+    return secp.utils.bytesToHex(signatureBytes);
   }
 }

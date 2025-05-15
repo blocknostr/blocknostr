@@ -1,3 +1,4 @@
+
 import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent } from './types';
 
@@ -12,7 +13,7 @@ interface SubscriptionDetails {
 
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: Filter[], subClosers: any[] }> = new Map();
+  private subscriptions: Map<string, SubscriptionDetails> = new Map();
   private nextId = 0;
   
   // Default TTL is 15 minutes

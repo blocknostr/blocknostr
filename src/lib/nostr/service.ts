@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { CommunityManager } from './community';
@@ -113,10 +114,12 @@ export class NostrService {
    */
   subscribe(filters: NostrFilter[], onEvent: (event: any) => void, relays?: string[]): string {
     const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-    // Use subscribeMany with options object
-    const sub = this.pool.subscribeMany(relays || this.getConnectedRelayUrls(), filters, {
-      onevent: onEvent
-    });
+    // Use subscribeMany with proper options
+    const sub = this.pool.subscribeMany(
+      relays || this.getConnectedRelayUrls(), 
+      filters, 
+      { onevent: onEvent }
+    );
     
     return subId;
   }
@@ -126,7 +129,7 @@ export class NostrService {
    * Required by adapters
    */
   unsubscribe(subId: string): void {
-    // Pass the subId as an array since it expects string[]
+    // Create an array with the subId since close expects an array
     this.pool.close([subId]);
   }
   
@@ -154,9 +157,13 @@ export class NostrService {
     return relayStatus.map(relay => ({
       url: relay.url,
       status: relay.status,
-      read: relay.read || false, // Provide defaults for required properties
-      write: relay.write || false
-    })) as Relay[];
+      read: relay.read || true, // Provide defaults for required properties
+      write: relay.write || true,
+      score: relay.score,
+      avgResponse: relay.avgResponse,
+      circuitStatus: relay.circuitStatus,
+      isRequired: relay.isRequired
+    }));
   }
   
   /**

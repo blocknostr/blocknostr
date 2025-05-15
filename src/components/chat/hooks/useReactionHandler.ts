@@ -1,9 +1,10 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { NostrEvent } from "@/lib/nostr/types";
+import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import { toast } from "sonner";
-import { Filter as NostrFilter } from "nostr-tools";
+import { Filter } from "nostr-tools";
 
 /**
  * Hook to manage emoji reactions to messages
@@ -75,7 +76,7 @@ export const useReactionHandler = (
           kinds: [EVENT_KINDS.REACTION],
           '#t': [chatTag],
           limit: 50
-        } as NostrFilter
+        } as Filter
       ],
       handleReaction
     );
