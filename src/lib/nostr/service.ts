@@ -32,7 +32,7 @@ export class NostrService {
   public following: string[] = [];
   
   constructor() {
-    this.pool = new SimplePool({ eoseSubTimeout: 3600, getTimeout: 3600 }); // Add default values for constructor
+    this.pool = new SimplePool({ eoseSubTimeout: 3600, getTimeout: 3600 });
     this.eventManager = new EventManager();
     this.communityManager = new CommunityManager(this.eventManager);
     this.socialManager = new SocialManager();
@@ -154,16 +154,16 @@ export class NostrService {
    */
   getRelayStatus(): Relay[] {
     const relayStatus = this.relayManager.getRelayStatus();
-    // Ensure all required properties are present
+    // Create a proper Relay object for each relay status with defaults for required properties
     return relayStatus.map(relay => ({
       url: relay.url,
       status: relay.status,
-      read: relay.read || true, // Provide defaults for required properties
-      write: relay.write || true,
-      score: relay.score || 0,
-      avgResponse: relay.avgResponse || 0,
-      circuitStatus: relay.circuitStatus || CircuitState.CLOSED,
-      isRequired: relay.isRequired || false
+      read: relay.read ?? true, // Use nullish coalescing for optional properties
+      write: relay.write ?? true,
+      score: 50, // Default score
+      avgResponse: 0, // Default response time
+      circuitStatus: CircuitState.CLOSED, // Default circuit status
+      isRequired: false // Default required status
     }));
   }
   
@@ -462,7 +462,7 @@ export class NostrService {
    * Clean up resources
    */
   cleanup(): void {
-    this.pool.close([]); // Pass empty array as required argument
+    this.pool.close([]);
   }
 }
 
