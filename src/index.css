@@ -261,6 +261,34 @@ html.color-theme-in-transition {
   [data-radix-scroll-area-scrollbar][data-state="visible"] {
     opacity: 1 !important;
   }
+  
+  /* Freeze feed when loading to prevent scroll jumps */
+  .feed-loading {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  
+  .feed-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(1px);
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+  }
+  
+  .feed-loading.active::after {
+    opacity: 1;
+  }
+  
+  /* Transition for scroll locking */
+  .scroll-lock-transition {
+    transition: opacity 0.3s ease-out; 
+  }
 }
 
 @keyframes fade-in {

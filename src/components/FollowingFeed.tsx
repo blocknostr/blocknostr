@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import FeedEmptyState from "./feed/FeedEmptyState";
 import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
@@ -11,9 +11,13 @@ import { formatDistanceToNow } from "date-fns";
 
 interface FollowingFeedProps {
   activeHashtag?: string;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
-const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
+const FollowingFeed: React.FC<FollowingFeedProps> = ({ 
+  activeHashtag,
+  onLoadingChange
+}) => {
   const {
     events,
     profiles,
@@ -30,6 +34,20 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({ activeHashtag }) => {
     loadMoreEvents,
     isRetrying
   } = useFollowingFeed({ activeHashtag });
+
+  // Notify parent component of loading state changes
+  useEffect(() => {
+    // Update loading state via callback if provided
+    if (onLoadingChange) {
+      onLoadingChange(loading || loadingFromCache);
+    }
+    
+    // Dispatch custom event for global notification of loading state changes
+    window.dispatchEvent(new CustomEvent('feed-loading-change', { 
+      detail: { isLoading: loading || loadingFromCache || isRetrying }
+    }));
+    
+  }, [loading, loadingFromCache, isRetrying, onLoadingChange]);
 
   return (
     <>

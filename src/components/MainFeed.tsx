@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
 import FollowingFeed from "./FollowingFeed";
@@ -24,6 +24,11 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [activeTab, setActiveTab] = useState<FeedType>(preferences.defaultFeed);
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Store scroll position to restore later
+  const scrollPositionRef = useRef(0);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
@@ -40,11 +45,54 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     const handleScroll = () => {
       const position = window.scrollY;
       setScrolledDown(position > 10);
+      
+      // Store current scroll position when not loading
+      if (!isLoading) {
+        scrollPositionRef.current = position;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
+    };
+  }, [isLoading]);
+  
+  // Handle loading state changes
+  useEffect(() => {
+    // Create a custom event listener for loading state changes
+    const handleLoadingChange = (event: CustomEvent) => {
+      const isLoading = event.detail.isLoading;
+      
+      if (isLoading) {
+        // Store current scroll position before locking
+        scrollPositionRef.current = window.scrollY;
+        
+        // Apply scroll lock
+        document.body.style.overflow = 'hidden';
+        document.body.style.height = '100vh';
+      } else {
+        // Remove scroll lock
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+        
+        // Restore scroll position
+        setTimeout(() => {
+          window.scrollTo(0, scrollPositionRef.current);
+        }, 50);
+      }
+      
+      setIsLoading(isLoading);
+    };
+    
+    // Listen for loading state events from feed components
+    window.addEventListener('feed-loading-change', handleLoadingChange as EventListener);
+    return () => {
+      window.removeEventListener('feed-loading-change', handleLoadingChange as EventListener);
+      
+      // Ensure scroll lock is removed when component unmounts
+      document.body.style.overflow = '';
+      document.body.style.height = '';
     };
   }, []);
 
@@ -77,7 +125,19 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   };
 
   return (
-    <div className={cn("max-w-2xl mx-auto", fontSizeClass)}>
+    <div 
+      className={cn(
+        "max-w-2xl mx-auto",
+        fontSizeClass,
+        isLoading ? "relative pointer-events-none" : ""
+      )}
+      ref={feedContainerRef}
+    >
+      {/* Loading overlay - only visible when loading */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-20" />
+      )}
+      
       {/* Offline banner */}
       {isOffline && (
         <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 mb-4 rounded-md flex items-center justify-between">
@@ -140,7 +200,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           className="relative"
         >
           <TabsContent value="global">
-            <GlobalFeed activeHashtag={activeHashtag} />
+            <GlobalFeed activeHashtag={activeHashtag} onLoadingChange={setIsLoading} />
           </TabsContent>
           
           <TabsContent value="following">
@@ -149,7 +209,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
                 You need to log in to see posts from people you follow.
               </div>
             ) : (
-              <FollowingFeed activeHashtag={activeHashtag} />
+              <FollowingFeed activeHashtag={activeHashtag} onLoadingChange={setIsLoading} />
             )}
           </TabsContent>
         </Tabs>

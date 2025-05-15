@@ -8,9 +8,13 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
-const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
+const GlobalFeed: React.FC<GlobalFeedProps> = ({ 
+  activeHashtag,
+  onLoadingChange
+}) => {
   const {
     events,
     profiles,
@@ -24,6 +28,21 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
   
   const [extendedLoading, setExtendedLoading] = useState(true);
   const [showRetry, setShowRetry] = useState(false);
+  
+  // Notify parent component of loading state changes
+  useEffect(() => {
+    // Update loading state via callback if provided
+    if (onLoadingChange) {
+      onLoadingChange(loading || extendedLoading);
+    }
+    
+    // Dispatch custom event for global notification of loading state changes
+    // This allows components that don't have direct prop connection to react
+    window.dispatchEvent(new CustomEvent('feed-loading-change', { 
+      detail: { isLoading: loading || extendedLoading }
+    }));
+    
+  }, [loading, extendedLoading, onLoadingChange]);
   
   // Reset extended loading state when activeHashtag changes
   useEffect(() => {
