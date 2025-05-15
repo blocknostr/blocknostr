@@ -283,9 +283,14 @@ export const WalletSummary: React.FC = () => {
                                                 alt={tok.symbol}
                                                 className="w-6 h-6 rounded"
                                                 onError={(e) => {
-                                                    // If image fails to load, replace with fallback
-                                                    (e.target as HTMLElement).style.display = 'none';
-                                                    (e.target as HTMLElement).nextElementSibling!.style.display = 'flex';
+                                                    // Type assertion to HTMLImageElement which has display property
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    // Using optional chaining and type assertion for nextElementSibling
+                                                    const nextElement = target.nextElementSibling as HTMLElement;
+                                                    if (nextElement) {
+                                                        nextElement.style.display = 'flex';
+                                                    }
                                                 }}
                                             />
                                         ) : null}
