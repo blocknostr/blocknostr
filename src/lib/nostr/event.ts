@@ -67,8 +67,10 @@ export class EventManager {
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     
-    // Fix: Use standard secp256k1 signing instead of schnorr since it's not available
-    const signature = await secp.sign(eventHash, privateKey);
-    return bytesToHex(signature);
+    // Fix: Extract just the signature bytes from the SignatureWithRecovery object
+    const signatureObj = await secp.sign(eventHash, privateKey);
+    // The compact() method extracts just the 64-byte signature without recovery info
+    const signatureBytes = secp.Signature.fromDER(signatureObj).toCompactRawBytes();
+    return bytesToHex(signatureBytes);
   }
 }
