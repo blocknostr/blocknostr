@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Shield, Users, PlusCircle, Lock, AlertCircle } from "lucide-react";
@@ -9,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { nostrService } from "@/lib/nostr";
 import { useCommunity } from "@/hooks/useCommunity";
-import { CommunitiesGrid } from "@/components/community/CommunitiesGrid";
-import { CreateCommunityDialog } from "@/components/community/CreateCommunityDialog";
+import CommunitiesGrid from "@/components/community/CommunitiesGrid";
+import CreateCommunityDialog from "@/components/community/CreateCommunityDialog";
 
 const DAOPage = () => {
   const wallet = useWallet();
