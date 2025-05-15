@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Loader2, Plus, Shield, Lock } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -15,12 +15,6 @@ import * as z from "zod";
 interface CreateCommunityDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onCreateCommunity?: (name: string, description: string) => Promise<void>;
-  title?: string;
-  description?: string;
-  walletSigningRequired?: boolean;
-  walletAddress?: string | null;
-  signWithWallet?: (data: any) => Promise<string | null>;
 }
 
 // Form validation schema with stricter requirements
@@ -39,19 +33,9 @@ const formSchema = z.object({
   }),
 });
 
-const CreateCommunityDialog = ({
-  isOpen, 
-  setIsOpen, 
-  onCreateCommunity, 
-  title = "Create a new community", 
-  description,
-  walletSigningRequired = false,
-  walletAddress,
-  signWithWallet
-}: CreateCommunityDialogProps) => {
+const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps) => {
   const navigate = useNavigate();
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
-  const [isSigningWithWallet, setIsSigningWithWallet] = useState(false);
   
   const currentUserPubkey = nostrService.publicKey;
 
@@ -70,62 +54,9 @@ const CreateCommunityDialog = ({
       return;
     }
     
-    if (walletSigningRequired && !walletAddress) {
-      toast.error("You must connect your Alephium wallet to create a DAO");
-      return;
-    }
-    
     setIsCreatingCommunity(true);
     
     try {
-      // Prepare data for blockchain registration
-      const communityData = {
-        name: values.name.trim(),
-        description: values.description.trim(),
-        creator: currentUserPubkey,
-        timestamp: Math.floor(Date.now() / 1000)
-      };
-      
-      // If wallet signing is required, sign the data
-      let signature = null;
-      if (walletSigningRequired && signWithWallet) {
-        setIsSigningWithWallet(true);
-        
-        toast.loading("Requesting wallet signature", {
-          description: "Please approve the transaction in your wallet",
-          duration: 10000 // 10 seconds
-        });
-        
-        console.log("Requesting wallet signature for DAO creation...", communityData);
-        signature = await signWithWallet(communityData);
-        setIsSigningWithWallet(false);
-        
-        if (!signature) {
-          toast.error("Failed to sign with wallet", {
-            description: "Please try again or check your wallet connection."
-          });
-          setIsCreatingCommunity(false);
-          return;
-        }
-        
-        console.log("Successfully obtained wallet signature:", signature);
-        toast.success("Wallet signature obtained", {
-          description: "Proceeding with on-chain registration"
-        });
-        
-        // Add the signature to community data
-        Object.assign(communityData, { signature });
-      }
-      
-      // If custom handler is provided, use it
-      if (onCreateCommunity) {
-        await onCreateCommunity(values.name.trim(), values.description.trim());
-        form.reset();
-        setIsOpen(false);
-        return;
-      }
-      
-      // Default Nostr community creation
       const communityId = await nostrService.createCommunity(
         values.name.trim(),
         values.description.trim()
@@ -160,10 +91,15 @@ const CreateCommunityDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Community
+        </Button>
+      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <p className="text-sm text-muted-foreground mt-2">{description}</p>}
+          <DialogTitle>Create a new community</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4 py-4">
@@ -197,37 +133,17 @@ const CreateCommunityDialog = ({
                 </FormItem>
               )}
             />
-            {walletSigningRequired && (
-              <div className="rounded-md bg-primary/5 p-3 text-sm">
-                <div className="flex items-center gap-2 text-primary mb-1">
-                  <Lock className="h-4 w-4" />
-                  <span className="font-medium">Blockchain Registration Required</span>
-                </div>
-                <p className="text-muted-foreground">
-                  This DAO will be registered on the Alephium blockchain using your connected wallet
-                  {walletAddress ? ` (${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)})` : ''}.
-                </p>
-                <div className="mt-2 text-xs text-muted-foreground border-t border-primary/10 pt-2">
-                  <span className="font-medium">Ralph Smart Contract:</span> Your DAO will be powered by a secure on-chain governance contract.
-                </div>
-              </div>
-            )}
             <Button 
               type="submit"
-              disabled={isCreatingCommunity || isSigningWithWallet}
+              disabled={isCreatingCommunity}
               className="w-full"
             >
               {isCreatingCommunity ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {isSigningWithWallet ? "Signing with Wallet..." : "Creating DAO..."}
-                </>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <>
-                  {walletSigningRequired ? <Shield className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                  {walletSigningRequired ? "Create On-Chain DAO" : "Create DAO"}
-                </>
+                <Plus className="h-4 w-4 mr-2" />
               )}
+              Create Community
             </Button>
           </form>
         </Form>

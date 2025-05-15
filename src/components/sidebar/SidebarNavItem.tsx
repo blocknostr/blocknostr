@@ -11,10 +11,9 @@ interface SidebarNavItemProps {
   icon: LucideIcon;
   href: string;
   isActive: boolean;
-  badge?: string; // Adding optional badge prop
 }
 
-const SidebarNavItem = ({ name, icon: Icon, href, isActive, badge }: SidebarNavItemProps) => {
+const SidebarNavItem = ({ name, icon: Icon, href, isActive }: SidebarNavItemProps) => {
   return (
     <li key={name}>
       <Link to={href}>
@@ -27,11 +26,6 @@ const SidebarNavItem = ({ name, icon: Icon, href, isActive, badge }: SidebarNavI
         >
           <Icon className="mr-2 h-5 w-5" />
           {name}
-          {badge && (
-            <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-              {badge}
-            </span>
-          )}
         </Button>
       </Link>
     </li>
