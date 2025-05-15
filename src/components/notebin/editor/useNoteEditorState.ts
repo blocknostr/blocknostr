@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
@@ -101,7 +100,7 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setIsSaving(true);
 
     try {
-      console.log("Starting note save process");
+      console.log("Starting note save process with noteId:", noteId);
       
       // Generate a unique ID for the note if one doesn't exist
       const uniqueId = noteId || `notebin-${Math.random().toString(36).substring(2, 10)}`;
@@ -181,10 +180,26 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       // Only publish to Nostr if user is logged in
       if (nostrService.publicKey) {
         console.log("User is logged in, publishing to Nostr");
-        const publishedId = await nostrService.publishEvent(event);
-        if (publishedId) {
-          eventId = publishedId;
-          console.log("Published to Nostr with ID:", publishedId);
+        
+        // If this is an update to an existing note and we have a noteId, 
+        // use the original ID to properly replace the event per NIP-33
+        if (noteId) {
+          console.log("Updating existing note with ID:", noteId);
+          
+          // For NIP-33 replaceable parameterized events, we keep the same "d" tag
+          // but publish a new event that will replace the old one
+          const publishedId = await nostrService.publishEvent(event);
+          if (publishedId) {
+            eventId = publishedId;
+            console.log("Updated note published to Nostr with ID:", publishedId);
+          }
+        } else {
+          // This is a new note
+          const publishedId = await nostrService.publishEvent(event);
+          if (publishedId) {
+            eventId = publishedId;
+            console.log("Published new note to Nostr with ID:", publishedId);
+          }
         }
       } else {
         console.log("User not logged in, saving locally only");
@@ -213,11 +228,11 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
       // Update the local state
       setNoteId(eventId);
       
-      toast.success(`Note saved ${isEncrypted ? "and encrypted" : ""} successfully!`);
-      
-      // Clear form if it's a new note
-      if (!noteId) {
-        clearEditor();
+      // Show success message with editing status
+      if (noteId) {
+        toast.success(`Note updated ${isEncrypted ? "and encrypted" : ""} successfully!`);
+      } else {
+        toast.success(`Note saved ${isEncrypted ? "and encrypted" : ""} successfully!`);
       }
       
     } catch (error) {
@@ -278,6 +293,7 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     setLanguage,
     isSaving,
     noteId,
+    setNoteId,
     tags,
     setTags,
     previewMode,

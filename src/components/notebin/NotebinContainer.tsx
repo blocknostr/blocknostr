@@ -17,13 +17,19 @@ const NotebinContainer: React.FC = () => {
     isLoggedIn,
     view,
     sortOption,
+    title,
+    content,
+    language,
+    tags,
+    currentNoteId,
     handleViewToggle,
     handleSortChange,
     handleSearch,
     handleDelete,
     handleNoteSaved,
     viewNote,
-    setNoteToDelete
+    setNoteToDelete,
+    clearEditor
   } = useNotebin();
 
   return (
@@ -31,7 +37,14 @@ const NotebinContainer: React.FC = () => {
       <div className="max-w-3xl mx-auto">
         {/* Note Editor Component */}
         <div id="noteEditor">
-          <NoteEditor onNoteSaved={handleNoteSaved} />
+          <NoteEditor 
+            onNoteSaved={handleNoteSaved}
+            noteId={currentNoteId}
+            title={title}
+            content={content}
+            language={language}
+            tags={tags}
+          />
         </div>
         
         {/* Search, Filter and View Controls */}

@@ -10,9 +10,21 @@ import { TagInput } from "./TagInput";
 
 interface NoteEditorProps {
   onNoteSaved: (note: any) => void;
+  noteId?: string | null;
+  title?: string;
+  content?: string;
+  language?: string;
+  tags?: string[];
 }
 
-const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
+const NoteEditor = ({ 
+  onNoteSaved, 
+  noteId = null, 
+  title: initialTitle = "", 
+  content: initialContent = "", 
+  language: initialLanguage = "text", 
+  tags: initialTags = [] 
+}: NoteEditorProps) => {
   const {
     title,
     setTitle,
@@ -20,7 +32,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     setContent,
     language,
     setLanguage,
-    noteId,
+    noteId: internalNoteId,
     tags,
     setTags,
     previewMode,
@@ -32,14 +44,31 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
     copyToClipboard,
     shareNote,
     clearEditor,
-    isLoggedIn
+    isLoggedIn,
+    setNoteId
   } = useNoteEditorState(onNoteSaved);
+
+  // Set the initial note data when the component mounts or when props change
+  useEffect(() => {
+    if (initialTitle) setTitle(initialTitle);
+    if (initialContent) setContent(initialContent);
+    if (initialLanguage) setLanguage(initialLanguage);
+    if (initialTags.length > 0) setTags(initialTags);
+    if (noteId) setNoteId(noteId);
+  }, [initialTitle, initialContent, initialLanguage, initialTags, noteId, setTitle, setContent, setLanguage, setTags, setNoteId]);
 
   // Log whenever the component renders to help with debugging
   useEffect(() => {
-    console.log("NoteEditor mounted with onNoteSaved function:", !!onNoteSaved);
+    console.log("NoteEditor mounted with:", { 
+      noteId,
+      initialTitle,
+      initialContent,
+      initialLanguage,
+      initialTags,
+      hasOnNoteSaved: !!onNoteSaved
+    });
     return () => console.log("NoteEditor unmounted");
-  }, [onNoteSaved]);
+  }, [noteId, initialTitle, initialContent, initialLanguage, initialTags, onNoteSaved]);
 
   return (
     <Card className="mb-6">
@@ -68,7 +97,7 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
           
           <EditorActions
             canSave={canSave()}
-            noteId={noteId}
+            noteId={internalNoteId || noteId}
             previewMode={previewMode}
             isEncrypted={isEncrypted}
             handleSave={handleSave}
