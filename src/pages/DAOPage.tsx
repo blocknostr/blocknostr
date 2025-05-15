@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Shield, Users, PlusCircle, Lock, AlertCircle } from "lucide-react";
@@ -243,7 +244,14 @@ const DAOPage = () => {
                 <p className="text-muted-foreground mt-4">Loading your DAOs...</p>
               </div>
             ) : userCommunities.length > 0 ? (
-              <CommunitiesGrid communities={userCommunities} />
+              <CommunitiesGrid 
+                communities={userCommunities} 
+                userCommunities={userCommunities}
+                filteredCommunities={userCommunities}
+                loading={false}
+                currentUserPubkey={derivedNostrPubkey}
+                onCreateCommunity={() => setIsCreateDialogOpen(true)}
+              />
             ) : (
               <Card className="border-dashed border-2">
                 <CardContent className="flex flex-col items-center justify-center text-center p-8">
@@ -343,8 +351,8 @@ const DAOPage = () => {
       </div>
       
       <CreateCommunityDialog
-        open={isCreateDialogOpen}
-        onOpenChange={setIsCreateDialogOpen}
+        isOpen={isCreateDialogOpen}
+        setIsOpen={setIsCreateDialogOpen}
         onCreateCommunity={handleCreateDAO}
         title="Create New DAO"
         description="Create a new decentralized autonomous organization powered by Alephium"
