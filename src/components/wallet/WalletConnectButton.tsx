@@ -4,14 +4,14 @@ import { Shield, ExternalLink, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AlephiumLogo } from "@/components/icons/wallets";
-import { useConnectWallet } from "@alephium/web3-react";
+import { useWallet } from "@alephium/web3-react";
 
 interface WalletConnectButtonProps {
   className?: string;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
-  const { connect, connecting, connected } = useConnectWallet();
+  const { connectionStatus, connect, disconnect, address } = useWallet();
   const [hasWalletExtension, setHasWalletExtension] = useState<boolean>(false);
 
   useEffect(() => {
@@ -35,7 +35,10 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     connect();
   };
 
-  if (connected) {
+  const isConnected = connectionStatus === 'connected';
+  const isConnecting = connectionStatus === 'connecting';
+
+  if (isConnected && address) {
     return (
       <Button
         className={cn("w-full", className)}
@@ -73,9 +76,9 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       <Button 
         className="mt-6 w-full"
         onClick={handleConnect}
-        disabled={connecting || !hasWalletExtension}
+        disabled={isConnecting || !hasWalletExtension}
       >
-        {connecting ? "Connecting..." : "Connect Wallet"}
+        {isConnecting ? "Connecting..." : "Connect Wallet"}
       </Button>
       
       {!hasWalletExtension && (

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useConnectWallet } from "@alephium/web3-react";
+import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +13,12 @@ import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 
 const WalletsPage = () => {
-  const { connecting, connected, address, signer, connect, disconnect } = useConnectWallet();
+  const { connectionStatus, address, disconnect } = useWallet();
   const [activeTab, setActiveTab] = useState("overview");
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const connected = connectionStatus === 'connected';
 
   useEffect(() => {
     if (connected && address) {
@@ -41,7 +43,7 @@ const WalletsPage = () => {
     toast.info("Wallet disconnected");
   };
 
-  if (!connected) {
+  if (!connected || !address) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
