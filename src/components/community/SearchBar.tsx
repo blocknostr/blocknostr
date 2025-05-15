@@ -10,15 +10,6 @@ interface SearchBarProps {
 }
 
 const SearchBar = ({ searchTerm, setSearchTerm, placeholderText = "Search communities..." }: SearchBarProps) => {
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setSearchTerm(e.target.value);
-    } catch (error) {
-      console.error("Error updating search term:", error);
-      // Silently fail but log the error
-    }
-  };
-
   return (
     <div className="relative">
       <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
@@ -26,7 +17,7 @@ const SearchBar = ({ searchTerm, setSearchTerm, placeholderText = "Search commun
         type="text"
         placeholder={placeholderText}
         value={searchTerm}
-        onChange={handleSearchChange}
+        onChange={(e) => setSearchTerm(e.target.value)}
         className="pl-10"
       />
       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

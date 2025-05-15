@@ -1,58 +1,131 @@
 
-import { useState, useEffect } from 'react';
-import { nostrService } from '@/lib/nostr';
+import { useState, useEffect, useRef } from 'react';
+import { nostrService, Relay } from '@/lib/nostr';
+import { toast } from 'sonner';
 
-export function useProfileRelays(npub: string) {
-  const [relays, setRelays] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface UseProfileRelaysProps {
+  hexPubkey: string | undefined;
+  isCurrentUser: boolean;
+}
 
+export function useProfileRelays({ hexPubkey, isCurrentUser }: UseProfileRelaysProps) {
+  const [relays, setRelays] = useState<Relay[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefetching, setIsRefetching] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const initialLoadDoneRef = useRef(false);
+  
+  // Track if component is still mounted
   useEffect(() => {
-    const loadRelays = async () => {
-      setLoading(true);
-      setError(null);
-      
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  
+  useEffect(() => {
+    if (!hexPubkey) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Reset state when pubkey changes
+    setRelays([]);
+    setHasError(false);
+    setErrorMessage(null);
+    setIsLoading(true);
+    
+    const fetchRelays = async () => {
       try {
-        // Convert npub to hex pubkey
-        let hexPubkey: string;
-        
-        try {
-          hexPubkey = nostrService.getHexFromNpub(npub);
-          if (!hexPubkey) throw new Error("Invalid npub");
-        } catch (e) {
-          console.error("Error converting npub to hex:", e);
-          setError("Invalid npub format");
-          setLoading(false);
-          return;
-        }
-        
-        // Get relays for user
-        const userRelays = await nostrService.getRelaysForUser(hexPubkey);
-        
-        if (userRelays && Object.keys(userRelays).length > 0) {
-          // Extract the relay URLs only
-          const relayUrls = Object.keys(userRelays);
-          setRelays(relayUrls);
+        if (isCurrentUser) {
+          // For current user, get relays from nostrService
+          const relayStatus = nostrService.getRelayStatus();
+          if (mountedRef.current) {
+            setRelays(relayStatus);
+            setIsLoading(false);
+            setIsRefetching(false);
+            initialLoadDoneRef.current = true;
+          }
         } else {
-          // No custom relays found
-          setRelays([]);
+          // For other users, try to get their relays
+          const userRelaysUrls = await nostrService.getRelaysForUser(hexPubkey);
+          
+          // Convert URLs to relay objects
+          const userRelays: Relay[] = userRelaysUrls.map(url => ({
+            url,
+            status: 'connected', // We can't actually know their status
+            read: true,
+            write: true
+          }));
+          
+          if (mountedRef.current) {
+            setRelays(userRelays);
+            setIsLoading(false);
+            setIsRefetching(false);
+            initialLoadDoneRef.current = true;
+          }
         }
-      } catch (e) {
-        console.error("Error fetching user relays:", e);
-        setError("Failed to load user's relays");
-        setRelays([]);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching relays:", error);
+        if (mountedRef.current) {
+          setIsLoading(false);
+          setIsRefetching(false);
+          setHasError(true);
+          setErrorMessage("Failed to load relays");
+          
+          // If we couldn't get relays, set some defaults
+          if (relays.length === 0) {
+            setRelays([
+              { url: "wss://relay.damus.io", status: 'connected', read: true, write: true },
+              { url: "wss://nos.lol", status: 'connected', read: true, write: true },
+              { url: "wss://relay.nostr.band", status: 'connected', read: true, write: true }
+            ]);
+          }
+        }
       }
     };
     
-    if (npub) {
-      loadRelays();
-    } else {
-      setRelays([]);
-      setLoading(false);
-    }
-  }, [npub]);
+    fetchRelays();
+  }, [hexPubkey, isCurrentUser, relays.length]);
   
-  return { relays, loading, error };
+  const refetch = async () => {
+    if (!hexPubkey) return;
+    
+    // Don't refetch if we're already fetching
+    if (isRefetching) return;
+    
+    setIsRefetching(true);
+    
+    // Don't set isLoading to true if we already have data
+    if (!initialLoadDoneRef.current) {
+      setIsLoading(true);
+    }
+    
+    setHasError(false);
+    setErrorMessage(null);
+    
+    try {
+      // This will trigger the useEffect above
+      const event = new CustomEvent('refetchRelays', { detail: { pubkey: hexPubkey } });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.error("Error refetching relays:", error);
+      setIsLoading(false);
+      setIsRefetching(false);
+      setHasError(true);
+      setErrorMessage("Failed to refetch relays");
+      toast.error("Failed to load relay information");
+    }
+  };
+  
+  return {
+    relays,
+    isLoading,
+    isRefetching,
+    hasError,
+    errorMessage,
+    refetch
+  };
 }

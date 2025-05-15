@@ -1,5 +1,4 @@
 
-import { useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 
 export const useCommunitySubscriptions = (
@@ -19,9 +18,6 @@ export const useCommunitySubscriptions = (
     
     await nostrService.connectToUserRelays();
     
-    // Track all subscription IDs for proper cleanup
-    const subscriptionIds: string[] = [];
-    
     // Subscribe to community events with this ID
     const communitySubId = nostrService.subscribe(
       [
@@ -33,25 +29,35 @@ export const useCommunitySubscriptions = (
       ],
       handleCommunityEvent
     );
-    subscriptionIds.push(communitySubId);
     
     // Load proposals for this community
-    const proposalSubIds = loadProposals(communityId);
-    subscriptionIds.push(...Object.values(proposalSubIds));
+    const proposalSubId = loadProposals(communityId);
     
     // Load kick proposals for this community
     const kickSubIds = loadKickProposals(communityId);
-    subscriptionIds.push(...Object.values(kickSubIds));
     
     // Load community metadata events
     const metadataSubIds = loadCommunityMetadata(communityId);
-    subscriptionIds.push(...Object.values(metadataSubIds).filter(Boolean) as string[]);
     
     return () => {
-      // Clean up all subscriptions on unmount
-      subscriptionIds.forEach(subId => {
-        if (subId) nostrService.unsubscribe(subId);
-      });
+      nostrService.unsubscribe(communitySubId);
+      
+      if (proposalSubId) {
+        nostrService.unsubscribe(proposalSubId.proposalSubId);
+        nostrService.unsubscribe(proposalSubId.votesSubId);
+      }
+      
+      if (kickSubIds) {
+        nostrService.unsubscribe(kickSubIds.kickProposalSubId);
+        nostrService.unsubscribe(kickSubIds.kickVotesSubId);
+      }
+      
+      if (metadataSubIds) {
+        if (metadataSubIds.metadataSubId) nostrService.unsubscribe(metadataSubIds.metadataSubId);
+        if (metadataSubIds.inviteSubId) nostrService.unsubscribe(metadataSubIds.inviteSubId);
+        if (metadataSubIds.roleSubId) nostrService.unsubscribe(metadataSubIds.roleSubId);
+        if (metadataSubIds.activitySubId) nostrService.unsubscribe(metadataSubIds.activitySubId);
+      }
     };
   };
   
@@ -166,12 +172,7 @@ export const useCommunitySubscriptions = (
       );
     }
     
-    return { 
-      metadataSubId, 
-      inviteSubId, 
-      roleSubId, 
-      activitySubId 
-    };
+    return { metadataSubId, inviteSubId, roleSubId, activitySubId };
   };
   
   return {

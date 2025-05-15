@@ -1,140 +1,133 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
+import { relayPerformanceTracker } from '@/lib/nostr/relay/performance/relay-performance-tracker';
+import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
+import { circuitBreaker } from '@/lib/nostr/relay/circuit/circuit-breaker';
+import { CircuitState } from '@/lib/nostr/relay/circuit/circuit-breaker';
 import { toast } from 'sonner';
+import { Relay } from '@/lib/nostr';
 
-export function useEnhancedRelayConnection() {
-  const [userRelays, setUserRelays] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState(false);
+/**
+ * Enhanced hook for relay connections with smart selection and circuit breaker
+ */
+export function useEnhancedRelayConnection(pubkey?: string) {
+  const [relays, setRelays] = useState<Relay[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [healthCheckTimestamp, setHealthCheckTimestamp] = useState(Date.now());
+  const [requiredRelays, setRequiredRelays] = useState<string[]>([]);
   
-  const currentUserPubkey = nostrService.publicKey;
+  // Connect to user relays with smart selection
+  const connectToRelays = useCallback(async () => {
+    if (isConnecting) return;
+    
+    setIsConnecting(true);
+    setIsLoading(true);
+    
+    try {
+      // First ensure we have a base set of relays
+      await nostrService.connectToUserRelays();
+      
+      // Get additional relays to try based on performance
+      const currentRelays = nostrService.getRelayStatus();
+      const currentUrls = currentRelays.map(r => r.url);
+      
+      // Calculate which relays to prioritize
+      const readRelays = relaySelector.selectBestRelays(currentUrls, {
+        operation: 'read',
+        count: 3,
+        minScore: 30
+      });
+      
+      // Special case: if this is for a specific pubkey, try to get their relays
+      if (pubkey) {
+        try {
+          const userRelays = await nostrService.getRelaysForUser(pubkey);
+          if (userRelays && userRelays.length > 0) {
+            console.log(`Found ${userRelays.length} relays for user ${pubkey}`);
+            await nostrService.addMultipleRelays(userRelays);
+            setRequiredRelays(userRelays);
+          }
+        } catch (error) {
+          console.warn(`Failed to get relays for user ${pubkey}:`, error);
+        }
+      }
+      
+      // Always ensure we have some popular relays connected as fallback
+      const popularRelays = [
+        "wss://relay.damus.io", 
+        "wss://nos.lol", 
+        "wss://relay.nostr.band",
+        "wss://relay.snort.social"
+      ];
+      
+      // Filter out popular relays with open circuit breakers
+      const availablePopularRelays = popularRelays.filter(url => {
+        const state = circuitBreaker.getState(url);
+        return state !== CircuitState.OPEN;
+      });
+      
+      // Connect to popular relays as fallback
+      if (availablePopularRelays.length > 0) {
+        await nostrService.addMultipleRelays(availablePopularRelays);
+      }
+      
+      // Get updated relay status
+      refreshRelays();
+    } catch (error) {
+      console.error("Error connecting to relays:", error);
+      toast.error("Failed to connect to relays");
+    } finally {
+      setIsConnecting(false);
+      setIsLoading(false);
+    }
+  }, [isConnecting, pubkey]);
   
-  // Load user relays
+  // Refresh relay status with performance data
+  const refreshRelays = useCallback(() => {
+    const relayStatus = nostrService.getRelayStatus();
+    
+    // Enhance with performance data
+    const enhancedRelays = relayStatus.map(relay => {
+      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
+      const circuitStatus = circuitBreaker.getState(relay.url);
+      
+      // Check if this is a required relay (for a specific pubkey)
+      const isRequired = requiredRelays.includes(relay.url);
+      
+      return {
+        ...relay,
+        score: perfData?.score || 50,
+        avgResponse: perfData?.avgResponseTime,
+        circuitStatus: circuitStatus,
+        isRequired
+      };
+    });
+    
+    setRelays(enhancedRelays);
+    setHealthCheckTimestamp(Date.now());
+  }, [requiredRelays]);
+  
+  // Initial connection
   useEffect(() => {
-    const loadUserRelays = async () => {
-      setLoading(true);
-      
-      try {
-        if (!currentUserPubkey) {
-          setUserRelays([]);
-          return;
-        }
-        
-        // Get relays for user
-        const relayData = await nostrService.getRelaysForUser(currentUserPubkey);
-        
-        if (relayData) {
-          // Convert the relay data object to an array of URLs
-          const relayUrls = Object.entries(relayData)
-            .map(([url, config]) => url);
-          
-          setUserRelays(relayUrls);
-        } else {
-          setUserRelays([]);
-        }
-      } catch (error) {
-        console.error("Error loading user relays:", error);
-        toast.error("Failed to load user relays");
-        setUserRelays([]);
-      } finally {
-        setLoading(false);
-      }
+    connectToRelays();
+    
+    // Set up interval to refresh status
+    const intervalId = setInterval(refreshRelays, 10000);
+    
+    return () => {
+      clearInterval(intervalId);
     };
-    
-    loadUserRelays();
-  }, [currentUserPubkey]);
+  }, [connectToRelays, refreshRelays]);
   
-  // Add a relay to the user's list
-  const addRelay = async (relayUrl: string): Promise<boolean> => {
-    setAdding(true);
-    
-    try {
-      // Add to user's local list
-      if (!userRelays.includes(relayUrl)) {
-        setUserRelays([...userRelays, relayUrl]);
-      }
-      
-      // Connect to the relay
-      const result = await nostrService.addRelay(relayUrl);
-      
-      if (result) {
-        // Publish updated relay list
-        const relaysToPublish = userRelays.map(url => ({
-          url,
-          read: true,
-          write: true
-        }));
-        
-        if (!userRelays.includes(relayUrl)) {
-          relaysToPublish.push({
-            url: relayUrl,
-            read: true,
-            write: true
-          });
-        }
-        
-        await nostrService.publishRelayList(relaysToPublish);
-        
-        toast.success(`Added relay: ${relayUrl}`);
-        return true;
-      } else {
-        toast.error(`Failed to connect to relay: ${relayUrl}`);
-        // Remove from list if connection failed
-        setUserRelays(userRelays.filter(url => url !== relayUrl));
-        return false;
-      }
-    } catch (error) {
-      console.error("Error adding relay:", error);
-      toast.error("Failed to add relay");
-      return false;
-    } finally {
-      setAdding(false);
-    }
-  };
-  
-  // Remove a relay from the user's list
-  const removeRelay = async (relayUrl: string): Promise<boolean> => {
-    setRemoving(true);
-    
-    try {
-      // Remove from user's local list
-      setUserRelays(userRelays.filter(url => url !== relayUrl));
-      
-      // Disconnect from the relay
-      nostrService.removeRelay(relayUrl);
-      
-      // Publish updated relay list
-      const relaysToPublish = userRelays
-        .filter(url => url !== relayUrl)
-        .map(url => ({
-          url,
-          read: true,
-          write: true
-        }));
-      
-      await nostrService.publishRelayList(relaysToPublish);
-      
-      toast.success(`Removed relay: ${relayUrl}`);
-      return true;
-    } catch (error) {
-      console.error("Error removing relay:", error);
-      toast.error("Failed to remove relay");
-      return false;
-    } finally {
-      setRemoving(false);
-    }
-  };
-  
+  // Return needed values and functions
   return {
-    userRelays,
-    loading,
-    adding,
-    removing,
-    addRelay,
-    removeRelay,
-    loadingRelays: loading,
-    currentUserPubkey
+    relays,
+    isLoading,
+    isConnecting,
+    healthCheckTimestamp,
+    connectToRelays,
+    refreshRelays
   };
 }

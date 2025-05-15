@@ -6,7 +6,6 @@ import { useCommunitySubscriptions } from "./community/useCommunitySubscriptions
 import { useCommunityActions } from "./community/useCommunityActions";
 import { Community, Proposal, KickProposal, PendingVotes, MemberRole, InviteLink } from "@/types/community";
 import { hasRole, canPerformAction } from "@/lib/community-permissions";
-import { toast } from "sonner";
 
 // Fix re-exporting with 'export type' for isolatedModules
 export type { Community, Proposal, KickProposal } from "@/types/community";
@@ -17,7 +16,6 @@ export const useCommunity = (communityId: string | undefined) => {
   const [kickProposals, setKickProposals] = useState<KickProposal[]>([]);
   const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [memberJoinTimes, setMemberJoinTimes] = useState<Record<string, number>>({});
   const [memberActions, setMemberActions] = useState<Record<string, { timestamp: number, type: string }[]>>({});
   
@@ -91,36 +89,9 @@ export const useCommunity = (communityId: string | undefined) => {
     let cleanup: (() => void) | undefined;
     
     const initCommunity = async () => {
-      if (!communityId) {
-        setError("No community ID provided");
-        setLoading(false);
-        return;
-      }
-      
       setLoading(true);
-      setError(null);
-      
-      try {
-        if (!nostrService.hasConnectedRelays()) {
-          await nostrService.connectToDefaultRelays();
-        }
-        
-        cleanup = await loadCommunity();
-        
-        // If we still don't have a community after 10 seconds, show error
-        const timeoutId = setTimeout(() => {
-          if (!community) {
-            setError("Could not load community. Please check your connection and try again.");
-          }
-        }, 10000);
-        
-        return () => clearTimeout(timeoutId);
-      } catch (err) {
-        console.error("Error initializing community:", err);
-        setError("Failed to initialize community");
-      } finally {
-        setLoading(false);
-      }
+      cleanup = await loadCommunity();
+      setLoading(false);
     };
     
     initCommunity();
@@ -171,7 +142,6 @@ export const useCommunity = (communityId: string | undefined) => {
     kickProposals,
     inviteLinks,
     loading,
-    error,
     currentUserPubkey,
     
     // Roles and permissions
