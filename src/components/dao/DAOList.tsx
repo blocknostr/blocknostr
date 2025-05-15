@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "../community/CommunityCard";
@@ -227,6 +228,7 @@ const DAOList = () => {
           loading={loading}
           currentUserPubkey={currentUserPubkey}
           onCreateCommunity={handleCreateCommunityClick}
+          searchTerm={searchTerm}  // Add the searchTerm prop here
         />
       </div>
     </div>
