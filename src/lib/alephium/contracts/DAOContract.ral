@@ -1,0 +1,124 @@
+
+// DAOContract.ral - A Ralph smart contract for DAO governance on Alephium
+// Based on https://github.com/alephium/build-smart-contracts-in-ralph
+
+// Import the standard Alephium contract interface
+import "std/contract_interface"
+
+// Define our DAO contract with voting capabilities
+Contract DAORegistry(
+    // Contract owner (creator)
+    owner: Address,
+    
+    // DAO metadata stored on-chain
+    daoName: ByteVec,
+    daoDescription: ByteVec,
+    
+    // Governance parameters
+    minQuorumPercent: U256,
+    votingPeriodInDays: U256,
+    
+    // State variables
+    mut totalMembers: U256,
+    mut proposalCount: U256,
+    
+    // Treasury balance
+    mut treasuryBalance: U256
+) {
+    // Event emitted when a new DAO is registered
+    event DAORegistered(daoId: ByteVec, creator: Address, name: ByteVec)
+    
+    // Event emitted when a new proposal is created
+    event ProposalCreated(proposalId: U256, creator: Address, description: ByteVec, endTime: U256)
+    
+    // Event emitted when a vote is cast
+    event VoteCast(proposalId: U256, voter: Address, support: Bool, weight: U256)
+    
+    // Create a new DAO
+    pub fn registerDAO(signature: ByteVec) -> () {
+        // Verify the creator is calling the function
+        assert!(callerAddress() == owner, "Only the owner can register a DAO")
+        
+        // Verify the signature (in real implementation, this would validate the external wallet signature)
+        // For now, we'll just do a basic check that signature is not empty
+        assert!(size!(signature) > 0, "Invalid signature")
+        
+        // Generate a unique DAO ID using hash of contract ID and timestamp
+        let daoId = blake2b!(contractId!() ++ daoName ++ u256To4Bytes!(blockTimeStamp!()))
+        
+        // Emit registration event
+        emit DAORegistered(daoId, owner, daoName)
+        
+        // Initialize the DAO with the creator as first member
+        totalMembers = 1
+        proposalCount = 0
+    }
+    
+    // Create a new proposal
+    pub fn createProposal(proposalDescription: ByteVec, executionDeadline: U256) -> U256 {
+        // Only members can create proposals
+        assert!(isMember!(callerAddress()), "Only members can create proposals")
+        
+        // Increment proposal counter
+        proposalCount = proposalCount + 1u
+        
+        // Calculate voting end time
+        let endTime = blockTimeStamp!() + votingPeriodInDays * 86400
+        
+        // Emit proposal creation event
+        emit ProposalCreated(proposalCount, callerAddress(), proposalDescription, endTime)
+        
+        return proposalCount
+    }
+    
+    // Vote on a proposal
+    pub fn vote(proposalId: U256, support: Bool) -> () {
+        // Check that proposal exists
+        assert!(proposalId <= proposalCount && proposalId > 0, "Invalid proposal ID")
+        
+        // Check that caller is a member
+        assert!(isMember!(callerAddress()), "Only members can vote")
+        
+        // In a real implementation, we would also check:
+        // - Proposal is still open for voting
+        // - Caller hasn't voted before
+        
+        // Each member gets 1 vote weight for now
+        let weight = 1
+        
+        // Emit vote event
+        emit VoteCast(proposalId, callerAddress(), support, weight)
+    }
+    
+    // Add a new member to the DAO
+    pub fn addMember(newMember: Address) -> () {
+        // Only the owner can add members
+        assert!(callerAddress() == owner, "Only the owner can add members")
+        
+        // In a real implementation, we would check if address is already a member
+        
+        // Increment member count
+        totalMembers = totalMembers + 1
+    }
+    
+    // Check if an address is a member
+    @using(updateFields = false)
+    fn isMember(address: Address) -> Bool {
+        // In a real implementation, we would maintain a mapping of members
+        // For now, we'll only consider the creator as a member
+        return address == owner
+    }
+    
+    // Allow the contract to receive ALPH
+    @using(assetsInContract = true)
+    pub fn depositToTreasury() -> () {
+        // Update treasury balance
+        treasuryBalance = treasuryBalance + u256From1Alph!(10)
+    }
+    
+    // Helper function to convert U256 to ByteVec
+    @using(updateFields = false)
+    fn u256To4Bytes(value: U256) -> ByteVec {
+        return u256ToByteVec!(value)
+    }
+}

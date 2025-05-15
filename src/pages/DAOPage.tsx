@@ -11,6 +11,7 @@ import { nostrService } from "@/lib/nostr";
 import { useCommunity } from "@/hooks/useCommunity";
 import CommunitiesGrid from "@/components/community/CommunitiesGrid";
 import CreateCommunityDialog from "@/components/community/CreateCommunityDialog";
+import { DAOContractService } from "@/lib/alephium/services/dao-contract-service";
 
 const DAOPage = () => {
   const wallet = useWallet();
@@ -119,6 +120,10 @@ const DAOPage = () => {
         timestamp: new Date().toISOString()
       });
       
+      toast.info("Signing with Alephium wallet", {
+        description: "Please approve the transaction in your wallet",
+      });
+      
       // In a real application, we would use the actual wallet.signer.signMessage method
       // But for this example, we'll simulate the signing process
       
@@ -185,20 +190,30 @@ const DAOPage = () => {
         return;
       }
       
-      // 2. Simulate blockchain transaction for registering the DAO
-      console.log("Registering DAO on Alephium blockchain", {
-        ...daoData,
-        signature: signature.substring(0, 20) + '...'
+      // 2. Use our contract service to deploy the DAO contract
+      toast.loading("Deploying DAO smart contract", {
+        description: "This may take a few moments",
+        duration: 5000
       });
       
-      // Simulate blockchain confirmation delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const contractAddress = await DAOContractService.deployDAOContract({
+        name,
+        description,
+        creatorAddress: wallet.account.address,
+        minQuorumPercent: 51, // Default majority voting
+        votingPeriodInDays: 7, // Default 1 week voting period
+      }, signature);
       
-      // 3. After blockchain confirmation, register in Nostr as well
-      // This would typically be handled by an event listener for the blockchain event
+      if (!contractAddress) {
+        toast.error("Failed to deploy DAO contract");
+        setIsCreatingOnChain(false);
+        return;
+      }
+      
       console.log("DAO successfully registered on-chain", {
         daoName: name,
         signature: signature.substring(0, 15) + '...',
+        contractAddress,
         timestamp: new Date().toISOString()
       });
       
@@ -206,16 +221,28 @@ const DAOPage = () => {
         description: `Your new DAO "${name}" is registered on-chain`
       });
       
+      // 3. Register in Nostr as well with the contract address
+      const nostrMetadata = {
+        name,
+        description,
+        contractAddress,
+        creator: derivedNostrPubkey,
+        signature,
+        createdAt: new Date().toISOString(),
+        chain: "alephium"
+      };
+      
       // Refresh the user communities
       setUserCommunities(prev => [
         {
-          id: `community_${Math.random().toString(36).substring(2, 10)}`,
+          id: `dao_${contractAddress}`,
           name,
           description,
           creator: derivedNostrPubkey || "",
           members: [derivedNostrPubkey || ""],
           image: "",
           onChain: true,
+          contractAddress,
           signature,
           createdAt: new Date().toISOString()
         },

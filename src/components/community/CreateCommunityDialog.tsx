@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Shield, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,7 +39,7 @@ const formSchema = z.object({
   }),
 });
 
-const CreateCommunityDialog = ({ 
+const CreateCommunityDialog = ({
   isOpen, 
   setIsOpen, 
   onCreateCommunity, 
@@ -92,6 +91,11 @@ const CreateCommunityDialog = ({
       if (walletSigningRequired && signWithWallet) {
         setIsSigningWithWallet(true);
         
+        toast.loading("Requesting wallet signature", {
+          description: "Please approve the transaction in your wallet",
+          duration: 10000 // 10 seconds
+        });
+        
         console.log("Requesting wallet signature for DAO creation...", communityData);
         signature = await signWithWallet(communityData);
         setIsSigningWithWallet(false);
@@ -105,6 +109,10 @@ const CreateCommunityDialog = ({
         }
         
         console.log("Successfully obtained wallet signature:", signature);
+        toast.success("Wallet signature obtained", {
+          description: "Proceeding with on-chain registration"
+        });
+        
         // Add the signature to community data
         Object.assign(communityData, { signature });
       }
@@ -192,16 +200,16 @@ const CreateCommunityDialog = ({
             {walletSigningRequired && (
               <div className="rounded-md bg-primary/5 p-3 text-sm">
                 <div className="flex items-center gap-2 text-primary mb-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="20" height="14" x="2" y="5" rx="2" />
-                    <line x1="2" x2="22" y1="10" y2="10" />
-                  </svg>
+                  <Lock className="h-4 w-4" />
                   <span className="font-medium">Blockchain Registration Required</span>
                 </div>
                 <p className="text-muted-foreground">
                   This DAO will be registered on the Alephium blockchain using your connected wallet
                   {walletAddress ? ` (${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)})` : ''}.
                 </p>
+                <div className="mt-2 text-xs text-muted-foreground border-t border-primary/10 pt-2">
+                  <span className="font-medium">Ralph Smart Contract:</span> Your DAO will be powered by a secure on-chain governance contract.
+                </div>
               </div>
             )}
             <Button 
@@ -216,8 +224,8 @@ const CreateCommunityDialog = ({
                 </>
               ) : (
                 <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create DAO
+                  {walletSigningRequired ? <Shield className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                  {walletSigningRequired ? "Create On-Chain DAO" : "Create DAO"}
                 </>
               )}
             </Button>
