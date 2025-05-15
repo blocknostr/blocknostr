@@ -3,6 +3,7 @@ import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { NostrServiceRelayMethods, NostrServiceProfileMethods, NostrServiceSubscriptionMethods } from './types/service';
 import { SocialManager } from './social';
+import { ReactionCounts } from './social/types';
 
 /**
  * Core NostrService that provides all Nostr protocol functionality
@@ -31,10 +32,25 @@ export class NostrService implements NostrServiceRelayMethods, NostrServiceProfi
     
     // Initialize manager properties
     this.socialManager = {
-      likeEvent: (event: any) => this.reactToPost(event.id),
-      repostEvent: (event: any) => this.repostNote(event.id, event.pubkey),
-      reactToEvent: (eventId: string, emoji: string = "+") => this.reactToPost(eventId, emoji),
-      getReactionCounts: (eventId: string) => Promise.resolve({ likes: 0, reposts: 0 })
+      // Update method signatures to match expected interfaces
+      reactToEvent: (pool: SimplePool, eventId: string, emoji: string, pubkey: string, privateKey: string, relays: string[]) => {
+        // Simplified implementation that calls our internal method
+        return this.reactToPost(eventId, emoji);
+      },
+      repostEvent: (pool: SimplePool, event: any, pubkey: string, privateKey: string, relays: string[], options: any) => {
+        // Simplified implementation that calls our internal method
+        return this.repostNote(event.id, event.pubkey);
+      },
+      getReactionCounts: (eventId: string, relays: string[]): Promise<ReactionCounts> => {
+        // Return full ReactionCounts interface
+        return Promise.resolve({
+          likes: 0,
+          reposts: 0,
+          replies: 0,
+          zaps: 0,
+          zapAmount: 0
+        });
+      }
     };
     
     this.relayManager = {};
@@ -317,16 +333,16 @@ export class NostrService implements NostrServiceRelayMethods, NostrServiceProfi
     return true; // Mock successful verification
   }
   
-  // Subscription management with fixed signature (filters, onEvent, options)
-  subscribe(filters: any[], onEvent: (event: any) => void, options: any = {}): string {
+  // Subscription management with fixed signature to match the interface
+  subscribe(relays: string[], filters: any[], onEvent: (event: any) => void): string {
     const subId = `sub-${Math.random().toString(36).substring(2, 10)}`;
     console.log(`Creating subscription ${subId} with filters:`, filters);
     
     // Simulate subscription
     this.subscriptions.set(subId, {
+      relays,
       filters,
-      onEvent,
-      options
+      onEvent
     });
     
     return subId;
