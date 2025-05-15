@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Dialog,
@@ -31,7 +30,7 @@ export function FeedCustomizationDialog({
   
   const handleDefaultFeedChange = (value: string) => {
     // Type guard to ensure value is a valid FeedType
-    if (value === 'global' || value === 'following' || value === 'for-you' || value === 'media') {
+    if (value === 'global' || value === 'following' || value === 'media') {
       updatePreference('defaultFeed', value as FeedType);
     }
   };
@@ -68,7 +67,6 @@ export function FeedCustomizationDialog({
                   <SelectContent>
                     <SelectItem value="global">Global</SelectItem>
                     <SelectItem value="following">Following</SelectItem>
-                    <SelectItem value="for-you">For You</SelectItem>
                     <SelectItem value="media">Media</SelectItem>
                   </SelectContent>
                 </Select>

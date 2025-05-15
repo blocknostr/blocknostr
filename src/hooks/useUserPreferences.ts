@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 
-export type FeedType = 'global' | 'following' | 'for-you' | 'media';
+export type FeedType = 'global' | 'following' | 'media';
 
 export interface UserPreferences {
   defaultFeed: FeedType;
@@ -149,7 +149,7 @@ const safeStorageLoad = <T>(key: string, defaultValue: T): T => {
       // If FeedType (for defaultFeed), allow 'global', 'following', etc.
       if (
         key === STORAGE_KEYS.DEFAULT_FEED &&
-        (serialized === 'global' || serialized === 'following' || serialized === 'for-you' || serialized === 'media')
+        (serialized === 'global' || serialized === 'following' || serialized === 'media')
       ) {
         return serialized as unknown as T;
       }
@@ -216,6 +216,11 @@ export function useUserPreferences() {
       // Load individual preference sections
       const defaultFeed = safeStorageLoad<FeedType>(STORAGE_KEYS.DEFAULT_FEED, defaultPreferences.defaultFeed);
 
+      // Check if the loaded default feed is still valid after removing 'for-you'
+      const validFeed = defaultFeed === 'global' || defaultFeed === 'following' || defaultFeed === 'media' 
+        ? defaultFeed 
+        : 'global';
+
       // Load feed filters except hidden users (which we'll handle separately)
       const feedFilters = safeStorageLoad(STORAGE_KEYS.FEED_FILTERS, {
         showReplies: defaultPreferences.feedFilters.showReplies,
@@ -240,7 +245,7 @@ export function useUserPreferences() {
       // Merge all preferences with defaults for any missing properties
       const mergedPreferences: UserPreferences = {
         ...defaultPreferences,
-        defaultFeed,
+        defaultFeed: validFeed,
         feedFilters: {
           ...defaultPreferences.feedFilters,
           ...feedFilters,
@@ -253,6 +258,13 @@ export function useUserPreferences() {
       };
 
       setPreferences(mergedPreferences);
+
+      // Clean up old 'for-you' interaction data if it exists
+      try {
+        localStorage.removeItem('nostr_interaction_weights');
+      } catch (e) {
+        // Ignore errors when cleaning up
+      }
     } catch (error) {
       console.error('Failed to load preferences:', error);
       // Fall back to defaults
@@ -332,7 +344,7 @@ export function useUserPreferences() {
   }, []);
 
   // Update nested preference
-  const updateNestedPreference = React.useCallback(<
+  const updateNestedPreference = React.useCallback<<
     K extends keyof UserPreferences,
     NK extends keyof UserPreferences[K]
   >(
