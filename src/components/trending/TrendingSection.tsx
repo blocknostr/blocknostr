@@ -3,21 +3,43 @@ import React, { useEffect, useState } from 'react';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { TrendingFilterMenu } from './TrendingFilterMenu';
-import { TrendingTopicsList } from './TrendingTopicsList';
+import TrendingFilterMenu from './TrendingFilterMenu';
+import TrendingTopicsList from './TrendingTopicsList';
 import { Skeleton } from "@/components/ui/skeleton";
 import { nostrService } from '@/lib/nostr';
 import { Link } from 'react-router-dom';
+import { Topic } from './types';
+import { DropdownMenu } from '@/components/ui/dropdown-menu';
+import TrendingFilterButton from './TrendingFilterButton';
 
 interface TrendingSectionProps {
   className?: string;
   limit?: number;
+  onTopicClick?: (topic: string) => void;
+  activeHashtag?: string;
+  onClearHashtag?: () => void;
 }
 
-const TrendingSection = ({ className, limit = 5 }: TrendingSectionProps) => {
+const TrendingSection = ({ 
+  className, 
+  limit = 5,
+  onTopicClick,
+  activeHashtag,
+  onClearHashtag
+}: TrendingSectionProps) => {
   const [trendingUsers, setTrendingUsers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { profiles, fetchProfiles } = useUnifiedProfileFetcher();
+  
+  // Mock trending topics data
+  const [topics, setTopics] = useState<Topic[]>([
+    { name: "bitcoin", posts: "2.5K" },
+    { name: "nostr", posts: "1.8K" },
+    { name: "alephium", posts: "1.2K" },
+    { name: "crypto", posts: "980" },
+    { name: "blocknoster", posts: "750" },
+    { name: "web3", posts: "620" },
+  ]);
 
   // Fetch trending users and their profiles
   useEffect(() => {
@@ -36,7 +58,7 @@ const TrendingSection = ({ className, limit = 5 }: TrendingSectionProps) => {
         ];
         
         // Connect to relays if needed
-        await nostrService.connectToRelays([...connectedRelays, ...popularRelays]);
+        await nostrService.connectToUserRelays([...connectedRelays, ...popularRelays]);
         
         // Subscribe to recent notes to find active users
         const subId = nostrService.subscribe(
@@ -77,16 +99,38 @@ const TrendingSection = ({ className, limit = 5 }: TrendingSectionProps) => {
     }
   }, [trendingUsers, fetchProfiles]);
 
+  // Handle topic click
+  const handleTopicClick = (topic: string) => {
+    if (onTopicClick) {
+      onTopicClick(topic);
+    }
+  };
+
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
           <CardTitle>Trending</CardTitle>
-          <TrendingFilterMenu />
+          <DropdownMenu>
+            <TrendingFilterButton />
+            <TrendingFilterMenu 
+              filterOptions={[]} 
+              timeOptions={[]}
+              activeFilter="all" 
+              timeRange="day" 
+              setActiveFilter={() => {}} 
+              setTimeRange={() => {}} 
+            />
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <TrendingTopicsList />
+        <TrendingTopicsList 
+          topics={topics} 
+          onTopicClick={handleTopicClick}
+          activeHashtag={activeHashtag}
+          onClearHashtag={onClearHashtag}
+        />
         
         <div className="pt-4 border-t">
           <h3 className="text-sm font-medium mb-3">Popular Profiles</h3>
