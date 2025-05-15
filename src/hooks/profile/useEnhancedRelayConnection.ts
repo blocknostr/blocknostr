@@ -101,8 +101,10 @@ export function useEnhancedRelayConnection(pubkey?: string) {
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
         circuitStatus: circuitStatus,
-        isRequired
-      };
+        isRequired,
+        // Ensure status is typed correctly
+        status: relay.status
+      } as Relay;
     });
     
     setRelays(enhancedRelays);

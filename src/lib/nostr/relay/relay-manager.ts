@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
@@ -132,7 +133,12 @@ export class RelayManager {
    * Get status of all relays
    * @returns Array of Relay objects with status information
    */
-  getRelayStatus(): Relay[] {
+  getRelayStatus(): Array<{
+    url: string;
+    status: 'connected' | 'connecting' | 'disconnected' | 'failed';
+    read: boolean;
+    write: boolean;
+  }> {
     // First get all relays from userRelays
     const relayMap = new Map<string, Relay>();
     

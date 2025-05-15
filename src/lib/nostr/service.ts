@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { CommunityManager } from './community';
@@ -94,7 +93,7 @@ export class NostrService {
     if (!this.relayManager) return [];
     
     // Get connections from relay manager
-    const relays = this.relayManager.getRelays();
+    const relays = this.relayManager.getRelayStatus();
     return relays.filter(relay => relay.status === 'connected').map(relay => relay.url);
   }
   
@@ -105,7 +104,7 @@ export class NostrService {
   publishEvent(event: any): Promise<string | null> {
     if (!this.publicKey || !this.privateKey) return Promise.resolve(null);
     const relays = this.getConnectedRelayUrls();
-    return this.eventManager.publish(this.pool, this.publicKey, this.privateKey, event, relays);
+    return this.eventManager.publishEvent(this.pool, this.publicKey, this.privateKey, event, relays);
   }
   
   /**
@@ -114,7 +113,8 @@ export class NostrService {
    */
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
     const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-    this.pool.sub(relays || this.getConnectedRelayUrls(), filters).on('event', onEvent);
+    const sub = this.pool.sub(relays || this.getConnectedRelayUrls(), filters);
+    sub.on('event', onEvent);
     return subId;
   }
   
@@ -124,7 +124,7 @@ export class NostrService {
    */
   unsubscribe(subId: string): void {
     // Implementation for unsubscribing
-    this.pool.close(); // Not ideal but works for now
+    this.pool.close(subId); // Passing subId to close specific subscription
   }
   
   /**
@@ -133,7 +133,7 @@ export class NostrService {
    */
   async connectToUserRelays(): Promise<boolean> {
     try {
-      await this.relayManager.connectToRelays();
+      await this.relayManager.connectToUserRelays();
       return true;
     } catch (error) {
       console.error("Failed to connect to user relays:", error);
@@ -146,7 +146,7 @@ export class NostrService {
    * Required by adapters
    */
   getRelayStatus(): Relay[] {
-    return this.relayManager.getRelays().map(relay => ({
+    return this.relayManager.getRelayStatus().map(relay => ({
       url: relay.url,
       status: relay.status as 'connected' | 'connecting' | 'disconnected' | 'failed',
       read: true,
@@ -159,7 +159,7 @@ export class NostrService {
    * Required by adapters
    */
   getRelayUrls(): string[] {
-    return this.relayManager.getRelays().map(relay => relay.url);
+    return this.relayManager.getRelayStatus().map(relay => relay.url);
   }
   
   /**
@@ -198,7 +198,6 @@ export class NostrService {
   
   /**
    * Vote on a proposal (forwarded to community service)
-   * Required by adapters
    */
   async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
     if (!this.communityService) return null;
@@ -207,7 +206,6 @@ export class NostrService {
   
   /**
    * Check if user is following another user
-   * Required by adapters
    */
   isFollowing(pubkey: string): boolean {
     return this.following.includes(pubkey);
@@ -215,7 +213,6 @@ export class NostrService {
   
   /**
    * Follow a user
-   * Required by adapters
    */
   async followUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -226,7 +223,6 @@ export class NostrService {
   
   /**
    * Unfollow a user
-   * Required by adapters
    */
   async unfollowUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -237,7 +233,6 @@ export class NostrService {
   
   /**
    * Send a direct message to a user
-   * Required by adapters
    */
   async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
     // Implementation would go here
@@ -247,7 +242,6 @@ export class NostrService {
   
   /**
    * React to a post
-   * Required by adapters
    */
   async reactToPost(id: string, emoji: string = "+"): Promise<string | null> {
     // Implementation would go here
@@ -257,7 +251,6 @@ export class NostrService {
   
   /**
    * Repost a note
-   * Required by adapters
    */
   async repostNote(id: string, pubkey: string): Promise<string | null> {
     // Implementation would go here
@@ -267,7 +260,6 @@ export class NostrService {
   
   /**
    * Get a user profile by pubkey
-   * Required by adapters
    */
   async getUserProfile(pubkey: string): Promise<any> {
     // Implementation would go here
@@ -277,7 +269,6 @@ export class NostrService {
   
   /**
    * Get profiles for multiple pubkeys
-   * Required by adapters
    */
   async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
     // Implementation would go here
@@ -287,7 +278,6 @@ export class NostrService {
   
   /**
    * Get an event by ID
-   * Required by adapters
    */
   async getEventById(id: string): Promise<any> {
     // Implementation would go here
@@ -297,7 +287,6 @@ export class NostrService {
   
   /**
    * Get multiple events by IDs
-   * Required by adapters
    */
   async getEvents(ids: string[]): Promise<any[]> {
     // Implementation would go here
@@ -307,7 +296,6 @@ export class NostrService {
   
   /**
    * Verify a NIP-05 identifier
-   * Required by adapters
    */
   async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -317,7 +305,6 @@ export class NostrService {
   
   /**
    * Get account creation date
-   * Required by adapters
    */
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
     // Implementation would go here
@@ -327,7 +314,6 @@ export class NostrService {
   
   /**
    * Handle user login
-   * Required by adapters
    */
   async login(): Promise<boolean> {
     // Implementation would go here
@@ -337,7 +323,6 @@ export class NostrService {
   
   /**
    * Handle user sign out
-   * Required by adapters
    */
   signOut(): void {
     // Implementation would go here
@@ -348,7 +333,6 @@ export class NostrService {
   
   /**
    * Mute a user
-   * Required by adapters
    */
   async muteUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -358,7 +342,6 @@ export class NostrService {
   
   /**
    * Unmute a user
-   * Required by adapters
    */
   async unmuteUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -368,7 +351,6 @@ export class NostrService {
   
   /**
    * Check if a user is muted
-   * Required by adapters
    */
   async isUserMuted(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -378,7 +360,6 @@ export class NostrService {
   
   /**
    * Block a user
-   * Required by adapters
    */
   async blockUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -388,7 +369,6 @@ export class NostrService {
   
   /**
    * Unblock a user
-   * Required by adapters
    */
   async unblockUser(pubkey: string): Promise<boolean> {
     // Implementation would go here
@@ -398,7 +378,6 @@ export class NostrService {
   
   /**
    * Check if a user is blocked
-   * Required by adapters
    */
   async isUserBlocked(pubkey: string): Promise<boolean> {
     // Implementation would go here
