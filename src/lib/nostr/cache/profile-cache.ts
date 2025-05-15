@@ -1,11 +1,10 @@
-
 import { BaseCache } from "./base-cache";
 import { CacheConfig } from "./types";
 import { STORAGE_KEYS } from "./config";
-import { cacheManager } from "@/lib/utils/cacheManager";
 
 /**
  * Enhanced Profile Cache with multi-tiered caching strategy
+ * Optimized to prioritize critical profile data
  */
 export class ProfileCache extends BaseCache<any> {
   // Memory-only cache for frequently accessed profiles
@@ -23,8 +22,8 @@ export class ProfileCache extends BaseCache<any> {
   // Prefetch queue
   private prefetchQueue: string[] = [];
   
-  constructor(config: CacheConfig) {
-    super(config, STORAGE_KEYS.PROFILES);
+  constructor(config: CacheConfig, cacheType?: keyof typeof STORAGE_KEYS) {
+    super(config, STORAGE_KEYS.PROFILES, cacheType);
     this.loadFromStorage();
     
     // Schedule periodic background refresh for frequently accessed profiles
@@ -60,16 +59,42 @@ export class ProfileCache extends BaseCache<any> {
    * Cache a profile with enhanced strategy
    */
   cacheItem(pubkey: string, data: any, important: boolean = false): void {
+    // Optimize profile data before caching
+    const optimizedData = this.optimizeProfileData(data, important);
+    
     // Update regular cache
-    super.cacheItem(pubkey, data, important);
+    super.cacheItem(pubkey, optimizedData, important);
     
     // If frequently accessed, add to hot cache too
     if (this.isFrequentlyAccessed(pubkey)) {
-      this.hotCache.set(pubkey, data);
+      this.hotCache.set(pubkey, optimizedData);
     }
     
     // Add related profiles to prefetch queue if available
-    this.queueRelatedProfilesToPreFetch(data);
+    this.queueRelatedProfilesToPreFetch(optimizedData);
+  }
+  
+  /**
+   * Optimize profile data to reduce size
+   * Only keep essential fields for non-important profiles
+   */
+  private optimizeProfileData(data: any, important: boolean): any {
+    if (!data) return data;
+    
+    // For important profiles, keep all data
+    if (important) return data;
+    
+    // For non-important profiles, only keep essential fields
+    return {
+      name: data.name,
+      display_name: data.display_name,
+      picture: data.picture,
+      nip05: data.nip05,
+      _createdAt: data._createdAt || data.created_at,
+      // NIP-01 compliance - keep mandatory fields
+      created_at: data.created_at,
+      kind: data.kind
+    };
   }
   
   /**
@@ -143,13 +168,13 @@ export class ProfileCache extends BaseCache<any> {
       });
     }
     
-    // Add to prefetch queue (up to 5 related profiles)
-    const uniquePubkeys = [...new Set(relatedPubkeys)].slice(0, 5);
+    // Add to prefetch queue (up to 3 related profiles - reduced from 5)
+    const uniquePubkeys = [...new Set(relatedPubkeys)].slice(0, 3);
     this.prefetchQueue.push(...uniquePubkeys);
     
-    // Cap prefetch queue size
-    if (this.prefetchQueue.length > 20) {
-      this.prefetchQueue = this.prefetchQueue.slice(-20);
+    // Cap prefetch queue size to 10 (reduced from 20)
+    if (this.prefetchQueue.length > 10) {
+      this.prefetchQueue = this.prefetchQueue.slice(-10);
     }
   }
   
@@ -157,13 +182,12 @@ export class ProfileCache extends BaseCache<any> {
    * Process the prefetch queue
    */
   private processPrefetchQueue(): void {
-    // Process up to 5 profiles at a time from the queue
-    const toProcess = this.prefetchQueue.splice(0, 5);
+    // Process up to 3 profiles at a time from the queue (reduced from 5)
+    const toProcess = this.prefetchQueue.splice(0, 3);
     
     if (toProcess.length === 0) return;
     
-    // Just log for now - in a real implementation, this would make API calls
-    console.log(`Background prefetching ${toProcess.length} profiles`, toProcess);
+    console.log(`Background prefetching ${toProcess.length} profiles`);
     
     // In real implementation, this would fetch profiles and cache them
     // For example:
@@ -172,6 +196,36 @@ export class ProfileCache extends BaseCache<any> {
     //     .then(profile => this.cacheItem(pubkey, profile))
     //     .catch(err => console.warn(`Failed to prefetch profile ${pubkey}`, err));
     // });
+  }
+  
+  /**
+   * Clean up oldest non-important profiles
+   * Used during emergency cleanup
+   */
+  cleanupOldestNonImportant(count: number): number {
+    const nonImportantProfiles: Array<[string, number]> = [];
+    
+    // Collect non-important profiles with their timestamps
+    this.cache.forEach((entry, key) => {
+      if (!entry.important) {
+        nonImportantProfiles.push([key, entry.timestamp]);
+      }
+    });
+    
+    if (nonImportantProfiles.length === 0) return 0;
+    
+    // Sort by timestamp (oldest first)
+    nonImportantProfiles.sort((a, b) => a[1] - b[1]);
+    
+    // Delete the oldest profiles up to the requested count
+    const toDelete = nonImportantProfiles.slice(0, Math.min(count, nonImportantProfiles.length));
+    
+    for (const [key] of toDelete) {
+      this.cache.delete(key);
+      this.accessTimestamps.delete(key);
+    }
+    
+    return toDelete.length;
   }
   
   /**
