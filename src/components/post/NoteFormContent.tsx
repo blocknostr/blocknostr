@@ -79,12 +79,6 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
           ? selectedText 
           : 'https://example.com/image.jpg';
         break;
-      case 'mention':
-        // Add proper nostr: mention format
-        formattedText = selectedText.startsWith('@') 
-          ? selectedText // Keep as is if already an @ mention
-          : `@${selectedText}`; // Otherwise add @ prefix
-        break;
       default:
         formattedText = selectedText;
     }

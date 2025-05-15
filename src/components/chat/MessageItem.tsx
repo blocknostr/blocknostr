@@ -100,8 +100,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 }
               )}
             >
-              {/* Pass the full message object to get proper mention handling */}
-              {contentFormatter.formatContent(message.content, message)}
+              {contentFormatter.formatContent(message.content)}
               <div className={clsx(
                 "text-[10px] opacity-70 mt-0.5 text-right",
                 isCurrentUser ? "" : "text-muted-foreground"

@@ -5,9 +5,6 @@ import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
-import { getMediaItemsFromEvent, extractNip94Media } from '@/lib/nostr/utils/media-extraction';
-import MediaGrid from '@/components/media/MediaGrid';
-import { MediaItem } from '@/lib/nostr/utils/media/media-types';
 
 interface NoteCardContentProps {
   content?: string;
@@ -37,8 +34,8 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     ? contentToUse.substring(0, 277) + '...' 
     : contentToUse;
   
-  // Process content for rendering - pass the full event for better mention handling
-  const formattedContent = contentFormatter.formatContent(displayContent, event);
+  // Process content for rendering
+  const formattedContent = contentFormatter.formatContent(displayContent);
   
   // Extract hashtags from tags array
   const hashtags = useMemo(() => {
@@ -56,38 +53,23 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
-  // Extract media using NIP-94 extraction function with improved logic
-  const mediaItems = useMemo(() => {
-    if (!event) return [];
+  // Extract image URLs - simple, NIP-compliant approach
+  const imageUrls = useMemo(() => {
+    const urls: string[] = [];
+    const content = contentToUse;
     
-    // First try to extract media using NIP-94 compliant extraction
-    // This is the preferred and most standards-compliant method
-    const nip94Media = extractNip94Media(event);
-    if (nip94Media.length > 0) {
-      return nip94Media;
+    // Simple regex to find image URLs
+    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
+    let match;
+    
+    while ((match = imgRegex.exec(content)) !== null) {
+      if (match[0]) {
+        urls.push(match[0]);
+      }
     }
     
-    // Fallback to standard media extraction
-    const items = getMediaItemsFromEvent(event);
-    
-    // Filter out duplicates using a Set of normalized URLs
-    const uniqueUrls = new Set();
-    return items.filter(item => {
-      // Normalize URL by removing query parameters for comparison
-      const normalizedUrl = item.url.split('?')[0];
-      if (!uniqueUrls.has(normalizedUrl)) {
-        uniqueUrls.add(normalizedUrl);
-        return true;
-      }
-      return false;
-    });
-  }, [event]);
-  
-  // Handle media click
-  const handleMediaClick = (media: MediaItem, index: number) => {
-    // Could implement a lightbox or media viewer here
-    console.log('Media clicked:', media, index);
-  };
+    return urls;
+  }, [contentToUse]);
   
   return (
     <div className="mt-2">
@@ -110,14 +92,23 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Media rendering using NIP-94 compliant MediaGrid */}
-      {mediaItems.length > 0 && (
-        <MediaGrid 
-          mediaItems={mediaItems}
-          onMediaClick={handleMediaClick}
-          maxItems={4}
-          className="mt-3"
-        />
+      {/* Simple image rendering */}
+      {imageUrls.length > 0 && (
+        <div className={cn(
+          "mt-3 grid gap-2",
+          imageUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
+        )}>
+          {imageUrls.slice(0, 4).map((url, index) => (
+            <div key={`${index}`} className="relative aspect-square overflow-hidden rounded-md border border-border/10">
+              <img 
+                src={url} 
+                alt="Media content" 
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
       )}
       
       {/* Hashtags section */}
