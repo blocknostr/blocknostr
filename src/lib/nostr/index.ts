@@ -1,11 +1,10 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
 import { NostrService } from './service';
-import { nostrService } from './service';
-import { NostrAdapter } from './adapters';
 import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
@@ -50,6 +49,3 @@ export { contentFormatter };
 
 // Export NIP utilities
 export * from './utils/nip';
-
-// Create adapted service
-export const adaptedNostrService = new NostrAdapter(nostrService);

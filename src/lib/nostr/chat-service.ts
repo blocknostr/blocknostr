@@ -1,12 +1,8 @@
-import { nostrService } from './service';
-import { NostrAdapter } from './adapters';
 
-class ChatNostrService extends NostrAdapter {
-  getUserProfile = async (pubkey: string) => {
-    return this.service.getUserProfile?.(pubkey) || this.service.data?.getUserProfile?.(pubkey) || null;
-  }
-  
-  // Other chat-specific methods would go here
-}
+import { NostrService } from './service';
 
-export const chatNostrService = new ChatNostrService(nostrService);
+// Create a dedicated Nostr service instance for chat functionality
+const chatNostrServiceInstance = new NostrService();
+
+// Export the chat-specific Nostr service
+export const chatNostrService = chatNostrServiceInstance;

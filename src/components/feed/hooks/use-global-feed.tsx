@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
-import { NostrEvent } from "@/lib/nostr/types";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
@@ -15,17 +14,14 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
   
-  // Create our own state variables to manage feed lifecycle
-  const [events, setEvents] = useState<NostrEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-
   const { 
+    events, 
     profiles, 
     repostData, 
-    loadMoreRef,
-    refreshFeed: refreshEventsFeed,
-    connectionStatus
+    subId, 
+    setSubId, 
+    setupSubscription, 
+    setEvents 
   } = useFeedEvents({
     since,
     until,
@@ -33,60 +29,18 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     limit: 20 // Initial load of 20 posts
   });
   
-  // Setup subscription helper function
-  const setupSubscription = useCallback((fromTimestamp?: number, toTimestamp?: number) => {
-    // Build filters
-    const filters = [];
-    
-    const baseFilter = {
-      kinds: [1, 6], // Note and repost kinds
-      limit: 20,
-    };
-    
-    if (fromTimestamp) {
-      baseFilter.since = fromTimestamp;
-    }
-    
-    if (toTimestamp) {
-      baseFilter.until = toTimestamp;
-    }
-    
-    // Add hashtag filter if needed
-    if (activeHashtag) {
-      baseFilter["#t"] = [activeHashtag];
-    }
-    
-    // Subscribe to events
-    const subId = nostrService.subscribe(
-      filters,
-      (event) => {
-        // Process the incoming event
-        setEvents(prevEvents => {
-          // Check if we already have this event
-          if (prevEvents.some(e => e.id === event.id)) {
-            return prevEvents;
-          }
-          
-          // Add to events and sort (newest first)
-          return [...prevEvents, event]
-            .sort((a, b) => b.created_at - a.created_at);
-        });
-        
-        // Update status
-        setLoading(false);
-      }
-    );
-    
-    return subId;
-  }, [activeHashtag]);
-  
   const loadMoreEvents = useCallback(async () => {
-    if (loadingMore) return;
+    if (!subId || loadingMore) return;
     setLoadingMore(true);
     
     // Cancel any existing timeout
     if (loadMoreTimeoutRef.current) {
       clearTimeout(loadMoreTimeoutRef.current);
+    }
+    
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
     }
 
     // Create new subscription with older timestamp range
@@ -104,7 +58,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
     } else {
       // We already have a since value, so use it to get older posts
       const newUntil = since;
@@ -115,7 +70,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
     }
     
     // Set loading more to false after a shorter delay to be more responsive
@@ -123,9 +79,14 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
     }, 1500);  // Reduced from 2000ms to 1500ms
-  }, [events, since, until, setupSubscription, loadingMore]);
+  }, [subId, events, since, until, setupSubscription, loadingMore]);
   
   const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore,
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
@@ -149,20 +110,29 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setSince(undefined);
       setUntil(currentTime);
 
+      // Close previous subscription if exists
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+      
       // Start a new subscription
-      setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      setSubId(newSubId);
       setLoading(false);
     };
     
     initFeed();
     
-    // Cleanup timeout when component unmounts
+    // Cleanup subscription and timeout when component unmounts
     return () => {
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
     };
-  }, [activeHashtag, setupSubscription]);
+  }, [activeHashtag]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {

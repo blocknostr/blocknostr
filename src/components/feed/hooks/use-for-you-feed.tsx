@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
-import { NostrEvent } from "@/lib/nostr/types";
 import { toast } from "sonner";
 
 interface UseForYouFeedProps {
@@ -16,16 +15,14 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
   
-  // Create our own state variables to manage feed lifecycle
-  const [events, setEvents] = useState<NostrEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  
   const { 
+    events, 
     profiles, 
     repostData, 
-    loadMoreRef,
-    connectionStatus 
+    subId, 
+    setSubId, 
+    setupSubscription, 
+    setEvents 
   } = useFeedEvents({
     since,
     until,
@@ -67,53 +64,6 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setEvents(sortedEvents);
     }
   }, [events, interactionWeights]);
-  
-  // Setup subscription helper function
-  const setupSubscription = useCallback((fromTimestamp?: number, toTimestamp?: number) => {
-    // Build filters
-    const filters = [];
-    
-    const baseFilter = {
-      kinds: [1, 6], // Note and repost kinds
-      limit: 20,
-    };
-    
-    if (fromTimestamp) {
-      baseFilter.since = fromTimestamp;
-    }
-    
-    if (toTimestamp) {
-      baseFilter.until = toTimestamp;
-    }
-    
-    // Add hashtag filter if needed
-    if (activeHashtag) {
-      baseFilter["#t"] = [activeHashtag];
-    }
-    
-    // Subscribe to events
-    const subId = nostrService.subscribe(
-      filters,
-      (event) => {
-        // Process the incoming event
-        setEvents(prevEvents => {
-          // Check if we already have this event
-          if (prevEvents.some(e => e.id === event.id)) {
-            return prevEvents;
-          }
-          
-          // Add to events and sort (newest first)
-          return [...prevEvents, event]
-            .sort((a, b) => b.created_at - a.created_at);
-        });
-        
-        // Update status
-        setLoading(false);
-      }
-    );
-    
-    return subId;
-  }, [activeHashtag]);
   
   // Calculate post score based on user interactions and content
   const calculatePostScore = (event: any) => {
@@ -175,12 +125,17 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
   };
   
   const loadMoreEvents = useCallback(async () => {
-    if (loadingMore) return;
+    if (!subId || loadingMore) return;
     setLoadingMore(true);
     
     // Cancel any existing timeout
     if (loadMoreTimeoutRef.current) {
       clearTimeout(loadMoreTimeoutRef.current);
+    }
+    
+    // Close previous subscription
+    if (subId) {
+      nostrService.unsubscribe(subId);
     }
 
     // Create new subscription with older timestamp range
@@ -196,7 +151,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setSince(newSince);
       setUntil(newUntil);
       
-      setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
     } else {
       const newUntil = since;
       // Get older posts from the last 48 hours instead of 24 for more aggressive loading
@@ -205,7 +161,8 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setSince(newSince);
       setUntil(newUntil);
       
-      setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil);
+      setSubId(newSubId);
     }
     
     // Set loading more to false after a shorter delay
@@ -213,15 +170,20 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
     }, 1500); // Reduced from 2000ms to 1500ms
-  }, [events, since, until, setupSubscription, loadingMore]);
+  }, [subId, since, until, events, setupSubscription, loadingMore]);
   
   const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore,
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
-    threshold: 800, 
-    aggressiveness: 'high',
-    preservePosition: true
+    threshold: 800, // Increased from 400 to 800 for earlier loading
+    aggressiveness: 'high', // Set to high for the most aggressive loading
+    preservePosition: true // Enable scroll position preservation
   });
 
   useEffect(() => {
@@ -237,20 +199,28 @@ export function useForYouFeed({ activeHashtag }: UseForYouFeedProps) {
       const currentTime = Math.floor(Date.now() / 1000);
       setSince(undefined);
       setUntil(currentTime);
+
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
       
-      setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      setSubId(newSubId);
       setLoading(false);
     };
     
     initFeed();
     
-    // Cleanup timeout when component unmounts
+    // Cleanup subscription and timeout when component unmounts
     return () => {
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
     };
-  }, [activeHashtag, setupSubscription]);
+  }, [activeHashtag]);
 
   useEffect(() => {
     if (events.length > 0 && loading) {

@@ -1,53 +1,64 @@
 
-import React from 'react';
-import { useRelayContext } from '@/components/providers/relay-provider';
-import { CircleX, CircleCheck, CircleAlert } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { useEffect, useState } from 'react';
+import { nostrService } from '@/lib/nostr';
+import { contentCache } from '@/lib/nostr/cache/content-cache';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function ConnectionStatusBanner() {
-  const { relays, connectToDefaultRelays } = useRelayContext();
-  const [hasConnectedRelays, setHasConnectedRelays] = React.useState(false);
-
-  React.useEffect(() => {
-    // Check if we have any connected relays
-    if (relays && relays.length > 0) {
-      const connected = relays.filter(relay => {
-        // Convert status to string for comparison
-        const status = String(relay.status);
-        return status === '1' || status === 'connected';
-      });
-      setHasConnectedRelays(connected.length > 0);
-    }
-  }, [relays]);
-
-  if (hasConnectedRelays) {
-    return null;
-  }
-
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [connectedRelays, setConnectedRelays] = useState(0);
+  const [totalRelays, setTotalRelays] = useState(0);
+  const [showBanner, setShowBanner] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  
+  useEffect(() => {
+    const updateConnectionStatus = () => {
+      // Check if we're offline at browser level
+      setIsOffline(!navigator.onLine);
+      
+      // Check relay connections
+      const relays = nostrService.getRelayStatus();
+      const connected = relays.filter(r => r.status === 'connected').length;
+      setConnectedRelays(connected);
+      setTotalRelays(relays.length);
+      
+      // Only show banner if browser is offline
+      setShowBanner(!navigator.onLine);
+    };
+    
+    // Update immediately
+    updateConnectionStatus();
+    
+    // Set interval to check periodically
+    const interval = setInterval(updateConnectionStatus, 10000);
+    
+    // Listen for online/offline events
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', updateConnectionStatus);
+      window.removeEventListener('offline', updateConnectionStatus);
+    };
+  }, []);
+  
+  if (!showBanner) return null;
+  
+  // We now only show the offline message, not the relay connection status
   return (
-    <Alert variant="default" className="mb-4 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800">
-      <div className="flex items-start">
-        <CircleAlert className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 mr-2" />
-        <div className="flex-1">
-          <AlertTitle className="font-medium text-sm text-yellow-800 dark:text-yellow-300">
-            Not connected to any relays
-          </AlertTitle>
-          <AlertDescription className="text-xs text-yellow-700 dark:text-yellow-400">
-            Your feed may not be up-to-date or you might not be able to post.
+    <Alert variant="destructive" className="mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <WifiOff className="h-4 w-4" />
+          <AlertDescription>
+            You're offline. Showing cached content only.
           </AlertDescription>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="text-xs ml-2 border-yellow-300 dark:border-yellow-700"
-          onClick={connectToDefaultRelays}
-        >
-          Connect
-        </Button>
       </div>
     </Alert>
   );
 }
-
-export default ConnectionStatusBanner;

@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { relayPerformanceTracker } from '@/lib/nostr/relay/performance/relay-performance-tracker';
@@ -6,13 +7,12 @@ import { circuitBreaker } from '@/lib/nostr/relay/circuit/circuit-breaker';
 import { CircuitState } from '@/lib/nostr/relay/circuit/circuit-breaker';
 import { toast } from 'sonner';
 import { Relay } from '@/lib/nostr';
-import { ExtendedRelay } from "@/lib/nostr/types/extended-relay";
 
 /**
  * Enhanced hook for relay connections with smart selection and circuit breaker
  */
-export function useEnhancedRelayConnection(options: EnhancedRelayConnectionOptions = {}) {
-  const [relays, setRelays] = useState<ExtendedRelay[]>([]);
+export function useEnhancedRelayConnection(pubkey?: string) {
+  const [relays, setRelays] = useState<Relay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [healthCheckTimestamp, setHealthCheckTimestamp] = useState(Date.now());
@@ -41,16 +41,16 @@ export function useEnhancedRelayConnection(options: EnhancedRelayConnectionOptio
       });
       
       // Special case: if this is for a specific pubkey, try to get their relays
-      if (options.pubkey) {
+      if (pubkey) {
         try {
-          const userRelays = await nostrService.getRelaysForUser(options.pubkey);
+          const userRelays = await nostrService.getRelaysForUser(pubkey);
           if (userRelays && userRelays.length > 0) {
-            console.log(`Found ${userRelays.length} relays for user ${options.pubkey}`);
+            console.log(`Found ${userRelays.length} relays for user ${pubkey}`);
             await nostrService.addMultipleRelays(userRelays);
             setRequiredRelays(userRelays);
           }
         } catch (error) {
-          console.warn(`Failed to get relays for user ${options.pubkey}:`, error);
+          console.warn(`Failed to get relays for user ${pubkey}:`, error);
         }
       }
       
@@ -82,27 +82,32 @@ export function useEnhancedRelayConnection(options: EnhancedRelayConnectionOptio
       setIsConnecting(false);
       setIsLoading(false);
     }
-  }, [isConnecting, options.pubkey]);
+  }, [isConnecting, pubkey]);
   
   // Refresh relay status with performance data
   const refreshRelays = useCallback(() => {
     const relayStatus = nostrService.getRelayStatus();
     
     // Enhance with performance data
-    const enhancedRelays = relayStatus.map(relay => ({
-      url: relay.url,
-      read: true,  // Default assumption for UI
-      write: true, // Default assumption for UI
-      status: relay.status,
-      score: relay.score,
-      avgResponse: relay.avgResponse,
-      circuitStatus: relay.circuitStatus,
-      isRequired: !!options.requiredRelays?.includes(relay.url)
-    })) as ExtendedRelay[];
+    const enhancedRelays = relayStatus.map(relay => {
+      const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
+      const circuitStatus = circuitBreaker.getState(relay.url);
+      
+      // Check if this is a required relay (for a specific pubkey)
+      const isRequired = requiredRelays.includes(relay.url);
+      
+      return {
+        ...relay,
+        score: perfData?.score || 50,
+        avgResponse: perfData?.avgResponseTime,
+        circuitStatus: circuitStatus,
+        isRequired
+      };
+    });
     
     setRelays(enhancedRelays);
     setHealthCheckTimestamp(Date.now());
-  }, [options.requiredRelays]);
+  }, [requiredRelays]);
   
   // Initial connection
   useEffect(() => {
