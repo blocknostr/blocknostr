@@ -16,6 +16,8 @@ export type TimeOption = {
 };
 
 export type Topic = {
-  tag: string;
-  count: number;
+  tag: string;   // This is the hashtag without the # symbol
+  count: number; // Number of times this topic appears
+  name?: string; // For backward compatibility
+  posts?: number; // For backward compatibility
 };

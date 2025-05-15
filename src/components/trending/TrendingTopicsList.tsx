@@ -26,10 +26,10 @@ const TrendingTopicsList: React.FC<TrendingTopicsListProps> = ({
         <div className="grid grid-cols-2 gap-x-2 gap-y-2">
           {displayTopics.map((topic) => (
             <TrendingTopicItem
-              key={topic.name}
-              name={topic.name}
-              posts={topic.posts}
-              onClick={() => onTopicClick(topic.name)}
+              key={topic.tag}
+              tag={topic.tag}
+              count={topic.count}
+              onClick={() => onTopicClick(topic.tag)}
             />
           ))}
         </div>

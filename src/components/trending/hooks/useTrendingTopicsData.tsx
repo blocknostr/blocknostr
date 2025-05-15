@@ -21,7 +21,7 @@ export const useTrendingTopicsData = () => {
   ];
   
   // This would be fetched from Nostr in a real implementation
-  const allTimeTrendingTopics = [
+  const allTimeTrendingTopics: Topic[] = [
     { tag: "Bitcoin", count: 124000 },
     { tag: "Nostr", count: 87000 },
     { tag: "Lightning", count: 65000 },
@@ -29,7 +29,7 @@ export const useTrendingTopicsData = () => {
     { tag: "Web5", count: 38000 },
   ];
 
-  const last24HTrendingTopics = [
+  const last24HTrendingTopics: Topic[] = [
     { tag: "Bitcoin", count: 18000 },
     { tag: "AI", count: 15000 },
     { tag: "Nostr", count: 12000 },
@@ -37,7 +37,7 @@ export const useTrendingTopicsData = () => {
     { tag: "Tech", count: 8000 },
   ];
 
-  const last7DTrendingTopics = [
+  const last7DTrendingTopics: Topic[] = [
     { tag: "Bitcoin", count: 56000 },
     { tag: "Nostr", count: 43000 },
     { tag: "Lightning", count: 32000 },
@@ -45,7 +45,7 @@ export const useTrendingTopicsData = () => {
     { tag: "Privacy", count: 21000 },
   ];
 
-  const mostZappedTopics = {
+  const mostZappedTopics: Record<TimeRange, Topic[]> = {
     all: [
       { tag: "Bitcoin", count: 98000 },
       { tag: "Nostr", count: 76000 },
@@ -69,7 +69,7 @@ export const useTrendingTopicsData = () => {
     ]
   };
 
-  const mostLikedTopics = {
+  const mostLikedTopics: Record<TimeRange, Topic[]> = {
     all: [
       { tag: "Nostr", count: 42000 },
       { tag: "Bitcoin", count: 38000 },

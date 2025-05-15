@@ -44,7 +44,7 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: (newEvents) => {
+    setEvents: (newEvents: NostrEvent[]) => {
       // Apply event prioritization for better feed quality
       const prioritizedEvents = eventPrioritization.prioritizeEvents(newEvents);
       setEvents(prioritizedEvents);

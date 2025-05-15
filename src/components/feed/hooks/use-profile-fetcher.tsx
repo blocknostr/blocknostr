@@ -55,6 +55,25 @@ export function useProfileFetcher() {
     }
   }, [profiles, fetchErrors]);
   
+  // Add fetchProfiles method to batch fetch multiple profiles at once
+  const fetchProfiles = React.useCallback(async (pubkeys: string[]) => {
+    if (!pubkeys || pubkeys.length === 0) return;
+    
+    // Deduplicate pubkeys
+    const uniquePubkeys = [...new Set(pubkeys)];
+    
+    // Only fetch profiles we don't already have
+    const pubkeysToFetch = uniquePubkeys.filter(pk => !profiles[pk]);
+    
+    if (pubkeysToFetch.length === 0) return;
+    
+    console.log(`[useProfileFetcher] Batch fetching ${pubkeysToFetch.length} profiles`);
+    
+    for (const pubkey of pubkeysToFetch) {
+      await fetchProfileData(pubkey);
+    }
+  }, [profiles, fetchProfileData]);
+  
   // Subscribe to profile updates from the unified service
   React.useEffect(() => {
     const eventHandlers: (() => void)[] = [];
@@ -84,6 +103,7 @@ export function useProfileFetcher() {
   return {
     profiles,
     fetchProfileData,
+    fetchProfiles, // Export the new method
     fetchErrors
   };
 }
