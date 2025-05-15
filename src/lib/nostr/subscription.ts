@@ -47,7 +47,10 @@ export class SubscriptionManager {
             try {
               // Add relay URL to event for tracking
               if (event && typeof event === 'object') {
-                (event as any)._relay_url = event.relay?.url;
+                // Use a safe approach to store the relay URL
+                const customEvent = event as NostrEvent;
+                // Store relay URL in a custom property that doesn't clash with standard properties
+                (customEvent as any)._relay_url = (event as any).relay?.url;
               }
               
               onEvent(event as NostrEvent);
@@ -60,11 +63,6 @@ export class SubscriptionManager {
           oneose: () => {
             // End of stored events
             console.log(`Subscription ${id} reached EOSE for a filter`);
-          },
-          onerror: (error: any) => {
-            console.error(`Subscription ${id} encountered an error:`, error);
-            this.recordSubscriptionError(id, error);
-            if (onError) onError(error);
           }
         });
       });
@@ -149,15 +147,20 @@ export class SubscriptionManager {
       // Create new subscriptions with updated relay list
       const newSubClosers = subscription.filters.map(filter => {
         return this.pool.subscribe(newRelays, filter, {
-          onevent: subscription.onEvent,
+          onevent: (event) => {
+            if (subscription.onEvent) {
+              // Add relay URL to event for tracking
+              if (event && typeof event === 'object') {
+                // Store relay URL in a custom property
+                (event as any)._relay_url = (event as any).relay?.url;
+              }
+              
+              subscription.onEvent(event as NostrEvent);
+            }
+          },
           oneose: () => {
             // End of stored events
             console.log(`Updated subscription ${subId} reached EOSE for a filter`);
-          },
-          onerror: (error: any) => {
-            console.error(`Updated subscription ${subId} encountered an error:`, error);
-            this.recordSubscriptionError(subId, error);
-            if (subscription.onError) subscription.onError(error);
           }
         });
       });

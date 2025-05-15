@@ -128,7 +128,7 @@ export function useEventSubscription({
       filters,
       (event) => {
         // Record successful relay responses
-        const relayUrl = event._relay_url;
+        const relayUrl = (event as any)._relay_url;
         if (relayUrl) {
           circuitBreaker.recordSuccess(relayUrl);
           lastFetchTime = Date.now();

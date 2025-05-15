@@ -116,8 +116,8 @@ export class RelaySelector {
       }
       
       // Penalty for recent failures
-      if (perfData?.recentFailures) {
-        score -= Math.min(perfData.recentFailures * 5, 40); // Up to 40% penalty
+      if (perfData?.failureCount) {
+        score -= Math.min(perfData.failureCount * 5, 40); // Up to 40% penalty
       }
       
       // Circuit breaker state impacts score
