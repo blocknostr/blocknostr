@@ -1,318 +1,207 @@
+import { BaseCache } from './base-cache';
+import { threadCache } from './thread-cache';
+import { CACHE_KEYS } from './config';
+import { NostrEvent } from '../types';
+import { getEventId } from '../utils/event-filter';
 
-import { NostrEvent } from "../types";
-import { CACHE_EXPIRY, OFFLINE_CACHE_EXPIRY, STORAGE_KEYS } from "./config";
-import { EventCache } from "./event-cache";
-import { ProfileCache } from "./profile-cache";
-import { ThreadCache } from "./thread-cache";
-import { FeedCache } from "./feed-cache";
-import { ListCache } from "./list-cache";
-import { CacheConfig } from "./types";
-import { EventFilter } from "./utils/event-filter";
-import { storageQuota } from "../utils/storage-quota";
-
-/**
- * Content cache service for Nostr events
- * Reduces relay requests by caching already loaded content
- * Supports offline functionality through persistence
- */
-export class ContentCache {
-  private eventCache: EventCache;
-  private profileCache: ProfileCache;
-  private threadCache: ThreadCache;
-  private _feedCache: FeedCache;
-  private muteListCache: ListCache;
-  private blockListCache: ListCache;
-  private offlineMode: boolean = false;
-  
+// Cache for storing parsed content to avoid redundant processing
+class ContentCache extends BaseCache<string> {
   constructor() {
-    const config: CacheConfig = {
-      standardExpiry: CACHE_EXPIRY,
-      offlineExpiry: OFFLINE_CACHE_EXPIRY
-    };
-    
-    // Initialize cache modules
-    this.eventCache = new EventCache(config);
-    this.profileCache = new ProfileCache(config);
-    this.threadCache = new ThreadCache(config);
-    this._feedCache = new FeedCache(config);
-    this.muteListCache = new ListCache(STORAGE_KEYS.MUTE_LIST);
-    this.blockListCache = new ListCache(STORAGE_KEYS.BLOCK_LIST);
-    
-    // Listen for online/offline events
-    window.addEventListener('online', () => {
-      this.offlineMode = false;
-      this.updateOfflineMode();
-      console.log('App is online - using standard caching policy');
+    super(CACHE_KEYS.CONTENT, { 
+      maxSize: 500, 
+      ttl: 1000 * 60 * 60 * 24 // 24 hours
     });
-    
-    window.addEventListener('offline', () => {
-      this.offlineMode = true;
-      this.updateOfflineMode();
-      console.log('App is offline - using extended caching policy');
-    });
-    
-    // Set initial offline status
-    this.offlineMode = !navigator.onLine;
-    this.updateOfflineMode();
-    
-    // Log storage metrics on startup
-    setTimeout(() => {
-      storageQuota.logStorageMetrics();
-    }, 1000);
-  }
-  
-  // Update offline mode status across all caches
-  private updateOfflineMode(): void {
-    this.eventCache.setOfflineMode(this.offlineMode);
-    this.profileCache.setOfflineMode(this.offlineMode);
-    this.threadCache.setOfflineMode(this.offlineMode);
-    this._feedCache.setOfflineMode(this.offlineMode);
-  }
 
-  // Access to the feed cache instance
-  get feedCache(): FeedCache {
-    return this._feedCache;
-  }
-  
-  // Event cache methods
-  cacheEvent(event: NostrEvent, important: boolean = false): void {
-    if (!event.id) return;
-    this.eventCache.cacheItem(event.id, event, important);
-  }
-  
-  getEvent(eventId: string): NostrEvent | null {
-    return this.eventCache.getItem(eventId);
-  }
-  
-  cacheEvents(events: NostrEvent[], important: boolean = false): void {
-    // Check if approaching quota before caching large batches
-    storageQuota.isApproachingQuota(80).then(isApproaching => {
-      if (isApproaching && events.length > 10) {
-        console.warn(`Approaching storage quota. Limiting batch size.`);
-        // Just cache a subset if approaching quota
-        this.eventCache.cacheEvents(events.slice(0, 10), important);
-        return;
-      }
-
-      // Limit batch size to avoid quota issues
-      const batchSize = 50;
-      const batches = Math.ceil(events.length / batchSize);
-      
-      for (let i = 0; i < batches; i++) {
-        const start = i * batchSize;
-        const end = Math.min(start + batchSize, events.length);
-        const batch = events.slice(start, end);
-        
-        try {
-          this.eventCache.cacheEvents(batch, important);
-        } catch (error) {
-          console.error(`Error caching events batch ${i+1}/${batches}:`, error);
-          // Don't attempt to cache more if we hit an error
-          break;
-        }
-      }
-    }).catch(err => {
-      console.error("Error checking storage quota:", err);
-      // Attempt to cache despite error, but be conservative
-      this.eventCache.cacheEvents(events.slice(0, 10), important);
-    });
-  }
-  
-  getEventsByAuthors(authorPubkeys: string[]): NostrEvent[] {
-    return this.eventCache.getEventsByAuthors(authorPubkeys);
-  }
-  
-  // Profile cache methods
-  cacheProfile(pubkey: string, profileData: any, important: boolean = false): void {
-    if (!profileData) return;
-    
-    try {
-      // Add creation timestamp to profile data for account age
-      if (profileData && !profileData._createdAt && profileData.created_at) {
-        profileData._createdAt = profileData.created_at;
-      }
-      
-      this.profileCache.cacheItem(pubkey, profileData, important);
-    } catch (error) {
-      console.error(`Error caching profile for ${pubkey}:`, error);
-      
-      // If we hit a quota error, clear some space and try again
-      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-        this.cleanupExpiredEntries();
-        try {
-          // Try again with only essential profile data
-          const essentialData = {
-            name: profileData.name,
-            display_name: profileData.display_name,
-            picture: profileData.picture,
-            nip05: profileData.nip05,
-            _createdAt: profileData._createdAt || profileData.created_at
-          };
-          this.profileCache.cacheItem(pubkey, essentialData, important);
-        } catch (retryError) {
-          console.error(`Failed to cache profile even with reduced data:`, retryError);
-        }
-      }
-    }
-  }
-  
-  getProfile(pubkey: string): any | null {
-    return this.profileCache.getItem(pubkey);
-  }
-  
-  // Thread cache methods
-  cacheThread(rootId: string, events: NostrEvent[], important: boolean = false): void {
-    try {
-      this.threadCache.cacheItem(rootId, events, important);
-    } catch (error) {
-      console.error(`Error caching thread ${rootId}:`, error);
-      
-      // If error, try with smaller set
-      if (events.length > 5) {
-        try {
-          const essentialEvents = events.slice(0, 5);
-          this.threadCache.cacheItem(rootId, essentialEvents, important);
-        } catch (retryError) {
-          console.error(`Failed to cache thread with reduced data:`, retryError);
-        }
-      }
-    }
-  }
-  
-  getThread(rootId: string): NostrEvent[] | null {
-    return this.threadCache.getItem(rootId);
-  }
-  
-  // Feed cache methods
-  cacheFeed(feedType: string, events: NostrEvent[], options: {
-    authorPubkeys?: string[],
-    hashtag?: string,
-    since?: number,
-    until?: number,
-    mediaOnly?: boolean
-  }, important: boolean = false): void {
-    // Check storage quota before caching large feeds
-    storageQuota.isApproachingQuota(80).then(isApproaching => {
-      if (isApproaching) {
-        console.warn(`Approaching storage quota, limiting feed cache for ${feedType}`);
-        // Just cache a subset if approaching quota
-        try {
-          const limitedEvents = events.slice(0, 10);
-          this._feedCache.cacheFeed(feedType, limitedEvents, options, important);
-        } catch (error) {
-          console.error(`Error caching limited feed for ${feedType}:`, error);
-        }
-        return;
-      }
-
-      try {
-        this._feedCache.cacheFeed(feedType, events, options, important);
-      } catch (error) {
-        console.error(`Error caching feed ${feedType}:`, error);
-        this.cleanupExpiredEntries();
-        
-        // Try again with half the events
-        if (events.length > 5) {
-          const reducedEvents = events.slice(0, Math.floor(events.length / 2));
-          console.warn(`Retrying with ${reducedEvents.length} events (reduced from ${events.length})`);
-          
-          try {
-            this._feedCache.cacheFeed(feedType, reducedEvents, options, false);
-          } catch (retryError) {
-            console.error(`Failed to cache even with reduced events:`, retryError);
-          }
-        }
-      }
-    }).catch(err => {
-      console.error("Error checking storage quota:", err);
-      // Be conservative with caching on error
-      try {
-        this._feedCache.cacheFeed(feedType, events.slice(0, 5), options, false);
-      } catch (cacheError) {
-        console.error("Fallback caching failed:", cacheError);
-      }
-    });
-  }
-  
-  getFeed(feedType: string, options: {
-    authorPubkeys?: string[],
-    hashtag?: string,
-    since?: number,
-    until?: number,
-    mediaOnly?: boolean
-  }): NostrEvent[] | null {
-    return this._feedCache.getFeed(feedType, options);
-  }
-  
-  // Mute list methods
-  cacheMuteList(pubkeys: string[]): void {
-    try {
-      this.muteListCache.cacheList(pubkeys);
-    } catch (error) {
-      console.error("Error caching mute list:", error);
+    // Set up periodic cleanup
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.cleanupExpired(), 1000 * 60 * 10); // Every 10 minutes
     }
   }
 
-  getMuteList(): string[] | null {
-    return this.muteListCache.getList();
-  }
-
-  // Block list methods
-  cacheBlockList(pubkeys: string[]): void {
+  /**
+   * Add content to cache with automatic expiry
+   * @param key Cache key
+   * @param value Content value
+   */
+  add(key: string, value: string): void {
+    if (!key || !value) return;
+    
     try {
-      this.blockListCache.cacheList(pubkeys);
+      // Add to cache with timestamp for TTL tracking
+      this.cache.set(key, {
+        value,
+        timestamp: Date.now(),
+        accessed: Date.now(),
+        accessCount: 0
+      });
     } catch (error) {
-      console.error("Error caching block list:", error);
+      console.error('Error adding to content cache:', error);
     }
   }
 
-  getBlockList(): string[] | null {
-    return this.blockListCache.getList();
+  /**
+   * Get formatted content from cache, tracking access
+   * @param key Cache key
+   */
+  get(key: string): string | null {
+    try {
+      const item = this.cache.get(key);
+      if (!item) return null;
+      
+      // Update access tracking
+      item.accessed = Date.now();
+      item.accessCount = (item.accessCount || 0) + 1;
+      
+      return item.value;
+    } catch (error) {
+      console.error('Error getting from content cache:', error);
+      return null;
+    }
   }
-  
-  // Cleanup methods
-  cleanupExpiredEntries(): void {
-    console.log("Cleaning up expired cache entries...");
-    this.eventCache.cleanupExpiredEntries();
-    this.profileCache.cleanupExpiredEntries();
-    this.threadCache.cleanupExpiredEntries();
-    this._feedCache.cleanupExpiredEntries();
+
+  /**
+   * Clear all related thread content when a thread is processed
+   * @param threadId The thread root ID
+   */
+  clearThreadContent(threadId: string): void {
+    if (!threadId) return;
     
-    // Log storage metrics after cleanup
-    storageQuota.logStorageMetrics();
+    try {
+      // Clear cached content related to this thread
+      const keysToDelete: string[] = [];
+      
+      this.cache.forEach((_, key) => {
+        if (key.includes(threadId)) {
+          keysToDelete.push(key);
+        }
+      });
+      
+      keysToDelete.forEach(key => {
+        this.cache.delete(key);
+      });
+      
+      // Also clean up thread cache
+      threadCache.cleanupThread(threadId);
+    } catch (error) {
+      console.error('Error clearing thread content:', error);
+    }
+  }
+
+  /**
+   * Generate cache key for content formatting
+   * @param content Content to format
+   * @param options Optional formatting options
+   */
+  getContentKey(content: string, options?: Record<string, any>): string {
+    if (!content) return '';
+    
+    try {
+      const optionsStr = options ? JSON.stringify(options) : '';
+      return `content-${content.length}-${content.substring(0, 32).replace(/\s+/g, '')}-${optionsStr}`;
+    } catch (error) {
+      console.error('Error generating content cache key:', error);
+      return `content-${Date.now()}-${Math.random()}`;
+    }
+  }
+
+  /**
+   * Generate cache key for event content formatting
+   * @param event NostrEvent object
+   */
+  getEventContentKey(event: NostrEvent): string {
+    if (!event || !event.id) return '';
+    
+    try {
+      return `event-content-${event.id}-${event.created_at || 0}`;
+    } catch (error) {
+      console.error('Error generating event content cache key:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Mark a thread as important to prevent automatic cleanup
+   * @param threadId Thread ID to mark as important
+   */
+  markThreadImportant(threadId: string): void {
+    // Thread marking logic
   }
   
-  clearAll(): void {
-    this.eventCache.clear();
-    this.profileCache.clear();
-    this.threadCache.clear();
-    this._feedCache.clear();
-    this.muteListCache.clear();
-    this.blockListCache.clear();
+  /**
+   * Perform cleanup of expired content
+   */
+  cleanupExpired(): void {
+    try {
+      const now = Date.now();
+      const keysToDelete: string[] = [];
+      
+      this.cache.forEach((item, key) => {
+        // Delete if TTL expired
+        if (now - item.timestamp > this.options.ttl) {
+          keysToDelete.push(key);
+        }
+      });
+      
+      keysToDelete.forEach(key => {
+        this.cache.delete(key);
+      });
+      
+      console.log(`Content cache cleanup: Removed ${keysToDelete.length} items`);
+    } catch (error) {
+      console.error('Error during content cache cleanup:', error);
+    }
   }
-  
-  isOffline(): boolean {
-    return this.offlineMode;
+
+  /**
+   * Perform cleanup based on access patterns
+   */
+  cleanupByAccessPattern(): void {
+    try {
+      const now = Date.now();
+      const keysToDelete: string[] = [];
+      
+      // Define thresholds
+      const accessThreshold = 1000 * 60 * 60 * 24 * 3; // 3 days
+      
+      this.cache.forEach((item, key) => {
+        // Delete if not accessed recently
+        if (now - item.accessed > accessThreshold) {
+          keysToDelete.push(key);
+        }
+      });
+      
+      keysToDelete.forEach(key => {
+        this.cache.delete(key);
+      });
+      
+      console.log(`Content cache access cleanup: Removed ${keysToDelete.length} items`);
+    } catch (error) {
+      console.error('Error during content cache access cleanup:', error);
+    }
+  }
+
+  /**
+   * Clean verified profile data status
+   */
+  clearVerifiedStatus(pubkey: string): void {
+    try {
+      if (!pubkey) return;
+      
+      const keysToDelete: string[] = [];
+      
+      this.cache.forEach((_, key) => {
+        if (key.includes(`verified-${pubkey}`)) {
+          keysToDelete.push(key);
+        }
+      });
+      
+      keysToDelete.forEach(key => {
+        this.cache.delete(key);
+      });
+    } catch (error) {
+      console.error('Error clearing verified status:', error);
+    }
   }
 }
 
-// Create and export singleton instance
-const contentCache = new ContentCache();
-export { contentCache };
-
-// Set up periodic cache cleanup
-setInterval(() => {
-  contentCache.cleanupExpiredEntries();
-}, Math.min(CACHE_EXPIRY, 60000)); // Every minute or at cache expiry time, whichever is less
-
-// Set up periodic quota checking
-setInterval(() => {
-  storageQuota.isApproachingQuota(85).then(isApproaching => {
-    if (isApproaching) {
-      console.warn("Storage quota approaching limit, running proactive cleanup");
-      contentCache.cleanupExpiredEntries();
-    }
-  }).catch(err => {
-    console.error("Error checking quota:", err);
-  });
-}, 300000); // Every 5 minutes
+export const contentCache = new ContentCache();

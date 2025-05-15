@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
+import { lightweightFormatter, useFormattedContent } from '@/lib/nostr/format/lightweight-formatter';
+import { extractMediaUrls } from '@/lib/nostr/utils/media-extraction';
 
 interface NoteCardContentProps {
   content?: string;
@@ -34,8 +35,13 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     ? contentToUse.substring(0, 277) + '...' 
     : contentToUse;
   
-  // Process content for rendering
-  const formattedContent = contentFormatter.formatContent(displayContent);
+  // Extract media URLs for optimized rendering
+  const mediaUrls = useMemo(() => {
+    return extractMediaUrls(contentToUse);
+  }, [contentToUse]);
+  
+  // Use memoized formatted content
+  const formattedContent = useFormattedContent(displayContent, mediaUrls);
   
   // Extract hashtags from tags array
   const hashtags = useMemo(() => {
@@ -53,22 +59,11 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
-  // Extract image URLs - simple, NIP-compliant approach
+  // Extract image URLs - optimized approach
   const imageUrls = useMemo(() => {
-    const urls: string[] = [];
-    const content = contentToUse;
-    
-    // Simple regex to find image URLs
-    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
-    let match;
-    
-    while ((match = imgRegex.exec(content)) !== null) {
-      if (match[0]) {
-        urls.push(match[0]);
-      }
-    }
-    
-    return urls;
+    return extractMediaUrls(contentToUse).filter(url => 
+      url.match(/\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?$/i)
+    );
   }, [contentToUse]);
   
   return (

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { NostrEvent } from "@/lib/nostr/types";
 import ReactionBar from "./ReactionBar";
-import { contentFormatter } from "@/lib/nostr";
+import { lightweightFormatter } from "@/lib/nostr";
 import { nostrService } from "@/lib/nostr";
 import clsx from "clsx";
 
@@ -100,7 +100,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 }
               )}
             >
-              {contentFormatter.formatContent(message.content)}
+              {lightweightFormatter.formatContent(message.content)}
               <div className={clsx(
                 "text-[10px] opacity-70 mt-0.5 text-right",
                 isCurrentUser ? "" : "text-muted-foreground"

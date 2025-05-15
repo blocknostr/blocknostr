@@ -8,6 +8,7 @@ import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
 import { Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { lightweightFormatter } from '@/lib/nostr/format/lightweight-formatter';
 
 const SimpleNoteForm: React.FC = () => {
   // Basic state for the note content
@@ -76,10 +77,13 @@ const SimpleNoteForm: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      // Process content with lightweight formatter for clean text
+      const processedContent = lightweightFormatter.processContent(content);
+      
       // Create minimal note with content
       const eventId = await nostrService.publishEvent({
         kind: 1, // text_note kind
-        content: content,
+        content: processedContent,
         tags: []
       });
       
