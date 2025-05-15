@@ -88,7 +88,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer"
+      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer border border-border/40"
       onClick={navigateToCommunity}
     >
       <div className="relative">
@@ -110,7 +110,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         )}
       </div>
       
-      <CardHeader className="pb-2 flex-none">
+      <CardHeader className="pb-2 pt-4 px-4 flex-none">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base line-clamp-1">{community.name}</CardTitle>
           
@@ -128,12 +128,12 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         )}
       </CardHeader>
       
-      <CardContent className="flex-grow">
+      <CardContent className="flex-grow px-4 pb-2">
         <p className="text-sm text-muted-foreground line-clamp-2">
           {community.description || "No description provided."}
         </p>
         
-        <div className="flex items-center mt-4 text-xs text-muted-foreground">
+        <div className="flex items-center mt-3 text-xs text-muted-foreground">
           <Users className="h-3 w-3 mr-1" />
           <span>{community.members.length} members</span>
           <span className="mx-1">•</span>
@@ -141,7 +141,7 @@ const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCard
         </div>
       </CardContent>
       
-      <CardFooter className="pt-3 border-t mt-auto" onClick={e => e.stopPropagation()}>
+      <CardFooter className="pt-2 border-t mt-auto px-4 pb-4" onClick={e => e.stopPropagation()}>
         <CommunityCardActions 
           community={community}
           isMember={isMember}
