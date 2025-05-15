@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
+import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink, Send } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
+import SendTransactionModal from "@/components/wallet/SendTransactionModal";
 
 // Define an extended signer interface for type safety
 interface ExtendedSigner {
@@ -26,6 +28,8 @@ const WalletsPage = () => {
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [sendAmount, setSendAmount] = useState<number | undefined>(0.1);
   
   // Check if wallet is connected and set correct wallet address
   const connected = wallet.connectionStatus === 'connected';
@@ -116,6 +120,18 @@ const WalletsPage = () => {
         });
       }
     }
+  };
+
+  const handleSendClick = (amount?: number) => {
+    if (!connected) {
+      toast.info("Connect your wallet first", {
+        description: "You need to connect a wallet to send transactions"
+      });
+      return;
+    }
+    
+    setSendAmount(amount);
+    setIsSendModalOpen(true);
   };
 
   // Decide whether to show connect screen or wallet dashboard
@@ -267,9 +283,15 @@ const WalletsPage = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    onClick={() => {
-                      toast.info("This feature is coming soon");
-                    }}
+                    onClick={() => handleSendClick(0.1)}
+                  >
+                    <Send className="h-5 w-5" />
+                    <span>Send 0.1 ALPH</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+                    onClick={() => handleSendClick()}
                   >
                     <ArrowUpDown className="h-5 w-5" />
                     <span>Send / Receive</span>
@@ -287,16 +309,6 @@ const WalletsPage = () => {
                       <Coins className="h-5 w-5" />
                       <span>View Richlist</span>
                     </a>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    onClick={() => {
-                      toast.info("This feature is coming soon");
-                    }}
-                  >
-                    <CreditCard className="h-5 w-5" />
-                    <span>Buy ALPH</span>
                   </Button>
                   <Button 
                     variant="outline" 
@@ -347,6 +359,12 @@ const WalletsPage = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <SendTransactionModal 
+        isOpen={isSendModalOpen}
+        onClose={() => setIsSendModalOpen(false)}
+        fixedAmount={sendAmount}
+      />
     </div>
   );
 };
