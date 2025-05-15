@@ -43,21 +43,25 @@ export const WalletSummary: React.FC = () => {
 
     const publishWalletSummary = useCallback(
         async (summary: WalletSummaryPayload) => {
-            const pubkey = nostrService.publicKey;
-            if (!pubkey) return;
-            // Use Partial<Event> for the event object before signing
-            const nostrEvent: Partial<Event> = {
-                kind: 30000,
-                created_at: Math.floor(Date.now() / 1000),
-                pubkey,
-                tags: [["d", "wallet-summary"]],
-                content: JSON.stringify(summary),
-            };
-
-            console.log("[WalletSummary] Nostr event creation:", nostrEvent);
-            
             try {
-                await nostrService.publishEvent(nostrEvent as any);
+                const pubkey = nostrService.publicKey;
+                if (!pubkey) {
+                    console.log("[WalletSummary] No Nostr public key available, skipping summary publication");
+                    return;
+                }
+                
+                // Use Partial<Event> for the event object before signing
+                const nostrEvent: Partial<Event> = {
+                    kind: 30000,
+                    created_at: Math.floor(Date.now() / 1000),
+                    pubkey,
+                    tags: [["d", "wallet-summary"]],
+                    content: JSON.stringify(summary),
+                };
+
+                console.log("[WalletSummary] Creating Nostr event:", nostrEvent);
+                
+                await nostrService.publishEvent(nostrEvent as Event);
                 console.log("[WalletSummary] Wallet summary published to Nostr");
             } catch (e) {
                 console.error("[WalletSummary] Failed to publish Nostr event:", e);
@@ -77,7 +81,7 @@ export const WalletSummary: React.FC = () => {
                 const res = await fetch(
                     `https://backend.mainnet.alephium.org/addresses/${address}/tokens-balance?page=1&limit=100`
                 )
-                if (!res.ok) throw new Error(res.statusText)
+                if (!res.ok) throw new Error(`API Error (${res.status}): ${res.statusText}`)
                 const data = await res.json() as Array<{ tokenId: string; balance: string; lockedBalance: string }>
                 console.log("[WalletSummary] Raw balances API data:", data)
 
@@ -87,7 +91,7 @@ export const WalletSummary: React.FC = () => {
                 )
                 
                 if (!listRes.ok) {
-                    throw new Error("Failed to fetch token list");
+                    throw new Error(`Token list API Error (${listRes.status}): ${listRes.statusText}`);
                 }
                 
                 const listJson = await listRes.json();
@@ -104,14 +108,20 @@ export const WalletSummary: React.FC = () => {
                 console.log(`[WalletSummary] Found ${tokens.length} tokens in the list`);
 
                 // 3) Build a lookup map from tokens
-                const tokenMap = new Map<string, AlephiumTokenMeta>(
-                    tokens.map((t: AlephiumTokenMeta) => [t.id, t])
-                );
+                const tokenMap = new Map<string, AlephiumTokenMeta>();
                 
-                // Add ALPH token if not already in the list
-                if (!tokenMap.has("0000000000000000000000000000000000000000000000000000000000000000")) {
-                    tokenMap.set("0000000000000000000000000000000000000000000000000000000000000000", {
-                        id: "0000000000000000000000000000000000000000000000000000000000000000",
+                // Add all tokens to the map
+                for (const token of tokens) {
+                    if (token && token.id) {
+                        tokenMap.set(token.id, token);
+                    }
+                }
+                
+                // Always ensure ALPH token is in the map (defensive coding)
+                const alphTokenId = "0000000000000000000000000000000000000000000000000000000000000000";
+                if (!tokenMap.has(alphTokenId)) {
+                    tokenMap.set(alphTokenId, {
+                        id: alphTokenId,
                         name: "Alephium",
                         symbol: "ALPH",
                         decimals: 18,
@@ -157,7 +167,7 @@ export const WalletSummary: React.FC = () => {
                             const addressInfo = await addressInfoRes.json();
                             if (addressInfo.balance && addressInfo.balance !== "0") {
                                 enriched.unshift({
-                                    id: "0000000000000000000000000000000000000000000000000000000000000000",
+                                    id: alphTokenId,
                                     balance: addressInfo.balance,
                                     decimals: 18,
                                     symbol: "ALPH",
@@ -165,9 +175,12 @@ export const WalletSummary: React.FC = () => {
                                     logoURI: "https://raw.githubusercontent.com/alephium/token-list/master/logos/ALPH.png"
                                 });
                             }
+                        } else {
+                            throw new Error(`Address info API Error (${addressInfoRes.status}): ${addressInfoRes.statusText}`)
                         }
                     } catch (err) {
                         console.error("[WalletSummary] Failed to fetch ALPH balance", err);
+                        // Don't throw here - we can continue with other tokens
                     }
                 }
 
@@ -179,18 +192,34 @@ export const WalletSummary: React.FC = () => {
                     const summaryPayload: WalletSummaryPayload = {
                         address,
                         balances: enriched.map(tok => {
-                            // divide by 10**decimals and format
-                            const humanValue =
-                                Number(tok.balance) / 10 ** tok.decimals
-                            const formatted = humanValue.toLocaleString(undefined, {
-                                maximumFractionDigits: tok.decimals,
-                            })
-                            return {
-                                id: tok.id,
-                                amount: formatted,
-                                symbol: tok.symbol,
-                                name: tok.name,
-                                logoURI: tok.logoURI,
+                            // Safely divide by 10**decimals and format
+                            try {
+                                const rawValue = parseFloat(tok.balance);
+                                if (isNaN(rawValue)) {
+                                    throw new Error("Invalid balance value");
+                                }
+                                
+                                const humanValue = rawValue / Math.pow(10, tok.decimals);
+                                const formatted = humanValue.toLocaleString(undefined, {
+                                    maximumFractionDigits: tok.decimals,
+                                });
+                                
+                                return {
+                                    id: tok.id,
+                                    amount: formatted,
+                                    symbol: tok.symbol,
+                                    name: tok.name,
+                                    logoURI: tok.logoURI,
+                                };
+                            } catch (err) {
+                                console.error(`[WalletSummary] Error formatting token ${tok.symbol}:`, err);
+                                return {
+                                    id: tok.id,
+                                    amount: "Error",
+                                    symbol: tok.symbol,
+                                    name: tok.name,
+                                    logoURI: tok.logoURI,
+                                };
                             }
                         })
                     }
@@ -198,7 +227,7 @@ export const WalletSummary: React.FC = () => {
                 }
             } catch (err) {
                 const errorMessage = err instanceof Error ? err.message : "Unable to load balances.";
-                console.error("Failed to fetch balances", err);
+                console.error("[WalletSummary] Failed to fetch balances", err);
                 setError(errorMessage);
             } finally {
                 setLoading(false);
@@ -266,11 +295,23 @@ export const WalletSummary: React.FC = () => {
                 {!loading && !error && balances.length > 0 && (
                     <div className="space-y-2">
                         {balances.map(tok => {
-                            // convert & format for display
-                            const humanValue = Number(tok.balance) / 10 ** tok.decimals
-                            const formatted = humanValue.toLocaleString(undefined, {
-                                maximumFractionDigits: tok.decimals,
-                            })
+                            // Safely convert & format for display
+                            let formatted;
+                            try {
+                                const rawValue = parseFloat(tok.balance);
+                                if (isNaN(rawValue)) {
+                                    throw new Error("Invalid balance");
+                                }
+                                
+                                const humanValue = rawValue / Math.pow(10, tok.decimals);
+                                formatted = humanValue.toLocaleString(undefined, {
+                                    maximumFractionDigits: tok.decimals,
+                                });
+                            } catch (err) {
+                                console.error(`[WalletSummary] Error formatting token ${tok.symbol}:`, err);
+                                formatted = "Error";
+                            }
+                            
                             return (
                                 <div
                                     key={tok.id}

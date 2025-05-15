@@ -30,24 +30,46 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Try to fetch transaction data from the Alephium Explorer API
-        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
+        // Updated API endpoint for transactions - using /addresses/{address}/transactions path
+        // instead of /transactions/address/{address} which returned 404
+        const response = await fetch(`https://backend.mainnet.alephium.org/addresses/${address}/transactions?page=1&limit=10`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log("[TransactionsList] Raw transactions data:", data);
         
         // Transform the data into our transaction format
-        // Note: This transformation is an approximation as the exact API response format may differ
-        const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
+        // Note: This transformation handles the actual API response format 
+        const formattedTransactions: Transaction[] = (data?.transactions || []).map((tx: any) => {
+          // Determine if this is an incoming or outgoing transaction
           const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
           
+          // Calculate amount
+          let amount = "0";
+          if (isSent) {
+            // Outgoing transaction - sum outputs not going to our address
+            amount = tx.outputs
+              .filter((output: any) => output.address !== address)
+              .reduce((sum: number, output: any) => sum + (parseFloat(output.amount) || 0), 0)
+              .toString();
+          } else {
+            // Incoming transaction - sum outputs going to our address
+            amount = tx.outputs
+              .filter((output: any) => output.address === address)
+              .reduce((sum: number, output: any) => sum + (parseFloat(output.amount) || 0), 0)
+              .toString();
+          }
+          
+          // Convert raw amount to ALPH
+          const alphAmount = (parseFloat(amount) / 10**18).toFixed(4);
+
           return {
-            id: tx.hash || tx.txId,
+            id: tx.hash || tx.txId || tx.transactionHash || "unknown",
             type: isSent ? 'sent' : 'received',
-            amount: tx.amount || (tx.outputs?.[0]?.amount ?? "0"),
+            amount: alphAmount,
             timestamp: tx.timestamp || Date.now(),
             status: 'confirmed',
             address: isSent 
@@ -56,9 +78,10 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           };
         });
         
+        console.log("[TransactionsList] Formatted transactions:", formattedTransactions);
         setTransactions(formattedTransactions);
       } catch (error) {
-        console.error('Error fetching transactions:', error);
+        console.error('[TransactionsList] Error fetching transactions:', error);
         // Fallback to mock data if API fails
         const mockTransactions: Transaction[] = [
           {

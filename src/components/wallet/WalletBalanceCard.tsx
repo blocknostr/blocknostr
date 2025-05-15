@@ -18,10 +18,28 @@ const WalletBalanceCard = ({ balance, isLoading, address }: WalletBalanceCardPro
   const formatBalance = (balanceStr: string | null) => {
     if (!balanceStr) return "0.00";
     
-    // Convert from ALPH units (smallest denomination) to ALPH
-    const balanceInALPH = parseFloat(balanceStr) / 10**18;
-    return balanceInALPH.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    // Convert from ALPH units (smallest denomination) to ALPH with proper precision
+    try {
+      const balanceInALPH = parseFloat(balanceStr) / 10**18;
+      if (isNaN(balanceInALPH)) return "0.00";
+      
+      // Format with up to 4 decimal places, but only show what's needed
+      return balanceInALPH.toLocaleString(undefined, { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 4 
+      });
+    } catch (error) {
+      console.error("[WalletBalanceCard] Error formatting balance:", error);
+      return "0.00";
+    }
   };
+  
+  // Update last updated timestamp whenever balance changes
+  useEffect(() => {
+    if (!isLoading && balance) {
+      setLastUpdated(new Date());
+    }
+  }, [balance, isLoading]);
   
   return (
     <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
