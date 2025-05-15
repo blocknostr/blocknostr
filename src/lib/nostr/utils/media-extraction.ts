@@ -175,7 +175,11 @@ export const extractMediaUrls = (content: string): string[] => {
   return extractUrlsFromContent(content);
 };
 
+// Export the functions from media-validation.ts and nip94-media-extraction.ts
 export { 
-  isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl,
-  extractNip94Media, extractYoutubeVideoId, extractCloudinaryData, isEmbeddedContent
+  isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl 
+} from './media/media-validation';
+
+export { 
+  extractNip94Media, extractYoutubeVideoId, extractCloudinaryData, isEmbeddedContent 
 } from './media/nip94-media-extraction';
