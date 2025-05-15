@@ -1,271 +1,362 @@
-import { NostrEvent } from '@/lib/nostr';
-import { MediaItem, Nip94TagType, MediaMetadata } from './media-types';
-import { isValidMediaUrl } from './media-validation';
-import { getBaseUrl } from './media-detection';
 
 /**
- * Extract media from an event following NIP-94 standards
- * https://github.com/nostr-protocol/nips/blob/master/94.md
+ * NIP-94 Media Extraction Utilities
+ * 
+ * This module provides functions for extracting media information
+ * from Nostr events according to the NIP-94 specification.
  */
-export function extractNip94Media(event: NostrEvent): MediaItem[] {
-  if (!event || !event.tags) return [];
+import { NostrEvent } from '@/lib/nostr';
+import { MediaItem } from './media-types';
+import { isImageUrl, isVideoUrl, isAudioUrl } from './media-validation';
 
-  const mediaItems: MediaItem[] = [];
-  const processedUrls = new Set<string>();
+/**
+ * Extract media items from event tags following NIP-94 format
+ * @param event Nostr event with possible media tags
+ * @returns Array of media items with metadata
+ */
+export const extractNip94Media = (event: NostrEvent): MediaItem[] => {
+  if (!event || !Array.isArray(event.tags)) return [];
   
-  // Process NIP-94 media tags
+  const mediaItems: MediaItem[] = [];
+  
+  // Process tags according to NIP-94
   for (const tag of event.tags) {
     if (!Array.isArray(tag) || tag.length < 2) continue;
     
-    const tagType = tag[0] as Nip94TagType;
-    const url = tag[1];
+    const [tagType, url, ...rest] = tag;
     
-    // Skip invalid URLs or already processed ones
-    if (!isValidMediaUrl(url) || processedUrls.has(url)) continue;
+    if (!url) continue;
     
-    // Handle different NIP-94 tag types
-    switch (tagType) {
-      case 'image':
-      case 'img': {
-        const alt = tag.length > 2 ? tag[2] : undefined;
-        const metadata = extractMediaMetadata(tag);
-        
-        mediaItems.push({
-          url,
-          type: 'image',
-          alt,
-          ...metadata
-        });
-        processedUrls.add(url);
-        break;
+    // Process the different media tag types
+    if (['image', 'img', 'imeta'].includes(tagType)) {
+      let alt: string | undefined;
+      let dimensions: { width?: number, height?: number } | undefined;
+      
+      // Get alt text (position 2)
+      if (rest.length >= 1 && typeof rest[0] === 'string') {
+        alt = rest[0];
       }
       
-      case 'video': {
-        const alt = tag.length > 2 ? tag[2] : undefined;
-        const metadata = extractMediaMetadata(tag);
-        
-        mediaItems.push({
-          url,
-          type: 'video',
-          alt,
-          ...metadata
-        });
-        processedUrls.add(url);
-        break;
-      }
-      
-      case 'audio': {
-        const alt = tag.length > 2 ? tag[2] : undefined;
-        const metadata = extractMediaMetadata(tag);
-        
-        mediaItems.push({
-          url,
-          type: 'audio',
-          alt,
-          ...metadata
-        });
-        processedUrls.add(url);
-        break;
-      }
-      
-      case 'imeta': {
-        // imeta tag: ["imeta", url, alt?, dimensions?, blurhash?]
-        const metadata = extractMediaMetadata(tag);
-        const matchingImage = mediaItems.find(item => 
-          item.type === 'image' && getBaseUrl(item.url) === getBaseUrl(url)
-        );
-        
-        // If we already have this image, enhance it with metadata
-        if (matchingImage) {
-          Object.assign(matchingImage, metadata);
-        } else {
-          // Otherwise add as a new image
-          mediaItems.push({
-            url,
-            type: 'image',
-            ...metadata
-          });
-          processedUrls.add(url);
+      // Get dimensions (position 3)
+      if (rest.length >= 2 && typeof rest[1] === 'string' && rest[1].includes('x')) {
+        try {
+          const [width, height] = rest[1].split('x').map(Number);
+          if (!isNaN(width) && !isNaN(height)) {
+            dimensions = { width, height };
+          }
+        } catch (e) {
+          console.warn('Failed to parse image dimensions:', e);
         }
-        break;
       }
       
-      case 'media':
-      case 'embed': {
-        // Generic media or embedded content
-        const alt = tag.length > 2 ? tag[2] : undefined;
-        const metadata = extractMediaMetadata(tag);
-        
-        mediaItems.push({
-          url,
-          type: determineMediaType(url),
-          alt,
-          ...metadata
-        });
-        processedUrls.add(url);
-        break;
+      mediaItems.push({
+        type: 'image',
+        url,
+        alt,
+        dimensions
+      });
+    } 
+    else if (tagType === 'video') {
+      let alt: string | undefined;
+      let poster: string | undefined;
+      
+      // Get alt/description text (position 2)
+      if (rest.length >= 1 && typeof rest[0] === 'string') {
+        alt = rest[0];
       }
+      
+      // Get poster image URL (position 3)
+      if (rest.length >= 2 && typeof rest[1] === 'string') {
+        poster = rest[1];
+      }
+      
+      mediaItems.push({
+        type: 'video',
+        url,
+        alt,
+        poster
+      });
+    }
+    else if (tagType === 'audio') {
+      let alt: string | undefined;
+      let coverArt: string | undefined;
+      
+      // Get alt/description text (position 2)
+      if (rest.length >= 1 && typeof rest[0] === 'string') {
+        alt = rest[0];
+      }
+      
+      // Get cover art URL (position 3)
+      if (rest.length >= 2 && typeof rest[1] === 'string') {
+        coverArt = rest[1];
+      }
+      
+      mediaItems.push({
+        type: 'audio',
+        url,
+        alt,
+        coverArt
+      });
+    }
+    else if (tagType === 'media') {
+      // Generic media tag - determine type from URL
+      const type = determineMediaTypeFromUrl(url);
+      let alt: string | undefined;
+      
+      if (rest.length >= 1 && typeof rest[0] === 'string') {
+        alt = rest[0];
+      }
+      
+      mediaItems.push({
+        type,
+        url,
+        alt
+      });
     }
   }
   
   return mediaItems;
-}
+};
 
 /**
- * Extract media metadata from a NIP-94 tag
+ * Determine media type from URL
  */
-function extractMediaMetadata(tag: string[]): Partial<MediaMetadata> {
-  const metadata: Partial<MediaMetadata> = {};
-  
-  // Alt text is typically the 3rd element
-  if (tag.length > 2 && tag[2]) {
-    metadata.alt = tag[2];
-  }
-  
-  // Check for dimensions in the 4th element
-  if (tag.length > 3 && tag[3]) {
-    try {
-      // Format can be "WIDTHxHEIGHT" or just JSON
-      if (tag[3].includes('x')) {
-        const [width, height] = tag[3].split('x').map(Number);
-        metadata.dimensions = { width, height };
-      } else if (tag[3].startsWith('{')) {
-        // Try to parse JSON dimensions
-        const dimensionData = JSON.parse(tag[3]);
-        if (dimensionData.width || dimensionData.height) {
-          metadata.dimensions = {
-            width: dimensionData.width,
-            height: dimensionData.height
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse media dimensions:', e);
-    }
-  }
-  
-  // Check for blurhash in the 5th element
-  if (tag.length > 4 && tag[4] && typeof tag[4] === 'string') {
-    metadata.blurhash = tag[4];
-  }
-  
-  // Check for description in the 6th element
-  if (tag.length > 5 && tag[5]) {
-    metadata.description = tag[5];
-  }
-  
-  // Check for sensitive content flag
-  if (tag.length > 6 && tag[6] === 'sensitive') {
-    metadata.sensitiveContent = true;
-  }
-  
-  return metadata;
-}
-
-/**
- * Determine the media type based on URL patterns
- */
-function determineMediaType(url: string): MediaItem['type'] {
-  // Check for YouTube
-  if (url.includes('youtube.com/') || url.includes('youtu.be/')) {
+const determineMediaTypeFromUrl = (url: string): MediaItem['type'] => {
+  if (isYoutubeUrl(url) || isVimeoUrl(url) || url.includes('twitter.com/') || url.includes('x.com/')) {
     return 'embed';
   }
-  
-  // Check for Vimeo
-  if (url.includes('vimeo.com/')) {
-    return 'embed';
-  }
-  
-  // Check for SoundCloud
-  if (url.includes('soundcloud.com/')) {
-    return 'embed';
-  }
-  
-  // Check for Spotify
-  if (url.includes('spotify.com/')) {
-    return 'embed';
-  }
-  
-  // Check for common image extensions
-  if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i)) {
+  if (isImageUrl(url)) {
     return 'image';
   }
-  
-  // Check for common video extensions
-  if (url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i)) {
+  if (isVideoUrl(url)) {
     return 'video';
   }
-  
-  // Check for common audio extensions
-  if (url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i)) {
+  if (isAudioUrl(url)) {
     return 'audio';
   }
-  
-  // Default to URL for unknown types
   return 'url';
-}
+};
 
 /**
- * Identify YouTube video ID from various URL formats
+ * Extract YouTube video ID from various YouTube URL formats
  */
-export function extractYoutubeVideoId(url: string): string | null {
+export const extractYoutubeVideoId = (url: string): string | null => {
   if (!url) return null;
   
-  // Handle youtu.be short URLs
-  if (url.includes('youtu.be/')) {
-    const match = url.match(/youtu\.be\/([^?&#]+)/);
-    return match ? match[1] : null;
-  }
-  
-  // Handle youtube.com URLs
-  if (url.includes('youtube.com/')) {
-    // Handle watch URLs
-    if (url.includes('/watch')) {
-      const match = url.match(/[?&]v=([^?&#]+)/);
-      return match ? match[1] : null;
+  try {
+    // Handle various YouTube URL formats:
+    // - youtube.com/watch?v=VIDEO_ID
+    // - youtu.be/VIDEO_ID
+    // - youtube.com/shorts/VIDEO_ID
+    // - youtube.com/embed/VIDEO_ID
+    // - youtube.com/v/VIDEO_ID
+    
+    let videoId: string | null = null;
+    
+    // youtube.com/watch?v=ID format
+    if (url.includes('youtube.com/watch')) {
+      const urlObj = new URL(url);
+      videoId = urlObj.searchParams.get('v');
+    }
+    // youtu.be/ID format
+    else if (url.includes('youtu.be/')) {
+      const urlParts = url.split('youtu.be/');
+      if (urlParts.length > 1) {
+        videoId = urlParts[1].split('?')[0].split('#')[0];
+      }
+    }
+    // youtube.com/shorts/ID format
+    else if (url.includes('youtube.com/shorts/')) {
+      const urlParts = url.split('youtube.com/shorts/');
+      if (urlParts.length > 1) {
+        videoId = urlParts[1].split('?')[0].split('#')[0];
+      }
+    }
+    // youtube.com/embed/ID format
+    else if (url.includes('youtube.com/embed/')) {
+      const urlParts = url.split('youtube.com/embed/');
+      if (urlParts.length > 1) {
+        videoId = urlParts[1].split('?')[0].split('#')[0];
+      }
+    }
+    // youtube.com/v/ID format
+    else if (url.includes('youtube.com/v/')) {
+      const urlParts = url.split('youtube.com/v/');
+      if (urlParts.length > 1) {
+        videoId = urlParts[1].split('?')[0].split('#')[0];
+      }
     }
     
-    // Handle embed URLs
-    if (url.includes('/embed/')) {
-      const match = url.match(/\/embed\/([^?&#]+)/);
-      return match ? match[1] : null;
+    // Validate video ID format (should be 11 characters)
+    if (videoId && videoId.length === 11) {
+      return videoId;
     }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting YouTube video ID:', error);
+    return null;
   }
-  
-  return null;
-}
+};
 
 /**
- * Extract Cloudinary image ID and transformations
+ * Extract Vimeo video ID from various Vimeo URL formats
  */
-export function extractCloudinaryData(url: string): { id: string | null, transformations: string | null } {
-  if (!url || !url.includes('cloudinary.com')) {
-    return { id: null, transformations: null };
-  }
+export const extractVimeoVideoId = (url: string): string | null => {
+  if (!url) return null;
   
   try {
-    // Extract the ID (format: cloudinary.com/[transformations]/[id])
-    const match = url.match(/cloudinary\.com\/(?:.*?\/)?(?:v\d+\/)?(?:([^\/]+)\/)?([^\/]+)$/);
-    const transformations = match?.[1] || null;
-    const id = match?.[2] || null;
+    // Match Vimeo ID from common URL patterns
+    const vimeoRegex = /vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|video\/|)(\d+)(?:[\/\?]?)/;
+    const match = url.match(vimeoRegex);
     
-    return { id, transformations };
-  } catch (e) {
-    console.warn('Failed to extract Cloudinary data:', e);
-    return { id: null, transformations: null };
+    if (match && match[2]) {
+      return match[2];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting Vimeo video ID:', error);
+    return null;
   }
-}
+};
 
 /**
- * Check if a URL is for embedded content (YouTube, etc.)
+ * Extract SoundCloud data from URL
  */
-export function isEmbeddedContent(url: string): boolean {
-  return (
-    url.includes('youtube.com/') || 
-    url.includes('youtu.be/') ||
-    url.includes('vimeo.com/') ||
-    url.includes('soundcloud.com/') ||
-    url.includes('spotify.com/') ||
-    url.includes('twitch.tv/')
+export const extractSoundcloudData = (url: string): { user?: string, track?: string } | null => {
+  if (!url || !url.includes('soundcloud.com')) return null;
+  
+  try {
+    // Simple extraction for soundcloud.com/username/track-name pattern
+    const match = url.match(/soundcloud\.com\/([^\/]+)\/([^\/\?#]+)/);
+    
+    if (match && match.length >= 3) {
+      return {
+        user: match[1],
+        track: match[2]
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting SoundCloud data:', error);
+    return null;
+  }
+};
+
+/**
+ * Extract Spotify ID and type from URL
+ */
+export const extractSpotifyData = (url: string): { type: string, id: string } | null => {
+  if (!url || !url.includes('spotify.com')) return null;
+  
+  try {
+    // Match pattern like spotify.com/track/1234567890
+    const match = url.match(/spotify\.com\/(track|album|playlist|artist)\/([a-zA-Z0-9]+)/);
+    
+    if (match && match.length >= 3) {
+      return {
+        type: match[1],
+        id: match[2]
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting Spotify data:', error);
+    return null;
+  }
+};
+
+/**
+ * Extract Twitter/X tweet ID from URL
+ */
+export const extractTwitterData = (url: string): { username?: string, tweetId?: string } | null => {
+  if (!url) return null;
+  if (!url.includes('twitter.com/') && !url.includes('x.com/')) return null;
+  
+  try {
+    // Match for twitter.com/username/status/1234567890 pattern
+    const twitterRegex = /(?:twitter\.com|x\.com)\/([^\/]+)\/status\/(\d+)/;
+    const match = url.match(twitterRegex);
+    
+    if (match && match.length >= 3) {
+      return {
+        username: match[1],
+        tweetId: match[2]
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting Twitter data:', error);
+    return null;
+  }
+};
+
+/**
+ * Extract Cloudinary cloud name and asset ID from URL
+ */
+export const extractCloudinaryData = (url: string): { cloudName?: string, id?: string } | null => {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  
+  try {
+    // Match pattern like res.cloudinary.com/cloud-name/image/upload/v1234567890/asset-id
+    const cloudinaryRegex = /res\.cloudinary\.com\/([^\/]+)\/(image|video|audio)\/upload\/(?:v\d+\/)?([^\/\?]+)/;
+    const match = url.match(cloudinaryRegex);
+    
+    if (match && match.length >= 4) {
+      return {
+        cloudName: match[1],
+        id: match[3]
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error extracting Cloudinary data:', error);
+    return null;
+  }
+};
+
+/**
+ * Determines if content is embedded from a platform rather than direct media
+ */
+export const isEmbeddedContent = (url: string): boolean => {
+  if (!url) return false;
+  
+  return !!(
+    isYoutubeUrl(url) ||
+    isVimeoUrl(url) ||
+    isSoundcloudUrl(url) ||
+    isSpotifyUrl(url) ||
+    isTwitterUrl(url)
   );
+};
+
+// Helper functions for URL detection specific to platforms
+function isYoutubeUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('youtube.com') || url.includes('youtu.be');
+}
+
+function isVimeoUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('vimeo.com');
+}
+
+function isSoundcloudUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('soundcloud.com');
+}
+
+function isSpotifyUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('spotify.com');
+}
+
+function isTwitterUrl(url: string): boolean {
+  if (!url) return false;
+  return url.includes('twitter.com') || url.includes('x.com');
 }

@@ -50,11 +50,21 @@ export const isValidMediaUrl = (url: string): boolean => {
       return false;
     }
     
-    // Handle special cases like YouTube and Cloudinary
+    // Handle special cases for specific platforms
     if (
+      // Video platforms
       normalizedUrl.includes('youtube.com') || 
       normalizedUrl.includes('youtu.be') ||
-      normalizedUrl.includes('cloudinary.com')
+      normalizedUrl.includes('vimeo.com') ||
+      // Audio platforms
+      normalizedUrl.includes('soundcloud.com') ||
+      normalizedUrl.includes('spotify.com') ||
+      // Image platforms
+      normalizedUrl.includes('cloudinary.com') ||
+      normalizedUrl.includes('imgur.com') ||
+      // Social platforms with media content
+      normalizedUrl.includes('twitter.com') ||
+      normalizedUrl.includes('x.com')
     ) {
       return true;
     }
@@ -69,10 +79,16 @@ export const isValidMediaUrl = (url: string): boolean => {
 
     // Check for known media hosting domains
     const mediaHosts = [
+      // Image hosting
       'i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 
       'primal.net', 'mako.co.il', 'v.nostr.build', 'pbs.twimg.com',
-      'media.giphy.com', 'giphy.com', 'gph.is', 'tenor.com',
-      'vimeo.com', 'spotify.com', 'soundcloud.com'
+      'media.giphy.com', 'giphy.com', 'gph.is',
+      // Video hosting
+      'tenor.com', 'vimeo.com', 'd.tube',
+      // Audio hosting
+      'spotify.com', 'soundcloud.com', 'bandcamp.com', 'mixcloud.com',
+      // Nostr media hosts
+      'nostrcheck.me', 'nostrnests.com', 'nostrimg.com', 'nostr.pixels.online'
     ];
     for (const host of mediaHosts) {
       if (normalizedUrl.includes(host)) {
@@ -98,22 +114,40 @@ export const isImageUrl = (url: string): boolean => {
     return true;
   }
   
+  // Check for Imgur URLs (which might not have extensions)
+  if (url.includes('imgur.com') && !url.match(/\.(mp4|webm|mov|gifv)(\?.*)?$/i)) {
+    return true;
+  }
+  
   return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp|tiff?)(\?.*)?$/i);
 };
 
 /**
- * Tests if a URL is a video by extension
+ * Tests if a URL is a video by extension or domain
  */
 export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   
   // Check for YouTube videos
-  if (url.includes('youtube.com/') || url.includes('youtu.be/')) {
+  if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
+    return true;
+  }
+  
+  // Check for Vimeo videos
+  if (url.includes('vimeo.com/')) {
+    return true;
+  }
+  
+  // Check for Twitter videos
+  if ((url.includes('twitter.com/') || url.includes('x.com/')) && 
+      url.includes('/status/') && 
+      (url.includes('/video/') || url.includes('?s=20'))) {
     return true;
   }
   
   // Check for Cloudinary videos
-  if (url.includes('cloudinary.com') && url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i)) {
+  if (url.includes('cloudinary.com') && 
+      (url.includes('/video/') || url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i))) {
     return true;
   }
   
@@ -121,13 +155,24 @@ export const isVideoUrl = (url: string): boolean => {
 };
 
 /**
- * Tests if a URL is audio by extension
+ * Tests if a URL is audio by extension or domain
  */
 export const isAudioUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   
+  // Check for SoundCloud
+  if (url.includes('soundcloud.com/')) {
+    return true;
+  }
+  
+  // Check for Spotify tracks
+  if (url.includes('spotify.com/track/')) {
+    return true;
+  }
+  
   // Check for Cloudinary audio
-  if (url.includes('cloudinary.com') && url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i)) {
+  if (url.includes('cloudinary.com') && 
+      (url.includes('/audio/') || url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i))) {
     return true;
   }
   
@@ -147,7 +192,31 @@ export const isSecureUrl = (url: string): boolean => {
  */
 export const isYoutubeUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return url.includes('youtube.com/') || url.includes('youtu.be/');
+  return !!(url.includes('youtube.com/') || url.includes('youtu.be/'));
+};
+
+/**
+ * Tests if a URL is from Vimeo
+ */
+export const isVimeoUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.includes('vimeo.com/');
+};
+
+/**
+ * Tests if a URL is from SoundCloud
+ */
+export const isSoundcloudUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.includes('soundcloud.com/');
+};
+
+/**
+ * Tests if a URL is from Spotify
+ */
+export const isSpotifyUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.includes('spotify.com/');
 };
 
 /**
@@ -156,4 +225,12 @@ export const isYoutubeUrl = (url: string): boolean => {
 export const isCloudinaryUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return url.includes('cloudinary.com/');
+};
+
+/**
+ * Tests if a URL is a Twitter/X post with media
+ */
+export const isTwitterUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return (url.includes('twitter.com/') || url.includes('x.com/')) && url.includes('/status/');
 };
