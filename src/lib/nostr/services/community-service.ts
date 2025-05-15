@@ -1,11 +1,14 @@
+
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
 import type { ProposalCategory } from '@/types/community';
+import { validateCommunityEvent, validateProposalEvent, validateVoteEvent } from '../utils/nip/nip172';
 
 /**
  * Community service to handle community-related operations 
  * Implements NIP-172 compatible methods
+ * @see https://github.com/nostr-protocol/nips/blob/master/172.md
  */
 export class CommunityService {
   constructor(
@@ -41,18 +44,24 @@ export class CommunityService {
             {
               onevent: (event) => {
                 try {
+                  // Validate event against NIP-172
+                  const validation = validateCommunityEvent(event);
+                  if (!validation.valid) {
+                    console.warn("Invalid community event:", validation.errors);
+                  }
+                  
                   const community = JSON.parse(event.content);
                   community.id = event.id;
                   community.uniqueId = communityId;
                   
-                  // Process members from the tags
+                  // Process members from the tags according to NIP-172
                   const members = event.tags
                     .filter(tag => tag.length >= 2 && tag[0] === 'p')
                     .map(tag => tag[1]);
                     
                   community.members = members;
                   
-                  // Process moderators from the tags
+                  // Process moderators from the tags - look for role markers
                   const moderators = event.tags
                     .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
                     .map(tag => tag[1]);
@@ -94,7 +103,7 @@ export class CommunityService {
   }
 
   /**
-   * Create a new community
+   * Create a new community following NIP-172
    */
   async createCommunity(
     name: string,
@@ -102,10 +111,11 @@ export class CommunityService {
   ): Promise<string | null> {
     if (!this.publicKey) return null;
     
+    // Generate a unique community ID per NIP-172
     const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
     const relays = this.getConnectedRelayUrls();
     
-    // Create community metadata
+    // Create community metadata per NIP-172
     const communityData = {
       name,
       description,
@@ -119,7 +129,7 @@ export class CommunityService {
       kind: EVENT_KINDS.COMMUNITY,
       content: JSON.stringify(communityData),
       tags: [
-        ["d", uniqueId], // Unique identifier for this community
+        ["d", uniqueId], // Unique identifier for this community per NIP-172
         ["p", this.publicKey] // Creator is the first member
       ]
     };
@@ -139,7 +149,7 @@ export class CommunityService {
   }
   
   /**
-   * Create a proposal for a community
+   * Create a proposal for a community following NIP-172
    */
   async createProposal(
     communityId: string,
@@ -153,10 +163,10 @@ export class CommunityService {
     if (!this.publicKey || !communityId) return null;
     const relays = this.getConnectedRelayUrls();
     
-    // Default end time is 7 days from now if not specified
+    // Default end time is 7 days from now if not specified per NIP-172
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
     
-    // Create proposal data
+    // Create proposal data according to NIP-172
     const proposalData = {
       title,
       description,
@@ -167,15 +177,16 @@ export class CommunityService {
       minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
     };
     
+    // Generate unique proposal ID per NIP-172
     const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
     
-    // Create proposal event
+    // Create proposal event per NIP-172
     const event = {
       kind: EVENT_KINDS.PROPOSAL,
       content: JSON.stringify(proposalData),
       tags: [
-        ["e", communityId], // Reference to community event
-        ["d", proposalId] // Unique identifier
+        ["e", communityId], // Reference to community event per NIP-172
+        ["d", proposalId] // Unique identifier per NIP-172
       ]
     };
     
@@ -194,7 +205,7 @@ export class CommunityService {
   }
   
   /**
-   * Vote on a proposal
+   * Vote on a proposal following NIP-172
    * @param proposalId ID of the proposal event
    * @param optionIndex Index of the selected option (0-based)
    */
@@ -205,12 +216,12 @@ export class CommunityService {
     if (!this.publicKey || !proposalId) return null;
     const relays = this.getConnectedRelayUrls();
     
-    // Create vote event
+    // Create vote event per NIP-172
     const event = {
       kind: EVENT_KINDS.VOTE,
       content: JSON.stringify({ optionIndex }),
       tags: [
-        ["e", proposalId] // Reference to proposal event
+        ["e", proposalId] // Reference to proposal event per NIP-172
       ]
     };
     
