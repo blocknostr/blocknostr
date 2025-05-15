@@ -1,4 +1,3 @@
-
 /**
  * Type definitions for the NostrAdapter interfaces
  */
@@ -12,6 +11,10 @@ export interface BaseAdapterInterface {
   formatPubkey(pubkey: string): string;
   getNpubFromHex(hexPubkey: string): string;
   getHexFromNpub(npub: string): string;
+  
+  // Add missing methods
+  isLoggedIn(): boolean;
+  hasConnectedRelays(): boolean;
 }
 
 export interface SocialAdapterInterface extends BaseAdapterInterface {
@@ -83,4 +86,8 @@ export interface NostrAdapterInterface extends BaseAdapterInterface,
   publishEvent(event: any): Promise<string | null>;
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
   unsubscribe(subId: string): void;
+  
+  // Add missing methods
+  isLoggedIn(): boolean;
+  hasConnectedRelays(): boolean;
 }

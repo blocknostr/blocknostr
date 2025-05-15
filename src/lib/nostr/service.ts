@@ -12,6 +12,7 @@ import type { ProposalCategory } from '@/types/community';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
+import { CommunityService } from './services/community-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -716,7 +717,8 @@ export class NostrService {
     }
   }
   
-  private getConnectedRelayUrls(): string[] {
+  // Expose getConnectedRelayUrls as public for adapters to use
+  public getConnectedRelayUrls(): string[] {
     return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);

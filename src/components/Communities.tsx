@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -16,6 +15,7 @@ const Communities = () => {
   const [connectingRelays, setConnectingRelays] = useState(false);
 
   const currentUserPubkey = nostrService.publicKey;
+  // Use the adapter method from the service directly
   const isLoggedIn = nostrService.isLoggedIn();
   
   // Connect to relays and fetch communities
@@ -23,6 +23,7 @@ const Communities = () => {
     try {
       setConnectingRelays(true);
       
+      // Use the service method directly
       if (!nostrService.hasConnectedRelays()) {
         await nostrService.connectToUserRelays();
       }
@@ -175,6 +176,7 @@ const Communities = () => {
       return;
     }
     
+    // Use the service method directly
     if (!nostrService.hasConnectedRelays()) {
       toast.error("No relays connected. Please try again later.");
       connectAndFetch();
