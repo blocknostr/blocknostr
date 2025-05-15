@@ -63,7 +63,7 @@ export class EventManager {
    * @param privateKey Private key in hex format
    * @returns Promise resolving to signature
    */
-  private async signEvent(event: any, privateKey: string): Promise<string> {
+  async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
     // Using the correct secp256k1 signing method
     const signatureBytes = await secp.sign(eventHash, privateKey);

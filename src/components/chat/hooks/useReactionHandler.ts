@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
+import { NostrEvent } from "@/lib/nostr/types";
 import { toast } from "sonner";
 import { Filter } from "nostr-tools";
 

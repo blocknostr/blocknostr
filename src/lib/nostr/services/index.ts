@@ -1,6 +1,6 @@
 
 import { SimplePool, Filter } from 'nostr-tools';
-import { NostrEventManager } from '../event/index';
+import { NostrEventManager, eventManager } from '../event/index';
 
 /**
  * Create a subscription to events matching the given filters
@@ -37,9 +37,6 @@ export function subscribeToEvents(
     };
   }
 }
-
-// Create an instance of the NostrEventManager class for service methods
-const eventManager = new NostrEventManager();
 
 /**
  * Get a single event by ID

@@ -159,10 +159,10 @@ export class NostrService {
       status: relay.status,
       read: relay.read || true, // Provide defaults for required properties
       write: relay.write || true,
-      score: relay.score,
-      avgResponse: relay.avgResponse,
-      circuitStatus: relay.circuitStatus,
-      isRequired: relay.isRequired
+      score: relay.score || 0,
+      avgResponse: relay.avgResponse || 0,
+      circuitStatus: relay.circuitStatus || 'closed',
+      isRequired: relay.isRequired || false
     }));
   }
   
@@ -327,9 +327,9 @@ export class NostrService {
   /**
    * Handle user login
    */
-  async login(): Promise<boolean> {
+  async login(options?: any): Promise<boolean> {
     // Implementation would go here
-    console.log("User login requested");
+    console.log("User login requested", options);
     return false;
   }
   
