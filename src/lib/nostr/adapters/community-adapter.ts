@@ -21,6 +21,16 @@ export class CommunityAdapter extends BaseAdapter {
     // Ensure proper handling of ProposalCategory
     const validCategory = this.ensureValidProposalCategory(category);
     
+    if (!communityId) {
+      console.error("Missing communityId in createProposal adapter call");
+      throw new Error("Community ID is required to create a proposal");
+    }
+    
+    if (!this.service.publicKey) {
+      console.error("Missing public key in createProposal adapter call");
+      throw new Error("You must be logged in to create a proposal");
+    }
+    
     return this.service.createProposal(
       communityId, 
       title, 
