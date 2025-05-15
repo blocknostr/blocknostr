@@ -1,10 +1,11 @@
+
 import { useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -15,6 +16,9 @@ import * as z from "zod";
 interface CreateCommunityDialogProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  onCreateCommunity?: (name: string, description: string) => Promise<void>;
+  title?: string;
+  description?: string;
 }
 
 // Form validation schema with stricter requirements
@@ -33,7 +37,7 @@ const formSchema = z.object({
   }),
 });
 
-const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps) => {
+const CreateCommunityDialog = ({ isOpen, setIsOpen, onCreateCommunity, title = "Create a new community", description }: CreateCommunityDialogProps) => {
   const navigate = useNavigate();
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
   
@@ -57,6 +61,15 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
     setIsCreatingCommunity(true);
     
     try {
+      // If custom handler is provided, use it
+      if (onCreateCommunity) {
+        await onCreateCommunity(values.name.trim(), values.description.trim());
+        form.reset();
+        setIsOpen(false);
+        return;
+      }
+      
+      // Default Nostr community creation
       const communityId = await nostrService.createCommunity(
         values.name.trim(),
         values.description.trim()
@@ -91,15 +104,10 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Community
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create a new community</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <p className="text-sm text-muted-foreground mt-2">{description}</p>}
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleCreateCommunity)} className="space-y-4 py-4">
