@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -39,8 +38,11 @@ const WalletsPage = () => {
   }, [connected, wallet.account]);
 
   const handleDisconnect = () => {
-    wallet.disconnect();
-    toast.info("Wallet disconnected");
+    // Using signer.disconnect() instead of wallet.disconnect()
+    if (wallet.signer) {
+      wallet.signer.disconnect();
+      toast.info("Wallet disconnected");
+    }
   };
 
   if (!connected || !wallet.account) {

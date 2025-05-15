@@ -32,7 +32,10 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = () => {
-    wallet.connect();
+    // Using signer.connect() instead of wallet.connect()
+    if (wallet.signer) {
+      wallet.signer.connect();
+    }
   };
 
   const isConnected = wallet.connectionStatus === 'connected';
@@ -76,7 +79,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       <Button 
         className="mt-6 w-full"
         onClick={handleConnect}
-        disabled={isConnecting || !hasWalletExtension}
+        disabled={isConnecting || !hasWalletExtension || !wallet.signer}
       >
         {isConnecting ? "Connecting..." : "Connect Wallet"}
       </Button>
