@@ -1,53 +1,39 @@
-import { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { nostrService } from "@/lib/nostr";
-import { Wifi, WifiOff } from "lucide-react";
 
-const RelayConnectionStatus = () => {
-  const [isConnected, setIsConnected] = useState(true);
-  
-  const checkConnectionStatus = useCallback(() => {
-    const relays = nostrService.getRelayStatus();
-    const connectedRelays = relays.filter(relay => {
-      // Convert to string for safe comparison if needed
-      return String(relay.status) === "1" || relay.status === "connected";
-    }).length;
-    setIsConnected(connectedRelays > 0);
-  }, []);
-  
-  useEffect(() => {
-    checkConnectionStatus();
-    
-    const interval = setInterval(checkConnectionStatus, 5000);
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [checkConnectionStatus]);
+import React from 'react';
+import { useRelayContext } from '@/components/providers/relay-provider';
+import { Badge } from '@/components/ui/badge';
 
+/**
+ * Component that shows the current relay connection status
+ */
+export default function RelayConnectionStatus() {
+  const { relays } = useRelayContext();
+  const [connected, setConnected] = React.useState(0);
+  const [total, setTotal] = React.useState(0);
+  
+  React.useEffect(() => {
+    if (relays && relays.length > 0) {
+      const connectedRelays = relays.filter(relay => {
+        return relay.status === 1 || String(relay.status) === "1" || relay.status === "connected";
+      });
+      setConnected(connectedRelays.length);
+      setTotal(relays.length);
+    } else {
+      setConnected(0);
+      setTotal(0);
+    }
+  }, [relays]);
+  
+  // Different colors based on connection status
+  let statusColor = "bg-red-500";
+  if (connected > 0) {
+    statusColor = connected === total ? "bg-green-500" : "bg-yellow-500";
+  }
+  
   return (
-    <TooltipProvider delayDuration={50}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 hover:bg-accent/30 rounded-full"
-          >
-            {isConnected ? (
-              <Wifi className="h-4 w-4" />
-            ) : (
-              <WifiOff className="h-4 w-4 text-red-500" />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent className="text-xs">
-          {isConnected ? "Connected to relays" : "Disconnected from relays"}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Badge variant="outline" className="text-xs font-normal">
+      <span className={`w-2 h-2 rounded-full mr-1.5 ${statusColor}`} />
+      {connected}/{total} relays
+    </Badge>
   );
-};
-
-export default RelayConnectionStatus;
+}

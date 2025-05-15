@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Event, Filter } from 'nostr-tools';
 import { nostrService } from '@/lib/nostr';
@@ -25,7 +26,7 @@ export function useEventSubscription(filters: NostrFilter[], options: EventSubsc
     const relays = nostrService.getRelayStatus();
     // Convert statuses to strings for safe comparison
     const connected = relays.filter(r => {
-      return String(r.status) === "1" || r.status === "connected";
+      return r.status === 1 || String(r.status) === "1" || r.status === "connected";
     }).length;
     
     if (connected > 0) {
@@ -83,6 +84,9 @@ export function useEventSubscription(filters: NostrFilter[], options: EventSubsc
   useEffect(() => {
     // Set up connection status check interval
     const statusInterval = setInterval(updateConnectionStatus, 5000);
+    
+    // Initial check
+    updateConnectionStatus();
     
     // Cleanup function
     return () => {

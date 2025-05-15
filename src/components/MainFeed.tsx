@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteForm from "./CreateNoteForm";
@@ -13,7 +12,7 @@ import { Button } from "./ui/button";
 import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
-import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
+import ConnectionStatusBanner from "./feed/ConnectionStatusBanner";
 
 interface MainFeedProps {
   activeHashtag?: string;

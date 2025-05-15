@@ -1,48 +1,51 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { nostrService } from "@/lib/nostr";
-import { RefreshCw, WifiOff } from "lucide-react";
 
-const ConnectionStatusBanner = () => {
-  const [isConnected, setIsConnected] = useState(true);
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  
-  const checkConnectionStatus = useCallback(() => {
-    const relays = nostrService.getRelayStatus();
-    const connectedRelays = relays.filter(relay => {
-      // Convert to string for safe comparison if needed
-      return String(relay.status) === "1" || relay.status === "connected";
-    }).length;
-    setIsConnected(connectedRelays > 0);
-  }, []);
-  
-  useEffect(() => {
-    checkConnectionStatus();
-    
-    const interval = setInterval(checkConnectionStatus, 5000);
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [checkConnectionStatus]);
-  
-  if (!isConnected) {
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <WifiOff className="h-4 w-4" />
-            <AlertDescription>
-              You're offline. Showing cached content only.
-            </AlertDescription>
-          </div>
-        </div>
-      </Alert>
-    );
+import React from 'react';
+import { useRelayContext } from '@/components/providers/relay-provider';
+import { CircleX, CircleCheck, CircleAlert } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+
+export function ConnectionStatusBanner() {
+  const { relays, connectToDefaultRelays } = useRelayContext();
+  const [hasConnectedRelays, setHasConnectedRelays] = React.useState(false);
+
+  React.useEffect(() => {
+    // Check if we have any connected relays
+    if (relays && relays.length > 0) {
+      const connected = relays.filter(relay => {
+        return relay.status === 1 || String(relay.status) === "1" || relay.status === "connected";
+      });
+      setHasConnectedRelays(connected.length > 0);
+    }
+  }, [relays]);
+
+  if (hasConnectedRelays) {
+    return null;
   }
-  
-  return null;
-};
+
+  return (
+    <Alert variant="default" className="mb-4 bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800">
+      <div className="flex items-start">
+        <CircleAlert className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 mr-2" />
+        <div className="flex-1">
+          <AlertTitle className="font-medium text-sm text-yellow-800 dark:text-yellow-300">
+            Not connected to any relays
+          </AlertTitle>
+          <AlertDescription className="text-xs text-yellow-700 dark:text-yellow-400">
+            Your feed may not be up-to-date or you might not be able to post.
+          </AlertDescription>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-xs ml-2 border-yellow-300 dark:border-yellow-700"
+          onClick={connectToDefaultRelays}
+        >
+          Connect
+        </Button>
+      </div>
+    </Alert>
+  );
+}
 
 export default ConnectionStatusBanner;
