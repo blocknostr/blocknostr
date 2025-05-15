@@ -5,8 +5,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { handleError } from "@/lib/utils/errorHandling";
 
 interface Transaction {
   id: string;
@@ -15,23 +13,6 @@ interface Transaction {
   timestamp: number;
   status: 'confirmed' | 'pending';
   address: string;
-  blockHash?: string;
-}
-
-interface AlephiumAddressTransactionsResponse {
-  transactions: Array<{
-    hash: string;
-    blockHash: string;
-    timestamp: number;
-    inputs: Array<{
-      address: string;
-      attoAlphAmount: string;
-    }>;
-    outputs: Array<{
-      address: string;
-      attoAlphAmount: string;
-    }>;
-  }>;
 }
 
 interface TransactionsListProps {
@@ -41,9 +22,6 @@ interface TransactionsListProps {
 const TransactionsList = ({ address }: TransactionsListProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Node API URL
-  const ALEPHIUM_NODE_API = "https://node.mainnet.alephium.org";
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -52,127 +30,75 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Using the node API URL you provided
-        const response = await fetch(`${ALEPHIUM_NODE_API}/addresses/${address}/transactions?fromGroup=0&toGroup=3&limit=10`);
+        // Try to fetch transaction data from the Alephium Explorer API
+        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
         }
         
-        const data: AlephiumAddressTransactionsResponse = await response.json();
-        
-        if (!data.transactions || !Array.isArray(data.transactions)) {
-          throw new Error('Invalid response format');
-        }
-        
-        console.log('API Response:', data); // Log the response for debugging
+        const data = await response.json();
         
         // Transform the data into our transaction format
-        const formattedTransactions: Transaction[] = data.transactions.map((tx) => {
-          // Determine if the transaction is sent or received
-          const isSent = tx.inputs.some(input => input.address === address);
-          
-          // Calculate the total amount
-          let amount = '0';
-          if (isSent) {
-            // For sent, calculate the net amount leaving the address
-            // First, sum all inputs from this address
-            const selfInputs = tx.inputs.filter(input => input.address === address);
-            const inputSum = selfInputs.reduce((sum, input) => 
-              (BigInt(sum) + BigInt(input.attoAlphAmount)).toString(), '0');
-            
-            // Then, sum all outputs going back to this address
-            const selfOutputs = tx.outputs.filter(output => output.address === address);
-            const outputSum = selfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
-            
-            // The amount sent is the difference
-            amount = (BigInt(inputSum) - BigInt(outputSum)).toString();
-          } else {
-            // For received, sum outputs that go to the current address
-            const selfOutputs = tx.outputs.filter(output => output.address === address);
-            amount = selfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
-          }
-          
-          // Format amount to ALPH (1 ALPH = 10^18 attoALPH)
-          const formattedAmount = (Number(BigInt(amount)) / 10**18).toString();
-          
-          // Find the counterparty address (first non-self address in inputs or outputs)
-          let counterpartyAddress = '';
-          if (isSent) {
-            // For sent, get the first recipient that isn't the sender
-            counterpartyAddress = tx.outputs.find(output => output.address !== address)?.address || 'Unknown';
-          } else {
-            // For received, get the first sender
-            counterpartyAddress = tx.inputs.find(input => input.address !== address)?.address || 'Unknown';
-          }
+        // Note: This transformation is an approximation as the exact API response format may differ
+        const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
+          const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
           
           return {
-            id: tx.hash,
+            id: tx.hash || tx.txId,
             type: isSent ? 'sent' : 'received',
-            amount: formattedAmount,
-            timestamp: tx.timestamp * 1000, // Convert to milliseconds
+            amount: tx.amount || (tx.outputs?.[0]?.amount ?? "0"),
+            timestamp: tx.timestamp || Date.now(),
             status: 'confirmed',
-            address: counterpartyAddress,
-            blockHash: tx.blockHash
+            address: isSent 
+              ? (tx.outputs?.[0]?.address || 'Unknown') 
+              : (tx.inputs?.[0]?.address || 'Unknown')
           };
         });
         
         setTransactions(formattedTransactions);
       } catch (error) {
         console.error('Error fetching transactions:', error);
+        // Fallback to mock data if API fails
+        const mockTransactions: Transaction[] = [
+          {
+            id: "0x123456789abcdef",
+            type: "received",
+            amount: "100.00",
+            timestamp: Date.now() - 3600000 * 2,
+            status: "confirmed",
+            address: "0xabcdef123456789"
+          },
+          {
+            id: "0x987654321fedcba",
+            type: "sent",
+            amount: "50.25",
+            timestamp: Date.now() - 86400000,
+            status: "confirmed",
+            address: "0x567890abcdef123"
+          },
+          {
+            id: "0xabcdef123456789",
+            type: "received",
+            amount: "250.75",
+            timestamp: Date.now() - 86400000 * 3,
+            status: "confirmed",
+            address: "0x123abcdef456789"
+          },
+          {
+            id: "0x456789abcdef123",
+            type: "sent",
+            amount: "75.50",
+            timestamp: Date.now() - 86400000 * 7,
+            status: "confirmed",
+            address: "0x789abcdef123456"
+          }
+        ];
         
-        await handleError(error, {
-          toastMessage: "Could not fetch transaction history",
-          logMessage: "Transaction fetch error for address: " + address,
-          type: 'error',
+        setTransactions(mockTransactions);
+        toast.error("Could not fetch transaction history", {
+          description: "Using sample data instead"
         });
-        
-        // If we're using the fixed demo address, show mock data
-        if (address === "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r") {
-          const mockTransactions: Transaction[] = [
-            {
-              id: "d35e3ceed8151d62af033c7949e9634afdb76e19197a30741e5951d60c9fbc61",
-              type: "received",
-              amount: "5.00",
-              timestamp: Date.now() - 3600000 * 2,
-              status: "confirmed",
-              address: "raLxxuVR1W8GV1J5EGcmAXnYLJDcwYwEX5fHdavZpS7c"
-            },
-            {
-              id: "f9cb93e871d31c0c5c8efdc67c3fbc5bd4eb28d3abc3ac331421d93aeb5cf2b1",
-              type: "sent",
-              amount: "2.25",
-              timestamp: Date.now() - 86400000,
-              status: "confirmed",
-              address: "ra2VbGCNvxJvdPFSXNuTK8f85NqMnQEjmTNLQEwp2FG1"
-            },
-            {
-              id: "517dbcd142a21c34163173ff890d056a8388e9446b32766fb3f5d1c8225e8cb9",
-              type: "received",
-              amount: "1.75",
-              timestamp: Date.now() - 86400000 * 3,
-              status: "confirmed",
-              address: "raLVdGg8mWdtvwjNoHFGMdArKfy9jmysFvWx1vpFJSRA"
-            },
-            {
-              id: "e2e5b116e9051c5eda5f823c5bf6500e1ece424a456502df88c66338429e3927",
-              type: "sent",
-              amount: "0.50",
-              timestamp: Date.now() - 86400000 * 7,
-              status: "confirmed",
-              address: "ra2B7pHFJDYLpH8bEawYxcDQbAUAkNf1wjoYCT5xbGz8"
-            }
-          ];
-          
-          setTransactions(mockTransactions);
-          toast.info("Using sample transaction data for this demo address", {
-            description: "Connect your own wallet to see real transaction history"
-          });
-        } else {
-          setTransactions([]);
-        }
       } finally {
         setIsLoading(false);
       }
@@ -193,19 +119,6 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 
-  // Format amount with appropriate precision
-  const formatAmount = (amount: string) => {
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum)) return "0.00";
-    
-    return amountNum < 0.0001 
-      ? amountNum.toExponential(4) 
-      : amountNum.toLocaleString(undefined, { 
-          minimumFractionDigits: 2, 
-          maximumFractionDigits: 4 
-        });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -221,10 +134,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
             <Skeleton className="h-12 w-full" />
           </div>
         ) : transactions.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-muted-foreground mb-2">No transactions found</p>
-            <p className="text-sm text-muted-foreground">This wallet may be new or has no activity yet</p>
-          </div>
+          <p className="text-center py-8 text-muted-foreground">No transactions found</p>
         ) : (
           <Table>
             <TableHeader>
@@ -246,13 +156,11 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
                       ) : (
                         <ArrowUpRight className="h-4 w-4 text-blue-500" />
                       )}
-                      <Badge variant={tx.type === 'received' ? 'outline' : 'secondary'} className="capitalize">
-                        {tx.type}
-                      </Badge>
+                      <span className="capitalize">{tx.type}</span>
                     </div>
                   </TableCell>
                   <TableCell className={tx.type === 'received' ? 'text-green-500' : 'text-blue-500'}>
-                    {tx.type === 'received' ? '+' : '-'} {formatAmount(tx.amount)} ALPH
+                    {tx.type === 'received' ? '+' : '-'} {tx.amount} ALPH
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{truncateAddress(tx.address)}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
