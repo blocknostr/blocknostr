@@ -96,15 +96,20 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
     <div className="space-y-4">
       {/* Render events as note cards */}
       {prioritizedEvents.map((event, index) => (
-        <NoteCard 
-          key={event.id} 
-          event={event} 
-          profileData={event.pubkey ? profiles[event.pubkey] : undefined}
-          repostData={event.id && repostData[event.id] ? {
-            reposterPubkey: repostData[event.id].pubkey,
-            reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
-          } : undefined}
-        />
+        <div 
+          key={event.id}
+          className="opacity-0 animate-in fade-in-0 slide-in-from-bottom-3 fill-mode-both duration-500"
+          style={{ animationDelay: `${Math.min(index * 50, 500)}ms` }} 
+        >
+          <NoteCard 
+            event={event} 
+            profileData={event.pubkey ? profiles[event.pubkey] : undefined}
+            repostData={event.id && repostData[event.id] ? {
+              reposterPubkey: repostData[event.id].pubkey,
+              reposterProfile: repostData[event.id].pubkey ? profiles[repostData[event.id].pubkey] : undefined
+            } : undefined}
+          />
+        </div>
       ))}
       
       {/* Very early loading trigger at 25% of the feed */}
@@ -129,7 +134,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       {hasMore && (
         <div className="py-4 text-center" ref={typeof loadMoreRef === 'function' ? loadMoreRef : loadMoreRef?.current ? undefined : loadMoreRef}>
           {loadMoreLoading && (
-            <div className="flex items-center justify-center text-sm text-muted-foreground">
+            <div className="flex items-center justify-center text-sm text-muted-foreground animate-in fade-in-0">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Loading more posts...
             </div>

@@ -1,13 +1,14 @@
 
 import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
 import NoteCardContent from './NoteCardContent';
 import NoteCardActions from './NoteCardActions';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import NoteCardComments from './NoteCardComments';
 import { Heart, RepeatIcon, ArrowUpRight } from 'lucide-react';
+import NoteCardContainer from './NoteCardContainer';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -71,9 +72,7 @@ const MemoizedNoteCard = React.memo(
     };
     
     return (
-      <Card className="mb-4 border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
-            onClick={handleCardClick}>
-        
+      <NoteCardContainer eventId={event.id} onClick={handleCardClick}>
         {/* Indicators (Repost, Reaction, Reply) */}
         {(repostData || reactionData || isReply) && (
           <>
@@ -172,7 +171,7 @@ const MemoizedNoteCard = React.memo(
             </div>
           )}
         </CardContent>
-      </Card>
+      </NoteCardContainer>
     );
   },
   // Custom comparison function to prevent unnecessary re-renders
