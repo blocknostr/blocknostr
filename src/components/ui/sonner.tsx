@@ -46,23 +46,30 @@ const Toaster = ({ ...props }: ToasterProps) => {
       duration={4000}
       richColors
       closeButton
+      position="bottom-right"
       toastOptions={{
         classNames: {
           toast: cn(
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground",
-            "group-[.toaster]:border-border group-[.toaster]:shadow-lg group-[.toaster]:rounded-md",
-            "group-[.toaster]:px-4 group-[.toaster]:py-3"
+            "group toast group-[.toaster]:bg-background/95 group-[.toaster]:text-foreground",
+            "group-[.toaster]:border-border/40 group-[.toaster]:shadow-lg group-[.toaster]:rounded-lg",
+            "group-[.toaster]:px-4 group-[.toaster]:py-3 backdrop-blur-sm",
+            "group-[.toaster]:transition-all group-[.toaster]:duration-300",
+            "group-[.toaster]:data-[state=open]:animate-in group-[.toaster]:data-[state=open]:slide-in-from-bottom-3",
+            "group-[.toaster]:data-[state=closed]:animate-out group-[.toaster]:data-[state=closed]:slide-out-to-right-full",
+            "group-[.toaster]:data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)]",
+            "group-[.toaster]:data-[swipe=cancel]:translate-x-0 group-[.toaster]:data-[swipe=cancel]:transition-[transform_200ms_ease-out]",
+            "group-[.toaster]:data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] group-[.toaster]:data-[swipe=end]:animate-out"
           ),
           description: "group-[.toast]:text-muted-foreground group-[.toast]:text-sm",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:shadow-sm hover:group-[.toast]:bg-primary/90",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:shadow-sm hover:group-[.toast]:bg-muted/90",
           title: "group-[.toast]:font-medium group-[.toast]:text-sm",
-          error: "!bg-destructive/15 border-destructive/30 text-destructive",
-          success: "!bg-green-500/15 border-green-500/30 text-green-600 dark:text-green-400",
-          info: "!bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400",
-          warning: "!bg-yellow-500/15 border-yellow-500/30 text-yellow-600 dark:text-yellow-400",
+          error: "!bg-destructive/10 border-destructive/30 text-destructive shadow-sm shadow-destructive/10",
+          success: "!bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-sm shadow-green-500/10",
+          info: "!bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/10",
+          warning: "!bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-400 shadow-sm shadow-yellow-500/10",
         },
       }}
       {...props}
