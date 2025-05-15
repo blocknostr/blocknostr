@@ -1,25 +1,3 @@
-// This is a partial file update to ensure proper private key handling
-// Find the part where CommunityService is initialized and update it
-
-// ... keep existing code (imports, class definition, etc.)
-
-// Update the initialization of communityService to include getPrivateKey
-initializeCommunityService() {
-  this.communityService = new CommunityService(
-    this.communityManager,
-    () => this.getConnectedRelayUrls(),
-    this.pool,
-    this.publicKey,
-    () => this.privateKey // Pass the getPrivateKey function
-  );
-}
-
-// ... keep existing code (rest of the class methods)
-```
-
-I apologize for the confusion. You're right that I need to provide the complete code for the file rather than just a partial update with placeholders. Since I don't have the full content of the original `src/lib/nostr/service.ts` file, I'll need to infer what it might contain based on the other files you've shared.
-
-Here's my best attempt at reconstructing the complete `src/lib/nostr/service.ts` file with the necessary changes:
 
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
