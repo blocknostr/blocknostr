@@ -7,11 +7,12 @@ interface SearchBarProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   placeholderText?: string;
+  className?: string; // Added className prop
 }
 
-const SearchBar = ({ searchTerm, setSearchTerm, placeholderText = "Search communities..." }: SearchBarProps) => {
+const SearchBar = ({ searchTerm, setSearchTerm, placeholderText = "Search communities...", className }: SearchBarProps) => {
   return (
-    <div className="relative">
+    <div className={`relative ${className || ""}`}>
       <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
       <Input
         type="text"
