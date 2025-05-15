@@ -1,17 +1,26 @@
 
 import React from 'react';
-import { ContentFormatterInterface } from './types';
+import { ContentFormatterInterface, FormattedSegment } from './types';
 import { 
   isNostrUrl, 
   getHexFromNostrUrl, 
   getProfileUrl, 
   getEventUrl, 
-  shortenIdentifier 
+  shortenIdentifier,
+  normalizeToHexPubkey,
+  resolvePubkeyFromUsername
 } from '../utils/nip/nip27';
-import { mapMentionPositions, isPotentialMention } from '../utils/nip/nip08';
+import { 
+  mapMentionPositions, 
+  isPotentialMention, 
+  parseMentions,
+  getTaggedPubkeys,
+  findAtMentions 
+} from '../utils/nip/nip08';
 import ProfileHoverCard from '@/components/profile/ProfileHoverCard';
 import { Link } from 'react-router-dom';
 import { NostrEvent } from '../types';
+import { isValidHexPubkey } from '../utils/keys';
 
 // Simple content formatter that handles basic Nostr content formatting
 export const contentFormatter: ContentFormatterInterface = {
@@ -31,6 +40,9 @@ export const contentFormatter: ContentFormatterInterface = {
       // Get all p-tags for reference
       const pTags = tags.filter(tag => Array.isArray(tag) && tag[0] === 'p');
       
+      // Parse out mentions according to standards
+      const parsedMentions = parseMentions(content, tags);
+      
       // Split content by spaces to identify potential entities
       const parts = content.split(/(\s+)/);
       
@@ -43,28 +55,34 @@ export const contentFormatter: ContentFormatterInterface = {
           if (part.startsWith('nostr:')) {
             const identifier = part.substring(6); // Remove 'nostr:'
             
-            if (identifier.startsWith('npub') || identifier.startsWith('nprofile')) {
-              // Profile mention
+            // Handle profile-type identifiers
+            if (identifier.startsWith('npub') || identifier.startsWith('nprofile') || 
+                (identifier.length === 64 && /^[0-9a-f]{64}$/i.test(identifier))) {
+              // Get the hex pubkey from the identifier
               let pubkey;
               try {
-                pubkey = getHexFromNostrUrl(part);
+                pubkey = normalizeToHexPubkey(identifier);
               } catch (e) {
                 pubkey = null;
               }
               
-              return (
-                <ProfileHoverCard 
-                  key={`mention-${index}`}
-                  pubkey={pubkey || ''}
-                  className="text-primary font-medium hover:underline cursor-pointer"
-                >
-                  <Link to={getProfileUrl(identifier)}>
-                    @{shortenIdentifier(identifier)}
-                  </Link>
-                </ProfileHoverCard>
-              );
-            } else if (identifier.startsWith('note') || identifier.startsWith('nevent')) {
-              // Event mention
+              // Only render as a profile if we have a valid pubkey
+              if (pubkey && isValidHexPubkey(pubkey)) {
+                return (
+                  <ProfileHoverCard 
+                    key={`mention-${index}`}
+                    pubkey={pubkey}
+                    className="text-primary font-medium hover:underline cursor-pointer"
+                  >
+                    <Link to={getProfileUrl(identifier)}>
+                      @{shortenIdentifier(identifier)}
+                    </Link>
+                  </ProfileHoverCard>
+                );
+              }
+            } 
+            // Handle note/event-type identifiers
+            else if (identifier.startsWith('note') || identifier.startsWith('nevent')) {
               return (
                 <Link 
                   key={`note-${index}`}
@@ -79,22 +97,27 @@ export const contentFormatter: ContentFormatterInterface = {
           
           // Detect @ mentions and match with p-tags
           if (part.startsWith('@') && part.length > 1) {
-            // Try to find a matching p-tag for this @ mention
-            // This is a heuristic and not exact, but works for many cases
             const username = part.substring(1);
+            let matchedPubkey = null;
             
-            // Check if we have any p-tags that might match this username
-            // In a perfect implementation, we'd have a mapping from usernames to pubkeys
-            // For now, we'll just link to the @ mention without a profile hover
+            // First, check if we have any p-tags that match this username
+            for (const tag of pTags) {
+              // Check if tag has a suggested NIP-05 identifier that matches
+              if (tag.length >= 3 && tag[2] && tag[2].includes('@')) {
+                const parts = tag[2].split('@');
+                if (parts[0] === username) {
+                  matchedPubkey = tag[1];
+                  break;
+                }
+              }
+            }
             
-            // If we have p-tags, try to use the first one as a fallback
-            if (pTags.length > 0) {
-              const pubkey = pTags[0][1]; // Just use the first p-tag's pubkey
-              
+            // If we found a match, render with ProfileHoverCard
+            if (matchedPubkey && isValidHexPubkey(matchedPubkey)) {
               return (
                 <ProfileHoverCard 
                   key={`mention-${index}`}
-                  pubkey={pubkey}
+                  pubkey={matchedPubkey}
                   className="text-primary font-medium hover:underline cursor-pointer"
                 >
                   {part}
@@ -102,7 +125,24 @@ export const contentFormatter: ContentFormatterInterface = {
               );
             }
             
-            // Regular @ mention without hover
+            // If no direct match, use first p-tag as fallback
+            // This is not ideal but better than nothing for backward compatibility
+            if (pTags.length > 0) {
+              const pubkey = pTags[0][1];
+              if (isValidHexPubkey(pubkey)) {
+                return (
+                  <ProfileHoverCard 
+                    key={`mention-${index}`}
+                    pubkey={pubkey}
+                    className="text-primary font-medium hover:underline cursor-pointer"
+                  >
+                    {part}
+                  </ProfileHoverCard>
+                );
+              }
+            }
+            
+            // Regular @ mention without hover if no match found
             return (
               <span key={`mention-${index}`} className="text-primary font-medium cursor-pointer hover:underline">
                 {part}
@@ -135,23 +175,26 @@ export const contentFormatter: ContentFormatterInterface = {
           }
           
           // Check for NIP-08 position-based mentions
-          // This would iterate through each character and check if it's a mention position
-          // But for simplicity we're not implementing the full algorithm here
-          
-          // Check beginning of this part for potential mention positions
+          // The content.indexOf(part) finds the starting position of this part in the original string
           const partStartPosition = content.indexOf(part);
-          if (partStartPosition >= 0 && mentionPositions.has(partStartPosition)) {
-            const pubkey = mentionPositions.get(partStartPosition);
-            if (pubkey) {
-              return (
-                <ProfileHoverCard 
-                  key={`position-mention-${index}`}
-                  pubkey={pubkey}
-                  className="text-primary font-medium hover:underline cursor-pointer"
-                >
-                  {part}
-                </ProfileHoverCard>
-              );
+          if (partStartPosition >= 0) {
+            // Check if any of our mention positions match the beginning of this part
+            for (const [position, pubkey] of mentionPositions.entries()) {
+              // If the position is within this part's range (+/- 1 character for fuzzy matching)
+              if (position >= partStartPosition - 1 && position <= partStartPosition + 1) {
+                // Make sure the pubkey is valid
+                if (isValidHexPubkey(pubkey)) {
+                  return (
+                    <ProfileHoverCard 
+                      key={`position-mention-${index}`}
+                      pubkey={pubkey}
+                      className="text-primary font-medium hover:underline cursor-pointer"
+                    >
+                      {part}
+                    </ProfileHoverCard>
+                  );
+                }
+              }
             }
           }
         } catch (error) {
@@ -205,7 +248,7 @@ export const contentFormatter: ContentFormatterInterface = {
   /**
    * Parse content and break it into segments for more advanced processing
    */
-  parseContent: (content: string, event?: NostrEvent) => {
+  parseContent: (content: string, event?: NostrEvent): FormattedSegment[] => {
     if (!content || typeof content !== 'string') return [];
     
     try {
@@ -218,8 +261,8 @@ export const contentFormatter: ContentFormatterInterface = {
       // Map p-tag mentions to positions in the content (NIP-08)
       const mentionPositions = mapMentionPositions(content, tags);
       
-      // Find all nostr: URLs and @ mentions
-      const mentionRegex = /(@\w+|nostr:(npub|note|nevent|nprofile)1[a-z0-9]+)/gi;
+      // Find all nostr: URLs and @ mentions using improved regex patterns
+      const mentionRegex = /(@\w+|nostr:(npub|note|nevent|nprofile)1[a-z0-9]+|nostr:[0-9a-f]{64})/gi;
       let match;
       let lastIndex = 0;
       
@@ -237,7 +280,6 @@ export const contentFormatter: ContentFormatterInterface = {
         if (mention.startsWith('@')) {
           // Try to find a matching p-tag for this @ mention
           const username = mention.substring(1);
-          // In a proper implementation, we'd map this username to a pubkey if possible
           
           segments.push({
             type: 'mention',
@@ -272,7 +314,7 @@ export const contentFormatter: ContentFormatterInterface = {
       }
       
       // Process NIP-08 position-based mentions
-      // This would be more complex, checking positions and inserting appropriate segments
+      // We can enhance this in the future to better handle position-based mentions
       
       return segments.length > 0 ? segments : [{
         type: 'text',
@@ -290,35 +332,39 @@ export const contentFormatter: ContentFormatterInterface = {
   /**
    * Extract mentioned pubkeys from content and tags
    */
-  extractMentionedPubkeys: (content: string, tags: string[][]) => {
-    // First get pubkeys from p tags
+  extractMentionedPubkeys: (content: string, tags: string[][]): string[] => {
     const pubkeys: string[] = [];
     
     try {
+      // First get pubkeys from p tags
       if (tags && Array.isArray(tags)) {
-        tags.forEach(tag => {
+        for (const tag of tags) {
           if (Array.isArray(tag) && tag[0] === 'p' && tag[1]) {
-            pubkeys.push(tag[1]);
+            const pubkey = normalizeToHexPubkey(tag[1]);
+            if (pubkey && !pubkeys.includes(pubkey)) {
+              pubkeys.push(pubkey);
+            }
           }
-        });
+        }
       }
       
       // Then extract pubkeys from nostr: URLs in content
       if (content && typeof content === 'string') {
-        const nostrRegex = /nostr:npub1[a-z0-9]+/gi;
+        // Use the improved regex pattern that handles all valid formats
+        const nostrRegex = /nostr:(npub1[a-z0-9]+|[0-9a-f]{64})/gi;
         const matches = content.match(nostrRegex);
         
         if (matches) {
-          matches.forEach(match => {
+          for (const match of matches) {
             try {
               const pubkey = getHexFromNostrUrl(match);
-              if (pubkey && !pubkeys.includes(pubkey)) {
+              if (pubkey && isValidHexPubkey(pubkey) && !pubkeys.includes(pubkey)) {
                 pubkeys.push(pubkey);
               }
             } catch (error) {
               console.error('Error extracting pubkey from nostr URL:', match, error);
             }
-          });
+          }
         }
       }
     } catch (error) {
