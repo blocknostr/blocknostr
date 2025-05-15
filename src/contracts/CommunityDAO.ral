@@ -1,0 +1,235 @@
+
+Contract CommunityDAO(
+  creator: Address,
+  communityName: ByteVec,
+  communityDescription: ByteVec,
+  isPrivate: Bool,
+  initialTreasuryAmount: U256,
+  minQuorum: U256, // Minimum percentage (0-100) required for proposal passage
+  @unused minVotingDuration: U256 // Minimum voting duration in seconds
+) {
+  // State variables
+  let mut members: [Address; 64] // Maximum 64 members initially, can be expanded
+  let mut memberCount: U256 = 0
+  let mut moderators: [Address; 10] // Maximum 10 moderators initially
+  let mut moderatorCount: U256 = 0
+  let mut proposalCount: U256 = 0
+  
+  // Events
+  event MemberAdded(member: Address)
+  event MemberRemoved(member: Address)
+  event ModeratorAdded(moderator: Address)
+  event ModeratorRemoved(moderator: Address)
+  event ProposalCreated(proposalId: U256, creator: Address, description: ByteVec)
+  event ProposalVoted(proposalId: U256, voter: Address, vote: Bool)
+  event ProposalExecuted(proposalId: U256, passed: Bool)
+  event CommunityConfigUpdated(field: ByteVec, value: ByteVec)
+  
+  enum Error {
+    NotAuthorized = 0
+    MemberAlreadyExists = 1
+    MemberDoesNotExist = 2
+    ModeratorAlreadyExists = 3
+    ModeratorDoesNotExist = 4
+    ProposalDoesNotExist = 5
+    QuorumNotReached = 6
+    VotingStillActive = 7
+  }
+  
+  struct Proposal {
+    id: U256
+    creator: Address
+    description: ByteVec
+    votesFor: U256
+    votesAgainst: U256
+    executed: Bool
+    startTime: U256
+    endTime: U256
+  }
+
+  // Initialize the contract with the creator as the first member and moderator
+  pub fn __init__() -> () {
+    members[0] = creator
+    memberCount = 1
+    moderators[0] = creator
+    moderatorCount = 1
+    emit MemberAdded(creator)
+    emit ModeratorAdded(creator)
+  }
+  
+  // Check if an address is a member
+  fn isMember(addr: Address) -> Bool {
+    let mut i = 0
+    while (i < memberCount) {
+      if (members[i] == addr) {
+        return true
+      }
+      i = i + 1
+    }
+    return false
+  }
+
+  // Check if an address is a moderator
+  fn isModerator(addr: Address) -> Bool {
+    let mut i = 0
+    while (i < moderatorCount) {
+      if (moderators[i] == addr) {
+        return true
+      }
+      i = i + 1
+    }
+    return false
+  }
+  
+  // Join community
+  @using(assetsInContract = true, updateFields = true, checkExternalCaller = false)
+  pub fn joinCommunity() -> () {
+    let caller = callerAddress!()
+    
+    // Check if not already a member
+    assert!(!isMember(caller), ErrorCodes.MemberAlreadyExists)
+    
+    // For private communities, this would include an approval check
+    if (isPrivate) {
+      // For now, only moderators can add members to private communities
+      // In a full implementation, this would use invite codes or approvals
+    }
+    
+    // Add member
+    members[memberCount] = caller
+    memberCount = memberCount + 1
+    
+    emit MemberAdded(caller)
+  }
+  
+  // Leave community
+  @using(assetsInContract = true, updateFields = true, checkExternalCaller = false)
+  pub fn leaveCommunity() -> () {
+    let caller = callerAddress!()
+    
+    // Check if caller is a member
+    assert!(isMember(caller), ErrorCodes.MemberDoesNotExist)
+    
+    // Don't allow the creator to leave
+    assert!(caller != creator, ErrorCodes.NotAuthorized)
+    
+    // Remove member
+    let mut i = 0
+    let mut foundIndex = 0
+    let mut found = false
+    
+    while (i < memberCount) {
+      if (members[i] == caller) {
+        foundIndex = i
+        found = true
+        break
+      }
+      i = i + 1
+    }
+    
+    assert!(found, ErrorCodes.MemberDoesNotExist)
+    
+    // Shift members to fill the gap
+    i = foundIndex
+    while (i < memberCount - 1) {
+      members[i] = members[i + 1]
+      i = i + 1
+    }
+    
+    memberCount = memberCount - 1
+    
+    emit MemberRemoved(caller)
+  }
+
+  // Create a proposal
+  @using(assetsInContract = true, updateFields = true, checkExternalCaller = false)
+  pub fn createProposal(description: ByteVec, duration: U256) -> U256 {
+    let caller = callerAddress!()
+    
+    // Only members can create proposals
+    assert!(isMember(caller), ErrorCodes.NotAuthorized)
+    
+    // Create proposal
+    let proposalId = proposalCount
+    let startTime = blockTimeStamp!()
+    let endTime = startTime + duration
+    
+    // In a full implementation, we would store proposals in contract state
+    // For simplicity, we just emit the event here
+    
+    emit ProposalCreated(proposalId, caller, description)
+    
+    proposalCount = proposalCount + 1
+    return proposalId
+  }
+  
+  // Add moderator (only creator can do this)
+  @using(assetsInContract = true, updateFields = true)
+  pub fn addModerator(moderator: Address) -> () {
+    // Only creator can add moderators
+    checkCaller!(callerAddress!() == creator, ErrorCodes.NotAuthorized)
+    
+    // Check if already a moderator
+    assert!(!isModerator(moderator), ErrorCodes.ModeratorAlreadyExists)
+    
+    // Add moderator
+    moderators[moderatorCount] = moderator
+    moderatorCount = moderatorCount + 1
+    
+    emit ModeratorAdded(moderator)
+  }
+  
+  // Remove moderator (only creator can do this)
+  @using(assetsInContract = true, updateFields = true)
+  pub fn removeModerator(moderator: Address) -> () {
+    // Only creator can remove moderators
+    checkCaller!(callerAddress!() == creator, ErrorCodes.NotAuthorized)
+    
+    // Can't remove creator as moderator
+    assert!(moderator != creator, ErrorCodes.NotAuthorized)
+    
+    // Check if moderator exists
+    assert!(isModerator(moderator), ErrorCodes.ModeratorDoesNotExist)
+    
+    // Remove moderator
+    let mut i = 0
+    let mut foundIndex = 0
+    let mut found = false
+    
+    while (i < moderatorCount) {
+      if (moderators[i] == moderator) {
+        foundIndex = i
+        found = true
+        break
+      }
+      i = i + 1
+    }
+    
+    assert!(found, ErrorCodes.ModeratorDoesNotExist)
+    
+    // Shift moderators to fill the gap
+    i = foundIndex
+    while (i < moderatorCount - 1) {
+      moderators[i] = moderators[i + 1]
+      i = i + 1
+    }
+    
+    moderatorCount = moderatorCount - 1
+    
+    emit ModeratorRemoved(moderator)
+  }
+  
+  // Update community settings (only creator or moderators)
+  @using(assetsInContract = true, updateFields = true)
+  pub fn updateCommunityConfig(field: ByteVec, value: ByteVec) -> () {
+    let caller = callerAddress!()
+    
+    // Only moderators or creator can update community settings
+    assert!(isModerator(caller), ErrorCodes.NotAuthorized)
+    
+    // Emit event for indexing
+    emit CommunityConfigUpdated(field, value)
+  }
+  
+  // Community Treasury management functions could be added here
+}
