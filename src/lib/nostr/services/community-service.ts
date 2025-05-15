@@ -13,17 +13,20 @@ export class CommunityService {
   private publicKey: string | null;
   private getPrivateKey: (() => string | null) | null;
   private communityManager: CommunityManager;
+  private getConnectedRelayUrls: () => string[];
 
   constructor(
+    communityManager: CommunityManager,
+    getConnectedRelayUrls: () => string[],
     pool: SimplePool,
     publicKey: string | null,
-    getPrivateKey: (() => string | null) | null,
-    communityManager: CommunityManager
+    getPrivateKey: (() => string | null) | null
   ) {
+    this.communityManager = communityManager;
+    this.getConnectedRelayUrls = getConnectedRelayUrls;
     this.pool = pool;
     this.publicKey = publicKey;
     this.getPrivateKey = getPrivateKey;
-    this.communityManager = communityManager;
   }
 
   /**
@@ -119,6 +122,96 @@ export class CommunityService {
     }
   }
 
+  /**
+   * Create a new community
+   */
+  async createCommunity(name: string, description: string): Promise<string | null> {
+    if (!this.publicKey) {
+      console.error("Cannot create community: not logged in");
+      return null;
+    }
+    
+    // Create community event according to NIP-172
+    const event = {
+      kind: EVENT_KINDS.COMMUNITY_CREATION,
+      content: JSON.stringify({ name, description }),
+      tags: [
+        ["d", `community_${Math.random().toString(36).substring(2, 10)}`]
+      ]
+    };
+    
+    try {
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        this.publicKey,
+        privateKey,
+        event,
+        this.getConnectedRelayUrls()
+      );
+      
+      return eventId;
+    } catch (error) {
+      console.error("Error creating community:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch community details by ID
+   */
+  async fetchCommunity(communityId: string): Promise<any> {
+    try {
+      // Implementation of fetching community details
+      const relays = this.getConnectedRelayUrls();
+      
+      // Actual implementation would go here
+      // This is a placeholder
+      
+      return { id: communityId, name: "Community", members: [] };
+    } catch (error) {
+      console.error("Error fetching community:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Vote on a proposal following NIP-172
+   */
+  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+    if (!this.publicKey) {
+      console.error("Cannot vote on proposal: not logged in");
+      return null;
+    }
+    
+    // Create vote event according to NIP-172
+    const event = {
+      kind: EVENT_KINDS.PROPOSAL_VOTE,
+      content: JSON.stringify({ option: optionIndex }),
+      tags: [
+        ["e", proposalId]
+      ]
+    };
+    
+    try {
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        this.publicKey,
+        privateKey,
+        event,
+        this.getConnectedRelayUrls()
+      );
+      
+      return eventId;
+    } catch (error) {
+      console.error("Error voting on proposal:", error);
+      return null;
+    }
+  }
+
   // Helper method to connect to backup relays if needed
   private async connectToBackupRelays(relays: string[]): Promise<void> {
     for (const relay of relays) {
@@ -129,12 +222,5 @@ export class CommunityService {
         console.error(`Failed to connect to backup relay ${relay}:`, err);
       }
     }
-  }
-
-  // Helper method to get connected relay URLs
-  private getConnectedRelayUrls(): string[] {
-    // Implement a method to return the connected relay URLs
-    // This is a placeholder - you need to implement actual relay connection logic
-    return Array.from(this.pool.relays.keys());
   }
 }
