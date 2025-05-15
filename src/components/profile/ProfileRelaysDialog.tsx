@@ -61,7 +61,10 @@ const ProfileRelaysDialog = ({
       const circuitStatus = circuitBreaker.getState(relay.url);
       
       return {
-        ...relay,
+        url: relay.url,
+        status: relay.status,
+        read: relay.read,
+        write: relay.write,
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
         circuitStatus,
@@ -182,7 +185,10 @@ const ProfileRelaysDialog = ({
       const updatedRelays = nostrService.getRelayStatus().map(relay => {
         const perfData = relayPerformanceTracker.getRelayPerformance(relay.url);
         return {
-          ...relay,
+          url: relay.url,
+          status: relay.status,
+          read: relay.read,
+          write: relay.write,
           score: perfData?.score || 50,
           avgResponse: perfData?.avgResponseTime,
         } as Relay;
@@ -234,7 +240,7 @@ const ProfileRelaysDialog = ({
 
   // Check for circuit breaker status
   const hasBlockedRelays = relays.some(relay => {
-    const state = circuitBreaker.getState(relay.url);
+    const state = relay.circuitStatus;
     return state === CircuitState.OPEN;
   });
 

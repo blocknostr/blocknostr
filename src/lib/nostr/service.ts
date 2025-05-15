@@ -7,6 +7,7 @@ import { RelayManager } from './relay';
 import { CommunityService } from './services/community-service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 import { Relay, NostrFilter } from './types';
+import { CircuitState } from './relay/circuit/circuit-breaker';
 
 /**
  * Main Nostr service that coordinates all Nostr-related functionality
@@ -31,7 +32,7 @@ export class NostrService {
   public following: string[] = [];
   
   constructor() {
-    this.pool = new SimplePool();
+    this.pool = new SimplePool({ eoseSubTimeout: 3600, getTimeout: 3600 }); // Add default values for constructor
     this.eventManager = new EventManager();
     this.communityManager = new CommunityManager(this.eventManager);
     this.socialManager = new SocialManager();
@@ -161,7 +162,7 @@ export class NostrService {
       write: relay.write || true,
       score: relay.score || 0,
       avgResponse: relay.avgResponse || 0,
-      circuitStatus: relay.circuitStatus || 'closed',
+      circuitStatus: relay.circuitStatus || CircuitState.CLOSED,
       isRequired: relay.isRequired || false
     }));
   }
@@ -461,7 +462,7 @@ export class NostrService {
    * Clean up resources
    */
   cleanup(): void {
-    this.pool.close();
+    this.pool.close([]); // Pass empty array as required argument
   }
 }
 

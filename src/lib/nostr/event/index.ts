@@ -3,8 +3,8 @@ import { SimplePool, nip19, type Event, type Filter } from 'nostr-tools';
 import { EVENT_KINDS } from '../constants';
 import { EventManager } from '../event';
 
-// EventManager interface 
-export interface EventManager {
+// Define the interface for EventManager
+export interface IEventManager {
   getEvents(filters: Filter[], relays: string[]): Promise<any[]>;
   getEventById(id: string, relays: string[]): Promise<any | null>;
   getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>>;
@@ -17,7 +17,7 @@ export interface EventManager {
 /**
  * EventManager for handling Nostr events
  */
-export class NostrEventManagerImpl implements EventManager {
+export class NostrEventManagerImpl implements IEventManager {
   private pool: SimplePool;
   private eventManager: EventManager;
   

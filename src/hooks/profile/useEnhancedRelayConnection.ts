@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { relayPerformanceTracker } from '@/lib/nostr/relay/performance/relay-performance-tracker';
@@ -97,7 +96,10 @@ export function useEnhancedRelayConnection(pubkey?: string) {
       const isRequired = requiredRelays.includes(relay.url);
       
       return {
-        ...relay,
+        url: relay.url,
+        status: relay.status,
+        read: relay.read,
+        write: relay.write,
         score: perfData?.score || 50,
         avgResponse: perfData?.avgResponseTime,
         circuitStatus: circuitStatus,
