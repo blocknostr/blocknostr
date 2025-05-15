@@ -26,9 +26,7 @@ const TrendingTopics: React.FC<TrendingTopicsProps> = ({
   activeHashtag,
   onClearHashtag
 }) => {
-  // Instead of using the internal trending logic here,
-  // we'll use the TrendingSection component which has been updated
-  // to show the activeHashtag
+  // Use the TrendingSection component which now accepts the required props
   return (
     <TrendingSection 
       onTopicClick={onTopicClick}
