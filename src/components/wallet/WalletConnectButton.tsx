@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Shield, ExternalLink, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,6 +8,12 @@ import { toast } from "sonner";
 
 interface WalletConnectButtonProps {
   className?: string;
+}
+
+// Define an extended signer interface for type safety
+interface ExtendedSigner {
+  connect?: () => void;
+  requestConnection?: () => void;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
@@ -35,11 +40,14 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   const handleConnect = () => {
     if (wallet.signer) {
       try {
-        // Try to connect through the signer interface directly
-        if (typeof wallet.signer.connect === 'function') {
-          wallet.signer.connect();
-        } else if (typeof wallet.signer.requestConnection === 'function') {
-          wallet.signer.requestConnection();
+        // Cast the signer to our extended interface
+        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
+        
+        // Check and call appropriate connect method if available
+        if (extendedSigner.connect) {
+          extendedSigner.connect();
+        } else if (extendedSigner.requestConnection) {
+          extendedSigner.requestConnection();
         } else {
           toast.error("Wallet connection failed", {
             description: "Your wallet doesn't implement a compatible connect method"

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -11,6 +10,12 @@ import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
+
+// Define an extended signer interface for type safety
+interface ExtendedSigner {
+  disconnect?: () => void;
+  requestDisconnection?: () => void;
+}
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
@@ -85,11 +90,14 @@ const WalletsPage = () => {
   const handleDisconnect = () => {
     if (wallet.signer) {
       try {
-        // Try to disconnect through the signer interface directly
-        if (typeof wallet.signer.disconnect === 'function') {
-          wallet.signer.disconnect();
-        } else if (typeof wallet.signer.requestDisconnection === 'function') {
-          wallet.signer.requestDisconnection();
+        // Cast the signer to our extended interface
+        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
+        
+        // Check and call appropriate disconnect method if available
+        if (extendedSigner.disconnect) {
+          extendedSigner.disconnect();
+        } else if (extendedSigner.requestDisconnection) {
+          extendedSigner.requestDisconnection();
         } else {
           toast.error("Wallet disconnection failed", {
             description: "Your wallet doesn't implement a compatible disconnect method"
