@@ -1,22 +1,16 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
+import React, { useState, useCallback } from 'react';
+import { CardContent } from "@/components/ui/card";
 import NoteCardHeader from '../NoteCardHeader';
 import NoteCardContent from '../NoteCardContent';
 import NoteCardActions from '../NoteCardActions';
-import NoteCardRepostHeader from '../NoteCardRepostHeader';
 import NoteCardDeleteDialog from '../NoteCardDeleteDialog';
-import NoteCardComments from '../NoteCardComments';
 import QuickReplies from '@/components/post/QuickReplies';
 import { useNoteCardDeleteDialog } from '../hooks/useNoteCardDeleteDialog';
-import { useNoteCardReplies } from '../hooks/useNoteCardReplies';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { Heart } from 'lucide-react';
-
-// Import components
-import RenderReplySection from './RenderReplySection';
-import RenderRepliesAccordion from './RenderRepliesAccordion';
 import RenderIndicators from './RenderIndicators';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import NoteCardComments from '../NoteCardComments';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -41,45 +35,40 @@ const NoteCardStructure = ({
   isReply = false,
   reactionData
 }: NoteCardProps) => {
-  // Set up local state
+  // Local state
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
+  const [replyCount, setReplyCount] = useState(0);
   const [replyUpdated, setReplyUpdated] = useState(0);
   
-  // Use the reply count hook
-  const { replyCount } = useNoteCardReplies({ 
-    eventId: event?.id || '' 
-  });
-  
-  // Use custom hook for delete dialog
+  // Delete dialog state
   const {
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
     isDeleting,
     handleDeleteClick,
     handleConfirmDelete
-  } = useNoteCardDeleteDialog({
-    event,
-    onDelete: () => {
-      // Refresh the page if needed
-    }
-  });
+  } = useNoteCardDeleteDialog({ event });
 
+  // User checking
   const isCurrentUser = event.pubkey === nostrService.publicKey;
 
-  // Handle reply selection from QuickReplies
-  const handleQuickReplySelected = (text: string) => {
-    setReplyContent(text);
-  };
-
-  // Handle reply added/updated
-  const handleReplyAdded = () => {
-    // Close reply input and increment counter to force refresh
+  // Memoized handlers
+  const handleReplyAdded = useCallback(() => {
     setShowReplyInput(false);
     setReplyUpdated(prev => prev + 1);
-  };
+    setReplyCount(prev => prev + 1);
+  }, []);
 
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleQuickReplySelected = useCallback((text: string) => {
+    setReplyContent(text);
+  }, []);
+
+  const handleSetReplyCount = useCallback((count: number) => {
+    setReplyCount(count);
+  }, []);
+
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     // If the click is on a link, button, or accordion, don't navigate
     if ((e.target as HTMLElement).closest('a') || 
         (e.target as HTMLElement).closest('button') ||
@@ -90,38 +79,37 @@ const NoteCardStructure = ({
     if (event?.id) {
       window.location.href = `/post/${event.id}`;
     }
-  };
+  }, [event?.id]);
   
   return (
-    <Card className="mb-4 border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
-          onClick={handleCardClick}>
-      
-      {/* Render indicators (repost header, reaction header, reply indicator) */}
+    <div 
+      className="mb-4 rounded-lg border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
+      onClick={handleCardClick}
+    >
+      {/* Indicators (repost, reaction, reply) */}
       <RenderIndicators 
         repostData={repostData} 
         reactionData={reactionData} 
         isReply={isReply} 
       />
       
-      {/* Main Card Content */}
+      {/* Main content */}
       <CardContent className="p-4">
-        {/* Note Header */}
+        {/* Header */}
         <NoteCardHeader
           pubkey={event?.pubkey || ''}
           createdAt={event?.created_at || 0}
           profileData={profileData}
         />
         
-        {/* Note Content */}
-        <div className="mt-2">
-          <NoteCardContent 
-            content={event?.content || ''}
-            tags={Array.isArray(event?.tags) ? event?.tags : []}
-            event={event}
-          />
-        </div>
+        {/* Content */}
+        <NoteCardContent 
+          content={event?.content || ''}
+          tags={Array.isArray(event?.tags) ? event?.tags : []}
+          event={event}
+        />
         
-        {/* Note Actions */}
+        {/* Actions */}
         {!hideActions && (
           <div className="mt-3">
             <NoteCardActions
@@ -134,39 +122,54 @@ const NoteCardStructure = ({
               }}
               setActiveReply={() => setShowReplyInput(!showReplyInput)}
               replyCount={replyCount}
+              onReplyCountUpdate={handleSetReplyCount}
             />
           </div>
         )}
         
-        {/* Replies Accordion */}
-        <RenderRepliesAccordion 
-          eventId={event?.id} 
-          replyCount={replyCount} 
-          replyUpdated={replyUpdated}
-          pubkey={event?.pubkey}
-          onReplyAdded={handleReplyAdded}
-        />
+        {/* Replies accordion (only show if replies exist) */}
+        {replyCount > 0 && event?.id && (
+          <Accordion type="single" collapsible className="mt-2">
+            <AccordionItem value="replies" className="border-none">
+              <AccordionTrigger className="py-2 text-sm font-normal text-muted-foreground">
+                {replyCount === 1 ? '1 reply' : `${replyCount} replies`}
+              </AccordionTrigger>
+              <AccordionContent>
+                <NoteCardComments 
+                  eventId={event.id} 
+                  pubkey={event.pubkey || ''} 
+                  replyUpdated={replyUpdated} 
+                  onReplyAdded={handleReplyAdded}
+                  onReplyCountUpdate={handleSetReplyCount}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        )}
         
-        {/* Quick Reply Section */}
-        <RenderReplySection 
-          showReplyInput={showReplyInput}
-          eventId={event?.id || ''}
-          pubkey={event?.pubkey || ''}
-          replyContent={replyContent}
-          onReplyAdded={handleReplyAdded}
-          onReplySelected={handleQuickReplySelected}
-        />
+        {/* Reply input (only show when reply button is clicked) */}
+        {showReplyInput && event?.id && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <QuickReplies
+              eventId={event.id}
+              pubkey={event.pubkey || ''}
+              content={replyContent}
+              onReplyAdded={handleReplyAdded}
+              onSelected={handleQuickReplySelected}
+            />
+          </div>
+        )}
       </CardContent>
       
-      {/* Delete Dialog for current user's posts */}
+      {/* Delete dialog */}
       <NoteCardDeleteDialog 
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
       />
-    </Card>
+    </div>
   );
 };
 
-export default NoteCardStructure;
+export default React.memo(NoteCardStructure);

@@ -1,10 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { contentFormatter } from '@/lib/nostr/format/content-formatter';
 import { Button } from '@/components/ui/button';
 import HashtagButton from './HashtagButton';
 import { cn } from '@/lib/utils';
 import { NostrEvent } from '@/lib/nostr';
+import { getMediaItemsFromEvent } from '@/lib/nostr/utils/media-extraction';
 
 interface NoteCardContentProps {
   content?: string;
@@ -25,6 +26,7 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   const tagsToUse = Array.isArray(tags) && tags.length > 0 ? tags : (Array.isArray(event?.tags) ? event?.tags : []);
   
   const [expanded, setExpanded] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({});
   
   // Check if content is longer than 280 characters
   const isLong = contentToUse.length > 280;
@@ -53,24 +55,25 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
-  // Extract image URLs - simple, NIP-compliant approach
-  const imageUrls = useMemo(() => {
-    const urls: string[] = [];
-    const content = contentToUse;
-    
-    // Simple regex to find image URLs
-    const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi;
-    let match;
-    
-    while ((match = imgRegex.exec(content)) !== null) {
-      if (match[0]) {
-        urls.push(match[0]);
-      }
-    }
-    
-    return urls;
-  }, [contentToUse]);
+  // Extract media items from the event with optimized approach
+  const mediaItems = useMemo(() => {
+    if (!event) return [];
+    return getMediaItemsFromEvent(event);
+  }, [event]);
   
+  // Image loading handler
+  const handleImageLoaded = (url: string) => {
+    setImagesLoaded(prev => ({...prev, [url]: true}));
+  };
+  
+  // Filter out only images
+  const imageUrls = useMemo(() => {
+    return mediaItems
+      .filter(item => item.type === 'image')
+      .map(item => item.url)
+      .slice(0, 4); // Limit to 4 images max
+  }, [mediaItems]);
+
   return (
     <div className="mt-2">
       <div className="prose max-w-none dark:prose-invert text-sm">
@@ -92,19 +95,31 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
         </Button>
       )}
       
-      {/* Simple image rendering */}
+      {/* Optimized image rendering with lazy loading */}
       {imageUrls.length > 0 && (
         <div className={cn(
           "mt-3 grid gap-2",
           imageUrls.length > 1 ? "grid-cols-2" : "grid-cols-1"
         )}>
-          {imageUrls.slice(0, 4).map((url, index) => (
-            <div key={`${index}`} className="relative aspect-square overflow-hidden rounded-md border border-border/10">
+          {imageUrls.map((url, index) => (
+            <div key={`${index}-${url.substring(0, 10)}`} 
+              className="relative aspect-square overflow-hidden rounded-md border border-border/10">
+              <div className={cn(
+                "h-full w-full bg-muted/30",
+                imagesLoaded[url] ? "hidden" : "flex items-center justify-center"
+              )}>
+                <span className="h-4 w-4 rounded-full bg-muted/50 animate-pulse"></span>
+              </div>
               <img 
                 src={url} 
-                alt="Media content" 
-                className="h-full w-full object-cover"
+                alt={`Media content ${index + 1}`} 
+                className={cn(
+                  "h-full w-full object-cover transition-opacity",
+                  imagesLoaded[url] ? "opacity-100" : "opacity-0"
+                )}
                 loading="lazy"
+                onLoad={() => handleImageLoaded(url)}
+                decoding="async"
               />
             </div>
           ))}
@@ -128,4 +143,4 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
   );
 };
 
-export default NoteCardContent;
+export default React.memo(NoteCardContent);

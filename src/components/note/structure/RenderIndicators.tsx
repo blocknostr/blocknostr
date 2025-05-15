@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { HeartIcon, RepeatIcon, ArrowUpRight } from 'lucide-react';
-import NoteCardRepostHeader from '../NoteCardRepostHeader';
 import { NostrEvent } from '@/lib/nostr';
 
 interface RenderIndicatorsProps {
@@ -16,13 +15,19 @@ interface RenderIndicatorsProps {
   isReply?: boolean;
 }
 
-const RenderIndicators: React.FC<RenderIndicatorsProps> = ({ 
+// Using React.memo to prevent unnecessary re-renders
+const RenderIndicators = React.memo(({ 
   repostData, 
   reactionData, 
   isReply 
-}) => {
+}: RenderIndicatorsProps) => {
   // Skip rendering if no indicators
   if (!repostData && !reactionData && !isReply) return null;
+  
+  // Extract display name from profile for optimization
+  const reposterName = repostData?.reposterProfile?.name || 
+                       repostData?.reposterProfile?.display_name || 
+                       (repostData?.reposterPubkey?.slice(0, 8) + '...');
   
   return (
     <>
@@ -31,10 +36,7 @@ const RenderIndicators: React.FC<RenderIndicatorsProps> = ({
         <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
           <RepeatIcon className="h-4 w-4" />
           <span className="truncate">
-            <NoteCardRepostHeader 
-              reposterPubkey={repostData.reposterPubkey} 
-              reposterProfile={repostData.reposterProfile} 
-            />
+            <span className="font-medium">{reposterName}</span> reposted
           </span>
         </div>
       )}
@@ -56,6 +58,8 @@ const RenderIndicators: React.FC<RenderIndicatorsProps> = ({
       )}
     </>
   );
-};
+});
 
-export default React.memo(RenderIndicators);
+RenderIndicators.displayName = 'RenderIndicators';
+
+export default RenderIndicators;

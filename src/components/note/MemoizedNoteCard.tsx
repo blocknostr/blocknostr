@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import NoteCardStructure from './structure/NoteCardStructure';
 
@@ -18,42 +18,53 @@ interface NoteCardProps {
   };
 }
 
+// Advanced memo comparison function
+const arePropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProps): boolean => {
+  // Compare event IDs
+  if (prevProps.event.id !== nextProps.event.id) return false;
+  
+  // Compare pubkeys
+  if (prevProps.event.pubkey !== nextProps.event.pubkey) return false;
+  
+  // Compare content
+  if (prevProps.event.content !== nextProps.event.content) return false;
+  
+  // Compare profile data using a simple check on name
+  if (prevProps.profileData?.name !== nextProps.profileData?.name || 
+      prevProps.profileData?.display_name !== nextProps.profileData?.display_name ||
+      prevProps.profileData?.picture !== nextProps.profileData?.picture) {
+    return false;
+  }
+  
+  // Compare repost data
+  if (!!prevProps.repostData !== !!nextProps.repostData) return false;
+  if (prevProps.repostData?.reposterPubkey !== nextProps.repostData?.reposterPubkey) return false;
+  
+  // Compare reaction data
+  if (!!prevProps.reactionData !== !!nextProps.reactionData) return false;
+  if (prevProps.reactionData?.emoji !== nextProps.reactionData?.emoji) return false;
+  
+  // Compare reply status
+  if (prevProps.isReply !== nextProps.isReply) return false;
+  
+  // Compare hideActions
+  if (prevProps.hideActions !== nextProps.hideActions) return false;
+  
+  // Default to true if all checks pass
+  return true;
+};
+
 // Memoize the component to prevent unnecessary re-renders
 const MemoizedNoteCard = React.memo(
-  function NoteCard({ 
-    event, 
-    profileData, 
-    hideActions, 
-    repostData, 
-    isReply, 
-    reactionData 
-  }: NoteCardProps) {
-    // Validate event before rendering
-    const isValidEvent = useMemo(() => {
-      return event && event.id && event.pubkey;
-    }, [event]);
+  function NoteCard(props: NoteCardProps) {
+    // Validate event before rendering to prevent errors
+    if (!props.event || !props.event.id || !props.event.pubkey) {
+      return null;
+    }
     
-    // Return null if event is invalid to prevent errors
-    if (!isValidEvent) return null;
-    
-    return (
-      <NoteCardStructure
-        event={event}
-        profileData={profileData}
-        hideActions={hideActions}
-        repostData={repostData}
-        isReply={isReply}
-        reactionData={reactionData}
-      />
-    );
+    return <NoteCardStructure {...props} />;
   },
-  // Custom comparison function to prevent unnecessary re-renders
-  (prevProps, nextProps) => {
-    // Only re-render if event ID changes, profile data updates, or reaction data changes
-    return prevProps.event.id === nextProps.event.id && 
-           JSON.stringify(prevProps.profileData) === JSON.stringify(nextProps.profileData) &&
-           JSON.stringify(prevProps.reactionData) === JSON.stringify(nextProps.reactionData);
-  }
+  arePropsEqual
 );
 
 export default MemoizedNoteCard;

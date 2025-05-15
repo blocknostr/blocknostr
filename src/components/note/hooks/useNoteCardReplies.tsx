@@ -4,81 +4,80 @@ import { nostrService } from '@/lib/nostr';
 
 interface UseNoteCardRepliesProps {
   eventId: string;
+  onUpdate?: (count: number) => void;
+  skip?: boolean;
 }
 
-export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
+export const useNoteCardReplies = ({ 
+  eventId, 
+  onUpdate,
+  skip = false 
+}: UseNoteCardRepliesProps) => {
   const [replyCount, setReplyCount] = useState(0);
-  const subscriptionRef = useRef<string | null>(null);
-  const isMounted = useRef(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const subscription = useRef<string | null>(null);
   
   useEffect(() => {
-    // Set up the mounted ref
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
-  
-  useEffect(() => {
-    // Guard clause - skip if no eventId
-    if (!eventId) return;
+    // Skip if requested or if no valid event ID
+    if (skip || !eventId) return;
     
-    let timeoutId: number | null = null;
+    let isMounted = true;
+    setIsLoading(true);
     
-    // Count actual replies
-    const fetchReplyCount = () => {
-      let count = 0;
-      
-      const subId = nostrService.subscribe(
-        [{
-          kinds: [1], // Regular notes (kind 1)
-          "#e": [eventId], // Filter by reference to this event
+    // Define relays to check for replies
+    const relays = nostrService.relays || [
+      "wss://relay.damus.io",
+      "wss://nos.lol",
+      "wss://relay.nostr.band"
+    ];
+    
+    // Create subscription to count replies
+    const fetchReplies = async () => {
+      try {
+        // Subscribe with filters
+        const filters = [{
+          kinds: [1], // Text notes
+          '#e': [eventId], // Reference to the post
           limit: 100
-        }],
-        (replyEvent) => {
-          // Check if it's actually a reply to this event
-          const isReply = replyEvent.tags.some(tag => 
-            tag[0] === 'e' && tag[1] === eventId && (tag[3] === 'reply' || !tag[3])
-          );
-          
-          if (isReply && isMounted.current) {
-            count++;
-            setReplyCount(count);
-          }
+        }];
+        
+        // Store subscription ID to unsubscribe later
+        const sub = nostrService.subscribe(
+          filters, 
+          (event) => {
+            if (isMounted) {
+              setReplyCount(count => {
+                const newCount = count + 1;
+                // Call onUpdate callback if provided
+                if (onUpdate) onUpdate(newCount);
+                return newCount;
+              });
+            }
+          },
+          relays
+        );
+        
+        if (sub) {
+          subscription.current = sub;
         }
-      );
-      
-      // Store the subscription ID for cleanup
-      subscriptionRef.current = subId;
-      
-      // Cleanup subscription after a short time
-      timeoutId = window.setTimeout(() => {
-        if (subscriptionRef.current && isMounted.current) {
-          nostrService.unsubscribe(subscriptionRef.current);
-          subscriptionRef.current = null;
-        }
-      }, 5000);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('[useNoteCardReplies] Error counting replies:', error);
+        setIsLoading(false);
+      }
     };
     
-    // Start fetching replies
-    fetchReplyCount();
+    fetchReplies();
     
-    // Ensure we clean up when the component unmounts or when eventId changes
+    // Clean up subscription
     return () => {
-      // Clear the timeout if it exists
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      
-      // Clean up the subscription if it exists
-      if (subscriptionRef.current) {
-        nostrService.unsubscribe(subscriptionRef.current);
-        subscriptionRef.current = null;
+      isMounted = false;
+      if (subscription.current && nostrService.unsubscribe) {
+        nostrService.unsubscribe(subscription.current);
       }
     };
-  }, [eventId]);
-
-  return {
-    replyCount,
-    setReplyCount
-  };
-}
+  }, [eventId, skip, onUpdate]);
+  
+  return { replyCount, isLoading };
+};
