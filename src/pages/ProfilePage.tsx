@@ -15,7 +15,7 @@ const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
   const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
   const { profile, loading: profileLoading, error: profileError } = useBasicProfile(npub);
-  const { profiles, fetchProfile } = useUnifiedProfileFetcher();
+  const { profiles, fetchProfile, fetchProfiles } = useUnifiedProfileFetcher();
   
   // Get the current user's pubkey
   const currentUserPubkey = nostrService.publicKey;
@@ -60,6 +60,35 @@ const ProfilePage = () => {
     hexPubkey,
     isCurrentUser
   });
+  
+  // Pre-fetch profiles for followers and following when they change
+  useEffect(() => {
+    if (followers && followers.length > 0) {
+      // Prioritize fetching the first 15 followers for initial display
+      fetchProfiles(followers.slice(0, 15));
+      
+      // Fetch the rest in the background if there are more
+      if (followers.length > 15) {
+        setTimeout(() => {
+          fetchProfiles(followers.slice(15));
+        }, 2000);
+      }
+    }
+  }, [followers, fetchProfiles]);
+  
+  useEffect(() => {
+    if (following && following.length > 0) {
+      // Prioritize fetching the first 15 following for initial display
+      fetchProfiles(following.slice(0, 15));
+      
+      // Fetch the rest in the background if there are more
+      if (following.length > 15) {
+        setTimeout(() => {
+          fetchProfiles(following.slice(15));
+        }, 2000);
+      }
+    }
+  }, [following, fetchProfiles]);
   
   const {
     relays,
