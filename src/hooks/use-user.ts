@@ -2,35 +2,39 @@
 import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 
+type User = {
+  pubkey: string;
+  profile?: any;
+};
+
 export function useUser() {
-  const [user, setUser] = useState<{ pubkey: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in with nostrService
-    if (nostrService.publicKey) {
-      setUser({ pubkey: nostrService.publicKey });
-    }
-
-    // Listen for login/logout events
-    const handleLogin = () => {
-      if (nostrService.publicKey) {
-        setUser({ pubkey: nostrService.publicKey });
+    const checkUserStatus = async () => {
+      setLoading(true);
+      
+      try {
+        const pubkey = nostrService.publicKey;
+        
+        if (pubkey) {
+          // User is logged in
+          const profile = await nostrService.getUserProfile?.(pubkey);
+          setUser({ pubkey, profile });
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error checking user status:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
     };
 
-    const handleLogout = () => {
-      setUser(null);
-    };
-
-    // Set up event listeners
-    window.addEventListener('nostr:login', handleLogin);
-    window.addEventListener('nostr:logout', handleLogout);
-
-    return () => {
-      window.removeEventListener('nostr:login', handleLogin);
-      window.removeEventListener('nostr:logout', handleLogout);
-    };
+    checkUserStatus();
   }, []);
 
-  return { user, isLoggedIn: !!user };
+  return { user, loading };
 }

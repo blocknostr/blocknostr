@@ -1,12 +1,9 @@
 
 import { useState, useEffect, useCallback } from "react";
-import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
+import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useRepostHandler } from "./use-repost-handler";
-import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
-import { toast } from "sonner";
 import { useInView } from "react-intersection-observer";
-import { NostrFilter } from "./use-event-subscription";
 
 interface UseFeedEventsProps {
   following?: string[];
@@ -36,6 +33,7 @@ export function useFeedEvents({
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const [subId, setSubId] = useState<string | null>(null);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
   const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
@@ -43,10 +41,10 @@ export function useFeedEvents({
   // Setup subscription helper function
   const setupSubscription = useCallback((fromTimestamp?: number, toTimestamp?: number) => {
     // Build filters
-    const filters: NostrFilter[] = [];
+    const filters = [];
     
-    const baseFilter: NostrFilter = {
-      kinds: [1, 6], // Note and repost kinds
+    const baseFilter = {
+      kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REPOST], // Note and repost kinds
       limit,
     };
     
@@ -89,7 +87,7 @@ export function useFeedEvents({
           }
           
           // Process repost if needed
-          if (event.kind === 6) {
+          if (event.kind === EVENT_KINDS.REPOST) {
             try {
               const tags = event.tags || [];
               const eventTag = tags.find(tag => tag[0] === 'e');
@@ -112,14 +110,16 @@ export function useFeedEvents({
           const updatedEvents = [...prevEvents, event]
             .sort((a, b) => b.created_at - a.created_at);
             
-          // Cache the feed
-          contentCache.feedCache.saveFeed(feedType, updatedEvents, {
-            authorPubkeys: following,
-            hashtag: activeHashtag,
-            since,
-            until,
-            mediaOnly
-          });
+          // Cache the feed if cache service is available
+          if (nostrService.contentCache?.feedCache?.saveFeed) {
+            nostrService.contentCache.feedCache.saveFeed(feedType, updatedEvents, {
+              authorPubkeys: following,
+              hashtag: activeHashtag,
+              since,
+              until,
+              mediaOnly
+            });
+          }
           
           return updatedEvents;
         });
@@ -138,45 +138,51 @@ export function useFeedEvents({
       setLoadingFromCache(true);
       
       // Check if we have this feed in cache
-      const cachedFeed = contentCache.getFeed(feedType, {
-        authorPubkeys: following,
-        hashtag: activeHashtag,
-        since,
-        until,
-        mediaOnly
-      });
-      
-      if (cachedFeed && cachedFeed.length > 0) {
-        // Use cached feed
-        setEvents(cachedFeed);
-        setCacheHit(true);
-        
-        // Get cache timestamp
-        const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
+      if (nostrService.contentCache?.getFeed) {
+        const cachedFeed = nostrService.contentCache.getFeed(feedType, {
           authorPubkeys: following,
-          hashtag: activeHashtag, 
+          hashtag: activeHashtag,
           since,
           until,
           mediaOnly
         });
         
-        const cacheEntry = contentCache.feedCache.getRawEntry(cacheKey);
-        if (cacheEntry) {
-          setLastUpdated(new Date(cacheEntry.timestamp));
-        }
-        
-        // Prefetch profile data for authors in cached feed
-        const uniqueAuthors = new Set<string>();
-        cachedFeed.forEach(event => {
-          if (event.pubkey) {
-            uniqueAuthors.add(event.pubkey);
+        if (cachedFeed && cachedFeed.length > 0) {
+          // Use cached feed
+          setEvents(cachedFeed);
+          setCacheHit(true);
+          
+          // Get cache timestamp
+          if (nostrService.contentCache?.feedCache?.generateCacheKey) {
+            const cacheKey = nostrService.contentCache.feedCache.generateCacheKey(feedType, {
+              authorPubkeys: following,
+              hashtag: activeHashtag, 
+              since,
+              until,
+              mediaOnly
+            });
+            
+            if (nostrService.contentCache?.feedCache?.getRawEntry) {
+              const cacheEntry = nostrService.contentCache.feedCache.getRawEntry(cacheKey);
+              if (cacheEntry) {
+                setLastUpdated(new Date(cacheEntry.timestamp));
+              }
+            }
           }
-        });
-        
-        // Fetch profiles for authors
-        uniqueAuthors.forEach(pubkey => {
-          fetchProfileData(pubkey);
-        });
+          
+          // Prefetch profile data for authors in cached feed
+          const uniqueAuthors = new Set<string>();
+          cachedFeed.forEach(event => {
+            if (event.pubkey) {
+              uniqueAuthors.add(event.pubkey);
+            }
+          });
+          
+          // Fetch profiles for authors
+          uniqueAuthors.forEach(pubkey => {
+            fetchProfileData(pubkey);
+          });
+        }
       }
       
       setLoadingFromCache(false);
@@ -191,7 +197,9 @@ export function useFeedEvents({
       const relays = nostrService.getRelayStatus();
       // Convert statuses to strings for safe comparison
       const connected = relays.filter(r => {
-        return r.status === 1 || String(r.status) === "1" || r.status === "connected";
+        // Convert status to string for comparison
+        const status = String(r.status);
+        return status === '1' || status === 'connected';
       }).length;
       
       if (connected > 0) {
@@ -223,11 +231,12 @@ export function useFeedEvents({
     const currentTime = Math.floor(Date.now() / 1000);
     const fromTime = currentTime - 24 * 60 * 60; // Last 24 hours
     
-    const subId = setupSubscription(fromTime, currentTime);
+    const newSubId = setupSubscription(fromTime, currentTime);
+    setSubId(newSubId);
     
     return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (newSubId) {
+        nostrService.unsubscribe(newSubId);
       }
     };
   }, [connectionStatus, cacheHit, setupSubscription]);
@@ -253,10 +262,10 @@ export function useFeedEvents({
     const oldestTimestamp = oldestEvent.created_at - 1;
     
     // Build filters
-    const filters: NostrFilter[] = [];
+    const filters = [];
     
-    const baseFilter: NostrFilter = {
-      kinds: [1, 6], // Note and repost kinds
+    const baseFilter = {
+      kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REPOST], // Note and repost kinds
       limit,
       until: oldestTimestamp
     };
@@ -281,7 +290,7 @@ export function useFeedEvents({
     }
     
     // Subscribe to older events
-    const subId = nostrService.subscribe(
+    const newSubId = nostrService.subscribe(
       filters,
       (event) => {
         // Process the incoming event
@@ -292,7 +301,7 @@ export function useFeedEvents({
           }
           
           // Process repost if needed
-          if (event.kind === 6) {
+          if (event.kind === EVENT_KINDS.REPOST) {
             try {
               const tags = event.tags || [];
               const eventTag = tags.find(tag => tag[0] === 'e');
@@ -332,10 +341,18 @@ export function useFeedEvents({
       }
     );
     
+    // Update subId
+    setSubId(prev => {
+      if (prev) {
+        nostrService.unsubscribe(prev);
+      }
+      return newSubId;
+    });
+    
     // Timeout to stop loading after a while
     setTimeout(() => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
+      if (newSubId) {
+        nostrService.unsubscribe(newSubId);
         setLoadingMore(false);
       }
     }, 15000);
@@ -345,13 +362,15 @@ export function useFeedEvents({
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = useCallback(() => {
     // Clear the specific feed from cache
-    contentCache.feedCache.clearFeed(feedType, {
-      authorPubkeys: following,
-      hashtag: activeHashtag,
-      since,
-      until,
-      mediaOnly
-    });
+    if (nostrService.contentCache?.feedCache?.clearFeed) {
+      nostrService.contentCache.feedCache.clearFeed(feedType, {
+        authorPubkeys: following,
+        hashtag: activeHashtag,
+        since,
+        until,
+        mediaOnly
+      });
+    }
     
     setCacheHit(false);
     setLastUpdated(null);
@@ -362,10 +381,17 @@ export function useFeedEvents({
     const currentTime = Math.floor(Date.now() / 1000);
     const fromTime = currentTime - 24 * 60 * 60; // Last 24 hours
     
-    toast.info("Refreshing feed...");
+    // Close existing subscription if any
+    if (subId) {
+      nostrService.unsubscribe(subId);
+      setSubId(null);
+    }
     
-    setupSubscription(fromTime, currentTime);
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, setupSubscription]);
+    const newSubId = setupSubscription(fromTime, currentTime);
+    setSubId(newSubId);
+    
+    return newSubId;
+  }, [feedType, following, activeHashtag, since, until, mediaOnly, setupSubscription, subId]);
 
   return {
     events,
@@ -380,6 +406,10 @@ export function useFeedEvents({
     loadingMore,
     hasMore,
     loadMoreEvents,
-    connectionStatus
+    connectionStatus,
+    setupSubscription,
+    subId,
+    setSubId,
+    setEvents
   };
 }

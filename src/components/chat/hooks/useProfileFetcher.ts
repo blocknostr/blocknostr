@@ -13,7 +13,10 @@ export const useProfileFetcher = () => {
     if (!pubkey || profiles[pubkey]) return;
 
     try {
-      const metadata = await chatNostrService.getUserProfile(pubkey);
+      // Use the adapter method if available, otherwise use a direct method
+      const metadata = await chatNostrService.data.getUserProfile?.(pubkey) ||
+                      await chatNostrService.fetchProfileData?.(pubkey);
+                      
       if (metadata) {
         setProfiles(prev => ({
           ...prev,

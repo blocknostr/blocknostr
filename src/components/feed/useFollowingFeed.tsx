@@ -33,14 +33,21 @@ export function useFollowingFeed({ activeHashtag }: { activeHashtag?: string }) 
   
   // Profile and repost handling
   const { profiles, fetchProfiles } = useUnifiedProfileFetcher();
-  const { repostData, handleRepost } = useRepostHandler({ fetchProfileData: fetchProfiles });
+  const { repostData, handleRepost } = useRepostHandler({ 
+    fetchProfileData: async (pubkey: string) => {
+      // Adapter to match expected signature - convert single pubkey to array
+      await fetchProfiles([pubkey]);
+    }
+  });
 
   // Update connection status
   const updateConnectionStatus = useCallback(() => {
     const relays = nostrService.getRelayStatus();
     // Convert statuses to strings for safe comparison
     const connected = relays.filter(r => {
-      return r.status === 1 || String(r.status) === "1" || r.status === "connected";
+      // Convert status to string for comparison
+      const status = String(r.status);
+      return status === '1' || status === 'connected';
     }).length;
     
     if (connected > 0) {

@@ -13,7 +13,9 @@ export function ConnectionStatusBanner() {
     // Check if we have any connected relays
     if (relays && relays.length > 0) {
       const connected = relays.filter(relay => {
-        return relay.status === 1 || String(relay.status) === "1" || relay.status === "connected";
+        // Convert status to string for comparison
+        const status = String(relay.status);
+        return status === '1' || status === 'connected';
       });
       setHasConnectedRelays(connected.length > 0);
     }

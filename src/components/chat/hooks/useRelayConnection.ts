@@ -20,7 +20,11 @@ export const useRelayConnection = () => {
   // Function to get relay connection status
   const updateConnectionStatus = useCallback(() => {
     const relays = chatNostrService.getRelayStatus();
-    const connected = relays.filter(r => r.status === 'connected').length;
+    const connected = relays.filter(r => {
+      // Convert status to string for comparison to handle mixed types
+      const status = String(r.status);
+      return status === '1' || status === 'connected';
+    }).length;
     
     if (connected > 0) {
       setConnectionStatus('connected');
@@ -39,7 +43,11 @@ export const useRelayConnection = () => {
         async () => {
           await chatNostrService.connectToUserRelays();
           const relays = chatNostrService.getRelayStatus();
-          const connected = relays.filter(r => r.status === 'connected').length;
+          const connected = relays.filter(r => {
+            // Convert status to string for comparison
+            const status = String(r.status);
+            return status === '1' || status === 'connected';
+          }).length;
           if (connected === 0) throw new Error("No relays connected");
           return connected;
         },

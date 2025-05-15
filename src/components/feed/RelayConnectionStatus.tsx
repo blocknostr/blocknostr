@@ -14,7 +14,9 @@ export default function RelayConnectionStatus() {
   React.useEffect(() => {
     if (relays && relays.length > 0) {
       const connectedRelays = relays.filter(relay => {
-        return relay.status === 1 || String(relay.status) === "1" || relay.status === "connected";
+        // Convert status to string for comparison
+        const status = String(relay.status);
+        return status === '1' || status === 'connected';
       });
       setConnected(connectedRelays.length);
       setTotal(relays.length);

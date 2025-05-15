@@ -26,7 +26,9 @@ export function useEventSubscription(filters: NostrFilter[], options: EventSubsc
     const relays = nostrService.getRelayStatus();
     // Convert statuses to strings for safe comparison
     const connected = relays.filter(r => {
-      return r.status === 1 || String(r.status) === "1" || r.status === "connected";
+      // Convert status to string for comparison
+      const status = String(r.status);
+      return status === '1' || status === 'connected';
     }).length;
     
     if (connected > 0) {
