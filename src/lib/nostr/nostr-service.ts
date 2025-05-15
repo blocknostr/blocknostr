@@ -2,6 +2,7 @@
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { NostrServiceRelayMethods, NostrServiceProfileMethods, NostrServiceSubscriptionMethods } from './types/service';
+import { SocialManager } from './social';
 
 /**
  * Core NostrService that provides all Nostr protocol functionality
@@ -14,8 +15,49 @@ export class NostrService implements NostrServiceRelayMethods, NostrServiceProfi
   private _following: string[] = [];
   private subscriptions: Map<string, any> = new Map();
   
+  // Add required manager properties
+  public socialManager: SocialManager;
+  public relayManager: any;
+  public communityManager: any;
+  public bookmarkManager: any;
+  
+  // Add domain properties
+  public social: any;
+  public relay: any;
+  public data: any;
+  
   constructor() {
     this.pool = new SimplePool();
+    
+    // Initialize manager properties
+    this.socialManager = {
+      likeEvent: (event: any) => this.reactToPost(event.id),
+      repostEvent: (event: any) => this.repostNote(event.id, event.pubkey),
+      reactToEvent: (eventId: string, emoji: string = "+") => this.reactToPost(eventId, emoji),
+      getReactionCounts: (eventId: string) => Promise.resolve({ likes: 0, reposts: 0 })
+    };
+    
+    this.relayManager = {};
+    this.communityManager = {};
+    this.bookmarkManager = {};
+    
+    // Initialize domain properties
+    this.social = {
+      followUser: (pubkey: string) => this.followUser(pubkey),
+      unfollowUser: (pubkey: string) => this.unfollowUser(pubkey),
+      isFollowing: (pubkey: string) => this.isFollowing(pubkey)
+    };
+    
+    this.relay = {
+      addRelay: (url: string) => this.addRelay(url),
+      removeRelay: (url: string) => this.removeRelay(url),
+      getRelayStatus: () => this.getRelayStatus()
+    };
+    
+    this.data = {
+      getUserProfile: (pubkey: string) => this.getUserProfile(pubkey),
+      getProfilesByPubkeys: (pubkeys: string[]) => this.getProfilesByPubkeys(pubkeys)
+    };
     
     // Initialize with default relays
     this._relays = [
@@ -190,6 +232,15 @@ export class NostrService implements NostrServiceRelayMethods, NostrServiceProfi
     return true;
   }
   
+  // Add the missing method for adding multiple relays
+  async addMultipleRelays(relayUrls: string[]): Promise<boolean> {
+    console.log(`Adding multiple relays: ${relayUrls.join(', ')}`);
+    for (const url of relayUrls) {
+      await this.addRelay(url);
+    }
+    return true;
+  }
+  
   removeRelay(relayUrl: string): void {
     this._relays = this._relays.filter(r => r.url !== relayUrl);
     console.log(`Removed relay ${relayUrl}`);
@@ -266,16 +317,16 @@ export class NostrService implements NostrServiceRelayMethods, NostrServiceProfi
     return true; // Mock successful verification
   }
   
-  // Subscription management
-  subscribe(relays: string[], filters: any[], onEvent: (event: any) => void): string {
+  // Subscription management with fixed signature (filters, onEvent, options)
+  subscribe(filters: any[], onEvent: (event: any) => void, options: any = {}): string {
     const subId = `sub-${Math.random().toString(36).substring(2, 10)}`;
     console.log(`Creating subscription ${subId} with filters:`, filters);
     
     // Simulate subscription
     this.subscriptions.set(subId, {
-      relays,
       filters,
-      onEvent
+      onEvent,
+      options
     });
     
     return subId;

@@ -54,9 +54,7 @@ const PostPage = () => {
         const filters = [{ ids: [id] }];
         
         if (nostrService.subscribe) {
-          const sub = nostrService.subscribe(filters, (event) => {
-            handleEvent(event);
-          }, defaultRelays);
+          const sub = nostrService.subscribe([{ ids: [id], kinds: [1] }], handleEvent, defaultRelays);
           
           // Cleanup subscription
           return () => {

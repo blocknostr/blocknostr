@@ -126,28 +126,9 @@ export class NostrServiceAdapter {
     return this.service.blockUser(pubkey);
   }
   
-  async unblockUser(pubkey: string) {
-    return this.service.unblockUser(pubkey);
-  }
-  
-  async isUserBlocked(pubkey: string) {
-    return this.service.isUserBlocked(pubkey);
-  }
-  
-  formatPubkey(pubkey: string) {
-    return this.service.formatPubkey(pubkey);
-  }
-  
-  getNpubFromHex(hexPubkey: string) {
-    return this.service.getNpubFromHex(hexPubkey);
-  }
-  
-  getHexFromNpub(npub: string) {
-    return this.service.getHexFromNpub(npub);
-  }
-  
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
-    return this.service.subscribe(filters, onEvent, relays);
+  // Add a correct subscribe method that matches the expected signature
+  subscribe(filters: any[], onEvent: (event: any) => void, options: any = {}) {
+    return this.service.subscribe(filters, onEvent, options);
   }
   
   unsubscribe(subId: string) {
