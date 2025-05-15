@@ -7,7 +7,8 @@ export const EVENTS = {
   POST_CREATED: 'post:created',
   POST_DELETED: 'post:deleted',
   RELAY_CONNECTED: 'relay:connected',
-  RELAY_DISCONNECTED: 'relay:disconnected'
+  RELAY_DISCONNECTED: 'relay:disconnected',
+  USER_LOGGED_IN: 'user:logged_in'
 };
 
 class EventBus {
