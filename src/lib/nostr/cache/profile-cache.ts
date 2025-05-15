@@ -1,3 +1,4 @@
+
 import { BaseCache } from "./base-cache";
 import { CacheConfig } from "./types";
 import { STORAGE_KEYS } from "./config";
@@ -22,7 +23,7 @@ export class ProfileCache extends BaseCache<any> {
   // Prefetch queue
   private prefetchQueue: string[] = [];
   
-  constructor(config: CacheConfig, cacheType?: keyof typeof STORAGE_KEYS) {
+  constructor(config: CacheConfig, cacheType?: 'EVENTS' | 'PROFILES' | 'FEEDS' | 'THREADS') {
     super(config, STORAGE_KEYS.PROFILES, cacheType);
     this.loadFromStorage();
     

@@ -26,6 +26,7 @@ export const STORAGE_KEYS = {
   EVENTS: 'nostr_cached_events',
   PROFILES: 'nostr_cached_profiles',
   FEEDS: 'nostr_cached_feeds',
+  THREADS: 'nostr_cached_threads',
   MUTE_LIST: 'nostr_mute_list',
   BLOCK_LIST: 'nostr_block_list'
 };

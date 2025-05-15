@@ -1,3 +1,4 @@
+
 import { NostrEvent } from "../types";
 import { BaseCache } from "./base-cache";
 import { CacheConfig } from "./types";
@@ -9,7 +10,7 @@ import { EventFilter } from "./utils/event-filter";
  * Optimized to prioritize important events and reduce memory footprint
  */
 export class EventCache extends BaseCache<NostrEvent> {
-  constructor(config: CacheConfig, cacheType?: keyof typeof STORAGE_KEYS) {
+  constructor(config: CacheConfig, cacheType?: 'EVENTS' | 'PROFILES' | 'FEEDS' | 'THREADS') {
     super(config, STORAGE_KEYS.EVENTS, cacheType);
     this.loadFromStorage();
   }

@@ -43,7 +43,7 @@ export class ContentCache {
     // Initialize cache modules with specific size limits
     this.eventCache = new EventCache(config, 'EVENTS');
     this.profileCache = new ProfileCache(config, 'PROFILES');
-    this.threadCache = new ThreadCache(config, 'THREADS');
+    this.threadCache = new ThreadCache(config);
     this._feedCache = new FeedCache(config, 'FEEDS');
     this.muteListCache = new ListCache(STORAGE_KEYS.MUTE_LIST);
     this.blockListCache = new ListCache(STORAGE_KEYS.BLOCK_LIST);
@@ -449,5 +449,3 @@ export class ContentCache {
 // Create and export singleton instance
 const contentCache = new ContentCache();
 export { contentCache };
-
-// Set up periodic cache cleanup and quota checking - now handled internally in the ContentCache class
