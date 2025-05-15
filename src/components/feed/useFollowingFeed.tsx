@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { nostrService, contentCache } from "@/lib/nostr";
+import { nostrService, contentCache, NostrEvent } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./hooks";
 import { toast } from "sonner";
