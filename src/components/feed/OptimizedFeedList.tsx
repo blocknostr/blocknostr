@@ -8,7 +8,7 @@ interface OptimizedFeedListProps {
   events: NostrEvent[];
   profiles: Record<string, any>;
   repostData: Record<string, { pubkey: string, original: NostrEvent }>;
-  loadMoreRef?: React.RefObject<HTMLDivElement>;
+  loadMoreRef?: React.RefObject<HTMLDivElement> | ((node: HTMLDivElement | null) => void);
   loading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
@@ -127,7 +127,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center" ref={loadMoreRef}>
+        <div className="py-4 text-center" ref={typeof loadMoreRef === 'function' ? loadMoreRef : loadMoreRef?.current ? undefined : loadMoreRef}>
           {loadMoreLoading && (
             <div className="flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

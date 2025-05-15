@@ -2,7 +2,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
-import OptimizedFeedList from "./OptimizedFeedList"; // Use the optimized version
 import { useGlobalFeed } from "./hooks/use-global-feed";
 import { Button } from "../ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
@@ -89,8 +88,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
           </div>
         )}
         
-        {/* Use OptimizedFeedList for better performance */}
-        <OptimizedFeedList 
+        {/* Use FeedList which passes props to OptimizedFeedList */}
+        <FeedList 
           events={events}
           profiles={profiles}
           repostData={repostData}
