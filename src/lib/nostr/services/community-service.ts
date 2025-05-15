@@ -1,232 +1,92 @@
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, Filter } from 'nostr-tools';
+import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import { CommunityManager } from '../community';
 import type { ProposalCategory } from '@/types/community';
 
 /**
- * Community Service class for handling community functionality
- * Implements NIP-172 community and proposal standards
+ * Community service to handle community-related operations 
+ * Implements NIP-172 compatible methods
  */
 export class CommunityService {
-  private pool: SimplePool;
-  private publicKey: string | null;
-  private getPrivateKey: (() => string | null) | null;
-  private communityManager: CommunityManager;
-  private getConnectedRelayUrls: () => string[];
-
   constructor(
-    communityManager: CommunityManager,
-    getConnectedRelayUrls: () => string[],
-    pool: SimplePool,
-    publicKey: string | null,
-    getPrivateKey: (() => string | null) | null
-  ) {
-    this.communityManager = communityManager;
-    this.getConnectedRelayUrls = getConnectedRelayUrls;
-    this.pool = pool;
-    this.publicKey = publicKey;
-    this.getPrivateKey = getPrivateKey;
-    
-    console.log("[CommunityService] Initialized with publicKey:", publicKey ? publicKey.slice(0, 8) + '...' : 'null');
-  }
+    private communityManager: any, 
+    private getConnectedRelayUrls: () => string[],
+    private pool: SimplePool,
+    private publicKey: string | null
+  ) {}
 
   /**
-   * Create a proposal for a community following NIP-172
-   */
-  async createProposal(
-    communityId: string,
-    title: string,
-    description: string,
-    options: string[],
-    category: ProposalCategory = 'other'
-  ): Promise<string | null> {
-    // Enhanced validation with more detailed error logging
-    if (!communityId) {
-      console.error("[CommunityService] Cannot create proposal: missing communityId");
-      throw new Error("Community ID is required to create a proposal");
-    }
-    
-    if (!this.publicKey) {
-      console.error("[CommunityService] Cannot create proposal: not logged in (missing pubkey)");
-      throw new Error("You must be logged in to create a proposal");
-    }
-    
-    console.log("[CommunityService] Creating proposal with auth status:", {
-      pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
-      hasPrivateKeyGetter: !!this.getPrivateKey,
-      communityId: communityId.slice(0, 8) + '...'
-    });
-    
-    // Get connected relays
-    const relays = this.getConnectedRelayUrls();
-    console.log("[CommunityService] Connected relays:", relays);
-    
-    // If no relays connected, try connecting to backup relays
-    if (relays.length === 0) {
-      console.warn("[CommunityService] No relays connected, trying backup relays");
-      const backupRelays = [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.nostr.band'
-      ];
-      
-      await this.connectToBackupRelays(backupRelays);
-      
-      // Get updated relay list after connection attempts
-      const updatedRelays = this.getConnectedRelayUrls();
-      
-      if (updatedRelays.length === 0) {
-        console.error("[CommunityService] Failed to connect to any relays");
-        throw new Error("Failed to connect to any Nostr relays. Please check your network connection.");
-      }
-    }
-    
-    // Default end time is 7 days from now if not specified per NIP-172
-    const endTime = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-    
-    // Create proposal data according to NIP-172
-    const proposalData = {
-      title,
-      description,
-      options,
-      category,
-      createdAt: Math.floor(Date.now() / 1000),
-      endsAt: endTime,
-      minQuorum: 0 // Default 0 means no quorum requirement
-    };
-    
-    // Generate unique proposal ID per NIP-172
-    const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
-    
-    // Create proposal event per NIP-172
-    const event = {
-      kind: EVENT_KINDS.PROPOSAL,
-      content: JSON.stringify(proposalData),
-      tags: [
-        ["e", communityId], // Reference to community event per NIP-172
-        ["d", proposalId] // Unique identifier per NIP-172
-      ]
-    };
-    
-    try {
-      console.log("[CommunityService] Publishing proposal event:", event);
-      
-      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-      
-      if (!privateKey && !window.nostr) {
-        console.error("[CommunityService] No private key or nostr extension available");
-        throw new Error("Unable to sign the event. Please check your login or browser extension.");
-      }
-      
-      // Use the publishEvent method from the communityManager
-      const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        this.publicKey,
-        privateKey,
-        event,
-        this.getConnectedRelayUrls()
-      );
-      
-      if (eventId) {
-        console.log("[CommunityService] Created proposal with ID:", eventId);
-        return eventId;
-      } else {
-        console.error("[CommunityService] Failed to create proposal: no event ID returned");
-        throw new Error("Failed to publish proposal to relays");
-      }
-    } catch (error) {
-      console.error("[CommunityService] Error creating proposal:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Create a new community
-   */
-  async createCommunity(name: string, description: string): Promise<string | null> {
-    if (!this.publicKey) {
-      console.error("[CommunityService] Cannot create community: not logged in");
-      throw new Error("You must be logged in to create a community");
-    }
-    
-    console.log("[CommunityService] Creating community with auth status:", {
-      pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
-      hasPrivateKeyGetter: !!this.getPrivateKey
-    });
-    
-    const relays = this.getConnectedRelayUrls();
-    console.log("[CommunityService] Connected relays:", relays);
-    
-    // If no relays connected, try connecting to backup relays
-    if (relays.length === 0) {
-      console.warn("[CommunityService] No relays connected, trying backup relays");
-      const backupRelays = [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.nostr.band'
-      ];
-      
-      await this.connectToBackupRelays(backupRelays);
-      
-      // Get updated relay list after connection attempts
-      const updatedRelays = this.getConnectedRelayUrls();
-      
-      if (updatedRelays.length === 0) {
-        console.error("[CommunityService] Failed to connect to any relays");
-        throw new Error("Failed to connect to any Nostr relays. Please check your network connection.");
-      }
-    }
-    
-    // Create community event according to NIP-172
-    const event = {
-      kind: EVENT_KINDS.COMMUNITY,
-      content: JSON.stringify({ name, description }),
-      tags: [
-        ["d", `community_${Math.random().toString(36).substring(2, 10)}`]
-      ]
-    };
-    
-    try {
-      console.log("[CommunityService] Publishing community event to relays:", this.getConnectedRelayUrls());
-      
-      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-      
-      if (!privateKey && !window.nostr) {
-        console.error("[CommunityService] No private key or nostr extension available");
-        throw new Error("Unable to sign the event. Please check your login or extension.");
-      }
-      
-      const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        this.publicKey,
-        privateKey,
-        event,
-        this.getConnectedRelayUrls()
-      );
-      
-      if (!eventId) {
-        throw new Error("Failed to publish community to relays");
-      }
-      
-      return eventId;
-    } catch (error) {
-      console.error("[CommunityService] Error creating community:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Fetch community details by ID
+   * Fetch a community by ID
    */
   async fetchCommunity(communityId: string): Promise<any> {
+    if (!communityId) return null;
+    
     try {
-      // Implementation of fetching community details
-      const relays = this.getConnectedRelayUrls();
+      const connectedRelays = this.getConnectedRelayUrls();
       
-      // Actual implementation would go here
-      // This is a placeholder
-      
-      return { id: communityId, name: "Community", members: [] };
+      return new Promise((resolve) => {
+        // Properly construct a single filter object according to nostr-tools Filter type
+        const filter: Filter = {
+          kinds: [EVENT_KINDS.COMMUNITY],
+          '#d': [communityId],
+          limit: 1
+        };
+        
+        let subscription: { close: () => void } | null = null;
+        
+        try {
+          subscription = this.pool.subscribe(
+            connectedRelays,
+            filter,
+            {
+              onevent: (event) => {
+                try {
+                  const community = JSON.parse(event.content);
+                  community.id = event.id;
+                  community.uniqueId = communityId;
+                  
+                  // Process members from the tags
+                  const members = event.tags
+                    .filter(tag => tag.length >= 2 && tag[0] === 'p')
+                    .map(tag => tag[1]);
+                    
+                  community.members = members;
+                  
+                  // Process moderators from the tags
+                  const moderators = event.tags
+                    .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
+                    .map(tag => tag[1]);
+                    
+                  community.moderators = moderators;
+                  
+                  resolve(community);
+                  
+                  // Cleanup subscription after receiving the community
+                  setTimeout(() => {
+                    if (subscription) {
+                      subscription.close();
+                    }
+                  }, 100);
+                } catch (e) {
+                  console.error("Error parsing community:", e);
+                  resolve(null);
+                }
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Error in subscription:", error);
+          resolve(null);
+        }
+        
+        // Set a timeout to resolve with null if no community is found
+        setTimeout(() => {
+          if (subscription) {
+            subscription.close();
+          }
+          resolve(null);
+        }, 5000);
+      });
     } catch (error) {
       console.error("Error fetching community:", error);
       return null;
@@ -234,50 +94,137 @@ export class CommunityService {
   }
 
   /**
-   * Vote on a proposal following NIP-172
+   * Create a new community
    */
-  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    if (!this.publicKey) {
-      console.error("Cannot vote on proposal: not logged in");
-      return null;
-    }
+  async createCommunity(
+    name: string,
+    description: string
+  ): Promise<string | null> {
+    if (!this.publicKey) return null;
     
-    // Create vote event according to NIP-172
+    const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
+    const relays = this.getConnectedRelayUrls();
+    
+    // Create community metadata
+    const communityData = {
+      name,
+      description,
+      creator: this.publicKey,
+      createdAt: Math.floor(Date.now() / 1000),
+      image: "" // Optional image URL
+    };
+    
+    // Create NIP-172 compatible event
     const event = {
-      kind: EVENT_KINDS.VOTE,
-      content: JSON.stringify({ option: optionIndex }),
+      kind: EVENT_KINDS.COMMUNITY,
+      content: JSON.stringify(communityData),
       tags: [
-        ["e", proposalId]
+        ["d", uniqueId], // Unique identifier for this community
+        ["p", this.publicKey] // Creator is the first member
       ]
     };
     
     try {
-      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-      
-      const eventId = await this.communityManager.publishEvent(
-        this.pool,
-        this.publicKey,
-        privateKey,
+      await this.communityManager.publishEvent(
         event,
-        this.getConnectedRelayUrls()
+        this.publicKey,
+        relays,
+        this.pool
       );
-      
+      return uniqueId; // Return the community ID on success
+    } catch (error) {
+      console.error("Error creating community:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Create a proposal for a community
+   */
+  async createProposal(
+    communityId: string,
+    title: string,
+    description: string,
+    options: string[],
+    category: string = 'other',
+    minQuorum?: number,
+    endsAt?: number
+  ): Promise<string | null> {
+    if (!this.publicKey || !communityId) return null;
+    const relays = this.getConnectedRelayUrls();
+    
+    // Default end time is 7 days from now if not specified
+    const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    
+    // Create proposal data
+    const proposalData = {
+      title,
+      description,
+      options,
+      category,
+      createdAt: Math.floor(Date.now() / 1000),
+      endsAt: endTime,
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
+    };
+    
+    const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Create proposal event
+    const event = {
+      kind: EVENT_KINDS.PROPOSAL,
+      content: JSON.stringify(proposalData),
+      tags: [
+        ["e", communityId], // Reference to community event
+        ["d", proposalId] // Unique identifier
+      ]
+    };
+    
+    try {
+      await this.communityManager.publishEvent(
+        event,
+        this.publicKey,
+        relays,
+        this.pool
+      );
+      return proposalId; // Return the proposal ID on success
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Vote on a proposal
+   * @param proposalId ID of the proposal event
+   * @param optionIndex Index of the selected option (0-based)
+   */
+  async voteOnProposal(
+    proposalId: string,
+    optionIndex: number
+  ): Promise<string | null> {
+    if (!this.publicKey || !proposalId) return null;
+    const relays = this.getConnectedRelayUrls();
+    
+    // Create vote event
+    const event = {
+      kind: EVENT_KINDS.VOTE,
+      content: JSON.stringify({ optionIndex }),
+      tags: [
+        ["e", proposalId] // Reference to proposal event
+      ]
+    };
+    
+    try {
+      const eventId = await this.communityManager.publishEvent(
+        event,
+        this.publicKey,
+        relays,
+        this.pool
+      );
       return eventId;
     } catch (error) {
       console.error("Error voting on proposal:", error);
       return null;
-    }
-  }
-
-  // Helper method to connect to backup relays if needed
-  private async connectToBackupRelays(relays: string[]): Promise<void> {
-    for (const relay of relays) {
-      try {
-        await this.pool.ensureRelay(relay);
-        console.log(`[CommunityService] Connected to backup relay: ${relay}`);
-      } catch (err) {
-        console.error(`[CommunityService] Failed to connect to backup relay ${relay}:`, err);
-      }
     }
   }
 }

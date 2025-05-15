@@ -1,263 +1,109 @@
-
-// src/components/community/CreateProposalForm.tsx
-
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { nostrService } from "@/lib/nostr";
-import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
-import type { ProposalCategory } from "@/types/community";
-import { useNostrAuth } from "@/hooks/useNostrAuth";
-import { useNostrRelays } from "@/hooks/useNostrRelays";
+import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
+import { Loader2, Plus, X } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProposalCategory } from "@/types/community";
 
-// ─── Validation schema ─────────────────────────────────────────
+// Form schema with validation
 const formSchema = z.object({
-  title: z
-    .string()
-    .min(3, "Title must be at least 3 characters")
-    .max(100, "Title must be less than 100 characters"),
-  description: z
-    .string()
-    .min(10, "Description must be at least 10 characters"),
-  duration: z.string().default("7"),
-  category: z.string().default("other"),
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  category: z.enum(["governance", "feature", "poll", "other"] as const),
+  duration: z.enum(["3", "7", "14", "30"] as const),
 });
-
-type FormData = z.infer<typeof formSchema>;
 
 interface CreateProposalFormProps {
   communityId: string;
   onProposalCreated: () => void;
 }
 
-const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
-  communityId,
-  onProposalCreated,
-}) => {
+const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [options, setOptions] = useState<string[]>(["Yes", "No"]);
+  const [newOption, setNewOption] = useState("");
   
-  // Use the enhanced auth and relay hooks
-  const { isLoggedIn, currentUserPubkey } = useNostrAuth();
-  const { isConnected, connectToRelays } = useNostrRelays();
-  
-  // Additional state to track auth readiness
-  const [authChecked, setAuthChecked] = useState(false);
-
-  const form = useForm<FormData>({
+  // Initialize form with react-hook-form and zod validation
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
-      duration: "7",
       category: "other",
+      duration: "7",
     },
   });
-
-  // Verify auth status when component mounts
-  useEffect(() => {
-    const checkAuth = async () => {
-      console.log("[CreateProposalForm] Checking auth status:", { 
-        isLoggedIn, 
-        isConnected,
-        pubkey: currentUserPubkey ? currentUserPubkey.substring(0, 8) + '...' : null 
-      });
-      
-      if (isLoggedIn && !isConnected) {
-        console.log("[CreateProposalForm] Logged in but not connected to relays, connecting...");
-        await connectToRelays({
-          showToast: true,
-          fallbackRelays: ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"]
-        });
-      }
-      
-      setAuthChecked(true);
-    };
-    
-    checkAuth();
-  }, [isLoggedIn, isConnected, currentUserPubkey, connectToRelays]);
-
-  const addOption = () => {
-    if (options.length >= 10) {
-      toast.warning("Maximum of 10 options allowed");
-      return;
-    }
-    setOptions((prev) => [...prev, ""]);
-  };
-
-  const removeOption = (index: number) => {
-    if (options.length <= 2) {
-      toast.warning("At least two options are required");
-      return;
-    }
-    setOptions((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleOptionChange = (index: number, value: string) => {
-    setOptions((prev) =>
-      prev.map((opt, i) => (i === index ? value : opt))
-    );
-  };
-
-  const onSubmit = async (data: FormData) => {
-    // Enhanced validation before submitting
-    if (!isLoggedIn || !currentUserPubkey) {
-      toast.error("You must be logged in to create a proposal", {
-        description: "Click the login button in the top right corner",
-      });
-      return;
-    }
-
-    if (!isConnected) {
-      toast.error("No relay connections available", {
-        description: "Connecting to relays...",
-      });
-      
-      const connected = await connectToRelays();
-      if (!connected) {
-        toast.error("Failed to connect to relays", {
-          description: "Please check your network connection and try again",
-        });
-        return;
-      }
-    }
-
-    if (!communityId) {
-      toast.error("Invalid community ID", {
-        description: "Please make sure you're viewing a valid community",
-      });
-      return;
-    }
-
+  
+  const onSubmit = async (data: z.infer<typeof formSchema>) => {
     if (options.length < 2) {
       toast.error("You need at least two options");
       return;
     }
-
-    if (options.some((opt) => !opt.trim())) {
-      toast.error("All options must have content");
-      return;
-    }
-
+    
     setIsSubmitting(true);
-
+    
     try {
-      console.log("[CreateProposalForm] Creating proposal with:", {
-        communityId,
-        title: data.title,
-        description: data.description,
-        options,
-        category: data.category,
-        pubkey: currentUserPubkey.substring(0, 8) + '...',
-      });
-
-      // Pass exactly 5 arguments as expected by the service signature
-      const result = await nostrService.createProposal(
+      // Calculate the end date based on duration
+      const durationDays = parseInt(data.duration);
+      const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
+      
+      // Create the proposal with correct parameters per the method signature
+      const proposalId = await nostrService.createProposal(
         communityId,
         data.title,
         data.description,
         options,
         data.category as ProposalCategory
       );
-
-      if (result) {
+      
+      if (proposalId) {
         toast.success("Proposal created successfully!");
-        form.reset();
-        setOptions(["Yes", "No"]);
         onProposalCreated();
       } else {
-        toast.error("Failed to create proposal", {
-          description:
-            "Please make sure you're logged in and connected to relays.",
-        });
+        toast.error("Failed to create proposal");
       }
-    } catch (err) {
-      console.error("[CreateProposalForm] Error creating proposal:", err);
-      toast.error(
-        err instanceof Error ? err.message : "Unexpected error creating proposal"
-      );
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      toast.error("Failed to create proposal");
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  // Improved authentication check with specific messaging
-  if (!authChecked) {
-    return (
-      <div className="py-4 text-center">
-        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-        <p className="text-sm text-muted-foreground mt-2">
-          Checking authentication status...
-        </p>
-      </div>
-    );
-  }
-
-  if (!isLoggedIn) {
-    return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Authentication Required</AlertTitle>
-        <AlertDescription>
-          You need to be logged in to create proposals. Please click the login
-          button in the navigation bar.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!isConnected) {
-    return (
-      <Alert variant="warning" className="mb-4">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>No Relay Connections</AlertTitle>
-        <AlertDescription>
-          Your client is not connected to any Nostr relays. Please check your connection
-          or try again later.
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => connectToRelays()} 
-            className="mt-2"
-          >
-            <Loader2 className={`h-4 w-4 mr-2 ${isSubmitting ? 'animate-spin' : ''}`} />
-            Connect to Relays
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
+  
+  const handleAddOption = () => {
+    if (!newOption.trim()) return;
+    if (options.includes(newOption.trim())) {
+      toast.error("This option already exists");
+      return;
+    }
+    if (options.length >= 10) {
+      toast.error("Maximum 10 options allowed");
+      return;
+    }
+    
+    setOptions([...options, newOption.trim()]);
+    setNewOption("");
+  };
+  
+  const handleRemoveOption = (option: string) => {
+    if (options.length <= 2) {
+      toast.error("You need at least two options");
+      return;
+    }
+    
+    setOptions(options.filter(o => o !== option));
+  };
+  
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Title */}
         <FormField
           control={form.control}
           name="title"
@@ -271,8 +117,7 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
             </FormItem>
           )}
         />
-
-        {/* Description */}
+        
         <FormField
           control={form.control}
           name="description"
@@ -280,113 +125,132 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Describe your proposal"
-                  className="min-h-[120px]"
-                  {...field}
+                <Textarea 
+                  placeholder="Explain your proposal in detail" 
+                  rows={4} 
+                  {...field} 
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {/* Category */}
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="governance">Governance</SelectItem>
-                  <SelectItem value="feature">Feature Request</SelectItem>
-                  <SelectItem value="poll">Community Poll</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Duration */}
-        <FormField
-          control={form.control}
-          name="duration"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Duration (days)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 day</SelectItem>
-                  <SelectItem value="3">3 days</SelectItem>
-                  <SelectItem value="7">1 week</SelectItem>
-                  <SelectItem value="14">2 weeks</SelectItem>
-                  <SelectItem value="30">1 month</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                How long this proposal will be open for voting
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Options */}
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="governance">Governance</SelectItem>
+                    <SelectItem value="feature">Feature</SelectItem>
+                    <SelectItem value="poll">Poll</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="duration"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="3">3 days</SelectItem>
+                    <SelectItem value="7">1 week</SelectItem>
+                    <SelectItem value="14">2 weeks</SelectItem>
+                    <SelectItem value="30">1 month</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
         <div className="space-y-2">
           <FormLabel>Options</FormLabel>
-          {options.map((opt, idx) => (
-            <div key={idx} className="flex gap-2 items-center">
-              <Input
-                value={opt}
-                onChange={(e) => handleOptionChange(idx, e.target.value)}
-                placeholder={`Option #${idx + 1}`}
-                className="flex-1"
-              />
-              {options.length > 2 && (
+          <div className="flex flex-wrap gap-2">
+            {options.map((option) => (
+              <div 
+                key={option}
+                className="bg-muted px-3 py-1 rounded-md flex items-center gap-1"
+              >
+                <span className="text-sm">{option}</span>
                 <Button
+                  type="button"
                   variant="ghost"
-                  size="icon"
-                  onClick={() => removeOption(idx)}
+                  onClick={() => handleRemoveOption(option)}
+                  className="h-5 w-5 p-0 rounded-full"
+                  disabled={options.length <= 2}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <X className="h-3 w-3" />
                 </Button>
-              )}
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addOption}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Option
-          </Button>
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Add an option" 
+              value={newOption}
+              onChange={(e) => setNewOption(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAddOption();
+                }
+              }}
+            />
+            <Button 
+              type="button" 
+              onClick={handleAddOption}
+              size="icon"
+              variant="outline"
+              disabled={!newOption.trim() || options.length >= 10}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <FormDescription>
+            You need at least two options. Maximum 10 options allowed.
+          </FormDescription>
         </div>
-
-        {/* Submit */}
-        <div className="flex justify-end pt-4">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              "Create Proposal"
-            )}
-          </Button>
-        </div>
+        
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Proposal"
+          )}
+        </Button>
       </form>
     </Form>
   );

@@ -12,7 +12,6 @@ import type { ProposalCategory } from '@/types/community';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
 import { NostrServiceAdapter } from './service-adapter';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
-import { CommunityService } from './services/community-service';
 
 /**
  * Main Nostr service that coordinates all functionality and managers
@@ -25,7 +24,6 @@ export class NostrService {
   private eventManager: EventManager;
   private socialManagerInstance: SocialManager;
   public communityManager: CommunityManager;
-  private communityService: CommunityService;
   private pool: SimplePool;
   private adapter: NostrServiceAdapter;
   
@@ -46,15 +44,6 @@ export class NostrService {
     });
     
     this.communityManager = new CommunityManager(this.eventManager);
-
-    // Initialize CommunityService with dependencies
-    this.communityService = new CommunityService(
-      this.communityManager,
-      () => this.getConnectedRelayUrls(),
-      this.pool,
-      this.userManager.publicKey, // Pass the current public key
-      () => this.userManager.getPrivateKey?.() // Get private key function
-    );
     
     // Initialize adapter
     this.adapter = new NostrServiceAdapter(this);
@@ -94,43 +83,13 @@ export class NostrService {
   public async login(): Promise<boolean> {
     const success = await this.userManager.login();
     if (success) {
-      console.log("Login successful, public key:", this.userManager.publicKey);
-      
-      // Update communityService with the new public key after login
-      this.communityService = new CommunityService(
-        this.communityManager,
-        () => this.getConnectedRelayUrls(),
-        this.pool,
-        this.userManager.publicKey,
-        () => this.userManager.getPrivateKey?.()
-      );
-      
-      // Connect to relays immediately after login
-      await this.connectToUserRelays();
       await this.fetchFollowingList();
-      
-      // Emit logged in event with the public key
-      eventBus.emit(EVENTS.USER_LOGGED_IN, this.userManager.publicKey);
-    } else {
-      console.error("Login failed");
     }
     return success;
   }
   
   public signOut(): void {
     this.userManager.signOut();
-    
-    // Update communityService with null public key after logout
-    this.communityService = new CommunityService(
-      this.communityManager,
-      () => this.getConnectedRelayUrls(),
-      this.pool,
-      null,
-      null
-    );
-    
-    // Emit logout event
-    eventBus.emit(EVENTS.USER_LOGGED_OUT);
   }
 
   // Relay management
@@ -140,44 +99,13 @@ export class NostrService {
   }
   
   public async connectToUserRelays(): Promise<string[]> {
-    try {
-      await this.relayManager.connectToUserRelays();
-      const connectedRelays = this.getRelayUrls();
-      
-      // Emit event if we successfully connected to relays
-      if (connectedRelays && connectedRelays.length > 0) {
-        eventBus.emit(EVENTS.RELAYS_CONNECTED, connectedRelays);
-      }
-      
-      return connectedRelays;
-    } catch (error) {
-      console.error("Error connecting to user relays:", error);
-      return [];
-    }
+    await this.relayManager.connectToUserRelays();
+    return this.getRelayUrls();
   }
 
   // Added for compatibility with code expecting connectToDefaultRelays
   public async connectToDefaultRelays(): Promise<string[]> {
-    try {
-      // Try to connect to some common Nostr relays
-      const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
-      
-      for (const relay of defaultRelays) {
-        await this.addRelay(relay).catch(err => console.warn(`Failed to connect to ${relay}:`, err));
-      }
-      
-      const connectedRelays = this.getRelayUrls();
-      
-      // Emit event if we successfully connected to relays
-      if (connectedRelays && connectedRelays.length > 0) {
-        eventBus.emit(EVENTS.RELAYS_CONNECTED, connectedRelays);
-      }
-      
-      return connectedRelays;
-    } catch (error) {
-      console.error("Error connecting to default relays:", error);
-      return [];
-    }
+    return this.connectToUserRelays();
   }
   
   // Helper to get relay URLs
@@ -427,11 +355,15 @@ export class NostrService {
   
   // Community methods
   public async fetchCommunity(communityId: string): Promise<any> {
-    return this.communityService.fetchCommunity(communityId);
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Just return empty object since this is not implemented yet
+    return {};
   }
   
   public async createCommunity(name: string, description: string): Promise<string | null> {
-    return this.communityService.createCommunity(name, description);
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Return null since this is not implemented yet
+    return null;
   }
   
   public async createProposal(
@@ -439,39 +371,19 @@ export class NostrService {
     title: string,
     description: string,
     options: string[],
-    category: ProposalCategory
+    category: ProposalCategory,
+    minQuorum?: number,
+    endsAt?: number
   ): Promise<string | null> {
-    console.log("NostrService.createProposal called with:", {
-      communityId: communityId ? communityId.slice(0, 8) + '...' : 'undefined', 
-      title, 
-      description, 
-      options, 
-      category
-    });
-    
-    // Check logged in state
-    if (!this.publicKey) {
-      console.error("Cannot create proposal: user not logged in");
-      throw new Error("You must be logged in to create a proposal");
-    }
-    
-    // Check community ID
-    if (!communityId) {
-      console.error("Cannot create proposal: missing community ID");
-      throw new Error("Community ID is required to create a proposal");
-    }
-    
-    return this.communityService.createProposal(
-      communityId,
-      title,
-      description,
-      options,
-      category
-    );
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Return null since this is not implemented yet
+    return null;
   }
   
   public async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
-    return this.communityService.voteOnProposal(proposalId, optionIndex);
+    const connectedRelays = this.getConnectedRelayUrls();
+    // Return null since this is not implemented yet
+    return null;
   }
   
   // Additional methods needed for other components
@@ -683,16 +595,9 @@ export class NostrService {
   }
   
   private getConnectedRelayUrls(): string[] {
-    const relays = this.getRelayStatus()
+    return this.getRelayStatus()
       .filter(relay => relay.status === 'connected')
       .map(relay => relay.url);
-      
-    if (relays.length === 0) {
-      // Fallback to common Nostr relays if none connected
-      return ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
-    }
-    
-    return relays;
   }
   
   // User Moderation (NIP-51)
@@ -869,27 +774,6 @@ export class NostrService {
       console.error("Error getting blocked users:", error);
       return [];
     }
-  }
-  
-  // New helper method to check if user is logged in and connected to relays
-  public isReadyForInteractions(): { ready: boolean; issues: string[] } {
-    const issues: string[] = [];
-    
-    // Check if user is logged in
-    if (!this.publicKey) {
-      issues.push("User is not logged in");
-    }
-    
-    // Check if connected to at least one relay
-    const connectedRelays = this.getRelayUrls();
-    if (!connectedRelays || connectedRelays.length === 0) {
-      issues.push("Not connected to any relays");
-    }
-    
-    return {
-      ready: issues.length === 0,
-      issues
-    };
   }
 }
 

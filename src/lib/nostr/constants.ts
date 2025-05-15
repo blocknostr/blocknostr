@@ -19,14 +19,10 @@ export const EVENT_KINDS = {
   BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
   BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
   
-  // Community-specific events (NIP-172)
-  COMMUNITY: 34550, // Community definition event per NIP-172
-  PROPOSAL: 34551, // Proposal event per NIP-172
-  VOTE: 34552, // Vote on proposal per NIP-172
-  COMMUNITY_METADATA: 34553, // Community metadata per NIP-172
-  COMMUNITY_APPROVAL: 34554, // Community membership approval per NIP-172
-  COMMUNITY_USER_DATA: 34555, // User data in community per NIP-172
-  
+  // Community-specific events (custom)
+  COMMUNITY: 34550, // Community definition event
+  PROPOSAL: 34551, // Community proposal event
+  VOTE: 34552, // Vote on a community proposal
   BLOCK_LIST: 10000, // User block list
   MUTE_LIST: 10001, // User mute list
   

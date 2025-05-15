@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Link as LinkIcon, Loader2, Eye } from "lucide-react";
-import { toast } from "sonner";
+import { UserPlus, Link as LinkIcon } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
+import LeaveCommunityButton from "./LeaveCommunityButton";
 
 interface CommunityCardActionsProps {
   community: {
@@ -20,18 +20,15 @@ interface CommunityCardActionsProps {
   isMember: boolean;
   isCreator: boolean;
   currentUserPubkey: string | null;
-  disableNonMemberActions?: boolean;
 }
 
 const CommunityCardActions = ({ 
   community, 
   isMember, 
   isCreator, 
-  currentUserPubkey,
-  disableNonMemberActions = false
+  currentUserPubkey 
 }: CommunityCardActionsProps) => {
   const [showInviteLink, setShowInviteLink] = useState(false);
-  const [joining, setJoining] = useState(false);
   const navigate = useNavigate();
 
   const handleJoinClick = async (e: React.MouseEvent) => {
@@ -45,7 +42,6 @@ const CommunityCardActions = ({
     }
     
     try {
-      setJoining(true);
       // Get the existing community data and members
       const updatedMembers = [...community.members, currentUserPubkey];
       
@@ -67,44 +63,77 @@ const CommunityCardActions = ({
         ]
       };
       
-      const result = await nostrService.publishEvent(event);
-      
-      if (result) {
-        toast.success(`Joined ${community.name}!`, {
-          description: "You can now participate in this community",
-          action: {
-            label: "View",
-            onClick: () => navigate(`/communities/${community.id}`),
-          }
-        });
-        
-        // Navigate to the community page after successful join
-        setTimeout(() => {
-          navigate(`/communities/${community.id}`);
-        }, 500);
-      } else {
-        throw new Error("Failed to publish join event");
-      }
+      await nostrService.publishEvent(event);
+      toast.success(`Joined ${community.name}!`, {
+        description: "You can now participate in this community"
+      });
     } catch (error) {
       console.error("Error joining community:", error);
       toast.error("Failed to join community", {
         description: "Please try again or check your connection"
       });
-    } finally {
-      setJoining(false);
+    }
+  };
+
+  const handleLeaveClick = () => {
+    if (!currentUserPubkey) {
+      toast.warning("Login required", {
+        description: "You must be logged in to leave a community"
+      });
+      return;
+    }
+    
+    try {
+      // Remove the current user from members
+      const updatedMembers = community.members.filter(member => member !== currentUserPubkey);
+      
+      // Create an updated community event without the current user
+      const communityData = {
+        name: community.name,
+        description: community.description,
+        image: community.image,
+        creator: community.creator,
+        createdAt: community.createdAt
+      };
+      
+      const event = {
+        kind: 34550,
+        content: JSON.stringify(communityData),
+        tags: [
+          ['d', community.uniqueId],
+          ...updatedMembers.map(member => ['p', member])
+        ]
+      };
+      
+      // Handle the promise internally
+      nostrService.publishEvent(event)
+        .then((publishResult) => {
+          if (publishResult) {
+            toast.success(`Left ${community.name}`, {
+              description: "You are no longer a member of this community"
+            });
+          } else {
+            toast.error("Failed to leave the community", {
+              description: "Something went wrong. Please try again."
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Error leaving community:", error);
+          toast.error("Failed to leave community", {
+            description: "An error occurred. Please try again."
+          });
+        });
+    } catch (error) {
+      console.error("Error leaving community:", error);
+      toast.error("Failed to leave community", {
+        description: "An error occurred. Please try again."
+      });
     }
   };
 
   const shareInviteLink = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    // Don't allow non-members to share invite links
-    if (disableNonMemberActions && !isMember) {
-      toast.info("Join to share", {
-        description: "You need to be a member to share this community"
-      });
-      return;
-    }
     
     const inviteUrl = `${window.location.origin}/communities/${community.id}`;
     
@@ -112,16 +141,23 @@ const CommunityCardActions = ({
       navigator.clipboard.writeText(inviteUrl)
         .then(() => {
           toast.success("Invite link copied!", {
-            description: "You can now share it with others"
+            description: "You can now share it with others",
+            action: {
+              label: "View Community",
+              onClick: () => navigate(`/communities/${community.id}`),
+            }
           });
           setShowInviteLink(true);
           setTimeout(() => setShowInviteLink(false), 3000);
         })
         .catch(err => {
           console.error("Failed to copy:", err);
-          toast.error("Failed to copy invite link");
+          toast.error("Failed to copy invite link", {
+            description: "Please try again or copy manually"
+          });
         });
     } else {
+      // Fallback
       toast.warning("Copy not supported", {
         description: "Your browser doesn't support automatic copying"
       });
@@ -138,58 +174,37 @@ const CommunityCardActions = ({
       <div className="flex w-full gap-2">
         {!isMember && !isCreator && currentUserPubkey && (
           <Button 
-            variant="default" 
-            className="flex-1 flex items-center justify-center gap-2" 
+            variant="outline" 
+            className="flex-1 flex items-center gap-2" 
             onClick={handleJoinClick}
-            disabled={joining}
           >
-            {joining ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Joining...</span>
-              </>
-            ) : (
-              <>
-                <UserPlus className="h-4 w-4" />
-                <span>Join</span>
-              </>
-            )}
+            <UserPlus className="h-4 w-4" />
+            Join
           </Button>
         )}
         {(isMember || isCreator) && (
           <>
+            {/* Show view button - now full width */}
             <Button 
               variant="outline" 
-              className="flex-1 flex items-center justify-center gap-2"
+              className="flex-1"
               onClick={navigateToCommunity}
             >
-              <Eye className="h-4 w-4" />
-              <span>View</span>
+              View
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={shareInviteLink}
               title="Share invite link"
-              disabled={disableNonMemberActions && !isMember}
             >
               <LinkIcon className="h-4 w-4" />
             </Button>
           </>
         )}
-        {!isMember && !isCreator && !currentUserPubkey && (
-          <Button 
-            variant="outline" 
-            className="flex-1 flex items-center justify-center gap-2"
-            onClick={navigateToCommunity}
-          >
-            <Eye className="h-4 w-4" />
-            <span>View</span>
-          </Button>
-        )}
       </div>
       {showInviteLink && (
-        <div className="mt-2 text-xs text-muted-foreground">
+        <div className="px-3 pb-3 text-xs text-muted-foreground">
           Invite link copied to clipboard!
         </div>
       )}

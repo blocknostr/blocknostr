@@ -15,8 +15,6 @@ import NotFound from './pages/NotFound';
 import ProfilePage from './pages/ProfilePage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
-import DAOPage from './pages/DAOPage';
-import DAODetailPage from './pages/DAODetailPage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -33,8 +31,6 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/communities" element={<CommunitiesPage />} />
                 <Route path="/communities/:id" element={<CommunityPage />} />
-                <Route path="/dao" element={<DAOPage />} />
-                <Route path="/dao/:id" element={<DAODetailPage />} />
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/post/:id" element={<PostPage />} />

@@ -2,53 +2,53 @@
 /**
  * Simple event bus for application-wide events
  */
-export class EventBus {
-  private events: { [key: string]: Function[] } = {};
+export const EVENTS = {
+  PROFILE_UPDATED: 'profile:updated',
+  POST_CREATED: 'post:created',
+  POST_DELETED: 'post:deleted',
+  RELAY_CONNECTED: 'relay:connected',
+  RELAY_DISCONNECTED: 'relay:disconnected'
+};
 
-  on(event: string, callback: Function) {
-    if (!this.events[event]) {
-      this.events[event] = [];
+class EventBus {
+  private events: Map<string, Array<(...args: any[]) => void>>;
+
+  constructor() {
+    this.events = new Map();
+  }
+
+  on(event: string, callback: (...args: any[]) => void): void {
+    if (!this.events.has(event)) {
+      this.events.set(event, []);
     }
-    this.events[event].push(callback);
+    
+    this.events.get(event)?.push(callback);
   }
 
-  off(event: string, callback: Function) {
-    if (!this.events[event]) return;
-    this.events[event] = this.events[event].filter(cb => cb !== callback);
+  off(event: string, callback: (...args: any[]) => void): void {
+    const callbacks = this.events.get(event);
+    
+    if (callbacks) {
+      this.events.set(
+        event,
+        callbacks.filter(cb => cb !== callback)
+      );
+    }
   }
 
-  emit(event: string, ...args: any[]) {
-    if (!this.events[event]) return;
-    this.events[event].forEach(callback => {
-      try {
-        callback(...args);
-      } catch (e) {
-        console.error(`Error in event handler for ${event}:`, e);
-      }
-    });
+  emit(event: string, ...args: any[]): void {
+    const callbacks = this.events.get(event);
+    
+    if (callbacks) {
+      callbacks.forEach(callback => {
+        try {
+          callback(...args);
+        } catch (error) {
+          console.error(`Error in event handler for ${event}:`, error);
+        }
+      });
+    }
   }
 }
 
-export const EVENTS = {
-  // Authentication events
-  USER_LOGGED_IN: 'user_logged_in',
-  USER_LOGGED_OUT: 'user_logged_out',
-  
-  // Relay events
-  RELAY_CONNECTED: 'relay_connected',
-  RELAY_DISCONNECTED: 'relay_disconnected',
-  RELAYS_CONNECTED: 'relays_connected',
-  RELAYS_FAILED: 'relays_failed',
-  
-  // Profile events
-  PROFILE_UPDATED: 'profile_updated',
-  
-  // Community events
-  COMMUNITY_CREATED: 'community_created',
-  COMMUNITY_UPDATED: 'community_updated',
-  PROPOSAL_CREATED: 'proposal_created',
-  PROPOSAL_VOTED: 'proposal_voted'
-};
-
-// Create and export a singleton instance
 export const eventBus = new EventBus();

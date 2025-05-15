@@ -1,77 +1,124 @@
 
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
-import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
+import type { ProposalCategory } from '@/types/community';
 
-/**
- * Community Manager class for handling community-related operations
- * Implementation following NIP-172 for community and group events
- */
 export class CommunityManager {
   private eventManager: EventManager;
-
+  
   constructor(eventManager: EventManager) {
     this.eventManager = eventManager;
   }
-
+  
   /**
-   * Publish a Nostr event
-   * Helper method for other components to publish events
+   * Create a new community
+   * @returns Community ID if successful, null otherwise
    */
-  async publishEvent(
+  async createCommunity(
     pool: SimplePool,
+    name: string,
+    description: string,
     publicKey: string | null,
     privateKey: string | null,
-    event: any,
     relays: string[]
   ): Promise<string | null> {
-    console.log("CommunityManager.publishEvent called with:", { 
-      event, 
-      publicKey: publicKey ? publicKey.slice(0, 8) + '...' : null,
-      hasPrivateKey: !!privateKey,
-      relaysCount: relays.length
-    });
+    if (!publicKey) return null;
     
-    if (!publicKey) {
-      console.error("Cannot publish event: missing publicKey");
-      throw new Error("Public key required to publish event");
-    }
+    const uniqueId = `community_${Math.random().toString(36).substring(2, 10)}`;
     
-    if (relays.length === 0) {
-      console.warn("No relays provided for publishing, using default relays");
-      relays = [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.nostr.band',
-        'wss://nostr.bitcoiner.social'
-      ];
-    }
+    // Create community metadata
+    const communityData = {
+      name,
+      description,
+      creator: publicKey,
+      createdAt: Math.floor(Date.now() / 1000),
+      image: "" // Optional image URL
+    };
     
-    try {
-      // Ensure we're connected to at least some of these relays
-      const connectedRelays = [];
-      for (const relay of relays) {
-        try {
-          await pool.ensureRelay(relay);
-          connectedRelays.push(relay);
-        } catch (err) {
-          console.warn(`Failed to connect to relay ${relay}:`, err);
-        }
-      }
-      
-      if (connectedRelays.length === 0) {
-        console.error("Failed to connect to any relays");
-        throw new Error("Unable to connect to any relays");
-      }
-      
-      console.log(`Connected to ${connectedRelays.length} relays for publishing`);
-      
-      // Now publish using the event manager
-      return this.eventManager.publishEvent(pool, publicKey, privateKey, event, connectedRelays);
-    } catch (error) {
-      console.error("Error in CommunityManager.publishEvent:", error);
-      throw error;
-    }
+    // Create NIP-172 compatible event
+    const event = {
+      kind: EVENT_KINDS.COMMUNITY,
+      content: JSON.stringify(communityData),
+      tags: [
+        ["d", uniqueId], // Unique identifier for this community
+        ["p", publicKey] // Creator is the first member
+      ]
+    };
+    
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+  }
+  
+  /**
+   * Create a proposal for a community
+   */
+  async createProposal(
+    pool: SimplePool,
+    communityId: string,
+    title: string,
+    description: string,
+    options: string[],
+    publicKey: string | null,
+    privateKey: string | null,
+    relays: string[],
+    category: ProposalCategory = 'other',
+    minQuorum?: number,
+    endsAt?: number
+  ): Promise<string | null> {
+    if (!publicKey || !communityId) return null;
+    
+    // Default end time is 7 days from now if not specified
+    const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    
+    // Create proposal data
+    const proposalData = {
+      title,
+      description,
+      options,
+      category,
+      createdAt: Math.floor(Date.now() / 1000),
+      endsAt: endTime,
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
+    };
+    
+    // Create proposal event
+    const event = {
+      kind: EVENT_KINDS.PROPOSAL,
+      content: JSON.stringify(proposalData),
+      tags: [
+        ["e", communityId], // Reference to community event
+        ["d", `proposal_${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
+      ]
+    };
+    
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+  }
+  
+  /**
+   * Vote on a proposal
+   * @param proposalId ID of the proposal event
+   * @param optionIndex Index of the selected option (0-based)
+   */
+  async voteOnProposal(
+    pool: SimplePool,
+    proposalId: string,
+    optionIndex: number,
+    publicKey: string | null,
+    privateKey: string | null,
+    relays: string[]
+  ): Promise<string | null> {
+    if (!publicKey || !proposalId) return null;
+    
+    // Create vote event
+    const event = {
+      kind: EVENT_KINDS.VOTE,
+      content: JSON.stringify({ optionIndex }),
+      tags: [
+        ["e", proposalId], // Reference to proposal event
+        ["d", `vote_${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
+      ]
+    };
+    
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
 }

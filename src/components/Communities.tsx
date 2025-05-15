@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
@@ -6,64 +5,35 @@ import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
 import CommunitiesGrid from "./community/CommunitiesGrid";
 import { formatSerialNumber } from "@/lib/community-utils";
-import { toast } from "sonner";
-import { Button } from "./ui/button";
-import { PlusCircle } from "lucide-react";
 
 const Communities = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [connectedToRelays, setConnectedToRelays] = useState(false);
 
   const currentUserPubkey = nostrService.publicKey;
   
   useEffect(() => {
     const loadCommunities = async () => {
-      try {
-        // Connect to relays and verify connection status
-        const connectedRelays = await nostrService.connectToUserRelays();
-        
-        if (connectedRelays.length === 0) {
-          console.warn("No relays connected, trying default relays");
-          await nostrService.connectToDefaultRelays();
-        }
-        
-        const finalRelayUrls = nostrService.getRelayUrls();
-        console.log("Connected to relays:", finalRelayUrls);
-        
-        setConnectedToRelays(finalRelayUrls.length > 0);
-        
-        if (finalRelayUrls.length === 0) {
-          toast.error("Failed to connect to any relays", {
-            description: "Please try refreshing the page or check your network connection"
-          });
-        }
-        
-        // Subscribe to community events
-        const communitySubId = nostrService.subscribe(
-          [
-            {
-              kinds: [EVENT_KINDS.COMMUNITY],
-              limit: 30
-            }
-          ],
-          handleCommunityEvent
-        );
-        
-        setLoading(false);
-        
-        return () => {
-          nostrService.unsubscribe(communitySubId);
-        };
-      } catch (error) {
-        console.error("Error connecting to relays:", error);
-        toast.error("Failed to load communities", {
-          description: "There was an error connecting to relays. Please try again."
-        });
-        setLoading(false);
-      }
+      await nostrService.connectToUserRelays();
+      
+      // Subscribe to community events
+      const communitySubId = nostrService.subscribe(
+        [
+          {
+            kinds: [EVENT_KINDS.COMMUNITY],
+            limit: 30
+          }
+        ],
+        handleCommunityEvent
+      );
+      
+      setLoading(false);
+      
+      return () => {
+        nostrService.unsubscribe(communitySubId);
+      };
     };
     
     loadCommunities();
@@ -163,59 +133,14 @@ const Communities = () => {
     community.members.includes(currentUserPubkey || '')
   );
   
-  const handleCreateCommunityClick = async () => {
-    // Verify login status
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to create a community", {
-        description: "Please login first using the button in the header"
-      });
-      return;
-    }
-    
-    // Verify relay connections
-    if (!connectedToRelays) {
-      try {
-        const connectedRelays = await nostrService.connectToUserRelays();
-        setConnectedToRelays(connectedRelays.length > 0);
-        
-        if (connectedRelays.length === 0) {
-          toast.error("Cannot connect to relays", {
-            description: "Please check your network connection and try again"
-          });
-          return;
-        }
-      } catch (error) {
-        console.error("Failed to connect to relays:", error);
-        toast.error("Connection error", {
-          description: "Failed to connect to Nostr relays"
-        });
-        return;
-      }
-    }
-    
-    // Open dialog if checks passed
-    setIsDialogOpen(true);
-  };
-  
   return (
     <div className="flex flex-col">
       <div className="mb-6 space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <SearchBar 
-            searchTerm={searchTerm} 
-            setSearchTerm={setSearchTerm} 
-            placeholderText="Search by name or #ABC123" 
-            className="flex-1"
-          />
-          
-          <Button 
-            onClick={handleCreateCommunityClick}
-            className="flex items-center gap-2"
-          >
-            <PlusCircle className="h-4 w-4" />
-            New Community
-          </Button>
-        </div>
+        <SearchBar 
+          searchTerm={searchTerm} 
+          setSearchTerm={setSearchTerm} 
+          placeholderText="Search by name or #ABC123" 
+        />
         
         <CreateCommunityDialog isOpen={isDialogOpen} setIsOpen={setIsDialogOpen} />
       </div>
@@ -227,7 +152,7 @@ const Communities = () => {
           filteredCommunities={filteredCommunities}
           loading={loading}
           currentUserPubkey={currentUserPubkey}
-          onCreateCommunity={handleCreateCommunityClick}
+          onCreateCommunity={() => setIsDialogOpen(true)}
         />
       </div>
     </div>

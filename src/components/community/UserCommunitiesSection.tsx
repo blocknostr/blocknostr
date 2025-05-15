@@ -21,20 +21,20 @@ const UserCommunitiesSection = ({ communities, currentUserPubkey }: UserCommunit
   }
   
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 pb-2 border-b">
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4 pb-2 border-b">
         <Users className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold">Your Communities</h2>
-        <span className="bg-primary/20 text-primary px-2 py-0.5 text-xs rounded-full">
+        <span className="bg-primary/20 text-primary px-2 py-0.5 text-xs rounded-full ml-2">
           {communities.length}
         </span>
       </div>
       
-      <div className="relative mb-6">
+      <div className="relative">
         <Carousel
           opts={{
             align: "start",
-            slidesToScroll: 1
+            slidesToScroll: 4
           }}
           className="w-full"
         >

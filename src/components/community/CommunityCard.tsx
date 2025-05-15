@@ -8,7 +8,6 @@ import { formatSerialNumber } from "@/lib/community-utils";
 import LeaveCommunityButton from "./LeaveCommunityButton";
 import { nostrService } from "@/lib/nostr";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export interface Community {
   id: string;
@@ -26,26 +25,14 @@ interface CommunityCardProps {
   community: Community;
   isMember: boolean;
   currentUserPubkey: string | null;
-  isSelected?: boolean;
-  onSelect?: () => void;
 }
 
-const CommunityCard = ({ 
-  community, 
-  isMember, 
-  currentUserPubkey,
-  isSelected,
-  onSelect
-}: CommunityCardProps) => {
+const CommunityCard = ({ community, isMember, currentUserPubkey }: CommunityCardProps) => {
   const navigate = useNavigate();
   const isCreator = community.creator === currentUserPubkey;
   
   const navigateToCommunity = () => {
-    if (onSelect) {
-      onSelect();
-    } else {
-      navigate(`/communities/${community.id}`);
-    }
+    navigate(`/communities/${community.id}`);
   };
   
   const formatDate = (timestamp: number) => {
@@ -101,10 +88,7 @@ const CommunityCard = ({
 
   return (
     <Card 
-      className={cn(
-        "overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col cursor-pointer border border-border/40",
-        isSelected && "ring-2 ring-primary border-primary"
-      )}
+      className="overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col"
       onClick={navigateToCommunity}
     >
       <div className="relative">
@@ -126,7 +110,7 @@ const CommunityCard = ({
         )}
       </div>
       
-      <CardHeader className="pb-2 pt-4 px-4 flex-none">
+      <CardHeader className="pb-2 flex-none">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base line-clamp-1">{community.name}</CardTitle>
           
@@ -144,12 +128,12 @@ const CommunityCard = ({
         )}
       </CardHeader>
       
-      <CardContent className="flex-grow px-4 pb-2">
+      <CardContent className="flex-grow">
         <p className="text-sm text-muted-foreground line-clamp-2">
           {community.description || "No description provided."}
         </p>
         
-        <div className="flex items-center mt-3 text-xs text-muted-foreground">
+        <div className="flex items-center mt-4 text-xs text-muted-foreground">
           <Users className="h-3 w-3 mr-1" />
           <span>{community.members.length} members</span>
           <span className="mx-1">•</span>
@@ -157,13 +141,12 @@ const CommunityCard = ({
         </div>
       </CardContent>
       
-      <CardFooter className="pt-2 border-t mt-auto px-4 pb-4" onClick={e => e.stopPropagation()}>
+      <CardFooter className="pt-3 border-t mt-auto">
         <CommunityCardActions 
           community={community}
           isMember={isMember}
           isCreator={isCreator}
           currentUserPubkey={currentUserPubkey}
-          disableNonMemberActions={!isMember}
         />
       </CardFooter>
     </Card>
