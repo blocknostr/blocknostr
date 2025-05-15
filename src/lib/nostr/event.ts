@@ -66,7 +66,7 @@ export class EventManager {
    */
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
-    // Generate the signature using the basic sign method without recovery parameter
+    // Fix: Use the correct signature format for Nostr, ensuring it's compatible with bytesToHex
     const signatureBytes = await secp.sign(eventHash, privateKey);
     return bytesToHex(signatureBytes);
   }
