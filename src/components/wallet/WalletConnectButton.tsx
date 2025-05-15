@@ -11,7 +11,7 @@ interface WalletConnectButtonProps {
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
-  const { connectionStatus, connect, disconnect, address } = useWallet();
+  const wallet = useWallet();
   const [hasWalletExtension, setHasWalletExtension] = useState<boolean>(false);
 
   useEffect(() => {
@@ -32,13 +32,13 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = () => {
-    connect();
+    wallet.connect();
   };
 
-  const isConnected = connectionStatus === 'connected';
-  const isConnecting = connectionStatus === 'connecting';
+  const isConnected = wallet.connectionStatus === 'connected';
+  const isConnecting = wallet.connectionStatus === 'connecting';
 
-  if (isConnected && address) {
+  if (isConnected && wallet.account) {
     return (
       <Button
         className={cn("w-full", className)}

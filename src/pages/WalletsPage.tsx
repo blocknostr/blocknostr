@@ -13,15 +13,15 @@ import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 
 const WalletsPage = () => {
-  const { connectionStatus, address, disconnect } = useWallet();
+  const wallet = useWallet();
   const [activeTab, setActiveTab] = useState("overview");
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const connected = connectionStatus === 'connected';
+  const connected = wallet.connectionStatus === 'connected';
 
   useEffect(() => {
-    if (connected && address) {
+    if (connected && wallet.account) {
       // Simulate fetching balance (replace with actual API call)
       setIsLoading(true);
       setTimeout(() => {
@@ -31,19 +31,19 @@ const WalletsPage = () => {
 
       // Notify user of successful connection
       toast.success("Wallet connected successfully", {
-        description: `Connected to ${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+        description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
       });
     } else {
       setBalance(null);
     }
-  }, [connected, address]);
+  }, [connected, wallet.account]);
 
   const handleDisconnect = () => {
-    disconnect();
+    wallet.disconnect();
     toast.info("Wallet disconnected");
   };
 
-  if (!connected || !address) {
+  if (!connected || !wallet.account) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
@@ -87,7 +87,7 @@ const WalletsPage = () => {
           <Button variant="outline" onClick={handleDisconnect}>Disconnect</Button>
         </div>
 
-        <AddressDisplay address={address} />
+        <AddressDisplay address={wallet.account.address} />
 
         <WalletBalanceCard balance={balance} isLoading={isLoading} />
 
@@ -142,7 +142,7 @@ const WalletsPage = () => {
               <CardFooter>
                 <Button variant="outline" className="w-full" asChild>
                   <a 
-                    href={`https://explorer.alephium.org/addresses/${address}`}
+                    href={`https://explorer.alephium.org/addresses/${wallet.account.address}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2"
@@ -183,7 +183,7 @@ const WalletsPage = () => {
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsList address={address} />
+            <TransactionsList address={wallet.account.address} />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-6">
@@ -195,7 +195,7 @@ const WalletsPage = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-medium">Connected Wallet</h3>
-                  <p className="text-sm text-muted-foreground break-all">{address}</p>
+                  <p className="text-sm text-muted-foreground break-all">{wallet.account.address}</p>
                 </div>
                 <Separator />
                 <div className="space-y-2">
