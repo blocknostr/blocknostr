@@ -85,11 +85,11 @@ const WalletsPage = () => {
   const handleDisconnect = () => {
     if (wallet.signer) {
       try {
-        // Try various methods that different wallet implementations might use
-        if (typeof wallet.disconnect === 'function') {
-          wallet.disconnect();
-        } else if (typeof (wallet as any).signer.disconnect === 'function') {
-          (wallet as any).signer.disconnect();
+        // Try to disconnect through the signer interface directly
+        if (typeof wallet.signer.disconnect === 'function') {
+          wallet.signer.disconnect();
+        } else if (typeof wallet.signer.requestDisconnection === 'function') {
+          wallet.signer.requestDisconnection();
         } else {
           toast.error("Wallet disconnection failed", {
             description: "Your wallet doesn't implement a compatible disconnect method"

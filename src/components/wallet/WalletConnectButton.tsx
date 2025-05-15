@@ -35,11 +35,11 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   const handleConnect = () => {
     if (wallet.signer) {
       try {
-        // Try various methods that different wallet implementations might use
-        if (typeof wallet.connect === 'function') {
-          wallet.connect();
-        } else if (typeof (wallet as any).signer.connect === 'function') {
-          (wallet as any).signer.connect();
+        // Try to connect through the signer interface directly
+        if (typeof wallet.signer.connect === 'function') {
+          wallet.signer.connect();
+        } else if (typeof wallet.signer.requestConnection === 'function') {
+          wallet.signer.requestConnection();
         } else {
           toast.error("Wallet connection failed", {
             description: "Your wallet doesn't implement a compatible connect method"
