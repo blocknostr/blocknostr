@@ -18,17 +18,19 @@ interface Transaction {
   blockHash?: string;
 }
 
-interface AlephiumTransactionResponse {
-  hash: string;
-  blockHash: string;
-  timestamp: number;
-  inputs: Array<{
-    address: string;
-    amount: string;
-  }>;
-  outputs: Array<{
-    address: string;
-    amount: string;
+interface AlephiumAddressTransactionsResponse {
+  transactions: Array<{
+    hash: string;
+    blockHash: string;
+    timestamp: number;
+    inputs: Array<{
+      address: string;
+      attoAlphAmount: string;
+    }>;
+    outputs: Array<{
+      address: string;
+      attoAlphAmount: string;
+    }>;
   }>;
 }
 
@@ -39,6 +41,9 @@ interface TransactionsListProps {
 const TransactionsList = ({ address }: TransactionsListProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Node API URL
+  const ALEPHIUM_NODE_API = "https://node.mainnet.alephium.org";
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -47,14 +52,14 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Using the correct Alephium Explorer API endpoint
-        const response = await fetch(`https://explorer.alephium.org/api/addresses/${address}/transactions?page=0&limit=10`);
+        // Using the node API URL you provided
+        const response = await fetch(`${ALEPHIUM_NODE_API}/addresses/${address}/transactions?fromGroup=0&toGroup=3&limit=10`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
         }
         
-        const data = await response.json();
+        const data: AlephiumAddressTransactionsResponse = await response.json();
         
         if (!data.transactions || !Array.isArray(data.transactions)) {
           throw new Error('Invalid response format');
@@ -63,7 +68,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
         console.log('API Response:', data); // Log the response for debugging
         
         // Transform the data into our transaction format
-        const formattedTransactions: Transaction[] = data.transactions.map((tx: AlephiumTransactionResponse) => {
+        const formattedTransactions: Transaction[] = data.transactions.map((tx) => {
           // Determine if the transaction is sent or received
           const isSent = tx.inputs.some(input => input.address === address);
           
@@ -74,12 +79,12 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
             // First, sum all inputs from this address
             const selfInputs = tx.inputs.filter(input => input.address === address);
             const inputSum = selfInputs.reduce((sum, input) => 
-              (BigInt(sum) + BigInt(input.amount)).toString(), '0');
+              (BigInt(sum) + BigInt(input.attoAlphAmount)).toString(), '0');
             
             // Then, sum all outputs going back to this address
             const selfOutputs = tx.outputs.filter(output => output.address === address);
             const outputSum = selfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.amount)).toString(), '0');
+              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
             
             // The amount sent is the difference
             amount = (BigInt(inputSum) - BigInt(outputSum)).toString();
@@ -87,7 +92,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
             // For received, sum outputs that go to the current address
             const selfOutputs = tx.outputs.filter(output => output.address === address);
             amount = selfOutputs.reduce((sum, output) => 
-              (BigInt(sum) + BigInt(output.amount)).toString(), '0');
+              (BigInt(sum) + BigInt(output.attoAlphAmount)).toString(), '0');
           }
           
           // Format amount to ALPH (1 ALPH = 10^18 attoALPH)

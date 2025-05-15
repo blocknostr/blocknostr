@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -19,6 +20,9 @@ interface ExtendedSigner {
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+
+// Node API URL
+const ALEPHIUM_NODE_API = "https://node.mainnet.alephium.org";
 
 const WalletsPage = () => {
   const wallet = useWallet();
@@ -48,8 +52,8 @@ const WalletsPage = () => {
       setIsLoading(true);
       
       try {
-        // Fetch balance from Alephium Explorer API
-        const response = await fetch(`https://backend.mainnet.alephium.org/addresses/${walletAddress}`);
+        // Fetch balance from Alephium Node API
+        const response = await fetch(`${ALEPHIUM_NODE_API}/addresses/${walletAddress}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch balance: ${response.status}`);
@@ -57,8 +61,8 @@ const WalletsPage = () => {
         
         const data = await response.json();
         
-        // Set the balance from the API response
-        setBalance(data.balance?.toString() || "0");
+        // Set the balance from the API response - using attoAlphAmount
+        setBalance(data.balance || "0");
       } catch (error) {
         console.error('Error fetching balance:', error);
         
