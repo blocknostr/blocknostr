@@ -395,9 +395,7 @@ export class NostrService {
     title: string,
     description: string,
     options: string[],
-    category: ProposalCategory,
-    minQuorum?: number,
-    endsAt?: number
+    category: ProposalCategory
   ): Promise<string | null> {
     console.log("NostrService.createProposal called with:", {
       communityId, title, description, options, category
@@ -407,9 +405,7 @@ export class NostrService {
       title,
       description,
       options,
-      category,
-      minQuorum,
-      endsAt
+      category
     );
   }
   

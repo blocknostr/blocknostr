@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -91,6 +92,13 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       return;
     }
     
+    if (!communityId) {
+      toast.error("Invalid community ID", {
+        description: "Please make sure you're viewing a valid community"
+      });
+      return;
+    }
+    
     if (options.length < 2) {
       toast.error("You need at least two options");
       return;
@@ -108,18 +116,12 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       // Log authentication status
       console.log("Creating proposal with auth status:", { 
         isLoggedIn: !!nostrService.publicKey,
-        publicKey: nostrService.publicKey
+        publicKey: nostrService.publicKey,
+        communityId
       });
       
       // Calculate the end date based on duration
       const durationDays = parseInt(data.duration);
-      const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
-      
-      if (!communityId) {
-        toast.error("Invalid community ID");
-        setIsSubmitting(false);
-        return;
-      }
       
       // Fixed: Update to match the expected number of parameters (5 instead of 7)
       // The expected parameters are: communityId, title, description, options, category
@@ -156,6 +158,18 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         <AlertTitle>Authentication Required</AlertTitle>
         <AlertDescription>
           You need to be logged in to create proposals. Please click the login button in the top right corner.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!communityId) {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Invalid Community</AlertTitle>
+        <AlertDescription>
+          Could not determine which community this proposal is for. Please make sure you're viewing a valid community.
         </AlertDescription>
       </Alert>
     );
