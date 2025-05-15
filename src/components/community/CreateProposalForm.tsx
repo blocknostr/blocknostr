@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,8 +55,8 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       const durationDays = parseInt(data.duration);
       const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
       
-      // Create the proposal with correct parameters per the method signature
-      const proposalId = await nostrService.createProposal(
+      // Create the proposal with correct parameters per NIP-172
+      const result = await nostrService.createProposal(
         communityId,
         data.title,
         data.description,
@@ -63,8 +64,10 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         data.category as ProposalCategory
       );
       
-      if (proposalId) {
+      if (result) {
         toast.success("Proposal created successfully!");
+        form.reset();
+        setOptions(["Yes", "No"]);
         onProposalCreated();
       } else {
         toast.error("Failed to create proposal");

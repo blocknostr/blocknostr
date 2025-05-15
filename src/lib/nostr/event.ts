@@ -94,13 +94,15 @@ export class EventManager {
         return null;
       }
       
+      console.log("Publishing event:", signedEvent);
+      
       // Publish to relays
       if (relays.length === 0) {
         console.error("No relays available");
         return null;
       }
       
-      pool.publish(relays, signedEvent);
+      await pool.publish(relays, signedEvent);
       return eventId;
       
     } catch (error) {

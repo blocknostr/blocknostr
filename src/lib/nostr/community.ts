@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
@@ -67,6 +66,10 @@ export class CommunityManager {
   ): Promise<string | null> {
     if (!publicKey || !communityId) return null;
     
+    console.log("Creating proposal with params:", {
+      communityId, title, description, options, category, publicKey
+    });
+    
     // Default end time is 7 days from now if not specified
     const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
     
@@ -91,6 +94,21 @@ export class CommunityManager {
       ]
     };
     
+    console.log("Publishing proposal event:", event);
+    return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
+  }
+  
+  /**
+   * Publish a Nostr event
+   * Helper method for other components to publish events
+   */
+  async publishEvent(
+    event: any,
+    publicKey: string | null,
+    privateKey: string | null,
+    relays: string[],
+    pool: SimplePool
+  ): Promise<string | null> {
     return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
   

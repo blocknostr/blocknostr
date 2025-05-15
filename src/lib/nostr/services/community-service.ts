@@ -15,7 +15,8 @@ export class CommunityService {
     private communityManager: any, 
     private getConnectedRelayUrls: () => string[],
     private pool: SimplePool,
-    private publicKey: string | null
+    private publicKey: string | null,
+    private getPrivateKey?: () => string | null
   ) {}
 
   /**
@@ -156,7 +157,7 @@ export class CommunityService {
     title: string,
     description: string,
     options: string[],
-    category: string = 'other',
+    category: ProposalCategory = 'other',
     minQuorum?: number,
     endsAt?: number
   ): Promise<string | null> {
@@ -191,13 +192,17 @@ export class CommunityService {
     };
     
     try {
-      await this.communityManager.publishEvent(
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      const eventId = await this.communityManager.publishEvent(
         event,
         this.publicKey,
+        privateKey,
         relays,
         this.pool
       );
-      return proposalId; // Return the proposal ID on success
+      
+      console.log("Created proposal with ID:", eventId);
+      return eventId; // Return the event ID on success
     } catch (error) {
       console.error("Error creating proposal:", error);
       return null;
