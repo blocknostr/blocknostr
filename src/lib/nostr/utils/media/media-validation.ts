@@ -50,6 +50,15 @@ export const isValidMediaUrl = (url: string): boolean => {
       return false;
     }
     
+    // Handle special cases like YouTube and Cloudinary
+    if (
+      normalizedUrl.includes('youtube.com') || 
+      normalizedUrl.includes('youtu.be') ||
+      normalizedUrl.includes('cloudinary.com')
+    ) {
+      return true;
+    }
+    
     // Check for common URL-shortener services that might redirect
     const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
     for (const shortener of commonShorteners) {
@@ -59,7 +68,12 @@ export const isValidMediaUrl = (url: string): boolean => {
     }
 
     // Check for known media hosting domains
-    const mediaHosts = ['i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 'primal.net', 'mako.co.il', 'v.nostr.build'];
+    const mediaHosts = [
+      'i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 
+      'primal.net', 'mako.co.il', 'v.nostr.build', 'pbs.twimg.com',
+      'media.giphy.com', 'giphy.com', 'gph.is', 'tenor.com',
+      'vimeo.com', 'spotify.com', 'soundcloud.com'
+    ];
     for (const host of mediaHosts) {
       if (normalizedUrl.includes(host)) {
         return true; // Common Nostr media hosts
@@ -78,7 +92,13 @@ export const isValidMediaUrl = (url: string): boolean => {
  */
 export const isImageUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i);
+  
+  // Check for Cloudinary images
+  if (url.includes('cloudinary.com') && !url.match(/\.(mp4|webm|mov|m4v|ogv|mp3|wav|ogg)(\?.*)?$/i)) {
+    return true;
+  }
+  
+  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg|avif|bmp|tiff?)(\?.*)?$/i);
 };
 
 /**
@@ -86,7 +106,18 @@ export const isImageUrl = (url: string): boolean => {
  */
 export const isVideoUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i);
+  
+  // Check for YouTube videos
+  if (url.includes('youtube.com/') || url.includes('youtu.be/')) {
+    return true;
+  }
+  
+  // Check for Cloudinary videos
+  if (url.includes('cloudinary.com') && url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i)) {
+    return true;
+  }
+  
+  return !!url.match(/\.(mp4|webm|mov|m4v|ogv|avi|mkv)(\?.*)?$/i);
 };
 
 /**
@@ -94,7 +125,13 @@ export const isVideoUrl = (url: string): boolean => {
  */
 export const isAudioUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
-  return !!url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i);
+  
+  // Check for Cloudinary audio
+  if (url.includes('cloudinary.com') && url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i)) {
+    return true;
+  }
+  
+  return !!url.match(/\.(mp3|wav|ogg|flac|aac|m4a)(\?.*)?$/i);
 };
 
 /**
@@ -103,4 +140,20 @@ export const isAudioUrl = (url: string): boolean => {
 export const isSecureUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return url.startsWith('https://');
+};
+
+/**
+ * Tests if a URL is a YouTube video
+ */
+export const isYoutubeUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.includes('youtube.com/') || url.includes('youtu.be/');
+};
+
+/**
+ * Tests if a URL is from Cloudinary
+ */
+export const isCloudinaryUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.includes('cloudinary.com/');
 };

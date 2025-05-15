@@ -1,19 +1,23 @@
+
 import { NostrEvent } from '@/lib/nostr';
 import { mediaRegex, extractUrlsFromContent } from './media/media-detection';
-import { isValidMediaUrl } from './media/media-validation';
-
-// Define MediaItem interface here instead of importing it
-interface MediaItem {
-  url: string;
-  type: 'image' | 'video' | 'audio' | 'unknown';
-  alt?: string;
-}
+import { isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl } from './media/media-validation';
+import { extractNip94Media } from './media/nip94-media-extraction';
+import { MediaItem } from './media/media-types';
 
 /**
  * Extract media URLs from a Nostr event
  * Following NIP-94 recommendations for media content
  */
 export const getMediaUrlsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string[] => {
+  // First try to extract media using NIP-94 standard
+  if (event && 'tags' in event && Array.isArray(event.tags)) {
+    const nip94Media = extractNip94Media(event as NostrEvent);
+    if (nip94Media.length > 0) {
+      return nip94Media.map(item => item.url);
+    }
+  }
+  
   const content = event?.content || '';
   const tags = Array.isArray(event?.tags) ? event.tags : [];
   
@@ -25,7 +29,8 @@ export const getMediaUrlsFromEvent = (event: NostrEvent | {content?: string, tag
     tags.forEach(tag => {
       if (Array.isArray(tag) && 
           tag.length >= 2 && 
-          (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta') && 
+          (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta' || 
+           tag[0] === 'video' || tag[0] === 'audio' || tag[0] === 'media') && 
           isValidMediaUrl(tag[1])) {
         uniqueUrls.add(tag[1]);
       }
@@ -43,6 +48,13 @@ export const getMediaUrlsFromEvent = (event: NostrEvent | {content?: string, tag
  * Extract the first image URL from a Nostr event
  */
 export const getFirstImageUrlFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string | null => {
+  // Try NIP-94 extraction first
+  if (event && 'tags' in event && Array.isArray(event.tags)) {
+    const nip94Media = extractNip94Media(event as NostrEvent);
+    const firstImage = nip94Media.find(item => item.type === 'image');
+    if (firstImage) return firstImage.url;
+  }
+
   // Check for NIP-94 image tags first
   const tags = Array.isArray(event?.tags) ? event.tags : [];
   
@@ -70,9 +82,19 @@ export const getFirstImageUrlFromEvent = (event: NostrEvent | {content?: string,
  * Extract image URLs from a Nostr event
  */
 export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string[] => {
+  // Try NIP-94 extraction first
+  if (event && 'tags' in event && Array.isArray(event.tags)) {
+    const nip94Media = extractNip94Media(event as NostrEvent);
+    const imageUrls = nip94Media
+      .filter(item => item.type === 'image')
+      .map(item => item.url);
+    
+    if (imageUrls.length > 0) return imageUrls;
+  }
+  
   const mediaUrls = getMediaUrlsFromEvent(event);
   return mediaUrls.filter(url => {
-    return url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+    return isImageUrl(url);
   });
 };
 
@@ -80,19 +102,27 @@ export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string, tag
  * Get media items with metadata from event
  */
 export const getMediaItemsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): MediaItem[] => {
+  // Try NIP-94 extraction first
+  if (event && 'tags' in event && Array.isArray(event.tags)) {
+    const nip94Media = extractNip94Media(event as NostrEvent);
+    if (nip94Media.length > 0) return nip94Media;
+  }
+  
   const urls = getMediaUrlsFromEvent(event);
   const tags = Array.isArray(event?.tags) ? event.tags : [];
   
   // Map URLs to media items
   return urls.map(url => {
     // Determine media type based on URL extension
-    let type: MediaItem['type'] = 'unknown';
-    if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
+    let type: MediaItem['type'] = 'url';
+    if (isImageUrl(url)) {
       type = 'image';
-    } else if (url.match(/\.(mp4|webm|mov)(\?.*)?$/i)) {
+    } else if (isVideoUrl(url)) {
       type = 'video';
-    } else if (url.match(/\.(mp3|wav|ogg)(\?.*)?$/i)) {
+    } else if (isAudioUrl(url)) {
       type = 'audio';
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      type = 'embed';
     }
     
     // Check for alt text in image tags
@@ -100,7 +130,8 @@ export const getMediaItemsFromEvent = (event: NostrEvent | {content?: string, ta
     const imgTag = tags.find(tag => 
       Array.isArray(tag) && 
       tag.length >= 3 && 
-      (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta') && 
+      (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta' || 
+       tag[0] === 'video' || tag[0] === 'audio') && 
       tag[1] === url
     );
     
@@ -108,7 +139,20 @@ export const getMediaItemsFromEvent = (event: NostrEvent | {content?: string, ta
       alt = imgTag[2];
     }
     
-    return { url, type, alt };
+    // Look for dimensions in the tag
+    let dimensions;
+    if (imgTag && imgTag.length >= 4) {
+      try {
+        if (typeof imgTag[3] === 'string' && imgTag[3].includes('x')) {
+          const [width, height] = imgTag[3].split('x').map(Number);
+          dimensions = { width, height };
+        }
+      } catch (e) {
+        console.warn('Failed to parse dimensions from tag:', e);
+      }
+    }
+    
+    return { url, type, alt, dimensions };
   });
 };
 
@@ -131,4 +175,7 @@ export const extractMediaUrls = (content: string): string[] => {
   return extractUrlsFromContent(content);
 };
 
-export { isValidMediaUrl, isImageUrl, isVideoUrl } from './media/media-validation';
+export { 
+  isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl,
+  extractNip94Media, extractYoutubeVideoId, extractCloudinaryData, isEmbeddedContent
+} from './media/nip94-media-extraction';

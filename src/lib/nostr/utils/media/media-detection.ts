@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for detecting media URLs in text
  * Following NIP-94 recommendations for media content
@@ -11,11 +12,15 @@ const urlParseCache = new Map<string, string[]>();
  */
 export const mediaRegex = {
   // Image URLs (jpg, jpeg, png, gif, webp)
-  image: /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/gi,
+  image: /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|avif)(\?[^\s]*)?)/gi,
   // Video URLs (mp4, webm, mov)
-  video: /(https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?)/gi,
+  video: /(https?:\/\/[^\s]+\.(mp4|webm|mov|m4v|ogv)(\?[^\s]*)?)/gi,
   // Audio URLs (mp3, wav, ogg)
-  audio: /(https?:\/\/[^\s]+\.(mp3|wav|ogg)(\?[^\s]*)?)/gi,
+  audio: /(https?:\/\/[^\s]+\.(mp3|wav|ogg|flac|aac)(\?[^\s]*)?)/gi,
+  // YouTube URLs
+  youtube: /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})([^\s]*)/gi,
+  // Cloudinary URLs
+  cloudinary: /(https?:\/\/[^\s]+\.cloudinary\.com\/[^\s]+)/gi,
   // General URLs - lower priority, used as fallback
   url: /(https?:\/\/[^\s]+)/gi
 };
@@ -48,16 +53,50 @@ export const extractUrlsFromContent = (content: string): string[] => {
   const urls: string[] = [];
   const seenBaseUrls = new Set<string>();
   
-  // Extract image URLs
-  let match;
-  const combinedRegex = new RegExp(
-    mediaRegex.image.source + '|' + 
-    mediaRegex.video.source + '|' + 
-    mediaRegex.audio.source,
-    'gi'
-  );
-  
+  // Extract YouTube URLs first
   try {
+    let match;
+    mediaRegex.youtube.lastIndex = 0; // Reset regex state
+    while ((match = mediaRegex.youtube.exec(content)) !== null) {
+      if (match[0]) {
+        const baseUrl = getBaseUrl(match[0]);
+        if (!seenBaseUrls.has(baseUrl)) {
+          urls.push(match[0]);
+          seenBaseUrls.add(baseUrl);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting YouTube URLs from content:", error);
+  }
+  
+  // Extract Cloudinary URLs 
+  try {
+    let match;
+    mediaRegex.cloudinary.lastIndex = 0; // Reset regex state
+    while ((match = mediaRegex.cloudinary.exec(content)) !== null) {
+      if (match[0]) {
+        const baseUrl = getBaseUrl(match[0]);
+        if (!seenBaseUrls.has(baseUrl)) {
+          urls.push(match[0]);
+          seenBaseUrls.add(baseUrl);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error extracting Cloudinary URLs from content:", error);
+  }
+  
+  // Extract image, video and audio URLs
+  try {
+    const combinedRegex = new RegExp(
+      mediaRegex.image.source + '|' + 
+      mediaRegex.video.source + '|' + 
+      mediaRegex.audio.source,
+      'gi'
+    );
+    
+    let match;
     while ((match = combinedRegex.exec(content)) !== null) {
       if (match[0]) {
         const baseUrl = getBaseUrl(match[0]);
@@ -132,7 +171,9 @@ export const extractAllUrls = (content: string): string[] => {
 export const isMediaUrl = (url: string): boolean => {
   return !!(url.match(mediaRegex.image) || 
            url.match(mediaRegex.video) || 
-           url.match(mediaRegex.audio));
+           url.match(mediaRegex.audio) ||
+           url.match(mediaRegex.youtube) ||
+           url.match(mediaRegex.cloudinary));
 };
 
 /**
