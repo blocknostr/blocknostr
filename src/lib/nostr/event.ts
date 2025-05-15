@@ -66,8 +66,8 @@ export class EventManager {
    */
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
-    // Use standard ECDSA signing for Nostr event signatures
-    const signatureBytes = await secp.sign(eventHash, privateKey, { recovered: true });
+    // Generate the signature using the basic sign method without recovery parameter
+    const signatureBytes = await secp.sign(eventHash, privateKey);
     return bytesToHex(signatureBytes);
   }
 }

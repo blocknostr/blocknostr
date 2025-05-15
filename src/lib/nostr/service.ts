@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { CommunityManager } from './community';
@@ -39,8 +38,8 @@ export class NostrService {
     this.socialManager = new SocialManager();
     
     // Initialize RelayManager with the required parameters
-    // Pass the pool and an empty config object as required parameters
-    this.relayManager = new RelayManager(this.pool, {});
+    // Pass the pool as required parameter
+    this.relayManager = new RelayManager(this.pool);
     
     // Initialize services
     this.initializeServices();
@@ -61,8 +60,7 @@ export class NostrService {
       this.communityManager,
       () => this.getConnectedRelayUrls(),
       this.pool,
-      this.publicKey,
-      () => this.privateKey // Pass the getPrivateKey function
+      this.publicKey
     );
   }
   
