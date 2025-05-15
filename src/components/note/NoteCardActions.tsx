@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Note } from '@/components/notebin/hooks/types';
@@ -14,34 +15,31 @@ import {
 
 interface NoteCardActionsProps {
   note: Note;
-  setActiveReply: (note: Note | null) => void;
   replyCount?: number;
+  onReplyToggle: () => void;
 }
 
 const NoteCardActions: React.FC<NoteCardActionsProps> = ({ 
   note, 
-  setActiveReply,
-  replyCount = 0
+  replyCount = 0,
+  onReplyToggle
 }) => {
   const navigate = useNavigate();
   
-  // Handle comment button click
+  // Handle comment button click - simplified
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
-    // Toggle reply form instead of navigating
-    setActiveReply(note);
+    // Toggle reply form
+    onReplyToggle();
     
-    // On post page, we still navigate if needed
-    if (window.location.pathname !== `/post/${note.id}`) {
-      // Keep the option to navigate to the post directly via ctrl/cmd+click
-      if (e.ctrlKey || e.metaKey) {
-        navigate(`/post/${note.id}`);
-      }
+    // Navigate with ctrl/cmd+click
+    if ((e.ctrlKey || e.metaKey) && window.location.pathname !== `/post/${note.id}`) {
+      navigate(`/post/${note.id}`);
     }
   };
   
-  // Handle repost button click
+  // Handle repost button click - simplified
   const handleRepostClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
@@ -74,7 +72,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
     }
   };
   
-  // Handle like button click
+  // Handle like button click - simplified
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     
@@ -107,38 +105,27 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
     }
   };
   
-  // Handle share button click
+  // Handle share button click - simplified with Web Share API
   const handleShareClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    
-    // Create the URL to share
+    e.stopPropagation();
     const shareUrl = `${window.location.origin}/post/${note.id}`;
     
-    // Use Web Share API if available
     if (navigator.share) {
       navigator.share({
         title: 'Shared post',
         text: note.content.substring(0, 50) + (note.content.length > 50 ? '...' : ''),
         url: shareUrl
-      }).catch(err => {
-        console.error('Error sharing:', err);
-        // Fallback to clipboard
-        copyToClipboard(shareUrl);
-      });
+      }).catch(() => copyToClipboard(shareUrl));
     } else {
-      // Fallback to clipboard
       copyToClipboard(shareUrl);
     }
   };
   
-  // Helper function to copy text to clipboard
+  // Helper function for clipboard
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("Link copied to clipboard!");
-    }).catch(err => {
-      console.error('Failed to copy:', err);
-      toast.error("Failed to copy link. Please try again.");
-    });
+    navigator.clipboard.writeText(text)
+      .then(() => toast.success("Link copied to clipboard!"))
+      .catch(() => toast.error("Failed to copy link. Please try again."));
   };
   
   // Check if the current user is the author
@@ -147,7 +134,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-4">
-        {/* Comment button */}
+        {/* Comment button - simplified */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -161,7 +148,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           )}
         </Button>
         
-        {/* Repost button */}
+        {/* Repost button - simplified */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -172,7 +159,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           <span className="text-xs">Repost</span>
         </Button>
         
-        {/* Like button */}
+        {/* Like button - simplified */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -185,7 +172,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
       </div>
       
       <div className="flex items-center">
-        {/* Share button */}
+        {/* Share button - simplified */}
         <Button 
           variant="ghost" 
           size="sm" 
@@ -195,7 +182,7 @@ const NoteCardActions: React.FC<NoteCardActionsProps> = ({
           <Share2 className="h-4 w-4" />
         </Button>
         
-        {/* More options dropdown (only for current user) */}
+        {/* More options dropdown (only for current user) - simplified */}
         {isCurrentUser && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
