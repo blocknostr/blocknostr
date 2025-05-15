@@ -9,7 +9,8 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Crown 
+  Crown,
+  Shield 
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -32,6 +33,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Wallet,
       href: "/wallets",
       requiresAuth: true
+    },
+    {
+      name: "DAO",
+      icon: Shield,
+      href: "/dao",
+      requiresAuth: false
     },
     {
       name: "Notifications",
