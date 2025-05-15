@@ -1,4 +1,3 @@
-
 import { nip19, getPublicKey } from 'nostr-tools';
 import { toast } from "sonner";
 import { EVENT_KINDS } from './constants';
@@ -21,6 +20,11 @@ export class UserManager {
 
   get hasExtension(): boolean {
     return this._extensionDetected;
+  }
+  
+  // Add a getter for private key (only for internal use)
+  getPrivateKey(): string | null {
+    return this._privateKey;
   }
   
   loadUserKeys(): void {

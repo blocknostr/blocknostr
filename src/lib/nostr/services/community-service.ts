@@ -52,6 +52,11 @@ export class CommunityService {
       return null;
     }
     
+    console.log("Creating proposal with auth status:", {
+      pubkey: this.publicKey,
+      hasPrivateKeyGetter: !!this.getPrivateKey
+    });
+    
     const relays = this.getConnectedRelayUrls();
     
     // If no relays connected, try connecting to backup relays

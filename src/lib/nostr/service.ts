@@ -52,8 +52,8 @@ export class NostrService {
       this.communityManager,
       () => this.getConnectedRelayUrls(),
       this.pool,
-      this.publicKey,
-      () => null // We don't store private keys
+      this.userManager.publicKey, // Pass the current public key
+      () => this.userManager.getPrivateKey?.() // Get private key function
     );
     
     // Initialize adapter
@@ -94,6 +94,14 @@ export class NostrService {
   public async login(): Promise<boolean> {
     const success = await this.userManager.login();
     if (success) {
+      // Update communityService with the new public key after login
+      this.communityService = new CommunityService(
+        this.communityManager,
+        () => this.getConnectedRelayUrls(),
+        this.pool,
+        this.userManager.publicKey,
+        () => this.userManager.getPrivateKey?.()
+      );
       await this.fetchFollowingList();
     }
     return success;
@@ -101,6 +109,15 @@ export class NostrService {
   
   public signOut(): void {
     this.userManager.signOut();
+    
+    // Update communityService with null public key after logout
+    this.communityService = new CommunityService(
+      this.communityManager,
+      () => this.getConnectedRelayUrls(),
+      this.pool,
+      null,
+      null
+    );
   }
 
   // Relay management

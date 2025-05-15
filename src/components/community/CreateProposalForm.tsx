@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, AlertCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -25,6 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import type { ProposalCategory } from "@/types/community";
 
 // Validation schema using zod
@@ -43,6 +48,7 @@ interface CreateProposalFormProps {
 const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [options, setOptions] = useState<string[]>(["Yes", "No"]);
+  const isLoggedIn = !!nostrService.publicKey;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -79,8 +85,21 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
   };
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    if (!isLoggedIn) {
+      toast.error("You must be logged in to create a proposal", {
+        description: "Click the login button in the top right corner"
+      });
+      return;
+    }
+    
     if (options.length < 2) {
       toast.error("You need at least two options");
+      return;
+    }
+    
+    // Check for empty options
+    if (options.some(option => !option.trim())) {
+      toast.error("All options must have content");
       return;
     }
     
@@ -109,7 +128,9 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         data.title,
         data.description,
         options,
-        data.category as ProposalCategory
+        data.category as ProposalCategory,
+        undefined, // minQuorum
+        endsAt
       );
       
       if (result) {
@@ -118,7 +139,9 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
         setOptions(["Yes", "No"]);
         onProposalCreated();
       } else {
-        toast.error("Failed to create proposal. Please make sure you're logged in and have selected a valid community.");
+        toast.error("Failed to create proposal", {
+          description: "Please make sure you're logged in and have selected a valid community."
+        });
       }
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -127,6 +150,18 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       setIsSubmitting(false);
     }
   };
+
+  if (!isLoggedIn) {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Authentication Required</AlertTitle>
+        <AlertDescription>
+          You need to be logged in to create proposals. Please click the login button in the top right corner.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <Form {...form}>

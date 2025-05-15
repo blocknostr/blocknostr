@@ -31,13 +31,18 @@ export class CommunityAdapter extends BaseAdapter {
       throw new Error("You must be logged in to create a proposal");
     }
     
-    return this.service.createProposal(
-      communityId, 
-      title, 
-      description, 
-      options, 
-      validCategory
-    );
+    try {
+      return await this.service.createProposal(
+        communityId, 
+        title, 
+        description, 
+        options, 
+        validCategory
+      );
+    } catch (error) {
+      console.error("Error in community adapter createProposal:", error);
+      throw error;
+    }
   }
   
   // Helper method to ensure the category is valid
