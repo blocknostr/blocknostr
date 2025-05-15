@@ -14,7 +14,7 @@ const PremiumSubscribeButton = ({ className }: PremiumSubscribeButtonProps) => {
     // Placeholder for future premium subscription integration
     console.log("Premium subscribe clicked");
     
-    toast("Premium Subscription", {
+    toast.info("Premium Subscription", {
       description: "This is a placeholder. Premium subscription integration coming soon.",
       duration: 3000,
     });
