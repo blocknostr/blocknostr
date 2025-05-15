@@ -1,3 +1,4 @@
+
 import { CacheEntry, CacheConfig, StorageKeys } from './types';
 import { CACHE_SIZE_LIMITS } from './config';
 
@@ -17,7 +18,7 @@ export abstract class BaseCache<T> {
   // Track access frequency for LRU eviction policy
   protected accessTimestamps: Map<string, number> = new Map();
   
-  constructor(config: CacheConfig, storageKey?: string, cacheType?: keyof typeof CACHE_SIZE_LIMITS) {
+  constructor(config: CacheConfig, storageKey?: string, cacheType?: 'EVENTS' | 'PROFILES' | 'FEEDS' | 'THREADS') {
     this.config = config;
     this.storageKey = storageKey;
     

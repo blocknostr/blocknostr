@@ -1,4 +1,3 @@
-
 import { BaseCache } from "./base-cache";
 import { CacheConfig } from "./types";
 import { STORAGE_KEYS } from "./config";
@@ -37,7 +36,7 @@ export class ProfileCache extends BaseCache<any> {
    */
   getItem(pubkey: string): any | null {
     // Update access count for this pubkey
-    this.trackAccess(pubkey);
+    this.updateAccessCount(pubkey);
     
     // Check hot cache first (fastest)
     if (this.hotCache.has(pubkey)) {
@@ -101,7 +100,7 @@ export class ProfileCache extends BaseCache<any> {
   /**
    * Track profile access frequency
    */
-  private trackAccess(pubkey: string): void {
+  private updateAccessCount(pubkey: string): void {
     const currentCount = this.accessCounts.get(pubkey) || 0;
     this.accessCounts.set(pubkey, currentCount + 1);
     

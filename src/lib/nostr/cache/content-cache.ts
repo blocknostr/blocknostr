@@ -247,8 +247,8 @@ export class ContentCache {
       }
       
       // For NIP-05 verified accounts, mark as important
-      const isVerifiedProfile = profileData.nip05 && typeof profileData.nip05 === 'string';
-      const shouldMarkImportant = important || isVerifiedProfile;
+      const isNip05Verified = profileData.nip05 && typeof profileData.nip05 === 'string';
+      const shouldMarkImportant = important || isNip05Verified;
       
       this.profileCache.cacheItem(pubkey, profileData, shouldMarkImportant);
     } catch (error) {
@@ -266,7 +266,7 @@ export class ContentCache {
             nip05: profileData.nip05,
             _createdAt: profileData._createdAt || profileData.created_at
           };
-          this.profileCache.cacheItem(pubkey, essentialData, isVerifiedProfile || important);
+          this.profileCache.cacheItem(pubkey, essentialData, shouldMarkImportant);
         } catch (retryError) {
           console.error(`Failed to cache profile even with reduced data:`, retryError);
         }
