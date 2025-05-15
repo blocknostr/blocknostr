@@ -16,7 +16,7 @@ describe('NIP-27 Utilities', () => {
     });
 
     it('should extract nevent mentions from content', () => {
-      const content = 'Check this event: nostr:nevent1qqs95eqk6hd00w5tmj3felaxmwlw8tjcqkgjxz9fallf37xes838gprpmhxue69uhkummn9ekx7mqplamk64');
+      const content = 'Check this event: nostr:nevent1qqs95eqk6hd00w5tmj3felaxmwlw8tjcqkgjxz9fallf37xes838gprpmhxue69uhkummn9ekx7mqplamk64';
       const mentions = nip27.extractMentions(content);
       expect(mentions).toContain('nostr:nevent1qqs95eqk6hd00w5tmj3felaxmwlw8tjcqkgjxz9fallf37xes838gprpmhxue69uhkummn9ekx7mqplamk64');
     });
