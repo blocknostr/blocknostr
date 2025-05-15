@@ -32,6 +32,7 @@ export class NostrService {
   public following: string[] = [];
   
   constructor() {
+    // Fix: Create a SimplePool with correct options
     this.pool = new SimplePool({ eoseSubTimeout: 3600, getTimeout: 3600 });
     this.eventManager = new EventManager();
     this.communityManager = new CommunityManager(this.eventManager);

@@ -17,6 +17,35 @@ export function formatPubkey(pubkey: string): string {
 }
 
 /**
+ * Check if a string is a valid hex pubkey
+ * @param pubkey The pubkey to check
+ * @returns Whether it's a valid hex pubkey
+ */
+export function isValidHexPubkey(pubkey: string): boolean {
+  if (!pubkey) return false;
+  
+  // Hex pubkeys are 64 characters of hex
+  return /^[0-9a-f]{64}$/i.test(pubkey);
+}
+
+/**
+ * Check if a string is a valid npub
+ * @param pubkey The pubkey to check
+ * @returns Whether it's a valid npub
+ */
+export function isValidNpub(pubkey: string): boolean {
+  if (!pubkey || !pubkey.startsWith('npub1')) return false;
+  
+  try {
+    // Try to decode it - if it succeeds, it's valid
+    const decoded = nip19.decode(pubkey);
+    return decoded.type === 'npub';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Convert a hex pubkey to npub format
  * @param hexPubkey The hex pubkey to convert
  * @returns The npub

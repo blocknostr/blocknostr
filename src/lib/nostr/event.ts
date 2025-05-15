@@ -1,6 +1,7 @@
 
 import { getEventHash } from 'nostr-tools';
 import * as secp from '@noble/secp256k1';
+import { utils } from '@noble/secp256k1';
 
 export class EventManager {
   /**
@@ -67,6 +68,6 @@ export class EventManager {
     const eventHash = getEventHash(event);
     // Using the correct secp256k1 signing method
     const signatureBytes = await secp.sign(eventHash, privateKey);
-    return secp.utils.bytesToHex(signatureBytes);
+    return utils.bytesToHex(signatureBytes);
   }
 }
