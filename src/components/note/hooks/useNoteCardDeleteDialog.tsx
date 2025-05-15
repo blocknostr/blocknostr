@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 interface UseNoteCardDeleteDialogProps {
   event: NostrEvent;
@@ -32,7 +31,10 @@ export function useNoteCardDeleteDialog({ event, onDelete }: UseNoteCardDeleteDi
       
       setIsDeleteDialogOpen(false);
       setIsDeleting(false);
-      toast.success("Post deleted successfully");
+      
+      toast.success("Post deleted", {
+        description: "Your post has been successfully removed"
+      });
       
       // Call parent's onDelete if provided
       if (onDelete) {
@@ -40,7 +42,9 @@ export function useNoteCardDeleteDialog({ event, onDelete }: UseNoteCardDeleteDi
       }
     } catch (error) {
       console.error("Error deleting post:", error);
-      toast.error("Failed to delete post");
+      toast.error("Failed to delete post", {
+        description: "Please try again or check your connection"
+      });
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }

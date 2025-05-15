@@ -1,11 +1,13 @@
 
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 export interface ErrorConfig {
   toastMessage?: string;
   logMessage?: string;
   retry?: () => Promise<void>;
   maxRetries?: number;
+  duration?: number;
+  type?: 'error' | 'warning' | 'info';
 }
 
 /**
@@ -19,7 +21,9 @@ export async function handleError(
     toastMessage = 'An error occurred',
     logMessage = 'Error',
     retry,
-    maxRetries = 3
+    maxRetries = 3,
+    duration = 5000,
+    type = 'error'
   } = config;
   
   // Log the error
@@ -27,7 +31,13 @@ export async function handleError(
   
   // Show toast if enabled
   if (toastMessage) {
-    toast.error(toastMessage);
+    if (type === 'error') {
+      toast.error(toastMessage, { duration });
+    } else if (type === 'warning') {
+      toast.warning(toastMessage, { duration });
+    } else if (type === 'info') {
+      toast.info(toastMessage, { duration });
+    }
   }
   
   // Handle retry logic if provided
@@ -40,6 +50,10 @@ export async function handleError(
       try {
         await retry();
         success = true;
+        // Show success toast after successful retry
+        if (retryCount > 1) {
+          toast.success(`Succeeded after ${retryCount} ${retryCount === 1 ? 'attempt' : 'attempts'}`);
+        }
       } catch (retryError) {
         console.warn(`Retry attempt ${retryCount}/${maxRetries} failed:`, retryError);
         
@@ -51,7 +65,10 @@ export async function handleError(
     
     // If we exhaust all retries
     if (!success) {
-      toast.error(`Failed after ${maxRetries} attempts`);
+      toast.error(`Failed after ${maxRetries} attempts`, {
+        description: "Please try again later or contact support.",
+        duration: 6000
+      });
     }
   }
 }

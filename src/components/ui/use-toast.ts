@@ -1,6 +1,8 @@
 
-// Re-export from the existing hook
-import { toast } from "sonner";
-import { useToast } from "@/hooks/use-toast";
+// Use Sonner as our main toast library
+import { toast, Toaster as SonnerToaster } from "sonner";
 
-export { useToast, toast };
+// Re-export Sonner's toast API
+export { toast, SonnerToaster as Toaster };
+
+// No longer using the custom toast hook since we're standardizing on Sonner

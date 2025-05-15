@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -64,7 +63,14 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
       );
       
       if (communityId) {
-        toast.success("Community created successfully!");
+        toast.success("Community created successfully!", {
+          description: "You'll be redirected to your new community shortly.",
+          action: {
+            label: "View now",
+            onClick: () => navigate(`/communities/${communityId}`),
+          }
+        });
+        
         form.reset();
         setIsOpen(false);
         
@@ -75,7 +81,9 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen }: CreateCommunityDialogProps
       }
     } catch (error) {
       console.error("Error creating community:", error);
-      toast.error("Failed to create community");
+      toast.error("Failed to create community", {
+        description: "Please try again or check your connection."
+      });
     } finally {
       setIsCreatingCommunity(false);
     }

@@ -5,7 +5,7 @@ import { useNoteFormState } from '@/hooks/useNoteFormState';
 import { useNoteSubmission } from '@/hooks/useNoteSubmission';
 import NoteFormAvatar from './NoteFormAvatar';
 import NoteFormContent from './NoteFormContent';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { nostrService } from '@/lib/nostr';
 
 const CreateNoteFormContainer: React.FC = () => {
@@ -33,12 +33,16 @@ const CreateNoteFormContainer: React.FC = () => {
     
     // Validate content
     if (!content || content.trim().length === 0) {
-      toast.error("Can't submit an empty note");
+      toast.warning("Can't submit an empty note", {
+        description: "Please add some content to your note."
+      });
       return;
     }
     
     if (content.length > MAX_NOTE_LENGTH) {
-      toast.error(`Note is too long (${content.length}/${MAX_NOTE_LENGTH})`);
+      toast.error(`Note is too long (${content.length}/${MAX_NOTE_LENGTH})`, {
+        description: "Please shorten your note to fit the maximum length."
+      });
       return;
     }
     
@@ -66,13 +70,22 @@ const CreateNoteFormContainer: React.FC = () => {
       if (success) {
         // Reset form on success
         resetForm();
-        toast.success(
-          scheduledDate ? "Note scheduled successfully" : "Note published successfully"
-        );
+        
+        if (scheduledDate) {
+          toast.success("Note scheduled successfully", {
+            description: `Your note will be published on ${scheduledDate.toLocaleString()}`
+          });
+        } else {
+          toast.success("Note published successfully", {
+            description: "Your note is now visible to others."
+          });
+        }
       }
     } catch (error) {
       console.error("Error submitting note:", error);
-      toast.error("Failed to submit note");
+      toast.error("Failed to submit note", {
+        description: "Please try again or check your connection."
+      });
     }
   };
   

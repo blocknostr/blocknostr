@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Link as LinkIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import LeaveCommunityButton from "./LeaveCommunityButton";
@@ -35,7 +35,9 @@ const CommunityCardActions = ({
     e.stopPropagation();
     
     if (!currentUserPubkey) {
-      toast.error("You must be logged in to join a community");
+      toast.warning("Login required", {
+        description: "You must be logged in to join a community"
+      });
       return;
     }
     
@@ -62,16 +64,22 @@ const CommunityCardActions = ({
       };
       
       await nostrService.publishEvent(event);
-      toast.success("You have joined the community!");
+      toast.success(`Joined ${community.name}!`, {
+        description: "You can now participate in this community"
+      });
     } catch (error) {
       console.error("Error joining community:", error);
-      toast.error("Failed to join community");
+      toast.error("Failed to join community", {
+        description: "Please try again or check your connection"
+      });
     }
   };
 
   const handleLeaveClick = () => {
     if (!currentUserPubkey) {
-      toast.error("You must be logged in to leave a community");
+      toast.warning("Login required", {
+        description: "You must be logged in to leave a community"
+      });
       return;
     }
     
@@ -101,18 +109,26 @@ const CommunityCardActions = ({
       nostrService.publishEvent(event)
         .then((publishResult) => {
           if (publishResult) {
-            toast.success("You have left the community");
+            toast.success(`Left ${community.name}`, {
+              description: "You are no longer a member of this community"
+            });
           } else {
-            toast.error("Failed to leave the community");
+            toast.error("Failed to leave the community", {
+              description: "Something went wrong. Please try again."
+            });
           }
         })
         .catch((error) => {
           console.error("Error leaving community:", error);
-          toast.error("Failed to leave community");
+          toast.error("Failed to leave community", {
+            description: "An error occurred. Please try again."
+          });
         });
     } catch (error) {
       console.error("Error leaving community:", error);
-      toast.error("Failed to leave community");
+      toast.error("Failed to leave community", {
+        description: "An error occurred. Please try again."
+      });
     }
   };
 
@@ -124,17 +140,27 @@ const CommunityCardActions = ({
     if (navigator.clipboard) {
       navigator.clipboard.writeText(inviteUrl)
         .then(() => {
-          toast.success("Invite link copied to clipboard!");
+          toast.success("Invite link copied!", {
+            description: "You can now share it with others",
+            action: {
+              label: "View Community",
+              onClick: () => navigate(`/communities/${community.id}`),
+            }
+          });
           setShowInviteLink(true);
           setTimeout(() => setShowInviteLink(false), 3000);
         })
         .catch(err => {
           console.error("Failed to copy:", err);
-          toast.error("Failed to copy invite link");
+          toast.error("Failed to copy invite link", {
+            description: "Please try again or copy manually"
+          });
         });
     } else {
       // Fallback
-      toast.error("Copy to clipboard not supported in your browser");
+      toast.warning("Copy not supported", {
+        description: "Your browser doesn't support automatic copying"
+      });
     }
   };
 

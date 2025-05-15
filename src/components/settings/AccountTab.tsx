@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 
 const AccountTab = () => {
@@ -32,7 +32,9 @@ const AccountTab = () => {
                 navigator.clipboard.writeText(
                   nostrService.publicKey ? nostrService.formatPubkey(nostrService.publicKey) : ''
                 );
-                toast.success("Public key copied to clipboard");
+                toast.success("Public key copied", {
+                  description: "Your public key has been copied to clipboard"
+                });
               }}
             >
               Copy

@@ -17,7 +17,7 @@ import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
 
 import MainLayout from './layouts/MainLayout';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 
 function App() {
   return (
@@ -42,7 +42,7 @@ function App() {
               </Route>
             </Routes>
           </main>
-          <Toaster position="bottom-right" closeButton />
+          <Toaster position="bottom-right" />
         </div>
       </BrowserRouter>
     </AlephiumWalletProvider>
