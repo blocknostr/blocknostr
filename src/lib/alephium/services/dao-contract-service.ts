@@ -26,14 +26,6 @@ export class DAOContractService {
   static async deployDAOContract(params: DAOContractCreateParams, signature: string): Promise<string | null> {
     console.log("Deploying DAO contract with parameters:", params);
     
-    if (!signature) {
-      console.error("Missing required wallet signature for contract deployment");
-      toast.error("Missing wallet signature", { 
-        description: "Please sign the transaction to deploy the contract" 
-      });
-      return null;
-    }
-    
     try {
       // This is where the actual contract deployment would happen using web3-react
       // For now, we're simulating the deployment with a delay
