@@ -25,12 +25,15 @@ const DAOList = () => {
         // Connect to relays and verify connection status
         const connectedRelays = await nostrService.connectToUserRelays();
         
-        if (connectedRelays.length === 0) {
+        // Fix the "undefined length" error by providing a default empty array
+        const connectedRelaysArray = connectedRelays || [];
+        
+        if (connectedRelaysArray.length === 0) {
           console.warn("No relays connected, trying default relays");
           await nostrService.connectToDefaultRelays();
         }
         
-        const finalRelayUrls = nostrService.getRelayUrls();
+        const finalRelayUrls = nostrService.getRelayUrls() || []; // Ensure we have an array
         console.log("Connected to relays:", finalRelayUrls);
         
         setConnectedToRelays(finalRelayUrls.length > 0);
@@ -172,10 +175,10 @@ const DAOList = () => {
       return;
     }
     
-    // Verify relay connections
+    // Verify relay connections with null/undefined check
     if (!connectedToRelays) {
       try {
-        const connectedRelays = await nostrService.connectToUserRelays();
+        const connectedRelays = await nostrService.connectToUserRelays() || [];
         setConnectedToRelays(connectedRelays.length > 0);
         
         if (connectedRelays.length === 0) {
