@@ -1,4 +1,3 @@
-
 /**
  * Type definitions for the NostrAdapter interfaces
  */
@@ -21,6 +20,9 @@ export interface BaseAdapterInterface {
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
   unsubscribe(subId: string): void;
   publishEvent(event: any): Promise<string | null>;
+  
+  // Add missing account creation date method
+  getAccountCreationDate(pubkey: string): Promise<number | null>;
 }
 
 export interface SocialAdapterInterface extends BaseAdapterInterface {

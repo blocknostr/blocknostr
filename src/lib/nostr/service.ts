@@ -96,6 +96,11 @@ export class NostrService {
     return this.relayManager.userRelays;
   }
 
+  // Add the getFollowingList method
+  public getFollowingList(): string[] {
+    return this.userManager.following;
+  }
+
   // Authentication methods
   public async login(): Promise<boolean> {
     const success = await this.userManager.login();

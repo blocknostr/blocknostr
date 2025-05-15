@@ -1,4 +1,3 @@
-
 import { nostrService } from '../service';
 import { BaseAdapterInterface } from '../types/adapter';
 
@@ -58,5 +57,10 @@ export class BaseAdapter implements BaseAdapterInterface {
   // Add event publishing method
   async publishEvent(event: any): Promise<string | null> {
     return this.service.publishEvent(event);
+  }
+  
+  // Add account creation date method
+  async getAccountCreationDate(pubkey: string): Promise<number | null> {
+    return this.service.getAccountCreationDate(pubkey);
   }
 }
