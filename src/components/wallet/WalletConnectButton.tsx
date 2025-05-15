@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AlephiumLogo } from "@/components/icons/wallets";
 import { useWallet } from "@alephium/web3-react";
+import { toast } from "sonner";
 
 interface WalletConnectButtonProps {
   className?: string;
@@ -32,9 +33,24 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
   }, []);
 
   const handleConnect = () => {
-    // Using signer.connect() instead of wallet.connect()
     if (wallet.signer) {
-      wallet.signer.connect();
+      try {
+        // Try various methods that different wallet implementations might use
+        if (typeof wallet.connect === 'function') {
+          wallet.connect();
+        } else if (typeof (wallet as any).signer.connect === 'function') {
+          (wallet as any).signer.connect();
+        } else {
+          toast.error("Wallet connection failed", {
+            description: "Your wallet doesn't implement a compatible connect method"
+          });
+        }
+      } catch (error) {
+        console.error("Connection error:", error);
+        toast.error("Connection failed", {
+          description: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
     }
   };
 

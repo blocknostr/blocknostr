@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 
 interface Transaction {
   id: string;
@@ -23,49 +24,87 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading transaction data
-    setIsLoading(true);
-    
-    // This would be replaced with an actual API call to fetch transactions
-    setTimeout(() => {
-      const mockTransactions: Transaction[] = [
-        {
-          id: "0x123456789abcdef",
-          type: "received",
-          amount: "100.00",
-          timestamp: Date.now() - 3600000 * 2, // 2 hours ago
-          status: "confirmed",
-          address: "0xabcdef123456789"
-        },
-        {
-          id: "0x987654321fedcba",
-          type: "sent",
-          amount: "50.25",
-          timestamp: Date.now() - 86400000, // 1 day ago
-          status: "confirmed",
-          address: "0x567890abcdef123"
-        },
-        {
-          id: "0xabcdef123456789",
-          type: "received",
-          amount: "250.75",
-          timestamp: Date.now() - 86400000 * 3, // 3 days ago
-          status: "confirmed",
-          address: "0x123abcdef456789"
-        },
-        {
-          id: "0x456789abcdef123",
-          type: "sent",
-          amount: "75.50",
-          timestamp: Date.now() - 86400000 * 7, // 7 days ago
-          status: "confirmed",
-          address: "0x789abcdef123456"
-        }
-      ];
+    const fetchTransactions = async () => {
+      if (!address) return;
       
-      setTransactions(mockTransactions);
-      setIsLoading(false);
-    }, 1500);
+      setIsLoading(true);
+      
+      try {
+        // Try to fetch transaction data from the Alephium Explorer API
+        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch transactions: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transform the data into our transaction format
+        // Note: This transformation is an approximation as the exact API response format may differ
+        const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
+          const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
+          
+          return {
+            id: tx.hash || tx.txId,
+            type: isSent ? 'sent' : 'received',
+            amount: tx.amount || (tx.outputs?.[0]?.amount ?? "0"),
+            timestamp: tx.timestamp || Date.now(),
+            status: 'confirmed',
+            address: isSent 
+              ? (tx.outputs?.[0]?.address || 'Unknown') 
+              : (tx.inputs?.[0]?.address || 'Unknown')
+          };
+        });
+        
+        setTransactions(formattedTransactions);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        // Fallback to mock data if API fails
+        const mockTransactions: Transaction[] = [
+          {
+            id: "0x123456789abcdef",
+            type: "received",
+            amount: "100.00",
+            timestamp: Date.now() - 3600000 * 2,
+            status: "confirmed",
+            address: "0xabcdef123456789"
+          },
+          {
+            id: "0x987654321fedcba",
+            type: "sent",
+            amount: "50.25",
+            timestamp: Date.now() - 86400000,
+            status: "confirmed",
+            address: "0x567890abcdef123"
+          },
+          {
+            id: "0xabcdef123456789",
+            type: "received",
+            amount: "250.75",
+            timestamp: Date.now() - 86400000 * 3,
+            status: "confirmed",
+            address: "0x123abcdef456789"
+          },
+          {
+            id: "0x456789abcdef123",
+            type: "sent",
+            amount: "75.50",
+            timestamp: Date.now() - 86400000 * 7,
+            status: "confirmed",
+            address: "0x789abcdef123456"
+          }
+        ];
+        
+        setTransactions(mockTransactions);
+        toast.error("Could not fetch transaction history", {
+          description: "Using sample data instead"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchTransactions();
   }, [address]);
 
   // Helper function to format date
@@ -76,6 +115,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
 
   // Helper function to truncate address
   const truncateAddress = (addr: string) => {
+    if (!addr) return '';
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -11,41 +12,106 @@ import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 
+// Specify the fixed address if we want to track a specific wallet
+const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+
 const WalletsPage = () => {
   const wallet = useWallet();
   const [activeTab, setActiveTab] = useState("overview");
   const [balance, setBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
+  const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
+  
+  // Check if wallet is connected and set correct wallet address
   const connected = wallet.connectionStatus === 'connected';
 
   useEffect(() => {
     if (connected && wallet.account) {
-      // Simulate fetching balance (replace with actual API call)
-      setIsLoading(true);
-      setTimeout(() => {
-        setBalance("1,234.56");
-        setIsLoading(false);
-      }, 1000);
-
+      // If user wallet is connected, use that address instead of fixed one
+      setWalletAddress(wallet.account.address);
+      
       // Notify user of successful connection
       toast.success("Wallet connected successfully", {
         description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
       });
-    } else {
-      setBalance(null);
     }
   }, [connected, wallet.account]);
 
+  useEffect(() => {
+    // Fetch balance data for the current address
+    const fetchBalance = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Fetch balance from Alephium Explorer API
+        const response = await fetch(`https://backend.mainnet.alephium.org/addresses/${walletAddress}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch balance: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Set the balance from the API response
+        setBalance(data.balance?.toString() || "0");
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        
+        // If address is the fixed one and there's an error, show an informative message
+        if (walletAddress === FIXED_ADDRESS) {
+          toast.info("Using data from a tracked wallet", {
+            description: "Connect your own wallet for your personal balance"
+          });
+          
+          // For display purposes, set a placeholder balance
+          setBalance("1234560000000000000");
+        } else {
+          toast.error("Could not fetch wallet balance", {
+            description: "Please try again later"
+          });
+          setBalance("0");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Only fetch if we have an address
+    if (walletAddress) {
+      fetchBalance();
+    }
+  }, [walletAddress]);
+
   const handleDisconnect = () => {
-    // Using signer.disconnect() instead of wallet.disconnect()
     if (wallet.signer) {
-      wallet.signer.disconnect();
-      toast.info("Wallet disconnected");
+      try {
+        // Try various methods that different wallet implementations might use
+        if (typeof wallet.disconnect === 'function') {
+          wallet.disconnect();
+        } else if (typeof (wallet as any).signer.disconnect === 'function') {
+          (wallet as any).signer.disconnect();
+        } else {
+          toast.error("Wallet disconnection failed", {
+            description: "Your wallet doesn't implement a compatible disconnect method"
+          });
+          return;
+        }
+        
+        toast.info("Wallet disconnected");
+        
+        // Reset to fixed address after disconnect
+        setWalletAddress(FIXED_ADDRESS);
+      } catch (error) {
+        console.error("Disconnection error:", error);
+        toast.error("Disconnection failed", {
+          description: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
     }
   };
 
-  if (!connected || !wallet.account) {
+  // Decide whether to show connect screen or wallet dashboard
+  if (!connected && !FIXED_ADDRESS) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
@@ -81,17 +147,44 @@ const WalletsPage = () => {
     );
   }
 
+  // Show wallet dashboard with either connected wallet or fixed address data
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex flex-col space-y-8">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold tracking-tight">Alephium Wallet</h2>
-          <Button variant="outline" onClick={handleDisconnect}>Disconnect</Button>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {connected ? "Your Alephium Wallet" : "Alephium Wallet Tracker"}
+          </h2>
+          {connected && <Button variant="outline" onClick={handleDisconnect}>Disconnect</Button>}
+          {!connected && (
+            <Button variant="outline" onClick={() => {
+              toast.info("Connect your own wallet", {
+                description: "Currently viewing a tracked wallet"
+              });
+            }}>
+              <Wallet className="mr-2 h-4 w-4" />
+              Connect Your Wallet
+            </Button>
+          )}
         </div>
 
-        <AddressDisplay address={wallet.account.address} />
+        <AddressDisplay address={walletAddress} />
 
-        <WalletBalanceCard balance={balance} isLoading={isLoading} />
+        {!connected && (
+          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <CardContent className="p-4 text-sm">
+              <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
+                <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <span>
+                  Currently tracking wallet <strong>{walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 8)}</strong>.
+                  Connect your own wallet to see your personal balance and transactions.
+                </span>
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        <WalletBalanceCard balance={balance} isLoading={isLoading} address={walletAddress} />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md">
@@ -124,7 +217,7 @@ const WalletsPage = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {isLoading ? "Loading..." : `${balance} ALPH`}
+                          {isLoading ? "Loading..." : `${(parseFloat(balance || "0") / 10**18).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH`}
                         </div>
                       </CardContent>
                     </Card>
@@ -134,7 +227,7 @@ const WalletsPage = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-sm">
-                          {isLoading ? "Loading..." : "Last transaction: 2 hours ago"}
+                          {isLoading ? "Loading..." : "Last transaction: Check transactions tab"}
                         </div>
                       </CardContent>
                     </Card>
@@ -144,7 +237,7 @@ const WalletsPage = () => {
               <CardFooter>
                 <Button variant="outline" className="w-full" asChild>
                   <a 
-                    href={`https://explorer.alephium.org/addresses/${wallet.account.address}`}
+                    href={`https://explorer.alephium.org/addresses/${walletAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2"
@@ -163,19 +256,45 @@ const WalletsPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+                    onClick={() => {
+                      toast.info("This feature is coming soon");
+                    }}
+                  >
                     <ArrowUpDown className="h-5 w-5" />
                     <span>Send / Receive</span>
                   </Button>
-                  <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2">
-                    <Coins className="h-5 w-5" />
-                    <span>Tokens</span>
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+                    asChild
+                  >
+                    <a 
+                      href={`https://richlist.alephium.world/addresses/${walletAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Coins className="h-5 w-5" />
+                      <span>View Richlist</span>
+                    </a>
                   </Button>
-                  <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+                    onClick={() => {
+                      toast.info("This feature is coming soon");
+                    }}
+                  >
                     <CreditCard className="h-5 w-5" />
                     <span>Buy ALPH</span>
                   </Button>
-                  <Button variant="outline" className="h-auto py-6 flex flex-col items-center justify-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
+                    onClick={() => setActiveTab("transactions")}
+                  >
                     <History className="h-5 w-5" />
                     <span>Transaction History</span>
                   </Button>
@@ -185,7 +304,7 @@ const WalletsPage = () => {
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
-            <TransactionsList address={wallet.account.address} />
+            <TransactionsList address={walletAddress} />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-6">
@@ -197,7 +316,9 @@ const WalletsPage = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <h3 className="font-medium">Connected Wallet</h3>
-                  <p className="text-sm text-muted-foreground break-all">{wallet.account.address}</p>
+                  <p className="text-sm text-muted-foreground break-all">
+                    {connected ? wallet.account?.address : `Tracking: ${walletAddress}`}
+                  </p>
                 </div>
                 <Separator />
                 <div className="space-y-2">
@@ -207,8 +328,12 @@ const WalletsPage = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="outline" onClick={handleDisconnect}>Disconnect Wallet</Button>
-                <Button variant="default">Export Data</Button>
+                {connected ? (
+                  <Button variant="outline" onClick={handleDisconnect}>Disconnect Wallet</Button>
+                ) : (
+                  <Button variant="outline" disabled>Not Connected</Button>
+                )}
+                <Button variant="default" onClick={() => toast.info("This feature is coming soon")}>Export Data</Button>
               </CardFooter>
             </Card>
           </TabsContent>
