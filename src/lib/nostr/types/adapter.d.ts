@@ -1,3 +1,4 @@
+
 /**
  * Type definitions for the NostrAdapter interfaces
  */
@@ -15,6 +16,11 @@ export interface BaseAdapterInterface {
   // Add missing methods
   isLoggedIn(): boolean;
   hasConnectedRelays(): boolean;
+  
+  // Add missing event subscription methods
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
+  unsubscribe(subId: string): void;
+  publishEvent(event: any): Promise<string | null>;
 }
 
 export interface SocialAdapterInterface extends BaseAdapterInterface {
@@ -22,6 +28,9 @@ export interface SocialAdapterInterface extends BaseAdapterInterface {
   followUser(pubkey: string): Promise<boolean>;
   unfollowUser(pubkey: string): Promise<boolean>;
   sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null>;
+  
+  // Add following property to match what components expect
+  following: string[];
   
   // Moderation
   muteUser(pubkey: string): Promise<boolean>;

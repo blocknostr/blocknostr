@@ -26,6 +26,11 @@ export class NostrAdapter extends BaseAdapter {
     this.communityAdapter = new CommunityAdapter(service);
   }
 
+  // Add following property getter for compatibility
+  get following(): string[] {
+    return this.service.getFollowingList();
+  }
+
   // Forward methods to appropriate adapters
   
   // Authentication helper
@@ -149,6 +154,19 @@ export class NostrAdapter extends BaseAdapter {
 
   async voteOnProposal(proposalId: string, optionIndex: number) {
     return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
+  }
+  
+  // Event management methods, previously missing
+  async publishEvent(event: any): Promise<string | null> {
+    return this.service.publishEvent(event);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string): void {
+    return this.service.unsubscribe(subId);
   }
   
   // Manager getters

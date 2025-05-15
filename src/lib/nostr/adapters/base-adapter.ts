@@ -38,12 +38,25 @@ export class BaseAdapter implements BaseAdapterInterface {
     return this.service.getHexFromNpub(npub);
   }
   
-  // Add required methods that were missing
   isLoggedIn(): boolean {
     return this.service.isLoggedIn();
   }
   
   hasConnectedRelays(): boolean {
     return this.service.hasConnectedRelays();
+  }
+  
+  // Add event subscription methods
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string): void {
+    return this.service.unsubscribe(subId);
+  }
+  
+  // Add event publishing method
+  async publishEvent(event: any): Promise<string | null> {
+    return this.service.publishEvent(event);
   }
 }

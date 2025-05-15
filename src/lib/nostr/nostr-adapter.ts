@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -34,6 +33,11 @@ export class NostrAdapter extends BaseAdapter {
     this.communityAdapter = new CommunityAdapter(service);
     this.bookmarkAdapter = new BookmarkAdapter(service);
     this.messagingAdapter = new MessagingAdapter(service);
+  }
+
+  // Add following property getter for compatibility
+  get following(): string[] {
+    return this.service.getFollowingList();
   }
 
   // Domain-specific property accessors
@@ -119,6 +123,19 @@ export class NostrAdapter extends BaseAdapter {
   
   async isUserBlocked(pubkey: string) {
     return this.socialAdapter.isUserBlocked(pubkey);
+  }
+
+  // Event management methods, previously missing
+  async publishEvent(event: any): Promise<string | null> {
+    return this.service.publishEvent(event);
+  }
+  
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
+    return this.service.subscribe(filters, onEvent, relays);
+  }
+  
+  unsubscribe(subId: string): void {
+    return this.service.unsubscribe(subId);
   }
   
   // Profile methods
@@ -407,6 +424,19 @@ export class NostrAdapter extends BaseAdapter {
   
   get bookmarkManager() {
     return this.bookmarkAdapter.bookmarkManager;
+  }
+  
+  // Additional methods that would be in the service class
+  isLoggedIn(): boolean {
+    return this.service.isLoggedIn();
+  }
+  
+  hasConnectedRelays(): boolean {
+    return this.service.hasConnectedRelays();
+  }
+  
+  getFollowingList(): string[] {
+    return this.service.getFollowingList ? this.service.getFollowingList() : [];
   }
 }
 
