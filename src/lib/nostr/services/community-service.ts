@@ -1,105 +1,140 @@
 
+import { SimplePool } from 'nostr-tools';
+import { EVENT_KINDS } from '../constants';
+import { CommunityManager } from '../community';
+import type { ProposalCategory } from '@/types/community';
+
 /**
- * Create a proposal for a community following NIP-172
+ * Community Service class for handling community functionality
+ * Implements NIP-172 community and proposal standards
  */
-async createProposal(
-  communityId: string,
-  title: string,
-  description: string,
-  options: string[],
-  category: ProposalCategory = 'other',
-  minQuorum?: number,
-  endsAt?: number
-): Promise<string | null> {
-  // Enhanced validation to provide better error messages
-  if (!communityId) {
-    console.error("Cannot create proposal: missing communityId");
-    return null;
+export class CommunityService {
+  private pool: SimplePool;
+  private publicKey: string | null;
+  private getPrivateKey: (() => string | null) | null;
+  private communityManager: CommunityManager;
+
+  constructor(
+    pool: SimplePool,
+    publicKey: string | null,
+    getPrivateKey: (() => string | null) | null,
+    communityManager: CommunityManager
+  ) {
+    this.pool = pool;
+    this.publicKey = publicKey;
+    this.getPrivateKey = getPrivateKey;
+    this.communityManager = communityManager;
   }
-  
-  if (!this.publicKey) {
-    console.error("Cannot create proposal: not logged in (missing pubkey)");
-    return null;
-  }
-  
-  const relays = this.getConnectedRelayUrls();
-  
-  // If no relays connected, try connecting to backup relays
-  if (relays.length === 0) {
-    console.warn("No relays connected, trying backup relays");
-    const backupRelays = [
-      'wss://relay.damus.io',
-      'wss://nos.lol',
-      'wss://relay.nostr.band'
-    ];
-    
-    await this.connectToBackupRelays(backupRelays);
-  }
-  
-  console.log("Creating proposal on relays:", this.getConnectedRelayUrls());
-  
-  // Default end time is 7 days from now if not specified per NIP-172
-  const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-  
-  // Create proposal data according to NIP-172
-  const proposalData = {
-    title,
-    description,
-    options,
-    category,
-    createdAt: Math.floor(Date.now() / 1000),
-    endsAt: endTime,
-    minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
-  };
-  
-  // Generate unique proposal ID per NIP-172
-  const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
-  
-  // Create proposal event per NIP-172
-  const event = {
-    kind: EVENT_KINDS.PROPOSAL,
-    content: JSON.stringify(proposalData),
-    tags: [
-      ["e", communityId], // Reference to community event per NIP-172
-      ["d", proposalId] // Unique identifier per NIP-172
-    ]
-  };
-  
-  try {
-    console.log("Publishing proposal event:", event);
-    
-    const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
-    
-    // Use the publishEvent method from the communityManager
-    const eventId = await this.communityManager.publishEvent(
-      this.pool,
-      this.publicKey,
-      privateKey,
-      event,
-      this.getConnectedRelayUrls()
-    );
-    
-    if (eventId) {
-      console.log("Created proposal with ID:", eventId);
-      return eventId;
-    } else {
-      console.error("Failed to create proposal: no event ID returned");
+
+  /**
+   * Create a proposal for a community following NIP-172
+   */
+  async createProposal(
+    communityId: string,
+    title: string,
+    description: string,
+    options: string[],
+    category: ProposalCategory = 'other',
+    minQuorum?: number,
+    endsAt?: number
+  ): Promise<string | null> {
+    // Enhanced validation to provide better error messages
+    if (!communityId) {
+      console.error("Cannot create proposal: missing communityId");
       return null;
     }
-  } catch (error) {
-    console.error("Error creating proposal:", error);
-    return null;
-  }
-}
-
-// Helper method to connect to backup relays if needed
-private async connectToBackupRelays(relays: string[]): Promise<void> {
-  for (const relay of relays) {
-    try {
-      await this.pool.ensureRelay(relay);
-      console.log(`Connected to backup relay: ${relay}`);
-    } catch (err) {
-      console.error(`Failed to connect to backup relay ${relay}:`, err);
+    
+    if (!this.publicKey) {
+      console.error("Cannot create proposal: not logged in (missing pubkey)");
+      return null;
     }
+    
+    const relays = this.getConnectedRelayUrls();
+    
+    // If no relays connected, try connecting to backup relays
+    if (relays.length === 0) {
+      console.warn("No relays connected, trying backup relays");
+      const backupRelays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band'
+      ];
+      
+      await this.connectToBackupRelays(backupRelays);
+    }
+    
+    console.log("Creating proposal on relays:", this.getConnectedRelayUrls());
+    
+    // Default end time is 7 days from now if not specified per NIP-172
+    const endTime = endsAt || Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+    
+    // Create proposal data according to NIP-172
+    const proposalData = {
+      title,
+      description,
+      options,
+      category,
+      createdAt: Math.floor(Date.now() / 1000),
+      endsAt: endTime,
+      minQuorum: minQuorum || 0 // Default 0 means no quorum requirement
+    };
+    
+    // Generate unique proposal ID per NIP-172
+    const proposalId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
+    
+    // Create proposal event per NIP-172
+    const event = {
+      kind: EVENT_KINDS.PROPOSAL,
+      content: JSON.stringify(proposalData),
+      tags: [
+        ["e", communityId], // Reference to community event per NIP-172
+        ["d", proposalId] // Unique identifier per NIP-172
+      ]
+    };
+    
+    try {
+      console.log("Publishing proposal event:", event);
+      
+      const privateKey = this.getPrivateKey ? this.getPrivateKey() : null;
+      
+      // Use the publishEvent method from the communityManager
+      const eventId = await this.communityManager.publishEvent(
+        this.pool,
+        this.publicKey,
+        privateKey,
+        event,
+        this.getConnectedRelayUrls()
+      );
+      
+      if (eventId) {
+        console.log("Created proposal with ID:", eventId);
+        return eventId;
+      } else {
+        console.error("Failed to create proposal: no event ID returned");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error creating proposal:", error);
+      return null;
+    }
+  }
+
+  // Helper method to connect to backup relays if needed
+  private async connectToBackupRelays(relays: string[]): Promise<void> {
+    for (const relay of relays) {
+      try {
+        await this.pool.ensureRelay(relay);
+        console.log(`Connected to backup relay: ${relay}`);
+      } catch (err) {
+        console.error(`Failed to connect to backup relay ${relay}:`, err);
+      }
+    }
+  }
+
+  // Helper method to get connected relay URLs
+  private getConnectedRelayUrls(): string[] {
+    // Implement a method to return the connected relay URLs
+    // This is a placeholder - you need to implement actual relay connection logic
+    return Array.from(this.pool.relays.keys());
   }
 }
