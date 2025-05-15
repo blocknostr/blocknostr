@@ -13,7 +13,6 @@ import { FeedCustomizationDialog } from "./feed/FeedCustomizationDialog";
 import { contentCache } from "@/lib/nostr/cache/content-cache";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 import { ConnectionStatusBanner } from "./feed/ConnectionStatusBanner";
-import TrendingHashtagsBar from "./trending/TrendingHashtagsBar";
 
 interface MainFeedProps {
   activeHashtag?: string;
@@ -90,16 +89,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       <div className="mb-4 px-2 sm:px-0 pt-2">
         <CreateNoteForm />
       </div>
-      
-      {/* Trending Hashtags Bar - New addition for quick topic navigation */}
-      {preferences.uiPreferences.showTrending && (
-        <div className="mb-4 px-2 sm:px-0">
-          <TrendingHashtagsBar 
-            onTopicClick={handleTopicClick} 
-            activeHashtag={activeHashtag}
-          />
-        </div>
-      )}
       
       {/* Tabs navigation - Still sticky */}
       <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md">

@@ -1,11 +1,10 @@
-
 import React, { useCallback, useState, useEffect } from "react";
 import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
 import { Button } from "../ui/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { FeedLoadingSkeleton } from "./FeedLoadingSkeleton";
+import FeedLoadingSkeleton from "./FeedLoadingSkeleton";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
