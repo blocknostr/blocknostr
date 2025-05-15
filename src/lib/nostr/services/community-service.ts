@@ -133,7 +133,7 @@ export class CommunityService {
     
     // Create community event according to NIP-172
     const event = {
-      kind: EVENT_KINDS.COMMUNITY_CREATION,
+      kind: EVENT_KINDS.COMMUNITY,
       content: JSON.stringify({ name, description }),
       tags: [
         ["d", `community_${Math.random().toString(36).substring(2, 10)}`]
@@ -187,7 +187,7 @@ export class CommunityService {
     
     // Create vote event according to NIP-172
     const event = {
-      kind: EVENT_KINDS.PROPOSAL_VOTE,
+      kind: EVENT_KINDS.VOTE,
       content: JSON.stringify({ option: optionIndex }),
       tags: [
         ["e", proposalId]
