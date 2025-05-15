@@ -1,0 +1,147 @@
+
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
+
+interface Transaction {
+  id: string;
+  type: 'sent' | 'received';
+  amount: string;
+  timestamp: number;
+  status: 'confirmed' | 'pending';
+  address: string;
+}
+
+interface TransactionsListProps {
+  address: string;
+}
+
+const TransactionsList = ({ address }: TransactionsListProps) => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading transaction data
+    setIsLoading(true);
+    
+    // This would be replaced with an actual API call to fetch transactions
+    setTimeout(() => {
+      const mockTransactions: Transaction[] = [
+        {
+          id: "0x123456789abcdef",
+          type: "received",
+          amount: "100.00",
+          timestamp: Date.now() - 3600000 * 2, // 2 hours ago
+          status: "confirmed",
+          address: "0xabcdef123456789"
+        },
+        {
+          id: "0x987654321fedcba",
+          type: "sent",
+          amount: "50.25",
+          timestamp: Date.now() - 86400000, // 1 day ago
+          status: "confirmed",
+          address: "0x567890abcdef123"
+        },
+        {
+          id: "0xabcdef123456789",
+          type: "received",
+          amount: "250.75",
+          timestamp: Date.now() - 86400000 * 3, // 3 days ago
+          status: "confirmed",
+          address: "0x123abcdef456789"
+        },
+        {
+          id: "0x456789abcdef123",
+          type: "sent",
+          amount: "75.50",
+          timestamp: Date.now() - 86400000 * 7, // 7 days ago
+          status: "confirmed",
+          address: "0x789abcdef123456"
+        }
+      ];
+      
+      setTransactions(mockTransactions);
+      setIsLoading(false);
+    }, 1500);
+  }, [address]);
+
+  // Helper function to format date
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Helper function to truncate address
+  const truncateAddress = (addr: string) => {
+    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Transaction History</CardTitle>
+        <CardDescription>Recent activity on your wallet</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : transactions.length === 0 ? (
+          <p className="text-center py-8 text-muted-foreground">No transactions found</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead className="hidden sm:table-cell">Address</TableHead>
+                <TableHead className="hidden md:table-cell">Date</TableHead>
+                <TableHead className="text-right">Details</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((tx) => (
+                <TableRow key={tx.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {tx.type === 'received' ? (
+                        <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                      )}
+                      <span className="capitalize">{tx.type}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className={tx.type === 'received' ? 'text-green-500' : 'text-blue-500'}>
+                    {tx.type === 'received' ? '+' : '-'} {tx.amount} ALPH
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">{truncateAddress(tx.address)}</TableCell>
+                  <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
+                  <TableCell className="text-right">
+                    <a
+                      href={`https://explorer.alephium.org/transactions/${tx.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-primary hover:underline"
+                    >
+                      View <ExternalLink className="ml-1 h-3 w-3" />
+                    </a>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default TransactionsList;

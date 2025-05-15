@@ -1,27 +1,51 @@
 
-import React from "react";
-import { Shield, ExternalLink } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Shield, ExternalLink, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AlbyLogo, NWCLogo, Nos2xLogo, AlephiumLogo } from "@/components/icons/wallets";
+import { Button } from "@/components/ui/button";
+import { AlephiumLogo } from "@/components/icons/wallets";
+import { useConnectWallet } from "@alephium/web3-react";
 
 interface WalletConnectButtonProps {
   className?: string;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
-  const [hasNostrExtension, setHasNostrExtension] = React.useState<boolean>(false);
+  const { connect, connecting, connected } = useConnectWallet();
+  const [hasWalletExtension, setHasWalletExtension] = useState<boolean>(false);
 
-  React.useEffect(() => {
-    // Check for NIP-07 extension
-    setHasNostrExtension(!!window.nostr);
+  useEffect(() => {
+    // Check if Alephium wallet extension is available
+    const checkForWallet = () => {
+      const hasWallet = !!(window as any).alephiumProviders;
+      setHasWalletExtension(hasWallet);
+    };
+    
+    checkForWallet();
     
     // Re-check for extension periodically
     const intervalId = setInterval(() => {
-      setHasNostrExtension(!!window.nostr);
+      checkForWallet();
     }, 3000);
     
     return () => clearInterval(intervalId);
   }, []);
+
+  const handleConnect = () => {
+    connect();
+  };
+
+  if (connected) {
+    return (
+      <Button
+        className={cn("w-full", className)}
+        disabled
+      >
+        <Wallet className="mr-2 h-4 w-4" />
+        Connected
+      </Button>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col items-center", className)}>
@@ -38,67 +62,38 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
       </div>
       
       <div className="mt-3 text-center max-w-xs">
-        <h3 className="text-lg font-light tracking-tight mb-2">Connect to BlockNoster</h3>
+        <h3 className="text-lg font-light tracking-tight mb-2">Connect to Alephium</h3>
         <p className="text-sm text-muted-foreground">
-          {hasNostrExtension ? 
-           "Your Nostr extension is ready to connect" : 
-           "Install a Nostr-compatible wallet to continue"}
+          {hasWalletExtension ? 
+           "Your Alephium wallet extension is ready to connect" : 
+           "Install the Alephium wallet extension to continue"}
         </p>
       </div>
       
-      <div className="mt-4 grid grid-cols-3 gap-2 w-full max-w-xs">
-        <a 
-          href="https://getalby.com/products/browser-extension" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
-        >
-          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
-            <AlbyLogo className="w-8 h-8" />
-          </span>
-          <span>Alby</span>
-          <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
-        </a>
-        
-        <a 
-          href="https://chromewebstore.google.com/detail/nostr-wallet-id/ajgmkkifilepekpieppfhfkladjjgihn" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
-        >
-          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
-            <NWCLogo className="w-8 h-8" />
-          </span>
-          <span>Nostr Wallet ID</span>
-          <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
-        </a>
-        
-        <a 
-          href="https://github.com/fiatjaf/nos2x" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
-        >
-          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
-            <Nos2xLogo className="w-8 h-8" />
-          </span>
-          <span>Nos2x</span>
-          <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
-        </a>
-        
-        <a
-          href="https://alephium.org/#wallets"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group col-span-3"
-        >
-          <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
-            <AlephiumLogo className="w-8 h-8" />
-          </span>
-          <span>Alephium</span>
-          <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
-        </a>
-      </div>
+      <Button 
+        className="mt-6 w-full"
+        onClick={handleConnect}
+        disabled={connecting || !hasWalletExtension}
+      >
+        {connecting ? "Connecting..." : "Connect Wallet"}
+      </Button>
+      
+      {!hasWalletExtension && (
+        <div className="mt-4 grid grid-cols-1 gap-2 w-full max-w-xs">
+          <a
+            href="https://alephium.org/#wallets"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center p-2.5 text-xs text-primary/70 hover:text-primary border border-transparent hover:border-primary/10 rounded-lg hover:bg-primary/5 transition-all group"
+          >
+            <span className="h-8 w-8 mb-1.5 flex items-center justify-center">
+              <AlephiumLogo className="w-8 h-8" />
+            </span>
+            <span>Get Alephium Wallet</span>
+            <ExternalLink className="mt-1 h-3 w-3 opacity-60 group-hover:opacity-100" />
+          </a>
+        </div>
+      )}
     </div>
   );
 };
