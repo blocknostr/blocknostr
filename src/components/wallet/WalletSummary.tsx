@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExternalLink } from "lucide-react"
 import { nostrService } from "@/lib/nostr";
-import { Event } from "nostr-tools" // Ensure Event is imported
+import { Event } from "nostr-tools" 
+import { handleError } from "@/lib/utils/errorHandling"
 
 interface TokenBalance {
     id: string
@@ -56,16 +57,19 @@ export const WalletSummary: React.FC = () => {
             // Format the fractional part with proper precision
             let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
             
-            // Trim trailing zeros but keep reasonable precision
-            const significantDecimals = Math.min(8, decimals); // Limit to 8 decimals max for display
-            fractionalStr = fractionalStr.slice(0, significantDecimals);
+            // Trim trailing zeros but keep reasonable precision (at least 2 decimal places)
+            while (fractionalStr.length > 2 && fractionalStr.endsWith('0')) {
+                fractionalStr = fractionalStr.slice(0, -1);
+            }
+            
+            if (fractionalStr.length < 2) {
+                fractionalStr = fractionalStr.padEnd(2, '0');
+            }
             
             // Format the whole part with thousands separators
             const formattedWhole = wholePart.toLocaleString();
             
-            return fractionalPart > 0 
-                ? `${formattedWhole}.${fractionalStr}` 
-                : `${formattedWhole}.00`;
+            return `${formattedWhole}.${fractionalStr}`;
         } catch (error) {
             console.error(`[formatTokenAmount] Error formatting amount with ${decimals} decimals:`, error);
             return "Error";
@@ -108,15 +112,22 @@ export const WalletSummary: React.FC = () => {
             try {
                 console.log(`[WalletSummary] Fetching balances for address: ${address}`)
                 
-                // 1) Fetch raw balances array
+                // 1) Fetch raw balances array - add error handling and logging
                 const res = await fetch(
                     `https://backend.mainnet.alephium.org/addresses/${address}/tokens-balance?page=1&limit=100`
                 )
                 if (!res.ok) throw new Error(`API Error (${res.status}): ${res.statusText}`)
-                const data = await res.json() as Array<{ tokenId: string; balance: string; lockedBalance: string }>
+                
+                const data = await res.json()
                 console.log("[WalletSummary] Raw balances API data:", data)
+                
+                // Make sure data is an array
+                const balancesArray = Array.isArray(data) ? data : [];
+                if (!Array.isArray(data)) {
+                    console.warn("[WalletSummary] Unexpected data format from API:", data);
+                }
 
-                // 2) Fetch the token list file
+                // 2) Fetch the token list file - improve error handling
                 const listRes = await fetch(
                     "https://raw.githubusercontent.com/alephium/token-list/master/tokens/mainnet.json"
                 )
@@ -126,9 +137,9 @@ export const WalletSummary: React.FC = () => {
                 }
                 
                 const listJson = await listRes.json();
-                console.log("[WalletSummary] Raw token list data:", listJson);
+                console.log("[WalletSummary] Token list data loaded successfully");
 
-                // Extract tokens from the response 
+                // Extract tokens from the response with better error handling
                 const tokens: AlephiumTokenMeta[] = listJson.tokens || [];
                 
                 if (!tokens || !Array.isArray(tokens)) {
@@ -161,28 +172,49 @@ export const WalletSummary: React.FC = () => {
                 }
 
                 // 4) Enrich + filter out zero balances
-                const enriched: TokenBalance[] = data
-                    .filter((item) => item.balance !== "0") // Skip zero balances
-                    .map((item) => {
-                        const meta = tokenMap.get(item.tokenId);
+                const enriched: TokenBalance[] = balancesArray
+                    .filter((item: any) => {
+                        // Defensive check for item structure
+                        if (!item || typeof item !== 'object') {
+                            console.warn("[WalletSummary] Invalid token item:", item);
+                            return false;
+                        }
+                        
+                        // Get token ID with fallback
+                        const tokenId = item.tokenId || item.id;
+                        if (!tokenId) {
+                            console.warn("[WalletSummary] Token missing ID:", item);
+                            return false;
+                        }
+                        
+                        // Check balance with fallback
+                        const balance = item.balance || "0";
+                        return balance !== "0"; // Skip zero balances
+                    })
+                    .map((item: any) => {
+                        // Get token ID with fallback
+                        const tokenId = item.tokenId || item.id;
+                        
+                        // Lookup token metadata
+                        const meta = tokenMap.get(tokenId);
+                        
                         let decimals, symbol, name, logoURI;
-
                         if (meta) {
                             decimals = meta.decimals;
                             symbol = meta.symbol;
                             name = meta.name;
                             logoURI = meta.logoURI;
                         } else {
-                            console.warn(`[WalletSummary] Metadata not found for token ID: ${item.tokenId}`);
+                            console.warn(`[WalletSummary] Metadata not found for token ID: ${tokenId}`);
                             decimals = 18; // Default to 18 decimals
-                            symbol = item.tokenId.slice(0, 6);
+                            symbol = tokenId.slice(0, 6);
                             name = "Unknown Token";
                             logoURI = undefined;
                         }
 
                         return {
-                            id: item.tokenId,
-                            balance: item.balance,
+                            id: tokenId,
+                            balance: item.balance || "0",
                             decimals,
                             symbol,
                             name,
@@ -196,6 +228,8 @@ export const WalletSummary: React.FC = () => {
                         const addressInfoRes = await fetch(`https://backend.mainnet.alephium.org/addresses/${address}`);
                         if (addressInfoRes.ok) {
                             const addressInfo = await addressInfoRes.json();
+                            console.log("[WalletSummary] Address info:", addressInfo);
+                            
                             if (addressInfo.balance && addressInfo.balance !== "0") {
                                 enriched.unshift({
                                     id: alphTokenId,
@@ -241,6 +275,10 @@ export const WalletSummary: React.FC = () => {
                 const errorMessage = err instanceof Error ? err.message : "Unable to load balances.";
                 console.error("[WalletSummary] Failed to fetch balances", err);
                 setError(errorMessage);
+                handleError(err, {
+                    toastMessage: "Failed to load token balances",
+                    logMessage: "[WalletSummary] Token fetch error"
+                });
             } finally {
                 setLoading(false);
             }
@@ -322,11 +360,13 @@ export const WalletSummary: React.FC = () => {
                                                 alt={tok.symbol}
                                                 className="w-6 h-6 rounded"
                                                 onError={(e) => {
-                                                    // Type assertion to HTMLImageElement which has display property
+                                                    // Safely type assertion
                                                     const target = e.target as HTMLImageElement;
-                                                    target.style.display = 'none';
-                                                    // Using optional chaining and type assertion for nextElementSibling
-                                                    const nextElement = target.nextElementSibling as HTMLElement | null;
+                                                    if (target) {
+                                                        target.style.display = 'none';
+                                                    }
+                                                    // Find the fallback element (next sibling)
+                                                    const nextElement = target.nextElementSibling as HTMLElement;
                                                     if (nextElement) {
                                                         nextElement.style.display = 'flex';
                                                     }
