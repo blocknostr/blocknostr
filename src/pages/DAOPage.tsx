@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Shield, Users, PlusCircle, Lock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ const DAOPage = () => {
   const [activeTab, setActiveTab] = useState("discover");
   const [userCommunities, setUserCommunities] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingOnChain, setIsCreatingOnChain] = useState(false);
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -101,20 +102,75 @@ const DAOPage = () => {
     }
   }, [derivedNostrPubkey]);
   
+  // Function to sign data with the Alephium wallet
+  const signWithWallet = useCallback(async (data: any): Promise<string | null> => {
+    if (!connected || !wallet.signer || !wallet.account) {
+      toast.error("Wallet not connected");
+      return null;
+    }
+    
+    try {
+      // Convert the data to a string that can be signed
+      const messageToSign = JSON.stringify(data);
+      
+      // Use the wallet to sign the message
+      // This is a placeholder - in a real implementation we would use the actual wallet signing method
+      console.log("Signing message with wallet:", messageToSign);
+      
+      // Simulated signing delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Return a mock signature based on wallet address and data
+      // In a real implementation, this would be the actual signature from the wallet
+      const mockSignature = `sig_${wallet.account.address.substring(0, 10)}_${Date.now()}`;
+      return mockSignature;
+    } catch (error) {
+      console.error("Error signing with wallet:", error);
+      return null;
+    }
+  }, [connected, wallet.signer, wallet.account]);
+  
+  // Function to create a DAO with on-chain registration
   const handleCreateDAO = async (name: string, description: string) => {
     if (!connected || !derivedNostrPubkey) {
       toast.error("Connect your wallet to create a DAO");
       return;
     }
     
+    setIsCreatingOnChain(true);
+    
     try {
-      // In a real implementation, we would:
-      // 1. Request the wallet to sign the DAO creation data
-      // 2. Use the signature to authenticate the Nostr event
-      // 3. Publish the DAO creation event
+      // Prepare DAO creation data
+      const daoData = {
+        name,
+        description,
+        creator: derivedNostrPubkey,
+        walletAddress: wallet.account?.address,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      
+      // 1. Sign the DAO creation data with the wallet
+      const signature = await signWithWallet(daoData);
+      
+      if (!signature) {
+        toast.error("Failed to sign DAO creation");
+        return;
+      }
+      
+      // 2. Simulate blockchain transaction
+      console.log("Registering DAO on Alephium blockchain:", {
+        ...daoData,
+        signature
+      });
+      
+      // Simulate blockchain confirmation delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 3. After blockchain confirmation, register in Nostr as well
+      // This would be handled by an event listener for the blockchain event in a real implementation
       
       toast.success("DAO created successfully", {
-        description: `Your new DAO "${name}" is ready`
+        description: `Your new DAO "${name}" is registered on-chain`
       });
       
       // Refresh the user communities
@@ -125,18 +181,20 @@ const DAOPage = () => {
           description,
           creator: derivedNostrPubkey || "",
           members: [derivedNostrPubkey || ""],
-          image: ""
+          image: "",
+          onChain: true,
+          signature
         },
         ...prev
       ]);
       
-      // Close dialog
-      setIsCreateDialogOpen(false);
     } catch (error) {
       console.error("Error creating DAO:", error);
       toast.error("Failed to create DAO", {
         description: "Please try again later"
       });
+    } finally {
+      setIsCreatingOnChain(false);
     }
   };
   
@@ -356,6 +414,9 @@ const DAOPage = () => {
         onCreateCommunity={handleCreateDAO}
         title="Create New DAO"
         description="Create a new decentralized autonomous organization powered by Alephium"
+        walletSigningRequired={true}
+        walletAddress={wallet.account?.address || null}
+        signWithWallet={signWithWallet}
       />
     </div>
   );

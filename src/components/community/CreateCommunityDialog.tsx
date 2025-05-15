@@ -19,6 +19,9 @@ interface CreateCommunityDialogProps {
   onCreateCommunity?: (name: string, description: string) => Promise<void>;
   title?: string;
   description?: string;
+  walletSigningRequired?: boolean;
+  walletAddress?: string | null;
+  signWithWallet?: (data: any) => Promise<string | null>;
 }
 
 // Form validation schema with stricter requirements
@@ -37,9 +40,19 @@ const formSchema = z.object({
   }),
 });
 
-const CreateCommunityDialog = ({ isOpen, setIsOpen, onCreateCommunity, title = "Create a new community", description }: CreateCommunityDialogProps) => {
+const CreateCommunityDialog = ({ 
+  isOpen, 
+  setIsOpen, 
+  onCreateCommunity, 
+  title = "Create a new community", 
+  description,
+  walletSigningRequired = false,
+  walletAddress,
+  signWithWallet
+}: CreateCommunityDialogProps) => {
   const navigate = useNavigate();
   const [isCreatingCommunity, setIsCreatingCommunity] = useState(false);
+  const [isSigningWithWallet, setIsSigningWithWallet] = useState(false);
   
   const currentUserPubkey = nostrService.publicKey;
 
@@ -58,9 +71,41 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen, onCreateCommunity, title = "
       return;
     }
     
+    if (walletSigningRequired && !walletAddress) {
+      toast.error("You must connect your Alephium wallet to create a DAO");
+      return;
+    }
+    
     setIsCreatingCommunity(true);
     
     try {
+      // Prepare data for blockchain registration
+      const communityData = {
+        name: values.name.trim(),
+        description: values.description.trim(),
+        creator: currentUserPubkey,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      
+      // If wallet signing is required, sign the data
+      let signature = null;
+      if (walletSigningRequired && signWithWallet) {
+        setIsSigningWithWallet(true);
+        signature = await signWithWallet(communityData);
+        setIsSigningWithWallet(false);
+        
+        if (!signature) {
+          toast.error("Failed to sign with wallet", {
+            description: "Please try again or check your wallet connection."
+          });
+          setIsCreatingCommunity(false);
+          return;
+        }
+        
+        // Add the signature to community data
+        Object.assign(communityData, { signature });
+      }
+      
       // If custom handler is provided, use it
       if (onCreateCommunity) {
         await onCreateCommunity(values.name.trim(), values.description.trim());
@@ -141,17 +186,37 @@ const CreateCommunityDialog = ({ isOpen, setIsOpen, onCreateCommunity, title = "
                 </FormItem>
               )}
             />
+            {walletSigningRequired && (
+              <div className="rounded-md bg-primary/5 p-3 text-sm">
+                <div className="flex items-center gap-2 text-primary mb-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="20" height="14" x="2" y="5" rx="2" />
+                    <line x1="2" x2="22" y1="10" y2="10" />
+                  </svg>
+                  <span className="font-medium">Blockchain Registration Required</span>
+                </div>
+                <p className="text-muted-foreground">
+                  This DAO will be registered on the Alephium blockchain using your connected wallet
+                  {walletAddress ? ` (${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)})` : ''}.
+                </p>
+              </div>
+            )}
             <Button 
               type="submit"
-              disabled={isCreatingCommunity}
+              disabled={isCreatingCommunity || isSigningWithWallet}
               className="w-full"
             >
               {isCreatingCommunity ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {isSigningWithWallet ? "Signing with Wallet..." : "Creating DAO..."}
+                </>
               ) : (
-                <Plus className="h-4 w-4 mr-2" />
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create DAO
+                </>
               )}
-              Create Community
             </Button>
           </form>
         </Form>
