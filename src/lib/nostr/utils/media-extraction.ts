@@ -1,8 +1,16 @@
-
 import { NostrEvent } from '@/lib/nostr';
 import { mediaRegex, extractUrlsFromContent } from './media/media-detection';
 import { isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl } from './media/media-validation';
-import { extractNip94Media } from './media/nip94-media-extraction';
+import { 
+  extractNip94Media,
+  extractYoutubeVideoId,
+  extractVimeoVideoId,
+  extractCloudinaryData,
+  extractSoundcloudData,
+  extractSpotifyData,
+  extractTwitterData,
+  isEmbeddedContent
+} from './media/nip94-media-extraction';
 import { MediaItem } from './media/media-types';
 
 /**
@@ -175,11 +183,19 @@ export const extractMediaUrls = (content: string): string[] => {
   return extractUrlsFromContent(content);
 };
 
-// Export the functions from media-validation.ts and nip94-media-extraction.ts
+// Export the functions from media-validation.ts
 export { 
   isValidMediaUrl, isImageUrl, isVideoUrl, isAudioUrl 
 } from './media/media-validation';
 
+// Export the functions from nip94-media-extraction.ts
 export { 
-  extractNip94Media, extractYoutubeVideoId, extractCloudinaryData, isEmbeddedContent 
+  extractNip94Media,
+  extractYoutubeVideoId,
+  extractVimeoVideoId,
+  extractCloudinaryData,
+  extractSoundcloudData,
+  extractSpotifyData,
+  extractTwitterData,
+  isEmbeddedContent 
 } from './media/nip94-media-extraction';
