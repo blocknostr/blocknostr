@@ -15,29 +15,9 @@ interface FeedListProps {
   loadMoreLoading?: boolean;
 }
 
-const FeedList: React.FC<FeedListProps> = ({
-  events,
-  profiles,
-  repostData,
-  loadMoreRef,
-  loading,
-  onRefresh,
-  onLoadMore = () => {},
-  hasMore = true,
-  loadMoreLoading = false
-}) => {
-  return (
-    <OptimizedFeedList
-      events={events}
-      profiles={profiles}
-      repostData={repostData}
-      loading={loading}
-      onRefresh={onRefresh}
-      onLoadMore={onLoadMore}
-      hasMore={hasMore}
-      loadMoreLoading={loadMoreLoading}
-    />
-  );
+// Simplified FeedList component that directly passes props to OptimizedFeedList
+const FeedList: React.FC<FeedListProps> = (props) => {
+  return <OptimizedFeedList {...props} />;
 };
 
 export default FeedList;

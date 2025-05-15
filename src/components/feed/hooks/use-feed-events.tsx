@@ -4,8 +4,6 @@ import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
-import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
-import { toast } from "sonner";
 
 interface UseFeedEventsProps {
   following?: string[];
@@ -81,16 +79,19 @@ export function useFeedEvents({
           setLastUpdated(new Date(cacheEntry.timestamp));
         }
         
-        // Prefetch profile data for authors in cached feed
-        const uniqueAuthors = new Set<string>();
-        cachedFeed.forEach(event => {
+        // Only fetch profiles for visible posts to reduce initial load
+        // This is more efficient than prefetching all profiles
+        const visiblePosts = cachedFeed.slice(0, 10); // Only first 10 visible posts
+        const visibleAuthors = new Set<string>();
+        
+        visiblePosts.forEach(event => {
           if (event.pubkey) {
-            uniqueAuthors.add(event.pubkey);
+            visibleAuthors.add(event.pubkey);
           }
         });
         
-        // Fetch profiles for authors
-        uniqueAuthors.forEach(pubkey => {
+        // Fetch profiles for visible authors only
+        visibleAuthors.forEach(pubkey => {
           fetchProfileData(pubkey);
         });
       }
@@ -99,7 +100,7 @@ export function useFeedEvents({
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, since, until, mediaOnly]);
+  }, [feedType, following, activeHashtag, since, until, mediaOnly, fetchProfileData]);
   
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = () => {
@@ -124,8 +125,6 @@ export function useFeedEvents({
     // Setup a new subscription
     const currentTime = Math.floor(Date.now() / 1000);
     const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
-    
-    toast.info("Refreshing feed...");
     
     const newSubId = setupSubscription(newSince, currentTime);
     setSubId(newSubId);

@@ -82,7 +82,7 @@ export function usePostsSubscription() {
           {
             kinds: [1],
             authors: [hexPubkey],
-            limit
+            limit: limit * 2 // Double the limit for more aggressive loading
           }
         ],
         (event) => {
@@ -118,11 +118,11 @@ export function usePostsSubscription() {
       subscriptionRef.current = notesSubId;
       
       // Set a timeout to check if we got any events and mark loading as complete
-      // Reduced from 5s to 3s
+      // Further reduced from 3s to 2s
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
         onComplete();
-      }, 3000);
+      }, 2000);
       
       // Return a cleanup function
       return () => {
