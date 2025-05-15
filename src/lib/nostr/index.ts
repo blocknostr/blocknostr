@@ -4,7 +4,6 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { lightweightFormatter } from './format/lightweight-formatter';
 import { NostrService } from './service';
 import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
@@ -41,8 +40,8 @@ export type { NostrService };
 // Export cache modules
 export { contentCache };
 
-// Export formatters
-export { contentFormatter, lightweightFormatter };
+// Export formatter
+export { contentFormatter };
 
 // Export NIP utilities
 export * from './utils/nip';

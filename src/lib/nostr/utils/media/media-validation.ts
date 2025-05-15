@@ -1,99 +1,106 @@
 
 /**
- * Validation utilities for media URLs and content
+ * Validation utilities for media URLs
  */
 
-// Approved media domains for better security
-const APPROVED_MEDIA_DOMAINS = [
-  'i.imgur.com',
-  'imgur.com',
-  'media.giphy.com',
-  'giphy.com',
-  'pbs.twimg.com',
-  'nostr.build',
-  'void.cat',
-  'files.nostr.build',
-  'image.nostr.build',
-  'cdn.nostr.build',
-  'cloudflare-ipfs.com'
-];
-
-// Maximum size for media files (10MB)
-const MAX_MEDIA_SIZE = 10 * 1024 * 1024;
+/**
+ * Normalizes a URL by ensuring it has a protocol
+ * @param url The URL to normalize
+ * @returns The normalized URL
+ */
+export const normalizeUrl = (url: string): string => {
+  if (!url) return '';
+  
+  // Trim whitespace
+  url = url.trim();
+  
+  // Check if the URL already has a protocol
+  if (!/^https?:\/\//i.test(url)) {
+    // Try to prepend https:// and see if it's valid
+    try {
+      new URL(`https://${url}`);
+      return `https://${url}`;
+    } catch (e) {
+      // If that fails, just return the original
+      return url;
+    }
+  }
+  
+  return url;
+};
 
 /**
- * Check if a URL is a valid media URL (image, video, audio)
- * @param url URL to validate
+ * Validates a URL to make sure it's properly formed
+ * @param url The URL to validate
+ * @returns Boolean indicating if the URL is valid
  */
 export const isValidMediaUrl = (url: string): boolean => {
   if (!url || typeof url !== 'string') return false;
   
   try {
-    // Validate URL format
-    const parsedUrl = new URL(url);
+    // Normalize URL
+    const normalizedUrl = normalizeUrl(url);
     
-    // Check for secure protocol
-    if (parsedUrl.protocol !== 'https:') return false;
+    // Basic URL validation
+    new URL(normalizedUrl);
     
-    // Check file extension for common media types
-    const path = parsedUrl.pathname.toLowerCase();
-    const isMediaExtension = /\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|mp3|wav|ogg)(\?.*)?$/.test(path);
+    // Additional checks for media URLs
+    // Ensure it has http/https protocol
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      return false;
+    }
     
-    // If it's not a media extension, return false
-    if (!isMediaExtension) return false;
+    // Check for common URL-shortener services that might redirect
+    const commonShorteners = ['bit.ly', 'tinyurl.com', 't.co', 'goo.gl'];
+    for (const shortener of commonShorteners) {
+      if (normalizedUrl.includes(shortener)) {
+        return true; // We'll assume shortened URLs might be valid media
+      }
+    }
+
+    // Check for known media hosting domains
+    const mediaHosts = ['i.imgur.com', 'media.nostr.band', 'void.cat', 'nostr.build', 'primal.net', 'mako.co.il', 'v.nostr.build'];
+    for (const host of mediaHosts) {
+      if (normalizedUrl.includes(host)) {
+        return true; // Common Nostr media hosts
+      }
+    }
     
     return true;
   } catch (error) {
+    console.log('Invalid URL:', url, error);
     return false;
   }
 };
 
 /**
- * Check if a URL is specifically an image URL
- * @param url URL to check
+ * Tests if a URL is an image by extension
  */
 export const isImageUrl = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  
-  try {
-    // Check for image file extensions
-    return /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url);
-  } catch (error) {
-    return false;
-  }
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i);
 };
 
 /**
- * Check if a URL is specifically a video URL
- * @param url URL to check
+ * Tests if a URL is a video by extension
  */
 export const isVideoUrl = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  
-  try {
-    // Check for video file extensions
-    return /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
-  } catch (error) {
-    return false;
-  }
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i);
 };
 
 /**
- * Check if a URL is from an approved domain for better security
- * @param url URL to check
+ * Tests if a URL is audio by extension
  */
-export const isApprovedMediaDomain = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  
-  try {
-    const parsedUrl = new URL(url);
-    const hostname = parsedUrl.hostname.toLowerCase();
-    
-    // Check if hostname matches any approved domain
-    return APPROVED_MEDIA_DOMAINS.some(domain => 
-      hostname === domain || hostname.endsWith(`.${domain}`)
-    );
-  } catch (error) {
-    return false;
-  }
+export const isAudioUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return !!url.match(/\.(mp3|wav|ogg|flac|aac)(\?.*)?$/i);
+};
+
+/**
+ * Checks if a URL points to a secure HTTPS resource
+ */
+export const isSecureUrl = (url: string): boolean => {
+  if (!isValidMediaUrl(url)) return false;
+  return url.startsWith('https://');
 };

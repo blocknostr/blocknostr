@@ -1,8 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
-import { lightweightFormatter, useFormattedContent } from '@/lib/nostr/format/lightweight-formatter';
 
 interface NotePreviewProps {
   content: string;
@@ -53,16 +52,6 @@ export function NotePreview({ content, language, className }: NotePreviewProps) 
         </pre>
       );
     }
-  }
-
-  // For Nostr-specific formats, use the lightweight formatter
-  if (language === 'nostr') {
-    const formattedContent = useFormattedContent(content);
-    return (
-      <div className={cn("p-4 nostr-content", className)}>
-        {formattedContent}
-      </div>
-    );
   }
 
   // For all other formats, just display as preformatted text
