@@ -102,8 +102,6 @@ export function useEnhancedRelayConnection(pubkey?: string) {
         avgResponse: perfData?.avgResponseTime,
         circuitStatus: circuitStatus,
         isRequired,
-        // Ensure status is typed correctly
-        status: relay.status
       } as Relay;
     });
     

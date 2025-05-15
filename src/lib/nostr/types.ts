@@ -1,16 +1,29 @@
+import { Event } from 'nostr-tools';
 
-export interface NostrEvent {
-  id: string;
-  pubkey: string;
-  created_at: number;
-  kind: number;
-  tags: string[][];
-  content: string;
-  sig: string;
+/**
+ * Nostr Event interface - extends the base Event interface from nostr-tools
+ */
+export interface NostrEvent extends Event {
+  // Add any custom fields here
+  [key: string]: any;
 }
 
 /**
- * Extended Relay interface with performance metrics
+ * Nostr Profile Metadata interface - defines the structure of profile metadata
+ */
+export interface NostrProfileMetadata {
+  name: string;
+  display_name?: string;
+  picture?: string;
+  about?: string;
+  website?: string;
+  banner?: string;
+  lud16?: string;
+  nip05?: string;
+}
+
+/**
+ * Relay interface - defines the structure of a relay object
  */
 export interface Relay {
   url: string;
@@ -19,43 +32,6 @@ export interface Relay {
   write: boolean;
   score?: number;
   avgResponse?: number;
-  supportedNips?: number[];
-  load?: number;
   circuitStatus?: any;
-}
-
-export interface NostrProfileMetadata {
-  name?: string;
-  display_name?: string;
-  about?: string;
-  picture?: string;
-  banner?: string;
-  nip05?: string;
-  lud16?: string;
-  website?: string;
-  [key: string]: any;
-}
-
-export type NostrFilter = {
-  ids?: string[];
-  authors?: string[];
-  kinds?: number[];
-  '#e'?: string[];
-  '#p'?: string[];
-  '#t'?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-  [key: string]: any;
-};
-
-export interface NostrSubscription {
-  sub: string;
-  filters: NostrFilter[];
-  relays: string[];
-  callbacks: {
-    onevent: (event: NostrEvent) => void;
-    onclose: () => void;
-  };
-  unsub?: () => void;
+  isRequired?: boolean;
 }

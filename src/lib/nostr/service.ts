@@ -113,7 +113,8 @@ export class NostrService {
    */
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string {
     const subId = `sub_${Math.random().toString(36).substring(2, 15)}`;
-    const sub = this.pool.sub(relays || this.getConnectedRelayUrls(), filters);
+    // Use subscribeMany instead of sub
+    const sub = this.pool.subscribeMany(relays || this.getConnectedRelayUrls(), filters);
     sub.on('event', onEvent);
     return subId;
   }
@@ -124,7 +125,7 @@ export class NostrService {
    */
   unsubscribe(subId: string): void {
     // Implementation for unsubscribing
-    this.pool.close(subId); // Passing subId to close specific subscription
+    this.pool.close([subId]); // Pass as array since it expects string[]
   }
   
   /**
@@ -146,12 +147,7 @@ export class NostrService {
    * Required by adapters
    */
   getRelayStatus(): Relay[] {
-    return this.relayManager.getRelayStatus().map(relay => ({
-      url: relay.url,
-      status: relay.status as 'connected' | 'connecting' | 'disconnected' | 'failed',
-      read: true,
-      write: true
-    }));
+    return this.relayManager.getRelayStatus();
   }
   
   /**

@@ -1,6 +1,6 @@
 
 import { SimplePool, Filter } from 'nostr-tools';
-import { EventManager } from '../event';
+import { NostrEventManager } from '../event/index';
 
 /**
  * Create a subscription to events matching the given filters
@@ -38,40 +38,40 @@ export function subscribeToEvents(
   }
 }
 
-// Create an instance of the EventManager class for service methods
-const localEventManager = new EventManager();
+// Create an instance of the NostrEventManager class for service methods
+const eventManager = new NostrEventManager();
 
 /**
  * Get a single event by ID
  */
 export function getEventById(eventId: string, relays: string[]): Promise<any | null> {
-  return localEventManager.getEventById(eventId, relays);
+  return eventManager.getEventById(eventId, relays);
 }
 
 /**
  * Get events matching the given filters
  */
 export function getEvents(filters: Filter[], relays: string[]): Promise<any[]> {
-  return localEventManager.getEvents(filters, relays);
+  return eventManager.getEvents(filters, relays);
 }
 
 /**
  * Get user profiles for the given public keys
  */
 export function getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>> {
-  return localEventManager.getProfilesByPubkeys(pubkeys, relays);
+  return eventManager.getProfilesByPubkeys(pubkeys, relays);
 }
 
 /**
  * Get a user profile by public key
  */
 export function getUserProfile(pubkey: string, relays: string[]): Promise<Record<string, any> | null> {
-  return localEventManager.getUserProfile(pubkey, relays);
+  return eventManager.getUserProfile(pubkey, relays);
 }
 
 /**
  * Verify a NIP-05 identifier
  */
 export function verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean> {
-  return localEventManager.verifyNip05(pubkey, nip05Identifier);
+  return eventManager.verifyNip05(pubkey, nip05Identifier);
 }

@@ -1,5 +1,6 @@
 
-import { SimplePool, getEventHash, signEvent } from 'nostr-tools';
+import { SimplePool, getEventHash } from 'nostr-tools';
+import * as secp from '@noble/secp256k1';
 
 export class EventManager {
   /**
@@ -33,19 +34,38 @@ export class EventManager {
       // Calculate the event hash
       eventWithMeta.id = getEventHash(eventWithMeta);
       
-      // Sign the event
-      eventWithMeta.sig = signEvent(eventWithMeta, privateKey);
+      // Sign the event using noble-secp256k1 since nostr-tools doesn't export signEvent
+      const sig = await this.signEvent(eventWithMeta, privateKey);
+      eventWithMeta.sig = sig;
       
       // Publish to relays
       const pubs = pool.publish(relays, eventWithMeta);
       
       // Wait for at least one relay to accept
-      await Promise.any(pubs);
+      if (pubs.length > 0) {
+        try {
+          await Promise.race(pubs); // Use Promise.race instead of Promise.any for better compatibility
+        } catch (e) {
+          console.warn("Some relays failed to publish event:", e);
+        }
+      }
       
       return eventWithMeta.id;
     } catch (error) {
       console.error("Error publishing event:", error);
       return null;
     }
+  }
+
+  /**
+   * Sign an event with a private key
+   * @param event Event to sign
+   * @param privateKey Private key in hex format
+   * @returns Promise resolving to signature
+   */
+  private async signEvent(event: any, privateKey: string): Promise<string> {
+    const eventHash = getEventHash(event);
+    const signature = await secp.schnorr.sign(eventHash, privateKey);
+    return secp.utils.bytesToHex(signature);
   }
 }
