@@ -1,195 +1,127 @@
-import { BaseAdapter } from './base-adapter';
-import { parseRelayList } from '../utils/nip';
-import { toast } from 'sonner';
 
-/**
- * Adapter for relay operations
- * Implements NIP-65 (Relay List Metadata) for relay management
- */
-export class RelayAdapter extends BaseAdapter {
-  // Relay methods
-  async addRelay(relayUrl: string, readWrite: boolean = true) {
-    return this.service.addRelay(relayUrl, readWrite);
-  }
-  
-  removeRelay(relayUrl: string) {
-    return this.service.removeRelay(relayUrl);
-  }
-  
-  getRelayStatus() {
-    return this.service.getRelayStatus();
+import { Event, SimplePool } from 'nostr-tools';
+import { Filter } from 'nostr-tools';
+import SubscriptionManager from '../subscription';
+import { NostrRelayAdapter } from '../types/adapter';
+
+class RelayAdapter implements NostrRelayAdapter {
+  private relayUrls: string[] = [];
+  private pool: SimplePool = new SimplePool();
+  private connectedRelays = new Set<string>();
+
+  constructor() {
+    // Initialize default relays or load from preferences
   }
 
-  getRelayUrls() {
-    return this.service.getRelayUrls();
-  }
-  
-  /**
-   * Get relays for a user according to NIP-65
-   * 
-   * @param pubkey User's public key in hex format
-   * @returns Promise resolving to array of relay URLs
-   */
-  async getRelaysForUser(pubkey: string): Promise<string[]> {
-    try {
-      // Subscribe to relay list events (NIP-65 kind: 10002)
-      return new Promise<string[]>((resolve) => {
-        let resolved = false;
-        let timeoutId: ReturnType<typeof setTimeout>;
-        
-        // Create a subscription for the user's relay list events
-        const subId = this.service.subscribe(
-          [
-            {
-              kinds: [10002], // Relay List Metadata (NIP-65)
-              authors: [pubkey],
-              limit: 1
-            }
-          ],
-          (event) => {
-            if (event.kind === 10002) {
-              // Parse relay list according to NIP-65 format
-              const relayMap = parseRelayList(event);
-              
-              // Extract URLs from the relay map
-              const relayUrls = Array.from(relayMap.keys());
-              
-              // Clean up and resolve
-              this.service.unsubscribe(subId);
-              clearTimeout(timeoutId);
-              resolved = true;
-              resolve(relayUrls);
-            }
-          }
-        );
-        
-        // Set timeout for fallback logic
-        timeoutId = setTimeout(() => {
-          if (!resolved) {
-            this.service.unsubscribe(subId);
-            
-            // Fallback to default relays if no NIP-65 event found
-            const defaultRelays = [
-              'wss://relay.damus.io',
-              'wss://nostr.bitcoiner.social',
-              'wss://relay.nostr.band',
-              'wss://nos.lol'
-            ];
-            console.log(`No relay list found for ${pubkey}, using fallback relays`);
-            resolve(defaultRelays);
-          }
-        }, 5000); // 5 second timeout for relay response
-      });
-    } catch (error) {
-      console.error("Error fetching user relays:", error);
-      
-      // Fallback to default relays in case of error
-      return [
-        'wss://relay.damus.io',
-        'wss://nostr.bitcoiner.social',
-        'wss://relay.nostr.band',
-        'wss://nos.lol'
-      ];
-    }
-  }
-  
-  /**
-   * Connect to default relays from configuration
-   */
-  async connectToDefaultRelays() {
-    return this.service.connectToUserRelays(); // Using existing method
-  }
-  
-  /**
-   * Connect to user's relays
-   */
-  async connectToUserRelays() {
-    return this.service.connectToUserRelays();
-  }
-  
-  /**
-   * Add multiple relays at once, with improved error handling
-   * @param relayUrls Array of relay URLs to add
-   * @returns Promise resolving to number of successfully added relays
-   */
-  async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls || !relayUrls.length) return 0;
-    
-    let successCount = 0;
-    const failedRelays: string[] = [];
-    
-    for (const url of relayUrls) {
+  async connect(relayUrls: string[]): Promise<void> {
+    this.relayUrls = relayUrls;
+
+    // Connect to each relay
+    for (const url of this.relayUrls) {
       try {
-        const success = await this.addRelay(url);
-        if (success) {
-          successCount++;
-        } else {
-          failedRelays.push(url);
-        }
+        await this.pool.ensureRelay(url);
+        this.connectedRelays.add(url);
+        console.log(`Connected to relay: ${url}`);
       } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-        failedRelays.push(url);
+        console.error(`Failed to connect to relay ${url}:`, error);
       }
     }
-    
-    // Notify user about failed relays if any
-    if (failedRelays.length > 0 && successCount > 0) {
-      console.warn(`Failed to add ${failedRelays.length} relays:`, failedRelays);
-    }
-    
-    return successCount;
   }
-  
-  /**
-   * Publish user's relay list according to NIP-65
-   * @param relays Array of relay objects
-   * @returns Promise resolving to boolean indicating success
-   */
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
+
+  disconnect(): void {
     try {
-      // Create relay list event according to NIP-65
-      const event = {
-        kind: 10002, // Relay List Metadata
-        content: '', // NIP-65 specifies empty content
-        tags: relays.map(relay => {
-          // Format: ["r", <relay-url>, <read-marker?>, <write-marker?>]
-          const tag = ['r', relay.url];
-          if (relay.read) tag.push('read');
-          if (relay.write) tag.push('write');
-          return tag;
-        })
-      };
-      
-      const eventId = await this.service.publishEvent(event);
-      return !!eventId;
+      this.pool.close(Array.from(this.connectedRelays));
+      this.connectedRelays.clear();
+      console.log('Disconnected from all relays');
     } catch (error) {
-      console.error("Error publishing relay list:", error);
-      return false;
+      console.error('Error disconnecting from relays:', error);
     }
   }
-  
-  /**
-   * Get relays with their capabilities from the relay info service
-   * @returns Promise resolving to array of relay info objects
-   */
-  async getRelayInfos(relayUrls: string[]) {
-    // This method could be expanded to fetch detailed relay info
-    // Currently a placeholder for future enhancement
-    return Promise.all(
-      relayUrls.map(async url => {
-        try {
-          return {
-            url,
-            info: await this.relayManager.getRelayInformation(url)
-          };
-        } catch (error) {
-          return { url, info: null };
-        }
-      })
-    );
+
+  async getEventById(id: string): Promise<Event | null> {
+    try {
+      const events = await this.pool.get(
+        Array.from(this.connectedRelays),
+        { ids: [id] }
+      );
+      return events || null;
+    } catch (error) {
+      console.error(`Error fetching event ${id}:`, error);
+      return null;
+    }
   }
-  
-  get relayManager() {
-    return this.service.relayManager;
+
+  async getEvents(filter: Filter): Promise<Event[]> {
+    try {
+      return await this.pool.list(Array.from(this.connectedRelays), [filter]);
+    } catch (error) {
+      console.error(`Error fetching events:`, error);
+      return [];
+    }
+  }
+
+  subscribe(
+    filters: Filter[],
+    onEvent: (event: Event) => void,
+    onEose?: () => void,
+    onError?: (error: any) => void
+  ): string {
+    const sub = this.pool.sub(Array.from(this.connectedRelays), filters);
+    
+    // Create subscription ID and register handlers
+    const subId = SubscriptionManager.subscribe(filters, onEvent, onEose, onError);
+    
+    // Handle events from the pool subscription
+    sub.on('event', (event: Event, relay: any) => {
+      SubscriptionManager.handleEvent(event, subId, relay.url);
+    });
+    
+    sub.on('eose', () => {
+      SubscriptionManager.handleEose(subId);
+    });
+    
+    if (onError) {
+      // Only attach error handler if provided
+      sub.on('error', (error: any) => {
+        if (error && error.relay && error.relay.url) {
+          SubscriptionManager.handleRelayError(subId, error, error.relay.url);
+        } else {
+          // Fallback if relay info is not available
+          SubscriptionManager.handleRelayError(subId, error, "unknown");
+        }
+      });
+    }
+    
+    return subId;
+  }
+
+  unsubscribe(subscriptionId: string): void {
+    SubscriptionManager.unsubscribe(subscriptionId);
+  }
+
+  async publishEvent(event: Event): Promise<string | null> {
+    try {
+      // Publish to all connected relays
+      const pubResult = await this.pool.publish(Array.from(this.connectedRelays), event);
+      
+      // If at least one relay accepted the event, we consider it published
+      for (const [url, result] of Object.entries(pubResult)) {
+        if (result === true) {
+          console.log(`Event published to ${url}`);
+          return event.id;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error publishing event:', error);
+      return null;
+    }
+  }
+
+  getRelayUrls(): string[] {
+    return Array.from(this.connectedRelays);
   }
 }
+
+export default RelayAdapter;

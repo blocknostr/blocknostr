@@ -1,88 +1,153 @@
 
-import { SimplePool, type Filter } from 'nostr-tools';
-import { NostrEvent, NostrFilter } from './types';
+import { Event } from 'nostr-tools';
+import { nostrService } from './';
 
 export class SubscriptionManager {
-  private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[] }> = new Map();
-  private nextId = 0;
-  
-  constructor(pool: SimplePool) {
-    this.pool = pool;
+  private subscriptions: Map<
+    string,
+    {
+      filters: any[];
+      callback: (event: Event) => void;
+      onEose?: () => void;
+      onError?: (error: any) => void;
+      active: boolean;
+    }
+  > = new Map();
+
+  private static instance: SubscriptionManager;
+
+  private constructor() {}
+
+  static getInstance(): SubscriptionManager {
+    if (!SubscriptionManager.instance) {
+      SubscriptionManager.instance = new SubscriptionManager();
+    }
+    return SubscriptionManager.instance;
   }
-  
+
   subscribe(
-    relays: string[],
-    filters: NostrFilter[],
-    onEvent: (event: NostrEvent) => void
+    filters: any[],
+    callback: (event: Event) => void,
+    onEose?: () => void,
+    onError?: (error: any) => void
   ): string {
-    if (relays.length === 0) {
-      console.error("No relays provided for subscription");
-      return "";
-    }
-    
-    if (filters.length === 0) {
-      console.error("No filters provided for subscription");
-      return "";
-    }
-    
-    const id = `sub_${this.nextId++}`;
-    
-    try {
-      // SimplePool.subscribe expects a single filter
-      // We'll create multiple subscriptions, one for each filter
-      const subClosers = filters.map(filter => {
-        return this.pool.subscribe(relays, filter, {
-          onevent: (event) => {
-            onEvent(event as NostrEvent);
-          }
-        });
-      });
-      
-      // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, { relays, filters, subClosers });
-      
-      return id;
-    } catch (error) {
-      console.error("Error creating subscription:", error);
-      return "";
-    }
+    const id = `sub_${Math.random().toString(36).substring(2, 15)}`;
+    this.subscriptions.set(id, {
+      filters,
+      callback,
+      onEose,
+      onError,
+      active: true,
+    });
+
+    console.log(`[SubscriptionManager] Created subscription ${id}`);
+
+    return id;
   }
-  
-  unsubscribe(subId: string): void {
+
+  unsubscribe(id: string): boolean {
+    if (!this.subscriptions.has(id)) {
+      console.warn(`[SubscriptionManager] No subscription found with id ${id}`);
+      return false;
+    }
+
+    console.log(`[SubscriptionManager] Unsubscribing from ${id}`);
+    this.subscriptions.delete(id);
+    return true;
+  }
+
+  handleEvent(event: Event, subId: string, relayUrl?: string): void {
     const subscription = this.subscriptions.get(subId);
-    if (subscription) {
-      try {
-        // Close all subscriptions
-        subscription.subClosers.forEach(closer => {
-          if (closer && typeof closer.close === 'function') {
-            closer.close();
-          }
-        });
-        this.subscriptions.delete(subId);
-      } catch (error) {
-        console.error(`Error unsubscribing from ${subId}:`, error);
+    if (!subscription || !subscription.active) return;
+
+    try {
+      // Create a custom event object that includes relay URL
+      const eventWithRelay = {
+        ...event,
+        relayUrl // Add the relay URL to the event object
+      };
+      
+      subscription.callback(eventWithRelay as any);
+    } catch (error) {
+      console.error(
+        `[SubscriptionManager] Error in callback for subscription ${subId}:`,
+        error
+      );
+      if (subscription.onError) {
+        subscription.onError(error);
       }
     }
   }
-  
-  // New method to check if a subscription exists
-  hasSubscription(subId: string): boolean {
-    return this.subscriptions.has(subId);
+
+  handleEose(subId: string): void {
+    const subscription = this.subscriptions.get(subId);
+    if (!subscription || !subscription.active) return;
+
+    if (subscription.onEose) {
+      try {
+        subscription.onEose();
+      } catch (error) {
+        console.error(
+          `[SubscriptionManager] Error in EOSE callback for subscription ${subId}:`,
+          error
+        );
+      }
+    }
   }
-  
-  // New method to get all active subscription IDs
-  getActiveSubscriptionIds(): string[] {
+
+  handleRelayError(subId: string, error: any, relayUrl: string): void {
+    const subscription = this.subscriptions.get(subId);
+    if (!subscription || !subscription.active) return;
+
+    if (subscription.onError) {
+      try {
+        // Create an error object that includes the relay URL
+        const errorWithRelay = {
+          ...error,
+          relayUrl
+        };
+        
+        subscription.onError(errorWithRelay);
+      } catch (internalError) {
+        console.error(
+          `[SubscriptionManager] Error in error callback for subscription ${subId}:`,
+          internalError
+        );
+      }
+    }
+  }
+
+  getSubscription(id: string) {
+    return this.subscriptions.get(id);
+  }
+
+  getAllSubscriptionIds(): string[] {
     return Array.from(this.subscriptions.keys());
   }
-  
-  // New method to unsubscribe from all subscriptions
-  unsubscribeAll(): void {
-    this.getActiveSubscriptionIds().forEach(id => this.unsubscribe(id));
+
+  pauseSubscription(id: string): boolean {
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return false;
+
+    subscription.active = false;
+    return true;
   }
-  
-  // New method to get count of active subscriptions
-  getActiveSubscriptionCount(): number {
-    return this.subscriptions.size;
+
+  resumeSubscription(id: string): boolean {
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return false;
+
+    subscription.active = true;
+    return true;
+  }
+
+  updateSubscriptionFilters(id: string, filters: any[]): boolean {
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return false;
+
+    subscription.filters = filters;
+    return true;
   }
 }
+
+export default SubscriptionManager.getInstance();

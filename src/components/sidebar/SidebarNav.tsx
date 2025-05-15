@@ -52,9 +52,9 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       requiresAuth: false
     },
     {
-      name: "Notebin",
+      name: "Notes",
       icon: FileText,
-      href: "/notebin",
+      href: "/notes",
       requiresAuth: false
     },
     {
