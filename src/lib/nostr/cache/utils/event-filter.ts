@@ -1,86 +1,96 @@
-
 import { NostrEvent } from "../../types";
 
 /**
- * Utility for filtering Nostr events
- * Optimized for better performance
+ * Utility class for filtering Nostr events
+ * Implements NIP-01 filtering capabilities
  */
 export class EventFilter {
   /**
-   * Filter events by author pubkeys
+   * Filter events by authors
    */
-  static filterByAuthors(events: NostrEvent[], authorPubkeys: string[]): NostrEvent[] {
-    if (!authorPubkeys || authorPubkeys.length === 0) return [];
+  static filterByAuthors(events: NostrEvent[], authors: string[]): NostrEvent[] {
+    if (!authors || authors.length === 0) return [];
     
-    // Convert array to Set for O(1) lookups instead of O(n)
-    const pubkeySet = new Set(authorPubkeys);
+    // Create a Set for faster lookups
+    const authorSet = new Set(authors);
     
-    return events.filter(event => event.pubkey && pubkeySet.has(event.pubkey));
+    return events.filter(event => event.pubkey && authorSet.has(event.pubkey));
   }
   
   /**
    * Filter events by hashtag
    */
   static filterByHashtag(events: NostrEvent[], hashtag: string): NostrEvent[] {
-    if (!hashtag) return [];
+    if (!hashtag) return events;
     
-    const normalizedHashtag = hashtag.toLowerCase().replace(/^#/, '');
+    const hashtagLower = hashtag.toLowerCase();
     
     return events.filter(event => {
-      // Check tags array for hashtag
-      const hasTTag = event.tags?.some(tag => 
-        tag.length >= 2 && 
-        tag[0] === 't' && 
-        tag[1].toLowerCase() === normalizedHashtag
-      );
+      // Check for hashtag in content
+      if (event.content && event.content.toLowerCase().includes(`#${hashtagLower}`)) {
+        return true;
+      }
       
-      // If found in tags, return early without checking content
-      if (hasTTag) return true;
+      // Check for t tags (Nostr hashtags per NIP-10)
+      if (Array.isArray(event.tags)) {
+        return event.tags.some(tag => 
+          Array.isArray(tag) && 
+          tag.length >= 2 && 
+          tag[0] === 't' && 
+          tag[1].toLowerCase() === hashtagLower
+        );
+      }
       
-      // Check content for hashtag
-      return event.content?.toLowerCase().includes(`#${normalizedHashtag}`);
+      return false;
     });
   }
   
   /**
-   * Apply multiple filters to events
+   * Filter events by time range
+   */
+  static filterByTimeRange(events: NostrEvent[], since?: number, until?: number): NostrEvent[] {
+    return events.filter(event => {
+      if (since && event.created_at < since) return false;
+      if (until && event.created_at > until) return false;
+      return true;
+    });
+  }
+  
+  /**
+   * Apply multiple filters to events and sort them
    */
   static applyFilters(events: NostrEvent[], options: {
     authorPubkeys?: string[],
     hashtag?: string,
     since?: number,
     until?: number,
-    limit?: number
+    limit?: number,
+    mediaOnly?: boolean
   }): NostrEvent[] {
     let filtered = [...events];
     
-    // Apply author filter if specified
+    // Apply author filter if provided
     if (options.authorPubkeys && options.authorPubkeys.length > 0) {
       filtered = this.filterByAuthors(filtered, options.authorPubkeys);
     }
     
-    // Apply hashtag filter if specified
+    // Apply hashtag filter if provided
     if (options.hashtag) {
       filtered = this.filterByHashtag(filtered, options.hashtag);
     }
     
-    // Apply time range filters
-    if (options.since || options.until) {
-      filtered = filtered.filter(event => {
-        const createdAt = event.created_at;
-        if (!createdAt) return false;
-        
-        if (options.since && createdAt < options.since) return false;
-        if (options.until && createdAt > options.until) return false;
-        
-        return true;
-      });
+    // Apply time range filter if provided
+    filtered = this.filterByTimeRange(filtered, options.since, options.until);
+    
+    // Apply media only filter if required
+    if (options.mediaOnly) {
+      filtered = this.filterMediaPosts(filtered);
     }
     
-    // Sort by created_at (newest first)
-    filtered = filtered.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+    // Sort by creation time (newest first)
+    filtered.sort((a, b) => b.created_at - a.created_at);
     
-    // Apply limit if specified
+    // Apply limit if provided
     if (options.limit && options.limit > 0) {
       filtered = filtered.slice(0, options.limit);
     }
@@ -89,18 +99,70 @@ export class EventFilter {
   }
   
   /**
-   * Specialized filter for important NIP-01 event kinds
-   * Useful for prioritizing cache retention
+   * Filter for posts containing media
    */
-  static filterImportantEvents(events: NostrEvent[]): NostrEvent[] {
-    // Important event kinds according to NIPs
-    const importantKinds = new Set([
-      0,  // Metadata
-      3   // Contacts list
-    ]);
+  static filterMediaPosts(events: NostrEvent[]): NostrEvent[] {
+    return events.filter(event => {
+      if (!event.content) return false;
+      
+      // Look for media URLs in content
+      const hasMediaUrl = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|mp4|webm|ogg|mov))/i.test(event.content);
+      if (hasMediaUrl) return true;
+      
+      // Look for common media hosting services
+      const hasMediaHost = /(https?:\/\/(?:i\.imgur\.com|i\.redd\.it|pbs\.twimg\.com|media\.tenor\.com|gfycat\.com|imgur\.com|giphy\.com|tenor\.com))/i.test(event.content);
+      if (hasMediaHost) return true;
+      
+      // Check for media tags (NIP-10)
+      if (Array.isArray(event.tags)) {
+        return event.tags.some(tag => 
+          Array.isArray(tag) && 
+          tag.length >= 2 && 
+          (tag[0] === 'image' || tag[0] === 'media')
+        );
+      }
+      
+      return false;
+    });
+  }
+  
+  /**
+   * Generate a cache key for a feed based on filters
+   * This key will be used to store and retrieve cached feeds
+   */
+  static generateFeedCacheKey(options: {
+    feedType: string,
+    authorPubkeys?: string[],
+    hashtag?: string,
+    since?: number,
+    until?: number,
+    mediaOnly?: boolean
+  }): string {
+    const parts = [options.feedType];
     
-    return events.filter(event => 
-      event.kind !== undefined && importantKinds.has(event.kind)
-    );
+    // Add author filter to key if available
+    if (options.authorPubkeys && options.authorPubkeys.length > 0) {
+      // Use the first 3 authors for the key to keep it reasonable length
+      const authorKey = options.authorPubkeys.slice(0, 3).join(',');
+      parts.push(`authors:${authorKey}`);
+    }
+    
+    // Add hashtag to key if available
+    if (options.hashtag) {
+      parts.push(`tag:${options.hashtag}`);
+    }
+    
+    // Add time range to key
+    if (options.since || options.until) {
+      const timeKey = `time:${options.since || 0}-${options.until || 'now'}`;
+      parts.push(timeKey);
+    }
+    
+    // Add mediaOnly flag if true
+    if (options.mediaOnly) {
+      parts.push('media-only');
+    }
+    
+    return parts.join('::');
   }
 }
