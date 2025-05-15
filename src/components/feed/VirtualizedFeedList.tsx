@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
-import NoteCard from "@/components/note/MemoizedNoteCard";
+import NoteCard from "@/components/NoteCard";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 interface VirtualizedFeedListProps {

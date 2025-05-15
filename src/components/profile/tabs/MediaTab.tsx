@@ -1,6 +1,6 @@
 
 import React from "react";
-import NoteCard from "@/components/note/MemoizedNoteCard";
+import NoteCard from "@/components/NoteCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 

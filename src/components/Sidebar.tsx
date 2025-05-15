@@ -1,3 +1,4 @@
 
-// Re-export the sidebar component from the proper path
-export { default } from './sidebar/Sidebar';
+// Export the Sidebar component correctly
+import Sidebar from "@/components/sidebar/Sidebar";
+export default Sidebar;

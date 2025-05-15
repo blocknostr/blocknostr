@@ -2,46 +2,43 @@
 import { BaseAdapter } from './base-adapter';
 
 /**
- * A placeholder adapter for bookmark functionality that has been removed.
- * This is to maintain API compatibility while the actual functionality has been removed.
+ * Adapter for bookmark operations
  */
 export class BookmarkAdapter extends BaseAdapter {
-  async isBookmarked(eventId: string): Promise<boolean> {
-    return false;
+  // Bookmark methods
+  async isBookmarked(eventId: string) {
+    return this.service.isBookmarked(eventId);
   }
   
-  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string): Promise<boolean> {
-    console.log('Bookmark functionality has been removed');
-    return false;
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.service.addBookmark(eventId, collectionId, tags, note);
   }
   
-  async removeBookmark(eventId: string): Promise<boolean> {
-    console.log('Bookmark functionality has been removed');
-    return false;
+  async removeBookmark(eventId: string) {
+    return this.service.removeBookmark(eventId);
   }
   
-  async getBookmarks(): Promise<any[]> {
-    return [];
+  async getBookmarks() {
+    return this.service.getBookmarks();
   }
   
-  async getBookmarkCollections(): Promise<any[]> {
-    return [];
+  async getBookmarkCollections() {
+    return this.service.getBookmarkCollections();
   }
   
-  async getBookmarkMetadata(): Promise<any> {
-    return {};
+  async getBookmarkMetadata() {
+    return this.service.getBookmarkMetadata();
   }
   
-  async createBookmarkCollection(name: string, color?: string, description?: string): Promise<boolean> {
-    console.log('Bookmark functionality has been removed');
-    return false;
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.service.createBookmarkCollection(name, color, description);
   }
   
-  async processPendingOperations(): Promise<boolean> {
-    return false;
+  async processPendingOperations() {
+    return this.service.processPendingOperations();
   }
   
   get bookmarkManager() {
-    return null;
+    return this.service.bookmarkManager;
   }
 }

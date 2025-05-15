@@ -8,7 +8,8 @@ import {
   Users, 
   Settings, 
   FileText, 
-  Wallet
+  Wallet, 
+  Crown 
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -54,6 +55,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Notebin",
       icon: FileText,
       href: "/notebin",
+      requiresAuth: false
+    },
+    {
+      name: "Premium",
+      icon: Crown,
+      href: "/premium",
       requiresAuth: false
     },
     {

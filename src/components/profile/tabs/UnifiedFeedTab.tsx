@@ -1,6 +1,6 @@
 
 import React from "react";
-import NoteCard from "@/components/note/MemoizedNoteCard";
+import NoteCard from "@/components/NoteCard";
 import { NostrEvent } from "@/lib/nostr";
 import { Loader2 } from "lucide-react";
 

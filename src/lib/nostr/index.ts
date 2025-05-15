@@ -5,7 +5,7 @@ import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
 import { NostrService } from './service';
-import { nostrService } from './service';
+import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
@@ -20,6 +20,7 @@ export type {
   RelayAdapterInterface,
   DataAdapterInterface,
   CommunityAdapterInterface,
+  BookmarkAdapterInterface,
   BaseAdapterInterface
 } from './types/adapter';
 
@@ -30,11 +31,14 @@ export type { ReactionCounts, ContactList } from './social/types';
 // Re-export from community module
 export type { ProposalCategory } from '@/types/community';
 
+// Export bookmark types for backward compatibility
+export type { BookmarkCollection, BookmarkWithMetadata } from './bookmark';
+
 // Export key utility functions
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance and type
-export { nostrService };
+export { nostrServiceInstance as nostrService };
 export type { NostrService };
 
 // Export cache modules

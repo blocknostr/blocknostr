@@ -5,6 +5,7 @@ import { SocialAdapter } from './social-adapter';
 import { RelayAdapter } from './relay-adapter';
 import { DataAdapter } from './data-adapter';
 import { CommunityAdapter } from './community-adapter';
+import { BookmarkAdapter } from './bookmark-adapter';
 
 /**
  * Main NostrAdapter that implements all functionality through composition
@@ -15,6 +16,7 @@ export class NostrAdapter extends BaseAdapter {
   private relayAdapter: RelayAdapter;
   private dataAdapter: DataAdapter;
   private communityAdapter: CommunityAdapter;
+  private bookmarkAdapter: BookmarkAdapter;
   
   constructor(service: typeof nostrService) {
     super(service);
@@ -24,6 +26,7 @@ export class NostrAdapter extends BaseAdapter {
     this.relayAdapter = new RelayAdapter(service);
     this.dataAdapter = new DataAdapter(service);
     this.communityAdapter = new CommunityAdapter(service);
+    this.bookmarkAdapter = new BookmarkAdapter(service);
   }
 
   // Forward methods to appropriate adapters
@@ -142,6 +145,39 @@ export class NostrAdapter extends BaseAdapter {
     return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
   }
   
+  // Bookmark methods
+  async isBookmarked(eventId: string) {
+    return this.bookmarkAdapter.isBookmarked(eventId);
+  }
+  
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.bookmarkAdapter.addBookmark(eventId, collectionId, tags, note);
+  }
+  
+  async removeBookmark(eventId: string) {
+    return this.bookmarkAdapter.removeBookmark(eventId);
+  }
+  
+  async getBookmarks() {
+    return this.bookmarkAdapter.getBookmarks();
+  }
+  
+  async getBookmarkCollections() {
+    return this.bookmarkAdapter.getBookmarkCollections();
+  }
+  
+  async getBookmarkMetadata() {
+    return this.bookmarkAdapter.getBookmarkMetadata();
+  }
+  
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.bookmarkAdapter.createBookmarkCollection(name, color, description);
+  }
+  
+  async processPendingOperations() {
+    return this.bookmarkAdapter.processPendingOperations();
+  }
+  
   // Manager getters
   get socialManager() {
     return this.socialAdapter.socialManager;
@@ -153,5 +189,9 @@ export class NostrAdapter extends BaseAdapter {
   
   get communityManager() {
     return this.communityAdapter.communityManager;
+  }
+  
+  get bookmarkManager() {
+    return this.bookmarkAdapter.bookmarkManager;
   }
 }

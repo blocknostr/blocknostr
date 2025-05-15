@@ -2,7 +2,7 @@
 import React, { Suspense, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
-import TrendingSection from "@/components/trending/TrendingSection";
+import TrendingTopics from "@/components/feed/TrendingTopics";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
 import { Loader2, Wallet } from "lucide-react";
@@ -95,7 +95,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           
           {shouldShowTrending() && (
             <div className="mb-0.5">
-              <TrendingSection 
+              <TrendingTopics 
                 onTopicClick={onTopicClick} 
                 activeHashtag={activeHashtag}
                 onClearHashtag={onClearHashtag}
@@ -130,7 +130,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             
             {shouldShowTrending() && (
               <div className="mb-0.5">
-                <TrendingSection 
+                <TrendingTopics 
                   onTopicClick={onTopicClick} 
                   activeHashtag={activeHashtag}
                   onClearHashtag={onClearHashtag}
