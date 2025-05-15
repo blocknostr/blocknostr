@@ -1,51 +1,44 @@
 
 import React from 'react';
-import TrendingTopicsList from './TrendingTopicsList';
+import { TrendingFilterMenu } from './TrendingFilterMenu';
+import { TrendingTopicsList } from './TrendingTopicsList';
+import { TrendingTopicsTimeRange } from './types';
 import { useTrendingTopicsData } from './hooks/useTrendingTopicsData';
-import TrendingFilters from './TrendingFilters';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
-interface TrendingSectionProps {
-  onTopicClick?: (topic: string) => void;
-  activeHashtag?: string;
-  onClearHashtag?: () => void;
+export interface TrendingSectionProps {
+  className?: string;
 }
 
-const TrendingSection: React.FC<TrendingSectionProps> = ({ 
-  onTopicClick,
-  activeHashtag,
-  onClearHashtag
-}) => {
-  const {
-    trendingTopics,
-    activeFilter,
-    timeRange,
-    setActiveFilter,
-    setTimeRange,
-    isFilterOpen,
-    setIsFilterOpen,
-    filterOptions,
-    timeOptions,
-    currentFilter,
-    currentTime
-  } = useTrendingTopicsData();
+export function TrendingSection({ className = '' }: TrendingSectionProps) {
+  const { preferences } = useUserPreferences();
+  const [selectedTime, setSelectedTime] = React.useState<TrendingTopicsTimeRange>('24h');
+  const { topics, loading, error } = useTrendingTopicsData(selectedTime);
+
+  // Hide trending section if the user preference is set to false
+  if (!preferences.uiPreferences.showTrending) {
+    return null;
+  }
 
   return (
-    <div className="bg-background border rounded-lg shadow-sm overflow-hidden">
-      <div className="p-3 border-b">
-        <h3 className="text-sm font-medium">Trending Topics</h3>
+    <div className={`rounded-lg border bg-card text-card-foreground shadow ${className}`}>
+      <div className="p-4 flex flex-col">
+        <div className="flex flex-row items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Trending</h3>
+          <TrendingFilterMenu
+            selectedTime={selectedTime}
+            onTimeSelect={setSelectedTime}
+          />
+        </div>
+        <TrendingTopicsList 
+          topics={topics}
+          loading={loading}
+          error={error}
+          timeRange={selectedTime}
+        />
       </div>
-      
-      <TrendingFilters 
-        currentFilter={currentFilter}
-        currentTime={currentTime}
-      />
-      
-      <TrendingTopicsList 
-        topics={trendingTopics}
-        onTopicClick={onTopicClick}
-      />
     </div>
   );
-};
+}
 
 export default TrendingSection;
