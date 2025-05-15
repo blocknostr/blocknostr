@@ -47,10 +47,10 @@ const ProfileEditor = () => {
   // Load existing profile data
   useEffect(() => {
     const loadProfile = async () => {
-      if (!nostrService.publicKey) return;
-
       try {
-        const profileData = await nostrService.getUserProfile(nostrService.publicKey);
+        if (!nostrService.getPublicKey()) return;
+        
+        const profileData = await nostrService.getUserProfile(nostrService.getPublicKey()!);
         if (profileData) {
           setProfile(profileData);
           
@@ -77,7 +77,7 @@ const ProfileEditor = () => {
 
   // Handle form submission
   const onSubmit = async (values: ProfileFormValues) => {
-    if (!nostrService.publicKey) {
+    if (!nostrService.getPublicKey()) {
       toast.error('You need to be logged in to update your profile');
       return;
     }

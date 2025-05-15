@@ -6,17 +6,26 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { nostrService, Relay } from "@/lib/nostr";
+import { ExtendedRelay } from "@/lib/nostr/types/extended-relay";
 import { Plus, Trash2 } from "lucide-react";
 
 const RelaysTab = () => {
-  const [relays, setRelays] = useState<Relay[]>([]);
+  const [relays, setRelays] = useState<ExtendedRelay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
   
   // Load relays on component mount and set up refresh interval
   useEffect(() => {
     const loadRelays = () => {
       const relayStatus = nostrService.getRelayStatus();
-      setRelays(relayStatus);
+      const extendedRelays: ExtendedRelay[] = relayStatus.map(relay => ({
+        url: relay.url,
+        read: true, // Default to true for UI
+        write: true, // Default to true for UI
+        status: relay.status,
+        score: relay.score,
+        avgResponse: relay.avgResponse
+      }));
+      setRelays(extendedRelays);
     };
     
     loadRelays();
@@ -40,7 +49,17 @@ const RelaysTab = () => {
     if (success) {
       toast.success(`Connected to ${newRelayUrl}`);
       setNewRelayUrl("");
-      setRelays(nostrService.getRelayStatus());
+      
+      const relayStatus = nostrService.getRelayStatus();
+      const extendedRelays: ExtendedRelay[] = relayStatus.map(relay => ({
+        url: relay.url,
+        read: true, // Default to true for UI
+        write: true, // Default to true for UI
+        status: relay.status,
+        score: relay.score,
+        avgResponse: relay.avgResponse
+      }));
+      setRelays(extendedRelays);
     } else {
       toast.error(`Failed to connect to ${newRelayUrl}`);
     }
@@ -48,7 +67,18 @@ const RelaysTab = () => {
   
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
-    setRelays(nostrService.getRelayStatus());
+    
+    const relayStatus = nostrService.getRelayStatus();
+    const extendedRelays: ExtendedRelay[] = relayStatus.map(relay => ({
+      url: relay.url,
+      read: true, // Default to true for UI
+      write: true, // Default to true for UI
+      status: relay.status,
+      score: relay.score,
+      avgResponse: relay.avgResponse
+    }));
+    setRelays(extendedRelays);
+    
     toast.success(`Removed relay: ${relayUrl}`);
   };
   

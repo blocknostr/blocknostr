@@ -1,4 +1,3 @@
-
 import React, { Suspense, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -7,7 +6,7 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { chatNostrService } from "@/lib/nostr/chat-service";
+import { nostrService } from "@/lib/nostr";
 import LoginDialog from "@/components/auth/LoginDialog";
 import WorldChat from "@/components/chat/WorldChat";
 
@@ -33,13 +32,13 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
 }) => {
   const { preferences } = useUserPreferences();
   const location = useLocation();
-  const isLoggedIn = !!chatNostrService.publicKey;
+  const isLoggedIn = !!nostrService.getPublicKey?.();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
   const shouldShowTrending = () => {
     return true; // Always show trending section on all pages
   };
-
+  
   const hashtagsFallback = (
     <div className="h-[100px] flex items-center justify-center">
       <Loader2 className="h-4 w-4 text-primary/50 animate-spin" />
