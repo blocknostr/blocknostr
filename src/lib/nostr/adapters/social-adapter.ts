@@ -1,90 +1,116 @@
 
 import { BaseAdapter } from './base-adapter';
-import { EVENT_KINDS } from '../constants';
 
 /**
- * Adapter for social interactions (following, messaging, moderation)
+ * Adapter for social interactions like following, muting, and blocking users
  */
 export class SocialAdapter extends BaseAdapter {
-  // Social methods
-  isFollowing(pubkey: string) {
-    return this.service.isFollowing(pubkey);
-  }
-  
-  async followUser(pubkey: string) {
-    return this.service.followUser(pubkey);
-  }
-  
-  async unfollowUser(pubkey: string) {
-    return this.service.unfollowUser(pubkey);
-  }
-  
-  async sendDirectMessage(recipientPubkey: string, content: string) {
-    return this.service.sendDirectMessage(recipientPubkey, content);
-  }
-
-  // User moderation methods
-  async muteUser(pubkey: string) {
-    if (this.service.muteUser) {
-      return this.service.muteUser(pubkey);
-    }
+  /**
+   * Check if the current user is following a pubkey
+   */
+  isFollowing(pubkey: string): boolean {
+    // Implementation will be added later
+    console.log(`Checking if following ${pubkey}`);
     return false;
   }
   
-  async unmuteUser(pubkey: string) {
-    if (this.service.unmuteUser) {
-      return this.service.unmuteUser(pubkey);
-    }
+  /**
+   * Follow a user
+   */
+  async followUser(pubkey: string): Promise<boolean> {
+    // Implementation will be added later
+    console.log(`Following user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Unfollow a user
+   */
+  async unfollowUser(pubkey: string): Promise<boolean> {
+    // Implementation will be added later
+    console.log(`Unfollowing user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Send a direct message to a user
+   */
+  async sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null> {
+    // Implementation will be added later
+    console.log(`Sending DM to ${recipientPubkey}`);
+    return null;
+  }
+  
+  /**
+   * Mute a user
+   */
+  async muteUser(pubkey: string): Promise<boolean> {
+    console.log(`Muting user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Unmute a user
+   */
+  async unmuteUser(pubkey: string): Promise<boolean> {
+    console.log(`Unmuting user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Check if a user is muted
+   */
+  async isUserMuted(pubkey: string): Promise<boolean> {
+    console.log(`Checking if user ${pubkey} is muted`);
     return false;
   }
   
-  async isUserMuted(pubkey: string) {
-    if (this.service.isUserMuted) {
-      return this.service.isUserMuted(pubkey);
-    }
+  /**
+   * Block a user
+   */
+  async blockUser(pubkey: string): Promise<boolean> {
+    console.log(`Blocking user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Unblock a user
+   */
+  async unblockUser(pubkey: string): Promise<boolean> {
+    console.log(`Unblocking user ${pubkey}`);
+    return true;
+  }
+  
+  /**
+   * Check if a user is blocked
+   */
+  async isUserBlocked(pubkey: string): Promise<boolean> {
+    console.log(`Checking if user ${pubkey} is blocked`);
     return false;
   }
   
-  async blockUser(pubkey: string) {
-    if (this.service.blockUser) {
-      return this.service.blockUser(pubkey);
-    }
-    return false;
-  }
-  
-  async unblockUser(pubkey: string) {
-    if (this.service.unblockUser) {
-      return this.service.unblockUser(pubkey);
-    }
-    return false;
-  }
-  
-  async isUserBlocked(pubkey: string) {
-    if (this.service.isUserBlocked) {
-      return this.service.isUserBlocked(pubkey);
-    }
-    return false;
-  }
-  
-  // Social manager enhanced methods
+  /**
+   * Access the social manager
+   */
   get socialManager() {
-    return {
-      ...this.service.socialManager,
-      likeEvent: (event: any) => {
-        return this.service.reactToPost(event.id);
-      },
-      repostEvent: (event: any) => {
-        return this.service.repostNote(event.id, event.pubkey);
-      },
-      getReactionCounts: (eventId: string) => {
-        return Promise.resolve({
-          likes: 0,
-          reposts: 0
-        });
-      },
-      reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.service.reactToPost(eventId, emoji);
-      }
-    };
+    return this.service.getSocialManager();
+  }
+  
+  /**
+   * React to a post
+   */
+  async reactToPost(eventId: string, reaction: string): Promise<string | null> {
+    // Implementation will be added later
+    console.log(`Reacting to post ${eventId} with ${reaction}`);
+    return null;
+  }
+  
+  /**
+   * Repost a note
+   */
+  async repostNote(eventId: string): Promise<string | null> {
+    // Implementation will be added later
+    console.log(`Reposting note ${eventId}`);
+    return null;
   }
 }

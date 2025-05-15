@@ -1,165 +1,141 @@
 import { BaseAdapter } from './base-adapter';
-import { parseRelayList } from '../utils/nip';
-import { toast } from 'sonner';
 
 /**
- * Adapter for relay operations
- * Implements NIP-65 (Relay List Metadata) for relay management
+ * Adapter for relay-related operations
  */
 export class RelayAdapter extends BaseAdapter {
-  // Relay methods
-  async addRelay(relayUrl: string, readWrite: boolean = true) {
-    return this.service.addRelay(relayUrl, readWrite);
+  /**
+   * Add a new relay
+   */
+  async addRelay(relayUrl: string, readWrite: boolean = true): Promise<boolean> {
+    try {
+      // Normalize relay URL
+      if (!relayUrl.startsWith('wss://') && !relayUrl.startsWith('ws://')) {
+        relayUrl = `wss://${relayUrl}`;
+      }
+      
+      // Get current relays
+      const currentRelays = this.getRelayUrls();
+      
+      // Check if already connected
+      if (currentRelays.includes(relayUrl)) {
+        console.log(`Already connected to relay: ${relayUrl}`);
+        return true;
+      }
+      
+      // Connect to the relay
+      try {
+        const connectedRelays = await this.relayManager.connectToRelays([relayUrl]);
+        return connectedRelays.length > 0;
+      } catch (error) {
+        console.error(`Failed to connect to relay ${relayUrl}:`, error);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Error adding relay ${relayUrl}:`, error);
+      return false;
+    }
   }
   
-  removeRelay(relayUrl: string) {
-    return this.service.removeRelay(relayUrl);
+  /**
+   * Remove a relay
+   */
+  removeRelay(relayUrl: string): void {
+    try {
+      this.relayManager.disconnectFromRelay(relayUrl);
+    } catch (error) {
+      console.error(`Error removing relay ${relayUrl}:`, error);
+    }
   }
   
+  /**
+   * Get relay status information
+   */
   getRelayStatus() {
     return this.service.getRelayStatus();
   }
-
-  getRelayUrls() {
-    return this.service.getRelayUrls();
+  
+  /**
+   * Get URLs of connected relays
+   */
+  getRelayUrls(): string[] {
+    return this.service.getConnectedRelayUrls();
   }
   
   /**
-   * Get relays for a user according to NIP-65
-   * 
-   * @param pubkey User's public key in hex format
-   * @returns Promise resolving to array of relay URLs
+   * Get relays for user (NIP-65)
    */
-  async getRelaysForUser(pubkey: string): Promise<string[]> {
+  async getRelaysForUser(pubkey: string): Promise<Record<string, {read: boolean, write: boolean}>> {
     try {
-      // Subscribe to relay list events (NIP-65 kind: 10002)
-      return new Promise<string[]>((resolve) => {
-        let resolved = false;
-        let timeoutId: ReturnType<typeof setTimeout>;
-        
-        // Create a subscription for the user's relay list events
-        const subId = this.service.subscribe(
-          [
-            {
-              kinds: [10002], // Relay List Metadata (NIP-65)
-              authors: [pubkey],
-              limit: 1
-            }
-          ],
-          (event) => {
-            if (event.kind === 10002) {
-              // Parse relay list according to NIP-65 format
-              const relayMap = parseRelayList(event);
-              
-              // Extract URLs from the relay map
-              const relayUrls = Array.from(relayMap.keys());
-              
-              // Clean up and resolve
-              this.service.unsubscribe(subId);
-              clearTimeout(timeoutId);
-              resolved = true;
-              resolve(relayUrls);
-            }
-          }
-        );
-        
-        // Set timeout for fallback logic
-        timeoutId = setTimeout(() => {
-          if (!resolved) {
-            this.service.unsubscribe(subId);
-            
-            // Fallback to default relays if no NIP-65 event found
-            const defaultRelays = [
-              'wss://relay.damus.io',
-              'wss://nostr.bitcoiner.social',
-              'wss://relay.nostr.band',
-              'wss://nos.lol'
-            ];
-            console.log(`No relay list found for ${pubkey}, using fallback relays`);
-            resolve(defaultRelays);
-          }
-        }, 5000); // 5 second timeout for relay response
-      });
+      return await this.relayManager.getRelaysForUser(pubkey);
     } catch (error) {
-      console.error("Error fetching user relays:", error);
+      console.error(`Error getting relays for user ${pubkey}:`, error);
+      return {};
+    }
+  }
+  
+  /**
+   * Connect to default relays
+   */
+  async connectToDefaultRelays(): Promise<string[]> {
+    try {
+      return await this.service.connectToDefaultRelays();
+    } catch (error) {
+      console.error("Error connecting to default relays:", error);
+      return [];
+    }
+  }
+  
+  /**
+   * Connect to user relays
+   */
+  async connectToUserRelays(): Promise<void> {
+    try {
+      return await this.service.connectToUserRelays();
+    } catch (error) {
+      console.error("Error connecting to user relays:", error);
+    }
+  }
+  
+  /**
+   * Add multiple relays at once
+   */
+  async addMultipleRelays(relayUrls: string[]): Promise<string[]> {
+    try {
+      // Filter out invalid URLs
+      const validUrls = relayUrls.filter(url => url && (url.startsWith('wss://') || url.startsWith('ws://')));
       
-      // Fallback to default relays in case of error
-      return [
-        'wss://relay.damus.io',
-        'wss://nostr.bitcoiner.social',
-        'wss://relay.nostr.band',
-        'wss://nos.lol'
-      ];
-    }
-  }
-  
-  /**
-   * Connect to default relays from configuration
-   */
-  async connectToDefaultRelays() {
-    return this.service.connectToUserRelays(); // Using existing method
-  }
-  
-  /**
-   * Connect to user's relays
-   */
-  async connectToUserRelays() {
-    return this.service.connectToUserRelays();
-  }
-  
-  /**
-   * Add multiple relays at once, with improved error handling
-   * @param relayUrls Array of relay URLs to add
-   * @returns Promise resolving to number of successfully added relays
-   */
-  async addMultipleRelays(relayUrls: string[]): Promise<number> {
-    if (!relayUrls || !relayUrls.length) return 0;
-    
-    let successCount = 0;
-    const failedRelays: string[] = [];
-    
-    for (const url of relayUrls) {
-      try {
-        const success = await this.addRelay(url);
-        if (success) {
-          successCount++;
-        } else {
-          failedRelays.push(url);
-        }
-      } catch (error) {
-        console.error(`Failed to add relay ${url}:`, error);
-        failedRelays.push(url);
+      if (validUrls.length === 0) {
+        console.warn("No valid relay URLs provided");
+        return [];
       }
+      
+      // Connect to the relays
+      return await this.relayManager.connectToRelays(validUrls);
+    } catch (error) {
+      console.error("Error adding multiple relays:", error);
+      return [];
     }
-    
-    // Notify user about failed relays if any
-    if (failedRelays.length > 0 && successCount > 0) {
-      console.warn(`Failed to add ${failedRelays.length} relays:`, failedRelays);
-    }
-    
-    return successCount;
   }
   
   /**
-   * Publish user's relay list according to NIP-65
-   * @param relays Array of relay objects
-   * @returns Promise resolving to boolean indicating success
+   * Publish relay list (NIP-65)
    */
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
     try {
-      // Create relay list event according to NIP-65
+      if (!this.service.publicKey) {
+        console.error("Cannot publish relay list: not logged in");
+        return false;
+      }
+      
+      // Create NIP-65 relay list event
       const event = {
-        kind: 10002, // Relay List Metadata
-        content: '', // NIP-65 specifies empty content
-        tags: relays.map(relay => {
-          // Format: ["r", <relay-url>, <read-marker?>, <write-marker?>]
-          const tag = ['r', relay.url];
-          if (relay.read) tag.push('read');
-          if (relay.write) tag.push('write');
-          return tag;
-        })
+        kind: 10002, // NIP-65 relay list metadata
+        content: "",
+        tags: relays.map(relay => ["r", relay.url, relay.read ? "read" : "", relay.write ? "write" : ""])
       };
       
+      // Publish the event
       const eventId = await this.service.publishEvent(event);
       return !!eventId;
     } catch (error) {
@@ -169,27 +145,9 @@ export class RelayAdapter extends BaseAdapter {
   }
   
   /**
-   * Get relays with their capabilities from the relay info service
-   * @returns Promise resolving to array of relay info objects
+   * Access the relay manager
    */
-  async getRelayInfos(relayUrls: string[]) {
-    // This method could be expanded to fetch detailed relay info
-    // Currently a placeholder for future enhancement
-    return Promise.all(
-      relayUrls.map(async url => {
-        try {
-          return {
-            url,
-            info: await this.relayManager.getRelayInformation(url)
-          };
-        } catch (error) {
-          return { url, info: null };
-        }
-      })
-    );
-  }
-  
   get relayManager() {
-    return this.service.relayManager;
+    return this.service.getRelayManager();
   }
 }

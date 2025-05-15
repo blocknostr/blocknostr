@@ -3,7 +3,7 @@ import { createPoolAdapter } from './utils/pool-adapter';
 import { SimplePool, nip19, getPublicKey, getEventHash, validateEvent, finalizeEvent } from 'nostr-tools';
 import { EVENT_KINDS, DEFAULT_RELAYS, ERROR_MESSAGES, TIMEOUTS } from './constants';
 import { NostrEvent, Relay } from './types';
-import { eventManager } from './event';
+import { EventManager } from './event';
 import { RelayManager } from './relay';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
@@ -12,7 +12,7 @@ import { ProfileManager } from './profile';
 /**
  * Main Nostr service that handles all Nostr-related functionality
  */
-class NostrService {
+export class NostrService {
   private pool: SimplePool;
   private relayManager: RelayManager;
   private socialManager: SocialManager;
@@ -26,6 +26,8 @@ class NostrService {
   constructor() {
     this.pool = new SimplePool();
     this.relayManager = new RelayManager(this.pool);
+    // Create an EventManager instance instead of using the imported one
+    const eventManager = new EventManager();
     this.socialManager = new SocialManager(eventManager);
     this.communityManager = new CommunityManager(eventManager);
     this.profileManager = new ProfileManager(eventManager);
@@ -202,9 +204,13 @@ class NostrService {
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
     try {
       // Find the earliest event from this pubkey
-      const events = await this.pool.querySync(
+      const events = await this.pool.list(
         this.getConnectedRelayUrls(),
-        { authors: [pubkey], limit: 1, kinds: [0, 1, 2, 3, 4] }
+        [{ 
+          authors: [pubkey], 
+          limit: 1, 
+          kinds: [0, 1, 2, 3, 4] 
+        }]
       );
       
       if (events.length === 0) return null;
@@ -232,10 +238,8 @@ class NostrService {
     const subId = `sub_${Math.random().toString(36).substring(2, 10)}`;
     
     // Create the subscription
-    this.pool.sub(relayUrls, filters, {
-      id: subId,
-      onevent: onEvent
-    });
+    const sub = this.pool.sub(relayUrls, filters);
+    sub.on('event', onEvent);
     
     return subId;
   }
@@ -245,7 +249,8 @@ class NostrService {
    */
   unsubscribe(subId: string): void {
     if (!subId) return;
-    this.pool.unsub(subId);
+    // Use close method instead of unsub
+    this.pool.close([subId]);
   }
   
   /**
@@ -323,7 +328,7 @@ class NostrService {
       
       try {
         await Promise.race([
-          Promise.any(pubs),
+          Promise.any(pubs.map(pub => pub.catch(e => Promise.reject(e)))),
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error("Timeout")), TIMEOUTS.EVENT_PUBLISH)
           )
@@ -443,10 +448,80 @@ class NostrService {
       this.getConnectedRelayUrls()
     );
   }
+
+  /**
+   * Get event by ID
+   */
+  async getEventById(id: string): Promise<NostrEvent | null> {
+    try {
+      const events = await this.pool.list(
+        this.getConnectedRelayUrls(),
+        [{ ids: [id] }]
+      );
+      return events && events.length > 0 ? events[0] : null;
+    } catch (error) {
+      console.error("Error getting event:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get events by IDs
+   */
+  async getEvents(ids: string[]): Promise<NostrEvent[]> {
+    try {
+      return await this.pool.list(
+        this.getConnectedRelayUrls(),
+        [{ ids }]
+      );
+    } catch (error) {
+      console.error("Error getting events:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get profiles by pubkeys
+   */
+  async getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>> {
+    return this.profileManager.getProfilesByPubkeys(
+      this.pool,
+      pubkeys,
+      this.getConnectedRelayUrls()
+    );
+  }
+
+  /**
+   * Get user profile
+   */
+  async getUserProfile(pubkey: string): Promise<Record<string, any> | null> {
+    return this.profileManager.getUserProfile(
+      this.pool,
+      pubkey,
+      this.getConnectedRelayUrls()
+    );
+  }
+
+  /**
+   * Verify NIP-05 identifier
+   */
+  async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
+    return this.profileManager.verifyNip05(identifier, pubkey);
+  }
   
-  // Expose managers for direct access
-  get communityManager() {
+  // Make communityManager accessible
+  getCommunityManager(): CommunityManager {
     return this.communityManager;
+  }
+  
+  // Make socialManager accessible
+  getSocialManager(): SocialManager {
+    return this.socialManager;
+  }
+  
+  // Make relayManager accessible
+  getRelayManager(): RelayManager {
+    return this.relayManager;
   }
 }
 

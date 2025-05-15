@@ -4,9 +4,8 @@ import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { NostrService } from './service';
-import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
-import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
+import { NostrService, nostrService as nostrServiceInstance } from './service';
+import { adaptedNostrService as nostrServiceAdapter } from './nostr-adapter';
 
 // Re-export types from internal modules
 export type { NostrEvent, Relay } from './types';
@@ -31,10 +30,10 @@ export type { ReactionCounts, ContactList } from './social/types';
 export type { ProposalCategory } from '@/types/community';
 
 // Export key utility functions
-export { formatPubkey, getNpubFromHex, getHexFromNpub };
+export { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Export service instance and type
-export { nostrServiceInstance as nostrService };
+export { nostrServiceAdapter as nostrService };
 export type { NostrService };
 
 // Export cache modules
