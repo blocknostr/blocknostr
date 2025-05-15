@@ -3,21 +3,18 @@ import React from "react";
 import { BadgePercent, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/sonner";
 
 interface PremiumSubscribeButtonProps {
   className?: string;
 }
 
 const PremiumSubscribeButton = ({ className }: PremiumSubscribeButtonProps) => {
-  const { toast } = useToast();
-
   const handleSubscribe = () => {
     // Placeholder for future premium subscription integration
     console.log("Premium subscribe clicked");
     
-    toast({
-      title: "Premium Subscription",
+    toast("Premium Subscription", {
       description: "This is a placeholder. Premium subscription integration coming soon.",
       duration: 3000,
     });
