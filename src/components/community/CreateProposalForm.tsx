@@ -1,3 +1,4 @@
+
 // src/components/community/CreateProposalForm.tsx
 
 import React, { useState } from "react";
@@ -94,9 +95,17 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
   };
 
   const onSubmit = async (data: FormData) => {
+    // Enhanced validation before submitting
     if (!isLoggedIn) {
       toast.error("You must be logged in to create a proposal", {
         description: "Click the login button in the top right corner",
+      });
+      return;
+    }
+
+    if (!communityId) {
+      toast.error("Invalid community ID", {
+        description: "Please make sure you're viewing a valid community",
       });
       return;
     }
@@ -122,7 +131,7 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
         category: data.category,
       });
 
-      // **Pass exactly five arguments** per your service signature:
+      // Pass exactly 5 arguments as expected by the service signature
       const result = await nostrService.createProposal(
         communityId,
         data.title,
@@ -139,7 +148,7 @@ const CreateProposalForm: React.FC<CreateProposalFormProps> = ({
       } else {
         toast.error("Failed to create proposal", {
           description:
-            "Please make sure you’re logged in and have a valid community ID.",
+            "Please make sure you're logged in and have a valid community ID.",
         });
       }
     } catch (err) {

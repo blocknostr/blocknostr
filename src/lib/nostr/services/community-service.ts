@@ -38,20 +38,21 @@ export class CommunityService {
     options: string[],
     category: ProposalCategory = 'other'
   ): Promise<string | null> {
-    // Enhanced validation to provide better error messages
+    // Enhanced validation with more detailed error logging
     if (!communityId) {
       console.error("Cannot create proposal: missing communityId");
-      return null;
+      throw new Error("Community ID is required to create a proposal");
     }
     
     if (!this.publicKey) {
       console.error("Cannot create proposal: not logged in (missing pubkey)");
-      return null;
+      throw new Error("You must be logged in to create a proposal");
     }
     
     console.log("Creating proposal with auth status:", {
-      pubkey: this.publicKey,
-      hasPrivateKeyGetter: !!this.getPrivateKey
+      pubkey: this.publicKey ? this.publicKey.slice(0, 8) + '...' : null,
+      hasPrivateKeyGetter: !!this.getPrivateKey,
+      communityId: communityId.slice(0, 8) + '...'
     });
     
     const relays = this.getConnectedRelayUrls();
@@ -120,7 +121,7 @@ export class CommunityService {
       }
     } catch (error) {
       console.error("Error creating proposal:", error);
-      return null;
+      throw error;
     }
   }
 

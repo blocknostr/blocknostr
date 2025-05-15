@@ -398,8 +398,25 @@ export class NostrService {
     category: ProposalCategory
   ): Promise<string | null> {
     console.log("NostrService.createProposal called with:", {
-      communityId, title, description, options, category
+      communityId: communityId ? communityId.slice(0, 8) + '...' : 'undefined', 
+      title, 
+      description, 
+      options, 
+      category
     });
+    
+    // Check logged in state
+    if (!this.publicKey) {
+      console.error("Cannot create proposal: user not logged in");
+      throw new Error("You must be logged in to create a proposal");
+    }
+    
+    // Check community ID
+    if (!communityId) {
+      console.error("Cannot create proposal: missing community ID");
+      throw new Error("Community ID is required to create a proposal");
+    }
+    
     return this.communityService.createProposal(
       communityId,
       title,
