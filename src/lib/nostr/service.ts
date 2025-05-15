@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { CommunityManager } from './community';
@@ -37,6 +36,8 @@ export class NostrService {
     this.eventManager = new EventManager();
     this.communityManager = new CommunityManager(this.eventManager);
     this.socialManager = new SocialManager();
+    
+    // Initialize RelayManager with the required parameters
     this.relayManager = new RelayManager(this.pool);
     
     // Initialize services

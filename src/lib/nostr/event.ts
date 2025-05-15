@@ -66,8 +66,8 @@ export class EventManager {
    */
   async signEvent(event: any, privateKey: string): Promise<string> {
     const eventHash = getEventHash(event);
-    // Using the correct secp256k1 signing method
-    const signatureBytes = await secp.sign(eventHash, privateKey);
+    // Use schnorr signing instead of regular ECDSA signing to get compatible signature format
+    const signatureBytes = await secp.schnorr.sign(eventHash, privateKey);
     return bytesToHex(signatureBytes);
   }
 }
