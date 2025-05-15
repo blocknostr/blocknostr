@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { NostrEvent } from '@/lib/nostr';
 import { Card, CardContent } from "@/components/ui/card";
 import NoteCardHeader from './NoteCardHeader';
@@ -35,26 +35,20 @@ const MemoizedNoteCard = React.memo(
     reactionData 
   }: NoteCardProps) {
     // State
-    const [showReplies, setShowReplies] = useState(false);
-    const [replyCount, setReplyCount] = useState(0);
-    const [replyUpdated, setReplyUpdated] = useState(0);
+    const [showReplies, setShowReplies] = React.useState(false);
+    const [replyCount, setReplyCount] = React.useState(0);
+    const [replyUpdated, setReplyUpdated] = React.useState(0);
     
     // Validate event before rendering
     if (!event || !event.id || !event.pubkey) return null;
     
-    // Handle reply added - simplified with useCallback
-    const handleReplyAdded = useCallback(() => {
+    // Handle reply added
+    const handleReplyAdded = () => {
       setReplyUpdated(prev => prev + 1);
-      setReplyCount(prev => prev + 1);
-    }, []);
+    };
     
-    // Update reply count callback - simplifies passing data from comments
-    const handleReplyCountUpdate = useCallback((count: number) => {
-      setReplyCount(count);
-    }, []);
-    
-    // Handle card click for navigation - simplified with useCallback
-    const handleCardClick = useCallback((e: React.MouseEvent) => {
+    // Handle card click for navigation
+    const handleCardClick = (e: React.MouseEvent) => {
       // If the click is on a link, button, or accordion, don't navigate
       if ((e.target as HTMLElement).closest('a') || 
           (e.target as HTMLElement).closest('button') ||
@@ -65,12 +59,7 @@ const MemoizedNoteCard = React.memo(
       if (event?.id) {
         window.location.href = `/post/${event.id}`;
       }
-    }, [event?.id]);
-    
-    // Toggle replies visibility - simplified with useCallback
-    const toggleReplies = useCallback(() => {
-      setShowReplies(prev => !prev);
-    }, []);
+    };
     
     // Create a note object for actions
     const noteObj = {
@@ -85,19 +74,36 @@ const MemoizedNoteCard = React.memo(
       <Card className="mb-4 border shadow-sm hover:shadow transition-shadow cursor-pointer overflow-hidden" 
             onClick={handleCardClick}>
         
-        {/* Indicators (Repost, Reaction, Reply) - simplified rendering */}
+        {/* Indicators (Repost, Reaction, Reply) */}
         {(repostData || reactionData || isReply) && (
-          <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
-            {repostData && <RepeatIcon className="h-4 w-4" />}
-            {reactionData && <Heart className="h-4 w-4 text-red-500" />}
-            {isReply && <ArrowUpRight className="h-4 w-4" />}
+          <>
+            {/* Repost header */}
+            {repostData && (
+              <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+                <RepeatIcon className="h-4 w-4" />
+                <span className="truncate">
+                  {repostData.reposterProfile?.name || repostData.reposterPubkey.slice(0, 8)}
+                  {" reposted"}
+                </span>
+              </div>
+            )}
             
-            <span className="truncate">
-              {repostData && (repostData.reposterProfile?.name || repostData.reposterPubkey.slice(0, 8) + " reposted")}
-              {reactionData && "Liked"}
-              {isReply && "Reply"}
-            </span>
-          </div>
+            {/* Reaction header */}
+            {reactionData && (
+              <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+                <Heart className="h-4 w-4 text-red-500" />
+                <span>Liked</span>
+              </div>
+            )}
+            
+            {/* Reply indicator */}
+            {isReply && (
+              <div className="px-4 pt-3 pb-0 flex items-center gap-2 text-sm text-muted-foreground">
+                <ArrowUpRight className="h-4 w-4" />
+                <span>Reply</span>
+              </div>
+            )}
+          </>
         )}
         
         {/* Main Card Content */}
@@ -123,8 +129,8 @@ const MemoizedNoteCard = React.memo(
             <div className="mt-3">
               <NoteCardActions
                 note={noteObj}
+                setActiveReply={() => setShowReplies(!showReplies)}
                 replyCount={replyCount}
-                onReplyToggle={toggleReplies}
               />
             </div>
           )}
@@ -142,14 +148,13 @@ const MemoizedNoteCard = React.memo(
                     pubkey={event.pubkey} 
                     replyUpdated={replyUpdated} 
                     onReplyAdded={handleReplyAdded}
-                    onReplyCountUpdate={handleReplyCountUpdate}
                   />
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
           )}
           
-          {/* Quick Reply Section - simplified with conditional rendering */}
+          {/* Quick Reply Section */}
           {showReplies && event.id && (
             <div className="mt-3 pt-3 border-t border-border">
               <div className="flex flex-col gap-2">
