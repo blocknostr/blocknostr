@@ -148,7 +148,7 @@ export const useInfiniteScroll = (
     };
   }, [handleObserver, getActualThreshold, disabled]);
 
-  // This is the function we're returning, which should match the expected type
+  // This is the function we're returning, which should match FeedList's prop type
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
     loadMoreRef.current = node;
     if (node && observer.current && !disabled) {

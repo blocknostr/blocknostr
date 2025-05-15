@@ -21,75 +21,75 @@ export const useTrendingTopicsData = () => {
   ];
   
   // This would be fetched from Nostr in a real implementation
-  const allTimeTrendingTopics: Topic[] = [
-    { tag: "Bitcoin", count: 124000 },
-    { tag: "Nostr", count: 87000 },
-    { tag: "Lightning", count: 65000 },
-    { tag: "Decentralization", count: 42000 },
-    { tag: "Web5", count: 38000 },
+  const allTimeTrendingTopics = [
+    { name: "Bitcoin", posts: "124K" },
+    { name: "Nostr", posts: "87K" },
+    { name: "Lightning", posts: "65K" },
+    { name: "Decentralization", posts: "42K" },
+    { name: "Web5", posts: "38K" },
   ];
 
-  const last24HTrendingTopics: Topic[] = [
-    { tag: "Bitcoin", count: 18000 },
-    { tag: "AI", count: 15000 },
-    { tag: "Nostr", count: 12000 },
-    { tag: "OpenAI", count: 10000 },
-    { tag: "Tech", count: 8000 },
+  const last24HTrendingTopics = [
+    { name: "Bitcoin", posts: "18K" },
+    { name: "AI", posts: "15K" },
+    { name: "Nostr", posts: "12K" },
+    { name: "OpenAI", posts: "10K" },
+    { name: "Tech", posts: "8K" },
   ];
 
-  const last7DTrendingTopics: Topic[] = [
-    { tag: "Bitcoin", count: 56000 },
-    { tag: "Nostr", count: 43000 },
-    { tag: "Lightning", count: 32000 },
-    { tag: "Ethereum", count: 28000 },
-    { tag: "Privacy", count: 21000 },
+  const last7DTrendingTopics = [
+    { name: "Bitcoin", posts: "56K" },
+    { name: "Nostr", posts: "43K" },
+    { name: "Lightning", posts: "32K" },
+    { name: "Ethereum", posts: "28K" },
+    { name: "Privacy", posts: "21K" },
   ];
 
-  const mostZappedTopics: Record<TimeRange, Topic[]> = {
+  const mostZappedTopics = {
     all: [
-      { tag: "Bitcoin", count: 98000 },
-      { tag: "Nostr", count: 76000 },
-      { tag: "Sats", count: 54000 },
-      { tag: "Lightning", count: 41000 },
-      { tag: "BTC", count: 32000 },
+      { name: "Bitcoin", posts: "98K" },
+      { name: "Nostr", posts: "76K" },
+      { name: "Sats", posts: "54K" },
+      { name: "Lightning", posts: "41K" },
+      { name: "BTC", posts: "32K" },
     ],
     "24h": [
-      { tag: "Bitcoin", count: 14000 },
-      { tag: "Nostr", count: 11000 },
-      { tag: "Lightning", count: 8000 },
-      { tag: "Sats", count: 7000 },
-      { tag: "Decentralization", count: 5000 },
+      { name: "Bitcoin", posts: "14K" },
+      { name: "Nostr", posts: "11K" },
+      { name: "Lightning", posts: "8K" },
+      { name: "Sats", posts: "7K" },
+      { name: "Decentralization", posts: "5K" },
     ],
     "7d": [
-      { tag: "Bitcoin", count: 46000 },
-      { tag: "Nostr", count: 38000 },
-      { tag: "Sats", count: 29000 },
-      { tag: "Lightning", count: 21000 },
-      { tag: "BTC", count: 16000 },
+      { name: "Bitcoin", posts: "46K" },
+      { name: "Nostr", posts: "38K" },
+      { name: "Sats", posts: "29K" },
+      { name: "Lightning", posts: "21K" },
+      { name: "BTC", posts: "16K" },
     ]
   };
 
-  const mostLikedTopics: Record<TimeRange, Topic[]> = {
+  const mostLikedTopics = {
     all: [
-      { tag: "Nostr", count: 42000 },
-      { tag: "Bitcoin", count: 38000 },
-      { tag: "AI", count: 25000 },
-      { tag: "Web5", count: 19000 },
-      { tag: "Tech", count: 12000 },
+      { name: "Nostr", posts: "42K" },
+      { name: "Bitcoin", posts: "38K" },
+      { name: "AI", posts: "25K" },
+      { name: "Web5", posts: "19K" },
+      { name: "Tech", posts: "12K" },
     ],
     "24h": [
-      { tag: "Nostr", count: 8000 },
-      { tag: "Bitcoin", count: 7000 },
-      { tag: "AI", count: 5000 },
-      { tag: "Tech", count: 3000 },
-      { tag: "Privacy", count: 2000 },
+      { name: "Nostr", posts: "8K" },
+      { name: "Bitcoin", posts: "7K" },
+      { name: "AI", posts: "5K" },
+      { name: "Tech", posts: "3K" },
+      { name: "Privacy", posts: "2K" },
     ],
     "7d": [
-      { tag: "Nostr", count: 24000 },
-      { tag: "Bitcoin", count: 21000 },
-      { tag: "AI", count: 16000 },
-      { tag: "Web5", count: 12000 },
-      { tag: "Tech", count: 9000 },
+      { name: "Nostr", posts: "24K" },
+      { name: "Bitcoin", posts: "21K" },
+      { name: "AI", posts: "16K" },
+      { name: "Web5", posts: "12K" },
+      { name: "Tech", posts: "9K" },
     ]
   };
   

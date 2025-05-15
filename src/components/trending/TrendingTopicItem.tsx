@@ -2,19 +2,21 @@
 import React from "react";
 
 interface TrendingTopicItemProps {
-  tag: string;
-  count: number;
+  name: string;
+  posts: string;
   onClick: () => void;
 }
 
-const TrendingTopicItem: React.FC<TrendingTopicItemProps> = ({ tag, count, onClick }) => {
+const TrendingTopicItem: React.FC<TrendingTopicItemProps> = ({ name, posts, onClick }) => {
   return (
     <div 
-      className="bg-muted/50 hover:bg-muted px-2 py-1.5 rounded-md cursor-pointer text-sm"
+      className="hover:bg-accent/50 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
       onClick={onClick}
     >
-      <div className="font-medium text-foreground/90">#{tag}</div>
-      <div className="text-xs text-muted-foreground">{count.toLocaleString()} posts</div>
+      <div className="flex items-center justify-between">
+        <div className="font-medium text-xs truncate">#{name}</div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap">{posts}</div>
+      </div>
     </div>
   );
 };

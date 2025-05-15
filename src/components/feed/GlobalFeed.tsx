@@ -19,26 +19,24 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     loading,
     hasMore,
     loadMoreEvents,
-    loadingMore,
-    earlyEventsLoaded,
-    cacheHit
+    loadingMore
   } = useGlobalFeed({ activeHashtag });
   
   const [extendedLoading, setExtendedLoading] = useState(true);
   const [showRetry, setShowRetry] = useState(false);
   
-  // Reset extended loading state when activeHashtag changes with shorter timeout
+  // Reset extended loading state when activeHashtag changes
   useEffect(() => {
     setExtendedLoading(true);
     setShowRetry(false);
     
-    // Set a shorter timeout for showing retry button (3.5s instead of 7s)
+    // Set a longer timeout for showing retry button
     const timeout = setTimeout(() => {
       setExtendedLoading(false);
       if (events.length === 0 && !loading) {
         setShowRetry(true);
       }
-    }, 3500); // Reduced from 7s to 3.5s for faster feedback
+    }, 7000); // 7 seconds timeout before showing retry
     
     return () => clearTimeout(timeout);
   }, [activeHashtag, loading]);
@@ -52,15 +50,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     }
   }, [events, loading, extendedLoading]);
   
-  // Clear extended loading when we have some events to show (eager rendering)
-  useEffect(() => {
-    if (events.length > 0 && extendedLoading) {
-      // Show content as soon as we have some events
-      setExtendedLoading(false);
-    }
-  }, [events.length, extendedLoading]);
-  
-  const handleRetry = useCallback(() => {
+  const handleRetry = () => {
     setExtendedLoading(true);
     setShowRetry(false);
     
@@ -68,43 +58,14 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     const event = new CustomEvent('refetch-global-feed');
     window.dispatchEvent(event);
     
-    // Set timeout to show retry again if still no events after 3.5 seconds
+    // Set timeout to show retry again if still no events after 7 seconds
     setTimeout(() => {
       setExtendedLoading(false);
-    }, 3500);
-  }, []);
+    }, 7000);
+  };
 
-  // Show partial content immediately when available, but still loading more
-  if (events.length > 0) {
-    return (
-      <>
-        {/* Show partial feed with loading indicator at top if still in extended loading */}
-        {extendedLoading && (
-          <div className="mb-4">
-            <div className="flex justify-center items-center py-2 text-sm text-muted-foreground">
-              <RefreshCw className="h-3.5 w-3.5 mr-2 animate-spin" />
-              Loading more posts...
-            </div>
-          </div>
-        )}
-        
-        {/* Use FeedList which passes props to OptimizedFeedList */}
-        <FeedList 
-          events={events}
-          profiles={profiles}
-          repostData={repostData}
-          loadMoreRef={loadMoreRef}
-          loading={loading}
-          onLoadMore={loadMoreEvents}
-          hasMore={hasMore}
-          loadMoreLoading={loadingMore}
-        />
-      </>
-    );
-  }
-  
   // Show loading state when no events and loading or in extended loading period
-  if (loading || extendedLoading) {
+  if ((loading || extendedLoading) && events.length === 0) {
     return <FeedLoading activeHashtag={activeHashtag} />;
   }
   
@@ -146,8 +107,19 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({ activeHashtag }) => {
     );
   }
 
-  // This is a fallback, but should not be reached
-  return null;
+  // Show events list
+  return (
+    <FeedList 
+      events={events}
+      profiles={profiles}
+      repostData={repostData}
+      loadMoreRef={loadMoreRef}
+      loading={loading}
+      onLoadMore={loadMoreEvents}
+      hasMore={hasMore}
+      loadMoreLoading={loadingMore}
+    />
+  );
 };
 
 export default GlobalFeed;
