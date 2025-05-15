@@ -1,4 +1,3 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 
@@ -131,7 +130,7 @@ export class SubscriptionManager {
     return this.subscriptions.size;
   }
   
-  // New method to update relay list for an existing subscription
+  // Update the updateRelays method to match the same pattern as the subscribe method
   updateRelays(subId: string, newRelays: string[]): boolean {
     const subscription = this.subscriptions.get(subId);
     if (!subscription) return false;

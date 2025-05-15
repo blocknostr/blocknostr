@@ -1,4 +1,3 @@
-
 import { relayPerformanceTracker } from '../performance/relay-performance-tracker';
 import { circuitBreaker, CircuitState } from '../circuit/circuit-breaker';
 
@@ -116,8 +115,10 @@ export class RelaySelector {
       }
       
       // Penalty for recent failures
-      if (perfData?.failureCount) {
-        score -= Math.min(perfData.failureCount * 5, 40); // Up to 40% penalty
+      if (perfData?.metrics) {
+        // Count failures in the metrics
+        const failedMetrics = perfData.metrics.filter(m => !m.success).length;
+        score -= Math.min(failedMetrics * 5, 40); // Up to 40% penalty
       }
       
       // Circuit breaker state impacts score
