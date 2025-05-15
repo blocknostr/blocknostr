@@ -56,26 +56,27 @@ const NoteCardContent: React.FC<NoteCardContentProps> = ({
     window.dispatchEvent(new CustomEvent('hashtag-clicked', { detail: tag }));
   };
   
-  // Extract media using NIP-94 extraction function
+  // Extract media using NIP-94 extraction function with improved logic
   const mediaItems = useMemo(() => {
     if (!event) return [];
     
-    // First try NIP-94 compliant extraction
-    if (event.tags && Array.isArray(event.tags)) {
-      const nip94Media = extractNip94Media(event);
-      if (nip94Media.length > 0) {
-        return nip94Media;
-      }
+    // First try to extract media using NIP-94 compliant extraction
+    // This is the preferred and most standards-compliant method
+    const nip94Media = extractNip94Media(event);
+    if (nip94Media.length > 0) {
+      return nip94Media;
     }
     
     // Fallback to standard media extraction
     const items = getMediaItemsFromEvent(event);
     
-    // Filter out duplicates
+    // Filter out duplicates using a Set of normalized URLs
     const uniqueUrls = new Set();
     return items.filter(item => {
-      if (!uniqueUrls.has(item.url)) {
-        uniqueUrls.add(item.url);
+      // Normalize URL by removing query parameters for comparison
+      const normalizedUrl = item.url.split('?')[0];
+      if (!uniqueUrls.has(normalizedUrl)) {
+        uniqueUrls.add(normalizedUrl);
         return true;
       }
       return false;
