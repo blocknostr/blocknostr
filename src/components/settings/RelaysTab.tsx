@@ -4,13 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { nostrService, Relay } from "@/lib/nostr";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Check, AlertCircle, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const RelaysTab = () => {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
   
   // Load relays on component mount and set up refresh interval
   useEffect(() => {
@@ -30,46 +32,75 @@ const RelaysTab = () => {
     if (!newRelayUrl.trim()) return;
     
     if (!newRelayUrl.startsWith("wss://")) {
-      toast.error("Relay URL must start with wss://");
+      toast.error("Invalid relay URL", {
+        description: "Relay URL must start with wss://"
+      });
       return;
     }
     
-    toast.loading("Connecting to relay...");
-    const success = await nostrService.addRelay(newRelayUrl);
+    setIsConnecting(true);
     
-    if (success) {
-      toast.success(`Connected to ${newRelayUrl}`);
-      setNewRelayUrl("");
-      setRelays(nostrService.getRelayStatus());
-    } else {
-      toast.error(`Failed to connect to ${newRelayUrl}`);
+    try {
+      const success = await nostrService.addRelay(newRelayUrl);
+      
+      if (success) {
+        toast.success("Relay connected", {
+          description: `Successfully connected to ${newRelayUrl}`
+        });
+        setNewRelayUrl("");
+        setRelays(nostrService.getRelayStatus());
+      } else {
+        toast.error("Connection failed", {
+          description: `Could not connect to ${newRelayUrl}`
+        });
+      }
+    } catch (error) {
+      toast.error("Error connecting", {
+        description: "An unexpected error occurred"
+      });
+    } finally {
+      setIsConnecting(false);
     }
   };
   
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
     setRelays(nostrService.getRelayStatus());
-    toast.success(`Removed relay: ${relayUrl}`);
+    toast.success("Relay removed", {
+      description: `Removed relay: ${relayUrl}`
+    });
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return <Check className="h-4 w-4 text-green-500" />;
+      case 'connecting':
+        return <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+    }
   };
   
   return (
-    <Card>
+    <Card className="border shadow-sm transition-all duration-200 hover:shadow-md">
       <CardHeader>
-        <CardTitle>Relay Settings</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-xl font-semibold">Relay Settings</CardTitle>
+        <CardDescription className="text-muted-foreground">
           Manage the Nostr relays you connect to
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="newRelay">Add New Relay</Label>
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="newRelay" className="font-medium">Add New Relay</Label>
             <div className="flex items-center mt-1.5 gap-2">
               <Input 
                 id="newRelay" 
                 placeholder="wss://relay.example.com"
                 value={newRelayUrl}
                 onChange={(e) => setNewRelayUrl(e.target.value)}
+                className="focus:ring-1 focus:ring-primary/20"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newRelayUrl.trim()) {
                     handleAddRelay();
@@ -79,42 +110,49 @@ const RelaysTab = () => {
               <Button 
                 onClick={handleAddRelay}
                 size="icon"
+                disabled={isConnecting}
+                className="transition-all duration-200"
               >
-                <Plus className="h-4 w-4" />
+                {isConnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
           
-          <div>
-            <h3 className="text-sm font-medium mb-2">Connected Relays</h3>
-            <div className="space-y-2">
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium">Connected Relays</h3>
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
               {relays.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No relays connected yet. Add a relay above.
-                </p>
+                <div className="text-sm text-muted-foreground flex items-center justify-center p-6 border border-dashed rounded-md">
+                  <p>No relays connected yet. Add a relay above.</p>
+                </div>
               ) : (
                 relays.map((relay) => (
                   <div 
                     key={relay.url} 
-                    className="flex items-center justify-between border p-2 rounded-md"
+                    className={cn(
+                      "flex items-center justify-between border p-3 rounded-md transition-all",
+                      relay.status === 'connected' ? "bg-green-500/5 border-green-500/20" : 
+                      relay.status === 'connecting' ? "bg-yellow-500/5 border-yellow-500/20" : 
+                      "bg-red-500/5 border-red-500/20",
+                      "hover:shadow-sm animate-fade-in"
+                    )}
                   >
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className={`w-2 h-2 rounded-full ${
-                          relay.status === 'connected' ? 'bg-green-500' : 
-                          relay.status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                      ></div>
-                      <span className="text-sm">{relay.url}</span>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      {getStatusIcon(relay.status)}
+                      <span className="text-sm truncate">{relay.url}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-7 w-7 p-0"
+                        className="h-7 w-7 p-0 hover:bg-red-500/10 hover:text-red-500"
                         onClick={() => handleRemoveRelay(relay.url)}
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
