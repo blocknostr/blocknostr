@@ -38,10 +38,16 @@ const WalletsPage = () => {
   }, [connected, wallet.account]);
 
   const handleDisconnect = () => {
-    // Using signer.disconnect() instead of wallet.disconnect()
-    if (wallet.signer) {
-      wallet.signer.disconnect();
-      toast.info("Wallet disconnected");
+    // The SignerProvider doesn't have a direct disconnect method
+    // We need to properly terminate the connection
+    if (wallet && wallet.signer) {
+      try {
+        // Use the disconnect() method properly
+        wallet.signer.disconnect?.() || wallet.signer.requestDisconnection?.();
+        toast.info("Wallet disconnected");
+      } catch (error) {
+        console.error("Failed to disconnect wallet:", error);
+      }
     }
   };
 
