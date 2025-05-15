@@ -42,7 +42,7 @@ function App() {
               </Route>
             </Routes>
           </main>
-          <Toaster />
+          <Toaster position="bottom-right" />
         </div>
       </BrowserRouter>
     </AlephiumWalletProvider>
