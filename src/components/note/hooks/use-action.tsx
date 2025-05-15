@@ -17,7 +17,7 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleLike = async () => {
     setIsLiking(true);
     try {
-      // Use socialManager which has the right methods
+      // Use socialManager with the updated method signature
       const result = await nostrService.socialManager.reactToEvent(eventId, "+");
       if (result) {
         toast.success("Post liked!");
@@ -35,7 +35,7 @@ export function useAction({ eventId, authorPubkey, event }: UseActionProps) {
   const handleRepost = async () => {
     setIsReposting(true);
     try {
-      // Use socialManager which has the right methods
+      // Use socialManager with the updated method signature
       const result = await nostrService.socialManager.repostEvent({
         id: eventId,
         pubkey: authorPubkey,
@@ -77,7 +77,7 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
       
       switch (actionType) {
         case "like":
-          // Use socialManager which has the right methods
+          // Use socialManager with the updated method signature
           const likeResult = await nostrService.socialManager.reactToEvent(event.id);
           result = likeResult !== null;
           if (result) {
@@ -87,7 +87,7 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
           break;
           
         case "repost":
-          // Use socialManager which has the right methods
+          // Use socialManager with the updated method signature
           const repostResult = await nostrService.socialManager.repostEvent(event);
           result = repostResult !== null;
           if (result) {
