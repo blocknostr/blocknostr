@@ -11,7 +11,7 @@ import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import SendTransactionModal from "@/components/wallet/SendTransactionModal";
-import WalletSummary from "@/components/wallet/WalletSummary";
+import { WalletSummary } from "@/components/wallet/WalletSummary";
 
 // Define an extended signer interface for type safety
 interface ExtendedSigner {
