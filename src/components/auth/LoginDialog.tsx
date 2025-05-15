@@ -1,205 +1,167 @@
 
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { nostrService } from "@/lib/nostr";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogIn, AlertCircle, Download, Key, KeyRound, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-
-// Import our components
-import DialogHeader from "./login/DialogHeader";
-import DialogFooter from "./login/DialogFooter";
-import ExtensionTab from "./login/ExtensionTab";
-import ManualTab from "./login/ManualTab";
-import ConnectionStatus from "./login/ConnectionStatus";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
 
 interface LoginDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
-  const [hasExtension, setHasExtension] = useState<boolean>(false);
+const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
+  const [activeTab, setActiveTab] = useState<string>("extension");
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
-  const [connectStatus, setConnectStatus] = useState<'idle' | 'connecting' | 'success' | 'error'>('idle');
-  const [animateIn, setAnimateIn] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"extension" | "manual">("extension");
-
-  // Check for Nostr extension
+  const [hasExtension, setHasExtension] = useState<boolean>(false);
+  
+  const { login, isLoggedIn } = useNostrAuth();
+  
+  // Check if extension is available
   useEffect(() => {
     const checkExtension = () => {
       setHasExtension(!!window.nostr);
     };
-
+    
     checkExtension();
     
-    // Check periodically in case extension loads after page
+    // Check periodically if an extension gets installed
     const interval = setInterval(checkExtension, 1000);
+    
     return () => clearInterval(interval);
   }, []);
-
-  // Add animation when dialog opens
+  
+  // Close dialog if user is already logged in
   useEffect(() => {
-    if (open) {
-      // Slight delay for animation to trigger after dialog opens
-      const timer = setTimeout(() => {
-        setAnimateIn(true);
-      }, 50);
-      return () => clearTimeout(timer);
-    } else {
-      setAnimateIn(false);
-      // Reset states when dialog closes
-      setActiveTab("extension");
-      setConnectStatus('idle');
+    if (isLoggedIn && open) {
+      onOpenChange(false);
     }
-  }, [open]);
-
-  const handleConnect = async () => {
+  }, [isLoggedIn, open, onOpenChange]);
+  
+  const handleLoginWithExtension = async () => {
     if (!hasExtension) {
+      toast.error("No Nostr extension found", {
+        description: "Please install an extension like Alby or nos2x"
+      });
       return;
     }
-
+    
     setIsLoggingIn(true);
-    setConnectStatus('connecting');
     
     try {
-      const success = await nostrService.login();
+      const success = await login();
       
       if (success) {
-        setConnectStatus('success');
-        toast.success("Connected successfully", {
-          description: "Welcome to BlockNoster"
-        });
-        
-        // Short delay to show success state before closing
-        setTimeout(() => {
-          onOpenChange(false);
-          
-          // Reload the page to refresh content with logged in state
-          setTimeout(() => {
-            window.location.reload();
-          }, 300);
-        }, 700);
+        toast.success("Successfully logged in");
+        onOpenChange(false);
       } else {
-        setConnectStatus('error');
-        toast.error("Connection failed", {
-          description: "Please try again or check your extension"
+        toast.error("Login failed", {
+          description: "Could not connect with your extension"
         });
       }
     } catch (error) {
       console.error("Login error:", error);
-      setConnectStatus('error');
-      toast.error("Connection error", {
-        description: "Please check your extension settings"
+      toast.error("Login error", {
+        description: "An unexpected error occurred"
       });
     } finally {
-      if (connectStatus !== 'success') {
-        setIsLoggingIn(false);
-      }
+      setIsLoggingIn(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(
-        "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-4",
-        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh]",
-        "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70"
-      )}>
-        <div className={cn(
-          "absolute inset-0 -z-10 rounded-lg opacity-80",
-          "bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))]",
-          "from-background/20 via-background/60 to-background/90",
-          "transition-opacity duration-300 ease-in-out",
-          animateIn ? "opacity-80" : "opacity-0"
-        )}/>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Connect to Nostr
+          </DialogTitle>
+        </DialogHeader>
         
-        {/* Dialog Header */}
-        <DialogHeader animateIn={animateIn} />
-
-        <div className={cn(
-          "mt-2 transition-all duration-500 ease-out", 
-          animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
-        )}>
-          {/* Success Connection Status */}
-          <ConnectionStatus connectStatus={connectStatus} />
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-1 w-full mb-4">
+            <TabsTrigger value="extension">Browser Extension</TabsTrigger>
+          </TabsList>
           
-          {/* Tabs */}
-          {connectStatus !== 'success' && (
-            <Tabs 
-              defaultValue="extension" 
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as "extension" | "manual")}
-              className="w-full"
+          <TabsContent value="extension" className="space-y-4">
+            {hasExtension ? (
+              <div className="space-y-4">
+                <div className="text-center py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Connect with your Nostr browser extension
+                  </p>
+                </div>
+                
+                <Button
+                  onClick={handleLoginWithExtension}
+                  className="w-full"
+                  disabled={isLoggingIn}
+                >
+                  {isLoggingIn ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <LogIn className="h-4 w-4 mr-2" />
+                  )}
+                  Connect Extension
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Alert variant="warning">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No extension detected</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    You need to install a Nostr browser extension to continue.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="flex flex-col gap-3">
+                  <Button asChild>
+                    <a
+                      href="https://getalby.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 w-full"
+                    >
+                      <Download className="h-4 w-4" />
+                      Get Alby Extension
+                    </a>
+                  </Button>
+                  
+                  <Button asChild variant="outline">
+                    <a
+                      href="https://github.com/aljazceru/nostr-desktop"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 w-full"
+                    >
+                      <Download className="h-4 w-4" />
+                      Get Nostr Browser Extension
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+        
+        <DialogFooter>
+          <div className="text-xs text-muted-foreground text-center w-full">
+            Your keys never leave your device. Learn more about{" "}
+            <a
+              href="https://nostr.com/how-to-create-a-nostr-account"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-primary transition-colors"
             >
-              <TabsList className="grid grid-cols-2 mb-3 w-full">
-                <TabsTrigger 
-                  value="extension" 
-                  className={cn(
-                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
-                    "transition-all"
-                  )}
-                >
-                  Extension
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="manual" 
-                  className={cn(
-                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
-                    "transition-all"
-                  )}
-                >
-                  Manual
-                </TabsTrigger>
-              </TabsList>
-              
-              {/* Extension Tab */}
-              <TabsContent 
-                value="extension" 
-                className={cn(
-                  "transition-all duration-300",
-                  activeTab === "extension" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-                )}
-              >
-                <ExtensionTab 
-                  hasExtension={hasExtension} 
-                  connectStatus={connectStatus} 
-                  onConnect={handleConnect}
-                  isLoggingIn={isLoggingIn}
-                />
-              </TabsContent>
-              
-              {/* Manual Tab */}
-              <TabsContent 
-                value="manual" 
-                className={cn(
-                  "transition-all duration-300",
-                  activeTab === "manual" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-                )}
-              >
-                <ManualTab />
-              </TabsContent>
-            </Tabs>
-          )}
-          
-          <div className="pt-2 border-t border-border/20 mt-3">
-            <p className="text-xs text-muted-foreground text-center">
-              New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                Learn more
-              </a>
-            </p>
+              Nostr security
+            </a>
           </div>
-        </div>
-
-        {/* Dialog Footer */}
-        <DialogFooter 
-          onConnect={handleConnect}
-          activeTab={activeTab}
-          isLoggingIn={isLoggingIn}
-          hasExtension={hasExtension}
-          connectStatus={connectStatus}
-          animateIn={animateIn}
-        />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

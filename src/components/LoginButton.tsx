@@ -1,7 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from 'react';
-import { nostrService } from "@/lib/nostr";
+import { useEffect, useState } from 'react';
 import { LogOut, User, AlertCircle, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { 
@@ -12,30 +11,26 @@ import {
 } from "@/components/ui/tooltip";
 import LoginDialog from "./auth/LoginDialog";
 import { cn } from "@/lib/utils";
+import { useNostrAuth } from "@/hooks/useNostrAuth";
 
 const LoginButton = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const { isLoggedIn, currentUserPubkey, logout } = useNostrAuth();
   const [npub, setNpub] = useState<string>("");
   const [hasExtension, setHasExtension] = useState<boolean>(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
   
   useEffect(() => {
-    // Check if user is already logged in
-    const checkLogin = () => {
-      const pubkey = nostrService.publicKey;
-      if (pubkey) {
-        setIsLoggedIn(true);
-        setNpub(nostrService.formatPubkey(pubkey));
-      } else {
-        setIsLoggedIn(false);
-        setNpub("");
-      }
-      
-      // Check for NIP-07 extension
-      setHasExtension(!!window.nostr);
-    };
+    // Update npub when current user changes
+    if (currentUserPubkey) {
+      import('@/lib/nostr/utils/keys').then(({ formatPubkey }) => {
+        setNpub(formatPubkey(currentUserPubkey));
+      });
+    } else {
+      setNpub("");
+    }
     
-    checkLogin();
+    // Check for NIP-07 extension
+    setHasExtension(!!window.nostr);
     
     // Re-check for extension periodically (it might be installed after page load)
     const intervalId = setInterval(() => {
@@ -43,7 +38,7 @@ const LoginButton = () => {
     }, 5000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [currentUserPubkey]);
   
   const handleLogin = async () => {
     // Open login dialog instead of direct login
@@ -51,9 +46,7 @@ const LoginButton = () => {
   };
   
   const handleLogout = async () => {
-    await nostrService.signOut();
-    setIsLoggedIn(false);
-    setNpub("");
+    await logout();
     toast.success("Signed out successfully");
     
     // Reload the page to reset all states

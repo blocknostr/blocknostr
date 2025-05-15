@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "../community/CommunityCard";
@@ -9,36 +8,34 @@ import { formatSerialNumber } from "@/lib/community-utils";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { PlusCircle } from "lucide-react";
+import { useNostrAuth } from "@/hooks/useNostrAuth"; 
+import { useNostrRelays } from "@/hooks/useNostrRelays";
 
 const DAOList = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [connectedToRelays, setConnectedToRelays] = useState(false);
-
-  const currentUserPubkey = nostrService.publicKey;
+  
+  // Use our new hooks for authentication and relay management
+  const { isLoggedIn, currentUserPubkey } = useNostrAuth();
+  const { isConnected, connectToRelays } = useNostrRelays();
   
   useEffect(() => {
     const loadCommunities = async () => {
       try {
-        // Connect to relays and verify connection status
-        const connectedRelays = await nostrService.connectToUserRelays();
+        // Use our improved relay connection function
+        const connected = await connectToRelays({
+          showToast: true,
+          fallbackRelays: [
+            "wss://relay.damus.io",
+            "wss://nos.lol",
+            "wss://relay.nostr.band",
+            "wss://relay.snort.social"
+          ]
+        });
         
-        // Fix the "undefined length" error by providing a default empty array
-        const connectedRelaysArray = connectedRelays || [];
-        
-        if (connectedRelaysArray.length === 0) {
-          console.warn("No relays connected, trying default relays");
-          await nostrService.connectToDefaultRelays();
-        }
-        
-        const finalRelayUrls = nostrService.getRelayUrls() || []; // Ensure we have an array
-        console.log("Connected to relays:", finalRelayUrls);
-        
-        setConnectedToRelays(finalRelayUrls.length > 0);
-        
-        if (finalRelayUrls.length === 0) {
+        if (!connected) {
           toast.error("Failed to connect to any relays", {
             description: "Please try refreshing the page or check your network connection"
           });
@@ -70,7 +67,7 @@ const DAOList = () => {
     };
     
     loadCommunities();
-  }, []);
+  }, [connectToRelays]);
   
   const handleCommunityEvent = (event: NostrEvent) => {
     try {
@@ -167,21 +164,20 @@ const DAOList = () => {
   );
   
   const handleCreateCommunityClick = async () => {
-    // Verify login status
-    if (!currentUserPubkey) {
+    // Verify login status with our auth hook
+    if (!isLoggedIn) {
       toast.error("You must be logged in to create a DAO", {
         description: "Please login first using the button in the header"
       });
       return;
     }
     
-    // Verify relay connections with null/undefined check
-    if (!connectedToRelays) {
+    // Verify relay connections with our relay hook
+    if (!isConnected) {
       try {
-        const connectedRelays = await nostrService.connectToUserRelays() || [];
-        setConnectedToRelays(connectedRelays.length > 0);
+        const connected = await connectToRelays();
         
-        if (connectedRelays.length === 0) {
+        if (!connected) {
           toast.error("Cannot connect to relays", {
             description: "Please check your network connection and try again"
           });

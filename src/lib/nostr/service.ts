@@ -109,7 +109,7 @@ export class NostrService {
       await this.connectToUserRelays();
       await this.fetchFollowingList();
       
-      // Emit logged in event (can be useful for UI components)
+      // Emit logged in event with the public key
       eventBus.emit(EVENTS.USER_LOGGED_IN, this.userManager.publicKey);
     } else {
       console.error("Login failed");
@@ -128,6 +128,9 @@ export class NostrService {
       null,
       null
     );
+    
+    // Emit logout event
+    eventBus.emit(EVENTS.USER_LOGGED_OUT);
   }
 
   // Relay management
@@ -137,13 +140,44 @@ export class NostrService {
   }
   
   public async connectToUserRelays(): Promise<string[]> {
-    await this.relayManager.connectToUserRelays();
-    return this.getRelayUrls();
+    try {
+      await this.relayManager.connectToUserRelays();
+      const connectedRelays = this.getRelayUrls();
+      
+      // Emit event if we successfully connected to relays
+      if (connectedRelays && connectedRelays.length > 0) {
+        eventBus.emit(EVENTS.RELAYS_CONNECTED, connectedRelays);
+      }
+      
+      return connectedRelays;
+    } catch (error) {
+      console.error("Error connecting to user relays:", error);
+      return [];
+    }
   }
 
   // Added for compatibility with code expecting connectToDefaultRelays
   public async connectToDefaultRelays(): Promise<string[]> {
-    return this.connectToUserRelays();
+    try {
+      // Try to connect to some common Nostr relays
+      const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"];
+      
+      for (const relay of defaultRelays) {
+        await this.addRelay(relay).catch(err => console.warn(`Failed to connect to ${relay}:`, err));
+      }
+      
+      const connectedRelays = this.getRelayUrls();
+      
+      // Emit event if we successfully connected to relays
+      if (connectedRelays && connectedRelays.length > 0) {
+        eventBus.emit(EVENTS.RELAYS_CONNECTED, connectedRelays);
+      }
+      
+      return connectedRelays;
+    } catch (error) {
+      console.error("Error connecting to default relays:", error);
+      return [];
+    }
   }
   
   // Helper to get relay URLs
@@ -835,6 +869,27 @@ export class NostrService {
       console.error("Error getting blocked users:", error);
       return [];
     }
+  }
+  
+  // New helper method to check if user is logged in and connected to relays
+  public isReadyForInteractions(): { ready: boolean; issues: string[] } {
+    const issues: string[] = [];
+    
+    // Check if user is logged in
+    if (!this.publicKey) {
+      issues.push("User is not logged in");
+    }
+    
+    // Check if connected to at least one relay
+    const connectedRelays = this.getRelayUrls();
+    if (!connectedRelays || connectedRelays.length === 0) {
+      issues.push("Not connected to any relays");
+    }
+    
+    return {
+      ready: issues.length === 0,
+      issues
+    };
   }
 }
 
