@@ -1,5 +1,5 @@
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -27,24 +27,50 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
+  const [loadingTriggered, setLoadingTriggered] = useState(false);
+  const throttleTimerRef = useRef<number | null>(null);
   
-  // Use the useInView hook with increased rootMargin for earlier detection
+  // Use the useInView hook with a more reasonable rootMargin
   const { ref: loadMoreRef, inView } = useInView({
-    rootMargin: '0px 0px 2000px 0px', // Increased from 1500px to 2000px for earlier detection
+    rootMargin: '0px 0px 600px 0px', // Reduced from 2000px to 600px for more controlled loading
     threshold: 0.1,
   });
   
-  // Use callback for loadMore logic to prevent unnecessary rerenders
+  // Use callback with throttling for loadMore logic
   const handleLoadMoreVisible = useCallback(() => {
-    if (inView && hasMore && !loadMoreLoading && onLoadMore) {
-      console.log("Trigger load more from InView", new Date().toISOString());
-      onLoadMore();
+    if (inView && hasMore && !loadMoreLoading && onLoadMore && !loadingTriggered) {
+      // Set loading state to prevent multiple rapid triggers
+      setLoadingTriggered(true);
+      
+      // Clear any existing timer
+      if (throttleTimerRef.current) {
+        window.clearTimeout(throttleTimerRef.current);
+      }
+      
+      // Throttle the load more calls with a slight delay
+      throttleTimerRef.current = window.setTimeout(() => {
+        console.log("Trigger load more from InView (throttled)", new Date().toISOString());
+        onLoadMore();
+        
+        // Reset the loading trigger after a reasonable cooldown period
+        throttleTimerRef.current = window.setTimeout(() => {
+          setLoadingTriggered(false);
+          throttleTimerRef.current = null;
+        }, 2000); // 2 second cooldown before allowing another trigger
+      }, 200); // Small delay before triggering load
     }
-  }, [inView, hasMore, loadMoreLoading, onLoadMore]);
+  }, [inView, hasMore, loadMoreLoading, onLoadMore, loadingTriggered]);
   
   // Effect to trigger load more when inView changes
-  React.useEffect(() => {
+  useEffect(() => {
     handleLoadMoreVisible();
+    
+    // Cleanup function to clear any timers when component unmounts
+    return () => {
+      if (throttleTimerRef.current) {
+        window.clearTimeout(throttleTimerRef.current);
+      }
+    };
   }, [inView, handleLoadMoreVisible]);
   
   return (

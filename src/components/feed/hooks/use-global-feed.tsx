@@ -6,7 +6,6 @@ import { useFeedEvents } from "./use-feed-events";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
 import { toast } from "sonner";
-import { retry } from "@/lib/utils/retry";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
@@ -45,7 +44,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     since,
     until,
     hashtags,
-    limit: 30 // Increased from 20 to 30 for initial experience as requested
+    limit: 20 // Reduced from 30 to 20 for better pacing
   });
   
   // Function to retry loading posts if none are found initially
@@ -114,8 +113,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         // Use the oldest event's timestamp for the new 'until' value
         const newUntil = oldestEvent.created_at - 1;
         
-        // Get older posts from 7 days (increased from 72 hours)
-        const newSince = newUntil - 7 * 24 * 60 * 60;
+        // Get older posts from 3 days (reduced from 7 days for better pacing)
+        const newSince = newUntil - 3 * 24 * 60 * 60;
         
         console.log(`[GlobalFeed] Loading older posts from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
         
@@ -134,7 +133,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       } else {
         // If no events yet, get a broader time range
         const newUntil = until;
-        const newSince = newUntil - 7 * 24 * 60 * 60; // Increased from 72 hours to 7 days
+        const newSince = newUntil - 3 * 24 * 60 * 60; // Reduced from 7 days to 3 days
         
         console.log(`[GlobalFeed] No events yet, loading with broader range from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
         
@@ -165,11 +164,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         setNoNewEvents(true);
       }
       
-      // Cooldown to prevent rapid repeated triggering
+      // Cooldown to prevent rapid repeated triggering - increased to prevent aggressive loading
       setTimeout(() => {
         cooldownRef.current = false;
-      }, 2000);
-    }, 5000); // Increased from 2000ms to 5000ms for better reliability
+      }, 5000); // Increased from 2000ms to 5000ms for more controlled pacing
+    }, 5000); // Kept at 5000ms for reliability
   }, [subId, events, until, setupSubscription, loadingMore, hashtags]);
   
   // Initialize useInfiniteScroll inside the component
@@ -182,8 +181,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     loadingMore: scrollLoadingMore
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
-    threshold: 800,
-    aggressiveness: 'medium',
+    threshold: 600, // Reduced from 800 to 600
+    aggressiveness: 'low', // Changed from 'medium' to 'low'
     preservePosition: true
   });
 
@@ -194,11 +193,10 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
   }, [noNewEvents, setHasMore]);
 
-  // Track new events received - Fixed to use the useState variable
+  // Track new events received
   useEffect(() => {
     const prevLength = { current: events.length };
     
-    // No need for useRef here since we're using a closure
     if (events.length > prevLength.current) {
       const newCount = events.length - prevLength.current;
       newEventCountRef.current += newCount;
@@ -221,8 +219,8 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
 
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
-      // Initial fetch goes back 7 days instead of 48 hours for better coverage
-      const initialSince = currentTime - 7 * 24 * 60 * 60;
+      // Initial fetch goes back 5 days instead of 7 days for better coverage
+      const initialSince = currentTime - 5 * 24 * 60 * 60;
       setSince(initialSince);
       setUntil(currentTime);
 
