@@ -22,8 +22,12 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
     if (pubkey && currentUserPubkey) {
       // Fixed: Instead of directly using isFollowing, get the current boolean value
       const checkFollowing = async () => {
-        const following = nostrService.isFollowing(pubkey);
-        setIsFollowing(following);
+        try {
+          const following = await nostrService.isFollowing(pubkey);
+          setIsFollowing(following);
+        } catch (error) {
+          console.error("Error checking following status:", error);
+        }
       };
       
       checkFollowing();
