@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
+import { getReactionCounts } from '@/lib/nostr/social/interactions';
 
 interface UseNoteReactionsProps {
   eventId: string;
@@ -23,83 +24,60 @@ export function useNoteReactions({ eventId, pubkey }: UseNoteReactionsProps) {
     const fetchReactionCounts = async () => {
       try {
         // Connect to relays if necessary
-        await nostrService.connectToUserRelays();
+        await nostrService.connectToUserRelays?.();
 
         // Default relays if user relays not available
         const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
         
-        // Get the SimplePool instance from the nostrService
-        const pool = nostrService.pool;
-        const relays = nostrService.getRelayUrls?.() || defaultRelays;
+        // Use the direct subscription method for consistency
+        let likes = 0;
+        let reposts = 0;
+        let userLiked = false;
+        let userReposted = false;
 
-        if (pool && nostrService.socialManager) {
-          try {
-            // Use the getReactionCounts method if available from socialManager
-            const reactions = await nostrService.socialManager.getReactionCounts(
-              pool,
-              eventId,
-              relays
-            );
-            
-            setLikeCount(reactions.likes);
-            setRepostCount(reactions.reposts);
-            setUserHasLiked(reactions.userHasLiked);
-            setUserHasReposted(reactions.userHasReposted);
-          } catch (error) {
-            console.error('Error fetching reaction counts from socialManager:', error);
-          }
-        } else {
-          console.log('Using fallback for reaction counts');
-          // Fallback to direct subscription if socialManager unavailable
-          let likes = 0;
-          let reposts = 0;
-          let userLiked = false;
-          let userReposted = false;
-
-          const currentPubkey = nostrService.publicKey;
-          
-          // Fetch like reactions (kind 7)
-          if (nostrService.subscribe) {
-            const likesSub = nostrService.subscribe(
-              [{ kinds: [7], "#e": [eventId] }],
-              (event) => {
-                if (event && event.content === '+') {
-                  likes++;
-                  if (currentPubkey && event.pubkey === currentPubkey) {
-                    userLiked = true;
-                  }
+        const currentPubkey = nostrService.publicKey;
+        
+        // Fetch like reactions (kind 7)
+        if (nostrService.subscribe) {
+          const likesSub = nostrService.subscribe(
+            [{ kinds: [7], "#e": [eventId] }],
+            (event) => {
+              if (event && event.content === '+') {
+                likes++;
+                if (currentPubkey && event.pubkey === currentPubkey) {
+                  userLiked = true;
                 }
-              },
-              defaultRelays
-            );
-
-            // Fetch reposts (kind 6)
-            const repostsSub = nostrService.subscribe(
-              [{ kinds: [6], "#e": [eventId] }],
-              (event) => {
-                if (event) {
-                  reposts++;
-                  if (currentPubkey && event.pubkey === currentPubkey) {
-                    userReposted = true;
-                  }
-                }
-              },
-              defaultRelays
-            );
-
-            // Set timeout to finalize counts after 2s
-            setTimeout(() => {
-              setLikeCount(likes);
-              setRepostCount(reposts);
-              setUserHasLiked(userLiked);
-              setUserHasReposted(userReposted);
-              
-              if (nostrService.unsubscribe) {
-                nostrService.unsubscribe(likesSub);
-                nostrService.unsubscribe(repostsSub);
               }
-            }, 2000);
-          }
+            },
+            defaultRelays
+          );
+
+          // Fetch reposts (kind 6)
+          const repostsSub = nostrService.subscribe(
+            [{ kinds: [6], "#e": [eventId] }],
+            (event) => {
+              if (event) {
+                reposts++;
+                if (currentPubkey && event.pubkey === currentPubkey) {
+                  userReposted = true;
+                }
+              }
+            },
+            defaultRelays
+          );
+
+          // Set timeout to finalize counts after 2s
+          setTimeout(() => {
+            setLikeCount(likes);
+            setRepostCount(reposts);
+            setUserHasLiked(userLiked);
+            setUserHasReposted(userReposted);
+            
+            if (nostrService.unsubscribe) {
+              nostrService.unsubscribe(likesSub);
+              nostrService.unsubscribe(repostsSub);
+            }
+          }, 2000);
         }
       } catch (error) {
         console.error('Error fetching reaction counts:', error);
@@ -124,40 +102,25 @@ export function useNoteReactions({ eventId, pubkey }: UseNoteReactionsProps) {
     setIsLiking(true);
     
     try {
-      let success = false;
-      
-      // Try using socialManager first
-      if (nostrService.socialAdapter?.socialManager) {
-        const emoji = '+'; // Standard NIP-25 positive reaction
-        const pubkey = nostrService.publicKey;
-        const privateKey = nostrService.privateKey;
-        const relayUrls = nostrService.getRelayUrls?.() || ["wss://relay.damus.io", "wss://nos.lol"];
-        
-        // Use the socialAdapter to react to the event
-        const result = await nostrService.socialAdapter.socialManager.reactToEvent(
-          nostrService.pool,
-          eventId,
-          emoji,
-          pubkey,
-          privateKey,
-          relayUrls
-        );
-        
-        success = !!result;
-      } 
-      // Fallback to legacy method
-      else if (nostrService.reactToPost) {
-        await nostrService.reactToPost(eventId, '+');
-        success = true;
-      } 
-      else {
-        throw new Error('No method available to react to posts');
-      }
+      // Create a NIP-25 compliant reaction event (kind 7)
+      const event = {
+        kind: 7, // Reaction event type
+        content: '+', // Standard NIP-25 positive reaction
+        tags: [
+          ['e', eventId], // Reference to the original event
+          ['p', pubkey]  // Reference to the author's pubkey
+        ]
+      };
+
+      // Publish the event using the low-level API
+      const success = await nostrService.publishEvent(event);
       
       if (success) {
         setUserHasLiked(true);
         setLikeCount(prev => prev + 1);
         toast.success('Post liked!');
+      } else {
+        throw new Error('Failed to publish like event');
       }
     } catch (error) {
       console.error('Error liking post:', error);
@@ -182,40 +145,29 @@ export function useNoteReactions({ eventId, pubkey }: UseNoteReactionsProps) {
     setIsReposting(true);
     
     try {
-      let success = false;
-      
-      // Try using socialManager first
-      if (nostrService.socialAdapter?.socialManager) {
-        const currentPubkey = nostrService.publicKey;
-        const privateKey = nostrService.privateKey;
-        const relayUrls = nostrService.getRelayUrls?.() || ["wss://relay.damus.io", "wss://nos.lol"];
-        
-        // Use the socialAdapter to repost the event
-        const result = await nostrService.socialAdapter.socialManager.repostEvent(
-          nostrService.pool,
-          eventId,
-          pubkey,
-          null, // relay hint
-          currentPubkey,
-          privateKey,
-          relayUrls
-        );
-        
-        success = !!result;
-      } 
-      // Fallback to legacy method
-      else if (nostrService.repostNote) {
-        await nostrService.repostNote(eventId, pubkey);
-        success = true;
-      } 
-      else {
-        throw new Error('No method available to repost notes');
-      }
+      // Create a NIP-18 compliant repost event (kind 6)
+      const event = {
+        kind: 6, // Repost event type
+        content: JSON.stringify({
+          event_id: eventId,
+          relay: "wss://relay.damus.io", // Fallback relay hint
+          pubkey: pubkey
+        }),
+        tags: [
+          ['e', eventId], // Reference to the original event
+          ['p', pubkey]  // Reference to the author's pubkey
+        ]
+      };
+
+      // Publish the event using the low-level API
+      const success = await nostrService.publishEvent(event);
       
       if (success) {
         setUserHasReposted(true);
         setRepostCount(prev => prev + 1);
         toast.success('Post reposted!');
+      } else {
+        throw new Error('Failed to publish repost event');
       }
     } catch (error) {
       console.error('Error reposting:', error);
