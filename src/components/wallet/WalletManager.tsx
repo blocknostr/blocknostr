@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AddressDisplay from "./AddressDisplay";
-import { safeLocalStorageSet, safeLocalStorageGet } from "@/lib/utils/storage";
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/storage";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { checkCacheAvailability } from "@/lib/nostr/utils/storage-quota";
 
@@ -27,6 +27,24 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
   const [newAddress, setNewAddress] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [savedWallets, setSavedWallets] = useLocalStorage<SavedWallet[]>("blocknoster_saved_wallets", []);
+
+  // Ensure we have a default wallet for demo purposes if no wallets exist
+  useEffect(() => {
+    if (savedWallets.length === 0) {
+      // Add a default demo wallet if none exist
+      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+      setSavedWallets([{ 
+        address: defaultAddress, 
+        label: "Demo Wallet", 
+        dateAdded: Date.now() 
+      }]);
+      
+      // If we don't have a current address selected, select the default
+      if (!currentAddress) {
+        onSelectWallet(defaultAddress);
+      }
+    }
+  }, [savedWallets, setSavedWallets, currentAddress, onSelectWallet]);
 
   const handleAddWallet = async () => {
     if (!newAddress) {
@@ -72,6 +90,12 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
   };
 
   const handleRemoveWallet = (address: string) => {
+    // Make sure we don't remove the last wallet
+    if (savedWallets.length <= 1) {
+      toast.error("You need to keep at least one wallet");
+      return;
+    }
+    
     setSavedWallets(savedWallets.filter(wallet => wallet.address !== address));
     
     // If removing the currently selected wallet, select another one
