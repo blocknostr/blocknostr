@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { ExternalLink, RefreshCw, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,7 +88,7 @@ const CryptoTracker: React.FC = () => {
   const formatChange = (change: number) => {
     const isPositive = change >= 0;
     return (
-      <span className={`${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+      <span className={`${isPositive ? 'text-green-500' : 'text-red-500'} text-xs`}>
         {isPositive ? '+' : ''}{change.toFixed(2)}%
       </span>
     );
@@ -129,19 +128,21 @@ const CryptoTracker: React.FC = () => {
   };
   
   const renderCryptoItem = (crypto: CryptoData) => (
-    <div key={crypto.id} className="flex flex-col p-2 rounded-md hover:bg-accent/50 group">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-1.5">
-          <div className="text-xs bg-muted px-1.5 py-0.5 rounded">
-            #{crypto.marketCapRank}
-          </div>
-          <div className="text-sm font-medium">{crypto.name}</div>
-          <div className="text-xs text-muted-foreground uppercase">{crypto.symbol}</div>
+    <div key={crypto.id} className="flex items-center justify-between py-1 hover:bg-accent/30 group px-1 rounded">
+      <div className="flex items-center gap-1">
+        <div className="text-xs bg-muted px-1 rounded">
+          #{crypto.marketCapRank}
         </div>
+        <div className="text-xs font-medium">{crypto.name}</div>
+        <div className="text-xs text-muted-foreground uppercase">{crypto.symbol}</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="text-xs font-medium">{formatPrice(crypto.price)}</div>
+        {formatChange(crypto.priceChange24h)}
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={() => handleRemoveCoin(crypto.id)}
           title="Remove from tracking"
         >
@@ -149,22 +150,18 @@ const CryptoTracker: React.FC = () => {
           &times;
         </Button>
       </div>
-      <div className="flex justify-between mt-1">
-        <div className="text-base font-medium">{formatPrice(crypto.price)}</div>
-        <div className="text-sm">{formatChange(crypto.priceChange24h)}</div>
-      </div>
     </div>
   );
   
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
+    <div className="mb-3">
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1">
-          <svg className="h-4 w-4 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="h-3.5 w-3.5 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M15 9.354C14.3802 8.7343 13.5233 8.39405 12.6361 8.4156C11.7489 8.43715 10.9075 8.8178 10.3179 9.46729C9.72833 10.1168 9.44338 10.9797 9.53398 11.8509C9.62457 12.722 10.08 13.5164 10.784 14.046L13.2 16L15.616 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <h3 className="font-medium text-sm">Market Prices</h3>
+          <h3 className="font-medium text-xs">Market Prices</h3>
         </div>
         
         <div className="flex gap-1">
@@ -173,10 +170,10 @@ const CryptoTracker: React.FC = () => {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-7 w-7 p-0"
+                className="h-5 w-5 p-0"
                 title="Add coin"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3 w-3" />
                 <span className="sr-only">Add coin</span>
               </Button>
             </DialogTrigger>
@@ -210,15 +207,15 @@ const CryptoTracker: React.FC = () => {
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-7 w-7 p-0"
+            className="h-5 w-5 p-0"
             disabled={loading}
             onClick={fetchCryptoData}
             title="Refresh prices"
           >
             {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-3 w-3" />
             )}
             <span className="sr-only">Refresh prices</span>
           </Button>
@@ -226,33 +223,29 @@ const CryptoTracker: React.FC = () => {
       </div>
       
       {error ? (
-        <div className="p-3 text-center text-sm text-muted-foreground bg-accent/20 rounded">
-          {error}. <Button variant="link" size="sm" className="p-0 h-auto" onClick={fetchCryptoData}>Try again</Button>
+        <div className="p-2 text-center text-xs text-muted-foreground bg-accent/20 rounded">
+          {error}. <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={fetchCryptoData}>Try again</Button>
         </div>
       ) : loading && cryptoData.length === 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {[1, 2, 3].map(i => (
-            <div key={i} className="p-2">
-              <div className="flex justify-between items-center mb-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-8" />
-              </div>
-              <div className="flex justify-between">
-                <Skeleton className="h-5 w-14" />
-                <Skeleton className="h-4 w-10" />
+            <div key={i} className="py-1 px-1">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-12" />
               </div>
             </div>
           ))}
         </div>
       ) : (
         <>
-          <div className="space-y-0.5">
+          <div className="space-y-0">
             {cryptoData.map(renderCryptoItem)}
           </div>
           
           {lastUpdated && (
-            <div className="mt-2 text-xs text-center text-muted-foreground">
-              <div className="flex items-center justify-center">
+            <div className="mt-1 text-xs text-center text-muted-foreground">
+              <div className="flex items-center justify-center text-[10px]">
                 <span>Updated {lastUpdated.toLocaleTimeString()}</span>
                 <a 
                   href="https://www.coingecko.com/" 
@@ -261,7 +254,7 @@ const CryptoTracker: React.FC = () => {
                   className="inline-flex items-center ml-1 text-primary hover:underline"
                 >
                   CoinGecko
-                  <ExternalLink className="h-3 w-3 ml-0.5" />
+                  <ExternalLink className="h-2 w-2 ml-0.5" />
                 </a>
               </div>
             </div>
