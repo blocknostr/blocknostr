@@ -14,52 +14,14 @@ interface WalletBalanceCardProps {
 const WalletBalanceCard = ({ balance, isLoading, address }: WalletBalanceCardProps) => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
-  // Format balance with proper decimal precision
+  // Format balance with commas for thousands
   const formatBalance = (balanceStr: string | null) => {
     if (!balanceStr) return "0.00";
     
-    try {
-      // Convert from ALPH units (smallest denomination) to ALPH using BigInt to handle large numbers
-      const balanceInBaseUnits = BigInt(balanceStr);
-      const divisor = BigInt(10 ** 18); // ALPH has 18 decimals
-      
-      // Integer part
-      const integerPart = balanceInBaseUnits / divisor;
-      
-      // Fractional part
-      const fractionalBigInt = balanceInBaseUnits % divisor;
-      
-      if (fractionalBigInt === 0n) {
-        // No fractional part
-        return integerPart.toString();
-      }
-      
-      // Format fractional part with proper decimal places
-      let fractionalStr = fractionalBigInt.toString().padStart(18, '0');
-      
-      // Trim trailing zeros
-      while (fractionalStr.endsWith('0') && fractionalStr.length > 2) {
-        fractionalStr = fractionalStr.slice(0, -1);
-      }
-      
-      // Limit to max 4 decimal places for display
-      if (fractionalStr.length > 4) {
-        fractionalStr = fractionalStr.slice(0, 4);
-      }
-      
-      return `${integerPart}.${fractionalStr}`;
-    } catch (error) {
-      console.error("Error formatting balance:", error);
-      return "Error";
-    }
+    // Convert from ALPH units (smallest denomination) to ALPH
+    const balanceInALPH = parseFloat(balanceStr) / 10**18;
+    return balanceInALPH.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   };
-  
-  useEffect(() => {
-    // Update the timestamp when balance changes or component mounts
-    if (!isLoading) {
-      setLastUpdated(new Date());
-    }
-  }, [balance, isLoading]);
   
   return (
     <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -11,7 +10,6 @@ import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
-import { WalletSummary } from "@/components/wallet/WalletSummary";
 
 // Define an extended signer interface for type safety
 interface ExtendedSigner {
@@ -227,7 +225,7 @@ const WalletsPage = () => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {isLoading ? "Loading..." : `${(BigInt(balance || "0") / BigInt(10 ** 18)).toString()} ALPH`}
+                          {isLoading ? "Loading..." : `${(parseFloat(balance || "0") / 10**18).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH`}
                         </div>
                       </CardContent>
                     </Card>
@@ -258,9 +256,6 @@ const WalletsPage = () => {
                 </Button>
               </CardFooter>
             </Card>
-            
-            {/* Add the new WalletSummary component here */}
-            <WalletSummary />
             
             <Card>
               <CardHeader>
