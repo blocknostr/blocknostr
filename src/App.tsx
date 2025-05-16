@@ -17,7 +17,8 @@ import NotFound from './pages/NotFound';
 import ProfilePage from './pages/ProfilePage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
-import DAOPage from './pages/DAOPage'; // Add the import for the new DAO page
+import DAOPage from './pages/DAOPage'; // Main DAO listing page
+import SingleDAOPage from './pages/SingleDAOPage'; // Single DAO page
 import ArticlesPage from './pages/articles/ArticlesPage';
 import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
@@ -46,7 +47,8 @@ function App() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/communities" element={<CommunitiesPage />} />
                   <Route path="/communities/:id" element={<CommunityPage />} />
-                  <Route path="/dao" element={<DAOPage />} /> {/* Add the new DAO route */}
+                  <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
+                  <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
                   <Route path="/messages" element={<MessagesPage />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/post/:id" element={<PostPage />} />
