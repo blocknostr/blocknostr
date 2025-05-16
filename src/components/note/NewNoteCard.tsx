@@ -9,7 +9,6 @@ import { NostrEvent, nostrService } from '@/lib/nostr';
 import { MessageSquare, Heart, Repeat, Share, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useAction } from './hooks/use-action';
 
 interface NewNoteCardProps {
   event: NostrEvent;
@@ -27,12 +26,6 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   
   if (!event || !event.id || !event.pubkey) return null;
-  
-  const { handleLike, handleRepost } = useAction({
-    eventId: event.id,
-    authorPubkey: event.pubkey,
-    event
-  });
   
   // Format the content to properly display hashtags and links
   const formatContent = (content: string) => {
@@ -66,17 +59,16 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
   };
   
   // Handle like action
-  const onLike = async () => {
+  const handleLike = async () => {
     if (!nostrService.publicKey) {
       toast.error('Please sign in to like posts');
       return;
     }
     
     try {
-      const result = await handleLike();
-      if (result) {
-        setIsLiked(true);
-      }
+      await nostrService.reactToPost(event.id, '+');
+      setIsLiked(true);
+      toast.success('Post liked!');
     } catch (error) {
       console.error('Error liking post:', error);
       toast.error('Failed to like post');
@@ -84,17 +76,16 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
   };
   
   // Handle repost action
-  const onRepost = async () => {
+  const handleRepost = async () => {
     if (!nostrService.publicKey) {
       toast.error('Please sign in to repost');
       return;
     }
     
     try {
-      const result = await handleRepost();
-      if (result) {
-        setIsReposted(true);
-      }
+      await nostrService.repostNote(event.id, event.pubkey);
+      setIsReposted(true);
+      toast.success('Post reposted!');
     } catch (error) {
       console.error('Error reposting:', error);
       toast.error('Failed to repost');
@@ -252,7 +243,7 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
                 "h-8 w-8 rounded-full group-hover:bg-green-50 group-hover:text-green-500",
                 isReposted && "text-green-500"
               )}
-              onClick={onRepost}
+              onClick={handleRepost}
             >
               <Repeat className="h-4 w-4" />
             </Button>
@@ -273,7 +264,7 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
                 "h-8 w-8 rounded-full group-hover:bg-pink-50 group-hover:text-pink-500",
                 isLiked && "text-pink-500"
               )}
-              onClick={onLike}
+              onClick={handleLike}
             >
               <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
             </Button>

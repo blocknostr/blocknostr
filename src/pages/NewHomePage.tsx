@@ -15,7 +15,7 @@ const NewHomePage: React.FC = () => {
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { preferences, updateNestedPreference } = useUserPreferences();
+  const { preferences, updatePreferences } = useUserPreferences();
   const isLoggedIn = !!nostrService.publicKey;
 
   // Callback for feed loading state changes
@@ -140,7 +140,13 @@ const NewHomePage: React.FC = () => {
         onOpenChange={setIsCustomizeOpen}
         defaultHashtags={preferences.feedFilters?.globalFeedTags || []}
         onSave={(hashtags) => {
-          updateNestedPreference('feedFilters', 'globalFeedTags', hashtags);
+          updatePreferences({
+            ...preferences,
+            feedFilters: {
+              ...preferences.feedFilters,
+              globalFeedTags: hashtags
+            }
+          });
         }}
       />
     </div>
