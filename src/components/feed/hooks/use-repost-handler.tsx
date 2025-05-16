@@ -7,7 +7,7 @@ interface UseRepostHandlerProps {
 }
 
 export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
-  const [repostData, setRepostData] = useState<Record<string, NostrEvent>>({});
+  const [repostData, setRepostData] = useState<Record<string, { pubkey: string; original: NostrEvent }>>({});
 
   // Handler for repost events (kind 6)
   const handleRepost = useCallback((event: NostrEvent) => {
@@ -25,7 +25,10 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
       // Store the repost data with the reposted event ID as key
       setRepostData(prev => ({
         ...prev,
-        [repostedEventId]: event
+        [repostedEventId]: {
+          pubkey: event.pubkey,
+          original: event
+        }
       }));
       
       // Fetch profile for the author of the repost

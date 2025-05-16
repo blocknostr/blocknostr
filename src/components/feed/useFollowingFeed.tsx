@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { nostrService, contentCache, NostrEvent } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
