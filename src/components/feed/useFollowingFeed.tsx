@@ -22,7 +22,10 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const [cacheHit, setCacheHit] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [noNewEvents, setNoNewEvents] = useState(false);
   const retryTimeoutRef = useRef<number | null>(null);
+  const newEventCountRef = useRef<number>(0);
+  const cooldownRef = useRef<boolean>(false);
   
   const { 
     events, 
@@ -37,35 +40,42 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     since,
     until,
     activeHashtag,
-    limit: 30 // Increased from 20 for better initial experience
+    limit: 30 // Increased from 20 to 30 for better initial experience as requested
   });
   
   const loadMoreEvents = useCallback(async () => {
-    if (!subId || following.length === 0) return;
+    if (!subId || following.length === 0 || isLoadingMore || cooldownRef.current) return;
     
     // Set loading state
     setIsLoadingMore(true);
+    cooldownRef.current = true;
+    newEventCountRef.current = 0;
+    console.log("[FollowingFeed] Loading more events triggered");
     
     try {
-      // Close previous subscription
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-
       // Find the oldest event to use as a reference point
       const oldestEvent = EventDeduplication.findOldestEvent(events);
       
       if (oldestEvent) {
         // Use the oldest event's timestamp for the new 'until' value
         const newUntil = oldestEvent.created_at - 1;
-        // Get older posts from a 3-day period
-        const newSince = newUntil - 24 * 60 * 60 * 3;
+        // Get older posts from a 7-day period (increased from 3 days)
+        const newSince = newUntil - 7 * 24 * 60 * 60;
+        
+        console.log(`[FollowingFeed] Loading older posts from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
         
         setSince(newSince);
         setUntil(newUntil);
         
-        // Start the new subscription with the older timestamp range
+        // Critical Fix: Start the new subscription BEFORE closing the old one
         const newSubId = await setupSubscription(newSince, newUntil);
+        
+        // Only close previous subscription after new one is established
+        if (subId) {
+          nostrService.unsubscribe(subId);
+          console.log("[FollowingFeed] Closed previous subscription after new one created");
+        }
+        
         setSubId(newSubId);
         
         // Check if we have this range cached
@@ -73,12 +83,18 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       } else {
         // If no events yet, use the current timestamps
         const newUntil = until;
-        const newSince = newUntil - 24 * 60 * 60 * 3;
+        const newSince = newUntil - 7 * 24 * 60 * 60; // increased from 3 days to 7 days
+        
+        console.log(`[FollowingFeed] No events yet, loading with broader range from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
+        
+        // Create new subscription BEFORE closing old one
+        const newSubId = await setupSubscription(newSince, newUntil);
+        
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
         
         setSince(newSince);
-        
-        // Start the new subscription with the older timestamp range
-        const newSubId = await setupSubscription(newSince, newUntil);
         setSubId(newSubId);
         
         // Check if we have this range cached
@@ -88,9 +104,23 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       console.error("Error loading more events:", error);
     }
     
-    // End loading after a delay regardless of whether data was loaded
-    setTimeout(() => setIsLoadingMore(false), 3000);
-  }, [subId, events, until, setupSubscription, following.length]);
+    // End loading after a longer delay to collect more events
+    setTimeout(() => {
+      setIsLoadingMore(false);
+      
+      // Check if we received any new events
+      console.log(`[FollowingFeed] Received ${newEventCountRef.current} new events in this batch`);
+      if (newEventCountRef.current === 0) {
+        console.log("[FollowingFeed] No new events received, setting hasMore = false");
+        setNoNewEvents(true);
+      }
+      
+      // Cooldown to prevent rapid repeated triggering
+      setTimeout(() => {
+        cooldownRef.current = false;
+      }, 2000);
+    }, 5000); // Increased from 3000ms to 5000ms
+  }, [subId, events, until, setupSubscription, following.length, isLoadingMore, loadFromCache]);
   
   const {
     loadMoreRef,
@@ -103,6 +133,26 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     threshold: 800,
     aggressiveness: 'medium'
   });
+
+  // Update hasMore when noNewEvents changes
+  useEffect(() => {
+    if (noNewEvents) {
+      setHasMore(false);
+    }
+  }, [noNewEvents, setHasMore]);
+
+  // Track new events received
+  useEffect(() => {
+    const prevLength = useRef(events.length);
+    
+    if (events.length > prevLength.current) {
+      const newCount = events.length - prevLength.current;
+      newEventCountRef.current += newCount;
+      console.log(`[FollowingFeed] Received ${newCount} new events (total: ${events.length})`);
+    }
+    
+    prevLength.current = events.length;
+  }, [events]);
 
   // Helper function to load data from cache
   const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
@@ -163,25 +213,26 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       try {
-        // Close previous subscription
+        // Create new subscription with extended time range based on retry count
+        const currentTime = Math.floor(Date.now() / 1000);
+        const extendedDays = Math.min(retryCount + 1, 14); // Extend up to 14 days (increased from 7)
+        const extendedTime = currentTime - 24 * 60 * 60 * extendedDays;
+        
+        setSince(extendedTime);
+        setUntil(currentTime);
+        
+        // Start the new subscription BEFORE closing the old one - Critical Fix
+        const newSubId = await setupSubscription(extendedTime, currentTime);
+        
+        // Only close the previous subscription after the new one is established
         if (subId) {
           nostrService.unsubscribe(subId);
         }
         
-        // Create new subscription with extended time range based on retry count
-        const currentTime = Math.floor(Date.now() / 1000);
-        const extendedDays = Math.min(retryCount + 1, 7); // Extend up to 7 days
-        const oneWeekAgo = currentTime - 24 * 60 * 60 * extendedDays;
-        
-        setSince(oneWeekAgo);
-        setUntil(currentTime);
-        
-        // Start the new subscription with the extended timestamp range
-        const newSubId = await setupSubscription(oneWeekAgo, currentTime);
         setSubId(newSubId);
         
         // Also try to load from cache with extended range
-        loadFromCache('following', oneWeekAgo, currentTime);
+        loadFromCache('following', extendedTime, currentTime);
         
         // Increment retry count
         setRetryCount(prev => prev + 1);
@@ -201,11 +252,14 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     setLoading(true);
     setRetryCount(0);
     setIsRetrying(false);
+    setNoNewEvents(false);
+    newEventCountRef.current = 0;
+    
     const currentTime = Math.floor(Date.now() / 1000);
-    const weekAgo = currentTime - 24 * 60 * 60 * 7;
+    const twoWeeksAgo = currentTime - 14 * 24 * 60 * 60; // Increased from 7 days to 14 days
     
     // Always try to load from cache first for immediate response
-    const cacheLoaded = loadFromCache('following', weekAgo, currentTime);
+    const cacheLoaded = loadFromCache('following', twoWeeksAgo, currentTime);
     
     try {
       // If force reconnect or no relays connected, connect to relays
@@ -225,17 +279,19 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       setHasMore(true);
       
       // Reset the timestamp range for new subscription
-      setSince(undefined);
+      setSince(twoWeeksAgo); // Use broader two-week range
       setUntil(currentTime);
-      
-      // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
       
       // If online, start a new subscription
       if (navigator.onLine) {
-        const newSubId = await setupSubscription(weekAgo, currentTime);
+        // Create new subscription before closing old one
+        const newSubId = await setupSubscription(twoWeeksAgo, currentTime);
+        
+        // Only close previous subscription after creating new one
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
+        
         setSubId(newSubId);
       }
       
@@ -262,6 +318,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
   const refreshFeed = useCallback(() => {
     setRetryCount(0);
     setCacheHit(false);
+    setNoNewEvents(false);
     initFeed(true);
   }, [initFeed]);
   
@@ -327,9 +384,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
       setLoading(false);
     }
     
-    // If we've reached the limit, set hasMore to false
-    if (events.length >= 100) {
-      setHasMore(false);
+    // If we've reached the limit of 150 events, consider setting hasMore to false
+    if (events.length >= 150) {
+      console.log("[FollowingFeed] Reached 150 events limit");
     }
     
     // Also end loading more state if we have events
@@ -351,11 +408,11 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     profiles,
     repostData,
     loadMoreRef,
-    loading: loading || isRetrying, // Consider still loading during retry
+    loading: loading || isRetrying, 
     loadingFromCache,
     loadingMore: isLoadingMore,
     following,
-    hasMore,
+    hasMore: hasMore && !noNewEvents,
     refreshFeed,
     loadMoreEvents,
     connectionAttempted,

@@ -19,8 +19,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [noNewEvents, setNoNewEvents] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
   const retryTimeoutRef = useRef<number | null>(null);
+  const newEventCountRef = useRef<number>(0);
+  const cooldownRef = useRef<boolean>(false);
   
   // Get the hashtags to filter by - either the active hashtag or the default ones
   const hashtags = activeHashtag 
@@ -42,7 +45,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     since,
     until,
     hashtags,
-    limit: 30 // Increased from 20 for better initial experience
+    limit: 30 // Increased from 20 to 30 for initial experience as requested
   });
   
   // Function to retry loading posts if none are found initially
@@ -59,12 +62,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       try {
-        // Close previous subscription
-        if (subId) {
-          nostrService.unsubscribe(subId);
-        }
-        
-        // Create new subscription with slightly extended time range
+        // Create new subscription with slightly extended time range BEFORE closing old one
         const currentTime = Math.floor(Date.now() / 1000);
         const extendedTime = currentTime - 24 * 60 * 60 * (retryCount + 1); // Extend time range with each retry
         
@@ -73,6 +71,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         
         // Attempt to set up new subscription
         const newSubId = await setupSubscription(extendedTime, currentTime, hashtags);
+        
+        // Only close previous subscription after new one is created
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
         
         if (newSubId) {
           setSubId(newSubId);
@@ -91,8 +94,12 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   }, [events.length, isRetrying, retryCount, subId, setupSubscription, hashtags]);
   
   const loadMoreEvents = useCallback(async () => {
-    if (!subId || loadingMore) return;
+    if (!subId || loadingMore || cooldownRef.current) return;
+    
+    console.log("[GlobalFeed] Loading more events triggered");
     setLoadingMore(true);
+    cooldownRef.current = true;
+    newEventCountRef.current = 0;
     
     // Cancel any existing timeout
     if (loadMoreTimeoutRef.current) {
@@ -100,35 +107,45 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
     
     try {
-      // Close previous subscription
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-      
       // Find the oldest event in the current events array
       const oldestEvent = EventDeduplication.findOldestEvent(events);
       
       if (oldestEvent) {
         // Use the oldest event's timestamp for the new 'until' value
         const newUntil = oldestEvent.created_at - 1;
-        // Get older posts from the last 72 hours
-        const newSince = newUntil - 72 * 60 * 60;
+        
+        // Get older posts from 7 days (increased from 72 hours)
+        const newSince = newUntil - 7 * 24 * 60 * 60;
+        
+        console.log(`[GlobalFeed] Loading older posts from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
+        
+        // 1. Start the new subscription BEFORE closing the old one - Critical Fix
+        const newSubId = await setupSubscription(newSince, newUntil, hashtags);
+        
+        // 2. Only close previous subscription after new one is established
+        if (subId) {
+          nostrService.unsubscribe(subId);
+          console.log("[GlobalFeed] Closed previous subscription after new one created");
+        }
         
         setSince(newSince);
         setUntil(newUntil);
-        
-        // Start the new subscription with the older timestamp range
-        const newSubId = await setupSubscription(newSince, newUntil, hashtags);
         setSubId(newSubId);
       } else {
         // If no events yet, get a broader time range
         const newUntil = until;
-        const newSince = newUntil - 72 * 60 * 60;
+        const newSince = newUntil - 7 * 24 * 60 * 60; // Increased from 72 hours to 7 days
+        
+        console.log(`[GlobalFeed] No events yet, loading with broader range from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
+        
+        // Create new subscription BEFORE closing old one
+        const newSubId = await setupSubscription(newSince, newUntil, hashtags);
+        
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
         
         setSince(newSince);
-        
-        // Start the new subscription with the older timestamp range
-        const newSubId = await setupSubscription(newSince, newUntil, hashtags);
         setSubId(newSubId);
       }
     } catch (error) {
@@ -136,11 +153,23 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       toast.error("Failed to load more posts");
     }
     
-    // Set loading more to false after a delay
+    // Set loading more to false after a delay and prevent rapid re-firing
     loadMoreTimeoutRef.current = window.setTimeout(() => {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
-    }, 2000);
+      
+      // Check if we received any new events
+      console.log(`[GlobalFeed] Received ${newEventCountRef.current} new events`);
+      if (newEventCountRef.current === 0) {
+        console.log("[GlobalFeed] No new events received, setting hasMore = false");
+        setNoNewEvents(true);
+      }
+      
+      // Cooldown to prevent rapid repeated triggering
+      setTimeout(() => {
+        cooldownRef.current = false;
+      }, 2000);
+    }, 5000); // Increased from 2000ms to 5000ms for better reliability
   }, [subId, events, until, setupSubscription, loadingMore, hashtags]);
   
   const {
@@ -157,6 +186,26 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     preservePosition: true
   });
 
+  // Update hasMore when noNewEvents changes
+  useEffect(() => {
+    if (noNewEvents) {
+      setHasMore(false);
+    }
+  }, [noNewEvents, setHasMore]);
+
+  // Track new events received
+  useEffect(() => {
+    const prevLength = useRef(events.length);
+    
+    if (events.length > prevLength.current) {
+      const newCount = events.length - prevLength.current;
+      newEventCountRef.current += newCount;
+      console.log(`[GlobalFeed] Received ${newCount} new events (total: ${events.length})`);
+    }
+    
+    prevLength.current = events.length;
+  }, [events]);
+
   useEffect(() => {
     const initFeed = async () => {
       // Reset state when filter changes
@@ -165,10 +214,14 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setLoading(true);
       setRetryCount(0);
       setIsRetrying(false);
+      setNoNewEvents(false);
+      newEventCountRef.current = 0;
 
       // Reset the timestamp range for new subscription
       const currentTime = Math.floor(Date.now() / 1000);
-      setSince(undefined);
+      // Initial fetch goes back 7 days instead of 48 hours for better coverage
+      const initialSince = currentTime - 7 * 24 * 60 * 60;
+      setSince(initialSince);
       setUntil(currentTime);
 
       // Connect to relays in the background
@@ -178,14 +231,15 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         console.error("Error connecting to relays:", error);
       }
 
-      // Close previous subscription if exists
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-      
       try {
         // Start a new subscription with the appropriate hashtags
-        const newSubId = await setupSubscription(currentTime - 48 * 60 * 60, currentTime, hashtags);
+        const newSubId = await setupSubscription(initialSince, currentTime, hashtags);
+        
+        // Only close previous subscription after creating new one
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
+        
         setSubId(newSubId);
         setLoading(false);
       } catch (error) {
@@ -239,7 +293,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     repostData,
     loadMoreRef,
     loading: loading || isRetrying,
-    hasMore,
+    hasMore: hasMore && !noNewEvents,
     loadMoreEvents,
     loadingMore: loadingMore || scrollLoadingMore,
     refreshFeed,

@@ -28,16 +28,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   
-  // Use the useInView hook for more reliable intersection detection
+  // Use the useInView hook with increased rootMargin for earlier detection
   const { ref: loadMoreRef, inView } = useInView({
-    rootMargin: '0px 0px 1500px 0px',
+    rootMargin: '0px 0px 2000px 0px', // Increased from 1500px to 2000px for earlier detection
     threshold: 0.1,
   });
   
   // Use callback for loadMore logic to prevent unnecessary rerenders
   const handleLoadMoreVisible = useCallback(() => {
     if (inView && hasMore && !loadMoreLoading && onLoadMore) {
-      console.log("Trigger load more from InView");
+      console.log("Trigger load more from InView", new Date().toISOString());
       onLoadMore();
     }
   }, [inView, hasMore, loadMoreLoading, onLoadMore]);
@@ -68,6 +68,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
           ref={loadMoreRef}
           className="h-10 w-full" 
           aria-hidden="true"
+          data-testid="load-more-trigger"
         />
       )}
       
