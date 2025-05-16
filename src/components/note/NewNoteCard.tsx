@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { NostrEvent, nostrService } from '@/lib/nostr';
 import { MessageSquare, Heart, Repeat, Share, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useNoteCardReplies } from './hooks/useNoteCardReplies';
+import { useNoteReactions } from './hooks/useNoteReactions';
 
 interface NewNoteCardProps {
   event: NostrEvent;
@@ -21,9 +23,20 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
   profileData,
   className 
 }) => {
-  const [isLiked, setIsLiked] = useState(false);
-  const [isReposted, setIsReposted] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Use custom hooks for handling reactions and replies
+  const { replyCount } = useNoteCardReplies({ eventId: event.id });
+  const { 
+    likeCount, 
+    repostCount,
+    userHasLiked,
+    userHasReposted,
+    handleLike,
+    handleRepost,
+    isLiking,
+    isReposting
+  } = useNoteReactions({ eventId: event.id, pubkey: event.pubkey });
   
   if (!event || !event.id || !event.pubkey) return null;
   
@@ -56,40 +69,6 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
     return event.tags
       .filter(tag => tag[0] === 't')
       .map(tag => tag[1]);
-  };
-  
-  // Handle like action
-  const handleLike = async () => {
-    if (!nostrService.publicKey) {
-      toast.error('Please sign in to like posts');
-      return;
-    }
-    
-    try {
-      await nostrService.reactToPost(event.id, '+');
-      setIsLiked(true);
-      toast.success('Post liked!');
-    } catch (error) {
-      console.error('Error liking post:', error);
-      toast.error('Failed to like post');
-    }
-  };
-  
-  // Handle repost action
-  const handleRepost = async () => {
-    if (!nostrService.publicKey) {
-      toast.error('Please sign in to repost');
-      return;
-    }
-    
-    try {
-      await nostrService.repostNote(event.id, event.pubkey);
-      setIsReposted(true);
-      toast.success('Post reposted!');
-    } catch (error) {
-      console.error('Error reposting:', error);
-      toast.error('Failed to repost');
-    }
   };
   
   // Handle share action
@@ -230,7 +209,7 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
               <MessageSquare className="h-4 w-4" />
             </Button>
             <span className="text-xs text-muted-foreground group-hover:text-blue-500">
-              {/* Comment count would go here */}
+              {replyCount > 0 && replyCount}
             </span>
           </Link>
           
@@ -241,17 +220,18 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
               size="icon" 
               className={cn(
                 "h-8 w-8 rounded-full group-hover:bg-green-50 group-hover:text-green-500",
-                isReposted && "text-green-500"
+                userHasReposted && "text-green-500"
               )}
               onClick={handleRepost}
+              disabled={isReposting}
             >
               <Repeat className="h-4 w-4" />
             </Button>
             <span className={cn(
               "text-xs text-muted-foreground group-hover:text-green-500",
-              isReposted && "text-green-500"
+              userHasReposted && "text-green-500"
             )}>
-              {/* Repost count would go here */}
+              {repostCount > 0 && repostCount}
             </span>
           </div>
           
@@ -262,17 +242,18 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
               size="icon" 
               className={cn(
                 "h-8 w-8 rounded-full group-hover:bg-pink-50 group-hover:text-pink-500",
-                isLiked && "text-pink-500"
+                userHasLiked && "text-pink-500"
               )}
               onClick={handleLike}
+              disabled={isLiking}
             >
-              <Heart className={cn("h-4 w-4", isLiked && "fill-current")} />
+              <Heart className={cn("h-4 w-4", userHasLiked && "fill-current")} />
             </Button>
             <span className={cn(
               "text-xs text-muted-foreground group-hover:text-pink-500",
-              isLiked && "text-pink-500"
+              userHasLiked && "text-pink-500"
             )}>
-              {/* Like count would go here */}
+              {likeCount > 0 && likeCount}
             </span>
           </div>
         </div>
