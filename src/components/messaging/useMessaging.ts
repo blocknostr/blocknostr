@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { NostrEvent } from "@/lib/nostr/types";
 import { useToast } from "@/hooks/use-toast";
@@ -20,10 +20,16 @@ export const useMessaging = () => {
   const [newContactPubkey, setNewContactPubkey] = useState("");
   const { toast } = useToast();
 
+  // --- Make refs for handlers to avoid unneeded effect triggers ---
+  const contactsRef = useRef(contacts);
+  contactsRef.current = contacts;
+  const activeContactRef = useRef(activeContact);
+  activeContactRef.current = activeContact;
+
   const fetchProfileForContact = useCallback(async (pubkey: string): Promise<Contact | null> => {
     return new Promise((resolve) => {
       const timeoutId = setTimeout(() => {
-        resolve({ pubkey }); // Resolve with just the pubkey if profile fetch times out
+        resolve({ pubkey });
       }, 5000);
 
       const metadataSubId = nostrService.subscribe(
@@ -57,6 +63,7 @@ export const useMessaging = () => {
     });
   }, []);
 
+  // FULLY UPDATED DECRYPTION LOGIC
   const handleMessageEvent = useCallback(async (event: NostrEvent) => {
     if (!currentUserPubkey) return;
     try {
@@ -65,39 +72,52 @@ export const useMessaging = () => {
       let content = event.content;
       let decrypted = false;
       let error = '';
+
       // Determine the other party in the conversation
       if (event.pubkey === currentUserPubkey) {
-        // Sent by me, decrypt with recipient pubkey
         const recipientTag = event.tags.find(tag => tag[0] === 'p');
         if (!recipientTag || !recipientTag[1]) return;
         otherPubkey = recipientTag[1];
-        if (window.nostr?.nip04) {
-          try {
-            content = await window.nostr.nip04.decrypt(otherPubkey, event.content);
-            decrypted = true;
-          } catch (e) {
-            error = 'Failed to decrypt message';
-          }
-        }
-        if (!decrypted) {
-          content = '[Encrypted message - could not decrypt]';
-        }
       } else {
         otherPubkey = event.pubkey || '';
-        if (window.nostr?.nip04) {
+      }
+
+      // KIND 14 (group chat / NIP-17): Show not supported message
+      if (event.kind === 14) {
+        content = '[Group chat (kind 14) messages are not yet supported by this app]';
+        decrypted = false;
+      }
+      // KIND 4 (NIP-04): Try to decrypt
+      else if (event.kind === 4) {
+        if (!window.nostr?.nip04) {
+          error = 'No Nostr extension found or it does not support nip04. You must install/enable one like Alby or nos2x.';
+          content = '[Cannot decrypt: Nostr extension not available]';
+          console.warn(error, { event, currentUserPubkey, otherPubkey, nostr: window.nostr });
+        } else {
           try {
             content = await window.nostr.nip04.decrypt(otherPubkey, event.content);
             decrypted = true;
           } catch (e) {
-            error = 'Failed to decrypt message';
+            // Try NIP-44 fallback
+            try {
+              content = await nip44Decrypt(otherPubkey, event.content);
+              decrypted = true;
+            } catch (ee) {
+              error = 'Decryption failed: ' + (e?.message || e) + ' / ' + (ee?.message || ee);
+              content = '[Encrypted message - could not decrypt]';
+              console.error('Decryption failed (NIP-04 then NIP-44):', {
+                event, currentUserPubkey, otherPubkey, e, ee, nostr: window.nostr
+              });
+            }
           }
         }
-        if (!decrypted) {
-          content = '[Encrypted message - could not decrypt]';
-        }
       }
+      if (!decrypted && event.kind === 4) {
+        content = '[Encrypted message - could not decrypt]';
+      }
+
       // Add contact if not already in list
-      if (!contacts.some(c => c.pubkey === otherPubkey)) {
+      if (!contactsRef.current.some(c => c.pubkey === otherPubkey)) {
         const newContact = await fetchProfileForContact(otherPubkey);
         if (newContact) {
           setContacts(prev => [...prev, newContact]);
@@ -105,7 +125,7 @@ export const useMessaging = () => {
       }
 
       // Update messages if this contact is active
-      if (activeContact && activeContact.pubkey === otherPubkey) {
+      if (activeContactRef.current && activeContactRef.current.pubkey === otherPubkey) {
         const message = {
           id: event.id || '',
           content,
@@ -141,7 +161,86 @@ export const useMessaging = () => {
     } catch (e) {
       console.error('Error processing message event:', e);
     }
-  }, [contacts, activeContact, currentUserPubkey, fetchProfileForContact]);
+  }, [currentUserPubkey, fetchProfileForContact]);
+
+  // --- FIXED: Only reload contacts/subscription on user change ---
+  useEffect(() => {
+    if (!currentUserPubkey) return;
+
+    let unsub: (() => void) | undefined;
+
+    const loadContacts = async () => {
+      setLoading(true);
+
+      await nostrService.connectToUserRelays();
+
+      // Subscribe to DMs (ONE TIME per user session)
+      const dmSubId = nostrService.subscribe(
+        [
+          {
+            kinds: [4, 14],
+            '#p': [currentUserPubkey],
+          },
+          {
+            kinds: [4, 14],
+            authors: [currentUserPubkey],
+          }
+        ],
+        handleMessageEvent
+      );
+      unsub = () => nostrService.unsubscribe(dmSubId);
+
+      // Get the list of contacts
+      const contactPubkeys = new Set<string>();
+      nostrService.following.forEach(pubkey => contactPubkeys.add(pubkey));
+
+      const lastMessagedUser = localStorage.getItem('lastMessagedUser');
+      if (lastMessagedUser) {
+        try {
+          const pubkey = lastMessagedUser.startsWith('npub1')
+            ? nostrService.getHexFromNpub(lastMessagedUser)
+            : lastMessagedUser;
+          contactPubkeys.add(pubkey);
+          localStorage.removeItem('lastMessagedUser');
+        } catch (e) {
+          console.error("Error processing lastMessagedUser:", e);
+        }
+      }
+
+      const profilePromises = Array.from(contactPubkeys).map(pubkey =>
+        fetchProfileForContact(pubkey)
+      );
+
+      try {
+        const contactProfiles = await Promise.all(profilePromises);
+        const validContacts = contactProfiles.filter(Boolean) as Contact[];
+        setContacts(validContacts);
+
+        if (lastMessagedUser) {
+          const pubkey = lastMessagedUser.startsWith('npub1')
+            ? nostrService.getHexFromNpub(lastMessagedUser)
+            : lastMessagedUser;
+
+          const contact = validContacts.find(c => c.pubkey === pubkey);
+          if (contact) {
+            loadMessagesForContact(contact);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading contact profiles:", error);
+      }
+
+      setLoading(false);
+    };
+
+    loadContacts();
+
+    return () => {
+      if (unsub) unsub();
+    };
+    // Only run when the pubkey (user) changes!
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserPubkey]);
 
   // Always show all contacts, even if no messages
   const loadMessagesForContact = useCallback(async (contact: Contact) => {
@@ -149,7 +248,7 @@ export const useMessaging = () => {
     setActiveContact(contact);
     setMessages([]);
     setLoading(true);
-    // Subscribe to DMs for this contact, but do not filter out contacts with no messages
+
     const dmSubId = nostrService.subscribe(
       [
         {
@@ -179,15 +278,9 @@ export const useMessaging = () => {
     setSendingMessage(true);
 
     try {
-      console.log("Preparing to send message to:", activeContact.pubkey);
-
-      // Use proper messaging adapter for direct messages
       const messageId = await nostrService.sendDirectMessage(activeContact.pubkey, newMessage);
 
       if (messageId) {
-        console.log("Message sent successfully with ID:", messageId);
-
-        // Add message to the UI immediately
         const message = {
           id: messageId,
           content: newMessage,
@@ -198,7 +291,6 @@ export const useMessaging = () => {
 
         setMessages(prev => [...prev, message].sort((a, b) => a.created_at - b.created_at));
 
-        // Update last message for contact
         setContacts(prev => {
           return prev.map(c => {
             if (c.pubkey === activeContact.pubkey) {
@@ -222,7 +314,6 @@ export const useMessaging = () => {
           description: "Your encrypted message has been sent"
         });
       } else {
-        console.error("Failed to send message, no event ID returned");
         toast({
           title: "Failed to send message",
           description: "Please check your connection and try again",
@@ -230,7 +321,6 @@ export const useMessaging = () => {
         });
       }
     } catch (error) {
-      console.error("Error sending message:", error);
       toast({
         title: "Failed to send message",
         description: "Please try again later",
@@ -245,8 +335,6 @@ export const useMessaging = () => {
     if (!newContactPubkey) return;
 
     let pubkey = newContactPubkey;
-
-    // Convert npub to hex if needed
     if (pubkey.startsWith('npub1')) {
       try {
         pubkey = nostrService.getHexFromNpub(pubkey);
@@ -260,7 +348,6 @@ export const useMessaging = () => {
       }
     }
 
-    // Check if contact already exists
     if (contacts.some(c => c.pubkey === pubkey)) {
       toast({
         title: "Contact already exists",
@@ -271,7 +358,6 @@ export const useMessaging = () => {
       return;
     }
 
-    // Fetch profile for new contact
     const newContact = await fetchProfileForContact(pubkey);
     if (newContact) {
       setContacts(prev => [...prev, newContact]);
@@ -292,85 +378,6 @@ export const useMessaging = () => {
     setNewContactPubkey("");
   }, [newContactPubkey, contacts, fetchProfileForContact, loadMessagesForContact, toast]);
 
-  // Initial load contacts and setup message subscription
-  useEffect(() => {
-    if (!currentUserPubkey) return;
-    const loadContacts = async () => {
-      await nostrService.connectToUserRelays();
-      // Subscribe to DMs
-      const dmSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [4, 14], // Both NIP-04 and NIP-17
-            '#p': [currentUserPubkey], // Messages where user is tagged
-          },
-          {
-            kinds: [4, 14],
-            authors: [currentUserPubkey], // Messages sent by user
-          }
-        ],
-        handleMessageEvent
-      );
-      // Get the list of contacts
-      const contactPubkeys = new Set<string>();
-
-      // Add following users as possible contacts
-      nostrService.following.forEach(pubkey => {
-        contactPubkeys.add(pubkey);
-      });
-
-      // Check if we should load a specific contact from profile page
-      const lastMessagedUser = localStorage.getItem('lastMessagedUser');
-      if (lastMessagedUser) {
-        try {
-          const pubkey = lastMessagedUser.startsWith('npub1')
-            ? nostrService.getHexFromNpub(lastMessagedUser)
-            : lastMessagedUser;
-
-          contactPubkeys.add(pubkey);
-
-          // Clear the localStorage item
-          localStorage.removeItem('lastMessagedUser');
-        } catch (e) {
-          console.error("Error processing lastMessagedUser:", e);
-        }
-      }
-
-      // Load profiles for all contacts
-      const profilePromises = Array.from(contactPubkeys).map(pubkey =>
-        fetchProfileForContact(pubkey)
-      );
-
-      try {
-        const contactProfiles = await Promise.all(profilePromises);
-        const validContacts = contactProfiles.filter(Boolean) as Contact[];
-        setContacts(validContacts);
-
-        // If we have a lastMessagedUser, activate it
-        if (lastMessagedUser) {
-          const pubkey = lastMessagedUser.startsWith('npub1')
-            ? nostrService.getHexFromNpub(lastMessagedUser)
-            : lastMessagedUser;
-
-          const contact = validContacts.find(c => c.pubkey === pubkey);
-          if (contact) {
-            loadMessagesForContact(contact);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading contact profiles:", error);
-      }
-
-      setLoading(false);
-
-      return () => {
-        nostrService.unsubscribe(dmSubId);
-      };
-    };
-
-    loadContacts();
-  }, [currentUserPubkey, handleMessageEvent, fetchProfileForContact, loadMessagesForContact]);
-
   // Load contacts from localStorage on mount
   useEffect(() => {
     try {
@@ -386,11 +393,9 @@ export const useMessaging = () => {
   // Save contacts to localStorage whenever they change (robust, deduped, sorted)
   useEffect(() => {
     try {
-      // Remove duplicates by pubkey
       const deduped = Array.from(
         new Map(contacts.map(c => [c.pubkey, c])).values()
       );
-      // Sort by lastMessageTime desc, fallback to name
       deduped.sort((a, b) => {
         if (a.lastMessageTime && b.lastMessageTime) {
           return b.lastMessageTime - a.lastMessageTime;
@@ -406,35 +411,28 @@ export const useMessaging = () => {
   }, [contacts]);
 
   // --- Notification/alert for new messages ---
-  // Track unread messages per contact
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-  // Track last seen message timestamp per contact
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!currentUserPubkey) return;
-    // Only run if there are messages
     if (!messages.length) return;
     const lastMessage = messages[messages.length - 1];
-    // Only notify if the last message is from someone else
     if (lastMessage.sender !== currentUserPubkey) {
-      // Stack browser notifications (do not close previous)
       if (window.Notification && Notification.permission === 'granted') {
         new Notification('New message', {
           body: `From ${lastMessage.sender.slice(0, 12)}...`,
           icon: '/favicon.ico',
-          tag: lastMessage.sender // Use sender as tag to group per sender
+          tag: lastMessage.sender
         });
       } else if (window.Notification && Notification.permission !== 'denied') {
         Notification.requestPermission();
       }
-      // Show toast alert (stacked)
       toast({
         title: 'New message',
         description: `From ${lastMessage.sender.slice(0, 12)}...`,
         duration: 6000
       });
-      // Increment unread count for this contact
       setUnreadCounts(prev => ({
         ...prev,
         [lastMessage.sender]: (prev[lastMessage.sender] || 0) + 1
@@ -442,11 +440,9 @@ export const useMessaging = () => {
     }
   }, [messages, currentUserPubkey, toast]);
 
-  // Mark messages as read when opening a contact
   useEffect(() => {
     if (activeContact) {
       setUnreadCounts(prev => ({ ...prev, [activeContact.pubkey]: 0 }));
-      // Optionally, track last seen timestamp
       const lastMsg = messages.filter(m => m.sender === activeContact.pubkey || m.recipient === activeContact.pubkey).pop();
       if (lastMsg) {
         setLastSeen(prev => ({ ...prev, [activeContact.pubkey]: lastMsg.created_at }));
@@ -472,6 +468,6 @@ export const useMessaging = () => {
     loadMessagesForContact,
     handleAddNewContact,
     currentUserPubkey,
-    unreadCounts // <-- add this
+    unreadCounts
   };
 };
