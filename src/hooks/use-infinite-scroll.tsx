@@ -77,21 +77,16 @@ export const useInfiniteScroll = (
       if (target?.isIntersecting && hasMore && !disabled && !isFetchingRef.current) {
         isFetchingRef.current = true;
         setLoadingMore(true);
-        console.log("[useInfiniteScroll] Intersection detected, loading more...");
         
         try {
           await onLoadMore();
-          // Debug output for verification
-          console.log("[useInfiniteScroll] onLoadMore completed");
-        } catch (error) {
-          console.error("[useInfiniteScroll] Error in onLoadMore:", error);
+          // Completely removed scroll position restoration logic
         } finally {
-          // CRITICAL FIX: Use a longer timeout to allow more time for data to arrive
+          // Reset the fetching flag after a shorter delay
           setTimeout(() => {
-            console.log("[useInfiniteScroll] Resetting loading flags");
             isFetchingRef.current = false;
             setLoadingMore(false);
-          }, 5000); // Increased from 300ms to 5000ms to prevent rapid retriggering
+          }, 300);
         }
       }
     },
@@ -100,7 +95,6 @@ export const useInfiniteScroll = (
 
   useEffect(() => {
     const actualThreshold = getActualThreshold();
-    console.log("[useInfiniteScroll] Setting up observer with threshold:", actualThreshold);
     
     const options = {
       root: null,
@@ -112,31 +106,20 @@ export const useInfiniteScroll = (
 
     if (loadMoreRef.current && !disabled) {
       observer.current.observe(loadMoreRef.current);
-      console.log("[useInfiniteScroll] Observer attached to load more element");
     }
 
     return () => {
       if (observer.current) {
         observer.current.disconnect();
-        console.log("[useInfiniteScroll] Observer disconnected");
       }
     };
   }, [handleObserver, getActualThreshold, disabled]);
 
   // This is the function we're returning, which should match FeedList's prop type
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
-    if (node !== loadMoreRef.current) {
-      console.log("[useInfiniteScroll] Load more ref element changed");
-      loadMoreRef.current = node;
-      
-      if (observer.current) {
-        observer.current.disconnect(); // Disconnect from old element
-      }
-      
-      if (node && observer.current && !disabled) {
-        observer.current.observe(node);
-        console.log("[useInfiniteScroll] Observer attached to new load more element");
-      }
+    loadMoreRef.current = node;
+    if (node && observer.current && !disabled) {
+      observer.current.observe(node);
     }
   }, [disabled]);
 
