@@ -3,6 +3,7 @@
  * Token metadata service for Alephium tokens
  * Fetches and caches token information from the official Alephium token list
  */
+import { NodeProvider } from '@alephium/web3';
 
 // Token interface matching the Alephium token list schema
 export interface TokenMetadata {
@@ -28,6 +29,7 @@ interface TokenList {
   tokens: TokenMetadata[];
 }
 
+// Official Alephium token list URL
 const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens.json";
 let tokenCache: Record<string, TokenMetadata> | null = null;
 let lastFetchTime = 0;
@@ -45,6 +47,7 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
   }
   
   try {
+    // Fetch from GitHub directly
     const response = await fetch(TOKEN_LIST_URL);
     
     if (!response.ok) {
@@ -52,7 +55,7 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
     }
     
     const data = await response.json() as TokenList;
-    console.log("Fetched token list:", data);
+    console.log("GitHub token list fetched:", data.tokens.length);
     
     // Create a map of token ID to token data for quick lookups
     const tokenMap: Record<string, TokenMetadata> = {};
@@ -75,9 +78,24 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
 /**
  * Gets metadata for a specific token ID
  */
-export const getTokenMetadata = async (tokenId: string): Promise<TokenMetadata | undefined> => {
-  const tokenMap = await fetchTokenList();
-  return tokenMap[tokenId];
+export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvider): Promise<TokenMetadata> => {
+  try {
+    // First check our cache
+    const tokenMap = await fetchTokenList();
+    if (tokenMap[tokenId]) {
+      return tokenMap[tokenId];
+    }
+    
+    // If not in cache and we have a nodeProvider, try to get basic token info
+    // Note: The NodeProvider from @alephium/web3 doesn't directly expose token info methods
+    // in the current version, so we'll just return fallback data
+    
+    // Fallback to default data
+    return getFallbackTokenData(tokenId);
+  } catch (error) {
+    console.error(`Error in getTokenMetadata for ${tokenId}:`, error);
+    return getFallbackTokenData(tokenId);
+  }
 };
 
 /**

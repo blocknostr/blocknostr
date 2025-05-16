@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine } from "lucide-react";
-import WalletConnectButton from "@/components/wallet/WalletConnectButton";
-import { Card, CardContent, CardDescription } from "@/components/ui/card";
+import { Wallet, Blocks, LayoutGrid, ChartLine, RefreshCw } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -12,7 +10,6 @@ import WalletManager from "@/components/wallet/WalletManager";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Interface for wallet stats
 interface WalletStats {
@@ -72,11 +69,6 @@ const WalletsPage = () => {
           }
         ]);
       }
-      
-      // Notify user of successful connection
-      toast.success("Wallet connected successfully", {
-        description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
-      });
     } else if (savedWallets.length > 0 && !walletAddress) {
       // If no wallet is connected but we have saved wallets, use the first one
       setWalletAddress(savedWallets[0].address);
@@ -138,30 +130,6 @@ const WalletsPage = () => {
     
     fetchWalletStats();
   }, [walletAddress, refreshFlag]);
-
-  const handleDisconnect = async () => {
-    try {
-      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
-        await (wallet.signer as any).requestDisconnect();
-        toast.info("Wallet disconnected");
-      } else {
-        toast.error("Wallet disconnection failed", {
-          description: "Your wallet doesn't support disconnect method"
-        });
-        return;
-      }
-      
-      // Select the first saved wallet after disconnect
-      if (savedWallets.length > 0) {
-        setWalletAddress(savedWallets[0].address);
-      }
-    } catch (error) {
-      console.error("Disconnection error:", error);
-      toast.error("Disconnection failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  };
   
   // Helper to determine if transaction is incoming or outgoing
   const getTransactionType = (tx: any) => {
@@ -194,6 +162,11 @@ const WalletsPage = () => {
     }
     
     return 0;
+  };
+
+  const handleRefresh = () => {
+    setRefreshFlag(prev => prev + 1);
+    toast.success("Refreshing wallet data...");
   };
 
   // Decide whether to show connect screen or wallet dashboard
@@ -250,28 +223,28 @@ const WalletsPage = () => {
           </div>
           
           <div className="flex gap-2">
-            <WalletConnectButton />
-            
-            {connected && (
-              <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
-                Disconnect Wallet
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              className="flex items-center gap-1.5 h-9"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Refresh</span>
+            </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
             {!connected && (
-              <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 mb-6">
-                <CardContent className="p-4 text-sm">
-                  <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
-                    <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                    <span>
-                      Viewing all tracked wallets. Connect your own wallet to see your personal balance and transactions.
-                    </span>
+              <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 mb-6 p-4">
+                <div className="flex items-center">
+                  <Wallet className="h-5 w-5 mr-2 text-amber-600 dark:text-amber-400" />
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    Sign in with your wallet to see your personal balance and transactions.
                   </p>
-                </CardContent>
+                </div>
               </Card>
             )}
 

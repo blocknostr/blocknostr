@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { LogOut, User, AlertCircle, Shield } from "lucide-react";
+import { LogOut, User, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { 
   Tooltip, 
@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/tooltip";
 import LoginDialog from "./auth/LoginDialog";
 import { cn } from "@/lib/utils";
+import { useWallet } from "@alephium/web3-react";
 
 const LoginButton = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [npub, setNpub] = useState<string>("");
   const [hasExtension, setHasExtension] = useState<boolean>(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
+  const wallet = useWallet();
   
   useEffect(() => {
     // Check if user is already logged in
@@ -80,6 +82,9 @@ const LoginButton = () => {
               >
                 <User className="h-4 w-4 text-primary" />
                 <span className="font-normal">{shortNpub}</span>
+                {wallet.connectionStatus === 'connected' && (
+                  <Shield className="h-3 w-3 ml-1 text-green-500" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -134,17 +139,8 @@ const LoginButton = () => {
               {/* Subtle inner shine effect */}
               <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100"></span>
               
-              {hasExtension ? (
-                <>
-                  <Shield className="h-4 w-4" />
-                  <span>Connect Wallet</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <span>Install Extension</span>
-                </>
-              )}
+              <Shield className="h-4 w-4" />
+              <span>{hasExtension ? "Connect Wallet" : "Install Extension"}</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
