@@ -13,6 +13,7 @@ import AddressDisplay from "@/components/wallet/AddressDisplay";
 import TokenList from "@/components/wallet/TokenList";
 import SendTransaction from "@/components/wallet/SendTransaction";
 import DAppsSection from "@/components/wallet/DAppsSection";
+import { getAddressTransactions } from "@/lib/api/alephiumApi";
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
@@ -22,6 +23,8 @@ const WalletsPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [isRecentTransactionsLoading, setIsRecentTransactionsLoading] = useState<boolean>(true);
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -37,6 +40,28 @@ const WalletsPage = () => {
       });
     }
   }, [connected, wallet.account]);
+
+  // Effect to fetch recent transactions for the overview tab
+  useEffect(() => {
+    const fetchRecentTransactions = async () => {
+      if (!walletAddress) return;
+      
+      setIsRecentTransactionsLoading(true);
+      try {
+        // Fetch just 3 transactions for the recent activity section
+        const txs = await getAddressTransactions(walletAddress, 3);
+        setRecentTransactions(txs);
+      } catch (error) {
+        console.error("Error fetching recent transactions:", error);
+        // Don't show error toast here as TransactionsList component will handle that
+        setRecentTransactions([]);
+      } finally {
+        setIsRecentTransactionsLoading(false);
+      }
+    };
+    
+    fetchRecentTransactions();
+  }, [walletAddress, refreshFlag]);
 
   const handleRefresh = () => {
     setRefreshFlag(prev => prev + 1);
@@ -62,6 +87,51 @@ const WalletsPage = () => {
         description: error instanceof Error ? error.message : "Unknown error"
       });
     }
+  };
+
+  // Helper function to format date
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Helper function to truncate address
+  const truncateAddress = (addr: string) => {
+    if (!addr) return '';
+    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  };
+  
+  // Helper to determine if transaction is incoming or outgoing
+  const getTransactionType = (tx: any) => {
+    // If any output is to this address, it's incoming
+    const isIncoming = tx.outputs.some((output: any) => output.address === walletAddress);
+    // If any input is from this address, it's outgoing
+    const isOutgoing = tx.inputs.some((input: any) => input.address === walletAddress);
+    
+    if (isIncoming && !isOutgoing) return 'received';
+    if (isOutgoing) return 'sent';
+    return 'unknown';
+  };
+  
+  // Calculate amount transferred to/from this address
+  const getTransactionAmount = (tx: any) => {
+    const type = getTransactionType(tx);
+    
+    if (type === 'received') {
+      // Sum all outputs to this address
+      const amount = tx.outputs
+        .filter((output: any) => output.address === walletAddress)
+        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
+      return amount / 10**18; // Convert from nanoALPH to ALPH
+    } else if (type === 'sent') {
+      // This is a simplification - for accurate accounting we'd need to track change outputs
+      const amount = tx.outputs
+        .filter((output: any) => output.address !== walletAddress)
+        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
+      return amount / 10**18; // Convert from nanoALPH to ALPH
+    }
+    
+    return 0;
   };
 
   // Decide whether to show connect screen or wallet dashboard
@@ -222,36 +292,56 @@ const WalletsPage = () => {
                 <CardDescription>Your latest transactions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => {
-                    const isIncoming = Math.random() > 0.5;
-                    const amount = (Math.random() * 10).toFixed(2);
-                    const timestamp = new Date(Date.now() - i * 86400000 * Math.random());
-                    
-                    return (
+                {isRecentTransactionsLoading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-full ${isIncoming ? 'bg-green-100 dark:bg-green-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
-                            {isIncoming ? (
-                              <ArrowDownLeft className={`h-4 w-4 ${isIncoming ? 'text-green-500' : 'text-blue-500'}`} />
-                            ) : (
-                              <ArrowUpRight className={`h-4 w-4 ${isIncoming ? 'text-green-500' : 'text-blue-500'}`} />
-                            )}
+                          <div className="p-2 rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
                           </div>
-                          <div>
-                            <p className="font-medium">{isIncoming ? 'Received' : 'Sent'} ALPH</p>
-                            <p className="text-xs text-muted-foreground">
-                              {timestamp.toLocaleDateString()} {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                          <div className="space-y-2">
+                            <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                            <div className="h-3 w-32 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
                           </div>
                         </div>
-                        <p className={`font-medium ${isIncoming ? 'text-green-500' : 'text-blue-500'}`}>
-                          {isIncoming ? '+' : '-'} {amount} ALPH
-                        </p>
+                        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                ) : recentTransactions.length === 0 ? (
+                  <p className="text-center py-6 text-muted-foreground">No recent transactions found</p>
+                ) : (
+                  <div className="space-y-4">
+                    {recentTransactions.map((tx, i) => {
+                      const isIncoming = getTransactionType(tx) === 'received';
+                      const amount = getTransactionAmount(tx).toFixed(4);
+                      
+                      return (
+                        <div key={tx.hash} className="flex items-center justify-between py-2 border-b last:border-0">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${isIncoming ? 'bg-green-100 dark:bg-green-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
+                              {isIncoming ? (
+                                <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{isIncoming ? 'Received' : 'Sent'} ALPH</p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(tx.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                          <p className={`font-medium ${isIncoming ? 'text-green-500' : 'text-blue-500'}`}>
+                            {isIncoming ? '+' : '-'} {amount} ALPH
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
               <CardFooter>
                 <Button variant="ghost" className="w-full" onClick={() => setActiveTab("transactions")}>
