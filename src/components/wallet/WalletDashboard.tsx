@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,10 +8,10 @@ import TransactionActivityChart from "@/components/wallet/charts/TransactionActi
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 import TokenList from "@/components/wallet/TokenList";
 import TransactionsList from "@/components/wallet/TransactionsList";
-import RecentActivityCard from "@/components/wallet/RecentActivityCard";
 import NFTGallery from "@/components/wallet/NFTGallery";
 import DAppsSection from "@/components/wallet/DAppsSection";
 import { formatNumber } from "@/lib/utils/formatters";
+import NetworkActivityCard from "@/components/wallet/NetworkActivityCard";
 
 interface WalletDashboardProps {
   address: string;
@@ -174,28 +173,74 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   if (activeTab === "alephium") {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <WalletBalanceCard 
-            address={address} 
-            onRefresh={() => setRefreshFlag(refreshFlag + 1)}
-            className="lg:col-span-2" 
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Network stats card spans 2 columns */}
+          <NetworkStatsCard className="md:col-span-2" />
           
-          <NetworkStatsCard />
+          {/* Network activity card */}
+          <NetworkActivityCard />
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Transaction Activity</CardTitle>
-              <CardDescription>Recent transaction volume</CardDescription>
+              <CardTitle>Network Transaction Activity</CardTitle>
+              <CardDescription>Transaction volume over time</CardDescription>
             </CardHeader>
             <CardContent className="h-[280px]">
               <TransactionActivityChart address={address} />
             </CardContent>
           </Card>
           
-          <RecentActivityCard address={address} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Network Overview</CardTitle>
+              <CardDescription>Global Alephium statistics</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Total Addresses</p>
+                    <p className="text-sm font-medium">152,789</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Active Nodes</p>
+                    <p className="text-sm font-medium">324</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Market Cap</p>
+                    <p className="text-sm font-medium">$46.5M</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Tokens Created</p>
+                    <p className="text-sm font-medium">385</p>
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <div className="flex gap-2">
+                    <a 
+                      href="https://richlist.alephium.world/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Richlist
+                    </a>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <a 
+                      href="https://www.alephium.world/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Network Stats
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

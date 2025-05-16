@@ -350,13 +350,15 @@ export const fetchBalanceHistory = async (address: string, days: number = 30) =>
 export const fetchNetworkStats = async () => {
   try {
     // In a real application, we would fetch this from an API
-    // For now, return static data
+    // For now, return enhanced static data based on the references provided
     return {
       hashRate: "38.2 PH/s",
       difficulty: "3.51 P",
       blockTime: "64.0s",
-      activeAddresses: 24890,
-      tokenCount: 385
+      activeAddresses: 152789, // Updated based on richlist.alephium.world
+      tokenCount: 385,
+      nodesConnected: 324, // Based on alephium.world
+      marketCap: "$46.5M"
     };
   } catch (error) {
     console.error('Error fetching network stats:', error);

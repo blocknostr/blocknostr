@@ -12,7 +12,11 @@ interface NetworkStats {
   tokenCount: number;
 }
 
-const NetworkStatsCard: React.FC = () => {
+interface NetworkStatsCardProps {
+  className?: string;
+}
+
+const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) => {
   const [stats, setStats] = useState<NetworkStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,7 +33,7 @@ const NetworkStatsCard: React.FC = () => {
           hashRate: "38.2 PH/s",
           difficulty: "3.51 P",
           blockTime: "64.0s",
-          activeAddresses: 24890,
+          activeAddresses: 152789,
           tokenCount: 385
         });
       } finally {
@@ -41,7 +45,7 @@ const NetworkStatsCard: React.FC = () => {
   }, []);
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
         <CardTitle>Network Statistics</CardTitle>
         <CardDescription>Current Alephium network status</CardDescription>
