@@ -33,7 +33,7 @@ const PhaserGameComponent: React.FC<PhaserGameComponentProps> = ({ address, nost
           physics: {
             default: 'arcade',
             arcade: {
-              gravity: { y: 0, x: 0 }, // Fixed: Added x property to match Vector2Like type
+              gravity: { y: 0, x: 0 },
               debug: false
             }
           },

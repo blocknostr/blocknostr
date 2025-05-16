@@ -1,3 +1,4 @@
+
 import Phaser from 'phaser';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -105,7 +106,7 @@ export default class GameScene extends Phaser.Scene {
     // Initialize pet sprite
     this.pet = this.add.sprite(400, 300, `pet_stage${this.evolutionStage}`).setScale(2);
     
-    // Setup particle effects
+    // Setup particle effects - Fixed: Changed BlendModes.ADD string to numeric value 1
     const particles = this.add.particles('particle_star');
     this.petEmitter = particles.createEmitter({
       x: 400,
@@ -115,7 +116,7 @@ export default class GameScene extends Phaser.Scene {
       scale: { start: 0.2, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 1000,
-      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum instead of string
+      blendMode: 1, // Fixed: Use numeric value 1 for ADD blend mode
       on: false
     });
     
@@ -330,24 +331,24 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private applyCustomization() {
-    // ApplyDot: Apply color tint
+    // Apply color tint
     this.pet.clearTint();
     if (this.customization.color === 'red') this.pet.setTint(0xff0000);
     else if (this.customization.color === 'blue') this.pet.setTint(0x0000ff);
     else if (this.customization.color === 'green') this.pet.setTint(0x00ff00);
     else if (this.customization.color === 'purple') this.pet.setTint(0x800080);
     
-    // Apply particle effects
+    // Apply particle effects - Fixed: Corrected use of setScale method
     this.petEmitter.stop();
     if (this.customization.aura !== 'none') {
       this.petEmitter.setPosition(this.pet.x, this.pet.y);
       
       if (this.customization.aura === 'glow') {
         this.petEmitter.setFrequency(200);
-        this.petEmitter.setScale({ start: 0.1, end: 0 }); // Fixed: Use setScale with range object
+        this.petEmitter.setScale(0.1, 0); // Fixed: Use correct parameters for setScale
       } else if (this.customization.aura === 'sparkle') {
         this.petEmitter.setFrequency(500);
-        this.petEmitter.setScale({ start: 0.2, end: 0 }); // Fixed: Use setScale with range object
+        this.petEmitter.setScale(0.2, 0); // Fixed: Use correct parameters for setScale
       }
       
       this.petEmitter.start();
