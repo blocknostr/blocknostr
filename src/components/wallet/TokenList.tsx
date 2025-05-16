@@ -3,12 +3,14 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, HelpCircle, Search } from "lucide-react";
+import { ExternalLink, HelpCircle, Search, DollarSign } from "lucide-react";
 import { getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
+import { formatCurrency, formatPercentage } from "@/lib/utils/formatters";
 
 interface TokenListProps {
   address: string;
@@ -18,17 +20,43 @@ const TokenList = ({ address }: TokenListProps) => {
   const [tokens, setTokens] = useState<EnrichedToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [alphPrice, setAlphPrice] = useState<number>(0);
+  const [sortBy, setSortBy] = useState<'name' | 'balance' | 'value'>('value');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    const fetchTokens = async () => {
+    const fetchData = async () => {
       if (!address) return;
       
       setIsLoading(true);
       
       try {
-        const tokenData = await getAddressTokens(address);
-        console.log("Fetched tokens with formatted amounts:", tokenData);
-        setTokens(tokenData);
+        const [tokenData, priceData] = await Promise.all([
+          getAddressTokens(address),
+          getAlephiumPrice()
+        ]);
+        
+        // Enhance token data with estimated USD values
+        const enhancedTokens = tokenData.map(token => {
+          // Estimate token values - ALPH uses real price, others use placeholder
+          const price = token.symbol === 'ALPH' ? priceData.price : 0.01;
+          
+          // Parse and clean the formatted amount
+          const amount = parseFloat(token.formattedAmount.replace(/,/g, ''));
+          
+          // Calculate USD value
+          const usdValue = token.isNFT ? priceData.price * 0.1 : amount * price;
+          
+          return {
+            ...token,
+            usdValue,
+            tokenPrice: price
+          };
+        });
+        
+        console.log("Fetched tokens with USD values:", enhancedTokens);
+        setTokens(enhancedTokens);
+        setAlphPrice(priceData.price);
       } catch (error) {
         console.error('Error fetching tokens:', error);
         toast.error("Could not fetch token balances", {
@@ -39,7 +67,7 @@ const TokenList = ({ address }: TokenListProps) => {
       }
     };
     
-    fetchTokens();
+    fetchData();
   }, [address]);
 
   // Filter tokens based on search term
@@ -49,13 +77,38 @@ const TokenList = ({ address }: TokenListProps) => {
     token.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort tokens by value (high to low)
+  // Sort tokens based on selected column and direction
   const sortedTokens = [...filteredTokens].sort((a, b) => {
-    // Extract numeric value from formattedAmount
-    const valueA = parseFloat(a.formattedAmount.replace(/,/g, ''));
-    const valueB = parseFloat(b.formattedAmount.replace(/,/g, ''));
-    return valueB - valueA;
+    if (sortBy === 'name') {
+      return sortDirection === 'asc' 
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    } else if (sortBy === 'balance') {
+      // Extract numeric value from formattedAmount
+      const valueA = parseFloat(a.formattedAmount.replace(/,/g, ''));
+      const valueB = parseFloat(b.formattedAmount.replace(/,/g, ''));
+      return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+    } else {
+      // Sort by USD value
+      return sortDirection === 'asc' 
+        ? a.usdValue - b.usdValue
+        : b.usdValue - a.usdValue;
+    }
   });
+
+  const handleSort = (column: 'name' | 'balance' | 'value') => {
+    if (sortBy === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Default to descending for value and balance, ascending for name
+      setSortBy(column);
+      setSortDirection(column === 'name' ? 'asc' : 'desc');
+    }
+  };
+
+  // Calculate total portfolio value
+  const totalValue = tokens.reduce((sum, token) => sum + (token.usdValue || 0), 0);
 
   if (isLoading) {
     return (
@@ -80,7 +133,14 @@ const TokenList = ({ address }: TokenListProps) => {
       <CardHeader>
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
-            <CardTitle>Token Balances</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Token Balances
+              {totalValue > 0 && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  (Total: {formatCurrency(totalValue)})
+                </span>
+              )}
+            </CardTitle>
             <CardDescription>Your Alephium tokens</CardDescription>
           </div>
           <div className="relative w-full md:w-64">
@@ -104,9 +164,25 @@ const TokenList = ({ address }: TokenListProps) => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Token</TableHead>
+                  <TableHead 
+                    className={sortBy === 'name' ? 'cursor-pointer underline' : 'cursor-pointer'}
+                    onClick={() => handleSort('name')}
+                  >
+                    Token {sortBy === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
+                  <TableHead 
+                    className={`text-right ${sortBy === 'balance' ? 'cursor-pointer underline' : 'cursor-pointer'}`}
+                    onClick={() => handleSort('balance')}
+                  >
+                    Balance {sortBy === 'balance' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className={`text-right ${sortBy === 'value' ? 'cursor-pointer underline' : 'cursor-pointer'}`}
+                    onClick={() => handleSort('value')}
+                  >
+                    Value {sortBy === 'value' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </TableHead>
                   <TableHead className="text-right">Details</TableHead>
                 </TableRow>
               </TableHeader>
@@ -175,6 +251,18 @@ const TokenList = ({ address }: TokenListProps) => {
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {token.formattedAmount}
+                      {token.isNFT && <span className="text-xs text-muted-foreground ml-1">(NFT)</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1 text-muted-foreground">
+                        <DollarSign className="h-3.5 w-3.5" />
+                        <span>{formatCurrency(token.usdValue || 0)}</span>
+                      </div>
+                      {!token.isNFT && token.tokenPrice > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {formatCurrency(token.tokenPrice)} per token
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <a

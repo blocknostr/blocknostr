@@ -124,3 +124,32 @@ export const formatNftAttributes = (attributes: any[] | undefined): string => {
   
   return `${attributes.length} attribute${attributes.length > 1 ? 's' : ''}`;
 };
+
+/**
+ * Format percentage with + sign for positive values and specified decimal places
+ */
+export const formatPercentage = (value: number, decimalPlaces: number = 2): string => {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(decimalPlaces)}%`;
+};
+
+/**
+ * Format USD price with appropriate decimal places based on value range
+ */
+export const formatUsdPrice = (value: number): string => {
+  let decimals = 2;
+  
+  // Use more decimal places for low values
+  if (value < 0.01) decimals = 6;
+  else if (value < 0.1) decimals = 4;
+  else if (value < 1) decimals = 3;
+  
+  return formatCurrency(value, 'USD', 0, decimals);
+};
+
+/**
+ * Calculate USD value from token amount and price
+ */
+export const calculateUsdValue = (amount: number, price: number): number => {
+  return amount * price;
+};

@@ -8,14 +8,24 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Legend 
+  Legend,
+  ReferenceLine
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
 import { fetchBalanceHistory } from "@/lib/api/alephiumApi";
+import { getAlephiumPriceHistory, getAlephiumPrice } from "@/lib/api/coingeckoApi";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 interface BalanceHistoryChartProps {
   address: string;
+}
+
+interface BalanceData {
+  date: string;
+  balance: number;
+  usdValue?: number;
 }
 
 const timeRanges = [
@@ -26,10 +36,12 @@ const timeRanges = [
 ];
 
 const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) => {
-  const [balanceData, setBalanceData] = useState<any[]>([]);
+  const [balanceData, setBalanceData] = useState<BalanceData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState(7); // Default to 7 days
   const [error, setError] = useState<string | null>(null);
+  const [showUsd, setShowUsd] = useState(true);
+  const [currentPrice, setCurrentPrice] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,14 +50,39 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
       setIsLoading(true);
       
       try {
-        const data = await fetchBalanceHistory(address, timeRange);
-        setBalanceData(data);
+        // Fetch both balance history and price history
+        const [balanceHistory, priceHistory, currentPriceData] = await Promise.all([
+          fetchBalanceHistory(address, timeRange),
+          getAlephiumPriceHistory(timeRange),
+          getAlephiumPrice()
+        ]);
+        
+        setCurrentPrice(currentPriceData.price);
+        
+        // Create a map of timestamps to prices for quick lookups
+        const priceMap = new Map(
+          priceHistory.map(item => [new Date(item.timestamp).toISOString().split('T')[0], item.price])
+        );
+        
+        // Combine balance and price data
+        const combinedData = balanceHistory.map(item => {
+          const date = item.date;
+          const price = priceMap.get(date) || currentPriceData.price;
+          
+          return {
+            ...item,
+            usdValue: item.balance * price
+          };
+        });
+        
+        setBalanceData(combinedData);
+        setError(null);
       } catch (err) {
-        console.error("Error fetching balance history:", err);
+        console.error("Error fetching data:", err);
         setError("Could not load balance history");
         
         // Use sample data for demonstration
-        const sampleData = generateSampleData(timeRange);
+        const sampleData = generateSampleData(timeRange, currentPrice);
         setBalanceData(sampleData);
       } finally {
         setIsLoading(false);
@@ -55,8 +92,8 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
     fetchData();
   }, [address, timeRange]);
 
-  const generateSampleData = (days: number) => {
-    const data = [];
+  const generateSampleData = (days: number, price: number) => {
+    const data: BalanceData[] = [];
     const now = new Date();
     let balance = 1000 + Math.random() * 500;
     
@@ -68,9 +105,12 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
       balance = balance + (Math.random() - 0.48) * 50;
       if (balance < 100) balance = 100 + Math.random() * 200;
       
+      const dateStr = date.toISOString().split('T')[0];
+      
       data.push({
-        date: date.toISOString().split('T')[0],
-        balance: balance.toFixed(2)
+        date: dateStr,
+        balance: parseFloat(balance.toFixed(2)),
+        usdValue: parseFloat((balance * price).toFixed(2))
       });
     }
     
@@ -78,14 +118,20 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
   };
 
   const formatYAxis = (value: number) => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
+    if (showUsd) {
+      if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+      return `$${value.toFixed(0)}`;
+    } else {
+      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+      return value.toString();
+    }
   };
 
   return (
     <div className="h-full">
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-between items-center mb-4">
         <div className="flex gap-1 rounded-lg bg-muted p-1">
           {timeRanges.map(range => (
             <Button
@@ -99,6 +145,15 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
             </Button>
           ))}
         </div>
+        
+        <Toggle
+          pressed={showUsd}
+          onPressedChange={setShowUsd}
+          size="sm"
+          className="h-7 px-3 text-xs flex items-center gap-1"
+        >
+          {showUsd ? "USD" : "ALPH"}
+        </Toggle>
       </div>
       
       {isLoading ? (
@@ -124,21 +179,47 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address }) =>
               tickFormatter={formatYAxis} 
               width={40}
               tick={{ fontSize: 12 }}
+              domain={['dataMin', 'dataMax']}
             />
             <Tooltip 
-              formatter={(value) => [`${Number(value).toLocaleString()} ALPH`, 'Balance']}
+              formatter={(value, name) => {
+                if (name === "Balance") {
+                  return [`${Number(value).toLocaleString()} ALPH`, showUsd ? "ALPH Balance" : "Balance"];
+                }
+                return [formatCurrency(Number(value)), "USD Value"];
+              }}
               labelFormatter={(label) => new Date(label).toLocaleDateString()}
             />
             <Legend />
-            <Line
-              type="monotone"
-              dataKey="balance"
-              name="ALPH Balance"
-              stroke="#8884d8"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
+            {!showUsd && (
+              <Line
+                type="monotone"
+                dataKey="balance"
+                name="Balance"
+                stroke="#8884d8"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            )}
+            {showUsd && (
+              <Line
+                type="monotone"
+                dataKey="usdValue"
+                name="USD Value"
+                stroke="#82ca9d"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            )}
+            {balanceData.length > 1 && (
+              <ReferenceLine 
+                y={showUsd ? balanceData[balanceData.length-1].usdValue : balanceData[balanceData.length-1].balance}
+                stroke="#ff7300"
+                strokeDasharray="3 3"
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       ) : (
