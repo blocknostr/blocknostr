@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -10,12 +11,6 @@ import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
-
-// Define an extended signer interface for type safety
-interface ExtendedSigner {
-  disconnect?: () => void;
-  requestDisconnection?: () => void;
-}
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
@@ -39,12 +34,17 @@ const WalletsPage = () => {
       toast.success("Wallet connected successfully", {
         description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
       });
+    } else {
+      // Reset to fixed address when not connected
+      setWalletAddress(FIXED_ADDRESS);
     }
   }, [connected, wallet.account]);
 
   useEffect(() => {
     // Fetch balance data for the current address
     const fetchBalance = async () => {
+      if (!walletAddress) return;
+      
       setIsLoading(true);
       
       try {
@@ -81,45 +81,27 @@ const WalletsPage = () => {
       }
     };
     
-    // Only fetch if we have an address
-    if (walletAddress) {
-      fetchBalance();
-    }
+    fetchBalance();
   }, [walletAddress]);
 
-  const handleDisconnect = () => {
-    if (wallet.signer) {
-      try {
-        // Cast the signer to our extended interface
-        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
-        
-        // Check and call appropriate disconnect method if available
-        if (extendedSigner.disconnect) {
-          extendedSigner.disconnect();
-        } else if (extendedSigner.requestDisconnection) {
-          extendedSigner.requestDisconnection();
-        } else {
-          toast.error("Wallet disconnection failed", {
-            description: "Your wallet doesn't implement a compatible disconnect method"
-          });
-          return;
-        }
-        
-        toast.info("Wallet disconnected");
-        
-        // Reset to fixed address after disconnect
-        setWalletAddress(FIXED_ADDRESS);
-      } catch (error) {
-        console.error("Disconnection error:", error);
-        toast.error("Disconnection failed", {
-          description: error instanceof Error ? error.message : "Unknown error"
-        });
-      }
+  const handleDisconnect = async () => {
+    try {
+      // Using the standard disconnect method
+      await wallet.disconnect();
+      toast.info("Wallet disconnected");
+      
+      // Reset to fixed address after disconnect
+      setWalletAddress(FIXED_ADDRESS);
+    } catch (error) {
+      console.error("Disconnection error:", error);
+      toast.error("Disconnection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   };
 
   // Decide whether to show connect screen or wallet dashboard
-  if (!connected && !FIXED_ADDRESS) {
+  if (!connected && walletAddress === FIXED_ADDRESS && !FIXED_ADDRESS) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">

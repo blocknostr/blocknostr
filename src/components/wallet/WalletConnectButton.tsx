@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Shield, ExternalLink, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,12 +9,6 @@ import { toast } from "sonner";
 
 interface WalletConnectButtonProps {
   className?: string;
-}
-
-// Define an extended signer interface for type safety
-interface ExtendedSigner {
-  connect?: () => void;
-  requestConnection?: () => void;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
@@ -29,36 +24,36 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     
     checkForWallet();
     
-    // Re-check for extension periodically
-    const intervalId = setInterval(() => {
-      checkForWallet();
-    }, 3000);
+    // Only check periodically if not connected
+    let intervalId: number | undefined;
+    if (!wallet.connectionStatus || wallet.connectionStatus === 'disconnected') {
+      intervalId = window.setInterval(() => {
+        checkForWallet();
+      }, 3000);
+    }
     
-    return () => clearInterval(intervalId);
-  }, []);
+    return () => {
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [wallet.connectionStatus]);
 
-  const handleConnect = () => {
-    if (wallet.signer) {
-      try {
-        // Cast the signer to our extended interface
-        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
-        
-        // Check and call appropriate connect method if available
-        if (extendedSigner.connect) {
-          extendedSigner.connect();
-        } else if (extendedSigner.requestConnection) {
-          extendedSigner.requestConnection();
-        } else {
-          toast.error("Wallet connection failed", {
-            description: "Your wallet doesn't implement a compatible connect method"
-          });
-        }
-      } catch (error) {
-        console.error("Connection error:", error);
-        toast.error("Connection failed", {
-          description: error instanceof Error ? error.message : "Unknown error"
+  const handleConnect = async () => {
+    try {
+      if (!wallet.signer) {
+        toast.error("Wallet not available", {
+          description: "Please make sure your wallet extension is installed and running."
         });
+        return;
       }
+
+      // Using standard connect method - this is adapted to work with Alephium's API
+      await wallet.connect({ addressGroup: undefined });
+      toast.success("Wallet connected successfully");
+    } catch (error) {
+      console.error("Connection error:", error);
+      toast.error("Connection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   };
 
@@ -69,7 +64,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     return (
       <Button
         className={cn("w-full", className)}
-        disabled
+        variant="outline"
       >
         <Wallet className="mr-2 h-4 w-4" />
         Connected
