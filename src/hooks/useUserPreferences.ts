@@ -10,6 +10,7 @@ export interface UserPreferences {
     showReplies: boolean;
     showReposted: boolean;
     hideFromUsers: string[]; // pubkeys to hide
+    globalFeedTags: string[]; // Default hashtags for global feed
   };
   contentPreferences: {
     showSensitiveContent: boolean;
@@ -42,6 +43,7 @@ const defaultPreferences: UserPreferences = {
     showReplies: true,
     showReposted: true,
     hideFromUsers: [],
+    globalFeedTags: ['bitcoin', 'nostr', 'alephium'], // Default hashtags
   },
   contentPreferences: {
     showSensitiveContent: false,
@@ -76,7 +78,7 @@ const STORAGE_KEYS = {
   NOTIFICATION_PREFS: 'bn_pref_notif',
   RELAY_PREFS: 'bn_pref_relay',
   UI_PREFS: 'bn_pref_ui',
-  // Even more granular storage keys for large arrays
+  GLOBAL_FEED_TAGS: 'bn_pref_global_tags',
   HIDDEN_USERS: 'bn_pref_hidden_users',
   STORAGE_STATUS: 'bn_storage_status',
   STORAGE_TEST: 'bn_storage_test'
@@ -237,6 +239,17 @@ export function useUserPreferences() {
         console.error('Failed to load hidden users:', e);
         hideFromUsers = [];
       }
+      
+      // Load global feed tags
+      let globalFeedTags: string[] = defaultPreferences.feedFilters.globalFeedTags;
+      try {
+        const compressedTags = safeStorageLoad<string>(STORAGE_KEYS.GLOBAL_FEED_TAGS, '');
+        if (compressedTags) {
+          globalFeedTags = decompressArray(compressedTags);
+        }
+      } catch (e) {
+        console.error('Failed to load global feed tags:', e);
+      }
 
       const contentPreferences = safeStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
       const notificationPreferences = safeStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
@@ -251,6 +264,7 @@ export function useUserPreferences() {
           ...defaultPreferences.feedFilters,
           ...feedFilters,
           hideFromUsers,
+          globalFeedTags,
         },
         contentPreferences,
         notificationPreferences,
@@ -300,6 +314,13 @@ export function useUserPreferences() {
         if (!usersSuccess) anySaveFailed = true;
       }
 
+      // Save global feed tags as compressed string
+      if (preferences.feedFilters.globalFeedTags && preferences.feedFilters.globalFeedTags.length > 0) {
+        const compressedTags = compressArray(preferences.feedFilters.globalFeedTags);
+        const tagsSuccess = safeLocalStorageSave(STORAGE_KEYS.GLOBAL_FEED_TAGS, compressedTags);
+        if (!tagsSuccess) anySaveFailed = true;
+      }
+
       // Save each section separately
       const contentSuccess = safeLocalStorageSave(STORAGE_KEYS.CONTENT_PREFS, preferences.contentPreferences);
       if (!contentSuccess) anySaveFailed = true;
@@ -344,7 +365,7 @@ export function useUserPreferences() {
     }));
   }, []);
 
-  // Update nested preference - FIX THE SYNTAX ISSUE HERE
+  // Update nested preference - FIXING THE SYNTAX ISSUE HERE
   const updateNestedPreference = React.useCallback(<
     K extends keyof UserPreferences,
     NK extends keyof UserPreferences[K]

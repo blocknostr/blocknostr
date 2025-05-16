@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@alephium/web3": "^1.11.7",
     "@alephium/web3-react": "^1.11.7",
     "@hookform/resolvers": "^3.9.0",
     "@noble/ciphers": "^0.5.1",
@@ -53,7 +54,6 @@
     "@tanstack/react-virtual": "^3.13.8",
     "@types/jest": "^29.5.12",
     "@uiw/react-textarea-code-editor": "^2.1.9",
-    "axios": "^1.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -64,7 +64,10 @@
     "lucide-react": "^0.462.0",
     "next-themes": "^0.4.6",
     "nostr-tools": "^2.12.0",
+<<<<<<< HEAD
     "pixi.js": "^7.4.3",
+=======
+>>>>>>> 9697e384ea3faa0248eb8930d174d38b85eb510d
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

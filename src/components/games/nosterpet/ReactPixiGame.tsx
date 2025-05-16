@@ -33,25 +33,23 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
         return () => cancelAnimationFrame(frame);
     }, []);
 
-    // Floating +1 animation
+    // Floating +1 animation (stack multiple +1s)
+    const [plusOnes, setPlusOnes] = useState<number[]>([]); // array of unique ids
     useEffect(() => {
         if (showPlusOne) {
-            let y = height / 2 - 60;
-            setPlusOneY(y);
-            const interval = setInterval(() => {
-                y -= 2;
-                setPlusOneY(y);
-            }, 16);
-            plusOneTimeout.current = setTimeout(() => {
-                setShowPlusOne(false);
-                clearInterval(interval);
-            }, 600);
-            return () => {
-                clearInterval(interval);
-                if (plusOneTimeout.current) clearTimeout(plusOneTimeout.current);
-            };
+            setPlusOnes(prev => [...prev, Date.now()]); // add a new +1 with unique id
         }
-    }, [showPlusOne, height]);
+    }, [showPlusOne]);
+
+    // Remove +1 after animation
+    useEffect(() => {
+        if (plusOnes.length > 0) {
+            const timeout = setTimeout(() => {
+                setPlusOnes(prev => prev.slice(1)); // remove the oldest +1
+            }, 600);
+            return () => clearTimeout(timeout);
+        }
+    }, [plusOnes]);
 
     // Handle pet click
     const handlePetClick = () => {
@@ -108,12 +106,13 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
             />
             {/* Happiness bar */}
             {renderHappinessBar()}
-            {/* Floating +1 animation */}
-            {showPlusOne && (
+            {/* Floating +1 animations (stacked) */}
+            {plusOnes.map((id, idx) => (
                 <Text
+                    key={id}
                     text={'+1'}
                     x={width / 2}
-                    y={plusOneY}
+                    y={height / 2 - 60 - idx * 28}
                     anchor={0.5}
                     style={{
                         fontFamily: 'Arial',
@@ -122,9 +121,10 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
                         fontWeight: 'bold',
                         stroke: '#222',
                         strokeThickness: 4,
+                        alpha: 1 - idx * 0.2
                     } as any}
                 />
-            )}
+            ))}
         </Stage>
     );
 }

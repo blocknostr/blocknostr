@@ -10,6 +10,7 @@ interface UseFeedEventsProps {
   since?: number;
   until?: number;
   activeHashtag?: string;
+  hashtags?: string[];
   limit?: number;
   feedType?: string;
   mediaOnly?: boolean;
@@ -20,6 +21,7 @@ export function useFeedEvents({
   since,
   until,
   activeHashtag,
+  hashtags,
   limit = 50,
   feedType = 'generic',
   mediaOnly = false
@@ -30,12 +32,23 @@ export function useFeedEvents({
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
-  const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
+  const { repostData, handleRepost, initSetEvents } = useRepostHandler({ fetchProfileData });
+  
+  // Initialize the setEvents function in the repostHandler
+  useEffect(() => {
+    initSetEvents(setEvents);
+  }, [initSetEvents]);
+  
+  // Determine which hashtags to use - either the active hashtag, the provided hashtag array, or undefined
+  const effectiveHashtags = activeHashtag 
+    ? [activeHashtag] 
+    : hashtags;
   
   // Handle event subscription
   const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
     activeHashtag,
+    hashtags: effectiveHashtags,
     since,
     until,
     limit,
@@ -55,6 +68,9 @@ export function useFeedEvents({
       const cachedFeed = contentCache.getFeed(feedType, {
         authorPubkeys: following,
         hashtag: activeHashtag,
+        // Fix: use the correct property name 'hashtag' since the cache interface doesn't accept 'hashtags'
+        // If we have an activeHashtag, it takes precedence; otherwise we use the hashtags array via effectiveHashtags
+        // We'll pass undefined, which will make the cache use only the activeHashtag property
         since,
         until,
         mediaOnly
@@ -68,7 +84,8 @@ export function useFeedEvents({
         // Get cache timestamp
         const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
           authorPubkeys: following,
-          hashtag: activeHashtag, 
+          hashtag: activeHashtag,
+          // Same fix here for cache key generation
           since,
           until,
           mediaOnly
@@ -100,7 +117,7 @@ export function useFeedEvents({
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, fetchProfileData]);
+  }, [feedType, following, activeHashtag, effectiveHashtags, since, until, mediaOnly, fetchProfileData]);
   
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = () => {
@@ -108,6 +125,7 @@ export function useFeedEvents({
     contentCache.feedCache.clearFeed(feedType, {
       authorPubkeys: following,
       hashtag: activeHashtag,
+      // Same fix for cache clearing
       since,
       until,
       mediaOnly
@@ -126,7 +144,7 @@ export function useFeedEvents({
     const currentTime = Math.floor(Date.now() / 1000);
     const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
     
-    const newSubId = setupSubscription(newSince, currentTime);
+    const newSubId = setupSubscription(newSince, currentTime, effectiveHashtags);
     setSubId(newSubId);
   };
 

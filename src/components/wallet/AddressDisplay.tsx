@@ -7,9 +7,10 @@ import { toast } from "sonner";
 
 interface AddressDisplayProps {
   address: string;
+  label?: string;
 }
 
-const AddressDisplay = ({ address }: AddressDisplayProps) => {
+const AddressDisplay = ({ address, label = "Your Address" }: AddressDisplayProps) => {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
@@ -31,14 +32,14 @@ const AddressDisplay = ({ address }: AddressDisplayProps) => {
 
   return (
     <Card className="bg-muted/50">
-      <CardContent className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+      <CardContent className="flex items-center justify-between py-1 px-2">
+        <div className="flex items-center gap-1">
+          <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center mr-1">
             <span className="text-xs font-medium">ID</span>
           </div>
           <div>
-            <p className="text-sm font-medium">Your Alephium Address</p>
-            <p className="text-xs text-muted-foreground break-all sm:break-normal">
+            <p className="text-xs font-medium truncate max-w-[120px]">{label}</p>
+            <p className="text-xs text-muted-foreground">
               {formatAddress(address)}
             </p>
           </div>
@@ -48,9 +49,9 @@ const AddressDisplay = ({ address }: AddressDisplayProps) => {
           variant="ghost" 
           size="sm" 
           onClick={copyToClipboard} 
-          className="h-8 px-2"
+          className="h-6 w-6 p-0"
         >
-          {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? <CheckCheck className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           <span className="sr-only">Copy address</span>
         </Button>
       </CardContent>
