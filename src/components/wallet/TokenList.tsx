@@ -4,22 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink } from "lucide-react";
-import { getAddressTokens } from "@/lib/api/alephiumApi";
+import { getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 interface TokenListProps {
   address: string;
 }
 
-interface Token {
-  id: string;
-  amount: number;
-  name?: string;
-  symbol?: string;
-}
-
 const TokenList = ({ address }: TokenListProps) => {
-  const [tokens, setTokens] = useState<Token[]>([]);
+  const [tokens, setTokens] = useState<EnrichedToken[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -87,18 +81,49 @@ const TokenList = ({ address }: TokenListProps) => {
           <TableHeader>
             <TableRow>
               <TableHead>Token</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="text-right">View</TableHead>
+              <TableHead className="text-right">Details</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tokens.map((token) => (
               <TableRow key={token.id}>
                 <TableCell>
-                  <div className="font-medium">{token.symbol}</div>
-                  <div className="text-xs text-muted-foreground">{token.name}</div>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage 
+                        src={token.logoURI} 
+                        alt={token.name} 
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
+                        }}
+                      />
+                      <AvatarFallback className="text-xs">
+                        {token.symbol.substring(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-sm">{token.symbol}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[100px]" title={token.id}>
+                        {token.id.substring(0, 8)}...
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
-                <TableCell className="text-right font-medium">{token.amount.toLocaleString()}</TableCell>
+                <TableCell>
+                  <p className="font-medium text-sm truncate max-w-[150px]" title={token.name}>
+                    {token.name}
+                  </p>
+                  {token.description && (
+                    <p className="text-xs text-muted-foreground truncate max-w-[150px]" title={token.description}>
+                      {token.description.substring(0, 35)}{token.description.length > 35 ? '...' : ''}
+                    </p>
+                  )}
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  {token.formattedAmount}
+                </TableCell>
                 <TableCell className="text-right">
                   <a
                     href={`https://explorer.alephium.org/tokens/${token.id}`}
@@ -106,7 +131,7 @@ const TokenList = ({ address }: TokenListProps) => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center text-primary hover:underline"
                   >
-                    Details <ExternalLink className="ml-1 h-3 w-3" />
+                    View <ExternalLink className="ml-1 h-3 w-3" />
                   </a>
                 </TableCell>
               </TableRow>

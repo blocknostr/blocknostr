@@ -1,5 +1,6 @@
 
 import { NodeProvider } from '@alephium/web3';
+import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 
 // Initialize the node provider with the mainnet node
 const nodeProvider = new NodeProvider('https://node.mainnet.alephium.org');
@@ -80,15 +81,43 @@ export const getAddressUtxos = async (address: string) => {
 };
 
 /**
- * Gets token balances for an address by checking UTXOs
+ * Token interface with rich metadata
  */
-export const getAddressTokens = async (address: string) => {
+export interface EnrichedToken {
+  id: string;
+  amount: number;
+  rawAmount: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  logoURI?: string;
+  description?: string;
+  formattedAmount: string;
+}
+
+/**
+ * Gets token balances for an address by checking UTXOs
+ * and enriches them with metadata from the token list
+ */
+export const getAddressTokens = async (address: string): Promise<EnrichedToken[]> => {
   try {
+    // Fetch token metadata first
+    const tokenMetadataMap = await fetchTokenList();
+    
     // Get all UTXOs for the address
     const response = await getAddressUtxos(address);
     
     // Extract token information from UTXOs
-    const tokenMap: Record<string, { id: string, amount: number, name?: string, symbol?: string }> = {};
+    const tokenMap: Record<string, {
+      id: string,
+      rawAmount: string,
+      amount: number,
+      decimals: number,
+      name: string,
+      symbol: string,
+      logoURI?: string,
+      description?: string
+    }> = {};
     
     // Check if we have the expected structure
     if (!response || !response.utxos || !Array.isArray(response.utxos)) {
@@ -104,22 +133,35 @@ export const getAddressTokens = async (address: string) => {
           const tokenId = token.id;
           
           if (!tokenMap[tokenId]) {
+            // Get metadata from the token list or use fallback
+            const metadata = tokenMetadataMap[tokenId] || getFallbackTokenData(tokenId);
+            
             tokenMap[tokenId] = {
               id: tokenId,
+              rawAmount: "0",
               amount: 0,
-              // These would ideally come from token registry or contracts
-              name: `Unknown Token (${tokenId.substring(0, 6)}...)`,
-              symbol: `TOKEN-${tokenId.substring(0, 4)}`
+              decimals: metadata.decimals,
+              name: metadata.name,
+              symbol: metadata.symbol,
+              logoURI: metadata.logoURI,
+              description: metadata.description
             };
           }
           
+          // Add the amount
+          tokenMap[tokenId].rawAmount = (BigInt(tokenMap[tokenId].rawAmount) + BigInt(token.amount)).toString();
           tokenMap[tokenId].amount += Number(token.amount);
         }
       }
     }
     
-    // Convert the map to an array
-    return Object.values(tokenMap);
+    // Convert the map to an array and format amounts
+    const result = Object.values(tokenMap).map(token => ({
+      ...token,
+      formattedAmount: formatTokenAmount(token.amount, token.decimals)
+    }));
+    
+    return result;
   } catch (error) {
     console.error('Error fetching address tokens:', error);
     return [];
