@@ -9,7 +9,8 @@ import {
   Settings, 
   FileText, 
   Wallet, 
-  Crown 
+  Crown,
+  Gamepad
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -49,6 +50,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "Communities",
       icon: Users,
       href: "/communities",
+      requiresAuth: false
+    },
+    {
+      name: "Games",
+      icon: Gamepad,
+      href: "/games",
       requiresAuth: false
     },
     {
