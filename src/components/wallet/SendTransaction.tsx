@@ -29,15 +29,13 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
       return;
     }
     
-    // Validate recipient address (simple format check)
-    if (!recipient || !recipient.startsWith("1") && !recipient.startsWith("r")) {
+    if (!recipient) {
       toast.error("Invalid recipient", {
         description: "Please enter a valid Alephium address"
       });
       return;
     }
     
-    // Validate amount
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue) || amountValue <= 0) {
       toast.error("Invalid amount", {
@@ -47,17 +45,9 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     }
     
     setIsLoading(true);
-    toast.info("Processing transaction", {
-      description: "Your transaction is being processed..."
-    });
     
     try {
-      console.log("Sending transaction:", {
-        fromAddress,
-        recipient,
-        amount: amountValue
-      });
-      
+      // In a real app, you'd want to catch any signer or signature errors here
       const result = await sendTransaction(
         fromAddress,
         recipient,
@@ -65,19 +55,13 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
         wallet.signer
       );
       
-      console.log("Transaction result:", result);
+      toast.success("Transaction submitted", {
+        description: `Transaction ID: ${result.txId.substring(0, 10)}...`
+      });
       
-      if (result && result.txId) {
-        toast.success("Transaction submitted", {
-          description: `Transaction ID: ${result.txId.substring(0, 10)}...`
-        });
-        
-        // Reset form
-        setRecipient("");
-        setAmount("");
-      } else {
-        throw new Error("Transaction failed: No transaction ID returned");
-      }
+      // Reset form
+      setRecipient("");
+      setAmount("");
     } catch (error) {
       console.error("Transaction error:", error);
       toast.error("Transaction failed", {
@@ -89,7 +73,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   };
   
   return (
-    <Card className="h-full">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Send ALPH</CardTitle>
         <CardDescription className="text-xs">Transfer to another address</CardDescription>
@@ -114,8 +98,8 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
                 id="amount"
                 type="number"
                 placeholder="0.0"
-                step="0.000001"
-                min="0.000001"
+                step="0.01"
+                min="0.01"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 required
@@ -126,7 +110,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Minimum transaction: 0.000001 ALPH
+              Minimum transaction: 0.01 ALPH
             </p>
           </div>
           

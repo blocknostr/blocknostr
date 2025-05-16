@@ -1,10 +1,8 @@
 
 import { NodeProvider } from '@alephium/web3';
-import { ExplorerProvider } from '@alephium/web3';
 
 // Initialize the node provider with the mainnet node
 const nodeProvider = new NodeProvider('https://node.mainnet.alephium.org');
-const explorerProvider = new ExplorerProvider('https://explorer.alephium.org');
 
 /**
  * Gets the balance for a specific address in ALPH (not nanoALPH)
@@ -30,7 +28,7 @@ export const getAddressBalance = async (address: string): Promise<{
 
 /**
  * Gets transaction history for an address
- * This uses the explorer API to get actual transaction history
+ * This uses a custom implementation since the direct transaction method is not available
  */
 export const getAddressTransactions = async (address: string, limit = 20) => {
   try {
@@ -138,21 +136,15 @@ export const sendTransaction = async (
   signer: any
 ) => {
   try {
-    console.log("Starting transaction build...");
+    // Convert ALPH to nanoALPH
+    const amountInNanoAlph = (amountInAlph * 10**18).toString();
     
-    // Convert ALPH to nanoALPH (1 ALPH = 10^18 nanoALPH)
-    const amountInNanoAlph = (BigInt(Math.round(amountInAlph * 10**18))).toString();
-    
-    console.log(`Amount in nanoALPH: ${amountInNanoAlph}`);
-    
-    // Get the address group
+    // Get the from group
     const addressInfo = await nodeProvider.addresses.getAddressesAddressGroup(fromAddress);
     const fromGroup = addressInfo.group;
     
-    console.log(`From address group: ${fromGroup}`);
-    
     // Build unsigned transaction
-    const unsignedTxResult = await nodeProvider.transactions.postTransactionsBuild({
+    const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
       fromPublicKey: signer.publicKey,
       destinations: [{
         address: toAddress,
@@ -160,29 +152,15 @@ export const sendTransaction = async (
       }]
     });
     
-    console.log("Unsigned transaction built:", unsignedTxResult);
-    
-    if (!unsignedTxResult || !unsignedTxResult.unsignedTx) {
-      throw new Error("Failed to build transaction: Invalid response from node");
-    }
-    
     // Sign the transaction
-    console.log("Signing transaction...");
-    const signature = await signer.signTransaction(unsignedTxResult.unsignedTx);
-    
-    if (!signature) {
-      throw new Error("Failed to sign transaction: No signature returned");
-    }
-    
-    console.log("Transaction signed with signature:", signature.substring(0, 20) + "...");
+    const signature = await signer.signTransactionWithSignature(unsignedTx);
     
     // Submit the transaction
     const result = await nodeProvider.transactions.postTransactionsSubmit({
-      unsignedTx: unsignedTxResult.unsignedTx,
+      unsignedTx: unsignedTx.unsignedTx,
       signature: signature
     });
     
-    console.log("Transaction submitted successfully:", result);
     return result;
   } catch (error) {
     console.error('Error sending transaction:', error);
@@ -192,7 +170,6 @@ export const sendTransaction = async (
 
 export default {
   nodeProvider,
-  explorerProvider,
   getAddressBalance,
   getAddressTransactions,
   getAddressUtxos,
