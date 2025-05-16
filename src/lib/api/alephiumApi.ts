@@ -1,4 +1,3 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -574,6 +573,75 @@ export const fetchNetworkStats = async () => {
   }
 };
 
+/**
+ * Fetches latest transactions for a specific token ID
+ * @param tokenId The token ID to fetch transactions for
+ * @param limit Maximum number of transactions to fetch
+ */
+export const fetchTokenTransactions = async (tokenId: string, limit: number = 20) => {
+  try {
+    // Try to fetch from the backend API
+    const TRANSACTIONS_API = 'https://backend.mainnet.alephium.org/tokens';
+    const url = `${TRANSACTIONS_API}/${tokenId}/transactions?page=1&limit=${limit}`;
+    
+    console.log(`Fetching token transactions for ${tokenId}`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch transactions: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      console.warn('Unexpected response format for token transactions:', data);
+      return [];
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`Error fetching transactions for token ${tokenId}:`, error);
+    
+    // Return empty array if we couldn't fetch transactions
+    return [];
+  }
+};
+
+/**
+ * Get the latest transactions across all tokens
+ * Groups transactions by token and returns the most recent ones
+ */
+export const fetchLatestTokenTransactions = async (tokenIds: string[], limit: number = 5) => {
+  try {
+    const allTransactions = [];
+    let count = 0;
+    
+    // Fetch transactions for each token ID
+    for (const tokenId of tokenIds) {
+      if (count >= limit) break;
+      
+      const tokenTxs = await fetchTokenTransactions(tokenId, 2);
+      if (tokenTxs.length > 0) {
+        // Add token ID to the transaction objects
+        const enrichedTxs = tokenTxs.map(tx => ({
+          ...tx,
+          tokenId
+        }));
+        
+        allTransactions.push(...enrichedTxs);
+        count += tokenTxs.length;
+      }
+    }
+    
+    // Sort by timestamp, newest first
+    return allTransactions
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+  } catch (error) {
+    console.error('Error fetching latest token transactions:', error);
+    return [];
+  }
+};
+
 export default {
   nodeProvider,
   getAddressBalance,
@@ -583,5 +651,7 @@ export default {
   getAddressNFTs,
   sendTransaction,
   fetchBalanceHistory,
-  fetchNetworkStats
+  fetchNetworkStats,
+  fetchTokenTransactions,
+  fetchLatestTokenTransactions
 };

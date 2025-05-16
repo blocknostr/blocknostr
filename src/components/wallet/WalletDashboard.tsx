@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +13,7 @@ import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
 import { getAddressBalance, getAddressTokens } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
+import TokenActivity from "@/components/wallet/TokenActivity";
 
 interface SavedWallet {
   address: string;
@@ -250,25 +250,33 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="tokens" className="w-full">
-          <TabsList className="grid grid-cols-3 max-w-md mb-4">
-            <TabsTrigger value="tokens">Tokens</TabsTrigger>
-            <TabsTrigger value="nfts">NFTs</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Tabs defaultValue="tokens" className="w-full">
+              <TabsList className="grid grid-cols-3 max-w-md mb-4">
+                <TabsTrigger value="tokens">Tokens</TabsTrigger>
+                <TabsTrigger value="nfts">NFTs</TabsTrigger>
+                <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="tokens" className="mt-0">
+                <TokenList address={address} allTokens={Object.values(allTokens)} />
+              </TabsContent>
+              
+              <TabsContent value="nfts" className="mt-0">
+                <NFTGallery address={address} />
+              </TabsContent>
+              
+              <TabsContent value="transactions" className="mt-0">
+                <TransactionsList address={address} />
+              </TabsContent>
+            </Tabs>
+          </div>
           
-          <TabsContent value="tokens" className="mt-0">
-            <TokenList address={address} allTokens={Object.values(allTokens)} />
-          </TabsContent>
-          
-          <TabsContent value="nfts" className="mt-0">
-            <NFTGallery address={address} />
-          </TabsContent>
-          
-          <TabsContent value="transactions" className="mt-0">
-            <TransactionsList address={address} />
-          </TabsContent>
-        </Tabs>
+          <div>
+            <TokenActivity />
+          </div>
+        </div>
       </div>
     );
   }
