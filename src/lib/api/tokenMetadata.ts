@@ -75,22 +75,35 @@ export const getTokenMetadata = async (tokenId: string): Promise<TokenMetadata |
 
 /**
  * Formats token amounts based on their decimal places
+ * Divides the raw integer amount by 10^decimals
  */
-export const formatTokenAmount = (amount: number | string, decimals: number = 0): string => {
-  const numAmount = typeof amount === 'string' ? Number(amount) : amount;
+export const formatTokenAmount = (amount: string | number, decimals: number = 0): string => {
+  // Convert to BigInt to handle large numbers accurately
+  const bigAmount = typeof amount === 'string' ? BigInt(amount) : BigInt(Math.floor(amount));
   
   if (decimals === 0) {
-    return numAmount.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    return bigAmount.toString();
   }
   
-  // Convert to proper decimal representation
-  const adjustedAmount = numAmount / Math.pow(10, decimals);
+  // Convert to string and ensure it has enough leading zeros
+  let amountStr = bigAmount.toString();
+  // Pad with leading zeros if needed
+  while (amountStr.length <= decimals) {
+    amountStr = '0' + amountStr;
+  }
   
-  // Format with appropriate number of decimal places
-  const maxDecimals = Math.min(decimals, 8); // Cap display decimals at 8
-  return adjustedAmount.toLocaleString(undefined, {
+  // Insert decimal point
+  const integerPart = amountStr.slice(0, amountStr.length - decimals) || '0';
+  const fractionalPart = amountStr.slice(-decimals);
+  
+  // Format with appropriate number of decimal places, removing trailing zeros
+  const formattedAmount = `${integerPart}.${fractionalPart}`;
+  
+  // Parse as float to remove unnecessary trailing zeros and format with comma separators
+  const parsed = parseFloat(formattedAmount);
+  return parsed.toLocaleString(undefined, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: maxDecimals
+    maximumFractionDigits: decimals
   });
 };
 

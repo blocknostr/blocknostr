@@ -25,6 +25,7 @@ const TokenList = ({ address }: TokenListProps) => {
       
       try {
         const tokenData = await getAddressTokens(address);
+        console.log("Fetched tokens with formatted amounts:", tokenData);
         setTokens(tokenData);
       } catch (error) {
         console.error('Error fetching tokens:', error);

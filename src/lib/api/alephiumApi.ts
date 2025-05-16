@@ -84,8 +84,7 @@ export const getAddressUtxos = async (address: string) => {
  */
 export interface EnrichedToken {
   id: string;
-  amount: number;
-  rawAmount: string;
+  amount: string; // Changed from number to string to handle large values correctly
   name: string;
   nameOnChain?: string;
   symbol: string;
@@ -131,22 +130,20 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
             
             tokenMap[tokenId] = {
               id: tokenId,
-              rawAmount: "0",
-              amount: 0,
-              decimals: metadata.decimals,
+              amount: "0",
               name: metadata.name,
               nameOnChain: metadata.nameOnChain,
               symbol: metadata.symbol,
               symbolOnChain: metadata.symbolOnChain,
+              decimals: metadata.decimals,
               logoURI: metadata.logoURI,
               description: metadata.description,
               formattedAmount: ''
             };
           }
           
-          // Add the amount
-          tokenMap[tokenId].rawAmount = (BigInt(tokenMap[tokenId].rawAmount) + BigInt(token.amount)).toString();
-          tokenMap[tokenId].amount += Number(token.amount);
+          // Add the amount as string to avoid precision issues
+          tokenMap[tokenId].amount = (BigInt(tokenMap[tokenId].amount) + BigInt(token.amount)).toString();
         }
       }
     }
@@ -157,7 +154,7 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
       formattedAmount: formatTokenAmount(token.amount, token.decimals)
     }));
     
-    console.log("Enriched tokens:", result);
+    console.log("Enriched tokens with proper decimal formatting:", result);
     return result;
   } catch (error) {
     console.error('Error fetching address tokens:', error);
