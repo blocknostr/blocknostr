@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, ExternalLink, PlusCircle } from "lucide-react";
-import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -210,12 +209,8 @@ const WalletsPage = () => {
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
           <h2 className="text-3xl font-bold tracking-tight">Alephium Portfolio Manager</h2>
           <p className="text-muted-foreground max-w-md">
-            Connect your Alephium wallet to track balances, view transactions, send ALPH, and interact with dApps.
+            Track balances, view transactions, send ALPH, and interact with dApps.
           </p>
-          
-          <div className="w-full max-w-md my-8">
-            <WalletConnectButton />
-          </div>
           
           <div className="flex flex-col items-center mt-6">
             <Button
@@ -337,12 +332,6 @@ const WalletsPage = () => {
             onLabelEdit={handleLabelUpdate}
           />
         )}
-
-        <div className="flex justify-center">
-          <div className="w-full max-w-md">
-            <WalletConnectButton />
-          </div>
-        </div>
 
         {activeWallet && (
           <WalletDashboard
