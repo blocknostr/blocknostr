@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { ExternalLink, RefreshCw, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,7 @@ const CryptoTracker: React.FC = () => {
   const formatChange = (change: number) => {
     const isPositive = change >= 0;
     return (
-      <span className={`${isPositive ? 'text-green-500' : 'text-red-500'} text-xs`}>
+      <span className={`${isPositive ? 'text-green-500' : 'text-red-500'} text-sm`}>
         {isPositive ? '+' : ''}{change.toFixed(2)}%
       </span>
     );
@@ -130,14 +131,14 @@ const CryptoTracker: React.FC = () => {
   const renderCryptoItem = (crypto: CryptoData) => (
     <div key={crypto.id} className="flex items-center justify-between py-1 hover:bg-accent/30 group px-1 rounded">
       <div className="flex items-center gap-1">
-        <div className="text-xs bg-muted px-1 rounded">
+        <div className="text-sm bg-muted px-1 rounded">
           #{crypto.marketCapRank}
         </div>
-        <div className="text-xs font-medium">{crypto.name}</div>
-        <div className="text-xs text-muted-foreground uppercase">{crypto.symbol}</div>
+        <div className="text-sm font-medium">{crypto.name}</div>
+        <div className="text-sm text-muted-foreground uppercase">{crypto.symbol}</div>
       </div>
       <div className="flex items-center gap-2">
-        <div className="text-xs font-medium">{formatPrice(crypto.price)}</div>
+        <div className="text-sm font-medium">{formatPrice(crypto.price)}</div>
         {formatChange(crypto.priceChange24h)}
         <Button
           variant="ghost"
@@ -161,7 +162,7 @@ const CryptoTracker: React.FC = () => {
             <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M15 9.354C14.3802 8.7343 13.5233 8.39405 12.6361 8.4156C11.7489 8.43715 10.9075 8.8178 10.3179 9.46729C9.72833 10.1168 9.44338 10.9797 9.53398 11.8509C9.62457 12.722 10.08 13.5164 10.784 14.046L13.2 16L15.616 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          <h3 className="font-medium text-xs">Market Prices</h3>
+          <h3 className="font-medium text-sm">Market Prices</h3>
         </div>
         
         <div className="flex gap-1">
@@ -196,7 +197,7 @@ const CryptoTracker: React.FC = () => {
                     />
                     <Button onClick={handleAddCoin}>Add</Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Enter the CoinGecko ID of the cryptocurrency you want to track
                   </p>
                 </div>
@@ -223,16 +224,16 @@ const CryptoTracker: React.FC = () => {
       </div>
       
       {error ? (
-        <div className="p-2 text-center text-xs text-muted-foreground bg-accent/20 rounded">
-          {error}. <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={fetchCryptoData}>Try again</Button>
+        <div className="p-2 text-center text-sm text-muted-foreground bg-accent/20 rounded">
+          {error}. <Button variant="link" size="sm" className="p-0 h-auto text-sm" onClick={fetchCryptoData}>Try again</Button>
         </div>
       ) : loading && cryptoData.length === 0 ? (
         <div className="space-y-1">
           {[1, 2, 3].map(i => (
             <div key={i} className="py-1 px-1">
               <div className="flex justify-between items-center">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-12" />
               </div>
             </div>
           ))}
@@ -244,8 +245,8 @@ const CryptoTracker: React.FC = () => {
           </div>
           
           {lastUpdated && (
-            <div className="mt-1 text-xs text-center text-muted-foreground">
-              <div className="flex items-center justify-center text-[10px]">
+            <div className="mt-1 text-sm text-center text-muted-foreground">
+              <div className="flex items-center justify-center">
                 <span>Updated {lastUpdated.toLocaleTimeString()}</span>
                 <a 
                   href="https://www.coingecko.com/" 
@@ -254,7 +255,7 @@ const CryptoTracker: React.FC = () => {
                   className="inline-flex items-center ml-1 text-primary hover:underline"
                 >
                   CoinGecko
-                  <ExternalLink className="h-2 w-2 ml-0.5" />
+                  <ExternalLink className="h-3 w-3 ml-0.5" />
                 </a>
               </div>
             </div>
