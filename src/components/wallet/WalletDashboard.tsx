@@ -15,12 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 import { EnrichedTokenWithWallets, SavedWallet, TokenWallet } from "@/types/wallet";
 
-interface SavedWallet {
-  address: string;
-  label: string;
-  dateAdded: number;
-}
-
 interface WalletDashboardProps {
   address: string;
   allWallets?: SavedWallet[];
