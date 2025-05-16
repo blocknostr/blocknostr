@@ -102,3 +102,25 @@ export const truncateAddress = (address: string, prefixLength = 6, suffixLength 
   
   return `${address.substring(0, prefixLength)}...${address.substring(address.length - suffixLength)}`;
 };
+
+/**
+ * Format NFT token ID for display
+ */
+export const formatNftId = (id: string): string => {
+  if (!id || id.length <= 12) {
+    return id;
+  }
+  
+  return `${id.substring(0, 6)}...${id.substring(id.length - 6)}`;
+};
+
+/**
+ * Format NFT attributes for display
+ */
+export const formatNftAttributes = (attributes: any[] | undefined): string => {
+  if (!attributes || attributes.length === 0) {
+    return "No attributes";
+  }
+  
+  return `${attributes.length} attribute${attributes.length > 1 ? 's' : ''}`;
+};

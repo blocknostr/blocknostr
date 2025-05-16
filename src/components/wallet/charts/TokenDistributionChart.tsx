@@ -8,7 +8,7 @@ interface TokenDistributionChartProps {
   address: string;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ff6b81', '#36a2eb'];
 
 const TokenDistributionChart: React.FC<TokenDistributionChartProps> = ({ address }) => {
   const [tokens, setTokens] = useState<EnrichedToken[]>([]);
@@ -36,25 +36,34 @@ const TokenDistributionChart: React.FC<TokenDistributionChartProps> = ({ address
     fetchTokens();
   }, [address]);
 
-  // Transform token data for chart
+  // Transform token data for chart - separate NFTs from fungible tokens
   const chartData = tokens
     .filter(token => parseFloat(token.formattedAmount) > 0) // Filter out zero balances
     .map((token, index) => ({
       name: token.symbol,
-      value: parseFloat(token.formattedAmount.replace(/,/g, '')),
+      value: token.isNFT ? 1 : parseFloat(token.formattedAmount.replace(/,/g, '')),
       fill: COLORS[index % COLORS.length],
+      isNFT: token.isNFT,
     }));
 
   // Add "Other" category if there are too many tokens
   if (chartData.length > 5) {
     const topTokens = chartData.slice(0, 4);
     const otherTokens = chartData.slice(4);
-    const otherValue = otherTokens.reduce((sum, token) => sum + token.value, 0);
+    
+    // Sum values for non-NFTs
+    const otherValue = otherTokens
+      .filter(token => !token.isNFT)
+      .reduce((sum, token) => sum + token.value, 0);
+    
+    // Count NFTs
+    const otherNFTs = otherTokens.filter(token => token.isNFT).length;
     
     topTokens.push({
       name: 'Other',
-      value: otherValue,
+      value: otherValue + otherNFTs, // Add NFT count to value for display purposes
       fill: COLORS[5 % COLORS.length],
+      isNFT: false,
     });
     
     chartData.length = 0;
@@ -108,7 +117,14 @@ const TokenDistributionChart: React.FC<TokenDistributionChartProps> = ({ address
           ))}
         </Pie>
         <Legend />
-        <Tooltip formatter={(value) => [`${Number(value).toLocaleString()}`, 'Amount']} />
+        <Tooltip 
+          formatter={(value, name, props) => {
+            if (props.payload.isNFT) {
+              return ["NFT", name];
+            }
+            return [`${Number(value).toLocaleString()}`, name];
+          }} 
+        />
       </PieChart>
     </ResponsiveContainer>
   );

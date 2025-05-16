@@ -1,6 +1,6 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
+import { formatNumber } from '@/lib/utils/formatters';
 
 // Initialize the node provider with the mainnet node
 const nodeProvider = new NodeProvider('https://node.mainnet.alephium.org');
@@ -57,7 +57,9 @@ export const getAddressTransactions = async (address: string, limit = 20) => {
       outputs: [{
         address: address,
         amount: utxo.amount || '0'
-      }]
+      }],
+      // Add tokens information if available
+      tokens: utxo.tokens || []
     }));
     
     return simplifiedTxs;
@@ -94,7 +96,57 @@ export interface EnrichedToken {
   logoURI?: string;
   description?: string;
   formattedAmount: string;
+  isNFT: boolean;
+  tokenURI?: string;
+  imageUrl?: string;
+  attributes?: any[];
 }
+
+/**
+ * Checks if a token is likely an NFT based on its properties
+ */
+const isLikelyNFT = (token: any) => {
+  // Check for standard NFT properties
+  if (token.standard && ['INFT', 'NFT', 'ERC721', 'ERC1155'].includes(token.standard)) {
+    return true;
+  }
+  
+  // Check for common NFT indicators in the token ID or symbol
+  if ((token.symbol && /NFT|TOKEN|COIN|COLLECTION/i.test(token.symbol)) || 
+      (token.name && /NFT|TOKEN|COIN|COLLECTION/i.test(token.name))) {
+    return true;
+  }
+  
+  // Check if the token appears to be non-fungible based on its amount
+  if (token.amount === "1" || token.amount === 1) {
+    return true;
+  }
+  
+  return false;
+};
+
+/**
+ * Fetch basic NFT metadata from token URI if available
+ */
+const fetchNFTMetadata = async (tokenURI?: string) => {
+  if (!tokenURI) return null;
+  
+  try {
+    // If token URI is an IPFS link, convert to HTTP gateway
+    const formattedURI = tokenURI.startsWith('ipfs://')
+      ? `https://ipfs.io/ipfs/${tokenURI.substring(7)}`
+      : tokenURI;
+    
+    const response = await fetch(formattedURI);
+    if (!response.ok) throw new Error(`Failed to fetch metadata: ${response.status}`);
+    
+    const metadata = await response.json();
+    return metadata;
+  } catch (error) {
+    console.error('Error fetching NFT metadata:', error);
+    return null;
+  }
+};
 
 /**
  * Gets token balances for an address by checking UTXOs
@@ -129,18 +181,38 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
             // Get metadata from the token list or use fallback
             const metadata = tokenMetadataMap[tokenId] || getFallbackTokenData(tokenId);
             
+            // Check if this token is likely an NFT
+            const nftStatus = isLikelyNFT(metadata);
+            
             tokenMap[tokenId] = {
               id: tokenId,
               amount: "0",
               name: metadata.name,
               nameOnChain: metadata.nameOnChain,
-              symbol: metadata.symbol,
+              symbol: metadata.symbol || (nftStatus ? 'NFT' : `TOKEN-${tokenId.substring(0, 6)}`),
               symbolOnChain: metadata.symbolOnChain,
               decimals: metadata.decimals,
               logoURI: metadata.logoURI,
               description: metadata.description,
-              formattedAmount: ''
+              formattedAmount: '',
+              isNFT: nftStatus,
+              tokenURI: metadata.tokenURI || metadata.uri,
+              imageUrl: metadata.image || metadata.imageUrl
             };
+            
+            // Try to fetch additional NFT metadata if it's an NFT
+            if (nftStatus && (metadata.tokenURI || metadata.uri)) {
+              fetchNFTMetadata(metadata.tokenURI || metadata.uri).then(nftMetadata => {
+                if (nftMetadata && tokenMap[tokenId]) {
+                  tokenMap[tokenId].name = nftMetadata.name || tokenMap[tokenId].name;
+                  tokenMap[tokenId].description = nftMetadata.description || tokenMap[tokenId].description;
+                  tokenMap[tokenId].imageUrl = nftMetadata.image || tokenMap[tokenId].imageUrl;
+                  tokenMap[tokenId].attributes = nftMetadata.attributes;
+                }
+              }).catch(err => {
+                console.error(`Error fetching metadata for token ${tokenId}:`, err);
+              });
+            }
           }
           
           // Add the amount as string to avoid precision issues
@@ -152,13 +224,30 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
     // Convert the map to an array and format amounts
     const result = Object.values(tokenMap).map(token => ({
       ...token,
-      formattedAmount: formatTokenAmount(token.amount, token.decimals)
+      formattedAmount: token.isNFT 
+        ? token.amount // Don't format NFT amounts (they're usually just "1")
+        : formatTokenAmount(token.amount, token.decimals)
     }));
     
-    console.log("Enriched tokens with proper decimal formatting:", result);
+    console.log("Enriched tokens with NFT status:", result);
     return result;
   } catch (error) {
     console.error('Error fetching address tokens:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetches NFTs owned by an address
+ */
+export const getAddressNFTs = async (address: string): Promise<EnrichedToken[]> => {
+  try {
+    // Reuse the getAddressTokens function but filter for NFTs only
+    const allTokens = await getAddressTokens(address);
+    const nfts = allTokens.filter(token => token.isNFT);
+    return nfts;
+  } catch (error) {
+    console.error('Error fetching address NFTs:', error);
     return [];
   }
 };
@@ -275,6 +364,7 @@ export default {
   getAddressTransactions,
   getAddressUtxos,
   getAddressTokens,
+  getAddressNFTs,
   sendTransaction,
   fetchBalanceHistory,
   fetchNetworkStats

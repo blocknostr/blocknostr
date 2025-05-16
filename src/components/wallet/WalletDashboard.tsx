@@ -10,6 +10,7 @@ import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 import TokenList from "@/components/wallet/TokenList";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import RecentActivityCard from "@/components/wallet/RecentActivityCard";
+import NFTGallery from "@/components/wallet/NFTGallery";
 import { formatNumber } from "@/lib/utils/formatters";
 
 interface WalletDashboardProps {
@@ -99,6 +100,9 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* NFT Gallery Section */}
+      <NFTGallery address={address} />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
@@ -115,14 +119,19 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
       </div>
       
       <Tabs defaultValue="tokens" className="w-full">
-        <TabsList className="grid grid-cols-3 max-w-md mb-4">
+        <TabsList className="grid grid-cols-4 max-w-md mb-4">
           <TabsTrigger value="tokens">Tokens</TabsTrigger>
+          <TabsTrigger value="nfts">NFTs</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="activity">Recent Activity</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tokens" className="mt-0">
           <TokenList address={address} />
+        </TabsContent>
+        
+        <TabsContent value="nfts" className="mt-0">
+          <NFTGallery address={address} />
         </TabsContent>
         
         <TabsContent value="transactions" className="mt-0">
