@@ -11,7 +11,7 @@ interface PetState {
   level: number;
   experience: number;
   evolutionStage: number;
-  customizationர: { color: string; accessory: string; aura: string };
+  customization: { color: string; accessory: string; aura: string };
   inventory: { itemId: string; quantity: number }[];
   lastReward: number;
   lastEvent: number;
@@ -115,7 +115,7 @@ export default class GameScene extends Phaser.Scene {
       scale: { start: 0.2, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 1000,
-      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum instead of string 'ADD'
+      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum
       on: false
     });
     
@@ -340,14 +340,14 @@ export default class GameScene extends Phaser.Scene {
     // Apply particle effects
     this.petEmitter.stop();
     if (this.customization.aura !== 'none') {
-      this.pet Wmitter.setPosition(this.pet.x, this.pet.y);
+      this.petEmitter.setPosition(this.pet.x, this.pet.y);
       
       if (this.customization.aura === 'glow') {
         this.petEmitter.setFrequency(200);
-        this.petEmitter.setScale({ start: 0.1, end: 0 }); // Fixed: Use setScale with range object
+        this.petEmitter.setScale({ start: 0.1, end: 0 });
       } else if (this.customization.aura === 'sparkle') {
         this.petEmitter.setFrequency(500);
-        this.petEmitter.setScale({ start: 0.2, end: 0 }); // Fixed: Use setScale with range object
+        this.petEmitter.setScale({ start: 0.2, end: 0 });
       }
       
       this.petEmitter.start();
