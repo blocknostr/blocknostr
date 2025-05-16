@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Activity, Network } from "lucide-react";
+import { Loader2, Activity, Network, WifiOff } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 // Sample data for the network activity (in production, this would come from an API)
@@ -34,6 +34,7 @@ interface NetworkActivityCardProps {
 const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "" }) => {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiveData, setIsLiveData] = useState(false);
 
   useEffect(() => {
     // Simulate API fetch
@@ -44,6 +45,8 @@ const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "
         const activityData = generateActivityData();
         setData(activityData);
         setIsLoading(false);
+        // Currently this is always using simulated data
+        setIsLiveData(false);
       }, 800);
     };
 
@@ -59,11 +62,31 @@ const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          Network Activity
-        </CardTitle>
-        <CardDescription>Growing number of active addresses on the Alephium network</CardDescription>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Network Activity</CardTitle>
+              <CardDescription>Growing number of active addresses on the Alephium network</CardDescription>
+            </div>
+          </div>
+          
+          {!isLoading && (
+            <div className="flex items-center gap-2">
+              {isLiveData ? (
+                <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-green-600 dark:bg-green-400 rounded-full animate-pulse" />
+                  <span>Live Data</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full">
+                  <WifiOff className="h-3 w-3" />
+                  <span>Simulated Data</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (

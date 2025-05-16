@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Hash, Database, Activity, Clock, Blocks, Network, Server } from "lucide-react";
+import { Loader2, Hash, Database, Activity, Clock, Blocks, Network, Server, WifiOff } from "lucide-react";
 import { fetchNetworkStats } from "@/lib/api/alephiumApi";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface NetworkStats {
   hashRate: string;
@@ -19,6 +20,7 @@ interface NetworkStats {
     height: number;
     txNumber: number;
   }>;
+  isLiveData?: boolean;
 }
 
 interface NetworkStatsCardProps {
@@ -28,6 +30,7 @@ interface NetworkStatsCardProps {
 const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) => {
   const [stats, setStats] = useState<NetworkStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -35,6 +38,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
       try {
         const data = await fetchNetworkStats();
         setStats(data);
+        setLastUpdated(new Date());
       } catch (error) {
         console.error("Error fetching network stats:", error);
         // Set updated sample data
@@ -47,6 +51,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
           totalTransactions: "4.28M",
           totalSupply: "110.06M ALPH",
           totalBlocks: "3.75M",
+          isLiveData: false,
           latestBlocks: [
             { hash: "0xa1b2c3...", timestamp: Date.now() - 60000, height: 3752480, txNumber: 5 },
             { hash: "0xd4e5f6...", timestamp: Date.now() - 120000, height: 3752479, txNumber: 3 },
@@ -78,11 +83,31 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Network className="h-5 w-5 text-primary" />
-          Network Statistics
-        </CardTitle>
-        <CardDescription>Current Alephium blockchain metrics from explorer.alephium.org</CardDescription>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2">
+            <Network className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Network Statistics</CardTitle>
+              <CardDescription>Current Alephium blockchain metrics from explorer.alephium.org</CardDescription>
+            </div>
+          </div>
+          
+          {!isLoading && stats && (
+            <div className="flex items-center gap-2">
+              {stats.isLiveData !== false ? (
+                <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-green-600 dark:bg-green-400 rounded-full animate-pulse" />
+                  <span>Live Data</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full">
+                  <WifiOff className="h-3 w-3" />
+                  <span>Fallback Data</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -91,6 +116,15 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
           </div>
         ) : (
           <div className="space-y-6">
+            {stats?.isLiveData === false && (
+              <Alert variant="warning" className="mb-4">
+                <AlertDescription className="text-xs flex items-center gap-1.5">
+                  <WifiOff className="h-3.5 w-3.5" />
+                  <span>Unable to connect to Alephium Explorer API. Using fallback data.</span>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1 flex items-start">
                 <Activity className="h-4 w-4 mr-2 mt-1 text-primary" />
@@ -173,7 +207,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
               </div>
             )}
             
-            <div className="pt-2">
+            <div className="pt-2 flex justify-between items-center">
               <a 
                 href="https://explorer.alephium.org/" 
                 target="_blank" 
@@ -183,6 +217,10 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
                 View more on Explorer
                 <Network className="h-3.5 w-3.5" />
               </a>
+              
+              <div className="text-xs text-muted-foreground">
+                Updated: {lastUpdated.toLocaleTimeString()}
+              </div>
             </div>
           </div>
         )}
