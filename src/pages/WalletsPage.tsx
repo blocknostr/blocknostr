@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine } from "lucide-react";
@@ -30,7 +31,7 @@ interface SavedWallet {
 const WalletsPage = () => {
   const wallet = useWallet();
   const [savedWallets, setSavedWallets] = useLocalStorage<SavedWallet[]>("blocknoster_saved_wallets", []);
-  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [walletAddress, setWalletAddress] = useLocalStorage<string>("blocknoster_selected_wallet", "");
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
@@ -43,6 +44,16 @@ const WalletsPage = () => {
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
+
+  // Auto-refresh data every 5 minutes
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      setRefreshFlag(prev => prev + 1);
+      console.log("Auto-refreshing wallet data");
+    }, 5 * 60 * 1000); // 5 minutes in milliseconds
+
+    return () => clearInterval(refreshInterval); // Cleanup on unmount
+  }, []);
 
   // Initialize with connected wallet or first saved wallet
   useEffect(() => {

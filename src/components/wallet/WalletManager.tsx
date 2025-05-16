@@ -28,6 +28,22 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
   const [newLabel, setNewLabel] = useState("");
   const [savedWallets, setSavedWallets] = useLocalStorage<SavedWallet[]>("blocknoster_saved_wallets", []);
 
+  // Initialize with default wallet if no wallets exist
+  useEffect(() => {
+    if (savedWallets.length === 0) {
+      // Default demo wallet if no saved wallets
+      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+      
+      setSavedWallets([{ 
+        address: defaultAddress, 
+        label: "Demo Wallet", 
+        dateAdded: Date.now() 
+      }]);
+      
+      onSelectWallet(defaultAddress);
+    }
+  }, []);
+
   const handleAddWallet = async () => {
     if (!newAddress) {
       toast.error("Please enter a wallet address");
@@ -72,6 +88,12 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
   };
 
   const handleRemoveWallet = (address: string) => {
+    // Prevent removing the last wallet
+    if (savedWallets.length <= 1) {
+      toast.error("You must keep at least one wallet for tracking");
+      return;
+    }
+    
     setSavedWallets(savedWallets.filter(wallet => wallet.address !== address));
     
     // If removing the currently selected wallet, select another one
@@ -176,6 +198,7 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
                   handleRemoveWallet(wallet.address);
                 }}
                 className="h-6 w-6 p-0"
+                disabled={savedWallets.length <= 1}
               >
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
                 <span className="sr-only">Remove wallet</span>
