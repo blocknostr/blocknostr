@@ -3,6 +3,8 @@
  * Token metadata service for Alephium tokens
  * Fetches and caches token information from the official Alephium token list
  */
+import { TokenInfo, TokenList } from '@alephium/token-list';
+import { NodeProvider, node } from '@alephium/web3';
 
 // Token interface matching the Alephium token list schema
 export interface TokenMetadata {
@@ -23,11 +25,7 @@ export interface TokenMetadata {
   attributes?: any[];
 }
 
-interface TokenList {
-  networkId: number;
-  tokens: TokenMetadata[];
-}
-
+// Official Alephium token list URL
 const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens.json";
 let tokenCache: Record<string, TokenMetadata> | null = null;
 let lastFetchTime = 0;
@@ -45,20 +43,42 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
   }
   
   try {
-    const response = await fetch(TOKEN_LIST_URL);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch token list: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json() as TokenList;
-    console.log("Fetched token list:", data);
-    
-    // Create a map of token ID to token data for quick lookups
+    // Try to fetch from the Alephium token list first (SDK method)
     const tokenMap: Record<string, TokenMetadata> = {};
-    data.tokens.forEach(token => {
-      tokenMap[token.id] = token;
-    });
+    
+    try {
+      const tokenList = await import('@alephium/token-list');
+      const tokens = tokenList.mainnetTokens.tokens;
+      
+      console.log("SDK token list fetched:", tokens.length);
+      
+      tokens.forEach((token: TokenInfo) => {
+        tokenMap[token.id] = {
+          id: token.id,
+          name: token.name,
+          symbol: token.symbol,
+          decimals: token.decimals,
+          logoURI: token.logoURI,
+          description: token.description
+        };
+      });
+    } catch (sdkError) {
+      console.warn("Error fetching SDK token list, falling back to GitHub URL:", sdkError);
+      
+      // Fallback: Fetch from GitHub directly
+      const response = await fetch(TOKEN_LIST_URL);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch token list: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("GitHub token list fetched:", data.tokens.length);
+      
+      data.tokens.forEach((token: TokenMetadata) => {
+        tokenMap[token.id] = token;
+      });
+    }
     
     // Update cache
     tokenCache = tokenMap;
@@ -73,11 +93,41 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
 };
 
 /**
- * Gets metadata for a specific token ID
+ * Gets metadata for a specific token ID directly from the node if possible
  */
-export const getTokenMetadata = async (tokenId: string): Promise<TokenMetadata | undefined> => {
-  const tokenMap = await fetchTokenList();
-  return tokenMap[tokenId];
+export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvider): Promise<TokenMetadata | undefined> => {
+  try {
+    // First check our cache
+    const tokenMap = await fetchTokenList();
+    if (tokenMap[tokenId]) {
+      return tokenMap[tokenId];
+    }
+    
+    // If not in cache, try to fetch directly from node
+    const provider = nodeProvider || new NodeProvider('https://node.mainnet.alephium.org');
+    
+    try {
+      const tokenInfo = await provider.tokens.getTokensTokenId(tokenId);
+      
+      if (tokenInfo) {
+        return {
+          id: tokenId,
+          name: tokenInfo.name || `Token ${tokenId.substring(0, 6)}`,
+          symbol: tokenInfo.symbol || `TOKEN`,
+          decimals: tokenInfo.decimals || 0,
+          description: "Token fetched from Alephium node"
+        };
+      }
+    } catch (nodeError) {
+      console.warn(`Could not fetch token ${tokenId} from node:`, nodeError);
+    }
+    
+    // Fallback to default data
+    return getFallbackTokenData(tokenId);
+  } catch (error) {
+    console.error(`Error in getTokenMetadata for ${tokenId}:`, error);
+    return getFallbackTokenData(tokenId);
+  }
 };
 
 /**
