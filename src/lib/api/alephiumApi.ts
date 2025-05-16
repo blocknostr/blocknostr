@@ -420,26 +420,19 @@ export const fetchNetworkStats = async () => {
       });
       
       // Check if we have blocks in the response and adapt to the actual structure
-      // ChainInfo doesn't have a headers property, it might have blocks or another structure
+      // ChainInfo doesn't have a blockHashes property, examine what's available
       if (latestChainInfo) {
-        // Create blocks array from chain info - structure depends on the actual API response
-        // Since we don't have headers property in ChainInfo, we'll use a different approach
-        const blockHashes = latestChainInfo.blockHashes || [];
+        // Inspect the structure and use what's available
+        // For now, we'll fall back to our default blocks since we can't access actual block hashes
+        console.log("Chain info:", latestChainInfo);
         
-        if (blockHashes.length > 0) {
-          // If we have block hashes, create block info from them
-          latestBlocks = [];
-          
-          // Take up to 3 block hashes
-          for (let i = 0; i < Math.min(blockHashes.length, 3); i++) {
-            const blockHash = blockHashes[i];
-            latestBlocks.push({
-              hash: blockHash,
-              timestamp: Date.now() - (i * 60000), // Approximate timestamp
-              height: currentHeight - i,
-              txNumber: Math.floor(Math.random() * 10) + 1 // This data is not available directly
-            });
-          }
+        // Update the height information at least
+        if (latestChainInfo.currentHeight) {
+          const height = parseInt(String(latestChainInfo.currentHeight));
+          latestBlocks = latestBlocks.map((block, index) => ({
+            ...block,
+            height: height - index
+          }));
         }
       }
     } catch (blocksError) {
