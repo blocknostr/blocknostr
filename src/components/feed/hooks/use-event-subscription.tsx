@@ -129,7 +129,7 @@ export function useEventSubscription({
     const effectiveHashtags = hashtagOverride || hashtags || (activeHashtag ? [activeHashtag] : undefined);
     
     if (effectiveHashtags && effectiveHashtags.length > 0) {
-      // Using "#t" tag is NIP-01 compliant for tag filtering
+      // Instead of search for exact 't' tag match, use the native '#t' search in nostr-tools
       filters[0]["#t"] = effectiveHashtags;
     }
     

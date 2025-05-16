@@ -9,13 +9,11 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 interface GlobalFeedProps {
   activeHashtag?: string;
   onLoadingChange?: (isLoading: boolean) => void;
-  onContentChange?: (hasContent: boolean) => void;
 }
 
 const GlobalFeed: React.FC<GlobalFeedProps> = ({ 
   activeHashtag,
-  onLoadingChange,
-  onContentChange
+  onLoadingChange
 }) => {
   const {
     events,
@@ -45,13 +43,6 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     }));
     
   }, [loading, extendedLoading, onLoadingChange]);
-  
-  // Notify parent of content availability
-  useEffect(() => {
-    if (onContentChange) {
-      onContentChange(events.length > 0);
-    }
-  }, [events.length, onContentChange]);
   
   // Reset extended loading state when activeHashtag changes
   useEffect(() => {
