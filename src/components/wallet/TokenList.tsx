@@ -17,7 +17,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
   useEffect(() => {
     // If allTokens is provided, use those instead of fetching for a single address
     if (allTokens && allTokens.length > 0) {
-      setTokens(allTokens);
+      setTokens(allTokens.filter(token => !token.isNFT));
       setLoading(false);
       return;
     }
