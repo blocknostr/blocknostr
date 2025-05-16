@@ -1,4 +1,3 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 
@@ -88,7 +87,9 @@ export interface EnrichedToken {
   amount: number;
   rawAmount: string;
   name: string;
+  nameOnChain?: string;
   symbol: string;
+  symbolOnChain?: string;
   decimals: number;
   logoURI?: string;
   description?: string;
@@ -103,21 +104,13 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
   try {
     // Fetch token metadata first
     const tokenMetadataMap = await fetchTokenList();
+    console.log("Token metadata map:", tokenMetadataMap);
     
     // Get all UTXOs for the address
     const response = await getAddressUtxos(address);
     
     // Extract token information from UTXOs
-    const tokenMap: Record<string, {
-      id: string,
-      rawAmount: string,
-      amount: number,
-      decimals: number,
-      name: string,
-      symbol: string,
-      logoURI?: string,
-      description?: string
-    }> = {};
+    const tokenMap: Record<string, EnrichedToken> = {};
     
     // Check if we have the expected structure
     if (!response || !response.utxos || !Array.isArray(response.utxos)) {
@@ -142,9 +135,12 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
               amount: 0,
               decimals: metadata.decimals,
               name: metadata.name,
+              nameOnChain: metadata.nameOnChain,
               symbol: metadata.symbol,
+              symbolOnChain: metadata.symbolOnChain,
               logoURI: metadata.logoURI,
-              description: metadata.description
+              description: metadata.description,
+              formattedAmount: ''
             };
           }
           
@@ -161,6 +157,7 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
       formattedAmount: formatTokenAmount(token.amount, token.decimals)
     }));
     
+    console.log("Enriched tokens:", result);
     return result;
   } catch (error) {
     console.error('Error fetching address tokens:', error);

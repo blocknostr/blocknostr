@@ -3,9 +3,10 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, HelpCircle } from "lucide-react";
 import { getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 interface TokenListProps {
@@ -94,7 +95,7 @@ const TokenList = ({ address }: TokenListProps) => {
                     <Avatar className="h-8 w-8">
                       <AvatarImage 
                         src={token.logoURI} 
-                        alt={token.name} 
+                        alt={token.symbol} 
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
                         }}
@@ -104,17 +105,45 @@ const TokenList = ({ address }: TokenListProps) => {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-sm">{token.symbol}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-medium text-sm">{token.symbol}</p>
+                        {token.symbolOnChain && token.symbolOnChain !== token.symbol && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>On-chain symbol: {token.symbolOnChain}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground truncate max-w-[100px]" title={token.id}>
-                        {token.id.substring(0, 8)}...
+                        {token.id.substring(0, 8)}...{token.id.substring(token.id.length - 8)}
                       </p>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <p className="font-medium text-sm truncate max-w-[150px]" title={token.name}>
-                    {token.name}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="font-medium text-sm truncate max-w-[150px]" title={token.name}>
+                      {token.name}
+                    </p>
+                    {token.nameOnChain && token.nameOnChain !== token.name && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>On-chain name: {token.nameOnChain}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                   {token.description && (
                     <p className="text-xs text-muted-foreground truncate max-w-[150px]" title={token.description}>
                       {token.description.substring(0, 35)}{token.description.length > 35 ? '...' : ''}

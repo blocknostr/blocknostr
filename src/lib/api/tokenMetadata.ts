@@ -45,6 +45,7 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
     }
     
     const data = await response.json() as TokenList;
+    console.log("Fetched token list:", data);
     
     // Create a map of token ID to token data for quick lookups
     const tokenMap: Record<string, TokenMetadata> = {};
@@ -105,4 +106,3 @@ export const getFallbackTokenData = (tokenId: string): TokenMetadata => {
     logoURI: "https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png"
   };
 };
-
