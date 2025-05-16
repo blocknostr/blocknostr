@@ -1,17 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, PieChart, BarChart, LineChart, ArrowUpRight, ArrowDownLeft, Settings, RefreshCw, ExternalLink } from "lucide-react";
+import { Wallet, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
-import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
-import TokenList from "@/components/wallet/TokenList";
-import SendTransaction from "@/components/wallet/SendTransaction";
-import DAppsSection from "@/components/wallet/DAppsSection";
+import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
 
 // Specify the fixed address if we want to track a specific wallet
@@ -27,11 +22,8 @@ interface WalletStats {
 
 const WalletsPage = () => {
   const wallet = useWallet();
-  const [activeTab, setActiveTab] = useState("overview");
   const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [isRecentTransactionsLoading, setIsRecentTransactionsLoading] = useState<boolean>(true);
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
     receivedAmount: 0,
@@ -54,28 +46,6 @@ const WalletsPage = () => {
       });
     }
   }, [connected, wallet.account]);
-
-  // Effect to fetch recent transactions for the overview tab
-  useEffect(() => {
-    const fetchRecentTransactions = async () => {
-      if (!walletAddress) return;
-      
-      setIsRecentTransactionsLoading(true);
-      try {
-        // Fetch just 3 transactions for the recent activity section
-        const txs = await getAddressTransactions(walletAddress, 3);
-        setRecentTransactions(txs);
-      } catch (error) {
-        console.error("Error fetching recent transactions:", error);
-        // Don't show error toast here as TransactionsList component will handle that
-        setRecentTransactions([]);
-      } finally {
-        setIsRecentTransactionsLoading(false);
-      }
-    };
-    
-    fetchRecentTransactions();
-  }, [walletAddress, refreshFlag]);
 
   // Effect to fetch wallet statistics
   useEffect(() => {
@@ -120,10 +90,6 @@ const WalletsPage = () => {
     fetchWalletStats();
   }, [walletAddress, refreshFlag]);
 
-  const handleRefresh = () => {
-    setRefreshFlag(prev => prev + 1);
-  };
-
   const handleDisconnect = async () => {
     try {
       if (wallet.signer && (wallet.signer as any).requestDisconnect) {
@@ -144,18 +110,6 @@ const WalletsPage = () => {
         description: error instanceof Error ? error.message : "Unknown error"
       });
     }
-  };
-
-  // Helper function to format date
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Helper function to truncate address
-  const truncateAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
   
   // Helper to determine if transaction is incoming or outgoing
@@ -189,13 +143,6 @@ const WalletsPage = () => {
     }
     
     return 0;
-  };
-
-  // Format numbers with thousand separators
-  const formatNumber = (num: number) => {
-    return num.toLocaleString(undefined, {
-      maximumFractionDigits: 2
-    });
   };
 
   // Decide whether to show connect screen or wallet dashboard
@@ -237,34 +184,25 @@ const WalletsPage = () => {
 
   // Show wallet dashboard with either connected wallet or fixed address data
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex flex-col space-y-8">
-        <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold tracking-tight">
-            {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
-          </h2>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefresh}
-              className="h-9 gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Refresh</span>
-            </Button>
-            
-            {connected ? (
-              <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">Disconnect</Button>
-            ) : (
-              <Button variant="outline" size="sm" className="h-9" asChild>
-                <a href="https://alephium.org/#wallets" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  <span>Get Wallet</span>
-                </a>
-              </Button>
-            )}
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight mb-1">
+              {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
+            </h2>
+            <p className="text-muted-foreground">
+              {connected 
+                ? "Track and manage your Alephium assets" 
+                : "Viewing public wallet data"}
+            </p>
           </div>
+          
+          {connected && (
+            <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
+              Disconnect Wallet
+            </Button>
+          )}
         </div>
 
         <AddressDisplay address={walletAddress} />
@@ -283,166 +221,14 @@ const WalletsPage = () => {
           </Card>
         )}
 
-        <WalletBalanceCard address={walletAddress} onRefresh={handleRefresh} />
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 max-w-xl">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <PieChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="tokens" className="flex items-center gap-2">
-              <BarChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Tokens</span>
-            </TabsTrigger>
-            <TabsTrigger value="transactions" className="flex items-center gap-2">
-              <LineChart className="h-4 w-4" />
-              <span className="hidden sm:inline">Transactions</span>
-            </TabsTrigger>
-            <TabsTrigger value="dapps" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">DApps</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="mt-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SendTransaction fromAddress={walletAddress} />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                  <CardDescription>Key metrics for your portfolio</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Transactions</p>
-                      {isStatsLoading ? (
-                        <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-                      ) : (
-                        <p className="text-2xl font-bold">{formatNumber(walletStats.transactionCount)}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Received</p>
-                      {isStatsLoading ? (
-                        <div className="h-8 w-20 bg-muted animate-pulse rounded" />
-                      ) : (
-                        <p className="text-2xl font-bold text-green-500">+{formatNumber(walletStats.receivedAmount)}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Sent</p>
-                      {isStatsLoading ? (
-                        <div className="h-8 w-20 bg-muted animate-pulse rounded" />
-                      ) : (
-                        <p className="text-2xl font-bold text-blue-500">-{formatNumber(walletStats.sentAmount)}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Tokens</p>
-                      {isStatsLoading ? (
-                        <div className="h-8 w-12 bg-muted animate-pulse rounded" />
-                      ) : (
-                        <p className="text-2xl font-bold">{formatNumber(walletStats.tokenCount)}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-0">
-                  <Button variant="outline" className="w-full" asChild>
-                    <a 
-                      href={`https://explorer.alephium.org/addresses/${walletAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2"
-                    >
-                      <span>View on Explorer</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Your latest transactions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isRecentTransactionsLoading ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-full bg-gray-100 dark:bg-gray-800">
-                            <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                            <div className="h-3 w-32 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-                          </div>
-                        </div>
-                        <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                      </div>
-                    ))}
-                  </div>
-                ) : recentTransactions.length === 0 ? (
-                  <p className="text-center py-6 text-muted-foreground">No recent transactions found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {recentTransactions.map((tx, i) => {
-                      const isIncoming = getTransactionType(tx) === 'received';
-                      const amount = getTransactionAmount(tx).toFixed(4);
-                      
-                      return (
-                        <div key={tx.hash} className="flex items-center justify-between py-2 border-b last:border-0">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${isIncoming ? 'bg-green-100 dark:bg-green-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
-                              {isIncoming ? (
-                                <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium">{isIncoming ? 'Received' : 'Sent'} ALPH</p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(tx.timestamp)}
-                              </p>
-                            </div>
-                          </div>
-                          <p className={`font-medium ${isIncoming ? 'text-green-500' : 'text-blue-500'}`}>
-                            {isIncoming ? '+' : '-'} {amount} ALPH
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button variant="ghost" className="w-full" onClick={() => setActiveTab("transactions")}>
-                  View All Transactions
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="tokens" className="mt-6">
-            <TokenList address={walletAddress} />
-          </TabsContent>
-
-          <TabsContent value="transactions" className="mt-6">
-            <TransactionsList address={walletAddress} />
-          </TabsContent>
-
-          <TabsContent value="dapps" className="mt-6">
-            <DAppsSection />
-          </TabsContent>
-        </Tabs>
+        <WalletDashboard
+          address={walletAddress}
+          isLoggedIn={connected}
+          walletStats={walletStats}
+          isStatsLoading={isStatsLoading}
+          refreshFlag={refreshFlag}
+          setRefreshFlag={setRefreshFlag}
+        />
       </div>
     </div>
   );

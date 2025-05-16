@@ -1,3 +1,4 @@
+
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 
@@ -204,11 +205,77 @@ export const sendTransaction = async (
   }
 };
 
+/**
+ * Fetches balance history for an address
+ * This is a simulated function since we don't have real historical data
+ */
+export const fetchBalanceHistory = async (address: string, days: number = 30) => {
+  // In a real application, you would fetch this from an indexer or API
+  // For now, we'll generate sample data
+  try {
+    // Attempt to get current balance
+    const currentBalance = await getAddressBalance(address);
+    
+    // Generate historical data based on current balance
+    const data = [];
+    const now = new Date();
+    let balance = currentBalance.balance * 0.7; // Start at 70% of current balance
+    
+    for (let i = days; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // Add some randomness to simulate balance changes
+      // More recent days should trend toward the current balance
+      const volatility = i / days; // Higher volatility in the past
+      const changePercent = (Math.random() - 0.45) * volatility * 0.1;
+      balance = balance * (1 + changePercent);
+      
+      // Final day should be exact current balance
+      if (i === 0) {
+        balance = currentBalance.balance;
+      }
+      
+      data.push({
+        date: date.toISOString().split('T')[0],
+        balance: balance.toFixed(4)
+      });
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error generating balance history:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches network statistics
+ */
+export const fetchNetworkStats = async () => {
+  try {
+    // In a real application, we would fetch this from an API
+    // For now, return static data
+    return {
+      hashRate: "38.2 PH/s",
+      difficulty: "3.51 P",
+      blockTime: "64.0s",
+      activeAddresses: 24890,
+      tokenCount: 385
+    };
+  } catch (error) {
+    console.error('Error fetching network stats:', error);
+    throw error;
+  }
+};
+
 export default {
   nodeProvider,
   getAddressBalance,
   getAddressTransactions,
   getAddressUtxos,
   getAddressTokens,
-  sendTransaction
+  sendTransaction,
+  fetchBalanceHistory,
+  fetchNetworkStats
 };
