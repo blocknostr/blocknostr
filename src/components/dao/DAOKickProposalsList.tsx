@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -150,8 +149,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
                       </div>
                       <Progress 
                         value={votePercentages[index]} 
-                        className={`h-2 ${index === 0 ? "bg-red-100 dark:bg-red-900/30" : ""}`}
-                        indicatorClassName={index === 0 ? "bg-red-500" : undefined}
+                        className={`h-2 ${index === 0 ? "bg-red-100 dark:bg-red-900/30" : ""} ${index === 0 ? "data-[value]:bg-red-500" : ""}`}
                       />
                     </div>
                   );

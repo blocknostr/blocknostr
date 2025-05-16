@@ -3,7 +3,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DAO } from "@/types/dao";
-import { Calendar, Gavel, Lock, Settings, Shield, Users } from "lucide-react";
+import { Calendar, Gavel, Lock, Settings, Shield, Users, UserX } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface DAOHeaderProps {

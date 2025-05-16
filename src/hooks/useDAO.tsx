@@ -74,10 +74,30 @@ export function useDAO(daoId?: string) {
         
         // Fetch kick proposals if implemented
         try {
-          const kickProps = await daoService.getDAOKickProposals?.(daoId) || [];
+          // Use standard proposal fetching and filter for kick proposals manually
+          const allProposals = await daoService.getDAOProposals(daoId);
+          const kickProps = allProposals.filter(proposal => {
+            try {
+              const content = JSON.parse(proposal.description);
+              return content.type === "kick" && content.targetPubkey;
+            } catch (e) {
+              return false;
+            }
+          }).map(proposal => {
+            try {
+              const content = JSON.parse(proposal.description);
+              return {
+                ...proposal,
+                targetPubkey: content.targetPubkey
+              };
+            } catch (e) {
+              return null;
+            }
+          }).filter(p => p !== null);
+          
           setKickProposals(kickProps);
         } catch (e) {
-          console.log("Kick proposals not implemented yet:", e);
+          console.log("Error fetching kick proposals:", e);
         }
       } else {
         console.error("DAO not found:", daoId);
