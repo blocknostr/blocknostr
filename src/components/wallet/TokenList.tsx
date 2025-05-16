@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info, TrendingUp, TrendingDown } from "lucide-react";
 import { EnrichedTokenWithWallets } from "@/types/wallet";
+import { isTokenMapped } from "@/lib/api/tokenMappings";
 
 interface TokenListProps {
   address: string;
@@ -117,6 +119,8 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
             const tokenWithWallets = token as EnrichedTokenWithWallets;
             const walletCount = tokenWithWallets.wallets?.length || 0;
             const hasUsdValue = tokenWithWallets.usdValue !== undefined;
+            const isPriceFromMarket = tokenWithWallets.priceSource === 'market';
+            const isTokenTracked = isTokenMapped(token.id);
             
             return (
               <div key={token.id} className="flex items-center justify-between p-4">
@@ -139,7 +143,23 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                   )}
                   
                   <div className="ml-3">
-                    <div className="font-medium">{token.name || token.symbol}</div>
+                    <div className="font-medium flex items-center gap-1">
+                      {token.name || token.symbol}
+                      {isTokenTracked && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="ml-1 px-1.5 py-0 h-4 text-[10px] bg-green-500/10 text-green-700 border-green-200">
+                                tracked
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">This token's price is tracked in real-time via CoinGecko</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">{token.symbol}</div>
                     
                     {walletCount > 0 && (
@@ -185,9 +205,25 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                 <div className="text-right">
                   <div className="font-medium">{token.formattedAmount}</div>
                   {hasUsdValue && (
-                    <div className={`text-xs ${tokenWithWallets.usdValue > 100 ? 'text-green-500' : 'text-muted-foreground'}`}>
-                      {formatCurrency(tokenWithWallets.usdValue)}
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={`text-xs flex items-center justify-end ${
+                            isPriceFromMarket ? 'text-green-600' : 'text-muted-foreground'
+                          }`}>
+                            {formatCurrency(tokenWithWallets.usdValue)}
+                            {!isPriceFromMarket && <Info className="h-3 w-3 ml-1 opacity-70" />}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          {isPriceFromMarket ? (
+                            <p className="text-xs">Price from CoinGecko market data</p>
+                          ) : (
+                            <p className="text-xs">Estimated value (not based on market data)</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
               </div>

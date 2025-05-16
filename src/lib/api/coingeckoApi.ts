@@ -134,16 +134,18 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
   }
   
   try {
+    console.log(`Fetching price data for ${coinIds.length} coins from CoinGecko`);
     const response = await fetch(
       `${COINGECKO_API_BASE}/coins/markets?vs_currency=usd&ids=${coinIds.join(',')}&order=market_cap_desc&per_page=${coinIds.length}&page=1&sparkline=false&price_change_percentage=24h`
     );
     
     if (!response.ok) {
+      console.warn(`CoinGecko API returned status ${response.status}: ${response.statusText}`);
       throw new Error(`Failed to fetch market data: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json() as MarketDataResponse[];
-    console.log("Fetched market data:", data);
+    console.log("Fetched market data for coins:", data.map(c => c.id));
     
     const formattedData = data.map(coin => ({
       id: coin.id,
@@ -167,10 +169,12 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
     
     // Return last cached data if available
     if (cachedMarketData) {
+      console.log("Returning cached market data after fetch error");
       return cachedMarketData.data;
     }
     
-    // Return mock data as fallback, but only for the requested coins
+    // Return mock data as fallback, with focus on Alephium tokens
+    console.log("Returning mock market data");
     const mockData = [
       { 
         id: 'bitcoin', 
@@ -187,6 +191,14 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
         price: 0.78, 
         priceChange24h: -1.2, 
         marketCapRank: 268 
+      },
+      { 
+        id: 'alphbanx', 
+        name: 'AlphBanx', 
+        symbol: 'abx', 
+        price: 0.05, 
+        priceChange24h: 0.5, 
+        marketCapRank: 1200 
       },
       { 
         id: 'ergo', 

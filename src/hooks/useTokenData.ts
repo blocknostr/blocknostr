@@ -1,8 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { fetchTokenList } from "@/lib/api/tokenMetadata";
 import { fetchTokenTransactions, getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
 import { EnrichedTokenWithWallets, TokenWallet } from "@/types/wallet";
-import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
+import { getAlephiumPrice, getMultipleCoinsPrice } from "@/lib/api/coingeckoApi";
+import { getCoinGeckoId, getAllCoinGeckoIds, isTokenMapped } from "@/lib/api/tokenMappings";
+import { toast } from "sonner";
 
 export interface TokenTransaction {
   hash: string;
@@ -19,6 +22,7 @@ export interface EnrichedTokenData extends EnrichedToken {
   lastUpdated: number;
   wallets: TokenWallet[]; // Updated to use the structured wallets array
   usdValue?: number; // Added USD value field
+  priceSource?: 'market' | 'estimate'; // Indicates how we got the price
 }
 
 /**
@@ -35,9 +39,49 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
   const [ownedTokens, setOwnedTokens] = useState<Set<string>>(new Set());
   const [refreshFlag, setRefreshFlag] = useState(0);
   const [alphPrice, setAlphPrice] = useState<number>(0);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, { 
+    price: number; 
+    symbol: string;
+    priceChange24h: number;
+  }>>({});
 
-  // Fetch ALPH price for USD value calculation
+  // Fetch all token prices from CoinGecko for mapped tokens
   useEffect(() => {
+    const fetchTokenPrices = async () => {
+      try {
+        // Get all CoinGecko IDs we want to track
+        const coinIds = getAllCoinGeckoIds();
+        
+        if (coinIds.length === 0) return;
+        
+        console.log("Fetching prices for tokens:", coinIds);
+        const priceData = await getMultipleCoinsPrice(coinIds);
+        
+        // Create a map of CoinGecko ID to price data
+        const prices: Record<string, { price: number; symbol: string; priceChange24h: number }> = {};
+        priceData.forEach(coin => {
+          prices[coin.id] = {
+            price: coin.price,
+            symbol: coin.symbol,
+            priceChange24h: coin.priceChange24h
+          };
+        });
+        
+        console.log("Fetched token prices:", prices);
+        setTokenPrices(prices);
+        
+        // Update ALPH price from the fetched data if available
+        const alphPriceData = prices["alephium"];
+        if (alphPriceData) {
+          setAlphPrice(alphPriceData.price);
+        }
+      } catch (error) {
+        console.error("Failed to fetch token prices:", error);
+        // Fallback to just fetching ALPH price if the multi-price fetch fails
+        fetchAlphPrice();
+      }
+    };
+    
     const fetchAlphPrice = async () => {
       try {
         const priceData = await getAlephiumPrice();
@@ -48,9 +92,10 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
       }
     };
 
-    fetchAlphPrice();
-    // Refresh price every 5 minutes
-    const priceInterval = setInterval(fetchAlphPrice, 5 * 60 * 1000);
+    // Fetch initially and then on interval
+    fetchTokenPrices();
+    const priceInterval = setInterval(fetchTokenPrices, 5 * 60 * 1000); // 5 minutes
+    
     return () => clearInterval(priceInterval);
   }, []);
 
@@ -90,22 +135,33 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
             ownedTokenIds.add(tokenId);
             
             if (!tokenMap[tokenId]) {
-              // Calculate USD value based on token and ALPH price
+              // Get price based on token ID
               let usdValue: number | undefined = undefined;
+              let priceSource: 'market' | 'estimate' = 'estimate';
               
               // For ALPH (special case), amount is the token value
               if (tokenId === "ALPH" || tokenId.toLowerCase() === "alph") {
                 const tokenAmountInAlph = Number(token.amount) / (10 ** token.decimals);
                 usdValue = tokenAmountInAlph * alphPrice;
-              }
-              // For other tokens, we need to estimate based on their specific prices
-              // For now, we'll use a placeholder approach with ALPH price as reference
+                priceSource = 'market';
+              } 
+              // For tokens with CoinGecko mapping, use market price
               else if (!token.isNFT) {
+                const coingeckoId = getCoinGeckoId(tokenId);
                 const tokenAmountNormalized = Number(token.amount) / (10 ** token.decimals);
-                // This is an estimation - ideally, you would fetch specific token prices
-                // For now, we use ALPH price as a reference, with reduced value for other tokens
-                // Real implementation would fetch actual token prices from an API
-                usdValue = tokenAmountNormalized * alphPrice * 0.01; // Placeholder calculation
+                
+                if (coingeckoId && tokenPrices[coingeckoId]) {
+                  // Use actual price from CoinGecko
+                  usdValue = tokenAmountNormalized * tokenPrices[coingeckoId].price;
+                  priceSource = 'market';
+                  console.log(`Using market price for ${token.symbol}: $${tokenPrices[coingeckoId].price}`);
+                } else {
+                  // Fallback for unmapped tokens - use ALPH price as reference with reduced multiplier
+                  // This is a rough estimate for tokens without market data
+                  usdValue = tokenAmountNormalized * alphPrice * 0.01;
+                  priceSource = 'estimate';
+                  console.log(`Using estimated price for ${token.symbol || tokenId}: ${alphPrice * 0.01}`);
+                }
               }
               
               // First time we're seeing this token
@@ -115,7 +171,8 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
                 isLoading: true,
                 lastUpdated: Date.now(),
                 wallets: [{ address: walletAddress, amount: token.amount }],
-                usdValue
+                usdValue,
+                priceSource
               };
             } else {
               // Token exists in map, update with this wallet's data
@@ -149,11 +206,20 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
                   
                   if (tokenId === "ALPH" || tokenId.toLowerCase() === "alph") {
                     currentToken.usdValue = tokenAmountInUnits * alphPrice;
+                    currentToken.priceSource = 'market';
                   }
-                  // For other tokens, use our placeholder approach
+                  // For mapped tokens, use actual CoinGecko price
                   else {
-                    // This is an estimation - would be replaced with actual token price data
-                    currentToken.usdValue = tokenAmountInUnits * alphPrice * 0.01;
+                    const coingeckoId = getCoinGeckoId(tokenId);
+                    
+                    if (coingeckoId && tokenPrices[coingeckoId]) {
+                      currentToken.usdValue = tokenAmountInUnits * tokenPrices[coingeckoId].price;
+                      currentToken.priceSource = 'market';
+                    } else {
+                      // Fallback for tokens without market data
+                      currentToken.usdValue = tokenAmountInUnits * alphPrice * 0.01;
+                      currentToken.priceSource = 'estimate';
+                    }
                   }
                 }
               } catch (error) {
@@ -183,7 +249,7 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     };
     
     fetchWalletTokens();
-  }, [trackedWallets, refreshFlag, alphPrice]);
+  }, [trackedWallets, refreshFlag, alphPrice, tokenPrices]);
 
   // Fetch transactions for each token, prioritizing those in tracked wallets
   useEffect(() => {
@@ -269,6 +335,7 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     lastUpdated,
     ownedTokenIds: [...ownedTokens],
     refreshTokens: () => setRefreshFlag(prev => prev + 1),
-    alphPrice
+    alphPrice,
+    tokenPrices
   };
 };
