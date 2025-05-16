@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { User, UserCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface FollowButtonProps {
   pubkey: string;
@@ -13,7 +12,7 @@ interface FollowButtonProps {
   size?: "default" | "sm" | "lg" | "icon";
 }
 
-const FollowButton = ({ pubkey, className, variant = "outline", size = "sm" }: FollowButtonProps) => {
+const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: FollowButtonProps) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const currentUserPubkey = nostrService.publicKey;
@@ -68,9 +67,9 @@ const FollowButton = ({ pubkey, className, variant = "outline", size = "sm" }: F
   
   return (
     <Button
-      variant={isFollowing ? "secondary" : variant}
+      variant={isFollowing ? "outline" : variant}
       size={size}
-      className={cn("rounded-full", className)}
+      className={className}
       onClick={handleFollowToggle}
       disabled={loading}
     >
@@ -78,12 +77,12 @@ const FollowButton = ({ pubkey, className, variant = "outline", size = "sm" }: F
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : isFollowing ? (
         <>
-          <UserCheck className="h-4 w-4 mr-1.5" />
+          <UserCheck className="h-4 w-4 mr-2" />
           Following
         </>
       ) : (
         <>
-          <User className="h-4 w-4 mr-1.5" />
+          <User className="h-4 w-4 mr-2" />
           Follow
         </>
       )}
