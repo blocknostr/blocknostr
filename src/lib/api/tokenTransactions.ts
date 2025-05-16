@@ -1,5 +1,5 @@
 
-import { SimplePool, getEventHash, Event } from 'nostr-tools';
+import { SimplePool, getEventHash, Event, Filter, Sub } from 'nostr-tools';
 import { TokenMetadata, fetchTokenList } from './tokenMetadata';
 
 // Transaction interfaces
@@ -117,11 +117,11 @@ export const subscribeToTokenTransactions = (
     '#token_id': [tokenId]
   };
   
-  // Use the proper SimplePool subscription method with the correct arguments
-  const sub = pool.sub(NOSTR_RELAYS, [filter]);
+  // Fix: Use the subscribe method instead of sub
+  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
   
   // Set up event handler
-  const eventHandler = (event: Event) => {
+  subscription.on('event', (event: Event) => {
     try {
       // Parse transaction from event content
       const transaction: TokenTransaction = JSON.parse(event.content);
@@ -145,23 +145,11 @@ export const subscribeToTokenTransactions = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  };
-
-  // Manual event handling since we're not using the 'on' method
-  sub.on = (eventName: string, handler: (event: Event) => void) => {
-    if (eventName === 'event') {
-      // Store the handler in the subscription object
-      (sub as any).eventHandler = handler;
-    }
-    return sub;
-  };
-  
-  // Set up the event handler
-  sub.on('event', eventHandler);
+  });
   
   // Return unsubscribe function
   return () => {
-    sub.unsub();
+    subscription.unsub();
   };
 };
 
@@ -204,11 +192,11 @@ export const subscribeToAllTokenUpdates = (
     '#d': ['alephium-token-transaction']
   };
   
-  // Use the proper SimplePool subscription method with the correct arguments
-  const sub = pool.sub(NOSTR_RELAYS, [filter]);
+  // Fix: Use the subscribe method instead of sub
+  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
   
   // Set up event handler
-  const eventHandler = (event: Event) => {
+  subscription.on('event', (event: Event) => {
     try {
       // Get token ID from tags
       const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
@@ -241,23 +229,11 @@ export const subscribeToAllTokenUpdates = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  };
-
-  // Manual event handling since we're not using the 'on' method
-  sub.on = (eventName: string, handler: (event: Event) => void) => {
-    if (eventName === 'event') {
-      // Store the handler in the subscription object
-      (sub as any).eventHandler = handler;
-    }
-    return sub;
-  };
-  
-  // Set up the event handler
-  sub.on('event', eventHandler);
+  });
   
   // Return unsubscribe function
   return () => {
-    sub.unsub();
+    subscription.unsub();
   };
 };
 

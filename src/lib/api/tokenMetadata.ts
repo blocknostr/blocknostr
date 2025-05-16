@@ -89,8 +89,8 @@ export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvi
     // If not in cache and we have a nodeProvider, try to get token info from node
     if (nodeProvider) {
       try {
-        // Use direct api calls instead of tokens property
-        const response = await nodeProvider.request('get', `/tokens/${tokenId}`);
+        // Fix: Use the correct nodeProvider.request method signature with a single path argument
+        const response = await nodeProvider.request(`/tokens/${tokenId}`);
         
         if (response) {
           return {
