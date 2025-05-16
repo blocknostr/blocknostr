@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine } from "lucide-react";
@@ -9,10 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import WalletManager from "@/components/wallet/WalletManager";
-import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { WalletType, SavedWallet } from "@/types/wallet";
+import WalletTypeSelector from "@/components/wallet/WalletTypeSelector";
+import AlephiumWalletLayout from "@/components/wallet/layouts/AlephiumWalletLayout";
+import BitcoinWalletLayout from "@/components/wallet/layouts/BitcoinWalletLayout";
+import ErgoWalletLayout from "@/components/wallet/layouts/ErgoWalletLayout";
 
 // Interface for wallet stats
 interface WalletStats {
@@ -20,12 +23,6 @@ interface WalletStats {
   receivedAmount: number;
   sentAmount: number;
   tokenCount: number;
-}
-
-interface SavedWallet {
-  address: string;
-  label: string;
-  dateAdded: number;
 }
 
 const WalletsPage = () => {
@@ -41,6 +38,7 @@ const WalletsPage = () => {
   });
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("portfolio");
+  const [selectedWalletType, setSelectedWalletType] = useLocalStorage<WalletType>("blocknoster_wallet_type", "Alephium");
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -89,7 +87,7 @@ const WalletsPage = () => {
       if (!savedWallets.some(w => w.address === defaultAddress)) {
         setSavedWallets([{ 
           address: defaultAddress, 
-          label: "Demo Wallet", 
+          label: "Connected Wallet", 
           dateAdded: Date.now() 
         }]);
       }
@@ -99,7 +97,10 @@ const WalletsPage = () => {
   // Effect to fetch wallet statistics
   useEffect(() => {
     const fetchWalletStats = async () => {
-      if (!walletAddress) return;
+      if (!walletAddress || selectedWalletType !== "Alephium") {
+        setIsStatsLoading(false);
+        return;
+      }
       
       setIsStatsLoading(true);
       try {
@@ -137,7 +138,7 @@ const WalletsPage = () => {
     };
     
     fetchWalletStats();
-  }, [walletAddress, refreshFlag]);
+  }, [walletAddress, refreshFlag, selectedWalletType]);
 
   const handleDisconnect = async () => {
     try {
@@ -201,9 +202,9 @@ const WalletsPage = () => {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Alephium Portfolio Manager</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Blockchain Portfolio Manager</h2>
           <p className="text-muted-foreground max-w-md">
-            Connect your Alephium wallet to track balances, view transactions, send ALPH, and interact with dApps.
+            Connect your wallet to track balances, view transactions, send crypto, and interact with dApps.
           </p>
           
           <div className="w-full max-w-md my-8">
@@ -213,15 +214,15 @@ const WalletsPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
             <div className="p-4 border rounded-lg bg-card">
               <h3 className="font-medium mb-2">Portfolio Tracking</h3>
-              <p className="text-sm text-muted-foreground">Monitor your ALPH and token balances in real-time</p>
+              <p className="text-sm text-muted-foreground">Monitor your crypto balances in real-time</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
               <h3 className="font-medium mb-2">Send & Receive</h3>
-              <p className="text-sm text-muted-foreground">Transfer ALPH and tokens with ease</p>
+              <p className="text-sm text-muted-foreground">Transfer tokens with ease</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
               <h3 className="font-medium mb-2">DApp Integration</h3>
-              <p className="text-sm text-muted-foreground">Interact with Alephium dApps directly</p>
+              <p className="text-sm text-muted-foreground">Interact with blockchain dApps directly</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
               <h3 className="font-medium mb-2">Transaction History</h3>
@@ -239,13 +240,19 @@ const WalletsPage = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight mb-1">
-              {connected ? "Alephium Wallet" : "Alephium Portfolio Tracker"}
-            </h2>
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-3xl font-bold tracking-tight">
+                Blockchain Wallet
+              </h2>
+              <WalletTypeSelector 
+                selectedWallet={selectedWalletType} 
+                onSelectWallet={setSelectedWalletType} 
+              />
+            </div>
             <p className="text-muted-foreground">
               {connected 
-                ? "Manage your Alephium assets and dApps" 
-                : "Viewing portfolio data for all tracked wallets"}
+                ? `Manage your ${selectedWalletType} assets and dApps` 
+                : `Viewing portfolio data for all tracked ${selectedWalletType} wallets`}
             </p>
           </div>
           
@@ -275,24 +282,24 @@ const WalletsPage = () => {
               </Card>
             )}
 
-            <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-3 max-w-md mb-6">
-                <TabsTrigger value="portfolio" className="flex items-center gap-2">
-                  <ChartLine className="h-4 w-4" />
-                  <span>My Portfolio</span>
-                </TabsTrigger>
-                <TabsTrigger value="dapps" className="flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
-                  <span>My dApps</span>
-                </TabsTrigger>
-                <TabsTrigger value="alephium" className="flex items-center gap-2">
-                  <Blocks className="h-4 w-4" />
-                  <span>My Alephium</span>
-                </TabsTrigger>
-              </TabsList>
+            {selectedWalletType === "Alephium" && (
+              <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid grid-cols-3 max-w-md mb-6">
+                  <TabsTrigger value="portfolio" className="flex items-center gap-2">
+                    <ChartLine className="h-4 w-4" />
+                    <span>My Portfolio</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="dapps" className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    <span>My dApps</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="alephium" className="flex items-center gap-2">
+                    <Blocks className="h-4 w-4" />
+                    <span>My Alephium</span>
+                  </TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="portfolio" className="mt-0 space-y-6">
-                <WalletDashboard
+                <AlephiumWalletLayout
                   address={walletAddress}
                   allWallets={savedWallets}
                   isLoggedIn={connected}
@@ -300,36 +307,18 @@ const WalletsPage = () => {
                   isStatsLoading={isStatsLoading}
                   refreshFlag={refreshFlag}
                   setRefreshFlag={setRefreshFlag}
-                  activeTab="portfolio"
+                  activeTab={activeTab}
                 />
-              </TabsContent>
+              </Tabs>
+            )}
 
-              <TabsContent value="dapps" className="mt-0 space-y-6">
-                <WalletDashboard
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab="dapps"
-                />
-              </TabsContent>
+            {selectedWalletType === "Bitcoin" && (
+              <BitcoinWalletLayout address={walletAddress} />
+            )}
 
-              <TabsContent value="alephium" className="mt-0 space-y-6">
-                <WalletDashboard
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab="alephium"
-                />
-              </TabsContent>
-            </Tabs>
+            {selectedWalletType === "Ergo" && (
+              <ErgoWalletLayout address={walletAddress} />
+            )}
           </div>
 
           <div>
