@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
@@ -55,10 +56,11 @@ export function useEventSubscription({
       console.error("[useEventSubscription] Error connecting to relays:", error);
       setConnectionErrorCount(prev => prev + 1);
       
-      // Try to connect to popular relays as fallback after multiple failures
+      // Try to connect to default relays as fallback after multiple failures
       if (connectionErrorCount > 2) {
         try {
-          await nostrService.connectToPopularRelays();
+          // Changed from connectToPopularRelays to connectToDefaultRelays
+          await nostrService.connectToDefaultRelays();
         } catch (fallbackError) {
           console.error("[useEventSubscription] Fallback relay connection failed:", fallbackError);
           
