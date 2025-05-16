@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Settings2, RefreshCw } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
 import NewGlobalFeed from "@/components/feed/NewGlobalFeed";
 import NewFollowingFeed from "@/components/feed/NewFollowingFeed";
@@ -72,32 +72,18 @@ const NewHomePage: React.FC = () => {
                 <TabsTrigger value="following" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`} disabled={!isLoggedIn}>Following</TabsTrigger>
               </TabsList>
 
-              <div className="flex items-center space-x-2 ml-2">
+              <div className="flex items-center ml-2">
                 {activeTab === "global" && (
                   <Button 
-                    variant="outline" 
-                    size="sm" 
+                    variant="ghost" 
+                    size="icon" 
                     onClick={() => setIsCustomizeOpen(true)}
                     aria-label="Customize feed"
-                    className="h-8 px-2"
+                    className="h-8 w-8"
                   >
                     <Settings2 className="h-4 w-4" />
-                    <span className="ml-2 hidden sm:inline">Customize</span>
                   </Button>
                 )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => {
-                    const event = new CustomEvent('refetch-global-feed');
-                    window.dispatchEvent(event);
-                  }}
-                  disabled={isLoading}
-                  className="h-8 w-8"
-                  aria-label="Refresh"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
               </div>
             </div>
 
