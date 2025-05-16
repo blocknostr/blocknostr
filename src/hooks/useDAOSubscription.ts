@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { SimplePool, Filter } from 'nostr-tools';
+import { SimplePool, Filter, Sub } from 'nostr-tools';
 import { toast } from 'sonner';
 import { DAO, DAOProposal } from '@/types/dao';
 
@@ -25,7 +25,7 @@ export function useDAOSubscription({
   onDAOUpdate
 }: UseDAOSubscriptionProps) {
   const [isConnected, setIsConnected] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Sub[]>([]);
   
   // Define relays - use the most reliable NIP-72 compatible ones
   const relays = [
@@ -41,7 +41,7 @@ export function useDAOSubscription({
     
     console.log(`Setting up subscriptions for DAO ${daoId}...`);
     const pool = new SimplePool();
-    const activeSubscriptions: any[] = [];
+    const activeSubscriptions: Sub[] = [];
     
     try {
       // Subscribe to DAO updates
@@ -50,46 +50,47 @@ export function useDAOSubscription({
         ids: [daoId]
       };
       
-      // Use subscribe instead of sub since 'sub' doesn't exist on SimplePool
-      const daoSub = pool.subscribe(relays, [daoFilter]);
-      
-      daoSub.on('event', (event) => {
-        console.log('Received DAO update event:', event);
-        if (onDAOUpdate) {
-          try {
-            let content = {};
+      // Use subscribe instead of sub
+      const daoSub = pool.subscribe(relays, [daoFilter], {
+        onevent: (event) => {
+          console.log('Received DAO update event:', event);
+          if (onDAOUpdate) {
             try {
-              content = JSON.parse(event.content);
-            } catch (error) {
-              console.error('Error parsing DAO content:', error);
-              content = {};
-            }
-            
-            const members = event.tags
-              .filter(tag => tag.length >= 2 && tag[0] === 'p')
-              .map(tag => tag[1]);
+              let content = {};
+              try {
+                content = JSON.parse(event.content);
+              } catch (error) {
+                console.error('Error parsing DAO content:', error);
+                content = {};
+              }
               
-            const dao: DAO = {
-              id: event.id,
-              name: content.name || "Unnamed DAO",
-              description: content.description || "",
-              image: content.image || "",
-              creator: event.pubkey,
-              createdAt: event.created_at,
-              members,
-              moderators: [],
-              treasury: content.treasury || { balance: 0, tokenSymbol: "ALPH" },
-              tags: content.tags || [],
-              // Add missing properties required by the DAO type
-              proposals: content.proposals || 0,
-              activeProposals: content.activeProposals || 0
-            };
-            
-            onDAOUpdate(dao);
-          } catch (error) {
-            console.error('Error processing DAO update:', error);
+              const members = event.tags
+                .filter(tag => tag.length >= 2 && tag[0] === 'p')
+                .map(tag => tag[1]);
+                
+              const dao: DAO = {
+                id: event.id,
+                name: content.name || "Unnamed DAO",
+                description: content.description || "",
+                image: content.image || "",
+                creator: event.pubkey,
+                createdAt: event.created_at,
+                members,
+                moderators: [],
+                treasury: content.treasury || { balance: 0, tokenSymbol: "ALPH" },
+                tags: content.tags || [],
+                // Add missing properties required by the DAO type
+                proposals: content.proposals || 0,
+                activeProposals: content.activeProposals || 0
+              };
+              
+              onDAOUpdate(dao);
+            } catch (error) {
+              console.error('Error processing DAO update:', error);
+            }
           }
-        }
+        },
+        oneose: () => console.log('DAO events eose')
       });
       
       activeSubscriptions.push(daoSub);
@@ -102,32 +103,40 @@ export function useDAOSubscription({
       };
       
       // Use subscribe instead of sub
-      const proposalSub = pool.subscribe(relays, [proposalFilter]);
-      
-      proposalSub.on('event', (event) => {
-        console.log('Received new proposal event:', event);
-        if (onNewProposal) {
-          try {
-            const content = JSON.parse(event.content);
-            const proposal: DAOProposal = {
-              id: event.id,
-              daoId,
-              title: content.title || "Unnamed Proposal",
-              description: content.description || "",
-              options: content.options || ["Yes", "No"],
-              createdAt: event.created_at,
-              endsAt: content.endsAt || (event.created_at + 7 * 24 * 60 * 60),
-              creator: event.pubkey,
-              votes: {},
-              status: "active"
-            };
-            
-            onNewProposal(proposal);
-            toast.info(`New proposal: ${proposal.title}`);
-          } catch (error) {
-            console.error('Error processing new proposal:', error);
+      const proposalSub = pool.subscribe(relays, [proposalFilter], {
+        onevent: (event) => {
+          console.log('Received new proposal event:', event);
+          if (onNewProposal) {
+            try {
+              let content = {};
+              try {
+                content = JSON.parse(event.content);
+              } catch (error) {
+                console.error('Error parsing proposal content:', error);
+                content = {};
+              }
+              
+              const proposal: DAOProposal = {
+                id: event.id,
+                daoId,
+                title: content.title || "Unnamed Proposal",
+                description: content.description || "",
+                options: content.options || ["Yes", "No"],
+                createdAt: event.created_at,
+                endsAt: content.endsAt || (event.created_at + 7 * 24 * 60 * 60),
+                creator: event.pubkey,
+                votes: {},
+                status: "active"
+              };
+              
+              onNewProposal(proposal);
+              toast.info(`New proposal: ${proposal.title}`);
+            } catch (error) {
+              console.error('Error processing new proposal:', error);
+            }
           }
-        }
+        },
+        oneose: () => console.log('Proposal events eose')
       });
       
       activeSubscriptions.push(proposalSub);
@@ -141,36 +150,37 @@ export function useDAOSubscription({
         };
         
         // Use subscribe instead of sub
-        const voteSub = pool.subscribe(relays, [voteFilter]);
-        
-        voteSub.on('event', (event) => {
-          console.log('Received vote event:', event);
-          try {
-            // Find the proposal reference
-            const proposalTag = event.tags.find(tag => tag[0] === 'e' && tag[1] !== daoId);
-            if (proposalTag) {
-              const proposalId = proposalTag[1];
-              let optionIndex: number;
-              
-              // Parse vote content (both JSON and non-JSON formats)
-              try {
-                const content = JSON.parse(event.content);
-                optionIndex = content.optionIndex;
-              } catch (e) {
-                optionIndex = parseInt(event.content.trim());
+        const voteSub = pool.subscribe(relays, [voteFilter], {
+          onevent: (event) => {
+            console.log('Received vote event:', event);
+            try {
+              // Find the proposal reference
+              const proposalTag = event.tags.find(tag => tag[0] === 'e' && tag[1] !== daoId);
+              if (proposalTag) {
+                const proposalId = proposalTag[1];
+                let optionIndex: number;
+                
+                // Parse vote content (both JSON and non-JSON formats)
+                try {
+                  const content = JSON.parse(event.content);
+                  optionIndex = content.optionIndex;
+                } catch (e) {
+                  optionIndex = parseInt(event.content.trim());
+                }
+                
+                if (!isNaN(optionIndex)) {
+                  onNewVote({
+                    proposalId,
+                    pubkey: event.pubkey,
+                    optionIndex
+                  });
+                }
               }
-              
-              if (!isNaN(optionIndex)) {
-                onNewVote({
-                  proposalId,
-                  pubkey: event.pubkey,
-                  optionIndex
-                });
-              }
+            } catch (error) {
+              console.error('Error processing vote event:', error);
             }
-          } catch (error) {
-            console.error('Error processing vote event:', error);
-          }
+          },
+          oneose: () => console.log('Vote events eose')
         });
         
         activeSubscriptions.push(voteSub);
@@ -188,7 +198,7 @@ export function useDAOSubscription({
     // Cleanup function
     return () => {
       console.log('Cleaning up DAO subscriptions...');
-      activeSubscriptions.forEach(sub => sub.unsub());
+      activeSubscriptions.forEach(sub => sub.close());
       setSubscriptions([]);
       pool.close(relays);
     };
