@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService, contentCache, NostrEvent } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -42,7 +43,20 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     limit: 30 // Increased from 20 to 30 for better initial experience as requested
   });
   
-  // Helper function to load data from cache - MOVED UP before it's used
+  // Initialize useInfiniteScroll inside the component to avoid hook rule violations
+  const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 800,
+    aggressiveness: 'medium'
+  });
+  
+  // Helper function to load data from cache - Moved before it's used
   const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
     if (!navigator.onLine || contentCache.isOffline()) {
       setLoadingFromCache(true);
@@ -87,7 +101,8 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     return false;
   }, [following, activeHashtag, events.length, setEvents, setLoading]);
   
-  const loadMoreEvents = useCallback(async () => {
+  // loadMoreEvents is defined before it's passed to useInfiniteScroll
+  function loadMoreEvents() {
     if (!subId || following.length === 0 || isLoadingMore || cooldownRef.current) return;
     
     // Set loading state
@@ -112,18 +127,18 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         setUntil(newUntil);
         
         // Critical Fix: Start the new subscription BEFORE closing the old one
-        const newSubId = await setupSubscription(newSince, newUntil);
-        
-        // Only close previous subscription after new one is established
-        if (subId) {
-          nostrService.unsubscribe(subId);
-          console.log("[FollowingFeed] Closed previous subscription after new one created");
-        }
-        
-        setSubId(newSubId);
-        
-        // Check if we have this range cached
-        loadFromCache('following', newSince, newUntil);
+        setupSubscription(newSince, newUntil).then(newSubId => {
+          // Only close previous subscription after new one is established
+          if (subId) {
+            nostrService.unsubscribe(subId);
+            console.log("[FollowingFeed] Closed previous subscription after new one created");
+          }
+          
+          setSubId(newSubId);
+          
+          // Check if we have this range cached
+          loadFromCache('following', newSince, newUntil);
+        });
       } else {
         // If no events yet, use the current timestamps
         const newUntil = until;
@@ -132,17 +147,17 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         console.log(`[FollowingFeed] No events yet, loading with broader range from ${new Date(newSince * 1000).toISOString()} to ${new Date(newUntil * 1000).toISOString()}`);
         
         // Create new subscription BEFORE closing old one
-        const newSubId = await setupSubscription(newSince, newUntil);
-        
-        if (subId) {
-          nostrService.unsubscribe(subId);
-        }
-        
-        setSince(newSince);
-        setSubId(newSubId);
-        
-        // Check if we have this range cached
-        loadFromCache('following', newSince, newUntil);
+        setupSubscription(newSince, newUntil).then(newSubId => {
+          if (subId) {
+            nostrService.unsubscribe(subId);
+          }
+          
+          setSince(newSince);
+          setSubId(newSubId);
+          
+          // Check if we have this range cached
+          loadFromCache('following', newSince, newUntil);
+        });
       }
     } catch (error) {
       console.error("Error loading more events:", error);
@@ -164,19 +179,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
         cooldownRef.current = false;
       }, 2000);
     }, 5000); // Increased from 3000ms to 5000ms
-  }, [subId, events, until, setupSubscription, following.length, isLoadingMore, loadFromCache]);
-  
-  const {
-    loadMoreRef,
-    loading,
-    setLoading,
-    hasMore,
-    setHasMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    threshold: 800,
-    aggressiveness: 'medium'
-  });
+  }
 
   // Update hasMore when noNewEvents changes
   useEffect(() => {
@@ -185,9 +188,9 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     }
   }, [noNewEvents, setHasMore]);
 
-  // Track new events received
+  // Track new events received - Fixed to use local variables instead of useRef
   useEffect(() => {
-    const prevLength = useRef(events.length);
+    const prevLength = { current: events.length };
     
     if (events.length > prevLength.current) {
       const newCount = events.length - prevLength.current;
@@ -311,7 +314,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     } finally {
       setLoadingFromCache(false);
     }
-  }, [loadFromCache, setupSubscription, subId, following.length, retryCount]);
+  }, [loadFromCache, setupSubscription, subId, following.length, retryCount, setLoading, setEvents, setHasMore]);
   
   // Refresh feed function for manual refresh
   const refreshFeed = useCallback(() => {
@@ -392,7 +395,7 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     if (events.length > 0 && isLoadingMore) {
       setIsLoadingMore(false);
     }
-  }, [events, loading, isLoadingMore]);
+  }, [events, loading, isLoadingMore, setLoading]);
   
   // Add automatic retry if no events are found after initial loading
   useEffect(() => {

@@ -172,6 +172,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }, 5000); // Increased from 2000ms to 5000ms for better reliability
   }, [subId, events, until, setupSubscription, loadingMore, hashtags]);
   
+  // Initialize useInfiniteScroll inside the component
   const {
     loadMoreRef,
     loading,
@@ -193,10 +194,11 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
   }, [noNewEvents, setHasMore]);
 
-  // Track new events received
+  // Track new events received - Fixed to use the useState variable
   useEffect(() => {
-    const prevLength = useRef(events.length);
+    const prevLength = { current: events.length };
     
+    // No need for useRef here since we're using a closure
     if (events.length > prevLength.current) {
       const newCount = events.length - prevLength.current;
       newEventCountRef.current += newCount;
@@ -270,14 +272,14 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       }
       window.removeEventListener('refetch-global-feed', handleRefetch);
     };
-  }, [activeHashtag, hashtags]);
+  }, [activeHashtag, hashtags, subId, setEvents, setLoading, setupSubscription]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {
     if (events.length > 0 && loading) {
       setLoading(false);
     }
-  }, [events, loading]);
+  }, [events, loading, setLoading]);
   
   // Add automatic retry if no events are found after initial loading
   useEffect(() => {
