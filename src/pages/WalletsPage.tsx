@@ -72,6 +72,15 @@ const WalletsPage = () => {
     }
   }, [connected, wallet.account]);
   
+  // Add default wallet if none exists
+  useEffect(() => {
+    if (savedWallets.length === 0) {
+      // Default wallet address
+      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+      addWallet(defaultAddress, "Default Demo Wallet");
+    }
+  }, [savedWallets.length]);
+
   // Effect to fetch wallet statistics
   useEffect(() => {
     const fetchWalletStats = async () => {
