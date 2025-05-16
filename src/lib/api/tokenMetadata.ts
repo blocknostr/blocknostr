@@ -29,8 +29,8 @@ interface TokenList {
   tokens: TokenMetadata[];
 }
 
-// Official Alephium token list URL
-const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens.json";
+// Official Alephium token list URLs
+const MAINNET_TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/refs/heads/master/tokens/mainnet.json";
 let tokenCache: Record<string, TokenMetadata> | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
@@ -48,7 +48,7 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
   
   try {
     // Fetch from GitHub directly
-    const response = await fetch(TOKEN_LIST_URL);
+    const response = await fetch(MAINNET_TOKEN_LIST_URL);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch token list: ${response.status} ${response.statusText}`);
@@ -86,9 +86,23 @@ export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvi
       return tokenMap[tokenId];
     }
     
-    // If not in cache and we have a nodeProvider, try to get basic token info
-    // Note: The NodeProvider from @alephium/web3 doesn't directly expose token info methods
-    // in the current version, so we'll just return fallback data
+    // If not in cache and we have a nodeProvider, try to get token info from node
+    if (nodeProvider) {
+      try {
+        const tokenInfo = await nodeProvider.tokens.getTokensTokenId(tokenId);
+        if (tokenInfo) {
+          return {
+            id: tokenId,
+            name: tokenInfo.name || `Token ${tokenId.substring(0, 6)}`,
+            symbol: tokenInfo.symbol || 'TOKEN',
+            decimals: tokenInfo.decimals || 0,
+            description: "Token fetched from Alephium node"
+          };
+        }
+      } catch (nodeError) {
+        console.warn(`Could not fetch token ${tokenId} from node:`, nodeError);
+      }
+    }
     
     // Fallback to default data
     return getFallbackTokenData(tokenId);
