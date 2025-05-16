@@ -117,8 +117,8 @@ export const subscribeToTokenTransactions = (
     '#token_id': [tokenId]
   };
   
-  // Subscribe to events
-  const subscription = pool.sub(NOSTR_RELAYS, [filter]);
+  // Subscribe to events using the subscribe method
+  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
   
   subscription.on('event', (event: Event) => {
     try {
@@ -191,8 +191,8 @@ export const subscribeToAllTokenUpdates = (
     '#d': ['alephium-token-transaction']
   };
   
-  // Subscribe to events
-  const subscription = pool.sub(NOSTR_RELAYS, [filter]);
+  // Subscribe to events using the subscribe method
+  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
   
   subscription.on('event', (event: Event) => {
     try {

@@ -9,7 +9,18 @@ const WalletConnectButton: React.FC = () => {
 
   const handleConnect = async () => {
     if (wallet.connectionStatus === 'disconnected') {
-      await wallet.connect();
+      try {
+        // Using the wallet.walletConnect method if available, falling back to any other methods
+        if (typeof wallet.walletConnect === 'function') {
+          await wallet.walletConnect();
+        } else if (typeof wallet.enable === 'function') {
+          await wallet.enable();
+        } else {
+          console.error("No compatible connect method found on wallet object");
+        }
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
+      }
     }
   };
 
