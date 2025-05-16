@@ -37,6 +37,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     }
     
     // Dispatch custom event for global notification of loading state changes
+    // This allows components that don't have direct prop connection to react
     window.dispatchEvent(new CustomEvent('feed-loading-change', { 
       detail: { isLoading: loading || extendedLoading }
     }));
@@ -48,13 +49,13 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     setExtendedLoading(true);
     setShowRetry(false);
     
-    // Set a shorter timeout since we've improved the loading mechanism
+    // Set a longer timeout for showing retry button
     const timeout = setTimeout(() => {
       setExtendedLoading(false);
       if (events.length === 0 && !loading) {
         setShowRetry(true);
       }
-    }, 5000); // Reduced from 7 to 5 seconds
+    }, 7000); // 7 seconds timeout before showing retry
     
     return () => clearTimeout(timeout);
   }, [activeHashtag, loading]);
@@ -76,10 +77,10 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     const event = new CustomEvent('refetch-global-feed');
     window.dispatchEvent(event);
     
-    // Set timeout to show retry again if still no events after 5 seconds
+    // Set timeout to show retry again if still no events after 7 seconds
     setTimeout(() => {
       setExtendedLoading(false);
-    }, 5000);
+    }, 7000);
   };
 
   // Show loading state when no events and loading or in extended loading period
