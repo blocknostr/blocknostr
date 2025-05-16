@@ -1,3 +1,4 @@
+
 import { NostrEvent } from "../../types";
 
 /**
@@ -44,6 +45,39 @@ export class EventFilter {
       return false;
     });
   }
+
+  /**
+   * Filter events by multiple hashtags
+   */
+  static filterByHashtags(events: NostrEvent[], hashtags: string[]): NostrEvent[] {
+    if (!hashtags || hashtags.length === 0) return events;
+    
+    // Convert hashtags to lowercase for case-insensitive comparison
+    const hashtagsLower = hashtags.map(tag => tag.toLowerCase());
+    
+    return events.filter(event => {
+      // Check for any of the hashtags in content
+      if (event.content) {
+        for (const hashtagLower of hashtagsLower) {
+          if (event.content.toLowerCase().includes(`#${hashtagLower}`)) {
+            return true;
+          }
+        }
+      }
+      
+      // Check for t tags (Nostr hashtags per NIP-10)
+      if (Array.isArray(event.tags)) {
+        return event.tags.some(tag => 
+          Array.isArray(tag) && 
+          tag.length >= 2 && 
+          tag[0] === 't' && 
+          hashtagsLower.includes(tag[1].toLowerCase())
+        );
+      }
+      
+      return false;
+    });
+  }
   
   /**
    * Filter events by time range
@@ -62,6 +96,7 @@ export class EventFilter {
   static applyFilters(events: NostrEvent[], options: {
     authorPubkeys?: string[],
     hashtag?: string,
+    hashtags?: string[],
     since?: number,
     until?: number,
     limit?: number,
@@ -74,9 +109,13 @@ export class EventFilter {
       filtered = this.filterByAuthors(filtered, options.authorPubkeys);
     }
     
-    // Apply hashtag filter if provided
+    // Apply single hashtag filter if provided
     if (options.hashtag) {
       filtered = this.filterByHashtag(filtered, options.hashtag);
+    }
+    // Apply multiple hashtags filter if provided
+    else if (options.hashtags && options.hashtags.length > 0) {
+      filtered = this.filterByHashtags(filtered, options.hashtags);
     }
     
     // Apply time range filter if provided
@@ -134,6 +173,7 @@ export class EventFilter {
     feedType: string,
     authorPubkeys?: string[],
     hashtag?: string,
+    hashtags?: string[],
     since?: number,
     until?: number,
     mediaOnly?: boolean
@@ -150,6 +190,11 @@ export class EventFilter {
     // Add hashtag to key if available
     if (options.hashtag) {
       parts.push(`tag:${options.hashtag}`);
+    }
+    
+    // Add multiple hashtags to key if available
+    if (options.hashtags && options.hashtags.length > 0) {
+      parts.push(`tags:${options.hashtags.join(',')}`);
     }
     
     // Add time range to key
