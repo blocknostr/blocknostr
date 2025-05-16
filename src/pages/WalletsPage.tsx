@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, ExternalLink } from "lucide-react";
+import { Wallet, ExternalLink, Blocks, Apps, ChartLineUp } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
@@ -31,6 +33,7 @@ const WalletsPage = () => {
     tokenCount: 0
   });
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>("portfolio");
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -189,11 +192,11 @@ const WalletsPage = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight mb-1">
-              {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
+              {connected ? "Alephium Wallet" : "Alephium Portfolio Tracker"}
             </h2>
             <p className="text-muted-foreground">
               {connected 
-                ? "Track and manage your Alephium assets" 
+                ? "Manage your Alephium assets and dApps" 
                 : "Viewing public wallet data"}
             </p>
           </div>
@@ -221,14 +224,58 @@ const WalletsPage = () => {
           </Card>
         )}
 
-        <WalletDashboard
-          address={walletAddress}
-          isLoggedIn={connected}
-          walletStats={walletStats}
-          isStatsLoading={isStatsLoading}
-          refreshFlag={refreshFlag}
-          setRefreshFlag={setRefreshFlag}
-        />
+        <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-3 max-w-md mb-6">
+            <TabsTrigger value="portfolio" className="flex items-center gap-2">
+              <ChartLineUp className="h-4 w-4" />
+              <span>My Portfolio</span>
+            </TabsTrigger>
+            <TabsTrigger value="dapps" className="flex items-center gap-2">
+              <Apps className="h-4 w-4" />
+              <span>My dApps</span>
+            </TabsTrigger>
+            <TabsTrigger value="alephium" className="flex items-center gap-2">
+              <Blocks className="h-4 w-4" />
+              <span>My Alephium</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="portfolio" className="mt-0 space-y-6">
+            <WalletDashboard
+              address={walletAddress}
+              isLoggedIn={connected}
+              walletStats={walletStats}
+              isStatsLoading={isStatsLoading}
+              refreshFlag={refreshFlag}
+              setRefreshFlag={setRefreshFlag}
+              activeTab="portfolio"
+            />
+          </TabsContent>
+
+          <TabsContent value="dapps" className="mt-0 space-y-6">
+            <WalletDashboard
+              address={walletAddress}
+              isLoggedIn={connected}
+              walletStats={walletStats}
+              isStatsLoading={isStatsLoading}
+              refreshFlag={refreshFlag}
+              setRefreshFlag={setRefreshFlag}
+              activeTab="dapps"
+            />
+          </TabsContent>
+
+          <TabsContent value="alephium" className="mt-0 space-y-6">
+            <WalletDashboard
+              address={walletAddress}
+              isLoggedIn={connected}
+              walletStats={walletStats}
+              isStatsLoading={isStatsLoading}
+              refreshFlag={refreshFlag}
+              setRefreshFlag={setRefreshFlag}
+              activeTab="alephium"
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
