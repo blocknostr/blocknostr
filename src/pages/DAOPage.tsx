@@ -11,7 +11,7 @@ const DAOPage = () => {
     <div className="flex flex-col">
       <div className="container max-w-6xl mx-auto px-4 py-6">
         <PageHeader 
-          heading="Decentralized Autonomous Organizations"
+          title="Decentralized Autonomous Organizations"
           description="Discover and participate in on-chain governance"
         />
         
