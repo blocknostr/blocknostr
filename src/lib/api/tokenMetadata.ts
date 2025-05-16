@@ -14,6 +14,13 @@ export interface TokenMetadata {
   decimals: number;
   description?: string;
   logoURI?: string;
+  // Additional properties needed for NFT support
+  tokenURI?: string;
+  uri?: string;
+  image?: string;
+  imageUrl?: string;
+  standard?: string;
+  attributes?: any[];
 }
 
 interface TokenList {
