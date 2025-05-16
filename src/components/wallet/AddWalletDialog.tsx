@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { SavedWallet } from "@/hooks/use-saved-wallets";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 interface AddWalletDialogProps {
   open: boolean;
@@ -58,6 +60,11 @@ const AddWalletDialog: React.FC<AddWalletDialogProps> = ({
     setValidationError("");
     setIsSubmitting(false);
     onOpenChange(false);
+    
+    // Show privacy notice
+    toast.info("Privacy Notice", {
+      description: "Wallet data is stored locally on your device only, not on blockchain or relays. You have full control over your data."
+    });
   };
 
   const handleClose = () => {
@@ -78,6 +85,13 @@ const AddWalletDialog: React.FC<AddWalletDialogProps> = ({
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          <Alert className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-sm">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Wallet addresses are stored locally on your device only and are never shared with servers or the blockchain.
+            </AlertDescription>
+          </Alert>
+          
           <div className="grid gap-2">
             <Label htmlFor="address">Wallet Address</Label>
             <Input
