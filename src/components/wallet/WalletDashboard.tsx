@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -117,9 +116,6 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </Card>
         </div>
 
-        {/* NFT Gallery Section */}
-        <NFTGallery address={address} />
-        
         <Tabs defaultValue="tokens" className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md mb-4">
             <TabsTrigger value="tokens">Tokens</TabsTrigger>
