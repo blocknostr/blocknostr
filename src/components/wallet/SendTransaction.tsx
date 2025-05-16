@@ -47,13 +47,20 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     setIsLoading(true);
     
     try {
-      // In a real app, you'd want to catch any signer or signature errors here
+      console.log("Sending transaction:", {
+        fromAddress,
+        recipient,
+        amount: amountValue
+      });
+      
       const result = await sendTransaction(
         fromAddress,
         recipient,
         amountValue,
         wallet.signer
       );
+      
+      console.log("Transaction result:", result);
       
       toast.success("Transaction submitted", {
         description: `Transaction ID: ${result.txId.substring(0, 10)}...`
@@ -73,7 +80,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   };
   
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Send ALPH</CardTitle>
         <CardDescription className="text-xs">Transfer to another address</CardDescription>
@@ -98,8 +105,8 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
                 id="amount"
                 type="number"
                 placeholder="0.0"
-                step="0.01"
-                min="0.01"
+                step="0.000001"
+                min="0.000001"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 required
@@ -110,7 +117,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground">
-              Minimum transaction: 0.01 ALPH
+              Minimum transaction: 0.000001 ALPH
             </p>
           </div>
           
