@@ -4,10 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { EnrichedToken, getAddressTokens } from "@/lib/api/alephiumApi";
 import { formatCurrency } from "@/lib/utils/formatters";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface TokenListProps {
   address: string;
-  allTokens?: EnrichedToken[]; // New prop to receive aggregated tokens
+  allTokens?: EnrichedToken[]; // For receiving aggregated tokens
 }
 
 const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
@@ -17,6 +20,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
   useEffect(() => {
     // If allTokens is provided, use those instead of fetching for a single address
     if (allTokens && allTokens.length > 0) {
+      // Filter out NFTs, they're shown in the NFT gallery
       setTokens(allTokens.filter(token => !token.isNFT));
       setLoading(false);
       return;
@@ -37,7 +41,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
     fetchTokens();
   }, [address, allTokens]);
 
-  // Render loading skeleton or error state
+  // Render loading skeleton
   if (loading) {
     return (
       <Card>
@@ -63,6 +67,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
     );
   }
 
+  // No tokens found state
   if (tokens.length === 0) {
     return (
       <Card>
@@ -72,7 +77,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
         </CardHeader>
         <CardContent>
           <p className="text-center py-6 text-muted-foreground">
-            No tokens found in this wallet
+            No tokens found in tracked wallets
           </p>
         </CardContent>
       </Card>
@@ -112,6 +117,24 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                 <div className="ml-3">
                   <div className="font-medium">{token.name || token.symbol}</div>
                   <div className="text-xs text-muted-foreground">{token.symbol}</div>
+                  
+                  {token.walletAddresses && token.walletAddresses.length > 0 && (
+                    <div className="mt-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs">
+                              {token.walletAddresses.length} wallet{token.walletAddresses.length > 1 ? 's' : ''}
+                              <Info className="h-3 w-3 ml-1" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Found in {token.walletAddresses.length} tracked wallet{token.walletAddresses.length > 1 ? 's' : ''}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
                 </div>
               </div>
               

@@ -13,7 +13,6 @@ import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
 import { getAddressBalance, getAddressTokens } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
-import TokenActivity from "@/components/wallet/TokenActivity";
 
 interface SavedWallet {
   address: string;
@@ -73,6 +72,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
       setIsLoading(true);
       
       try {
+        console.log("Fetching balances and tokens for wallets:", allWallets.map(w => w.address));
         const walletAddresses = allWallets.map(wallet => wallet.address);
         const balancePromises = walletAddresses.map(addr => getAddressBalance(addr));
         const tokenPromises = walletAddresses.map(addr => getAddressTokens(addr));
@@ -105,6 +105,8 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
             const walletAddress = walletAddresses[index];
             const tokens = result.value;
             
+            console.log(`Retrieved ${tokens.length} tokens for wallet ${walletAddress}`);
+            
             // Count unique tokens for this wallet
             totalTokens += tokens.length;
             
@@ -122,22 +124,29 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 tokenMap[tokenId].wallets.push({ address: walletAddress, amount: token.amount });
                 
                 // Update total amount for this token (as BigInt to handle large numbers)
-                const currentAmount = BigInt(tokenMap[tokenId].amount || "0");
-                const additionalAmount = BigInt(token.amount || "0");
-                tokenMap[tokenId].amount = (currentAmount + additionalAmount).toString();
-                
-                // Recalculate formatted amount with new total
-                tokenMap[tokenId].formattedAmount = token.isNFT 
-                  ? tokenMap[tokenId].amount 
-                  : (Number(tokenMap[tokenId].amount) / 10**token.decimals).toLocaleString(
-                      undefined, 
-                      { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
-                    );
+                try {
+                  const currentAmount = BigInt(tokenMap[tokenId].amount || "0");
+                  const additionalAmount = BigInt(token.amount || "0");
+                  tokenMap[tokenId].amount = (currentAmount + additionalAmount).toString();
+                  
+                  // Recalculate formatted amount with new total
+                  tokenMap[tokenId].formattedAmount = token.isNFT 
+                    ? tokenMap[tokenId].amount 
+                    : (Number(tokenMap[tokenId].amount) / 10**token.decimals).toLocaleString(
+                        undefined, 
+                        { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                      );
+                } catch (error) {
+                  console.error(`Error summing amounts for token ${tokenId}:`, error);
+                }
               }
             });
+          } else {
+            console.error(`Failed to fetch tokens for ${walletAddresses[index]}:`, result.reason);
           }
         });
         
+        console.log("Aggregated token data:", Object.keys(tokenMap).length, "unique tokens");
         setAllTokens(tokenMap);
         setTotalTokenCount(Object.keys(tokenMap).length);
         
@@ -145,8 +154,12 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           price: priceResult.price,
           priceChange24h: priceResult.priceChange24h
         });
+        
+        // Update API status based on successful data retrieval
+        updateApiStatus(true);
       } catch (error) {
         console.error('Error fetching data:', error);
+        updateApiStatus(false);
       } finally {
         setIsLoading(false);
       }

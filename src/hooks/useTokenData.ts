@@ -1,8 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchTokenList } from "@/lib/api/tokenMetadata";
-import { fetchTokenTransactions } from "@/lib/api/alephiumApi";
-import { TokenMetadata } from "@/lib/api/tokenMetadata";
+import { fetchTokenTransactions, getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
 
 export interface TokenTransaction {
   hash: string;
@@ -10,9 +9,10 @@ export interface TokenTransaction {
   blockHash: string;
   inputs: Array<{address: string; amount: string; tokens?: Array<{id: string; amount: string}>}>;
   outputs: Array<{address: string; amount: string; tokens?: Array<{id: string; amount: string}>}>;
+  tokenId?: string; // Added for when we enrich transactions
 }
 
-export interface EnrichedTokenData extends TokenMetadata {
+export interface EnrichedTokenData extends EnrichedToken {
   transactions: TokenTransaction[];
   isLoading: boolean;
   lastUpdated: number;
@@ -32,99 +32,107 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
   const [prioritizedTokenIds, setPrioritizedTokenIds] = useState<string[]>([]);
   const [ownedTokens, setOwnedTokens] = useState<Set<string>>(new Set());
 
-  // Fetch token list initially
+  // Identify tokens in tracked wallets and fetch token metadata
   useEffect(() => {
-    const loadTokens = async () => {
+    const fetchWalletTokens = async () => {
+      if (trackedWallets.length === 0) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
       try {
-        const tokens = await fetchTokenList();
-        const tokenIdList = Object.keys(tokens);
-        setTokenIds(tokenIdList);
+        console.log("Fetching tokens for tracked wallets:", trackedWallets);
         
-        // Initialize token data structure
-        const initialTokenData: Record<string, EnrichedTokenData> = {};
-        tokenIdList.forEach(id => {
-          initialTokenData[id] = {
-            ...tokens[id],
-            transactions: [],
-            isLoading: true,
-            lastUpdated: Date.now()
-          };
+        // Use the correct getAddressTokens function from alephiumApi.ts
+        const walletTokenPromises = trackedWallets.map(walletAddress => 
+          getAddressTokens(walletAddress).catch(err => {
+            console.error(`Error fetching tokens for wallet ${walletAddress}:`, err);
+            return []; // Return empty array on error for this wallet
+          })
+        );
+        
+        const allWalletsTokenResults = await Promise.all(walletTokenPromises);
+        console.log("All wallet token results:", allWalletsTokenResults);
+        
+        // Process tokens - aggregate all tokens across wallets
+        const tokenMap: Record<string, EnrichedTokenData> = {};
+        const ownedTokenIds = new Set<string>();
+        
+        allWalletsTokenResults.forEach((walletTokens, walletIndex) => {
+          const walletAddress = trackedWallets[walletIndex];
+          
+          // Process each token from this wallet
+          walletTokens.forEach((token: EnrichedToken) => {
+            const tokenId = token.id;
+            ownedTokenIds.add(tokenId);
+            
+            if (!tokenMap[tokenId]) {
+              // First time we're seeing this token
+              tokenMap[tokenId] = {
+                ...token,
+                transactions: [],
+                isLoading: true,
+                lastUpdated: Date.now(),
+                walletAddresses: [walletAddress]
+              };
+            } else {
+              // Token exists in map, update with this wallet's data
+              const currentToken = tokenMap[tokenId];
+              
+              // Add this wallet to the token's wallets
+              if (currentToken.walletAddresses) {
+                if (!currentToken.walletAddresses.includes(walletAddress)) {
+                  currentToken.walletAddresses.push(walletAddress);
+                }
+              } else {
+                currentToken.walletAddresses = [walletAddress];
+              }
+              
+              // Sum the amount (use BigInt to handle large numbers)
+              try {
+                const currentAmount = BigInt(currentToken.amount || "0");
+                const additionalAmount = BigInt(token.amount || "0");
+                currentToken.amount = (currentAmount + additionalAmount).toString();
+                
+                // Recalculate formatted amount with new total
+                currentToken.formattedAmount = token.isNFT 
+                  ? currentToken.amount 
+                  : (Number(currentToken.amount) / (10 ** token.decimals)).toLocaleString(
+                      undefined, 
+                      { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                    );
+              } catch (error) {
+                console.error(`Error summing amounts for token ${tokenId}:`, error);
+              }
+            }
+          });
         });
         
-        setTokenData(initialTokenData);
+        // Get a list of all token IDs
+        const allTokenIds = Object.keys(tokenMap);
+        setTokenIds(allTokenIds);
+        setTokenData(tokenMap);
+        setOwnedTokens(ownedTokenIds);
+        
+        // Prioritize owned tokens for transaction fetching
+        const owned = allTokenIds.filter(id => ownedTokenIds.has(id));
+        const prioritizedIds = [...owned];
+        setPrioritizedTokenIds(prioritizedIds);
+        
+        setIsLoading(false);
+        setLastUpdated(Date.now());
       } catch (error) {
-        console.error("Failed to fetch token list:", error);
-      } finally {
+        console.error("Failed to identify tokens in tracked wallets:", error);
         setIsLoading(false);
       }
     };
     
-    loadTokens();
-  }, []);
-
-  // Identify tokens in tracked wallets
-  useEffect(() => {
-    if (tokenIds.length === 0 || trackedWallets.length === 0) return;
-
-    const fetchWalletTokens = async () => {
-      try {
-        // Make API calls to get tokens for each tracked wallet
-        const walletTokenPromises = trackedWallets.map(async (walletAddress) => {
-          try {
-            // This would be a call to fetch tokens for a specific wallet
-            // For example: const walletTokens = await getAddressTokens(walletAddress);
-            // Here we're assuming there's an API that returns tokens for a wallet
-            const walletResponse = await fetch(`https://backend.mainnet.alephium.org/addresses/${walletAddress}/tokens`);
-            if (!walletResponse.ok) {
-              console.error(`Failed to fetch tokens for wallet ${walletAddress}`);
-              return [];
-            }
-            const walletTokens = await walletResponse.json();
-            return walletTokens.map((token: any) => token.id);
-          } catch (error) {
-            console.error(`Error fetching tokens for wallet ${walletAddress}:`, error);
-            return [];
-          }
-        });
-
-        const results = await Promise.all(walletTokenPromises);
-        
-        // Flatten and deduplicate token IDs
-        const ownedTokenIds = new Set<string>();
-        results.forEach(walletTokenIds => {
-          walletTokenIds.forEach((id: string) => ownedTokenIds.add(id));
-        });
-        
-        setOwnedTokens(ownedTokenIds);
-        
-        // Prioritize owned tokens, followed by others
-        const owned = tokenIds.filter(id => ownedTokenIds.has(id));
-        const others = tokenIds.filter(id => !ownedTokenIds.has(id));
-        
-        // Limit the number of non-owned tokens we'll fetch data for to avoid overwhelming the API
-        const prioritizedIds = [...owned, ...others.slice(0, 10)];
-        setPrioritizedTokenIds(prioritizedIds);
-
-        // Update token data with wallet information
-        setTokenData(current => {
-          const updated = {...current};
-          owned.forEach(tokenId => {
-            if (updated[tokenId]) {
-              updated[tokenId] = {
-                ...updated[tokenId],
-                walletAddresses: trackedWallets
-              };
-            }
-          });
-          return updated;
-        });
-      } catch (error) {
-        console.error("Failed to identify tokens in tracked wallets:", error);
-      }
-    };
-    
     fetchWalletTokens();
-  }, [tokenIds, trackedWallets]);
+  }, [trackedWallets, refreshFlag]);
+
+  // Trigger refresh
+  const [refreshFlag, setRefreshFlag] = useState(0);
 
   // Fetch transactions for each token, prioritizing those in tracked wallets
   useEffect(() => {
@@ -151,11 +159,17 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
           // Fetch latest transactions for this token
           const transactions = await fetchTokenTransactions(tokenId, ownedTokens.has(tokenId) ? 20 : 5);
           
+          // Add tokenId to each transaction for reference
+          const enrichedTransactions = transactions.map(tx => ({
+            ...tx, 
+            tokenId
+          }));
+          
           // Only update if we got new data
-          if (transactions.length > 0) {
+          if (enrichedTransactions.length > 0) {
             updatedTokens[tokenId] = {
               ...token,
-              transactions,
+              transactions: enrichedTransactions,
               isLoading: false,
               lastUpdated: Date.now()
             };
@@ -192,7 +206,7 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     // Set up periodic refresh
     const intervalId = setInterval(() => {
       console.log("Refreshing token transactions data...");
-      fetchTokensData();
+      setRefreshFlag(prev => prev + 1);
     }, refreshInterval);
     
     return () => clearInterval(intervalId);
@@ -203,6 +217,6 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     isLoading,
     lastUpdated,
     ownedTokenIds: [...ownedTokens],
-    refreshTokens: () => setLastUpdated(Date.now())
+    refreshTokens: () => setRefreshFlag(prev => prev + 1)
   };
 };
