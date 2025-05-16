@@ -361,7 +361,8 @@ export const fetchNetworkStats = async () => {
     });
     
     // Use real data when available, but provide reasonable defaults
-    const currentHeight = infoResponse ? parseInt(infoResponse.blockflow?.currentHeight || "3752480") : 3752480;
+    // Access the currentHeight directly from blockflowResponse instead of infoResponse
+    const currentHeight = blockflowResponse ? parseInt(blockflowResponse.currentHeight || "3752480") : 3752480;
     const blockTime = "64.0s"; // Default since averageBlockTime isn't available
     
     return {
