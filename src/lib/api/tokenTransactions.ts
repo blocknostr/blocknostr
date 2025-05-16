@@ -1,3 +1,4 @@
+
 import { SimplePool, getEventHash, Event, Filter } from 'nostr-tools';
 import { TokenMetadata, fetchTokenList } from './tokenMetadata';
 
@@ -118,17 +119,11 @@ export const subscribeToTokenTransactions = (
   
   console.log(`Subscribing to token transactions for ${tokenId} (${symbol})`);
   
-  // Fix: Use the proper subscription method for the current version of nostr-tools
-  const sub = pool.subscribe(
-    NOSTR_RELAYS,
-    [filter],
-    {
-      id: `token-tx-${tokenId}`,
-    }
-  );
+  // Fix: Use the proper subscription method with single filter object
+  const sub = pool.subscribe(NOSTR_RELAYS, filter);
   
-  // Handle the event stream using EventEmitter pattern
-  sub.on('event', (event: Event) => {
+  // Set up event handler
+  const eventHandler = (event: Event) => {
     try {
       // Parse transaction from event content
       const transaction: TokenTransaction = JSON.parse(event.content);
@@ -152,11 +147,14 @@ export const subscribeToTokenTransactions = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  });
+  };
+  
+  // Add event listener for the subscription
+  sub.on('event', eventHandler);
   
   // Return unsubscribe function
   return () => {
-    pool.unsubscribe(sub);
+    sub.close();
   };
 };
 
@@ -201,17 +199,11 @@ export const subscribeToAllTokenUpdates = (
   
   console.log('Subscribing to all token transactions');
   
-  // Fix: Use the proper subscription method for the current version of nostr-tools
-  const sub = pool.subscribe(
-    NOSTR_RELAYS,
-    [filter],
-    {
-      id: 'all-token-tx',
-    }
-  );
+  // Fix: Use the proper subscription method with single filter object
+  const sub = pool.subscribe(NOSTR_RELAYS, filter);
   
-  // Handle the event stream using EventEmitter pattern
-  sub.on('event', (event: Event) => {
+  // Set up event handler
+  const eventHandler = (event: Event) => {
     try {
       // Get token ID from tags
       const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
@@ -244,11 +236,14 @@ export const subscribeToAllTokenUpdates = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  });
+  };
+  
+  // Add event listener for the subscription
+  sub.on('event', eventHandler);
   
   // Return unsubscribe function
   return () => {
-    pool.unsubscribe(sub);
+    sub.close();
   };
 };
 
