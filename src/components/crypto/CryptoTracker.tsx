@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect } from "react";
-import { ExternalLink, RefreshCw, Loader2 } from "lucide-react";
+import { ExternalLink, RefreshCw, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMultipleCoinsPrice } from "@/lib/api/coingeckoApi";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface CryptoData {
   id: string;
@@ -14,18 +17,46 @@ interface CryptoData {
   marketCapRank: number;
 }
 
+const STORAGE_KEY = "blocknoster_watched_coins";
+const DEFAULT_COINS = ['bitcoin', 'alephium', 'ergo'];
+
 const CryptoTracker: React.FC = () => {
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [newCoinId, setNewCoinId] = useState("");
+  const [watchedCoins, setWatchedCoins] = useState<string[]>(DEFAULT_COINS);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  
+  // Load watched coins from storage on component mount
+  useEffect(() => {
+    const storedCoins = localStorage.getItem(STORAGE_KEY);
+    if (storedCoins) {
+      try {
+        const parsedCoins = JSON.parse(storedCoins);
+        if (Array.isArray(parsedCoins) && parsedCoins.length > 0) {
+          setWatchedCoins(parsedCoins);
+        }
+      } catch (err) {
+        console.error("Error parsing stored coins:", err);
+      }
+    }
+  }, []);
+
+  // Save watched coins to storage when they change
+  useEffect(() => {
+    if (watchedCoins.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(watchedCoins));
+    }
+  }, [watchedCoins]);
   
   const fetchCryptoData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const data = await getMultipleCoinsPrice(['bitcoin', 'alephium', 'ergo']);
+      const data = await getMultipleCoinsPrice(watchedCoins);
       setCryptoData(data);
       setLastUpdated(new Date());
     } catch (err) {
@@ -36,14 +67,14 @@ const CryptoTracker: React.FC = () => {
     }
   };
   
-  // Fetch data on component mount
+  // Fetch data on component mount and when watchedCoins changes
   useEffect(() => {
     fetchCryptoData();
     
     // Refresh every 2 minutes
     const interval = setInterval(fetchCryptoData, 2 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [watchedCoins]);
   
   const formatPrice = (price: number) => {
     if (price >= 1000) {
@@ -64,16 +95,59 @@ const CryptoTracker: React.FC = () => {
     );
   };
   
+  const handleAddCoin = () => {
+    if (!newCoinId.trim()) {
+      toast.error("Please enter a valid coin ID");
+      return;
+    }
+    
+    // Normalize the coin ID (lowercase, trim spaces)
+    const normalizedId = newCoinId.trim().toLowerCase();
+    
+    // Check if already in the list
+    if (watchedCoins.includes(normalizedId)) {
+      toast.error("This coin is already being tracked");
+      return;
+    }
+    
+    // Add the new coin
+    setWatchedCoins(prev => [...prev, normalizedId]);
+    setNewCoinId("");
+    setAddDialogOpen(false);
+    toast.success(`Added ${normalizedId} to tracked coins`);
+  };
+  
+  const handleRemoveCoin = (coinId: string) => {
+    // Don't allow removing all coins
+    if (watchedCoins.length <= 1) {
+      toast.error("You must track at least one coin");
+      return;
+    }
+    
+    setWatchedCoins(prev => prev.filter(id => id !== coinId));
+    toast.success(`Removed ${coinId} from tracked coins`);
+  };
+  
   const renderCryptoItem = (crypto: CryptoData) => (
-    <div key={crypto.id} className="flex flex-col p-2 rounded-md hover:bg-accent/50">
+    <div key={crypto.id} className="flex flex-col p-2 rounded-md hover:bg-accent/50 group">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-1.5">
+          <div className="text-xs bg-muted px-1.5 py-0.5 rounded">
+            #{crypto.marketCapRank}
+          </div>
           <div className="text-sm font-medium">{crypto.name}</div>
           <div className="text-xs text-muted-foreground uppercase">{crypto.symbol}</div>
         </div>
-        <div className="text-xs bg-muted px-1.5 py-0.5 rounded">
-          #{crypto.marketCapRank}
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => handleRemoveCoin(crypto.id)}
+          title="Remove from tracking"
+        >
+          <span className="sr-only">Remove</span>
+          &times;
+        </Button>
       </div>
       <div className="flex justify-between mt-1">
         <div className="text-base font-medium">{formatPrice(crypto.price)}</div>
@@ -93,21 +167,62 @@ const CryptoTracker: React.FC = () => {
           <h3 className="font-medium text-sm">Market Prices</h3>
         </div>
         
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-7 w-7 p-0"
-          disabled={loading}
-          onClick={fetchCryptoData}
-          title="Refresh prices"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          <span className="sr-only">Refresh prices</span>
-        </Button>
+        <div className="flex gap-1">
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 w-7 p-0"
+                title="Add coin"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="sr-only">Add coin</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add cryptocurrency</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label htmlFor="coinId" className="text-sm">
+                    Coin ID (from CoinGecko)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input 
+                      id="coinId" 
+                      value={newCoinId}
+                      onChange={(e) => setNewCoinId(e.target.value)}
+                      placeholder="e.g. bitcoin, ethereum"
+                      className="flex-1"
+                    />
+                    <Button onClick={handleAddCoin}>Add</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the CoinGecko ID of the cryptocurrency you want to track
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-7 w-7 p-0"
+            disabled={loading}
+            onClick={fetchCryptoData}
+            title="Refresh prices"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            <span className="sr-only">Refresh prices</span>
+          </Button>
+        </div>
       </div>
       
       {error ? (

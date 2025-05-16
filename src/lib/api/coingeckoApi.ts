@@ -21,6 +21,7 @@ interface MarketDataResponse {
   current_price: number;
   market_cap_rank: number;
   price_change_percentage_24h: number;
+  image?: string;
 }
 
 // Market chart data response interface
@@ -51,6 +52,7 @@ interface CachedMarketData {
     marketCapRank: number;
   }[];
   expiresAt: number;
+  coinIds: string[]; // Track which coin IDs are cached
 }
 
 // Constants
@@ -121,9 +123,12 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
   priceChange24h: number;
   marketCapRank: number;
 }[]> => {
-  // Return cached data if still valid
+  // Return cached data if still valid and contains the same coins
   const currentTime = Date.now();
-  if (cachedMarketData && currentTime < cachedMarketData.expiresAt) {
+  if (cachedMarketData && 
+      currentTime < cachedMarketData.expiresAt && 
+      coinIds.every(id => cachedMarketData!.coinIds.includes(id)) &&
+      coinIds.length === cachedMarketData.coinIds.length) {
     console.log("Using cached market data");
     return cachedMarketData.data;
   }
@@ -146,26 +151,27 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
       symbol: coin.symbol,
       price: coin.current_price,
       priceChange24h: coin.price_change_percentage_24h,
-      marketCapRank: coin.market_cap_rank
+      marketCapRank: coin.market_cap_rank || 9999 // Default high rank if not available
     }));
     
-    // Cache the data
+    // Cache the data with the list of coin IDs
     cachedMarketData = {
       data: formattedData,
-      expiresAt: currentTime + CACHE_DURATION
+      expiresAt: currentTime + CACHE_DURATION,
+      coinIds: coinIds
     };
     
     return formattedData;
   } catch (error) {
     console.error("Error fetching market data:", error);
     
-    // Return last cached data if available, otherwise fall back to defaults
+    // Return last cached data if available
     if (cachedMarketData) {
       return cachedMarketData.data;
     }
     
-    // Return mock data as fallback
-    return [
+    // Return mock data as fallback, but only for the requested coins
+    const mockData = [
       { 
         id: 'bitcoin', 
         name: 'Bitcoin', 
@@ -189,8 +195,38 @@ export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
         price: 1.42, 
         priceChange24h: 0.8, 
         marketCapRank: 302 
+      },
+      {
+        id: 'ethereum',
+        name: 'Ethereum',
+        symbol: 'eth',
+        price: 3500,
+        priceChange24h: 1.2,
+        marketCapRank: 2
+      },
+      {
+        id: 'cardano',
+        name: 'Cardano',
+        symbol: 'ada',
+        price: 0.45,
+        priceChange24h: -0.5,
+        marketCapRank: 8
       }
     ];
+    
+    // Filter mock data to only include requested coins
+    return mockData.filter(coin => coinIds.includes(coin.id))
+      // For any coin IDs not in our mock data, create a placeholder
+      .concat(coinIds.filter(id => !mockData.some(coin => coin.id === id))
+        .map(id => ({
+          id,
+          name: id.charAt(0).toUpperCase() + id.slice(1),
+          symbol: id.substring(0, 3),
+          price: 1.0,
+          priceChange24h: 0,
+          marketCapRank: 9999
+        }))
+      );
   }
 };
 
