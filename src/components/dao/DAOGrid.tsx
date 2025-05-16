@@ -15,7 +15,6 @@ const DAOGrid: React.FC<DAOGridProps> = ({ daos, currentUserPubkey }) => {
         <DAOCard 
           key={dao.id}
           dao={dao}
-          isMember={dao.members.includes(currentUserPubkey)}
           currentUserPubkey={currentUserPubkey}
         />
       ))}

@@ -1,4 +1,3 @@
-
 import { SimplePool, Filter, Event } from 'nostr-tools';
 import { DAO, DAOProposal } from '@/types/dao';
 import { nostrService } from '@/lib/nostr';
@@ -39,7 +38,7 @@ export class DAOService {
         limit: limit
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, filter);
       return events.map(event => this.parseDaoEvent(event)).filter(dao => dao !== null) as DAO[];
     } catch (error) {
       console.error("Error fetching DAOs:", error);
@@ -58,7 +57,7 @@ export class DAOService {
         limit: limit
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, filter);
       return events.map(event => this.parseDaoEvent(event)).filter(dao => dao !== null) as DAO[];
     } catch (error) {
       console.error("Error fetching user DAOs:", error);
@@ -87,7 +86,7 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, filter);
       if (events.length === 0) return null;
       
       return this.parseDaoEvent(events[0]);
@@ -108,7 +107,7 @@ export class DAOService {
         limit: 50
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, filter);
       const proposals = events.map(event => this.parseProposalEvent(event, daoId))
         .filter(proposal => proposal !== null) as DAOProposal[];
         
@@ -138,7 +137,7 @@ export class DAOService {
         limit: 200
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, filter);
       const votes: Record<string, number> = {};
       
       for (const event of events) {

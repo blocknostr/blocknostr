@@ -1,14 +1,12 @@
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DialogDescription } from "@/radix-ui/react-dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
 
 interface CreateDAODialogProps {
   open: boolean;
