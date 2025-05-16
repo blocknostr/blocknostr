@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
@@ -12,6 +13,7 @@ import NFTGallery from "@/components/wallet/NFTGallery";
 import DAppsSection from "@/components/wallet/DAppsSection";
 import { formatNumber } from "@/lib/utils/formatters";
 import NetworkActivityCard from "@/components/wallet/NetworkActivityCard";
+import { WifiOff, Wifi } from "lucide-react";
 
 interface WalletDashboardProps {
   address: string;
@@ -37,6 +39,16 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   setRefreshFlag,
   activeTab = "portfolio"
 }) => {
+  const [apiStatus, setApiStatus] = useState<{ isLive: boolean; lastChecked: Date }>({
+    isLive: false,
+    lastChecked: new Date()
+  });
+
+  // Function to update API status that can be passed to child components
+  const updateApiStatus = (isLive: boolean) => {
+    setApiStatus({ isLive, lastChecked: new Date() });
+  };
+
   // Render appropriate content based on the active tab
   if (activeTab === "portfolio") {
     return (
@@ -173,8 +185,41 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   if (activeTab === "alephium") {
     return (
       <div className="space-y-6">
+        {/* Network data status indicator */}
+        <div className="flex items-center justify-between mb-4 bg-muted/40 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            {apiStatus.isLive ? (
+              <Wifi className="h-5 w-5 text-green-500" />
+            ) : (
+              <WifiOff className="h-5 w-5 text-amber-500" />
+            )}
+            <div>
+              <h3 className="text-sm font-medium">
+                Network Data: {apiStatus.isLive ? "Live" : "Simulation"}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Last checked: {apiStatus.lastChecked.toLocaleTimeString()}
+              </p>
+            </div>
+          </div>
+          
+          <div className="text-xs">
+            {apiStatus.isLive ? (
+              <span className="inline-flex items-center text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full">
+                <div className="w-1.5 h-1.5 bg-green-600 dark:bg-green-400 rounded-full animate-pulse mr-1.5" />
+                Connected to Alephium Explorer
+              </span>
+            ) : (
+              <span className="inline-flex items-center text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full">
+                <WifiOff className="h-3 w-3 mr-1.5" />
+                Using fallback data
+              </span>
+            )}
+          </div>
+        </div>
+        
         {/* Network stats card with all the important data */}
-        <NetworkStatsCard className="w-full" />
+        <NetworkStatsCard className="w-full" onStatusUpdate={updateApiStatus} />
         
         {/* Address growth chart */}
         <NetworkActivityCard className="w-full" />

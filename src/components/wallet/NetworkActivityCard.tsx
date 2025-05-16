@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Activity, Network, WifiOff } from "lucide-react";
@@ -29,9 +28,10 @@ const generateActivityData = () => {
 
 interface NetworkActivityCardProps {
   className?: string;
+  onStatusUpdate?: (isLive: boolean) => void;
 }
 
-const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "" }) => {
+const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "", onStatusUpdate }) => {
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLiveData, setIsLiveData] = useState(false);
@@ -47,11 +47,16 @@ const NetworkActivityCard: React.FC<NetworkActivityCardProps> = ({ className = "
         setIsLoading(false);
         // Currently this is always using simulated data
         setIsLiveData(false);
+        
+        // Call the onStatusUpdate callback if provided
+        if (onStatusUpdate && typeof onStatusUpdate === 'function') {
+          onStatusUpdate(false); // Always false for now since this is simulated data
+        }
       }, 800);
     };
 
     fetchData();
-  }, []);
+  }, [onStatusUpdate]);
 
   const formatYAxis = (value: number) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;

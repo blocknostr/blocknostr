@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Hash, Database, Activity, Clock, Blocks, Network, Server, WifiOff } from "lucide-react";
@@ -25,9 +24,10 @@ interface NetworkStats {
 
 interface NetworkStatsCardProps {
   className?: string;
+  onStatusUpdate?: (isLive: boolean) => void;
 }
 
-const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) => {
+const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "", onStatusUpdate }) => {
   const [stats, setStats] = useState<NetworkStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -39,10 +39,15 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
         const data = await fetchNetworkStats();
         setStats(data);
         setLastUpdated(new Date());
+        
+        // Call the onStatusUpdate callback if provided
+        if (onStatusUpdate && typeof onStatusUpdate === 'function') {
+          onStatusUpdate(data.isLiveData !== false);
+        }
       } catch (error) {
         console.error("Error fetching network stats:", error);
         // Set updated sample data
-        setStats({
+        const fallbackData = {
           hashRate: "38.2 PH/s",
           difficulty: "3.51 P",
           blockTime: "64.0s",
@@ -57,7 +62,14 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
             { hash: "0xd4e5f6...", timestamp: Date.now() - 120000, height: 3752479, txNumber: 3 },
             { hash: "0x789012...", timestamp: Date.now() - 180000, height: 3752478, txNumber: 7 }
           ]
-        });
+        };
+        
+        setStats(fallbackData);
+        
+        // Call the onStatusUpdate callback with false if provided
+        if (onStatusUpdate && typeof onStatusUpdate === 'function') {
+          onStatusUpdate(false);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -69,7 +81,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
     const intervalId = setInterval(fetchStats, 120000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [onStatusUpdate]);
 
   const formatTimestamp = (timestamp: number): string => {
     const now = Date.now();
