@@ -1,4 +1,3 @@
-
 import { nostrService } from "@/lib/nostr";
 import { eventBus, EVENTS } from "./EventBus";
 import { cacheManager } from "@/lib/utils/cacheManager";
@@ -9,14 +8,15 @@ import { cacheManager } from "@/lib/utils/cacheManager";
 class UnifiedProfileService {
   private profileCache: Map<string, any> = new Map();
   private fetchingProfiles: Set<string> = new Set();
-  private prefetchQueue: string[] = []; // Changed from Set to array
+  // Keep these variables for type compatibility but disable their functionality
+  private prefetchQueue: string[] = [];
   private retryQueue: Map<string, { attempts: number, lastTry: number }> = new Map();
   private maxRetryAttempts = 3;
   private retryDelay = 5000; // 5 seconds
   
   constructor() {
-    // Start the retry processor
-    this.startRetryProcessor();
+    // Disable auto-retry processing
+    // this.startRetryProcessor();
   }
   
   /**
@@ -63,24 +63,22 @@ class UnifiedProfileService {
         this.profileCache.set(pubkey, profile);
         cacheManager.set(`profile:${pubkey}`, profile, 5 * 60 * 1000); // 5 minutes
         
-        // Remove from retry queue if it was there
-        this.retryQueue.delete(pubkey);
+        // Removed retry queue logic
         
         // Emit event for listeners
         eventBus.emit(EVENTS.PROFILE_UPDATED, pubkey, profile);
         
-        // Add related profiles to prefetch queue
-        this.queueRelatedProfiles(profile);
+        // Removed related profiles prefetching
         
         return profile;
       } else {
-        console.log(`[UnifiedProfileService] No profile found for ${pubkey.substring(0, 8)}, will queue for retry`);
-        this.addToRetryQueue(pubkey);
+        console.log(`[UnifiedProfileService] No profile found for ${pubkey.substring(0, 8)}`);
+        // Removed retry queue logic
         return null;
       }
     } catch (error) {
       console.error(`[UnifiedProfileService] Error fetching profile for ${pubkey.substring(0, 8)}:`, error);
-      this.addToRetryQueue(pubkey);
+      // Removed retry queue logic
       return null;
     } finally {
       // No longer fetching
@@ -129,176 +127,60 @@ class UnifiedProfileService {
           cacheManager.set(`profile:${pubkey}`, profile, 5 * 60 * 1000);
           result[pubkey] = profile;
           
-          // Remove from retry queue if it was there
-          this.retryQueue.delete(pubkey);
+          // Removed retry queue logic
           
           // Emit event for listeners
           eventBus.emit(EVENTS.PROFILE_UPDATED, pubkey, profile);
           
-          // Queue related profiles for prefetching
-          this.queueRelatedProfiles(profile);
-        } else {
-          // Add to retry queue if we failed to fetch it
-          this.addToRetryQueue(pubkey);
-        }
-      });
-      
-      // Check for profiles that weren't returned and add them to the retry queue
-      uncachedPubkeys.forEach(pubkey => {
-        if (!fetchedProfiles[pubkey]) {
-          this.addToRetryQueue(pubkey);
+          // Removed related profiles prefetching
         }
       });
       
       return result;
     } catch (error) {
       console.error("[UnifiedProfileService] Error batch fetching profiles:", error);
-      
-      // Add all uncached pubkeys to retry queue
-      uncachedPubkeys.forEach(pubkey => {
-        this.addToRetryQueue(pubkey);
-      });
-      
       return result;
     }
   }
   
   /**
-   * Add a pubkey to the retry queue
+   * Add a pubkey to the retry queue - disabled, but kept for type compatibility
    */
   private addToRetryQueue(pubkey: string): void {
-    const existing = this.retryQueue.get(pubkey);
-    
-    if (existing) {
-      // Increment attempt count if already in queue
-      this.retryQueue.set(pubkey, { 
-        attempts: existing.attempts + 1, 
-        lastTry: Date.now() 
-      });
-    } else {
-      // Add to queue with first attempt
-      this.retryQueue.set(pubkey, { 
-        attempts: 1, 
-        lastTry: Date.now() 
-      });
-    }
-    
-    console.log(`[UnifiedProfileService] Added ${pubkey.substring(0, 8)} to retry queue (attempt ${
-      this.retryQueue.get(pubkey)?.attempts || 1}/${this.maxRetryAttempts})`);
+    // Retry queue functionality disabled
+    return;
   }
   
   /**
-   * Start the retry processor
+   * Start the retry processor - disabled
    */
   private startRetryProcessor(): void {
-    // Process retry queue every 10 seconds
-    setInterval(() => this.processRetryQueue(), 10000);
+    // Retry processor disabled
+    return;
   }
   
   /**
-   * Process the retry queue
+   * Process the retry queue - disabled
    */
   private processRetryQueue(): void {
-    if (this.retryQueue.size === 0) return;
-    
-    console.log(`[UnifiedProfileService] Processing retry queue with ${this.retryQueue.size} items`);
-    const now = Date.now();
-    const toRetry: string[] = [];
-    
-    this.retryQueue.forEach((data, pubkey) => {
-      // Check if we've exceeded max retry attempts
-      if (data.attempts > this.maxRetryAttempts) {
-        console.log(`[UnifiedProfileService] Giving up on ${pubkey.substring(0, 8)} after ${data.attempts} attempts`);
-        this.retryQueue.delete(pubkey);
-        return;
-      }
-      
-      // Check if enough time has passed since last try
-      if (now - data.lastTry >= this.retryDelay) {
-        toRetry.push(pubkey);
-      }
-    });
-    
-    if (toRetry.length > 0) {
-      console.log(`[UnifiedProfileService] Retrying ${toRetry.length} profiles`);
-      
-      // Batch retry up to 5 profiles at once
-      if (toRetry.length <= 5) {
-        this.getProfiles(toRetry).catch(error => {
-          console.error("[UnifiedProfileService] Error in retry batch:", error);
-        });
-      } else {
-        // Process in batches of 5
-        for (let i = 0; i < toRetry.length; i += 5) {
-          const batch = toRetry.slice(i, i + 5);
-          setTimeout(() => {
-            this.getProfiles(batch).catch(error => {
-              console.error("[UnifiedProfileService] Error in retry batch:", error);
-            });
-          }, i * 100); // Stagger requests slightly
-        }
-      }
-    }
+    // Retry queue processing disabled
+    return;
   }
   
   /**
-   * Queue related profiles for prefetching
+   * Queue related profiles for prefetching - disabled
    */
   private queueRelatedProfiles(profile: any): void {
-    if (!profile) return;
-    
-    // Extract related profiles from following, mentions, etc.
-    const relatedPubkeys: string[] = [];
-    
-    // Extract from mentions
-    if (profile.about) {
-      const mentionMatches = profile.about.match(/nostr:npub[a-z0-9]{59}/g) || [];
-      mentionMatches.forEach((match: string) => {
-        try {
-          const pubkey = nostrService.getHexFromNpub(match.replace('nostr:', ''));
-          if (pubkey) {
-            relatedPubkeys.push(pubkey);
-          }
-        } catch (e) {
-          // Ignore invalid npub
-        }
-      });
-    }
-    
-    // Add up to 5 related profiles to prefetch queue
-    const uniquePubkeys = [...new Set(relatedPubkeys)].slice(0, 5);
-    
-    if (uniquePubkeys.length > 0) {
-      console.log(`[UnifiedProfileService] Queuing ${uniquePubkeys.length} related profiles for prefetch`);
-      this.prefetchQueue = [...this.prefetchQueue, ...uniquePubkeys];
-      
-      // Process prefetch queue if not too many
-      if (this.prefetchQueue.length <= 10) {
-        this.processPrefetchQueue();
-      }
-    }
+    // Prefetching disabled
+    return;
   }
   
   /**
-   * Process the prefetch queue in the background
+   * Process the prefetch queue in the background - disabled
    */
   private processPrefetchQueue(): void {
-    if (this.prefetchQueue.length === 0) return;
-    
-    // Take first 3 pubkeys from queue
-    const toProcess = this.prefetchQueue.splice(0, 3);
-    console.log(`[UnifiedProfileService] Prefetching ${toProcess.length} profiles in background`);
-    
-    // Prefetch in background with low priority
-    setTimeout(() => {
-      toProcess.forEach(pubkey => {
-        if (!this.profileCache.has(pubkey) && !this.fetchingProfiles.has(pubkey)) {
-          this.getProfile(pubkey).catch(err => {
-            console.warn(`[UnifiedProfileService] Failed to prefetch profile ${pubkey.substring(0, 8)}`, err);
-          });
-        }
-      });
-    }, 1000);
+    // Prefetching disabled
+    return;
   }
   
   /**

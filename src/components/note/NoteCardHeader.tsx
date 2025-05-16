@@ -22,6 +22,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   );
   const [isLoading, setIsLoading] = useState(!profileData && !!pubkey);
   const [transitionStage, setTransitionStage] = useState<'initial' | 'loading' | 'loaded'>('initial');
+  const [shouldFetch, setShouldFetch] = useState(false);
   
   // Generate stable npub and display values upfront, avoiding regeneration on re-renders
   const stableValues = useMemo(() => {
@@ -54,7 +55,35 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     return { npub, shortNpub, displayName, avatarFallback };
   }, [pubkey]);
   
-  // Effect to fetch profile data if not provided
+  // Effect to handle avatar visibility/interaction to trigger fetch
+  useEffect(() => {
+    // Initialize shouldFetch based on whether profileData was provided
+    if (profileData || !pubkey) {
+      setShouldFetch(false);
+    } else {
+      // Only set to true if the element is in viewport or user interacts
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setShouldFetch(true);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.1 }
+      );
+      
+      const element = document.getElementById(`note-header-${pubkey.substring(0, 8)}`);
+      if (element) {
+        observer.observe(element);
+      }
+      
+      return () => {
+        observer.disconnect();
+      };
+    }
+  }, [pubkey, profileData]);
+  
+  // Effect to fetch profile data only when shouldFetch is true
   useEffect(() => {
     // Update local state if profile data prop changes
     if (profileData) {
@@ -64,9 +93,11 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
       return;
     }
     
-    if (!pubkey) {
-      setIsLoading(false);
-      setTransitionStage('loaded');
+    if (!pubkey || !shouldFetch) {
+      if (!pubkey) {
+        setIsLoading(false);
+        setTransitionStage('loaded');
+      }
       return;
     }
     
@@ -98,7 +129,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     
     fetchProfile();
     
-    // Subscribe to profile updates
+    // Subscribe to profile updates only when we're actively loading this profile
     const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
       if (profile) {
         setLocalProfileData(profile);
@@ -110,7 +141,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     return () => {
       unsubscribe();
     };
-  }, [pubkey, profileData]);
+  }, [pubkey, profileData, shouldFetch]);
   
   // Format the created at timestamp
   const timeAgo = useMemo(() => {
@@ -133,9 +164,13 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const picture = localProfileData?.picture || '';
 
   return (
-    <div className="flex justify-between">
+    <div className="flex justify-between" id={`note-header-${pubkey.substring(0, 8)}`}>
       <div className="flex">
-        <Link to={`/profile/${stableValues.npub}`} className="mr-3 shrink-0 touch-target">
+        <Link 
+          to={`/profile/${stableValues.npub}`} 
+          className="mr-3 shrink-0 touch-target"
+          onClick={() => setShouldFetch(true)} // Ensure profile loads on click
+        >
           <Avatar className={cn(
             "h-11 w-11 border border-muted transition-opacity duration-300",
             transitionStage === 'loading' ? "opacity-70" : "opacity-100"
@@ -165,6 +200,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
             <Link 
               to={`/profile/${stableValues.npub}`} 
               className="font-bold truncate hover:underline touch-target"
+              onClick={() => setShouldFetch(true)} // Ensure profile loads on click
             >
               {isLoading ? (
                 <span className="inline-block transition-all duration-300">

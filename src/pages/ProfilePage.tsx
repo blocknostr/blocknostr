@@ -26,13 +26,12 @@ const ProfilePage = () => {
       try {
         const hex = nostrService.getHexFromNpub(npub);
         setHexPubkey(hex);
-        // Pre-fetch profile immediately 
-        fetchProfile(hex);
+        // Remove explicit pre-fetching - profiles will load on demand instead
       } catch (error) {
         console.error('Invalid npub:', error);
       }
     }
-  }, [npub, fetchProfile]);
+  }, [npub]);
   
   // Determine if this is the current user's profile
   const isCurrentUser = currentUserPubkey === hexPubkey;

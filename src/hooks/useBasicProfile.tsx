@@ -33,13 +33,8 @@ export function useBasicProfile(npub: string | undefined) {
       if (cachedProfile) {
         console.log(`[useBasicProfile] Using cached profile for ${hexPubkey.substring(0, 8)}`);
         setProfile(cachedProfile);
-        
-        // Update loading state immediately
         setLoading(false);
-        
-        // Still fetch in background for fresh data without waiting
-        fetchProfileData(hexPubkey).catch(err => 
-          console.warn("Background profile refresh failed:", err));
+        // Removed background profile refresh - only fetch when we don't have cached data
         return;
       }
       
