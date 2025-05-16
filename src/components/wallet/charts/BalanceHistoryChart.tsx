@@ -3,8 +3,9 @@ import React, { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAddressBalance } from "@/lib/api/alephiumApi";
 
-// Mock data for the chart - in a real app, this would come from an API
+// Interface for data points in the balance history chart
 interface HistoryDataPoint {
   date: string;
   balance: number;
@@ -23,9 +24,22 @@ interface BalanceHistoryChartProps {
 const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address, refreshFlag = 0 }) => {
   const [historyData, setHistoryData] = useState<HistoryDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
 
-  // Function to generate mock history data - would be replaced with API call
-  const generateHistoryData = () => {
+  // Fetch current balance to use as a reference for realistic mock data
+  const fetchCurrentBalance = async () => {
+    try {
+      const data = await getAddressBalance(address);
+      setCurrentBalance(data.balance);
+      return data.balance;
+    } catch (error) {
+      console.error('Error fetching current balance:', error);
+      return null;
+    }
+  };
+
+  // Generate more realistic history data based on current balance
+  const generateHistoryData = (baseBalance: number) => {
     const today = new Date();
     const data: HistoryDataPoint[] = [];
     
@@ -35,15 +49,25 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address, refr
       date.setDate(today.getDate() - i);
       const dateStr = formatDateForKey(date);
       
-      // Generate a somewhat realistic price curve with some randomness
-      // Base value around 100 ALPH with range of ±20
-      const baseValue = 100;
-      const randomFactor = Math.sin(i * 0.3) * 15 + (Math.random() * 10 - 5);
-      const balance = baseValue + randomFactor;
+      // Generate a somewhat realistic price curve that ends at the current balance
+      // Use sinusoidal pattern with progressively smaller fluctuations as we approach today
+      const fluctuationFactor = (i + 5) / 35; // Larger fluctuations further in the past
+      const daysFactor = i / 29; // Progress through the 30 days (0 to 1)
+      
+      // Start with a base that's a percentage of current balance
+      const startPercentage = 0.7 + (Math.random() * 0.3); // 70-100% of current balance
+      const startBase = baseBalance * startPercentage;
+      
+      // Create trend toward current balance with some randomness
+      const trendFactor = Math.pow(1 - daysFactor, 1.5); // Exponential approach to current value
+      const randomFactor = Math.sin(i * 0.4) * baseBalance * 0.15 * fluctuationFactor;
+      
+      // Calculate balance - closer to today, closer to actual balance
+      const calculatedBalance = startBase * (1 - trendFactor) + baseBalance * trendFactor + randomFactor;
       
       data.push({
         date: dateStr,
-        balance: parseFloat(balance.toFixed(2))
+        balance: parseFloat(calculatedBalance.toFixed(4))
       });
     }
     
@@ -55,12 +79,13 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address, refr
     setLoading(true);
     
     try {
-      // In a real implementation, this would be an API call
+      // In a real implementation, this would fetch historical data from an API
       // const response = await fetch(`/api/wallet/${address}/history`);
       // const data = await response.json();
       
-      // For now, we'll use generated mock data
-      const mockData = generateHistoryData();
+      // For now, we'll use generated data based on current balance
+      const balance = currentBalance || await fetchCurrentBalance() || 100;
+      const mockData = generateHistoryData(balance);
       
       // Simulate network delay for better UX testing
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -75,22 +100,24 @@ const BalanceHistoryChart: React.FC<BalanceHistoryChartProps> = ({ address, refr
     }
   };
 
-  // Fetch data on component mount and when address changes
+  // Fetch data when address changes or when currentBalance is first obtained
   useEffect(() => {
-    fetchChartData();
+    if (address) {
+      fetchCurrentBalance().then(() => fetchChartData());
+    }
   }, [address]);
   
   // Refresh data when refreshFlag changes
   useEffect(() => {
     if (refreshFlag > 0) {
-      fetchChartData();
+      fetchCurrentBalance().then(() => fetchChartData());
     }
   }, [refreshFlag]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
     const refreshInterval = setInterval(() => {
-      fetchChartData();
+      fetchCurrentBalance().then(() => fetchChartData());
       console.log("Auto-refreshing chart data");
     }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
