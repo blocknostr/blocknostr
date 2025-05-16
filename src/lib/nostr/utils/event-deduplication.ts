@@ -63,20 +63,6 @@ export class EventDeduplication {
   }
   
   /**
-   * Find the oldest event in an array of events
-   * @param events Array of events to check
-   * @returns The oldest event or undefined if array is empty
-   */
-  static findOldestEvent(events: NostrEvent[]): NostrEvent | undefined {
-    if (events.length === 0) return undefined;
-    
-    return events.reduce((oldest, current) => {
-      if (!oldest) return current;
-      return current.created_at < oldest.created_at ? current : oldest;
-    }, events[0]);
-  }
-  
-  /**
    * Check if an event already exists in an array by ID
    * @param events Array of events to check
    * @param eventId ID to look for

@@ -1,9 +1,8 @@
 
-import React, { useRef, useCallback, useState, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
-import { useInView } from "@/components/shared/useInView";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -26,55 +25,36 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   hasMore = true,
   loadMoreLoading = false
 }) => {
-  const feedContainerRef = useRef<HTMLDivElement>(null);
-  const [loadingTriggered, setLoadingTriggered] = useState(false);
-  const throttleTimerRef = useRef<number | null>(null);
+  const lastRef = useRef<HTMLDivElement>(null);
   
-  // Use the useInView hook with a more reasonable rootMargin
-  const { ref: loadMoreRef, inView } = useInView({
-    rootMargin: '0px 0px 600px 0px', // Reduced from 2000px to 600px for more controlled loading
-    threshold: 0.1,
-  });
+  // Create more aggressive early loading triggers
+  const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
   
-  // Use callback with throttling for loadMore logic
-  const handleLoadMoreVisible = useCallback(() => {
-    if (inView && hasMore && !loadMoreLoading && onLoadMore && !loadingTriggered) {
-      // Set loading state to prevent multiple rapid triggers
-      setLoadingTriggered(true);
-      
-      // Clear any existing timer
-      if (throttleTimerRef.current) {
-        window.clearTimeout(throttleTimerRef.current);
-      }
-      
-      // Throttle the load more calls with a slight delay
-      throttleTimerRef.current = window.setTimeout(() => {
-        console.log("Trigger load more from InView (throttled)", new Date().toISOString());
-        onLoadMore();
-        
-        // Reset the loading trigger after a reasonable cooldown period
-        throttleTimerRef.current = window.setTimeout(() => {
-          setLoadingTriggered(false);
-          throttleTimerRef.current = null;
-        }, 2000); // 2 second cooldown before allowing another trigger
-      }, 200); // Small delay before triggering load
-    }
-  }, [inView, hasMore, loadMoreLoading, onLoadMore, loadingTriggered]);
-  
-  // Effect to trigger load more when inView changes
   useEffect(() => {
-    handleLoadMoreVisible();
-    
-    // Cleanup function to clear any timers when component unmounts
-    return () => {
-      if (throttleTimerRef.current) {
-        window.clearTimeout(throttleTimerRef.current);
+    // Setup early loading triggers with higher threshold and larger margin
+    if (hasMore && !loadMoreLoading && onLoadMore) {
+      const earlyTriggerObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries.some(entry => entry.isIntersecting) && hasMore && !loadMoreLoading && onLoadMore) {
+            console.log("[OptimizedFeedList] Early loading triggered");
+            onLoadMore();
+          }
+        },
+        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Much larger bottom margin for earlier detection
+      );
+      
+      if (earlyTriggerRef.current) {
+        earlyTriggerObserver.observe(earlyTriggerRef.current);
       }
-    };
-  }, [inView, handleLoadMoreVisible]);
+      
+      return () => {
+        earlyTriggerObserver.disconnect();
+      };
+    }
+  }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
   
   return (
-    <div className="space-y-4" ref={feedContainerRef}>
+    <div className="space-y-4">
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 
@@ -88,19 +68,18 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         />
       ))}
       
-      {/* Invisible load more trigger that uses useInView for reliable detection */}
-      {events.length > 0 && hasMore && (
+      {/* Early loading trigger at 75% of the feed */}
+      {events.length > 5 && (
         <div 
-          ref={loadMoreRef}
-          className="h-10 w-full" 
+          ref={earlyTriggerRef}
+          className="h-0 w-full" /* Invisible trigger element */
           aria-hidden="true"
-          data-testid="load-more-trigger"
         />
       )}
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center">
+        <div className="py-4 text-center" ref={lastRef}>
           {loadMoreLoading && (
             <div className="flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

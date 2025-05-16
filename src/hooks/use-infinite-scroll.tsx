@@ -12,7 +12,7 @@ type UseInfiniteScrollOptions = {
 export const useInfiniteScroll = (
   onLoadMore: () => void,
   { 
-    threshold = 800,
+    threshold = 800, // Increased from 400 to 800
     initialLoad = true, 
     disabled = false,
     aggressiveness = 'medium',
@@ -27,92 +27,103 @@ export const useInfiniteScroll = (
 
   // Track if we're currently fetching more items
   const isFetchingRef = useRef(false);
-  // Add cooldown mechanism
-  const cooldownTimerRef = useRef<number | null>(null);
-  
   // Track scroll velocity for predictive loading
   const lastScrollY = useRef<number>(0);
   const lastScrollTime = useRef<number>(0);
   const scrollVelocity = useRef<number>(0);
   
+  // Store the document height before loading new content
+  const prevDocumentHeightRef = useRef<number>(0);
+  // Store the scroll position before loading new content
+  const scrollPositionRef = useRef<number>(0);
+
   // Get actual threshold based on aggressiveness setting
   const getActualThreshold = useCallback(() => {
     switch(aggressiveness) {
-      case 'low': return 400; // Reduced from 600
-      case 'high': return 800; // Reduced from 1200
+      case 'low': return 600;
+      case 'high': return 1200;
       case 'medium':
       default: return threshold;
     }
   }, [aggressiveness, threshold]);
 
-  // Update scroll velocity tracking with throttling
+  // Update scroll velocity tracking
   useEffect(() => {
-    let scrollThrottleTimer: number | null = null;
-    
     const trackScrollVelocity = () => {
-      // Throttle scroll calculations to avoid excessive processing
-      if (scrollThrottleTimer !== null) return;
-      
-      scrollThrottleTimer = window.setTimeout(() => {
-        const now = Date.now();
-        const timeDiff = now - lastScrollTime.current;
-        if (timeDiff > 0) {
-          const currentScrollY = window.scrollY;
-          const distance = Math.abs(currentScrollY - lastScrollY.current);
-          scrollVelocity.current = distance / timeDiff; // pixels per ms
-          
-          lastScrollY.current = currentScrollY;
-          lastScrollTime.current = now;
-          
-          // Only trigger preloading if scrolling quickly AND we're not in cooldown AND near bottom
-          // Reduced aggressiveness by requiring higher velocity
-          if (scrollVelocity.current > 1.0 && 
-              !isFetchingRef.current && 
-              !cooldownTimerRef.current &&
-              hasMore && 
-              !disabled &&
-              window.innerHeight + window.scrollY > document.body.offsetHeight - getActualThreshold() * 1.2) {
+      const now = Date.now();
+      const timeDiff = now - lastScrollTime.current;
+      if (timeDiff > 0) {
+        const currentScrollY = window.scrollY;
+        const distance = Math.abs(currentScrollY - lastScrollY.current);
+        scrollVelocity.current = distance / timeDiff; // pixels per ms
+        
+        lastScrollY.current = currentScrollY;
+        lastScrollTime.current = now;
+        
+        // If scrolling quickly and near bottom, preload more aggressively
+        if (scrollVelocity.current > 0.5 && 
+            window.innerHeight + window.scrollY > document.body.offsetHeight - getActualThreshold() * 1.5) {
+          if (!isFetchingRef.current && hasMore && !disabled) {
             handleObserver([{ isIntersecting: true } as IntersectionObserverEntry]);
           }
         }
-        scrollThrottleTimer = null;
-      }, 100); // Throttle to 100ms
+      }
     };
     
     window.addEventListener('scroll', trackScrollVelocity, { passive: true });
     return () => {
       window.removeEventListener('scroll', trackScrollVelocity);
-      if (scrollThrottleTimer !== null) {
-        clearTimeout(scrollThrottleTimer);
-      }
     };
   }, [hasMore, disabled, getActualThreshold]);
 
   const handleObserver = useCallback(
     async (entries: IntersectionObserverEntry[]) => {
       const [target] = entries;
-      if (target?.isIntersecting && hasMore && !disabled && !isFetchingRef.current && !cooldownTimerRef.current) {
+      if (target?.isIntersecting && hasMore && !disabled && !isFetchingRef.current) {
         isFetchingRef.current = true;
         setLoadingMore(true);
         
+        // Store current scroll position and document height before loading more content
+        if (preservePosition) {
+          scrollPositionRef.current = window.scrollY;
+          prevDocumentHeightRef.current = document.body.scrollHeight;
+        }
+        
         try {
           await onLoadMore();
-          // Completely removed scroll position restoration logic
-        } finally {
-          // Set cooldown timer to prevent rapid consecutive loads
-          cooldownTimerRef.current = window.setTimeout(() => {
-            cooldownTimerRef.current = null;
-          }, 3000); // 3 second cooldown between load operations
           
-          // Reset the fetching flag after a shorter delay
+          // After new content is loaded, we need to adjust the scroll position
+          if (preservePosition) {
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+              // Calculate how much the document height has changed
+              const newDocumentHeight = document.body.scrollHeight;
+              const heightDifference = newDocumentHeight - prevDocumentHeightRef.current;
+              
+              // Only adjust if the height actually changed and we're not at the top
+              if (heightDifference > 0 && scrollPositionRef.current > 0) {
+                // Restore the scroll position plus the height difference
+                window.scrollTo(0, scrollPositionRef.current + heightDifference);
+                
+                // Debug log
+                console.log("[InfiniteScroll] Preserved scroll position:", {
+                  before: scrollPositionRef.current,
+                  after: scrollPositionRef.current + heightDifference,
+                  heightDiff: heightDifference
+                });
+              }
+            });
+          }
+        } finally {
+          // Reset the fetching flag after a shorter delay (reduced from 500ms to 300ms)
           setTimeout(() => {
             isFetchingRef.current = false;
             setLoadingMore(false);
-          }, 500);
+          }, 300);
         }
       }
     },
-    [onLoadMore, hasMore, disabled]
+    [onLoadMore, hasMore, disabled, preservePosition]
   );
 
   useEffect(() => {
@@ -133,9 +144,6 @@ export const useInfiniteScroll = (
     return () => {
       if (observer.current) {
         observer.current.disconnect();
-      }
-      if (cooldownTimerRef.current) {
-        clearTimeout(cooldownTimerRef.current);
       }
     };
   }, [handleObserver, getActualThreshold, disabled]);

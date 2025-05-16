@@ -1,8 +1,7 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { toast } from "sonner";
 
 interface UseEventSubscriptionProps {
   following?: string[];
@@ -32,48 +31,6 @@ export function useEventSubscription({
   mediaOnly
 }: UseEventSubscriptionProps) {
   const [subId, setSubId] = useState<string | null>(null);
-  const [connectionAttemptsMade, setConnectionAttemptsMade] = useState(0);
-  const [connectionErrorCount, setConnectionErrorCount] = useState(0);
-  
-  // Ensure connections to relays before subscribing
-  const ensureRelayConnections = useCallback(async () => {
-    try {
-      // Check current relay connections
-      const relayStatus = nostrService.getRelayStatus();
-      const connectedRelays = relayStatus.filter(r => r.status === 'connected');
-      
-      // If we have less than 2 connected relays, try to connect
-      if (connectedRelays.length < 2) {
-        setConnectionAttemptsMade(prev => prev + 1);
-        console.log("[useEventSubscription] Connecting to relays...");
-        await nostrService.connectToUserRelays();
-        
-        // Reset error count on successful connection
-        setConnectionErrorCount(0);
-      }
-      return true;
-    } catch (error) {
-      console.error("[useEventSubscription] Error connecting to relays:", error);
-      setConnectionErrorCount(prev => prev + 1);
-      
-      // Try to connect to default relays as fallback after multiple failures
-      if (connectionErrorCount > 2) {
-        try {
-          // Changed from connectToPopularRelays to connectToDefaultRelays
-          await nostrService.connectToDefaultRelays();
-        } catch (fallbackError) {
-          console.error("[useEventSubscription] Fallback relay connection failed:", fallbackError);
-          
-          // Show toast only if we've tried multiple times
-          if (connectionAttemptsMade > 1) {
-            toast.error("Failed to connect to relays. Check your connection.");
-          }
-          return false;
-        }
-      }
-      return false;
-    }
-  }, [connectionErrorCount, connectionAttemptsMade]);
   
   // Event handler
   const handleEvent = useCallback((event: NostrEvent) => {
@@ -106,10 +63,7 @@ export function useEventSubscription({
   }, [setEvents, handleRepost, fetchProfileData, limit]);
   
   // Create or update a subscription
-  const setupSubscription = useCallback(async (since?: number, until?: number, hashtagOverride?: string[]) => {
-    // Ensure we're connected to relays
-    await ensureRelayConnections();
-    
+  const setupSubscription = useCallback((since?: number, until?: number, hashtagOverride?: string[]) => {
     // Build filter
     const filters: any[] = [
       {
@@ -129,51 +83,24 @@ export function useEventSubscription({
     const effectiveHashtags = hashtagOverride || hashtags || (activeHashtag ? [activeHashtag] : undefined);
     
     if (effectiveHashtags && effectiveHashtags.length > 0) {
-      // Using "#t" tag is NIP-01 compliant for tag filtering
+      // Instead of search for exact 't' tag match, use the native '#t' search in nostr-tools
       filters[0]["#t"] = effectiveHashtags;
     }
     
-    // Keep track of the previous subscription ID so we can unsubscribe after new data starts arriving
-    const prevSubId = subId;
+    // Subscribe to events - FIX: removed the fourth parameter which was causing the error
+    const newSubId = nostrService.subscribe(
+      filters,
+      handleEvent,
+      undefined  // onEose callback
+      // Removed the feedType parameter as it's not expected by the subscribe method
+    );
     
-    try {
-      // Subscribe to events
-      const newSubId = nostrService.subscribe(
-        filters,
-        handleEvent
-      );
-      
-      // Set the new subscription ID
-      setSubId(newSubId);
-      
-      // Only unsubscribe from previous subscription after we've set up the new one
-      if (prevSubId) {
-        setTimeout(() => {
-          nostrService.unsubscribe(prevSubId);
-        }, 2000); // Give a bit of time for overlap between subscriptions
-      }
-      
-      return newSubId;
-    } catch (error) {
-      console.error("[useEventSubscription] Failed to create subscription:", error);
-      toast.error("Failed to connect to Nostr network");
-      return null;
-    }
-  }, [following, activeHashtag, hashtags, limit, handleEvent, subId, ensureRelayConnections]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-    };
-  }, [subId]);
+    return newSubId;
+  }, [following, activeHashtag, hashtags, limit, handleEvent]);
   
   return {
     subId,
     setSubId,
-    setupSubscription,
-    connectionAttemptsMade
+    setupSubscription
   };
 }
