@@ -10,7 +10,7 @@ export type WalletType = "Bitcoin" | "Alephium" | "Ergo";
 // Extended token interface with wallet addresses
 export interface EnrichedTokenWithWallets {
   id: string;
-  name?: string;
+  name: string; // Removed optional marker to match EnrichedToken
   symbol: string;
   decimals: number;
   amount: string;

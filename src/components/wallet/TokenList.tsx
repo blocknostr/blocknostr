@@ -15,7 +15,7 @@ interface TokenListProps {
 }
 
 const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
-  const [tokens, setTokens] = useState<EnrichedToken[]>([]);
+  const [tokens, setTokens] = useState<EnrichedToken[] | EnrichedTokenWithWallets[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
