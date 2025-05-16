@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
@@ -9,9 +9,12 @@ import TokenList from "@/components/wallet/TokenList";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import NFTGallery from "@/components/wallet/NFTGallery";
 import DAppsSection from "@/components/wallet/DAppsSection";
-import { formatNumber } from "@/lib/utils/formatters";
+import { formatNumber, formatCurrency } from "@/lib/utils/formatters";
 import NetworkActivityCard from "@/components/wallet/NetworkActivityCard";
-import { WifiOff, Wifi } from "lucide-react";
+import { WifiOff, Wifi, DollarSign, Wallet, TrendingUp, TrendingDown } from "lucide-react";
+import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
+import { getAddressBalance } from "@/lib/api/alephiumApi";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface WalletDashboardProps {
   address: string;
@@ -41,34 +44,112 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
     isLive: false,
     lastChecked: new Date()
   });
+  const [balance, setBalance] = useState<number | null>(null);
+  const [priceData, setPriceData] = useState<{
+    price: number;
+    priceChange24h: number;
+  }>({ price: 0, priceChange24h: 0 });
+  const [isLoading, setIsLoading] = useState(true);
 
   // Function to update API status that can be passed to child components
   const updateApiStatus = (isLive: boolean) => {
     setApiStatus({ isLive, lastChecked: new Date() });
   };
 
+  // Fetch balance and price when the address or refreshFlag changes
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!address) return;
+      
+      setIsLoading(true);
+      
+      try {
+        const [balanceData, priceData] = await Promise.all([
+          getAddressBalance(address),
+          getAlephiumPrice()
+        ]);
+        
+        setBalance(balanceData.balance);
+        setPriceData({
+          price: priceData.price,
+          priceChange24h: priceData.priceChange24h
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [address, refreshFlag]);
+
+  // Calculate USD value
+  const portfolioValue = balance !== null ? balance * priceData.price : null;
+
   // Render appropriate content based on the active tab
   if (activeTab === "portfolio") {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-          <WalletBalanceCard 
-            address={address} 
-            onRefresh={() => setRefreshFlag(refreshFlag + 1)}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Balance History</CardTitle>
-              <CardDescription>Your portfolio value over time</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px]">
+        <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle>Portfolio Overview</CardTitle>
+                <CardDescription>Your Alephium balance and history</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-primary" />
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              {isLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-10 w-48" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-baseline">
+                    <div className="text-3xl font-bold">
+                      {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
+                    </div>
+                    <div className="ml-2 text-lg font-medium text-primary">ALPH</div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="text-sm font-medium flex items-center gap-1">
+                      <DollarSign className="h-3.5 w-3.5" />
+                      {portfolioValue !== null 
+                        ? formatCurrency(portfolioValue)
+                        : "$0.00"
+                      }
+                    </div>
+                    <div 
+                      className={`flex items-center text-xs ${
+                        priceData.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}
+                    >
+                      {priceData.priceChange24h >= 0 ? (
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 mr-1" />
+                      )}
+                      {priceData.priceChange24h.toFixed(2)}%
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="h-[250px]">
               <BalanceHistoryChart address={address} />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="tokens" className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md mb-4">
