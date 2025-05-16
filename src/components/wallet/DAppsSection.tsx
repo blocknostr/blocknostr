@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,7 +42,7 @@ const staticDapps = [
 ];
 
 // Categories for filtering
-const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
+const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Tools"];
 
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
@@ -91,20 +91,16 @@ const DAppsSection = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>DApp Integrations</CardTitle>
-        <CardDescription>Interact with Alephium dApps</CardDescription>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="p-4">
         {/* Categories Filter */}
-        <div className="mb-4 overflow-auto pb-2">
+        <div className="mb-2 overflow-auto">
           <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory}>
-            <TabsList className="inline-flex h-9 w-auto">
+            <TabsList className="inline-flex h-8 w-auto">
               {categories.map((category) => (
                 <TabsTrigger 
                   key={category}
                   value={category}
-                  className="text-xs px-3"
+                  className="text-xs px-3 py-1"
                 >
                   {category}
                 </TabsTrigger>
@@ -115,49 +111,48 @@ const DAppsSection = () => {
 
         {/* DApps Grid */}
         {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
+          <div className="flex justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>Failed to load dApps</p>
-            <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
+          <div className="text-center py-4 text-muted-foreground">
+            <p className="text-sm">Failed to load dApps</p>
+            <Button variant="outline" size="sm" className="mt-2 text-xs py-1 h-7" onClick={() => window.location.reload()}>
               Try Again
             </Button>
           </div>
         ) : filteredDapps.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-4 text-muted-foreground text-sm">
             <p>No dApps found in this category</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredDapps.map((dapp) => (
-              <Card key={dapp.name} className="overflow-hidden border-none shadow-md">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {filteredDapps.slice(0, 6).map((dapp) => (
+              <Card key={dapp.name} className="overflow-hidden border-none shadow-sm">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-4">
+                  <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-md font-medium">{dapp.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{dapp.description}</p>
+                        <h3 className="text-xs font-medium truncate">{dapp.name}</h3>
                       </div>
                       {dapp.status && (
                         <Badge variant={
                           dapp.status === 'production' ? 'default' : 
                           dapp.status === 'beta' ? 'secondary' : 
                           'outline'
-                        } className="text-xs">
+                        } className="text-[10px] h-4">
                           {dapp.status}
                         </Badge>
                       )}
                     </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <Badge variant="outline" className="text-xs bg-background/50">
+                    <div className="flex justify-between items-center mt-2">
+                      <Badge variant="outline" className="text-[10px] bg-background/50">
                         {dapp.category || "Other"}
                       </Badge>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-background/80 backdrop-blur-sm"
+                        className="bg-background/80 backdrop-blur-sm h-6 text-xs py-0 px-2"
                         asChild
                       >
                         <a 
@@ -166,8 +161,8 @@ const DAppsSection = () => {
                           rel="noopener noreferrer"
                           className="flex items-center"
                         >
-                          <span>Launch</span>
-                          <ExternalLink className="ml-1 h-3 w-3" />
+                          <span>Open</span>
+                          <ExternalLink className="ml-1 h-2.5 w-2.5" />
                         </a>
                       </Button>
                     </div>

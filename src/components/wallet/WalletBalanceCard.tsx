@@ -55,7 +55,6 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
       setPriceData(data);
     } catch (error) {
       console.error('Error fetching ALPH price:', error);
-      // Don't show toast for price errors to avoid UI clutter
     } finally {
       setIsPriceLoading(false);
     }
@@ -77,47 +76,44 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   
   return (
     <Card className={`bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20 ${className}`}>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <h3 className="text-base font-medium">Your Balance</h3>
-            <p className="text-sm text-muted-foreground">Current holdings</p>
-          </div>
+      <CardContent className="p-4 flex flex-col h-full justify-center">
+        <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleRefresh} 
-              disabled={isLoading || isPriceLoading}
-              className="h-7 w-7 p-0"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
-              <span className="sr-only">Refresh</span>
-            </Button>
-            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <Wallet className="h-5 w-5 text-primary" />
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-primary" />
             </div>
+            <span className="text-sm font-medium">Your Balance</span>
           </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isLoading || isPriceLoading}
+            className="h-7 w-7 p-0"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
+            <span className="sr-only">Refresh</span>
+          </Button>
         </div>
         
-        <div className="mt-6">
+        <div>
           {isLoading ? (
             <div className="space-y-2">
-              <Skeleton className="h-12 w-48" />
-              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-8 w-28" />
+              <Skeleton className="h-4 w-20" />
             </div>
           ) : (
             <>
               <div className="flex items-baseline">
-                <div className="text-3xl font-bold">
+                <div className="text-2xl font-bold">
                   {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
                 </div>
-                <div className="ml-2 text-lg font-medium text-primary">ALPH</div>
+                <div className="ml-2 text-base font-medium text-primary">ALPH</div>
               </div>
               
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-1">
                 <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <DollarSign className="h-3.5 w-3.5" />
+                  <DollarSign className="h-3 w-3" />
                   {usdValue !== null 
                     ? isPriceLoading 
                       ? <Skeleton className="h-4 w-16" />
@@ -153,18 +149,8 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
                 <div className="text-xs text-muted-foreground mt-1 flex items-center">
                   <span className="inline-block h-2 w-2 rounded-full bg-primary/30 mr-1.5"></span>
                   {lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH locked
-                  {priceData.price > 0 && (
-                    <span className="ml-1">
-                      ({formatCurrency(lockedBalance * priceData.price)})
-                    </span>
-                  )}
                 </div>
               )}
-              
-              <p className="text-[10px] text-muted-foreground mt-4 flex items-center justify-between">
-                <span>Price updated: {formatRelativeTime(priceData.lastUpdated)}</span>
-                <span>Balance updated: {lastUpdated.toLocaleTimeString()}</span>
-              </p>
             </>
           )}
         </div>
@@ -173,5 +159,4 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   );
 };
 
-import { formatRelativeTime } from "@/lib/utils/formatters";
 export default WalletBalanceCard;

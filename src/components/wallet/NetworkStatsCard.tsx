@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, ExternalLink } from "lucide-react";
 import { fetchNetworkStats } from "@/lib/api/alephiumApi";
+import { Button } from "@/components/ui/button";
 
 interface NetworkStats {
   hashRate: string;
@@ -41,45 +42,52 @@ const NetworkStatsCard: React.FC = () => {
   }, []);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Network Statistics</CardTitle>
-        <CardDescription>Current Alephium network status</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className="h-[240px]">
+      <CardContent className="p-4 h-full flex flex-col">
+        <h3 className="text-sm font-medium mb-3">Network Status</h3>
+        
         {isLoading ? (
-          <div className="flex justify-center items-center h-[180px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
+          <div className="flex justify-center items-center flex-1">
+            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Hash Rate</p>
-                <p className="text-lg font-medium">{stats?.hashRate}</p>
+          <div className="space-y-3 flex-1 flex flex-col justify-center">
+            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Hash Rate</p>
+                <p className="text-sm font-medium">{stats?.hashRate}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Difficulty</p>
-                <p className="text-lg font-medium">{stats?.difficulty}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Difficulty</p>
+                <p className="text-sm font-medium">{stats?.difficulty}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Block Time</p>
-                <p className="text-lg font-medium">{stats?.blockTime}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Block Time</p>
+                <p className="text-sm font-medium">{stats?.blockTime}</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Active Addresses</p>
-                <p className="text-lg font-medium">{stats?.activeAddresses.toLocaleString()}</p>
+              <div className="space-y-0.5">
+                <p className="text-xs text-muted-foreground">Active Addresses</p>
+                <p className="text-sm font-medium">{stats?.activeAddresses.toLocaleString()}</p>
               </div>
             </div>
-            <div className="pt-2">
-              <a 
-                href="https://explorer.alephium.org/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-sm text-primary hover:underline inline-flex items-center"
+            
+            <div className="mt-auto pt-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs h-7 p-0 text-primary hover:text-primary hover:bg-transparent"
+                asChild
               >
-                View on Explorer
-              </a>
+                <a 
+                  href="https://explorer.alephium.org/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center"
+                >
+                  View Explorer
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </Button>
             </div>
           </div>
         )}
