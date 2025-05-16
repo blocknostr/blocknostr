@@ -100,6 +100,9 @@ export interface EnrichedToken {
   tokenURI?: string;
   imageUrl?: string;
   attributes?: any[];
+  // Add the missing properties that are used in TokenList.tsx
+  usdValue?: number;
+  tokenPrice?: number;
 }
 
 /**
@@ -197,7 +200,10 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
               formattedAmount: '',
               isNFT: nftStatus,
               tokenURI: metadata.tokenURI || metadata.uri,
-              imageUrl: metadata.image || metadata.imageUrl
+              imageUrl: metadata.image || metadata.imageUrl,
+              // Initialize the new properties with default values
+              usdValue: 0,
+              tokenPrice: 0
             };
             
             // Try to fetch additional NFT metadata if it's an NFT
