@@ -53,6 +53,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       requiresAuth: false
     },
     {
+      name: "DAOs",
+      icon: Users,
+      href: "/dao",
+      requiresAuth: false
+    },
+    {
       name: "Articles",
       icon: BookOpen,
       href: "/articles",
