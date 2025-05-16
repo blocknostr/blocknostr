@@ -20,7 +20,13 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
   useEffect(() => {
     // Check if user is already following this pubkey according to NIP-02
     if (pubkey && currentUserPubkey) {
-      setIsFollowing(nostrService.isFollowing(pubkey));
+      // Fixed: Instead of directly using isFollowing, get the current boolean value
+      const checkFollowing = async () => {
+        const following = nostrService.isFollowing(pubkey);
+        setIsFollowing(following);
+      };
+      
+      checkFollowing();
     }
   }, [pubkey, currentUserPubkey]);
   
