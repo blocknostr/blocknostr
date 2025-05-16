@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
@@ -16,66 +16,93 @@ export function useDAO(daoId?: string) {
   
   const currentUserPubkey = nostrService.publicKey;
   
-  // Fetch DAOs for general discovery page
-  useEffect(() => {
-    async function fetchDaos() {
-      if (daoId) return; // Skip if viewing a specific DAO
-      
-      setLoading(true);
-      try {
-        // Fetch general DAOs
-        const daos = await daoService.getDAOs();
-        setDaos(daos);
-        
-        // If user is logged in, fetch their DAOs
-        if (currentUserPubkey) {
-          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
-          setMyDaos(userDaos);
-        }
-        
-        // Fetch trending DAOs
-        const trending = await daoService.getTrendingDAOs();
-        setTrendingDaos(trending);
-      } catch (error) {
-        console.error("Error fetching DAOs:", error);
-        toast.error("Failed to load DAOs");
-      } finally {
-        setLoading(false);
-      }
-    }
+  // Refresh function to manually trigger data reload
+  const refreshDaos = useCallback(async () => {
+    if (daoId) return; // Skip if viewing a specific DAO
     
-    fetchDaos();
+    setLoading(true);
+    try {
+      console.log("Refreshing DAOs...");
+      
+      // Fetch general DAOs
+      const fetchedDaos = await daoService.getDAOs();
+      console.log(`Fetched ${fetchedDaos.length} DAOs`);
+      setDaos(fetchedDaos);
+      
+      // If user is logged in, fetch their DAOs
+      if (currentUserPubkey) {
+        const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+        console.log(`Fetched ${userDaos.length} user DAOs`);
+        setMyDaos(userDaos);
+      }
+      
+      // Fetch trending DAOs
+      const trending = await daoService.getTrendingDAOs();
+      console.log(`Fetched ${trending.length} trending DAOs`);
+      setTrendingDaos(trending);
+    } catch (error) {
+      console.error("Error in refreshDaos:", error);
+      toast.error("Failed to load DAOs. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }, [daoId, currentUserPubkey]);
   
-  // Fetch specific DAO if daoId is provided
+  // Fetch DAOs for general discovery page
   useEffect(() => {
-    async function fetchDao() {
-      if (!daoId) return;
+    refreshDaos();
+  }, [refreshDaos]);
+  
+  // Fetch specific DAO if daoId is provided
+  const fetchDaoDetails = useCallback(async () => {
+    if (!daoId) return;
+    
+    setLoading(true);
+    try {
+      console.log(`Fetching details for DAO ${daoId}...`);
       
-      setLoading(true);
-      try {
-        const dao = await daoService.getDAOById(daoId);
+      const dao = await daoService.getDAOById(daoId);
+      if (dao) {
+        console.log("DAO details fetched:", dao.name);
         setCurrentDao(dao);
         
         // Also fetch proposals
         setLoadingProposals(true);
         const daoProposals = await daoService.getDAOProposals(daoId);
+        console.log(`Fetched ${daoProposals.length} proposals`);
         setProposals(daoProposals);
-        setLoadingProposals(false);
-      } catch (error) {
-        console.error(`Error fetching DAO ${daoId}:`, error);
-        toast.error("Failed to load DAO details");
-      } finally {
-        setLoading(false);
+      } else {
+        console.error("DAO not found:", daoId);
+        toast.error("DAO not found");
       }
+    } catch (error) {
+      console.error(`Error fetching DAO ${daoId}:`, error);
+      toast.error("Failed to load DAO details");
+    } finally {
+      setLoading(false);
+      setLoadingProposals(false);
     }
-    
-    fetchDao();
   }, [daoId]);
+  
+  useEffect(() => {
+    fetchDaoDetails();
+  }, [fetchDaoDetails]);
   
   // Create new DAO
   const createDAO = async (name: string, description: string, tags: string[] = []) => {
     try {
+      console.log(`Creating new DAO: ${name}`);
+      
+      if (!name.trim()) {
+        toast.error("DAO name is required");
+        return null;
+      }
+      
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to create a DAO");
+        return null;
+      }
+      
       const daoId = await daoService.createDAO(name, description, tags);
       
       if (daoId) {
@@ -109,6 +136,23 @@ export function useDAO(daoId?: string) {
     durationDays: number = 7
   ) => {
     try {
+      console.log(`Creating proposal for DAO ${daoId}: ${title}`);
+      
+      if (!title.trim()) {
+        toast.error("Proposal title is required");
+        return null;
+      }
+      
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to create a proposal");
+        return null;
+      }
+      
+      if (!options || options.length < 2) {
+        toast.error("At least two options are required");
+        return null;
+      }
+      
       const proposalId = await daoService.createProposal(daoId, title, description, options, durationDays);
       
       if (proposalId) {
@@ -134,6 +178,13 @@ export function useDAO(daoId?: string) {
   // Vote on a proposal
   const voteOnProposal = async (proposalId: string, optionIndex: number) => {
     try {
+      console.log(`Voting on proposal ${proposalId}, option ${optionIndex}`);
+      
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to vote");
+        return false;
+      }
+      
       const success = await daoService.voteOnProposal(proposalId, optionIndex);
       
       if (success) {
@@ -159,6 +210,13 @@ export function useDAO(daoId?: string) {
   // Join a DAO
   const joinDAO = async (daoId: string) => {
     try {
+      console.log(`Joining DAO ${daoId}`);
+      
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to join a DAO");
+        return false;
+      }
+      
       const success = await daoService.joinDAO(daoId);
       
       if (success) {
@@ -218,6 +276,8 @@ export function useDAO(daoId?: string) {
     isMember,
     isModerator,
     isCreator,
-    currentUserPubkey
+    currentUserPubkey,
+    refreshDaos,
+    fetchDaoDetails
   };
 }

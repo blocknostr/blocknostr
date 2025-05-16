@@ -1,8 +1,8 @@
-import { SimplePool, Filter, Event } from 'nostr-tools';
+import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
 import { DAO, DAOProposal } from '@/types/dao';
 import { nostrService } from '@/lib/nostr';
 
-// NIP-72 kind numbers
+// NIP-72 kind numbers (ensure full compliance)
 const DAO_KINDS = {
   COMMUNITY: 34550,       // Community definition
   PROPOSAL: 34551,        // Community proposal
@@ -20,11 +20,14 @@ export class DAOService {
   
   constructor() {
     this.pool = new SimplePool();
+    // Add NIP-72 compatible relays
     this.relays = [
       "wss://relay.damus.io",
       "wss://nos.lol",
       "wss://relay.nostr.band",
-      "wss://nostr.bitcoiner.social"
+      "wss://nostr.bitcoiner.social",
+      "wss://relay.nostr.bg",
+      "wss://relay.snort.social"
     ];
   }
   
@@ -38,8 +41,15 @@ export class DAOService {
         limit: limit
       };
       
+      console.log("Fetching DAOs with filter:", filter);
+      console.log("Using relays:", this.relays);
+      
       const events = await this.pool.querySync(this.relays, filter);
-      return events.map(event => this.parseDaoEvent(event)).filter(dao => dao !== null) as DAO[];
+      console.log("Received DAO events:", events.length);
+      
+      return events
+        .map(event => this.parseDaoEvent(event))
+        .filter((dao): dao is DAO => dao !== null);
     } catch (error) {
       console.error("Error fetching DAOs:", error);
       return [];
@@ -50,6 +60,8 @@ export class DAOService {
    * Get DAOs that a user is a member of
    */
   async getUserDAOs(pubkey: string, limit: number = 20): Promise<DAO[]> {
+    if (!pubkey) return [];
+    
     try {
       const filter: Filter = {
         kinds: [DAO_KINDS.COMMUNITY],
@@ -57,8 +69,13 @@ export class DAOService {
         limit: limit
       };
       
+      console.log(`Fetching DAOs for user ${pubkey}`);
       const events = await this.pool.querySync(this.relays, filter);
-      return events.map(event => this.parseDaoEvent(event)).filter(dao => dao !== null) as DAO[];
+      console.log(`Received ${events.length} user DAO events`);
+      
+      return events
+        .map(event => this.parseDaoEvent(event))
+        .filter((dao): dao is DAO => dao !== null);
     } catch (error) {
       console.error("Error fetching user DAOs:", error);
       return [];
@@ -80,6 +97,8 @@ export class DAOService {
    */
   async getDAOById(id: string): Promise<DAO | null> {
     try {
+      console.log(`Fetching DAO with ID: ${id}`);
+      
       const filter: Filter = {
         kinds: [DAO_KINDS.COMMUNITY],
         ids: [id],
@@ -87,7 +106,11 @@ export class DAOService {
       };
       
       const events = await this.pool.querySync(this.relays, filter);
-      if (events.length === 0) return null;
+      
+      if (events.length === 0) {
+        console.log(`No DAO found with ID: ${id}`);
+        return null;
+      }
       
       return this.parseDaoEvent(events[0]);
     } catch (error) {
@@ -107,9 +130,13 @@ export class DAOService {
         limit: 50
       };
       
+      console.log(`Fetching proposals for DAO: ${daoId}`);
       const events = await this.pool.querySync(this.relays, filter);
-      const proposals = events.map(event => this.parseProposalEvent(event, daoId))
-        .filter(proposal => proposal !== null) as DAOProposal[];
+      console.log(`Found ${events.length} proposals for DAO ${daoId}`);
+      
+      const proposals = events
+        .map(event => this.parseProposalEvent(event, daoId))
+        .filter((proposal): proposal is DAOProposal => proposal !== null);
         
       // Fetch votes for each proposal
       const votesPromises = proposals.map(proposal => this.getVotesForProposal(proposal.id));
@@ -138,18 +165,28 @@ export class DAOService {
       };
       
       const events = await this.pool.querySync(this.relays, filter);
+      console.log(`Found ${events.length} votes for proposal ${proposalId}`);
+      
       const votes: Record<string, number> = {};
       
       for (const event of events) {
         try {
-          const content = JSON.parse(event.content);
-          const optionIndex = content.optionIndex;
+          // Handle both JSON and non-JSON vote formats (for compatibility)
+          let optionIndex: number;
           
-          if (typeof optionIndex === 'number' && event.pubkey) {
+          if (event.content.startsWith('{')) {
+            const content = JSON.parse(event.content);
+            optionIndex = content.optionIndex;
+          } else {
+            // Simple format where content is just the option index
+            optionIndex = parseInt(event.content.trim());
+          }
+          
+          if (!isNaN(optionIndex) && event.pubkey) {
             votes[event.pubkey] = optionIndex;
           }
         } catch (e) {
-          console.error("Error parsing vote content:", e);
+          console.error("Error parsing vote content:", e, "Content:", event.content);
         }
       }
       
@@ -171,6 +208,11 @@ export class DAOService {
         throw new Error("User not authenticated");
       }
       
+      console.log(`Creating DAO: ${name} with creator ${pubkey}`);
+      
+      // Generate a unique identifier for the DAO
+      const uniqueId = `dao_${Math.random().toString(36).substring(2, 10)}`;
+      
       const communityData = {
         name,
         description,
@@ -186,18 +228,22 @@ export class DAOService {
         tags: tags
       };
       
-      // Create event for publishing
+      // NIP-72 compliant community event
       const eventData = {
         kind: DAO_KINDS.COMMUNITY,
         content: JSON.stringify(communityData),
         tags: [
-          ["d", `dao_${Math.random().toString(36).substring(2, 10)}`], // Unique identifier
+          ["d", uniqueId], // Unique identifier as required by NIP-72
           ["p", pubkey] // Creator is the first member
         ]
       };
       
+      console.log("Publishing DAO event:", eventData);
+      
       // Publish the event using nostrService
       const eventId = await nostrService.publishEvent(eventData);
+      console.log("DAO created with ID:", eventId);
+      
       return eventId;
     } catch (error) {
       console.error("Error creating DAO:", error);
@@ -232,16 +278,24 @@ export class DAOService {
         endsAt: endsAt,
       };
       
+      // Generate a unique identifier for the proposal
+      const uniqueId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
+      
+      // NIP-72 compliant proposal event
       const eventData = {
         kind: DAO_KINDS.PROPOSAL,
         content: JSON.stringify(proposalData),
         tags: [
           ["e", daoId], // Reference to DAO/community event
-          ["d", `proposal_${Math.random().toString(36).substring(2, 10)}`] // Unique identifier
+          ["d", uniqueId] // Unique identifier
         ]
       };
       
+      console.log("Publishing proposal event:", eventData);
+      
       const eventId = await nostrService.publishEvent(eventData);
+      console.log("Proposal created with ID:", eventId);
+      
       return eventId;
     } catch (error) {
       console.error("Error creating proposal:", error);
@@ -259,6 +313,7 @@ export class DAOService {
         throw new Error("User not authenticated");
       }
       
+      // NIP-72 compliant vote event - keep content simple
       const eventData = {
         kind: DAO_KINDS.VOTE,
         content: JSON.stringify({ optionIndex }),
@@ -267,7 +322,11 @@ export class DAOService {
         ]
       };
       
+      console.log("Publishing vote event:", eventData);
+      
       const eventId = await nostrService.publishEvent(eventData);
+      console.log("Vote recorded with ID:", eventId);
+      
       return eventId;
     } catch (error) {
       console.error("Error voting on proposal:", error);
@@ -283,6 +342,7 @@ export class DAOService {
       // First fetch the DAO to get current data
       const dao = await this.getDAOById(daoId);
       if (!dao) {
+        console.error("DAO not found:", daoId);
         throw new Error("DAO not found");
       }
       
@@ -291,36 +351,78 @@ export class DAOService {
         throw new Error("User not authenticated");
       }
       
+      console.log(`User ${pubkey} joining DAO ${daoId}`);
+      
       // Check if already a member
       if (dao.members.includes(pubkey)) {
         console.log("Already a member of this DAO");
         return true;
       }
       
+      // Extract the unique identifier from d tag if available
+      let uniqueId = daoId;
+      const event = await this.getDAOEventById(daoId);
+      if (event) {
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        if (dTag && dTag[1]) {
+          uniqueId = dTag[1];
+        }
+      }
+      
       // Create updated member list including the current user
       const members = [...dao.members, pubkey];
       
-      // Update the DAO event with new member list
+      // Create a new community event with the same uniqueId
+      // This follows NIP-72 replacement approach
       const updatedData = {
-        ...JSON.parse(dao.description), // Get original data
-        members // Update members list
+        name: dao.name,
+        description: dao.description,
+        creator: dao.creator,
+        createdAt: dao.createdAt,
+        image: dao.image,
+        treasury: dao.treasury,
+        proposals: dao.proposals,
+        activeProposals: dao.activeProposals,
+        tags: dao.tags
       };
       
-      // Create event for publishing
+      // NIP-72 compliant event for joining
       const eventData = {
         kind: DAO_KINDS.COMMUNITY,
         content: JSON.stringify(updatedData),
         tags: [
-          ["e", daoId], // Reference original DAO
+          ["d", uniqueId], // Same unique identifier
           ...members.map(member => ["p", member]) // Include all members
         ]
       };
       
+      console.log("Publishing join DAO event:", eventData);
+      
       await nostrService.publishEvent(eventData);
+      console.log(`Successfully joined DAO ${daoId}`);
+      
       return true;
     } catch (error) {
       console.error("Error joining DAO:", error);
       return false;
+    }
+  }
+
+  /**
+   * Helper function to get the original DAO event
+   */
+  private async getDAOEventById(id: string): Promise<Event | null> {
+    try {
+      const filter: Filter = {
+        ids: [id],
+        kinds: [DAO_KINDS.COMMUNITY],
+      };
+      
+      const events = await this.pool.querySync(this.relays, filter);
+      return events.length > 0 ? events[0] : null;
+    } catch (error) {
+      console.error(`Error fetching DAO event ${id}:`, error);
+      return null;
     }
   }
   
@@ -329,8 +431,16 @@ export class DAOService {
    */
   private parseDaoEvent(event: Event): DAO | null {
     try {
-      // Parse the content
-      const content = JSON.parse(event.content);
+      console.log("Parsing DAO event:", event.id);
+      
+      // Parse the content with error handling
+      let content: any = {};
+      try {
+        content = event.content ? JSON.parse(event.content) : {};
+      } catch (e) {
+        console.error("Error parsing DAO content JSON:", e);
+        content = {};
+      }
       
       // Extract members from p tags
       const members = event.tags
@@ -343,7 +453,7 @@ export class DAOService {
         .map(tag => tag[1]);
       
       // Construct DAO object
-      return {
+      const dao: DAO = {
         id: event.id,
         name: content.name || "Unnamed DAO",
         description: content.description || "",
@@ -362,6 +472,8 @@ export class DAOService {
         activeProposals: content.activeProposals || 0,
         tags: content.tags || []
       };
+      
+      return dao;
     } catch (e) {
       console.error("Error parsing DAO event:", e);
       return null;
@@ -373,7 +485,14 @@ export class DAOService {
    */
   private parseProposalEvent(event: Event, daoId: string): DAOProposal | null {
     try {
-      const content = JSON.parse(event.content);
+      // Parse content with error handling
+      let content: any = {};
+      try {
+        content = event.content ? JSON.parse(event.content) : {};
+      } catch (e) {
+        console.error("Error parsing proposal content JSON:", e);
+        content = {};
+      }
       
       // Calculate status based on end time
       const now = Math.floor(Date.now() / 1000);
