@@ -10,6 +10,7 @@ interface UseFeedEventsProps {
   since?: number;
   until?: number;
   activeHashtag?: string;
+  hashtags?: string[];
   limit?: number;
   feedType?: string;
   mediaOnly?: boolean;
@@ -20,6 +21,7 @@ export function useFeedEvents({
   since,
   until,
   activeHashtag,
+  hashtags,
   limit = 50,
   feedType = 'generic',
   mediaOnly = false
@@ -36,6 +38,7 @@ export function useFeedEvents({
   const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
     activeHashtag,
+    hashtags,
     since,
     until,
     limit,
@@ -55,6 +58,7 @@ export function useFeedEvents({
       const cachedFeed = contentCache.getFeed(feedType, {
         authorPubkeys: following,
         hashtag: activeHashtag,
+        hashtags: hashtags,
         since,
         until,
         mediaOnly
@@ -68,7 +72,8 @@ export function useFeedEvents({
         // Get cache timestamp
         const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
           authorPubkeys: following,
-          hashtag: activeHashtag, 
+          hashtag: activeHashtag,
+          hashtags: hashtags,
           since,
           until,
           mediaOnly
@@ -100,7 +105,7 @@ export function useFeedEvents({
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, fetchProfileData]);
+  }, [feedType, following, activeHashtag, hashtags, since, until, mediaOnly, fetchProfileData]);
   
   // Refresh feed by clearing cache and setting up a new subscription
   const refreshFeed = () => {
@@ -108,6 +113,7 @@ export function useFeedEvents({
     contentCache.feedCache.clearFeed(feedType, {
       authorPubkeys: following,
       hashtag: activeHashtag,
+      hashtags: hashtags,
       since,
       until,
       mediaOnly

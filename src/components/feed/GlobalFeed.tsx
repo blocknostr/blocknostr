@@ -4,7 +4,9 @@ import FeedLoading from "./FeedLoading";
 import FeedList from "./FeedList";
 import { useGlobalFeed } from "./hooks/use-global-feed";
 import { Button } from "../ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Filter } from "lucide-react";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { FeedCustomizationDialog } from "./FeedCustomizationDialog";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
@@ -15,6 +17,9 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
   activeHashtag,
   onLoadingChange
 }) => {
+  const { preferences } = useUserPreferences();
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+  
   const {
     events,
     profiles,
@@ -23,8 +28,13 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     loading,
     hasMore,
     loadMoreEvents,
-    loadingMore
-  } = useGlobalFeed({ activeHashtag });
+    loadingMore,
+    refresh
+  } = useGlobalFeed({ 
+    activeHashtag,
+    // If activeHashtag is set, it overrides the global hashtags
+    defaultHashtags: activeHashtag ? [] : preferences.feedFilters.globalHashtags
+  });
   
   const [extendedLoading, setExtendedLoading] = useState(true);
   const [showRetry, setShowRetry] = useState(false);
@@ -73,9 +83,8 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     setExtendedLoading(true);
     setShowRetry(false);
     
-    // Force component to re-evaluate its logic
-    const event = new CustomEvent('refetch-global-feed');
-    window.dispatchEvent(event);
+    // Refresh the feed
+    refresh();
     
     // Set timeout to show retry again if still no events after 7 seconds
     setTimeout(() => {
@@ -98,18 +107,32 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
         <p className="text-muted-foreground mb-4">
           {activeHashtag ? 
             `No posts found with #${activeHashtag} hashtag` :
-            "No posts found. Connect to more relays to see posts here."
+            preferences.feedFilters.globalHashtags.length > 0 ?
+              `No posts found with hashtags: ${preferences.feedFilters.globalHashtags.map(t => `#${t}`).join(", ")}` :
+              "No posts found. Connect to more relays to see posts here."
           }
         </p>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleRetry}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Try Again
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRetry}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Try Again
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsCustomizeOpen(true)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Customize Filters
+          </Button>
+        </div>
       </div>
     );
   }
@@ -117,27 +140,53 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
   // Show empty state when no events and not loading
   if (events.length === 0) {
     return (
-      <div className="py-8 text-center text-muted-foreground">
-        {activeHashtag ? 
-          `No posts found with #${activeHashtag} hashtag` :
-          "No posts found. Connect to more relays to see posts here."
-        }
+      <div className="py-8 text-center flex flex-col items-center">
+        <p className="text-muted-foreground mb-4">
+          {activeHashtag ? 
+            `No posts found with #${activeHashtag} hashtag` :
+            preferences.feedFilters.globalHashtags.length > 0 ?
+              `No posts found with hashtags: ${preferences.feedFilters.globalHashtags.map(t => `#${t}`).join(", ")}` :
+              "No posts found. Connect to more relays to see posts here."
+          }
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsCustomizeOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Filter className="h-4 w-4" />
+          Customize Filters
+        </Button>
+        
+        <FeedCustomizationDialog
+          open={isCustomizeOpen}
+          onOpenChange={setIsCustomizeOpen}
+        />
       </div>
     );
   }
 
   // Show events list
   return (
-    <FeedList 
-      events={events}
-      profiles={profiles}
-      repostData={repostData}
-      loadMoreRef={loadMoreRef}
-      loading={loading}
-      onLoadMore={loadMoreEvents}
-      hasMore={hasMore}
-      loadMoreLoading={loadingMore}
-    />
+    <>
+      <FeedList 
+        events={events}
+        profiles={profiles}
+        repostData={repostData}
+        loadMoreRef={loadMoreRef}
+        loading={loading}
+        onRefresh={refresh}
+        onLoadMore={loadMoreEvents}
+        hasMore={hasMore}
+        loadMoreLoading={loadingMore}
+      />
+      
+      <FeedCustomizationDialog
+        open={isCustomizeOpen}
+        onOpenChange={setIsCustomizeOpen}
+      />
+    </>
   );
 };
 

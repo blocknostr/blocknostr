@@ -1,3 +1,4 @@
+
 import { NostrEvent } from "../types";
 import { BaseCache } from "./base-cache";
 import { CacheConfig, CacheEntry } from "./types";
@@ -27,6 +28,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -51,6 +53,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -73,6 +76,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -112,6 +116,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -143,6 +148,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -164,9 +170,17 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
       }
     }
     
-    // Add hashtag to key if available
+    // Add single hashtag to key if available
     if (options.hashtag) {
       parts.push(`tag:${options.hashtag.toLowerCase()}`);
+    }
+    
+    // Add multiple hashtags to key if available
+    if (options.hashtags && options.hashtags.length > 0) {
+      // Sort for consistent keys
+      const sortedTags = [...options.hashtags].sort().map(t => t.toLowerCase());
+      // Join with commas
+      parts.push(`tags:${sortedTags.join(',')}`);
     }
     
     // Add time range to key

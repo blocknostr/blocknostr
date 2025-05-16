@@ -32,13 +32,28 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
+  
+  // Track the global hashtags for cache invalidation
+  const globalHashtagsRef = useRef<string[]>(preferences.feedFilters.globalHashtags);
 
   // When preferences change, update the active tab if it's the default feed
   useEffect(() => {
     if (activeTab === preferences.defaultFeed) {
       setActiveTab(preferences.defaultFeed);
     }
-  }, [preferences.defaultFeed]);
+    
+    // Check if global hashtags have changed, and if so, trigger a feed refresh
+    if (JSON.stringify(globalHashtagsRef.current) !== JSON.stringify(preferences.feedFilters.globalHashtags)) {
+      // Clear the global feed cache when hashtags change
+      contentCache.feedCache.clearFeedType('global');
+      
+      // Trigger a refresh event
+      window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+      
+      // Update the ref
+      globalHashtagsRef.current = [...preferences.feedFilters.globalHashtags];
+    }
+  }, [preferences.defaultFeed, preferences.feedFilters.globalHashtags, activeTab]);
 
   // Track scroll position to add shadow effect when scrolled
   useEffect(() => {
