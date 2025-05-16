@@ -54,55 +54,53 @@ const AddressDisplay = ({
   return (
     <Card className={`bg-muted/50 ${className}`}>
       <CardContent className="flex items-center justify-between py-2 px-3">
-        <div className="flex items-center space-x-2">
-          <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="text-xs font-medium">ID</span>
+        {isEditing ? (
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              className="text-xs font-medium bg-background border px-1 py-0.5 rounded w-24 sm:w-32"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleEditSave();
+                }
+              }}
+            />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleEditSave}
+              className="h-5 w-5 p-0"
+            >
+              <CheckCheck className="h-3 w-3" />
+              <span className="sr-only">Save label</span>
+            </Button>
           </div>
-          <div>
-            <div className="flex items-center">
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  className="text-xs font-medium bg-background border px-1 py-0.5 rounded w-24 sm:w-32"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleEditSave();
-                    }
-                  }}
-                />
-              ) : (
-                <p className="text-xs font-medium">{wallet.label || "Your Address"}</p>
-              )}
-              
-              {onLabelEdit && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={handleEditSave}
-                        className="h-5 w-5 p-0 ml-1"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        <span className="sr-only">{isEditing ? "Save" : "Edit"} label</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{isEditing ? "Save" : "Edit"} wallet label</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+        ) : (
+          <div className="flex items-center space-x-2">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium">
+                {wallet.label || "Your Address"}
+                {onLabelEdit && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleEditSave}
+                    className="h-5 w-5 p-0 ml-1"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span className="sr-only">Edit label</span>
+                  </Button>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground break-all sm:break-normal">
+                {formatAddress(wallet.address)}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground break-all sm:break-normal">
-              {formatAddress(wallet.address)}
-            </p>
           </div>
-        </div>
+        )}
         
         <Button 
           variant="ghost" 
