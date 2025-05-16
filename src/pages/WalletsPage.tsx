@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { ExternalLink } from "lucide-react";
+import { Wallet, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
@@ -148,15 +148,34 @@ const WalletsPage = () => {
   // Decide whether to show connect screen or wallet dashboard
   if (!connected && !FIXED_ADDRESS) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Alephium Portfolio</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Alephium Portfolio Manager</h2>
           <p className="text-muted-foreground max-w-md">
-            Connect your Alephium wallet to track balances and interact with dApps.
+            Connect your Alephium wallet to track balances, view transactions, send ALPH, and interact with dApps.
           </p>
           
-          <div className="w-full max-w-md my-6">
+          <div className="w-full max-w-md my-8">
             <WalletConnectButton />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
+            <div className="p-4 border rounded-lg bg-card">
+              <h3 className="font-medium mb-2">Portfolio Tracking</h3>
+              <p className="text-sm text-muted-foreground">Monitor your ALPH and token balances in real-time</p>
+            </div>
+            <div className="p-4 border rounded-lg bg-card">
+              <h3 className="font-medium mb-2">Send & Receive</h3>
+              <p className="text-sm text-muted-foreground">Transfer ALPH and tokens with ease</p>
+            </div>
+            <div className="p-4 border rounded-lg bg-card">
+              <h3 className="font-medium mb-2">DApp Integration</h3>
+              <p className="text-sm text-muted-foreground">Interact with Alephium dApps directly</p>
+            </div>
+            <div className="p-4 border rounded-lg bg-card">
+              <h3 className="font-medium mb-2">Transaction History</h3>
+              <p className="text-sm text-muted-foreground">Detailed history of all your activity</p>
+            </div>
           </div>
         </div>
       </div>
@@ -165,36 +184,42 @@ const WalletsPage = () => {
 
   // Show wallet dashboard with either connected wallet or fixed address data
   return (
-    <div className="max-w-7xl mx-auto px-3 py-4">
-      <div className="space-y-3">
-        <div className="flex flex-wrap justify-between items-center gap-2 mb-1">
-          <h2 className="text-xl font-bold tracking-tight">
-            Portfolio Dashboard
-          </h2>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight mb-1">
+              {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
+            </h2>
+            <p className="text-muted-foreground">
+              {connected 
+                ? "Track and manage your Alephium assets" 
+                : "Viewing public wallet data"}
+            </p>
+          </div>
           
           {connected && (
-            <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-8">
-              Disconnect
+            <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
+              Disconnect Wallet
             </Button>
           )}
         </div>
-        
-        <div className="flex justify-between items-center">
-          <AddressDisplay address={walletAddress} />
-          
-          {!connected && (
-            <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
-              <CardContent className="p-2 text-xs">
-                <div className="flex items-center gap-1 text-amber-800 dark:text-amber-400">
-                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span>
-                    Viewing public wallet. <Button variant="link" className="h-auto p-0 text-xs" asChild><WalletConnectButton /></Button>
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+
+        <AddressDisplay address={walletAddress} />
+
+        {!connected && (
+          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <CardContent className="p-4 text-sm">
+              <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
+                <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <span>
+                  Currently tracking wallet <strong>{walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 8)}</strong>.
+                  Connect your own wallet to see your personal balance and transactions.
+                </span>
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <WalletDashboard
           address={walletAddress}

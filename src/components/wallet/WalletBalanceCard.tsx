@@ -2,12 +2,12 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import { Wallet, RefreshCw, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAddressBalance } from "@/lib/api/alephiumApi"; 
 import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
 import { toast } from "sonner";
-import { formatCurrency, formatPercentage, formatRelativeTime } from "@/lib/utils/formatters";
+import { formatCurrency, formatPercentage } from "@/lib/utils/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface WalletBalanceCardProps {
@@ -40,7 +40,9 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching balance:', error);
-      toast.error("Could not fetch wallet balance");
+      toast.error("Could not fetch wallet balance", {
+        description: "Please try again later"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +55,7 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
       setPriceData(data);
     } catch (error) {
       console.error('Error fetching ALPH price:', error);
+      // Don't show toast for price errors to avoid UI clutter
     } finally {
       setIsPriceLoading(false);
     }
@@ -73,58 +76,74 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   const usdValue = balance !== null ? balance * priceData.price : null;
   
   return (
-    <Card className={`bg-gradient-to-br from-primary/20 to-background border-primary/20 ${className}`}>
-      <CardContent className="p-4 relative">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleRefresh} 
-          disabled={isLoading || isPriceLoading}
-          className="h-6 w-6 p-0 absolute right-3 top-3"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
-          <span className="sr-only">Refresh</span>
-        </Button>
+    <Card className={`bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20 ${className}`}>
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <h3 className="text-base font-medium">Your Balance</h3>
+            <p className="text-sm text-muted-foreground">Current holdings</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh} 
+              disabled={isLoading || isPriceLoading}
+              className="h-7 w-7 p-0"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
+              <span className="sr-only">Refresh</span>
+            </Button>
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+          </div>
+        </div>
         
-        <div className="space-y-2">
-          <div className="text-sm font-medium">Portfolio Balance</div>
-          
+        <div className="mt-6">
           {isLoading ? (
-            <Skeleton className="h-9 w-32 mb-1" />
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-48" />
+              <Skeleton className="h-4 w-32" />
+            </div>
           ) : (
             <>
-              <div className="flex items-baseline gap-2">
-                <div className="text-2xl font-bold">
-                  {formatCurrency(usdValue || 0)}
+              <div className="flex items-baseline">
+                <div className="text-3xl font-bold">
+                  {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
                 </div>
-                
-                <div className={`text-sm flex items-center ${
-                  priceData.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {priceData.priceChange24h >= 0 ? (
-                    <TrendingUp className="h-3.5 w-3.5 mr-1" />
-                  ) : (
-                    <TrendingDown className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  {formatPercentage(priceData.priceChange24h)}
-                </div>
+                <div className="ml-2 text-lg font-medium text-primary">ALPH</div>
               </div>
               
-              <div className="flex items-baseline gap-2">
-                <div className="text-lg font-semibold">
-                  {balance !== null ? balance.toFixed(4) : "0.0000"}
-                  <span className="ml-1 text-sm font-medium text-primary">ALPH</span>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  {usdValue !== null 
+                    ? isPriceLoading 
+                      ? <Skeleton className="h-4 w-16" />
+                      : formatCurrency(usdValue)
+                    : "$0.00"
+                  }
                 </div>
-                
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="text-xs text-muted-foreground cursor-help">
-                        {isPriceLoading ? "..." : `@ ${priceData.price.toFixed(4)} USD`}
+                      <div 
+                        className={`flex items-center text-xs ${
+                          priceData.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}
+                      >
+                        {priceData.priceChange24h >= 0 ? (
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 mr-1" />
+                        )}
+                        {formatPercentage(priceData.priceChange24h)}
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Price updated: {formatRelativeTime(priceData.lastUpdated)}</p>
+                    <TooltipContent>
+                      <p>24h price change</p>
+                      <p className="text-xs text-muted-foreground">Current price: {formatCurrency(priceData.price)}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -132,10 +151,20 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
               
               {lockedBalance !== null && lockedBalance > 0 && (
                 <div className="text-xs text-muted-foreground mt-1 flex items-center">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/30 mr-1"></span>
-                  {lockedBalance.toFixed(4)} ALPH locked
+                  <span className="inline-block h-2 w-2 rounded-full bg-primary/30 mr-1.5"></span>
+                  {lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH locked
+                  {priceData.price > 0 && (
+                    <span className="ml-1">
+                      ({formatCurrency(lockedBalance * priceData.price)})
+                    </span>
+                  )}
                 </div>
               )}
+              
+              <p className="text-[10px] text-muted-foreground mt-4 flex items-center justify-between">
+                <span>Price updated: {formatRelativeTime(priceData.lastUpdated)}</span>
+                <span>Balance updated: {lastUpdated.toLocaleTimeString()}</span>
+              </p>
             </>
           )}
         </div>
@@ -144,4 +173,5 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   );
 };
 
+import { formatRelativeTime } from "@/lib/utils/formatters";
 export default WalletBalanceCard;

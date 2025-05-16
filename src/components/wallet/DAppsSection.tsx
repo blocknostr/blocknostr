@@ -1,17 +1,18 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
+import { fetchAlephiumDApps, DAppProject } from "@/lib/api/dappsApi";
 import { toast } from "@/components/ui/sonner";
 
-// Hardcoded dApps that we always want to show
-const staticDapps = [
+// Fallback dApps that we show if API fails
+const fallbackDapps = [
   {
+    id: "ayin",
     name: "Ayin Finance",
     description: "Lending protocol for Alephium",
     url: "https://app.ayin.finance",
@@ -19,6 +20,7 @@ const staticDapps = [
     status: "production"
   },
   {
+    id: "guppy",
     name: "Guppy DEX",
     description: "Decentralized exchange for Alephium",
     url: "https://app.guppy.fi",
@@ -26,6 +28,7 @@ const staticDapps = [
     status: "production"
   },
   {
+    id: "checkin",
     name: "CheckIn dApp",
     description: "Check-in dApp for the Alephium ecosystem",
     url: "https://checkin-six.vercel.app/",
@@ -33,6 +36,7 @@ const staticDapps = [
     status: "beta"
   },
   {
+    id: "nfta",
     name: "NFTA Marketplace",
     description: "NFT marketplace for Alephium",
     url: "https://nfta.vercel.app/",
@@ -44,52 +48,25 @@ const staticDapps = [
 // Categories for filtering
 const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
 
-interface DAppItem {
-  name: string;
-  description: string;
-  url: string;
-  category: string;
-  logo?: string;
-  status?: string;
-}
-
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   
-  // Fetch dApps from LinxLabs API
-  const { data: linxLabsProjects, isLoading, error } = useQuery({
-    queryKey: ['linxlabs-dapps'],
+  // Fetch dApps from alph.land API
+  const { data: alphLandDapps, isLoading, error } = useQuery({
+    queryKey: ['alph-land-dapps'],
     queryFn: fetchAlephiumDApps,
     meta: {
-      onError: () => toast.error("Failed to fetch DApps from LinxLabs")
+      onSettled: (data, error) => {
+        if (error) toast.error("Failed to fetch DApps from alph.land")
+      }
     }
   });
 
-  // Combine static dApps with LinxLabs projects
+  // Use the API data or fallback to static list
   const allDapps = React.useMemo(() => {
-    if (!linxLabsProjects) return staticDapps;
-    
-    // Convert LinxLabs projects to our format
-    const formattedLinxLabsProjects = linxLabsProjects.map((project: LinxLabsProject) => ({
-      name: project.name,
-      description: project.description,
-      url: project.url,
-      category: project.category || "Other",
-      logo: project.logo || undefined,
-      status: project.status || undefined
-    }));
-    
-    // Merge with static dApps and remove duplicates (based on URL)
-    const combinedDapps = [...staticDapps];
-    
-    formattedLinxLabsProjects.forEach(project => {
-      if (!combinedDapps.some(dapp => dapp.url === project.url)) {
-        combinedDapps.push(project);
-      }
-    });
-    
-    return combinedDapps;
-  }, [linxLabsProjects]);
+    if (!alphLandDapps || alphLandDapps.length === 0) return fallbackDapps;
+    return alphLandDapps;
+  }, [alphLandDapps]);
   
   // Filter dApps by category
   const filteredDapps = React.useMemo(() => {
@@ -99,19 +76,20 @@ const DAppsSection = () => {
 
   return (
     <Card>
-      <CardHeader className="pb-2 pt-4">
-        <CardTitle className="text-base">DApp Integrations</CardTitle>
+      <CardHeader>
+        <CardTitle>DApp Integrations</CardTitle>
+        <CardDescription>Interact with Alephium dApps from alph.land</CardDescription>
       </CardHeader>
-      <CardContent className="p-3">
+      <CardContent>
         {/* Categories Filter */}
-        <div className="mb-3 overflow-auto pb-2">
+        <div className="mb-4 overflow-auto pb-2">
           <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory}>
-            <TabsList className="inline-flex h-8 w-auto">
+            <TabsList className="inline-flex h-9 w-auto">
               {categories.map((category) => (
                 <TabsTrigger 
                   key={category}
                   value={category}
-                  className="text-xs px-2"
+                  className="text-xs px-3"
                 >
                   {category}
                 </TabsTrigger>
@@ -122,30 +100,39 @@ const DAppsSection = () => {
 
         {/* DApps Grid */}
         {isLoading ? (
-          <div className="flex justify-center p-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
+          <div className="flex justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
           </div>
         ) : error ? (
-          <div className="text-center py-4 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground">
             <p>Failed to load dApps</p>
             <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
               Try Again
             </Button>
           </div>
         ) : filteredDapps.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground">
             <p>No dApps found in this category</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredDapps.map((dapp: DAppItem) => (
-              <Card key={dapp.name} className="overflow-hidden border-none shadow-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredDapps.map((dapp) => (
+              <Card key={dapp.id || dapp.name} className="overflow-hidden border-none shadow-md">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-3">
+                  <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-sm font-medium">{dapp.name}</h3>
-                        <p className="text-xs text-muted-foreground">{dapp.description}</p>
+                      <div className="flex items-center gap-3">
+                        {dapp.logo && (
+                          <img 
+                            src={dapp.logo} 
+                            alt={`${dapp.name} logo`}
+                            className="w-8 h-8 rounded-full object-cover bg-background" 
+                          />
+                        )}
+                        <div>
+                          <h3 className="text-md font-medium">{dapp.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{dapp.description}</p>
+                        </div>
                       </div>
                       {dapp.status && (
                         <Badge variant={
@@ -157,14 +144,14 @@ const DAppsSection = () => {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex justify-between items-center mt-2">
+                    <div className="flex justify-between items-center mt-3">
                       <Badge variant="outline" className="text-xs bg-background/50">
                         {dapp.category || "Other"}
                       </Badge>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-background/80 backdrop-blur-sm h-7 text-xs px-2"
+                        className="bg-background/80 backdrop-blur-sm"
                         asChild
                       >
                         <a 
