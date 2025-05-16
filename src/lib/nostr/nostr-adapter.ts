@@ -1,5 +1,7 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
+import { NostrService } from './service';
 
 /**
  * Adapter for NostrService that provides missing methods for compatibility
@@ -170,4 +172,13 @@ export class NostrAdapter {
   unsubscribe = (subId: string) => {
     console.log(`Unsubscribing from ${subId}`);
   }
+  
+  // NIP-65 relay list publishing (needed for ProfileRelaysDialog)
+  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
+    console.log(`Publishing relay list with ${relays.length} relays`);
+    return true;
+  }
 }
+
+// Create and export an instance of NostrAdapter
+export const adaptedNostrService = new NostrAdapter();
