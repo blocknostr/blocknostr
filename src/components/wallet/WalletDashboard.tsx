@@ -161,6 +161,8 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
 
   // Render appropriate content based on the active tab
   if (activeTab === "portfolio") {
+    const walletAddresses = allWallets.map(wallet => wallet.address);
+    
     return (
       <div className="space-y-6">
         <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
@@ -274,7 +276,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </div>
           
           <div>
-            <TokenActivity />
+            <TokenActivity walletAddresses={walletAddresses} />
           </div>
         </div>
       </div>

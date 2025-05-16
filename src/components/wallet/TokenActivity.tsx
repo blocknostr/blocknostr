@@ -6,69 +6,56 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchLatestTokenTransactions } from "@/lib/api/alephiumApi";
-import { fetchTokenList } from "@/lib/api/tokenMetadata";
 import { format, formatDistanceToNow } from "date-fns";
+import { useTokenData } from "@/hooks/useTokenData";
 
 interface TokenActivityProps {
   className?: string;
   limit?: number;
+  walletAddresses?: string[];
 }
 
 const TokenActivity: React.FC<TokenActivityProps> = ({
   className,
-  limit = 5
+  limit = 5,
+  walletAddresses = []
 }) => {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [tokenMetadata, setTokenMetadata] = useState<Record<string, any>>({});
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  const fetchData = async () => {
-    try {
-      setRefreshing(true);
-      
-      // First get token metadata
-      const tokens = await fetchTokenList();
-      setTokenMetadata(tokens);
-      
-      // Get token IDs
-      const tokenIds = Object.keys(tokens);
-      if (tokenIds.length === 0) {
-        setIsLoading(false);
-        setRefreshing(false);
-        return;
-      }
-      
-      // Get latest transactions
-      const latestTxs = await fetchLatestTokenTransactions(tokenIds, limit);
-      setTransactions(latestTxs);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error fetching token activity:", error);
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  };
+  
+  // Use the enhanced useTokenData hook
+  const { tokenData, isLoading, lastUpdated, ownedTokenIds, refreshTokens } = useTokenData(walletAddresses);
+  
+  // Derive the most recent transactions across all tokens
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   
   useEffect(() => {
-    fetchData();
+    // Flatten all token transactions into a single array
+    const allTransactions = Object.entries(tokenData)
+      .flatMap(([tokenId, data]) => 
+        data.transactions.map(tx => ({
+          ...tx,
+          tokenId,
+          tokenSymbol: data.symbol,
+          tokenName: data.name,
+          tokenLogoURI: data.logoURI
+        }))
+      );
     
-    // Set up periodic refresh every 5 minutes
-    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(intervalId);
-  }, []);
+    // Sort by timestamp (newest first) and take the latest 'limit'
+    const sorted = allTransactions
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
+    
+    setRecentTransactions(sorted);
+  }, [tokenData, limit]);
   
-  const handleRefresh = () => {
-    fetchData();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshTokens();
+    setRefreshing(false);
   };
   
-  // Helper to get token symbol from token ID
-  const getTokenSymbol = (tokenId: string) => {
-    return tokenMetadata[tokenId]?.symbol || tokenId.slice(0, 6) + '...';
-  };
-  
+  // Helper to format timestamp
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp);
     return formatDistanceToNow(date, { addSuffix: true });
@@ -80,7 +67,11 @@ const TokenActivity: React.FC<TokenActivityProps> = ({
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Token Activity</CardTitle>
-            <CardDescription>Recent token transactions</CardDescription>
+            <CardDescription>
+              {walletAddresses.length > 0 
+                ? "Recent token transactions from your wallets"
+                : "Recent token transactions"}
+            </CardDescription>
           </div>
           <Button
             variant="ghost"
@@ -110,19 +101,22 @@ const TokenActivity: React.FC<TokenActivityProps> = ({
               </div>
             ))}
           </div>
-        ) : transactions.length === 0 ? (
+        ) : recentTransactions.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No recent token activity
+            {ownedTokenIds.length > 0 ? 
+              "No recent token activity found" :
+              "Connect a wallet to see token activity"
+            }
           </div>
         ) : (
           <div className="space-y-3">
-            {transactions.map((tx) => (
+            {recentTransactions.map((tx) => (
               <div key={tx.hash} className="flex items-center justify-between border-b pb-2">
                 <div className="flex items-center gap-2">
-                  {tokenMetadata[tx.tokenId]?.logoURI ? (
+                  {tx.tokenLogoURI ? (
                     <img 
-                      src={tokenMetadata[tx.tokenId].logoURI} 
-                      alt={tokenMetadata[tx.tokenId]?.symbol} 
+                      src={tx.tokenLogoURI} 
+                      alt={tx.tokenSymbol} 
                       className="h-8 w-8 rounded-full"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
@@ -131,13 +125,13 @@ const TokenActivity: React.FC<TokenActivityProps> = ({
                   ) : (
                     <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
                       <span className="text-xs font-medium">
-                        {getTokenSymbol(tx.tokenId).substring(0, 2)}
+                        {tx.tokenSymbol?.substring(0, 2) || '??'}
                       </span>
                     </div>
                   )}
                   <div>
                     <div className="font-medium">
-                      {getTokenSymbol(tx.tokenId)}
+                      {tx.tokenSymbol || tx.tokenId?.slice(0, 6) + '...'}
                       <Badge variant="outline" className="ml-2 text-xs">
                         {tx.outputs?.length || 0} outputs
                       </Badge>

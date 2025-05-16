@@ -58,15 +58,13 @@ const WalletConnectButton = ({
 
   if (isConnected && wallet.account) {
     return (
-      <Button className={cn("w-full", className)} variant="outline" disabled>
+      <Button className={cn("w-full", className)} variant="outline">
         <Wallet className="mr-2 h-4 w-4" />
         Connected
       </Button>
     );
   }
 
-  // This component was previously returning nothing if not connected
-  // Let's fix that and return the connect button
   return (
     <Button
       className={cn("w-full", className)}
