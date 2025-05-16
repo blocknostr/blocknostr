@@ -354,15 +354,15 @@ export const fetchNetworkStats = async () => {
     // For now, this is simulated data based on current explorer data
     
     // First try to get some real data from the node
-    const infoResponse = await nodeProvider.infos.getInfosHeight();
+    const infoResponse = await nodeProvider.infos.getInfosNode();
     const blockflowResponse = await nodeProvider.blockflow.getBlockflowChainInfo({
       fromGroup: 0,
       toGroup: 0
     });
     
     // Use real data when available, but provide reasonable defaults
-    const currentHeight = infoResponse ? parseInt(infoResponse.height) : 3752480;
-    const blockTime = blockflowResponse?.averageBlockTime || "64.0s";
+    const currentHeight = infoResponse ? parseInt(infoResponse.blockflow?.currentHeight || "3752480") : 3752480;
+    const blockTime = "64.0s"; // Default since averageBlockTime isn't available
     
     return {
       hashRate: "38.2 PH/s",

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Hash, Supply, Activity, Clock, Blocks } from "lucide-react";
+import { Loader2, Hash, Database, Activity, Clock, Blocks } from "lucide-react";
 import { fetchNetworkStats } from "@/lib/api/alephiumApi";
 
 interface NetworkStats {
@@ -99,7 +99,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
                 </div>
               </div>
               <div className="space-y-1 flex items-start">
-                <Supply className="h-4 w-4 mr-2 mt-1 text-primary" />
+                <Database className="h-4 w-4 mr-2 mt-1 text-primary" />
                 <div>
                   <p className="text-sm text-muted-foreground">Supply</p>
                   <p className="text-lg font-medium">{stats?.totalSupply}</p>
