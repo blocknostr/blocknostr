@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, Filter } from 'nostr-tools';
 import { toast } from 'sonner';
 import { DAO, DAOProposal } from '@/types/dao';
 
@@ -45,18 +45,26 @@ export function useDAOSubscription({
     
     try {
       // Subscribe to DAO updates
-      const daoSub = pool.sub(relays, [
-        {
-          kinds: [DAO_KINDS.COMMUNITY],
-          ids: [daoId]
-        }
-      ]);
+      const daoFilter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        ids: [daoId]
+      };
+      
+      // Use subscribe instead of sub since 'sub' doesn't exist on SimplePool
+      const daoSub = pool.subscribe(relays, [daoFilter]);
       
       daoSub.on('event', (event) => {
         console.log('Received DAO update event:', event);
         if (onDAOUpdate) {
           try {
-            const content = JSON.parse(event.content);
+            let content = {};
+            try {
+              content = JSON.parse(event.content);
+            } catch (error) {
+              console.error('Error parsing DAO content:', error);
+              content = {};
+            }
+            
             const members = event.tags
               .filter(tag => tag.length >= 2 && tag[0] === 'p')
               .map(tag => tag[1]);
@@ -71,7 +79,10 @@ export function useDAOSubscription({
               members,
               moderators: [],
               treasury: content.treasury || { balance: 0, tokenSymbol: "ALPH" },
-              tags: content.tags || []
+              tags: content.tags || [],
+              // Add missing properties required by the DAO type
+              proposals: content.proposals || 0,
+              activeProposals: content.activeProposals || 0
             };
             
             onDAOUpdate(dao);
@@ -84,13 +95,14 @@ export function useDAOSubscription({
       activeSubscriptions.push(daoSub);
       
       // Subscribe to new proposals
-      const proposalSub = pool.sub(relays, [
-        {
-          kinds: [DAO_KINDS.PROPOSAL],
-          '#e': [daoId],
-          since: Math.floor(Date.now() / 1000) // Only get new proposals from now
-        }
-      ]);
+      const proposalFilter: Filter = {
+        kinds: [DAO_KINDS.PROPOSAL],
+        '#e': [daoId],
+        since: Math.floor(Date.now() / 1000) // Only get new proposals from now
+      };
+      
+      // Use subscribe instead of sub
+      const proposalSub = pool.subscribe(relays, [proposalFilter]);
       
       proposalSub.on('event', (event) => {
         console.log('Received new proposal event:', event);
@@ -122,13 +134,14 @@ export function useDAOSubscription({
       
       // Subscribe to votes if we have onNewVote handler
       if (onNewVote) {
-        const voteSub = pool.sub(relays, [
-          {
-            kinds: [DAO_KINDS.VOTE],
-            '#e': [daoId],
-            since: Math.floor(Date.now() / 1000) // Only get new votes from now
-          }
-        ]);
+        const voteFilter: Filter = {
+          kinds: [DAO_KINDS.VOTE],
+          '#e': [daoId],
+          since: Math.floor(Date.now() / 1000) // Only get new votes from now
+        };
+        
+        // Use subscribe instead of sub
+        const voteSub = pool.subscribe(relays, [voteFilter]);
         
         voteSub.on('event', (event) => {
           console.log('Received vote event:', event);
