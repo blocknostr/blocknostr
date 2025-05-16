@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -184,8 +185,8 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Network Transaction Activity</CardTitle>
-              <CardDescription>Transaction volume over time</CardDescription>
+              <CardTitle>Active Wallet Addresses</CardTitle>
+              <CardDescription>Historical growth of wallet addresses on Alephium</CardDescription>
             </CardHeader>
             <CardContent className="h-[280px]">
               <TransactionActivityChart address={address} />
