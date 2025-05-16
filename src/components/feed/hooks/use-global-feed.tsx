@@ -19,6 +19,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true); // Define hasMore before it's used
   const loadMoreTimeoutRef = useRef<number | null>(null);
   const retryTimeoutRef = useRef<number | null>(null);
   
@@ -45,68 +46,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     limit: 30 // Increased from 20 for better initial experience
   });
   
-  // CRITICAL FIX: Move the useInfiniteScroll hook before it's referenced
-  const {
-    loadMoreRef,
-    loading,
-    setLoading,
-    hasMore,
-    setHasMore,
-    loadingMore: scrollLoadingMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    threshold: 800,
-    aggressiveness: 'high', // Changed from 'medium' to 'high' for more aggressive loading
-    preservePosition: true
-  });
-  
-  // Function to retry loading posts if none are found initially
-  const retryLoadingPosts = useCallback(async () => {
-    if (events.length === 0 && !isRetrying && retryCount < 3) {
-      setIsRetrying(true);
-      
-      // Cancel any existing timeout
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-      
-      // Wait a bit before retrying
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      try {
-        // Close previous subscription
-        if (subId) {
-          nostrService.unsubscribe(subId);
-        }
-        
-        // Create new subscription with slightly extended time range
-        const currentTime = Math.floor(Date.now() / 1000);
-        const extendedTime = currentTime - 24 * 60 * 60 * (retryCount + 1); // Extend time range with each retry
-        
-        setSince(extendedTime);
-        setUntil(currentTime);
-        
-        // Attempt to set up new subscription
-        const newSubId = await setupSubscription(extendedTime, currentTime, hashtags);
-        
-        if (newSubId) {
-          setSubId(newSubId);
-          setRetryCount(prev => prev + 1);
-        }
-      } catch (error) {
-        console.error("Error during retry:", error);
-      } finally {
-        // End retry state after a delay
-        retryTimeoutRef.current = window.setTimeout(() => {
-          setIsRetrying(false);
-          retryTimeoutRef.current = null;
-        }, 3000);
-      }
-    }
-  }, [events.length, isRetrying, retryCount, subId, setupSubscription, hashtags]);
-  
-  // Critical Fix: Improved loadMoreEvents implementation
-  // CRITICAL FIX: Define loadMoreEvents after the hooks it depends on
+  // Define loadMoreEvents before it's referenced
   const loadMoreEvents = useCallback(async () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -183,6 +123,64 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       loadMoreTimeoutRef.current = null;
     }, 1000); // Reduced from 2000ms to 1000ms
   }, [events, hashtags, loadingMore, setupSubscription, subId, hasMore]);
+  
+  // Now we can use useInfiniteScroll after loadMoreEvents is defined
+  const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    loadingMore: scrollLoadingMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 800,
+    aggressiveness: 'high', // Changed from 'medium' to 'high' for more aggressive loading
+    preservePosition: true
+  });
+  
+  // Function to retry loading posts if none are found initially
+  const retryLoadingPosts = useCallback(async () => {
+    if (events.length === 0 && !isRetrying && retryCount < 3) {
+      setIsRetrying(true);
+      
+      // Cancel any existing timeout
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      try {
+        // Close previous subscription
+        if (subId) {
+          nostrService.unsubscribe(subId);
+        }
+        
+        // Create new subscription with slightly extended time range
+        const currentTime = Math.floor(Date.now() / 1000);
+        const extendedTime = currentTime - 24 * 60 * 60 * (retryCount + 1); // Extend time range with each retry
+        
+        setSince(extendedTime);
+        setUntil(currentTime);
+        
+        // Attempt to set up new subscription
+        const newSubId = await setupSubscription(extendedTime, currentTime, hashtags);
+        
+        if (newSubId) {
+          setSubId(newSubId);
+          setRetryCount(prev => prev + 1);
+        }
+      } catch (error) {
+        console.error("Error during retry:", error);
+      } finally {
+        // End retry state after a delay
+        retryTimeoutRef.current = window.setTimeout(() => {
+          setIsRetrying(false);
+          retryTimeoutRef.current = null;
+        }, 3000);
+      }
+    }
+  }, [events.length, isRetrying, retryCount, subId, setupSubscription, hashtags]);
 
   useEffect(() => {
     const initFeed = async () => {
