@@ -3,8 +3,13 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, ExternalLink, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
+
+interface Token {
+  id: string;
+  amount: string;
+}
 
 interface Transaction {
   id: string;
@@ -13,6 +18,7 @@ interface Transaction {
   timestamp: number;
   status: 'confirmed' | 'pending';
   address: string;
+  tokens?: Token[];
 }
 
 interface TransactionsListProps {
@@ -31,7 +37,8 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       
       try {
         // Try to fetch transaction data from the Alephium Explorer API
-        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
+        // Note: The correct endpoint is /transactions/by-address/:address
+        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/by-address/${address}?limit=10`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
@@ -40,9 +47,27 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
         const data = await response.json();
         
         // Transform the data into our transaction format
-        // Note: This transformation is an approximation as the exact API response format may differ
         const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
           const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
+          
+          // Extract token information from outputs
+          let tokens: Token[] = [];
+          
+          if (tx.outputs) {
+            tx.outputs.forEach((output: any) => {
+              if (output.tokens && output.tokens.length > 0) {
+                // For tokens going to our address, consider them as part of the transaction
+                if (output.address === address) {
+                  output.tokens.forEach((token: any) => {
+                    tokens.push({
+                      id: token.id,
+                      amount: token.amount
+                    });
+                  });
+                }
+              }
+            });
+          }
           
           return {
             id: tx.hash || tx.txId,
@@ -52,19 +77,26 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
             status: 'confirmed',
             address: isSent 
               ? (tx.outputs?.[0]?.address || 'Unknown') 
-              : (tx.inputs?.[0]?.address || 'Unknown')
+              : (tx.inputs?.[0]?.address || 'Unknown'),
+            tokens: tokens.length > 0 ? tokens : undefined
           };
         });
         
         setTransactions(formattedTransactions);
       } catch (error) {
         console.error('Error fetching transactions:', error);
+        
+        // Show error message
+        toast.error("Could not fetch transaction history", {
+          description: "Using sample data instead"
+        });
+        
         // Fallback to mock data if API fails
         const mockTransactions: Transaction[] = [
           {
             id: "0x123456789abcdef",
             type: "received",
-            amount: "100.00",
+            amount: "100000000000000000",
             timestamp: Date.now() - 3600000 * 2,
             status: "confirmed",
             address: "0xabcdef123456789"
@@ -72,7 +104,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           {
             id: "0x987654321fedcba",
             type: "sent",
-            amount: "50.25",
+            amount: "50250000000000000",
             timestamp: Date.now() - 86400000,
             status: "confirmed",
             address: "0x567890abcdef123"
@@ -80,15 +112,21 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           {
             id: "0xabcdef123456789",
             type: "received",
-            amount: "250.75",
+            amount: "250750000000000000",
             timestamp: Date.now() - 86400000 * 3,
             status: "confirmed",
-            address: "0x123abcdef456789"
+            address: "0x123abcdef456789",
+            tokens: [
+              {
+                id: "f4ba66a73c735e1866027e8e1e5823fbf294a0b013a675d3a7d9df112f4ebd00",
+                amount: "50000000"
+              }
+            ]
           },
           {
             id: "0x456789abcdef123",
             type: "sent",
-            amount: "75.50",
+            amount: "75500000000000000",
             timestamp: Date.now() - 86400000 * 7,
             status: "confirmed",
             address: "0x789abcdef123456"
@@ -96,9 +134,6 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
         ];
         
         setTransactions(mockTransactions);
-        toast.error("Could not fetch transaction history", {
-          description: "Using sample data instead"
-        });
       } finally {
         setIsLoading(false);
       }
@@ -106,6 +141,38 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
     
     fetchTransactions();
   }, [address]);
+
+  // Helper function to format ALPH amount with correct decimal precision
+  const formatAmount = (amountStr: string): string => {
+    try {
+      const amountBigInt = BigInt(amountStr);
+      const divisor = BigInt(10 ** 18);
+      
+      if (amountBigInt === 0n) return "0";
+      
+      const integerPart = amountBigInt / divisor;
+      const fractionalBigInt = amountBigInt % divisor;
+      
+      if (fractionalBigInt === 0n) {
+        return integerPart.toString();
+      }
+      
+      let fractionalStr = fractionalBigInt.toString().padStart(18, '0');
+      
+      // Remove trailing zeros
+      fractionalStr = fractionalStr.replace(/0+$/, '');
+      
+      // Limit to max 4 decimal places for display
+      if (fractionalStr.length > 4) {
+        fractionalStr = fractionalStr.slice(0, 4);
+      }
+      
+      return `${integerPart}.${fractionalStr}`;
+    } catch (e) {
+      console.error("Error formatting ALPH amount:", e);
+      return "?";
+    }
+  };
 
   // Helper function to format date
   const formatDate = (timestamp: number) => {
@@ -160,7 +227,16 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
                     </div>
                   </TableCell>
                   <TableCell className={tx.type === 'received' ? 'text-green-500' : 'text-blue-500'}>
-                    {tx.type === 'received' ? '+' : '-'} {tx.amount} ALPH
+                    <div>
+                      {tx.type === 'received' ? '+' : '-'} {formatAmount(tx.amount)} ALPH
+                    </div>
+                    
+                    {tx.tokens && tx.tokens.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1 text-xs">
+                        <PlusCircle className="h-3 w-3" />
+                        <span>{tx.tokens.length} token{tx.tokens.length > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{truncateAddress(tx.address)}</TableCell>
                   <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
