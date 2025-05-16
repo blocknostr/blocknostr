@@ -100,20 +100,60 @@ export function useEventSubscription({
     // Log the subscription filters for debugging
     console.log("Setting up subscription with filters:", JSON.stringify(filters));
     
-    // Subscribe to events
-    const newSubId = nostrService.subscribe(
-      filters,
-      handleEvent,
-      () => {
-        console.log("Subscription EOSE received for", filters);
+    try {
+      // Make sure we connect to relays first
+      const relays = nostrService.getRelayUrls();
+      
+      if (relays.length === 0) {
+        console.warn("No connected relays found, attempting to connect to default relays");
+        
+        // Here we need to handle async properly - we'll subscribe after connecting
+        // Return the subscription ID directly instead of using the promise result
+        nostrService.connectToUserRelays().then(connectedRelays => {
+          if (connectedRelays.length === 0) {
+            console.error("Failed to connect to any relays");
+            return null;
+          }
+          
+          // Now subscribe with the connected relays
+          const newSubId = nostrService.subscribe(
+            filters,
+            handleEvent,
+            connectedRelays,
+            {
+              isRenewable: true
+            }
+          );
+          
+          // Update the subscription ID state
+          setSubId(newSubId);
+          return newSubId;
+        });
+        
+        return null; // Return null for now, will be updated by the promise
       }
-    );
-    
-    return newSubId;
-  }, [following, activeHashtag, hashtags, limit, handleEvent]);
+      
+      // Subscribe to events with the available relays
+      const newSubId = nostrService.subscribe(
+        filters,
+        handleEvent,
+        relays, // Pass relays array instead of EOSE callback
+        {
+          isRenewable: true
+        }
+      );
+      
+      return newSubId;
+    } catch (error) {
+      console.error("Error setting up subscription:", error);
+      return null;
+    }
+  }, [following, activeHashtag, hashtags, limit, handleEvent, setSubId]);
   
   // Expose whether we've received events through this subscription
-  const hasReceivedEvents = () => newEventsReceivedRef.current;
+  const hasReceivedEvents = useCallback(() => {
+    return newEventsReceivedRef.current;
+  }, []);
   
   return {
     subId,
