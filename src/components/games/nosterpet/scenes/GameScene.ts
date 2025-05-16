@@ -1,3 +1,4 @@
+
 import Phaser from 'phaser';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -344,12 +345,10 @@ export default class GameScene extends Phaser.Scene {
       
       if (this.customization.aura === 'glow') {
         this.petEmitter.setFrequency(200);
-        this.petEmitter.scaleX.setTo({ start: 0.1, end: 0 }); // Fixed: Use scaleX.setTo for range
-        this.petEmitter.scaleY.setTo({ start: 0.1, end: 0 }); // Fixed: Use scaleY.setTo for range
+        this.petEmitter.setScale(0.1, 0); // Fixed: Use single values instead of objects
       } else if (this.customization.aura === 'sparkle') {
         this.petEmitter.setFrequency(500);
-        this.petEmitter.scaleX.setTo({ start: 0.2, end: 0 }); // Fixed: Use scaleX.setTo for range
-        this.petEmitter.scaleY.setTo({ start: 0.2, end: 0 }); // Fixed: Use scaleY.setTo for range
+        this.petEmitter.setScale(0.2, 0); // Fixed: Use single values instead of objects
       }
       
       this.petEmitter.start();
@@ -446,7 +445,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private saveState() {
- TZ    try {
+    try {
       // Save state to localStorage
       const state: PetState = {
         id: this.petId,
