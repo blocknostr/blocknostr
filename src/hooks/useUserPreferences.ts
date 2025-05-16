@@ -1,3 +1,4 @@
+
 import * as React from 'react';
 import { toast } from 'sonner';
 
@@ -364,8 +365,8 @@ export function useUserPreferences() {
     }));
   }, []);
 
-  // Update nested preference - FIX THE SYNTAX ISSUE HERE
-  const updateNestedPreference = React.useCallback<<
+  // Update nested preference - FIXING THE SYNTAX ISSUE HERE
+  const updateNestedPreference = React.useCallback(<
     K extends keyof UserPreferences,
     NK extends keyof UserPreferences[K]
   >(
