@@ -26,21 +26,22 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+  const prevEventsLength = useRef<number>(events.length);
   
-  // Create more aggressive early loading triggers
+  // Create early loading trigger
   const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
   
+  // Effect for early loading
   useEffect(() => {
-    // Setup early loading triggers with higher threshold and larger margin
     if (hasMore && !loadMoreLoading && onLoadMore) {
       const earlyTriggerObserver = new IntersectionObserver(
         (entries) => {
           if (entries.some(entry => entry.isIntersecting) && hasMore && !loadMoreLoading && onLoadMore) {
-            console.log("[OptimizedFeedList] Early loading triggered");
             onLoadMore();
           }
         },
-        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Much larger bottom margin for earlier detection
+        { threshold: 0.1, rootMargin: '0px 0px 1500px 0px' }
       );
       
       if (earlyTriggerRef.current) {
@@ -54,7 +55,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={feedContainerRef}>
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 
@@ -68,11 +69,11 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         />
       ))}
       
-      {/* Early loading trigger at 75% of the feed */}
+      {/* Early loading trigger */}
       {events.length > 5 && (
         <div 
           ref={earlyTriggerRef}
-          className="h-0 w-full" /* Invisible trigger element */
+          className="h-0 w-full" 
           aria-hidden="true"
         />
       )}

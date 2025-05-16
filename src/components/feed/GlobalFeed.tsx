@@ -39,7 +39,6 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     }
     
     // Dispatch custom event for global notification of loading state changes
-    // This allows components that don't have direct prop connection to react
     window.dispatchEvent(new CustomEvent('feed-loading-change', { 
       detail: { isLoading: loading || extendedLoading }
     }));
@@ -51,6 +50,11 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     if (onContentChange) {
       onContentChange(events.length > 0);
     }
+    
+    // Also dispatch global event
+    window.dispatchEvent(new CustomEvent('feed-content-change', {
+      detail: { hasContent: events.length > 0 }
+    }));
   }, [events.length, onContentChange]);
   
   // Reset extended loading state when activeHashtag changes
@@ -58,7 +62,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
     setExtendedLoading(true);
     setShowRetry(false);
     
-    // Set a longer timeout for showing retry button
+    // Set a timeout for showing retry button
     const timeout = setTimeout(() => {
       setExtendedLoading(false);
       if (events.length === 0 && !loading) {
