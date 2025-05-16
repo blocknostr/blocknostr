@@ -68,8 +68,6 @@ const NewHomePage: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <TabsList className="w-full">
-                <TabsTrigger value="global" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`}>Global</TabsTrigger>
-                <TabsTrigger value="following" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`} disabled={!isLoggedIn}>Following</TabsTrigger>
                 <Button 
                   variant="ghost" 
                   size="icon"
@@ -79,6 +77,8 @@ const NewHomePage: React.FC = () => {
                 >
                   <Settings2 className="h-4 w-4" />
                 </Button>
+                <TabsTrigger value="global" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`}>Global</TabsTrigger>
+                <TabsTrigger value="following" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`} disabled={!isLoggedIn}>Following</TabsTrigger>
               </TabsList>
             </div>
 
