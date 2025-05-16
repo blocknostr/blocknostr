@@ -1,27 +1,17 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useWallet } from "@alephium/web3-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import PhaserGameComponent from './PhaserGameComponent';
+import PixiGameComponent from './PixiGameComponent';
 import { Card } from '@/components/ui/card';
-import { nostrService } from '@/lib/nostr';
+import { nostrService } from '@/lib/nostr/index';
 
 const NostrPetGame = () => {
   const { account, connectionStatus } = useWallet();
-  const [isGameLoaded, setIsGameLoaded] = useState(false);
   const [isNostrConnected, setIsNostrConnected] = useState(!!nostrService.publicKey);
   const mountRef = useRef<HTMLDivElement>(null);
 
-  // Check if the wallet is connected
   const isWalletConnected = connectionStatus === 'connected' && !!account;
-
-  useEffect(() => {
-    // Check if all requirements are met to start the game
-    if (isWalletConnected) {
-      setIsGameLoaded(true);
-    }
-  }, [isWalletConnected]);
 
   const handleConnectNostr = async () => {
     try {
@@ -64,17 +54,17 @@ const NostrPetGame = () => {
 
   return (
     <div className="flex flex-col space-y-4">
-      <div className="relative w-full" ref={mountRef}>
+      <div className="relative w-full">
         <Card className="overflow-hidden bg-background border-2 aspect-[4/3] max-w-3xl mx-auto">
-          {isGameLoaded && (
-            <PhaserGameComponent 
-              address={account?.address || ''} 
+          <div className="relative w-full h-full">
+            <PixiGameComponent
+              address={account?.address || ''}
               nostrPubkey={nostrService.publicKey || ''}
             />
-          )}
+          </div>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm mt-4">
         <div className="bg-muted/30 p-3 rounded border border-muted">
           <h3 className="font-semibold mb-1">Alephium Integration</h3>

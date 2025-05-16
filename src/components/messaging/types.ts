@@ -1,4 +1,3 @@
-
 import { NostrEvent } from "@/lib/nostr";
 
 export interface Message {
@@ -7,6 +6,7 @@ export interface Message {
   sender: string;
   recipient: string;
   created_at: number;
+  status?: 'sent' | 'failed';
 }
 
 export interface Contact {

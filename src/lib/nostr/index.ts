@@ -1,11 +1,9 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
 import { contentCache } from './cache/content-cache';
 import { contentFormatter } from './format/content-formatter';
-import { NostrService } from './service';
-import { adaptedNostrService as nostrServiceInstance } from './nostr-adapter';
+import { NostrService, nostrService } from './service';
 import { formatPubkey, getNpubFromHex, getHexFromNpub } from './utils/keys';
 
 // Re-export types from internal modules
@@ -34,7 +32,7 @@ export type { ProposalCategory } from '@/types/community';
 export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance and type
-export { nostrServiceInstance as nostrService };
+export { nostrService };
 export type { NostrService };
 
 // Export cache modules

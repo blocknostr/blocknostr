@@ -1,28 +1,34 @@
+import * as PIXI from 'pixi.js';
 
-import Phaser from 'phaser';
-
-/**
- * UI utility functions for the game
- */
 export class UIUtils {
-  /**
-   * Display a temporary message in the game
-   */
-  static showMessage(scene: Phaser.Scene, text: string, color: number = 0xffffff): void {
-    const message = scene.add.text(400, 500, text, {
-      fontSize: '24px',
-      color: `#${color.toString(16).padStart(6, '0')}`,
-      stroke: '#000000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
-    
-    scene.tweens.add({
-      targets: message,
-      alpha: 0,
-      y: 480,
-      duration: 2000,
-      ease: 'Power2',
-      onComplete: () => message.destroy()
+  static showMessage(
+    stage: PIXI.Container, // Changed from PIXI.Container
+    text: string,
+    color: number,
+    tickerInstance: PIXI.ticker.Ticker // Corrected to PIXI.ticker.Ticker
+  ): void {
+    const textStyle = new PIXI.TextStyle({ // Changed from PIXI.TextStyle
+      fontFamily: 'Arial',
+      fontSize: 24,
+      fill: color,
+      align: 'center'
     });
+
+    const message = new PIXI.Text(text, textStyle); // Changed from PIXI.Text
+    message.anchor.set(0.5);
+    message.x = stage.width / 2;
+    message.y = stage.height / 2;
+    stage.addChild(message);
+
+    // Remove the message after a delay
+    const timeoutId = setTimeout(() => {
+      stage.removeChild(message);
+      message.destroy();
+    }, 3000); // 3 seconds
+
+    // Example of cleanup, adjust as needed for your game's lifecycle
+    // if (tickerInstance && tickerInstance.remove) { // Check if tickerInstance is a Ticker and has remove method
+    //   // This is a conceptual example; actual cleanup depends on Ticker's API for removing listeners
+    // }
   }
 }
