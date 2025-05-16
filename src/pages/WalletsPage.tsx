@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, ExternalLink, Blocks, Apps, ChartLineUp } from "lucide-react";
+import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -227,11 +226,11 @@ const WalletsPage = () => {
         <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md mb-6">
             <TabsTrigger value="portfolio" className="flex items-center gap-2">
-              <ChartLineUp className="h-4 w-4" />
+              <ChartLine className="h-4 w-4" />
               <span>My Portfolio</span>
             </TabsTrigger>
             <TabsTrigger value="dapps" className="flex items-center gap-2">
-              <Apps className="h-4 w-4" />
+              <LayoutGrid className="h-4 w-4" />
               <span>My dApps</span>
             </TabsTrigger>
             <TabsTrigger value="alephium" className="flex items-center gap-2">
