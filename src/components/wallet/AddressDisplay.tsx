@@ -34,25 +34,13 @@ const AddressDisplay = ({ address, label = "Your Address" }: AddressDisplayProps
   return (
     <Card className="bg-muted/50">
       <CardContent className="flex items-center justify-between py-1 px-2">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
+        <div className="flex items-center gap-1">
+          <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center mr-1">
             <span className="text-xs font-medium">ID</span>
           </div>
           <div>
-            <div className="flex items-center gap-1">
-              <p className="text-xs font-medium">{label}</p>
-              <TooltipProvider>
-                <Tooltip delayDuration={300}>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    We do not track or store any wallet information. Addresses are only saved in your browser's local storage to protect your privacy.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <p className="text-xs text-muted-foreground break-all sm:break-normal">
+            <p className="text-xs font-medium truncate max-w-[120px]">{label}</p>
+            <p className="text-xs text-muted-foreground">
               {formatAddress(address)}
             </p>
           </div>
@@ -62,7 +50,7 @@ const AddressDisplay = ({ address, label = "Your Address" }: AddressDisplayProps
           variant="ghost" 
           size="sm" 
           onClick={copyToClipboard} 
-          className="h-6 px-2 py-0 ml-2"
+          className="h-6 w-6 p-0"
         >
           {copied ? <CheckCheck className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           <span className="sr-only">Copy address</span>

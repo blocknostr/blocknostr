@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine } from "lucide-react";
@@ -41,7 +40,6 @@ const WalletsPage = () => {
   });
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("portfolio");
-  const [showWalletManager, setShowWalletManager] = useState(false);
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -236,19 +234,12 @@ const WalletsPage = () => {
             <p className="text-muted-foreground">
               {connected 
                 ? "Manage your Alephium assets and dApps" 
-                : "Viewing public wallet data"}
+                : "Viewing portfolio data for all tracked wallets"}
             </p>
           </div>
           
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowWalletManager(!showWalletManager)}
-              className="h-9"
-            >
-              {showWalletManager ? "Hide Wallets" : "Manage Wallets"}
-            </Button>
+            <WalletConnectButton />
             
             {connected && (
               <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
@@ -266,8 +257,7 @@ const WalletsPage = () => {
                   <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
                     <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
                     <span>
-                      Currently tracking wallet <strong>{walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 8)}</strong>.
-                      Connect your own wallet to see your personal balance and transactions.
+                      Viewing all tracked wallets. Connect your own wallet to see your personal balance and transactions.
                     </span>
                   </p>
                 </CardContent>
@@ -293,6 +283,7 @@ const WalletsPage = () => {
               <TabsContent value="portfolio" className="mt-0 space-y-6">
                 <WalletDashboard
                   address={walletAddress}
+                  allWallets={savedWallets}
                   isLoggedIn={connected}
                   walletStats={walletStats}
                   isStatsLoading={isStatsLoading}
@@ -305,6 +296,7 @@ const WalletsPage = () => {
               <TabsContent value="dapps" className="mt-0 space-y-6">
                 <WalletDashboard
                   address={walletAddress}
+                  allWallets={savedWallets}
                   isLoggedIn={connected}
                   walletStats={walletStats}
                   isStatsLoading={isStatsLoading}
@@ -317,6 +309,7 @@ const WalletsPage = () => {
               <TabsContent value="alephium" className="mt-0 space-y-6">
                 <WalletDashboard
                   address={walletAddress}
+                  allWallets={savedWallets}
                   isLoggedIn={connected}
                   walletStats={walletStats}
                   isStatsLoading={isStatsLoading}
@@ -328,15 +321,11 @@ const WalletsPage = () => {
             </Tabs>
           </div>
 
-          <div className="space-y-6">
-            {showWalletManager ? (
-              <WalletManager 
-                currentAddress={walletAddress} 
-                onSelectWallet={setWalletAddress} 
-              />
-            ) : (
-              <AddressDisplay address={walletAddress} />
-            )}
+          <div>
+            <WalletManager 
+              currentAddress={walletAddress} 
+              onSelectWallet={setWalletAddress} 
+            />
           </div>
         </div>
       </div>

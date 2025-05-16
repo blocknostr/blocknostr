@@ -1,10 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import BalanceHistoryChart from "@/components/wallet/charts/BalanceHistoryChart";
-import TransactionActivityChart from "@/components/wallet/charts/TransactionActivityChart";
-import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 import TokenList from "@/components/wallet/TokenList";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import NFTGallery from "@/components/wallet/NFTGallery";
@@ -15,9 +13,17 @@ import { WifiOff, Wifi, DollarSign, Wallet, TrendingUp, TrendingDown } from "luc
 import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
 import { getAddressBalance } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
+import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
+
+interface SavedWallet {
+  address: string;
+  label: string;
+  dateAdded: number;
+}
 
 interface WalletDashboardProps {
   address: string;
+  allWallets?: SavedWallet[];
   isLoggedIn: boolean;
   walletStats: {
     transactionCount: number;
@@ -33,6 +39,7 @@ interface WalletDashboardProps {
 
 const WalletDashboard: React.FC<WalletDashboardProps> = ({ 
   address, 
+  allWallets = [],
   isLoggedIn, 
   walletStats, 
   isStatsLoading,
@@ -44,7 +51,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
     isLive: false,
     lastChecked: new Date()
   });
-  const [balance, setBalance] = useState<number | null>(null);
+  const [balances, setBalances] = useState<Record<string, number>>({});
   const [priceData, setPriceData] = useState<{
     price: number;
     priceChange24h: number;
@@ -56,23 +63,38 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
     setApiStatus({ isLive, lastChecked: new Date() });
   };
 
-  // Fetch balance and price when the address or refreshFlag changes
+  // Fetch balance for all wallets
   useEffect(() => {
-    const fetchData = async () => {
-      if (!address) return;
+    const fetchAllBalances = async () => {
+      if (allWallets.length === 0) return;
       
       setIsLoading(true);
       
       try {
-        const [balanceData, priceData] = await Promise.all([
-          getAddressBalance(address),
-          getAlephiumPrice()
+        const walletAddresses = allWallets.map(wallet => wallet.address);
+        const balancePromises = walletAddresses.map(addr => getAddressBalance(addr));
+        const pricePromise = getAlephiumPrice();
+        
+        const [balanceResults, priceResult] = await Promise.all([
+          Promise.allSettled(balancePromises),
+          pricePromise
         ]);
         
-        setBalance(balanceData.balance);
+        // Process balances
+        const newBalances: Record<string, number> = {};
+        balanceResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            newBalances[walletAddresses[index]] = result.value.balance;
+          } else {
+            console.error(`Failed to fetch balance for ${walletAddresses[index]}:`, result.reason);
+            newBalances[walletAddresses[index]] = 0;
+          }
+        });
+        
+        setBalances(newBalances);
         setPriceData({
-          price: priceData.price,
-          priceChange24h: priceData.priceChange24h
+          price: priceResult.price,
+          priceChange24h: priceResult.priceChange24h
         });
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -81,11 +103,12 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
       }
     };
     
-    fetchData();
-  }, [address, refreshFlag]);
+    fetchAllBalances();
+  }, [allWallets, refreshFlag]);
 
-  // Calculate USD value
-  const portfolioValue = balance !== null ? balance * priceData.price : null;
+  // Calculate total balance and USD value
+  const totalAlphBalance = Object.values(balances).reduce((sum, balance) => sum + balance, 0);
+  const portfolioValue = totalAlphBalance * priceData.price;
 
   // Render appropriate content based on the active tab
   if (activeTab === "portfolio") {
@@ -96,7 +119,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle>Portfolio Overview</CardTitle>
-                <CardDescription>Your Alephium balance and history</CardDescription>
+                <CardDescription>Combined balance of all tracked wallets</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
@@ -116,7 +139,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 <>
                   <div className="flex items-baseline">
                     <div className="text-3xl font-bold">
-                      {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
+                      {totalAlphBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                     </div>
                     <div className="ml-2 text-lg font-medium text-primary">ALPH</div>
                   </div>
@@ -124,10 +147,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                   <div className="flex items-center gap-2 mt-2">
                     <div className="text-sm font-medium flex items-center gap-1">
                       <DollarSign className="h-3.5 w-3.5" />
-                      {portfolioValue !== null 
-                        ? formatCurrency(portfolioValue)
-                        : "$0.00"
-                      }
+                      {formatCurrency(portfolioValue)}
                     </div>
                     <div 
                       className={`flex items-center text-xs ${
@@ -145,9 +165,34 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 </>
               )}
             </div>
+            
             <div className="h-[250px]">
               <BalanceHistoryChart address={address} />
             </div>
+            
+            {allWallets.length > 1 && !isLoading && (
+              <div className="mt-4 space-y-2">
+                <h4 className="text-sm font-medium">Individual Wallet Balances</h4>
+                <div className="space-y-1.5">
+                  {allWallets.map(wallet => (
+                    <div key={wallet.address} className="flex justify-between items-center text-xs">
+                      <div className="truncate max-w-[180px] text-muted-foreground">
+                        {wallet.label || wallet.address.substring(0, 8) + '...'}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>
+                          {(balances[wallet.address] || 0).toLocaleString(undefined, { 
+                            minimumFractionDigits: 2, 
+                            maximumFractionDigits: 4 
+                          })}
+                        </span>
+                        <span className="text-muted-foreground">ALPH</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -301,10 +346,24 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   // Default fallback content
   return (
     <div className="space-y-6">
-      <WalletBalanceCard 
-        address={address} 
-        onRefresh={() => setRefreshFlag(refreshFlag + 1)}
-      />
+      <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
+        <CardHeader>
+          <CardTitle>Portfolio Overview</CardTitle>
+          <CardDescription>Combined balance of all tracked wallets</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-baseline">
+            <div className="text-3xl font-bold">
+              {totalAlphBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+            </div>
+            <div className="ml-2 text-lg font-medium">ALPH</div>
+          </div>
+          
+          <div className="mt-2 text-sm text-muted-foreground">
+            {formatCurrency(portfolioValue)}
+          </div>
+        </CardContent>
+      </Card>
       
       <TokenList address={address} />
       

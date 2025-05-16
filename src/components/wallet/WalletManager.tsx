@@ -90,7 +90,7 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
   };
 
   return (
-    <Card className="bg-card/50 border-primary/10">
+    <Card className="bg-card/50 border-primary/10 h-full flex flex-col">
       <CardHeader className="py-3 px-4">
         <div className="flex justify-between items-center">
           <div>
@@ -122,7 +122,7 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="px-4 py-2 space-y-2">
+      <CardContent className="px-4 py-2 space-y-2 flex-grow overflow-hidden flex flex-col">
         {isAdding && (
           <div className="rounded-md bg-muted/50 p-2 space-y-2 mb-3">
             <Input 
@@ -158,7 +158,7 @@ const WalletManager: React.FC<WalletManagerProps> = ({ currentAddress, onSelectW
           </div>
         )}
 
-        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+        <div className="space-y-2 flex-grow overflow-y-auto pr-1">
           {savedWallets.map((wallet) => (
             <div 
               key={wallet.address} 
