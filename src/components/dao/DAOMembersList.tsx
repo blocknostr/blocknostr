@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Search, Shield, Crown } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -34,7 +33,8 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({ dao, currentUserPubkey 
         
         // Process all members
         for (const pubkey of dao.members) {
-          const profile = await nostrService.getProfile(pubkey);
+          // Fix: Use getUserProfile instead of getProfile
+          const profile = await nostrService.getUserProfile(pubkey);
           
           let role: 'creator' | 'moderator' | 'member' = 'member';
           if (pubkey === dao.creator) role = 'creator';
