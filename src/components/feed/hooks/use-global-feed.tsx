@@ -45,6 +45,21 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     limit: 30 // Increased from 20 for better initial experience
   });
   
+  // CRITICAL FIX: Move the useInfiniteScroll hook before it's referenced
+  const {
+    loadMoreRef,
+    loading,
+    setLoading,
+    hasMore,
+    setHasMore,
+    loadingMore: scrollLoadingMore
+  } = useInfiniteScroll(loadMoreEvents, { 
+    initialLoad: true,
+    threshold: 800,
+    aggressiveness: 'high', // Changed from 'medium' to 'high' for more aggressive loading
+    preservePosition: true
+  });
+  
   // Function to retry loading posts if none are found initially
   const retryLoadingPosts = useCallback(async () => {
     if (events.length === 0 && !isRetrying && retryCount < 3) {
@@ -91,6 +106,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   }, [events.length, isRetrying, retryCount, subId, setupSubscription, hashtags]);
   
   // Critical Fix: Improved loadMoreEvents implementation
+  // CRITICAL FIX: Define loadMoreEvents after the hooks it depends on
   const loadMoreEvents = useCallback(async () => {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
@@ -167,20 +183,6 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       loadMoreTimeoutRef.current = null;
     }, 1000); // Reduced from 2000ms to 1000ms
   }, [events, hashtags, loadingMore, setupSubscription, subId, hasMore]);
-  
-  const {
-    loadMoreRef,
-    loading,
-    setLoading,
-    hasMore,
-    setHasMore,
-    loadingMore: scrollLoadingMore
-  } = useInfiniteScroll(loadMoreEvents, { 
-    initialLoad: true,
-    threshold: 800,
-    aggressiveness: 'high', // Changed from 'medium' to 'high' for more aggressive loading
-    preservePosition: true
-  });
 
   useEffect(() => {
     const initFeed = async () => {
