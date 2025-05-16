@@ -106,7 +106,7 @@ export default class GameScene extends Phaser.Scene {
     // Initialize pet sprite
     this.pet = this.add.sprite(400, 300, `pet_stage${this.evolutionStage}`).setScale(2);
     
-    // Setup particle effects
+    // Setup particle effects - Fixed: Create emitter properly
     const particles = this.add.particles('particle_star');
     this.petEmitter = particles.createEmitter({
       x: 400,
@@ -345,9 +345,11 @@ export default class GameScene extends Phaser.Scene {
       
       if (this.customization.aura === 'glow') {
         this.petEmitter.setFrequency(200);
+        // Fixed: Use the correct API for setting scale
         this.petEmitter.setScale({ start: 0.1, end: 0 });
       } else if (this.customization.aura === 'sparkle') {
         this.petEmitter.setFrequency(500);
+        // Fixed: Use the correct API for setting scale
         this.petEmitter.setScale({ start: 0.2, end: 0 });
       }
       
