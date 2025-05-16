@@ -1,3 +1,4 @@
+
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -414,7 +415,8 @@ export const fetchNetworkStats = async () => {
     
     try {
       // Attempt to fetch latest blocks data from node directly
-      const latestChainInfo = await nodeProvider.blockflow.getBlockflowChains({
+      // Fix: Replace getBlockflowChains with getBlockflowChainInfo
+      const latestChainInfo = await nodeProvider.blockflow.getBlockflowChainInfo({
         fromGroup: 0,
         toGroup: 0
       });
