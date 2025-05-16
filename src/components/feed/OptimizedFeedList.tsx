@@ -28,16 +28,17 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   
-  // Use the useInView hook for more reliable intersection detection
+  // Use the useInView hook with a more aggressive threshold and margin
+  // to ensure it triggers before the user reaches the bottom
   const { ref: loadMoreRef, inView } = useInView({
-    rootMargin: '0px 0px 1500px 0px',
-    threshold: 0.1,
+    rootMargin: '0px 0px 2000px 0px', // Increased from 1500px to 2000px
+    threshold: 0.05, // Reduced from 0.1 to 0.05 to trigger earlier
   });
   
   // Use callback for loadMore logic to prevent unnecessary rerenders
   const handleLoadMoreVisible = useCallback(() => {
     if (inView && hasMore && !loadMoreLoading && onLoadMore) {
-      console.log("Trigger load more from InView");
+      console.log("Trigger load more from InView, hasMore:", hasMore, "loadMoreLoading:", loadMoreLoading);
       onLoadMore();
     }
   }, [inView, hasMore, loadMoreLoading, onLoadMore]);
@@ -62,12 +63,13 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         />
       ))}
       
-      {/* Invisible load more trigger that uses useInView for reliable detection */}
-      {events.length > 0 && hasMore && (
+      {/* Always render the load more trigger if there are posts and hasMore is true */}
+      {hasMore && (
         <div 
           ref={loadMoreRef}
-          className="h-10 w-full" 
+          className="h-20 w-full" // Increased height to ensure it's visible
           aria-hidden="true"
+          data-testid="load-more-trigger"
         />
       )}
       
