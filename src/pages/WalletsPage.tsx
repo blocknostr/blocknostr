@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, ExternalLink, PlusCircle } from "lucide-react";
@@ -295,6 +294,33 @@ const WalletsPage = () => {
           </div>
         </div>
 
+        {/* Tracked Wallets section */}
+        <Card className="bg-muted/30">
+          <CardContent className="p-4">
+            <h3 className="text-lg font-medium mb-3">Tracked Wallets</h3>
+            <div className="grid gap-2">
+              {savedWallets.map((wallet) => (
+                <AddressDisplay 
+                  key={wallet.address}
+                  wallet={wallet}
+                  onLabelEdit={handleLabelUpdate}
+                  className={wallet.address === activeWallet?.address ? "ring-1 ring-primary/30" : ""}
+                />
+              ))}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full flex items-center justify-center"
+                onClick={() => setAddDialogOpen(true)}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add New Wallet
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {activeWallet && (
           <AddressDisplay 
             wallet={activeWallet} 
@@ -324,6 +350,12 @@ const WalletsPage = () => {
           </Card>
         )}
 
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            <WalletConnectButton />
+          </div>
+        </div>
+
         {activeWallet && (
           <WalletDashboard
             address={activeWallet.address}
@@ -335,6 +367,13 @@ const WalletsPage = () => {
           />
         )}
       </div>
+      
+      <AddWalletDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onAddWallet={handleAddWallet}
+        existingWallets={savedWallets}
+      />
     </div>
   );
 };
