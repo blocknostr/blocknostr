@@ -2,18 +2,33 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, CheckCheck } from "lucide-react";
+import { Copy, CheckCheck, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { SavedWallet } from "@/hooks/use-saved-wallets";
 
 interface AddressDisplayProps {
-  address: string;
+  wallet: SavedWallet;
+  onLabelEdit?: (address: string, newLabel: string) => void;
+  className?: string;
 }
 
-const AddressDisplay = ({ address }: AddressDisplayProps) => {
+const AddressDisplay = ({ 
+  wallet, 
+  onLabelEdit,
+  className 
+}: AddressDisplayProps) => {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [newLabel, setNewLabel] = useState(wallet.label);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(address);
+    navigator.clipboard.writeText(wallet.address);
     setCopied(true);
     toast.success("Address copied to clipboard");
     
@@ -29,17 +44,62 @@ const AddressDisplay = ({ address }: AddressDisplayProps) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 6)}`;
   };
 
+  const handleEditSave = () => {
+    if (isEditing) {
+      onLabelEdit?.(wallet.address, newLabel);
+    }
+    setIsEditing(!isEditing);
+  };
+
   return (
-    <Card className="bg-muted/50">
+    <Card className={`bg-muted/50 ${className}`}>
       <CardContent className="flex items-center justify-between py-2 px-3">
         <div className="flex items-center space-x-2">
           <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
             <span className="text-xs font-medium">ID</span>
           </div>
           <div>
-            <p className="text-xs font-medium">Your Address</p>
+            <div className="flex items-center">
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  className="text-xs font-medium bg-background border px-1 py-0.5 rounded w-24 sm:w-32"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleEditSave();
+                    }
+                  }}
+                />
+              ) : (
+                <p className="text-xs font-medium">{wallet.label || "Your Address"}</p>
+              )}
+              
+              {onLabelEdit && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleEditSave}
+                        className="h-5 w-5 p-0 ml-1"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span className="sr-only">{isEditing ? "Save" : "Edit"} label</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isEditing ? "Save" : "Edit"} wallet label</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground break-all sm:break-normal">
-              {formatAddress(address)}
+              {formatAddress(wallet.address)}
             </p>
           </div>
         </div>
