@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
-import { handleError } from "@/lib/utils/errorHandling";
+import { toast } from "@/components/ui/sonner";
 
 // Hardcoded dApps that we always want to show
 const staticDapps = [
@@ -15,25 +15,29 @@ const staticDapps = [
     name: "Ayin Finance",
     description: "Lending protocol for Alephium",
     url: "https://app.ayin.finance",
-    category: "DeFi"
+    category: "DeFi",
+    status: "production"
   },
   {
     name: "Guppy DEX",
     description: "Decentralized exchange for Alephium",
     url: "https://app.guppy.fi",
-    category: "DEX"
+    category: "DEX",
+    status: "production"
   },
   {
     name: "CheckIn dApp",
     description: "Check-in dApp for the Alephium ecosystem",
     url: "https://checkin-six.vercel.app/",
-    category: "Social"
+    category: "Social",
+    status: "beta"
   },
   {
     name: "NFTA Marketplace",
     description: "NFT marketplace for Alephium",
     url: "https://nfta.vercel.app/",
-    category: "NFT"
+    category: "NFT",
+    status: "beta"
   }
 ];
 
@@ -43,14 +47,14 @@ const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   
-  // Fetch dApps from LinxLabs API
+  // Fetch dApps from LinxLabs API with the modified useQuery configuration
   const { data: linxLabsProjects, isLoading, error } = useQuery({
     queryKey: ['linxlabs-dapps'],
     queryFn: fetchAlephiumDApps,
-    onError: (err) => handleError(err, {
-      toastMessage: "Failed to fetch DApps from LinxLabs",
-      logMessage: "LinxLabs API error"
-    })
+    // Using onSettled instead of onError in @tanstack/react-query v5+
+    meta: {
+      onError: () => toast.error("Failed to fetch DApps from LinxLabs")
+    }
   });
 
   // Combine static dApps with LinxLabs projects
