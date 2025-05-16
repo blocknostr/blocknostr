@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -44,14 +44,22 @@ const staticDapps = [
 // Categories for filtering
 const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
 
+interface DAppItem {
+  name: string;
+  description: string;
+  url: string;
+  category: string;
+  logo?: string;
+  status?: string;
+}
+
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   
-  // Fetch dApps from LinxLabs API with the modified useQuery configuration
+  // Fetch dApps from LinxLabs API
   const { data: linxLabsProjects, isLoading, error } = useQuery({
     queryKey: ['linxlabs-dapps'],
     queryFn: fetchAlephiumDApps,
-    // Using onSettled instead of onError in @tanstack/react-query v5+
     meta: {
       onError: () => toast.error("Failed to fetch DApps from LinxLabs")
     }
@@ -67,8 +75,8 @@ const DAppsSection = () => {
       description: project.description,
       url: project.url,
       category: project.category || "Other",
-      logo: project.logo,
-      status: project.status
+      logo: project.logo || undefined,
+      status: project.status || undefined
     }));
     
     // Merge with static dApps and remove duplicates (based on URL)
@@ -91,20 +99,19 @@ const DAppsSection = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>DApp Integrations</CardTitle>
-        <CardDescription>Interact with Alephium dApps</CardDescription>
+      <CardHeader className="pb-2 pt-4">
+        <CardTitle className="text-base">DApp Integrations</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-3">
         {/* Categories Filter */}
-        <div className="mb-4 overflow-auto pb-2">
+        <div className="mb-3 overflow-auto pb-2">
           <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory}>
-            <TabsList className="inline-flex h-9 w-auto">
+            <TabsList className="inline-flex h-8 w-auto">
               {categories.map((category) => (
                 <TabsTrigger 
                   key={category}
                   value={category}
-                  className="text-xs px-3"
+                  className="text-xs px-2"
                 >
                   {category}
                 </TabsTrigger>
@@ -115,30 +122,30 @@ const DAppsSection = () => {
 
         {/* DApps Grid */}
         {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
+          <div className="flex justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
           </div>
         ) : error ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-4 text-muted-foreground">
             <p>Failed to load dApps</p>
             <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
               Try Again
             </Button>
           </div>
         ) : filteredDapps.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-4 text-muted-foreground">
             <p>No dApps found in this category</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredDapps.map((dapp) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredDapps.map((dapp: DAppItem) => (
               <Card key={dapp.name} className="overflow-hidden border-none shadow-md">
                 <CardContent className="p-0">
-                  <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-4">
+                  <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-md font-medium">{dapp.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{dapp.description}</p>
+                        <h3 className="text-sm font-medium">{dapp.name}</h3>
+                        <p className="text-xs text-muted-foreground">{dapp.description}</p>
                       </div>
                       {dapp.status && (
                         <Badge variant={
@@ -150,14 +157,14 @@ const DAppsSection = () => {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex justify-between items-center mt-3">
+                    <div className="flex justify-between items-center mt-2">
                       <Badge variant="outline" className="text-xs bg-background/50">
                         {dapp.category || "Other"}
                       </Badge>
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-background/80 backdrop-blur-sm"
+                        className="bg-background/80 backdrop-blur-sm h-7 text-xs px-2"
                         asChild
                       >
                         <a 
