@@ -70,21 +70,16 @@ const NewHomePage: React.FC = () => {
               <TabsList className="w-full">
                 <TabsTrigger value="global" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`}>Global</TabsTrigger>
                 <TabsTrigger value="following" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`} disabled={!isLoggedIn}>Following</TabsTrigger>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setIsCustomizeOpen(true)}
+                  aria-label="Customize feed"
+                  className="h-8 w-8"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
               </TabsList>
-
-              <div className="flex items-center ml-2">
-                {activeTab === "global" && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setIsCustomizeOpen(true)}
-                    aria-label="Customize feed"
-                    className="h-8 w-8"
-                  >
-                    <Settings2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
             </div>
 
             {activeHashtag && (
