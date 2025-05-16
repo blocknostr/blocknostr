@@ -1,3 +1,4 @@
+
 import { NostrEvent } from "../types";
 import { BaseCache } from "./base-cache";
 import { CacheConfig, CacheEntry } from "./types";
@@ -27,6 +28,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -51,6 +53,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -73,6 +76,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -112,6 +116,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -143,6 +148,7 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
     options: {
       authorPubkeys?: string[],
       hashtag?: string,
+      hashtags?: string[],
       since?: number,
       until?: number,
       mediaOnly?: boolean
@@ -164,9 +170,21 @@ export class FeedCache extends BaseCache<NostrEvent[]> {
       }
     }
     
-    // Add hashtag to key if available
+    // Add single hashtag to key if available (legacy support)
     if (options.hashtag) {
       parts.push(`tag:${options.hashtag.toLowerCase()}`);
+    }
+    
+    // Add multiple hashtags to key if available (new feature)
+    if (options.hashtags && options.hashtags.length > 0) {
+      const sortedTags = [...options.hashtags].sort(); // Sort for consistency
+      const tagsKey = sortedTags.slice(0, 5).map(t => t.toLowerCase()).join(',');
+      parts.push(`tags:${tagsKey}`);
+      
+      // Add tags count if more than 5
+      if (sortedTags.length > 5) {
+        parts.push(`tags_count:${sortedTags.length}`);
+      }
     }
     
     // Add time range to key

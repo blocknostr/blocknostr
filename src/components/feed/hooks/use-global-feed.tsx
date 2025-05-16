@@ -3,16 +3,23 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useFeedEvents } from "./use-feed-events";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
 }
 
 export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
+  const { preferences } = useUserPreferences();
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
+  
+  // Get the hashtags to filter by - either the active hashtag or the default ones
+  const hashtags = activeHashtag 
+    ? [activeHashtag] 
+    : preferences.feedFilters.globalFeedTags;
   
   const { 
     events, 
@@ -25,7 +32,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   } = useFeedEvents({
     since,
     until,
-    activeHashtag,
+    hashtags,
     limit: 20 // Reduced from 30 for better performance/bandwidth
   });
   
@@ -58,7 +65,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil, hashtags);
       setSubId(newSubId);
     } else {
       // We already have a since value, so use it to get older posts
@@ -70,7 +77,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setUntil(newUntil);
       
       // Start the new subscription with the older timestamp range
-      const newSubId = setupSubscription(newSince, newUntil);
+      const newSubId = setupSubscription(newSince, newUntil, hashtags);
       setSubId(newSubId);
     }
     
@@ -79,7 +86,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
     }, 2000); 
-  }, [subId, events, since, until, setupSubscription, loadingMore]);
+  }, [subId, events, since, until, setupSubscription, loadingMore, hashtags]);
   
   const {
     loadMoreRef,
@@ -115,13 +122,20 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
         nostrService.unsubscribe(subId);
       }
       
-      // Start a new subscription
-      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
+      // Start a new subscription with the appropriate hashtags
+      const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime, hashtags);
       setSubId(newSubId);
       setLoading(false);
     };
     
     initFeed();
+    
+    // Listen for refetch events
+    const handleRefetch = () => {
+      initFeed();
+    };
+    
+    window.addEventListener('refetch-global-feed', handleRefetch);
     
     // Cleanup subscription and timeout when component unmounts
     return () => {
@@ -131,8 +145,9 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
       if (loadMoreTimeoutRef.current) {
         clearTimeout(loadMoreTimeoutRef.current);
       }
+      window.removeEventListener('refetch-global-feed', handleRefetch);
     };
-  }, [activeHashtag]);
+  }, [activeHashtag, hashtags]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {

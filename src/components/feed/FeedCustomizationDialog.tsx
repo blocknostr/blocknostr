@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Dialog,
@@ -6,14 +7,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
+import { X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface FeedCustomizationDialogProps {
   open: boolean;
@@ -27,12 +32,41 @@ export function FeedCustomizationDialog({
   const { preferences, updatePreference, updateNestedPreference, resetPreferences } = useUserPreferences();
   const { mediaPrefs, updateMediaPreference } = useMediaPreferences();
   const [activeTab, setActiveTab] = useState("general");
+  const [newTag, setNewTag] = useState("");
   
   const handleDefaultFeedChange = (value: string) => {
     // Type guard to ensure value is a valid FeedType
     if (value === 'global' || value === 'following' || value === 'media') {
       updatePreference('defaultFeed', value as FeedType);
     }
+  };
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newTag.trim() && !preferences.feedFilters.globalFeedTags.includes(newTag.toLowerCase().trim())) {
+      const updatedTags = [...preferences.feedFilters.globalFeedTags, newTag.toLowerCase().trim()];
+      updateNestedPreference('feedFilters', 'globalFeedTags', updatedTags);
+      setNewTag("");
+      
+      // Trigger a refresh of the global feed
+      window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+    }
+  };
+  
+  const handleRemoveTag = (tagToRemove: string) => {
+    const updatedTags = preferences.feedFilters.globalFeedTags.filter(tag => tag !== tagToRemove);
+    updateNestedPreference('feedFilters', 'globalFeedTags', updatedTags);
+    
+    // Trigger a refresh of the global feed
+    window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+  };
+  
+  const handleResetTags = () => {
+    // Reset to default tags: bitcoin, nostr, alephium
+    updateNestedPreference('feedFilters', 'globalFeedTags', ['bitcoin', 'nostr', 'alephium']);
+    
+    // Trigger a refresh of the global feed
+    window.dispatchEvent(new CustomEvent('refetch-global-feed'));
   };
   
   return (
@@ -46,8 +80,9 @@ export function FeedCustomizationDialog({
         </DialogHeader>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
             <TabsTrigger value="media">Media</TabsTrigger>
             <TabsTrigger value="filters">Filters</TabsTrigger>
           </TabsList>
@@ -97,14 +132,58 @@ export function FeedCustomizationDialog({
                   onCheckedChange={(checked) => updateNestedPreference('uiPreferences', 'compactMode', checked)}
                 />
               </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showTrending">Show Trending Section</Label>
-                <Switch
-                  id="showTrending"
-                  checked={preferences.uiPreferences.showTrending}
-                  onCheckedChange={(checked) => updateNestedPreference('uiPreferences', 'showTrending', checked)}
-                />
+            </div>
+          </TabsContent>
+          
+          {/* Hashtags Settings Tab - New! */}
+          <TabsContent value="hashtags" className="space-y-4">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="globalFeedTags" className="mb-2 block">Global Feed Hashtags</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  The global feed will only show posts with these hashtags
+                </p>
+                
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {preferences.feedFilters.globalFeedTags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                      #{tag}
+                      <button 
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-1 rounded-full hover:bg-destructive/20 p-0.5"
+                        aria-label={`Remove ${tag} hashtag`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  
+                  {preferences.feedFilters.globalFeedTags.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No hashtags added yet. The feed will show all posts.</p>
+                  )}
+                </div>
+                
+                <form onSubmit={handleAddTag} className="flex gap-2">
+                  <Input
+                    id="addHashtag"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add hashtag (without #)"
+                    className="flex-grow"
+                  />
+                  <Button type="submit" variant="outline" size="sm">Add</Button>
+                </form>
+                
+                <div className="mt-2 text-right">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleResetTags}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Reset to defaults
+                  </Button>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -201,11 +280,9 @@ export function FeedCustomizationDialog({
           >
             Reset to Defaults
           </Button>
-          <Button 
-            onClick={() => onOpenChange(false)}
-          >
-            Save Changes
-          </Button>
+          <DialogClose asChild>
+            <Button>Save Changes</Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
