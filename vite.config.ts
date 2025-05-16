@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -32,14 +33,5 @@ export default defineConfig(({ mode }) => ({
         }
       }
     }
-  },
-  optimizeDeps: {
-    include: [
-      'pixi.js',
-      '@pixi/assets',
-      '@pixi/sprite-animated',
-      '@pixi/particle-emitter',
-      '@pixi/sound'
-    ]
   }
 }));

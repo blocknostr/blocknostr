@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import ContactList from "./messaging/ContactList";
@@ -27,8 +28,7 @@ const MessagingSystem: React.FC = () => {
     handleSendMessage,
     loadMessagesForContact,
     handleAddNewContact,
-    currentUserPubkey,
-    unreadCounts
+    currentUserPubkey
   } = useMessaging();
 
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -37,7 +37,7 @@ const MessagingSystem: React.FC = () => {
     return (
       <div className="h-full flex flex-col items-center justify-center">
         <WelcomeView />
-        <Button
+        <Button 
           onClick={() => setLoginDialogOpen(true)}
           className="mt-4 gap-2 bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary/80 hover:to-primary/70"
         >
@@ -48,7 +48,7 @@ const MessagingSystem: React.FC = () => {
       </div>
     );
   }
-
+  
   return (
     <div className="h-full flex flex-col">
       <div className="flex h-full">
@@ -61,9 +61,8 @@ const MessagingSystem: React.FC = () => {
           activeContact={activeContact}
           loadMessagesForContact={loadMessagesForContact}
           onNewContactClick={() => setNewContactDialog(true)}
-          unreadCounts={unreadCounts}
         />
-
+            
         {/* Message area */}
         <MessageView
           activeContact={activeContact}

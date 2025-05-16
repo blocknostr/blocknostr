@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { ReactionCounts, SocialManagerOptions } from './types';
@@ -5,7 +6,6 @@ import { InteractionsManager } from './interactions';
 import { ContactsManager } from './contacts';
 import { EventManager } from '../event';
 import { UserManager } from '../user';
-import { MessagesManager } from './messages';
 
 export class SocialManager {
   private pool: SimplePool;
@@ -14,7 +14,6 @@ export class SocialManager {
   private contactsManager: ContactsManager | null = null;
   private eventManager: EventManager | null = null;
   private userManager: UserManager | null = null;
-  private messagesManager: MessagesManager | null = null;
 
   constructor(pool: SimplePool, options: SocialManagerOptions = {}) {
     this.pool = pool;
@@ -25,17 +24,16 @@ export class SocialManager {
       ...options
     };
     this.interactionsManager = new InteractionsManager(pool, {});
-
+    
     // Initialize required managers if provided through options
     if (options.eventManager instanceof EventManager) {
       this.eventManager = options.eventManager;
-      this.messagesManager = new MessagesManager(this.eventManager);
     }
-
+    
     if (options.userManager instanceof UserManager) {
       this.userManager = options.userManager;
     }
-
+    
     // Initialize contacts manager if dependencies are available
     if (this.eventManager && this.userManager) {
       this.contactsManager = new ContactsManager(this.eventManager, this.userManager);
@@ -48,11 +46,11 @@ export class SocialManager {
     if (!this.eventManager) {
       this.eventManager = eventManager;
     }
-
+    
     if (!this.userManager) {
       this.userManager = userManager;
     }
-
+    
     if (!this.contactsManager && this.eventManager && this.userManager) {
       this.contactsManager = new ContactsManager(this.eventManager, this.userManager);
       console.log("ContactsManager initialized after construction in SocialManager");
@@ -67,7 +65,7 @@ export class SocialManager {
     relays: string[]
   ): Promise<boolean> {
     console.log(`SocialManager.followUser called for pubkey: ${pubkey}`);
-
+    
     // Use ContactsManager if available
     if (this.contactsManager) {
       console.log(`Delegating to ContactsManager.followUser for pubkey: ${pubkey}`);
@@ -85,7 +83,7 @@ export class SocialManager {
     relays: string[]
   ): Promise<boolean> {
     console.log(`SocialManager.unfollowUser called for pubkey: ${pubkey}`);
-
+    
     // Use ContactsManager if available
     if (this.contactsManager) {
       console.log(`Delegating to ContactsManager.unfollowUser for pubkey: ${pubkey}`);
@@ -104,22 +102,8 @@ export class SocialManager {
     privateKey: string | null,
     relays: string[]
   ): Promise<string | null> {
-    if (!this.messagesManager) {
-      if (this.eventManager) {
-        this.messagesManager = new MessagesManager(this.eventManager);
-      } else {
-        console.error("No EventManager available for sending direct message");
-        return null;
-      }
-    }
-    return this.messagesManager.sendDirectMessage(
-      pool,
-      recipientPubkey,
-      content,
-      senderPubkey,
-      privateKey,
-      relays
-    );
+    console.log(`Sending direct message to: ${recipientPubkey}`);
+    return "message-id"; // Placeholder implementation
   }
 
   async reactToEvent(
