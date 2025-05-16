@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { nostrService, contentCache, NostrEvent } from "@/lib/nostr";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
@@ -42,6 +41,51 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     activeHashtag,
     limit: 30 // Increased from 20 to 30 for better initial experience as requested
   });
+  
+  // Helper function to load data from cache - MOVED UP before it's used
+  const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
+    if (!navigator.onLine || contentCache.isOffline()) {
+      setLoadingFromCache(true);
+    }
+    
+    // Get feed cache object from contentCache
+    const feedCache = contentCache.feedCache;
+    if (!feedCache) return false;
+    
+    // Check if we have a cached feed for these parameters
+    const cachedEvents = feedCache.getFeed(feedType, {
+      authorPubkeys: following,
+      hashtag: activeHashtag,
+      since: cacheSince,
+      until: cacheUntil,
+    });
+    
+    if (cachedEvents && cachedEvents.length > 0) {
+      // We have cached data
+      setCacheHit(true);
+      setLastUpdated(new Date());
+      
+      // If offline or first load, replace events with cached events
+      if (contentCache.isOffline() || events.length === 0) {
+        setEvents(cachedEvents);
+        setLoading(false);
+      } else {
+        // Otherwise, append unique events
+        setEvents(prevEvents => {
+          const existingIds = new Set(prevEvents.map(e => e.id));
+          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
+          
+          // Return combined events sorted by timestamp
+          return [...prevEvents, ...newEvents]
+            .sort((a, b) => b.created_at - a.created_at);
+        });
+      }
+      
+      return true;
+    }
+    
+    return false;
+  }, [following, activeHashtag, events.length, setEvents, setLoading]);
   
   const loadMoreEvents = useCallback(async () => {
     if (!subId || following.length === 0 || isLoadingMore || cooldownRef.current) return;
@@ -153,51 +197,6 @@ export function useFollowingFeed({ activeHashtag }: UseFollowingFeedProps) {
     
     prevLength.current = events.length;
   }, [events]);
-
-  // Helper function to load data from cache
-  const loadFromCache = useCallback((feedType: string, cacheSince?: number, cacheUntil?: number) => {
-    if (!navigator.onLine || contentCache.isOffline()) {
-      setLoadingFromCache(true);
-    }
-    
-    // Get feed cache object from contentCache
-    const feedCache = contentCache.feedCache;
-    if (!feedCache) return false;
-    
-    // Check if we have a cached feed for these parameters
-    const cachedEvents = feedCache.getFeed(feedType, {
-      authorPubkeys: following,
-      hashtag: activeHashtag,
-      since: cacheSince,
-      until: cacheUntil,
-    });
-    
-    if (cachedEvents && cachedEvents.length > 0) {
-      // We have cached data
-      setCacheHit(true);
-      setLastUpdated(new Date());
-      
-      // If offline or first load, replace events with cached events
-      if (contentCache.isOffline() || events.length === 0) {
-        setEvents(cachedEvents);
-        setLoading(false);
-      } else {
-        // Otherwise, append unique events
-        setEvents(prevEvents => {
-          const existingIds = new Set(prevEvents.map(e => e.id));
-          const newEvents = cachedEvents.filter(e => e.id && !existingIds.has(e.id));
-          
-          // Return combined events sorted by timestamp
-          return [...prevEvents, ...newEvents]
-            .sort((a, b) => b.created_at - a.created_at);
-        });
-      }
-      
-      return true;
-    }
-    
-    return false;
-  }, [following, activeHashtag, events.length, setEvents, setLoading]);
 
   // Function to automatically retry loading posts if none are found
   const retryLoadingPosts = useCallback(async () => {
