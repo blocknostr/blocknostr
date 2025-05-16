@@ -47,8 +47,8 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         return;
       }
 
-      // Use wallet.signer instead of calling connect directly
-      await wallet.signer.connectWallet({ addressGroup: undefined });
+      // Use the correct connect method from the signer
+      await wallet.signer.connect({ addressGroup: undefined });
       toast.success("Wallet connected successfully");
     } catch (error) {
       console.error("Connection error:", error);

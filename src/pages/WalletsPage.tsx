@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
@@ -88,9 +87,9 @@ const WalletsPage = () => {
 
   const handleDisconnect = async () => {
     try {
-      // Use wallet.signer instead of calling disconnect directly
-      if (wallet.signer && typeof wallet.signer.disconnectWallet === 'function') {
-        await wallet.signer.disconnectWallet();
+      // Use the correct disconnect method from the signer
+      if (wallet.signer && typeof wallet.signer.disconnect === 'function') {
+        await wallet.signer.disconnect();
         toast.info("Wallet disconnected");
         
         // Reset to fixed address after disconnect
