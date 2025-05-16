@@ -73,6 +73,15 @@ const WalletsPage = () => {
     }
   }, [connected, wallet.account]);
   
+  // Add default wallet if none exists
+  useEffect(() => {
+    if (savedWallets.length === 0) {
+      // Default wallet address
+      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+      addWallet(defaultAddress, "Default Demo Wallet");
+    }
+  }, [savedWallets.length]);
+
   // Effect to fetch wallet statistics
   useEffect(() => {
     const fetchWalletStats = async () => {
@@ -116,23 +125,30 @@ const WalletsPage = () => {
     fetchWalletStats();
   }, [activeWallet, refreshFlag]);
 
-  // Handle wallet selection
-  const handleSelectWallet = (address: string) => {
-    setActiveWallet(address);
-    setRefreshFlag(refreshFlag + 1); // Trigger data refresh
+  const handleDisconnect = async () => {
+    try {
+      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
+        await (wallet.signer as any).requestDisconnect();
+        toast.info("Wallet disconnected");
+        
+        // Update wallet connection status in our saved wallets
+        if (wallet.account) {
+          updateWalletConnection(wallet.account.address, false);
+        }
+      } else {
+        toast.error("Wallet disconnection failed", {
+          description: "Your wallet doesn't support disconnect method"
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("Disconnection error:", error);
+      toast.error("Disconnection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
   };
-
-  // Handle adding a new wallet
-  const handleAddWallet = (address: string, label: string) => {
-    addWallet(address, label);
-    setRefreshFlag(refreshFlag + 1); // Trigger data refresh
-  };
-
-  // Handle wallet label update
-  const handleLabelUpdate = (address: string, newLabel: string) => {
-    updateWalletLabel(address, newLabel);
-  };
-
+  
   // Helper to determine if transaction is incoming or outgoing
   const getTransactionType = (tx: any) => {
     if (!activeWallet) return 'unknown';
@@ -170,29 +186,21 @@ const WalletsPage = () => {
     return 0;
   };
 
-  // Handle disconnect
-  const handleDisconnect = async () => {
-    try {
-      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
-        await (wallet.signer as any).requestDisconnect();
-        toast.info("Wallet disconnected");
-        
-        // Update wallet connection status in our saved wallets
-        if (wallet.account) {
-          updateWalletConnection(wallet.account.address, false);
-        }
-      } else {
-        toast.error("Wallet disconnection failed", {
-          description: "Your wallet doesn't support disconnect method"
-        });
-        return;
-      }
-    } catch (error) {
-      console.error("Disconnection error:", error);
-      toast.error("Disconnection failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
+  // Handle wallet selection
+  const handleSelectWallet = (address: string) => {
+    setActiveWallet(address);
+    setRefreshFlag(refreshFlag + 1); // Trigger data refresh
+  };
+
+  // Handle adding a new wallet
+  const handleAddWallet = (address: string, label: string) => {
+    addWallet(address, label);
+    setRefreshFlag(refreshFlag + 1); // Trigger data refresh
+  };
+
+  // Handle wallet label update
+  const handleLabelUpdate = (address: string, newLabel: string) => {
+    updateWalletLabel(address, newLabel);
   };
 
   // Decide whether to show connect screen or wallet dashboard
