@@ -6,17 +6,13 @@ import { useFeedEvents } from "./use-feed-events";
 
 interface UseGlobalFeedProps {
   activeHashtag?: string;
-  defaultHashtags?: string[];
 }
 
-export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobalFeedProps) {
+export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   const [since, setSince] = useState<number | undefined>(undefined);
   const [until, setUntil] = useState(Math.floor(Date.now() / 1000));
   const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreTimeoutRef = useRef<number | null>(null);
-  
-  // Determine which hashtags to use - prioritize activeHashtag if it exists
-  const hashtagsToUse = activeHashtag ? [activeHashtag] : defaultHashtags;
   
   const { 
     events, 
@@ -25,13 +21,11 @@ export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobal
     subId, 
     setSubId, 
     setupSubscription, 
-    setEvents,
-    refreshFeed
+    setEvents 
   } = useFeedEvents({
     since,
     until,
-    activeHashtag: activeHashtag || undefined,
-    hashtags: !activeHashtag && defaultHashtags.length > 0 ? defaultHashtags : undefined,
+    activeHashtag,
     limit: 20 // Reduced from 30 for better performance/bandwidth
   });
   
@@ -129,15 +123,8 @@ export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobal
     
     initFeed();
     
-    // Setup listener for manual refresh requests from global event
-    const handleRefreshRequest = () => {
-      initFeed();
-    };
-    window.addEventListener('refetch-global-feed', handleRefreshRequest);
-    
     // Cleanup subscription and timeout when component unmounts
     return () => {
-      window.removeEventListener('refetch-global-feed', handleRefreshRequest);
       if (subId) {
         nostrService.unsubscribe(subId);
       }
@@ -145,7 +132,7 @@ export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobal
         clearTimeout(loadMoreTimeoutRef.current);
       }
     };
-  }, [activeHashtag, defaultHashtags]); // Added defaultHashtags as dependency
+  }, [activeHashtag]);
 
   // Mark the loading as finished when we get events
   useEffect(() => {
@@ -153,33 +140,6 @@ export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobal
       setLoading(false);
     }
   }, [events, loading]);
-
-  // Function to refresh the feed manually
-  const refresh = useCallback(() => {
-    // Reset state
-    setEvents([]);
-    setHasMore(true);
-    setLoading(true);
-
-    // Reset the timestamp range for new subscription
-    const currentTime = Math.floor(Date.now() / 1000);
-    setSince(undefined);
-    setUntil(currentTime);
-
-    // Close previous subscription if exists
-    if (subId) {
-      nostrService.unsubscribe(subId);
-    }
-    
-    // Start a new subscription
-    const newSubId = setupSubscription(currentTime - 24 * 60 * 60, currentTime);
-    setSubId(newSubId);
-    
-    // If we have a refreshFeed implementation from useFeedEvents, use it
-    if (refreshFeed) {
-      refreshFeed();
-    }
-  }, [subId, setEvents, setHasMore, setLoading, setupSubscription, refreshFeed]);
 
   return {
     events,
@@ -189,7 +149,6 @@ export function useGlobalFeed({ activeHashtag, defaultHashtags = [] }: UseGlobal
     loading,
     hasMore,
     loadMoreEvents,
-    loadingMore: loadingMore || scrollLoadingMore,
-    refresh
+    loadingMore: loadingMore || scrollLoadingMore
   };
 }

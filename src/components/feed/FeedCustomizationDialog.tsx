@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Dialog,
@@ -11,13 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
-import { X, Tag } from "lucide-react";
 
 interface FeedCustomizationDialogProps {
   open: boolean;
@@ -31,32 +27,7 @@ export function FeedCustomizationDialog({
   const { preferences, updatePreference, updateNestedPreference, resetPreferences } = useUserPreferences();
   const { mediaPrefs, updateMediaPreference } = useMediaPreferences();
   const [activeTab, setActiveTab] = useState("general");
-  const [newHashtag, setNewHashtag] = useState("");
   
-  // Handler for adding a new hashtag
-  const addHashtag = () => {
-    if (!newHashtag.trim()) return;
-    
-    // Clean up hashtag: remove # prefix if exists, trim whitespace
-    const cleanedTag = newHashtag.trim().replace(/^#/, '').toLowerCase();
-    
-    // Don't add empty or duplicate hashtags
-    if (cleanedTag && !preferences.feedFilters.globalHashtags.includes(cleanedTag)) {
-      const updatedHashtags = [...preferences.feedFilters.globalHashtags, cleanedTag];
-      updateNestedPreference('feedFilters', 'globalHashtags', updatedHashtags);
-    }
-    
-    // Clear the input
-    setNewHashtag("");
-  };
-  
-  // Handler for removing a hashtag
-  const removeHashtag = (tagToRemove: string) => {
-    const updatedHashtags = preferences.feedFilters.globalHashtags.filter(tag => tag !== tagToRemove);
-    updateNestedPreference('feedFilters', 'globalHashtags', updatedHashtags);
-  };
-  
-  // Handler for default feed change
   const handleDefaultFeedChange = (value: string) => {
     // Type guard to ensure value is a valid FeedType
     if (value === 'global' || value === 'following' || value === 'media') {
@@ -77,8 +48,8 @@ export function FeedCustomizationDialog({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
           <TabsList className="grid grid-cols-3 mb-4">
             <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
             <TabsTrigger value="media">Media</TabsTrigger>
+            <TabsTrigger value="filters">Filters</TabsTrigger>
           </TabsList>
           
           {/* General Settings Tab */}
@@ -134,55 +105,6 @@ export function FeedCustomizationDialog({
                   checked={preferences.uiPreferences.showTrending}
                   onCheckedChange={(checked) => updateNestedPreference('uiPreferences', 'showTrending', checked)}
                 />
-              </div>
-            </div>
-          </TabsContent>
-          
-          {/* Hashtags Settings Tab */}
-          <TabsContent value="hashtags" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="globalHashtags">Global Feed Hashtags</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  The global feed will only show posts with these hashtags
-                </p>
-                
-                <div className="flex space-x-2 mb-2">
-                  <Input 
-                    id="newHashtag"
-                    placeholder="Add hashtag..."
-                    value={newHashtag}
-                    onChange={(e) => setNewHashtag(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addHashtag()}
-                    className="flex-1"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="secondary"
-                    onClick={addHashtag}
-                  >
-                    Add
-                  </Button>
-                </div>
-                
-                {preferences.feedFilters.globalHashtags.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">
-                    No hashtags added. Global feed will show all posts.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {preferences.feedFilters.globalHashtags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="flex items-center gap-1 px-2 py-1">
-                        <Tag className="h-3 w-3" />
-                        {tag}
-                        <X 
-                          className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive" 
-                          onClick={() => removeHashtag(tag)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </TabsContent>

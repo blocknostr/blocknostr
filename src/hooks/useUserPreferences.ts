@@ -10,7 +10,6 @@ export interface UserPreferences {
     showReplies: boolean;
     showReposted: boolean;
     hideFromUsers: string[]; // pubkeys to hide
-    globalHashtags: string[]; // Default hashtags to show in global feed
   };
   contentPreferences: {
     showSensitiveContent: boolean;
@@ -43,7 +42,6 @@ const defaultPreferences: UserPreferences = {
     showReplies: true,
     showReposted: true,
     hideFromUsers: [],
-    globalHashtags: ['bitcoin', 'nostr', 'alephium'], // Default hashtags
   },
   contentPreferences: {
     showSensitiveContent: false,
@@ -80,7 +78,6 @@ const STORAGE_KEYS = {
   UI_PREFS: 'bn_pref_ui',
   // Even more granular storage keys for large arrays
   HIDDEN_USERS: 'bn_pref_hidden_users',
-  GLOBAL_HASHTAGS: 'bn_pref_global_hashtags', // New storage key
   STORAGE_STATUS: 'bn_storage_status',
   STORAGE_TEST: 'bn_storage_test'
 };
@@ -240,17 +237,6 @@ export function useUserPreferences() {
         console.error('Failed to load hidden users:', e);
         hideFromUsers = [];
       }
-      
-      // Load global hashtags separately
-      let globalHashtags: string[] = defaultPreferences.feedFilters.globalHashtags;
-      try {
-        const compressedHashtags = safeStorageLoad<string>(STORAGE_KEYS.GLOBAL_HASHTAGS, '');
-        if (compressedHashtags) {
-          globalHashtags = decompressArray(compressedHashtags);
-        }
-      } catch (e) {
-        console.error('Failed to load global hashtags:', e);
-      }
 
       const contentPreferences = safeStorageLoad(STORAGE_KEYS.CONTENT_PREFS, defaultPreferences.contentPreferences);
       const notificationPreferences = safeStorageLoad(STORAGE_KEYS.NOTIFICATION_PREFS, defaultPreferences.notificationPreferences);
@@ -265,7 +251,6 @@ export function useUserPreferences() {
           ...defaultPreferences.feedFilters,
           ...feedFilters,
           hideFromUsers,
-          globalHashtags,
         },
         contentPreferences,
         notificationPreferences,
@@ -313,13 +298,6 @@ export function useUserPreferences() {
         const compressedUsers = compressArray(preferences.feedFilters.hideFromUsers);
         const usersSuccess = safeLocalStorageSave(STORAGE_KEYS.HIDDEN_USERS, compressedUsers);
         if (!usersSuccess) anySaveFailed = true;
-      }
-      
-      // Save global hashtags as compressed string
-      if (preferences.feedFilters.globalHashtags && preferences.feedFilters.globalHashtags.length > 0) {
-        const compressedHashtags = compressArray(preferences.feedFilters.globalHashtags);
-        const hashtagsSuccess = safeLocalStorageSave(STORAGE_KEYS.GLOBAL_HASHTAGS, compressedHashtags);
-        if (!hashtagsSuccess) anySaveFailed = true;
       }
 
       // Save each section separately
