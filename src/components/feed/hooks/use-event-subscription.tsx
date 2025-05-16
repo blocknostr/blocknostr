@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
@@ -33,6 +33,7 @@ export function useEventSubscription({
 }: UseEventSubscriptionProps) {
   const [subId, setSubId] = useState<string | null>(null);
   const newEventsReceivedRef = useRef(false);
+  const connectionAttemptedRef = useRef(false);
   
   // Event handler
   const handleEvent = useCallback((event: NostrEvent) => {
@@ -69,10 +70,45 @@ export function useEventSubscription({
     });
   }, [setEvents, handleRepost, fetchProfileData, limit]);
   
+  // Ensure relays are connected
+  const ensureRelayConnections = useCallback(async () => {
+    // Check if we have relays
+    const relays = nostrService.getRelayUrls();
+    
+    // If no relays, try to connect to default ones
+    if (relays.length === 0) {
+      console.log("No connected relays found, connecting to defaults...");
+      
+      try {
+        // CRITICAL FIX: Wait for the connection to complete
+        const connectedRelays = await nostrService.connectToUserRelays();
+        console.log(`Connected to ${connectedRelays.length} relays:`, connectedRelays);
+        return connectedRelays;
+      } catch (err) {
+        console.error("Failed to connect to relays:", err);
+        // Try with another attempt to connect to popular relays
+        try {
+          await nostrService.addMultipleRelays([
+            "wss://relay.damus.io",
+            "wss://nos.lol",
+            "wss://relay.nostr.band"
+          ]);
+          return nostrService.getRelayUrls();
+        } catch (err2) {
+          console.error("All relay connection attempts failed:", err2);
+          return [];
+        }
+      }
+    }
+    
+    return relays;
+  }, []);
+  
   // Create or update a subscription
-  const setupSubscription = useCallback((since?: number, until?: number, hashtagOverride?: string[]) => {
+  const setupSubscription = useCallback(async (since?: number, until?: number, hashtagOverride?: string[]) => {
     // Reset the new events flag
     newEventsReceivedRef.current = false;
+    connectionAttemptedRef.current = true;
     
     // Build filter
     const filters: any[] = [
@@ -101,58 +137,54 @@ export function useEventSubscription({
     console.log("Setting up subscription with filters:", JSON.stringify(filters));
     
     try {
-      // Make sure we connect to relays first
-      const relays = nostrService.getRelayUrls();
+      // CRITICAL FIX: Ensure we have relay connections and wait for them
+      const relays = await ensureRelayConnections();
       
       if (relays.length === 0) {
-        console.warn("No connected relays found, attempting to connect to default relays");
-        
-        // Here we need to handle async properly - we'll subscribe after connecting
-        // Return the subscription ID directly instead of using the promise result
-        nostrService.connectToUserRelays().then(connectedRelays => {
-          if (connectedRelays.length === 0) {
-            console.error("Failed to connect to any relays");
-            return null;
-          }
-          
-          // Now subscribe with the connected relays
-          const newSubId = nostrService.subscribe(
-            filters,
-            handleEvent,
-            connectedRelays // Pass relays as the third argument
-          );
-          
-          // Update the subscription ID state
-          setSubId(newSubId);
-          return newSubId;
-        });
-        
-        return null; // Return null for now, will be updated by the promise
+        console.error("Failed to connect to any relays");
+        return null;
       }
       
       // Subscribe to events with the available relays
       const newSubId = nostrService.subscribe(
         filters,
         handleEvent,
-        relays // Pass relays as the third argument
+        relays
       );
       
+      // Update the subscription ID state
+      setSubId(newSubId);
       return newSubId;
     } catch (error) {
       console.error("Error setting up subscription:", error);
       return null;
     }
-  }, [following, activeHashtag, hashtags, limit, handleEvent, setSubId]);
+  }, [following, activeHashtag, hashtags, limit, handleEvent, ensureRelayConnections]);
+  
+  // Cleanup subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+    };
+  }, [subId]);
   
   // Expose whether we've received events through this subscription
   const hasReceivedEvents = useCallback(() => {
     return newEventsReceivedRef.current;
   }, []);
   
+  // Expose whether a connection attempt was made
+  const hasAttemptedConnection = useCallback(() => {
+    return connectionAttemptedRef.current;
+  }, []);
+  
   return {
     subId,
     setSubId,
     setupSubscription,
-    hasReceivedEvents
+    hasReceivedEvents,
+    hasAttemptedConnection
   };
 }
