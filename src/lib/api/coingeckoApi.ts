@@ -6,11 +6,21 @@
 
 // Price response interface from CoinGecko
 interface CoinGeckoPriceResponse {
-  alephium: {
+  [coinId: string]: {
     usd: number;
     usd_24h_change?: number;
     last_updated_at?: number;
   };
+}
+
+// Market data response for multiple coins
+interface MarketDataResponse {
+  id: string;
+  symbol: string;
+  name: string;
+  current_price: number;
+  market_cap_rank: number;
+  price_change_percentage_24h: number;
 }
 
 // Market chart data response interface
@@ -30,6 +40,19 @@ interface CachedPriceData {
   expiresAt: number;
 }
 
+// Cached market data for multiple coins
+interface CachedMarketData {
+  data: {
+    id: string;
+    name: string;
+    symbol: string;
+    price: number;
+    priceChange24h: number;
+    marketCapRank: number;
+  }[];
+  expiresAt: number;
+}
+
 // Constants
 const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
 const ALPH_COINGECKO_ID = "alephium";
@@ -37,6 +60,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // In-memory cache for price data
 let cachedPriceData: CachedPriceData | null = null;
+let cachedMarketData: CachedMarketData | null = null;
 
 /**
  * Fetches current ALPH price data from CoinGecko
@@ -83,6 +107,90 @@ export const getAlephiumPrice = async (): Promise<{
       return cachedPriceData.data;
     }
     return { price: 0.78, priceChange24h: 0, lastUpdated: new Date() };
+  }
+};
+
+/**
+ * Fetches multiple coins' price data from CoinGecko
+ */
+export const getMultipleCoinsPrice = async (coinIds: string[]): Promise<{
+  id: string;
+  name: string;
+  symbol: string;
+  price: number;
+  priceChange24h: number;
+  marketCapRank: number;
+}[]> => {
+  // Return cached data if still valid
+  const currentTime = Date.now();
+  if (cachedMarketData && currentTime < cachedMarketData.expiresAt) {
+    console.log("Using cached market data");
+    return cachedMarketData.data;
+  }
+  
+  try {
+    const response = await fetch(
+      `${COINGECKO_API_BASE}/coins/markets?vs_currency=usd&ids=${coinIds.join(',')}&order=market_cap_desc&per_page=${coinIds.length}&page=1&sparkline=false&price_change_percentage=24h`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch market data: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json() as MarketDataResponse[];
+    console.log("Fetched market data:", data);
+    
+    const formattedData = data.map(coin => ({
+      id: coin.id,
+      name: coin.name,
+      symbol: coin.symbol,
+      price: coin.current_price,
+      priceChange24h: coin.price_change_percentage_24h,
+      marketCapRank: coin.market_cap_rank
+    }));
+    
+    // Cache the data
+    cachedMarketData = {
+      data: formattedData,
+      expiresAt: currentTime + CACHE_DURATION
+    };
+    
+    return formattedData;
+  } catch (error) {
+    console.error("Error fetching market data:", error);
+    
+    // Return last cached data if available, otherwise fall back to defaults
+    if (cachedMarketData) {
+      return cachedMarketData.data;
+    }
+    
+    // Return mock data as fallback
+    return [
+      { 
+        id: 'bitcoin', 
+        name: 'Bitcoin', 
+        symbol: 'btc', 
+        price: 67000, 
+        priceChange24h: 2.5, 
+        marketCapRank: 1 
+      },
+      { 
+        id: 'alephium', 
+        name: 'Alephium', 
+        symbol: 'alph', 
+        price: 0.78, 
+        priceChange24h: -1.2, 
+        marketCapRank: 268 
+      },
+      { 
+        id: 'ergo', 
+        name: 'Ergo', 
+        symbol: 'erg', 
+        price: 1.42, 
+        priceChange24h: 0.8, 
+        marketCapRank: 302 
+      }
+    ];
   }
 };
 

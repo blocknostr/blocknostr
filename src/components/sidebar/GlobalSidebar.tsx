@@ -10,8 +10,8 @@ import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "@/components/auth/LoginDialog";
 import WorldChat from "@/components/chat/WorldChat";
 
-// Lazy load SavedHashtags for better performance
-const SavedHashtags = React.lazy(() => import("@/components/feed/SavedHashtags"));
+// Lazy load CryptoTracker for better performance
+const CryptoTracker = React.lazy(() => import("@/components/crypto/CryptoTracker"));
 
 interface GlobalSidebarProps {
   rightPanelOpen: boolean;
@@ -35,8 +35,8 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
   const isLoggedIn = !!chatNostrService.publicKey;
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
-  const hashtagsFallback = (
-    <div className="h-[100px] flex items-center justify-center">
+  const cryptoTrackerFallback = (
+    <div className="h-[160px] flex items-center justify-center">
       <Loader2 className="h-4 w-4 text-primary/50 animate-spin" />
     </div>
   );
@@ -84,9 +84,9 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             <GlobalSearch />
           </div>
           
-          <div className="hashtags-section">
-            <Suspense fallback={hashtagsFallback}>
-              <SavedHashtags onTopicClick={onTopicClick} />
+          <div className="crypto-section">
+            <Suspense fallback={cryptoTrackerFallback}>
+              <CryptoTracker />
             </Suspense>
           </div>
           
@@ -113,9 +113,9 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
               <GlobalSearch />
             </div>
             
-            <div className="hashtags-section">
-              <Suspense fallback={hashtagsFallback}>
-                <SavedHashtags onTopicClick={onTopicClick} />
+            <div className="crypto-section">
+              <Suspense fallback={cryptoTrackerFallback}>
+                <CryptoTracker />
               </Suspense>
             </div>
             
