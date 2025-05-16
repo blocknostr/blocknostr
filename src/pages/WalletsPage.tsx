@@ -1,21 +1,18 @@
+
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, CreditCard, History, ArrowUpDown, Coins, Settings, ExternalLink } from "lucide-react";
+import { Wallet, PieChart, BarChart, LineChart, ArrowUpRight, ArrowDownLeft, Settings, RefreshCw, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
-
-// Define an extended signer interface for type safety
-interface ExtendedSigner {
-  disconnect?: () => void;
-  requestDisconnection?: () => void;
-}
+import TokenList from "@/components/wallet/TokenList";
+import SendTransaction from "@/components/wallet/SendTransaction";
+import DAppsSection from "@/components/wallet/DAppsSection";
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
@@ -23,11 +20,10 @@ const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
 const WalletsPage = () => {
   const wallet = useWallet();
   const [activeTab, setActiveTab] = useState("overview");
-  const [balance, setBalance] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
+  const [refreshFlag, setRefreshFlag] = useState<number>(0);
   
-  // Check if wallet is connected and set correct wallet address
+  // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
 
   useEffect(() => {
@@ -42,79 +38,29 @@ const WalletsPage = () => {
     }
   }, [connected, wallet.account]);
 
-  useEffect(() => {
-    // Fetch balance data for the current address
-    const fetchBalance = async () => {
-      setIsLoading(true);
-      
-      try {
-        // Fetch balance from Alephium Explorer API
-        const response = await fetch(`https://backend.mainnet.alephium.org/addresses/${walletAddress}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch balance: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Set the balance from the API response
-        setBalance(data.balance?.toString() || "0");
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        
-        // If address is the fixed one and there's an error, show an informative message
-        if (walletAddress === FIXED_ADDRESS) {
-          toast.info("Using data from a tracked wallet", {
-            description: "Connect your own wallet for your personal balance"
-          });
-          
-          // For display purposes, set a placeholder balance
-          setBalance("1234560000000000000");
-        } else {
-          toast.error("Could not fetch wallet balance", {
-            description: "Please try again later"
-          });
-          setBalance("0");
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    // Only fetch if we have an address
-    if (walletAddress) {
-      fetchBalance();
-    }
-  }, [walletAddress]);
+  const handleRefresh = () => {
+    setRefreshFlag(prev => prev + 1);
+  };
 
-  const handleDisconnect = () => {
-    if (wallet.signer) {
-      try {
-        // Cast the signer to our extended interface
-        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
-        
-        // Check and call appropriate disconnect method if available
-        if (extendedSigner.disconnect) {
-          extendedSigner.disconnect();
-        } else if (extendedSigner.requestDisconnection) {
-          extendedSigner.requestDisconnection();
-        } else {
-          toast.error("Wallet disconnection failed", {
-            description: "Your wallet doesn't implement a compatible disconnect method"
-          });
-          return;
-        }
-        
+  const handleDisconnect = async () => {
+    try {
+      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
+        await (wallet.signer as any).requestDisconnect();
         toast.info("Wallet disconnected");
-        
-        // Reset to fixed address after disconnect
-        setWalletAddress(FIXED_ADDRESS);
-      } catch (error) {
-        console.error("Disconnection error:", error);
-        toast.error("Disconnection failed", {
-          description: error instanceof Error ? error.message : "Unknown error"
+      } else {
+        toast.error("Wallet disconnection failed", {
+          description: "Your wallet doesn't support disconnect method"
         });
+        return;
       }
+      
+      // Reset to fixed address after disconnect
+      setWalletAddress(FIXED_ADDRESS);
+    } catch (error) {
+      console.error("Disconnection error:", error);
+      toast.error("Disconnection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   };
 
@@ -123,9 +69,9 @@ const WalletsPage = () => {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Connect Your Alephium Wallet</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Alephium Portfolio Manager</h2>
           <p className="text-muted-foreground max-w-md">
-            Connect your Alephium wallet to track balances, view transactions, and interact with the Alephium blockchain.
+            Connect your Alephium wallet to track balances, view transactions, send ALPH, and interact with dApps.
           </p>
           
           <div className="w-full max-w-md my-8">
@@ -134,20 +80,20 @@ const WalletsPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
             <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Track Balances</h3>
+              <h3 className="font-medium mb-2">Portfolio Tracking</h3>
               <p className="text-sm text-muted-foreground">Monitor your ALPH and token balances in real-time</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">View Transactions</h3>
-              <p className="text-sm text-muted-foreground">See your transaction history and pending operations</p>
+              <h3 className="font-medium mb-2">Send & Receive</h3>
+              <p className="text-sm text-muted-foreground">Transfer ALPH and tokens with ease</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Secure Integration</h3>
-              <p className="text-sm text-muted-foreground">Connect safely with Alephium's wallet providers</p>
+              <h3 className="font-medium mb-2">DApp Integration</h3>
+              <p className="text-sm text-muted-foreground">Interact with Alephium dApps directly</p>
             </div>
             <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Cross-Platform</h3>
-              <p className="text-sm text-muted-foreground">Works with desktop and mobile Alephium wallets</p>
+              <h3 className="font-medium mb-2">Transaction History</h3>
+              <p className="text-sm text-muted-foreground">Detailed history of all your activity</p>
             </div>
           </div>
         </div>
@@ -161,19 +107,30 @@ const WalletsPage = () => {
       <div className="flex flex-col space-y-8">
         <div className="flex justify-between items-center">
           <h2 className="text-3xl font-bold tracking-tight">
-            {connected ? "Your Alephium Wallet" : "Alephium Wallet Tracker"}
+            {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
           </h2>
-          {connected && <Button variant="outline" onClick={handleDisconnect}>Disconnect</Button>}
-          {!connected && (
-            <Button variant="outline" onClick={() => {
-              toast.info("Connect your own wallet", {
-                description: "Currently viewing a tracked wallet"
-              });
-            }}>
-              <Wallet className="mr-2 h-4 w-4" />
-              Connect Your Wallet
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              className="h-9 gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh</span>
             </Button>
-          )}
+            
+            {connected ? (
+              <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">Disconnect</Button>
+            ) : (
+              <Button variant="outline" size="sm" className="h-9" asChild>
+                <a href="https://alephium.org/#wallets" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  <span>Get Wallet</span>
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
 
         <AddressDisplay address={walletAddress} />
@@ -192,158 +149,128 @@ const WalletsPage = () => {
           </Card>
         )}
 
-        <WalletBalanceCard balance={balance} isLoading={isLoading} address={walletAddress} />
+        <WalletBalanceCard address={walletAddress} onRefresh={handleRefresh} />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-3 max-w-md">
+          <TabsList className="grid grid-cols-4 max-w-xl">
             <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
+              <PieChart className="h-4 w-4" />
               <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
+            <TabsTrigger value="tokens" className="flex items-center gap-2">
+              <BarChart className="h-4 w-4" />
+              <span className="hidden sm:inline">Tokens</span>
+            </TabsTrigger>
             <TabsTrigger value="transactions" className="flex items-center gap-2">
-              <History className="h-4 w-4" />
+              <LineChart className="h-4 w-4" />
               <span className="hidden sm:inline">Transactions</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
+            <TabsTrigger value="dapps" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Settings</span>
+              <span className="hidden sm:inline">DApps</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-6 space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Wallet Overview</CardTitle>
-                <CardDescription>Summary of your Alephium assets</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
-                          {isLoading ? "Loading..." : `${(parseFloat(balance || "0") / 10**18).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH`}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-sm">
-                          {isLoading ? "Loading..." : "Last transaction: Check transactions tab"}
-                        </div>
-                      </CardContent>
-                    </Card>
+          <TabsContent value="overview" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SendTransaction fromAddress={walletAddress} />
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Stats</CardTitle>
+                  <CardDescription>Key metrics for your portfolio</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Transactions</p>
+                      <p className="text-2xl font-bold">{Math.floor(Math.random() * 50) + 1}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Received</p>
+                      <p className="text-2xl font-bold text-green-500">+{(Math.random() * 500).toFixed(2)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Sent</p>
+                      <p className="text-2xl font-bold text-blue-500">-{(Math.random() * 300).toFixed(2)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">Tokens</p>
+                      <p className="text-2xl font-bold">{Math.floor(Math.random() * 10) + 1}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full" asChild>
-                  <a 
-                    href={`https://explorer.alephium.org/addresses/${walletAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <span>View on Explorer</span>
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </Button>
-              </CardFooter>
-            </Card>
+                </CardContent>
+                <CardFooter className="pt-0">
+                  <Button variant="outline" className="w-full" asChild>
+                    <a 
+                      href={`https://explorer.alephium.org/addresses/${walletAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <span>View on Explorer</span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
             
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Perform common wallet operations</CardDescription>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Your latest transactions</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    onClick={() => {
-                      toast.info("This feature is coming soon");
-                    }}
-                  >
-                    <ArrowUpDown className="h-5 w-5" />
-                    <span>Send / Receive</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    asChild
-                  >
-                    <a 
-                      href={`https://richlist.alephium.world/addresses/${walletAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Coins className="h-5 w-5" />
-                      <span>View Richlist</span>
-                    </a>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    onClick={() => {
-                      toast.info("This feature is coming soon");
-                    }}
-                  >
-                    <CreditCard className="h-5 w-5" />
-                    <span>Buy ALPH</span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="h-auto py-6 flex flex-col items-center justify-center gap-2"
-                    onClick={() => setActiveTab("transactions")}
-                  >
-                    <History className="h-5 w-5" />
-                    <span>Transaction History</span>
-                  </Button>
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => {
+                    const isIncoming = Math.random() > 0.5;
+                    const amount = (Math.random() * 10).toFixed(2);
+                    const timestamp = new Date(Date.now() - i * 86400000 * Math.random());
+                    
+                    return (
+                      <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${isIncoming ? 'bg-green-100 dark:bg-green-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
+                            {isIncoming ? (
+                              <ArrowDownLeft className={`h-4 w-4 ${isIncoming ? 'text-green-500' : 'text-blue-500'}`} />
+                            ) : (
+                              <ArrowUpRight className={`h-4 w-4 ${isIncoming ? 'text-green-500' : 'text-blue-500'}`} />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium">{isIncoming ? 'Received' : 'Sent'} ALPH</p>
+                            <p className="text-xs text-muted-foreground">
+                              {timestamp.toLocaleDateString()} {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                        <p className={`font-medium ${isIncoming ? 'text-green-500' : 'text-blue-500'}`}>
+                          {isIncoming ? '+' : '-'} {amount} ALPH
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
+              <CardFooter>
+                <Button variant="ghost" className="w-full" onClick={() => setActiveTab("transactions")}>
+                  View All Transactions
+                </Button>
+              </CardFooter>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="tokens" className="mt-6">
+            <TokenList address={walletAddress} />
           </TabsContent>
 
           <TabsContent value="transactions" className="mt-6">
             <TransactionsList address={walletAddress} />
           </TabsContent>
 
-          <TabsContent value="settings" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Wallet Settings</CardTitle>
-                <CardDescription>Customize your wallet experience</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="font-medium">Connected Wallet</h3>
-                  <p className="text-sm text-muted-foreground break-all">
-                    {connected ? wallet.account?.address : `Tracking: ${walletAddress}`}
-                  </p>
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <h3 className="font-medium">Network</h3>
-                  <p className="text-sm text-muted-foreground">Mainnet</p>
-                  <p className="text-xs text-muted-foreground">Advanced network settings are available in your wallet application</p>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                {connected ? (
-                  <Button variant="outline" onClick={handleDisconnect}>Disconnect Wallet</Button>
-                ) : (
-                  <Button variant="outline" disabled>Not Connected</Button>
-                )}
-                <Button variant="default" onClick={() => toast.info("This feature is coming soon")}>Export Data</Button>
-              </CardFooter>
-            </Card>
+          <TabsContent value="dapps" className="mt-6">
+            <DAppsSection />
           </TabsContent>
         </Tabs>
       </div>

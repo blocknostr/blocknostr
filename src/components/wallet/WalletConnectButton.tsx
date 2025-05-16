@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Shield, ExternalLink, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,12 +9,6 @@ import { toast } from "sonner";
 
 interface WalletConnectButtonProps {
   className?: string;
-}
-
-// Define an extended signer interface for type safety
-interface ExtendedSigner {
-  connect?: () => void;
-  requestConnection?: () => void;
 }
 
 const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
@@ -37,28 +32,24 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     return () => clearInterval(intervalId);
   }, []);
 
-  const handleConnect = () => {
-    if (wallet.signer) {
-      try {
-        // Cast the signer to our extended interface
-        const extendedSigner = wallet.signer as unknown as ExtendedSigner;
-        
-        // Check and call appropriate connect method if available
-        if (extendedSigner.connect) {
-          extendedSigner.connect();
-        } else if (extendedSigner.requestConnection) {
-          extendedSigner.requestConnection();
-        } else {
-          toast.error("Wallet connection failed", {
-            description: "Your wallet doesn't implement a compatible connect method"
-          });
-        }
-      } catch (error) {
-        console.error("Connection error:", error);
-        toast.error("Connection failed", {
-          description: error instanceof Error ? error.message : "Unknown error"
+  const handleConnect = async () => {
+    try {
+      // Request wallet connection using wallet.signer object
+      if (wallet.signer) {
+        await (wallet.signer as any).requestAuth();
+        toast.success("Wallet connection requested", {
+          description: "Please approve the connection in your wallet"
+        });
+      } else {
+        toast.error("Wallet connection failed", {
+          description: "No compatible wallet provider found"
         });
       }
+    } catch (error) {
+      console.error("Connection error:", error);
+      toast.error("Connection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   };
 
@@ -69,6 +60,7 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
     return (
       <Button
         className={cn("w-full", className)}
+        variant="outline"
         disabled
       >
         <Wallet className="mr-2 h-4 w-4" />

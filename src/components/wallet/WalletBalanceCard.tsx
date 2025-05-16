@@ -2,36 +2,72 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Coins } from "lucide-react";
+import { Wallet, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { getAddressBalance } from "@/lib/api/alephiumApi"; 
 import { toast } from "sonner";
 
 interface WalletBalanceCardProps {
-  balance: string | null;
-  isLoading: boolean;
-  address?: string;
+  address: string;
+  onRefresh?: () => void;
 }
 
-const WalletBalanceCard = ({ balance, isLoading, address }: WalletBalanceCardProps) => {
+const WalletBalanceCard = ({ address, onRefresh }: WalletBalanceCardProps) => {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [lockedBalance, setLockedBalance] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
-  // Format balance with commas for thousands
-  const formatBalance = (balanceStr: string | null) => {
-    if (!balanceStr) return "0.00";
+  const fetchBalance = async () => {
+    if (!address) return;
     
-    // Convert from ALPH units (smallest denomination) to ALPH
-    const balanceInALPH = parseFloat(balanceStr) / 10**18;
-    return balanceInALPH.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    setIsLoading(true);
+    
+    try {
+      const data = await getAddressBalance(address);
+      setBalance(data.balance);
+      setLockedBalance(data.lockedBalance);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error fetching balance:', error);
+      toast.error("Could not fetch wallet balance", {
+        description: "Please try again later"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchBalance();
+  }, [address]);
+
+  const handleRefresh = () => {
+    fetchBalance();
+    if (onRefresh) onRefresh();
   };
   
   return (
     <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <div className="space-y-1">
-          <CardTitle className="text-xl">Wallet Balance</CardTitle>
-          <CardDescription>Your current Alephium balance</CardDescription>
+          <CardTitle className="text-xl">Portfolio Balance</CardTitle>
+          <CardDescription>Your current Alephium holdings</CardDescription>
         </div>
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Coins className="h-6 w-6 text-primary" />
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={isLoading}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="sr-only">Refresh</span>
+          </Button>
+          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Wallet className="h-6 w-6 text-primary" />
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -42,8 +78,17 @@ const WalletBalanceCard = ({ balance, isLoading, address }: WalletBalanceCardPro
           </div>
         ) : (
           <>
-            <div className="text-3xl font-bold">{formatBalance(balance)} ALPH</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-3xl font-bold">
+              {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"} ALPH
+            </div>
+            
+            {lockedBalance !== null && lockedBalance > 0 && (
+              <div className="text-sm text-muted-foreground mt-1">
+                + {lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH locked
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground mt-2">
               Last updated: {lastUpdated.toLocaleTimeString()}
             </p>
           </>

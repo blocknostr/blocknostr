@@ -4,19 +4,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react";
+import { getAddressTransactions } from "@/lib/api/alephiumApi";
 import { toast } from "sonner";
-
-interface Transaction {
-  id: string;
-  type: 'sent' | 'received';
-  amount: string;
-  timestamp: number;
-  status: 'confirmed' | 'pending';
-  address: string;
-}
 
 interface TransactionsListProps {
   address: string;
+}
+
+interface Transaction {
+  hash: string;
+  blockHash: string;
+  timestamp: number;
+  inputs: Array<{
+    address: string;
+    amount: string;
+  }>;
+  outputs: Array<{
+    address: string;
+    amount: string;
+  }>;
 }
 
 const TransactionsList = ({ address }: TransactionsListProps) => {
@@ -30,75 +36,22 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Try to fetch transaction data from the Alephium Explorer API
-        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch transactions: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        // Transform the data into our transaction format
-        // Note: This transformation is an approximation as the exact API response format may differ
-        const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
-          const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
-          
-          return {
-            id: tx.hash || tx.txId,
-            type: isSent ? 'sent' : 'received',
-            amount: tx.amount || (tx.outputs?.[0]?.amount ?? "0"),
-            timestamp: tx.timestamp || Date.now(),
-            status: 'confirmed',
-            address: isSent 
-              ? (tx.outputs?.[0]?.address || 'Unknown') 
-              : (tx.inputs?.[0]?.address || 'Unknown')
-          };
-        });
-        
-        setTransactions(formattedTransactions);
+        const result = await getAddressTransactions(address);
+        setTransactions(result);
       } catch (error) {
         console.error('Error fetching transactions:', error);
-        // Fallback to mock data if API fails
-        const mockTransactions: Transaction[] = [
-          {
-            id: "0x123456789abcdef",
-            type: "received",
-            amount: "100.00",
-            timestamp: Date.now() - 3600000 * 2,
-            status: "confirmed",
-            address: "0xabcdef123456789"
-          },
-          {
-            id: "0x987654321fedcba",
-            type: "sent",
-            amount: "50.25",
-            timestamp: Date.now() - 86400000,
-            status: "confirmed",
-            address: "0x567890abcdef123"
-          },
-          {
-            id: "0xabcdef123456789",
-            type: "received",
-            amount: "250.75",
-            timestamp: Date.now() - 86400000 * 3,
-            status: "confirmed",
-            address: "0x123abcdef456789"
-          },
-          {
-            id: "0x456789abcdef123",
-            type: "sent",
-            amount: "75.50",
-            timestamp: Date.now() - 86400000 * 7,
-            status: "confirmed",
-            address: "0x789abcdef123456"
-          }
-        ];
         
-        setTransactions(mockTransactions);
         toast.error("Could not fetch transaction history", {
           description: "Using sample data instead"
         });
+        
+        setTransactions([{
+          hash: "0x123456789abcdef",
+          blockHash: "0xblockhashabcdef",
+          timestamp: Date.now() - 3600000,
+          inputs: [{ address: "0xabcdef123456789", amount: "100000000000000000" }],
+          outputs: [{ address: address, amount: "100000000000000000" }]
+        }]);
       } finally {
         setIsLoading(false);
       }
@@ -117,6 +70,55 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
   const truncateAddress = (addr: string) => {
     if (!addr) return '';
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+  };
+  
+  // Helper to determine if transaction is incoming or outgoing
+  const getTransactionType = (tx: Transaction) => {
+    // If any output is to this address, it's incoming
+    const isIncoming = tx.outputs.some(output => output.address === address);
+    // If any input is from this address, it's outgoing
+    const isOutgoing = tx.inputs.some(input => input.address === address);
+    
+    if (isIncoming && !isOutgoing) return 'received';
+    if (isOutgoing) return 'sent';
+    return 'unknown';
+  };
+  
+  // Calculate amount transferred to/from this address
+  const getTransactionAmount = (tx: Transaction) => {
+    const type = getTransactionType(tx);
+    
+    if (type === 'received') {
+      // Sum all outputs to this address
+      const amount = tx.outputs
+        .filter(output => output.address === address)
+        .reduce((sum, output) => sum + Number(output.amount), 0);
+      return amount / 10**18; // Convert from nanoALPH to ALPH
+    } else if (type === 'sent') {
+      // This is a simplification - for accurate accounting we'd need to track change outputs
+      const amount = tx.outputs
+        .filter(output => output.address !== address)
+        .reduce((sum, output) => sum + Number(output.amount), 0);
+      return amount / 10**18; // Convert from nanoALPH to ALPH
+    }
+    
+    return 0;
+  };
+  
+  // Get the counterparty address
+  const getCounterpartyAddress = (tx: Transaction) => {
+    const type = getTransactionType(tx);
+    
+    if (type === 'received') {
+      // The first input address is usually the sender
+      return tx.inputs[0]?.address || 'Unknown';
+    } else if (type === 'sent') {
+      // The first non-self output is usually the recipient
+      const recipient = tx.outputs.find(output => output.address !== address);
+      return recipient?.address || 'Unknown';
+    }
+    
+    return 'Unknown';
   };
 
   return (
@@ -147,35 +149,41 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {tx.type === 'received' ? (
-                        <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <ArrowUpRight className="h-4 w-4 text-blue-500" />
-                      )}
-                      <span className="capitalize">{tx.type}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className={tx.type === 'received' ? 'text-green-500' : 'text-blue-500'}>
-                    {tx.type === 'received' ? '+' : '-'} {tx.amount} ALPH
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">{truncateAddress(tx.address)}</TableCell>
-                  <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
-                  <TableCell className="text-right">
-                    <a
-                      href={`https://explorer.alephium.org/transactions/${tx.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-primary hover:underline"
-                    >
-                      View <ExternalLink className="ml-1 h-3 w-3" />
-                    </a>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {transactions.map((tx) => {
+                const type = getTransactionType(tx);
+                const amount = getTransactionAmount(tx);
+                const counterparty = getCounterpartyAddress(tx);
+                
+                return (
+                  <TableRow key={tx.hash}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {type === 'received' ? (
+                          <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                        )}
+                        <span className="capitalize">{type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className={type === 'received' ? 'text-green-500' : 'text-blue-500'}>
+                      {type === 'received' ? '+' : '-'} {amount.toFixed(4)} ALPH
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{truncateAddress(counterparty)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
+                    <TableCell className="text-right">
+                      <a
+                        href={`https://explorer.alephium.org/transactions/${tx.hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-primary hover:underline"
+                      >
+                        View <ExternalLink className="ml-1 h-3 w-3" />
+                      </a>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
