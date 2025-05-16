@@ -7,7 +7,7 @@ const GamesPage = () => {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
-        heading="Games"
+        title="Games"
         description="Play games on the Alephium blockchain"
       />
       
