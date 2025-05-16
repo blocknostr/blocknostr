@@ -27,7 +27,11 @@ const MobileSidebar = ({ isOpen, onOpenChange }: MobileSidebarProps) => {
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="p-0 ios-safe-padding-top ios-safe-padding-bottom" {...swipeHandlers}>
+      <SheetContent 
+        side="left" 
+        className="p-0 ios-safe-padding-top ios-safe-padding-bottom ios-full-height"
+        {...swipeHandlers}
+      >
         <div className="h-full overscroll-none">
           <Sidebar />
         </div>
