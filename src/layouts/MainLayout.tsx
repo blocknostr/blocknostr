@@ -22,7 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [iOSSafeArea, setIOSSafeArea] = useState(false);
   
-  // Check for iOS device and set viewport height
+  // Check for iOS device
   useEffect(() => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIOSSafeArea(isIOS);
@@ -30,28 +30,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     // Add class to body for iOS-specific styling
     if (isIOS) {
       document.body.classList.add('ios-device');
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
       
-      // Set custom viewport height property
-      const setVhProperty = () => {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      // Update on resize or orientation change
+      const updateHeight = () => {
+        document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
       };
       
-      // Initial set
-      setVhProperty();
-      
-      // Update on resize or orientation change for better adaptability
-      window.addEventListener('resize', setVhProperty);
-      window.addEventListener('orientationchange', setVhProperty);
-      
-      // Handle safe area insets for notches and home indicators
-      document.body.classList.add('ios-safe-area');
+      window.addEventListener('resize', updateHeight);
+      window.addEventListener('orientationchange', updateHeight);
       
       return () => {
-        window.removeEventListener('resize', setVhProperty);
-        window.removeEventListener('orientationchange', setVhProperty);
+        window.removeEventListener('resize', updateHeight);
+        window.removeEventListener('orientationchange', updateHeight);
         document.body.classList.remove('ios-device');
-        document.body.classList.remove('ios-safe-area');
       };
     }
   }, []);
@@ -103,7 +95,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Close panels when clicking on main content (mobile only)
   const handleMainContentClick = () => {
-    if (isMobile) { // Fixed the typo here from iMobile to isMobile
+    if (isMobile) {
       setLeftPanelOpen(false);
       setRightPanelOpen(false);
     }
@@ -114,8 +106,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <div
         className={cn(
           "flex min-h-screen bg-background relative overscroll-none",
-          iOSSafeArea ? "ios-full-height" : "",
-          preferences.uiPreferences?.compactMode ? "text-sm" : ""
+          preferences.uiPreferences?.compactMode ? "text-sm" : "",
+          iOSSafeArea ? "ios-safe-area" : ""
         )}
       >
         {/* Desktop sidebar - only visible on non-mobile */}
@@ -123,7 +115,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
         <div
           className={cn(
-            "flex-1 transition-all duration-200 flex-fill-screen",
+            "flex-1 transition-all duration-200",
             !isMobile && "ml-64",
             iOSSafeArea && "ios-safe-padding-bottom"
           )}
@@ -138,10 +130,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             onClearHashtag={clearHashtag}
           />
 
-          <div className="flex stretch-content">
+          <div className="flex">
             <main
               className={cn(
-                "flex-1 min-h-screen mt-14 stretch-content", /* Added top margin for header */
+                "flex-1 min-h-screen mt-14", /* Added top margin for header */
                 iOSSafeArea && "ios-safe-padding-bottom"
               )}
               onClick={handleMainContentClick}
