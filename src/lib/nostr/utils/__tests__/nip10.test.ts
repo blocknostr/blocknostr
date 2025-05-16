@@ -1,5 +1,5 @@
 
-import { validateNip10Tags, parseThreadTags } from '../nip';
+import { validateNip10Tags, parseThreadTags } from '../nip/nip10';
 
 describe('NIP-10 Tags Validation', () => {
   test('should validate correctly formed e-tags', () => {

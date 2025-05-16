@@ -65,7 +65,7 @@ export const useMessaging = () => {
       
       // Update messages if this contact is active
       if (activeContact && activeContact.pubkey === otherPubkey) {
-        const message = {
+        const message: Message = {
           id: event.id || '',
           content,
           sender: event.pubkey || '',
@@ -182,7 +182,7 @@ export const useMessaging = () => {
             }
           }
           
-          const message = {
+          const message: Message = {
             id: event.id || '',
             content,
             sender: event.pubkey || '',
@@ -223,16 +223,19 @@ export const useMessaging = () => {
       if (messageId) {
         console.log("Message sent successfully with ID:", messageId);
         
-        // Add message to the UI immediately
-        const message = {
-          id: messageId,
+        // Add message to the UI immediately - Fix the type issue here
+        const message: Message = {
+          id: messageId,  // Ensure this is a string, not boolean
           content: newMessage,
           sender: currentUserPubkey,
           recipient: activeContact.pubkey,
           created_at: Math.floor(Date.now() / 1000)
         };
         
-        setMessages(prev => [...prev, message].sort((a, b) => a.created_at - b.created_at));
+        setMessages(prev => {
+          const newMessages = [...prev, message].sort((a, b) => a.created_at - b.created_at);
+          return newMessages;
+        });
         
         // Update last message for contact
         setContacts(prev => {

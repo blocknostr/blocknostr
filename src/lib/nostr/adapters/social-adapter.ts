@@ -1,13 +1,29 @@
-
 /**
  * SocialAdapter for handling social interactions like following, DMs, etc.
  */
 export class SocialAdapter {
   private service: any;
   private _following: string[] = [];
+  public socialManager: any; // Add socialManager property
   
   constructor(service: any) {
     this.service = service;
+    // Initialize socialManager with basic implementation
+    this.socialManager = {
+      likeEvent: async (event: any): Promise<string | null> => {
+        return this.reactToEvent(event.id, '+');
+      },
+      repostEvent: async (event: any): Promise<string | null> => {
+        console.log('Repost event not implemented yet');
+        return null;
+      },
+      getReactionCounts: async (eventId: string): Promise<{ likes: number, reposts: number }> => {
+        return { likes: 0, reposts: 0 };
+      },
+      reactToEvent: async (eventId: string, emoji?: string): Promise<string | null> => {
+        return this.reactToEvent(eventId, emoji || '+');
+      }
+    };
   }
   
   /**
@@ -38,10 +54,10 @@ export class SocialAdapter {
    * React to an event with the specified content (like, dislike, etc.)
    * Implements NIP-25 reactions
    */
-  async reactToEvent(eventId: string, reaction: string): Promise<boolean> {
+  async reactToEvent(eventId: string, reaction: string): Promise<string | null> {
     if (!this.service.publicKey) {
       console.error('Cannot react to event: User not logged in');
-      return false;
+      return null;
     }
     
     try {
@@ -59,14 +75,14 @@ export class SocialAdapter {
       
       if (reactionId) {
         console.log(`Reaction published with ID: ${reactionId}`);
-        return true;
+        return reactionId;
       } else {
         console.warn('Failed to publish reaction');
-        return false;
+        return null;
       }
     } catch (error) {
       console.error('Error reacting to event:', error);
-      return false;
+      return null;
     }
   }
   

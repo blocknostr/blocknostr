@@ -1,4 +1,3 @@
-
 /**
  * NIP-10: Thread Replies
  * https://github.com/nostr-protocol/nips/blob/master/10.md
@@ -111,4 +110,67 @@ export const createThreadingTags = (options: {
   }
   
   return tags;
+};
+
+/**
+ * Parse thread tags from an event's tags array
+ * This is useful for understanding the thread structure
+ */
+export const parseThreadTags = (tags: string[][]): { rootId: string | null, replyId: string | null, mentions: string[] } => {
+  let rootId: string | null = null;
+  let replyId: string | null = null;
+  const mentions: string[] = [];
+  
+  // Process e-tags
+  const eTags = tags.filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e');
+  
+  for (const tag of eTags) {
+    if (tag.length >= 4) {
+      // Check for marked tags
+      if (tag[3] === 'root') {
+        rootId = tag[1];
+      } else if (tag[3] === 'reply') {
+        replyId = tag[1];
+      } else {
+        // Other marked tags are considered mentions
+        mentions.push(tag[1]);
+      }
+    } else {
+      // Unmarked e-tags
+      if (!rootId && !replyId) {
+        // First unmarked e-tag is considered both root and reply
+        rootId = tag[1];
+        replyId = tag[1];
+      } else {
+        // Subsequent unmarked e-tags are mentions
+        mentions.push(tag[1]);
+      }
+    }
+  }
+  
+  return { rootId, replyId, mentions };
+};
+
+/**
+ * Validate NIP-10 tags for proper formatting
+ */
+export const validateNip10Tags = (tags: string[][]): { valid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  // Check e-tags for proper format
+  const eTags = tags.filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e');
+  
+  eTags.forEach((tag, index) => {
+    // Check event ID format (should be a 64-character hex string)
+    if (!/^[0-9a-f]{64}$/.test(tag[1])) {
+      errors.push(`E-tag at index ${index} has an invalid event ID: ${tag[1]}`);
+    }
+    
+    // Check for proper marker if present
+    if (tag.length >= 4 && tag[3] && !['root', 'reply', 'mention'].includes(tag[3])) {
+      errors.push(`E-tag at index ${index} has an invalid marker: ${tag[3]}`);
+    }
+  });
+  
+  return { valid: errors.length === 0, errors };
 };

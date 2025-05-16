@@ -1,10 +1,10 @@
 
 import { 
   getAccountCreationDate,
-  parseThreadTags,
   verifyNip05,
   parseRelayList
 } from '../nip';
+import { parseThreadTags } from '../nip/nip10'; // Import from the specific module
 import { NostrEvent } from "../../types";
 
 describe('NIP-01: Account Creation Date', () => {
