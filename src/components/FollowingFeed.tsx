@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import FeedEmptyState from "./feed/FeedEmptyState";
 import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
@@ -18,6 +18,8 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
   activeHashtag,
   onLoadingChange
 }) => {
+  const [initialRender, setInitialRender] = useState(true);
+  
   const {
     events,
     profiles,
@@ -35,30 +37,43 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
     isRetrying
   } = useFollowingFeed({ activeHashtag });
 
+  // Handle initial rendering optimization
+  useEffect(() => {
+    if (initialRender && events.length > 0) {
+      setInitialRender(false);
+    }
+  }, [events.length, initialRender]);
+
   // Notify parent component of loading state changes
   useEffect(() => {
     // Update loading state via callback if provided
     if (onLoadingChange) {
-      onLoadingChange(loading || loadingFromCache);
+      // Only report loading if we're actually loading AND don't have any events
+      const shouldShowLoading = (loading || loadingFromCache || isRetrying) && 
+                               (events.length === 0 || initialRender);
+      onLoadingChange(shouldShowLoading);
     }
     
     // Dispatch custom event for global notification of loading state changes
     window.dispatchEvent(new CustomEvent('feed-loading-change', { 
-      detail: { isLoading: loading || loadingFromCache || isRetrying }
+      detail: { 
+        isLoading: (loading || loadingFromCache || isRetrying) && 
+                   (events.length === 0 || initialRender)
+      }
     }));
     
-  }, [loading, loadingFromCache, isRetrying, onLoadingChange]);
+  }, [loading, loadingFromCache, isRetrying, onLoadingChange, events.length, initialRender]);
 
   return (
     <>
       {/* Show cache status if we're showing cached content */}
-      {cacheHit && lastUpdated && (
+      {cacheHit && lastUpdated && !loading && events.length > 0 && (
         <Alert variant="default" className="mb-4 bg-primary/10 border-primary/20">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <HistoryIcon className="h-4 w-4 text-primary" />
               <AlertDescription>
-                Showing cached content from {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+                Showing posts from {formatDistanceToNow(lastUpdated, { addSuffix: true })}
               </AlertDescription>
             </div>
             <Button 
@@ -75,7 +90,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
       )}
       
       {/* Show loading state when no events and loading */}
-      {(loading || loadingFromCache) && events.length === 0 && (
+      {((loading || loadingFromCache) && events.length === 0) && (
         <FeedLoading activeHashtag={activeHashtag} />
       )}
       
@@ -86,17 +101,19 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
 
       {/* Show events list with auto-loading functionality */}
       {events.length > 0 && (
-        <FeedList 
-          events={events}
-          profiles={profiles}
-          repostData={repostData}
-          loadMoreRef={loadMoreRef}
-          loading={loading}
-          onRefresh={refreshFeed}
-          onLoadMore={loadMoreEvents}
-          hasMore={hasMore}
-          loadMoreLoading={loadingMore}
-        />
+        <div className={loading && initialRender ? "opacity-80 pointer-events-none" : ""}>
+          <FeedList 
+            events={events}
+            profiles={profiles}
+            repostData={repostData}
+            loadMoreRef={loadMoreRef}
+            loading={false} // Never show loading on the list itself to avoid re-renders
+            onRefresh={refreshFeed}
+            onLoadMore={loadMoreEvents}
+            hasMore={hasMore}
+            loadMoreLoading={loadingMore}
+          />
+        </div>
       )}
     </>
   );

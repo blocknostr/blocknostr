@@ -21,7 +21,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     profileData || null
   );
   const [isLoading, setIsLoading] = useState(!profileData && !!pubkey);
-  const [transitionStage, setTransitionStage] = useState<'initial' | 'loading' | 'loaded'>('initial');
   const [shouldFetch, setShouldFetch] = useState(false);
   
   // Generate stable npub and display values upfront, avoiding regeneration on re-renders
@@ -55,90 +54,86 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     return { npub, shortNpub, displayName, avatarFallback };
   }, [pubkey]);
   
-  // Effect to handle avatar visibility/interaction to trigger fetch
+  // Effect to handle intersection observer for lazy fetching
   useEffect(() => {
     // Initialize shouldFetch based on whether profileData was provided
     if (profileData || !pubkey) {
       setShouldFetch(false);
-    } else {
-      // Only set to true if the element is in viewport or user interacts
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            setShouldFetch(true);
-            observer.disconnect();
-          }
-        },
-        { threshold: 0.1 }
-      );
-      
-      const element = document.getElementById(`note-header-${pubkey.substring(0, 8)}`);
-      if (element) {
-        observer.observe(element);
-      }
-      
-      return () => {
-        observer.disconnect();
-      };
+      return;
     }
+    
+    // Set up intersection observer for lazy loading
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShouldFetch(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+    
+    const element = document.getElementById(`note-header-${pubkey.substring(0, 8)}`);
+    if (element) {
+      observer.observe(element);
+    }
+    
+    return () => {
+      observer.disconnect();
+    };
   }, [pubkey, profileData]);
   
   // Effect to fetch profile data only when shouldFetch is true
   useEffect(() => {
-    // Update local state if profile data prop changes
+    let isMounted = true;
+    
+    // Update local state if profile data prop changes (immediate update)
     if (profileData) {
       setLocalProfileData(profileData);
       setIsLoading(false);
-      setTransitionStage('loaded');
       return;
     }
     
     if (!pubkey || !shouldFetch) {
       if (!pubkey) {
         setIsLoading(false);
-        setTransitionStage('loaded');
       }
       return;
     }
     
-    // Set loading state
     setIsLoading(true);
-    setTransitionStage('loading');
     
     // Fetch profile if not provided
     const fetchProfile = async () => {
       try {
         const profile = await unifiedProfileService.getProfile(pubkey);
         
-        if (profile) {
-          // Update immediately without artificial delay
+        if (profile && isMounted) {
           setLocalProfileData(profile);
           setIsLoading(false);
-          setTransitionStage('loaded');
-        } else {
-          // If no profile found, still transition to loaded state
+        } else if (isMounted) {
           setIsLoading(false);
-          setTransitionStage('loaded');
         }
       } catch (error) {
         console.error(`[NoteCardHeader] Error fetching profile for ${pubkey}:`, error);
-        setIsLoading(false);
-        setTransitionStage('loaded');
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
     fetchProfile();
     
-    // Subscribe to profile updates only when we're actively loading this profile
+    // Subscribe to profile updates
     const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
-      if (profile) {
+      if (profile && isMounted) {
         setLocalProfileData(profile);
         setIsLoading(false);
-        setTransitionStage('loaded');
       }
     });
     
     return () => {
+      isMounted = false;
       unsubscribe();
     };
   }, [pubkey, profileData, shouldFetch]);
@@ -171,12 +166,9 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
           className="mr-3 shrink-0 touch-target"
           onClick={() => setShouldFetch(true)} // Ensure profile loads on click
         >
-          <Avatar className={cn(
-            "h-11 w-11 border border-muted transition-opacity duration-300",
-            transitionStage === 'loading' ? "opacity-70" : "opacity-100"
-          )}>
+          <Avatar className="h-11 w-11 border border-muted transition-opacity duration-300">
             {isLoading ? (
-              <AvatarFallback className="bg-muted/50 transition-all duration-300">
+              <AvatarFallback className="bg-muted/50">
                 {stableValues.avatarFallback}
               </AvatarFallback>
             ) : (
@@ -185,7 +177,6 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
                   src={picture} 
                   alt={displayName} 
                   className="transition-opacity duration-300"
-                  onLoad={() => setTransitionStage('loaded')}
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {stableValues.avatarFallback}
@@ -202,13 +193,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
               className="font-bold truncate hover:underline touch-target"
               onClick={() => setShouldFetch(true)} // Ensure profile loads on click
             >
-              {isLoading ? (
-                <span className="inline-block transition-all duration-300">
-                  {stableValues.displayName}
-                </span>
-              ) : (
-                <span className="transition-all duration-300">{displayName}</span>
-              )}
+              <span className="transition-all duration-300">{displayName}</span>
             </Link>
             
             <span className="text-muted-foreground text-sm truncate">

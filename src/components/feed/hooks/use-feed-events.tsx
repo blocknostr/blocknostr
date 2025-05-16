@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
@@ -30,21 +30,39 @@ export function useFeedEvents({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [cacheHit, setCacheHit] = useState<boolean>(false);
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
+  const [isLoadingLiveData, setIsLoadingLiveData] = useState<boolean>(false);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
   const { repostData, handleRepost, initSetEvents } = useRepostHandler({ fetchProfileData });
   
+  // Callback to merge new events with existing ones without duplicates
+  const mergeEvents = useCallback((newEvents: NostrEvent[], existingEvents: NostrEvent[]) => {
+    // Create a map of existing event IDs for quick lookup
+    const existingIds = new Set(existingEvents.map(e => e.id));
+    
+    // Filter out duplicates and then add new events
+    const uniqueNewEvents = newEvents.filter(event => !existingIds.has(event.id));
+    
+    // Combine and re-sort by timestamp
+    const combinedEvents = [...existingEvents, ...uniqueNewEvents]
+      .sort((a, b) => b.created_at - a.created_at);
+    
+    return combinedEvents;
+  }, []);
+  
   // Initialize the setEvents function in the repostHandler
   useEffect(() => {
-    initSetEvents(setEvents);
-  }, [initSetEvents]);
+    initSetEvents((newEvents) => {
+      setEvents(prev => mergeEvents(newEvents, prev));
+    });
+  }, [initSetEvents, mergeEvents]);
   
   // Determine which hashtags to use - either the active hashtag, the provided hashtag array, or undefined
   const effectiveHashtags = activeHashtag 
     ? [activeHashtag] 
     : hashtags;
   
-  // Handle event subscription
+  // Handle event subscription with improved merging strategy
   const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
     activeHashtag,
@@ -52,7 +70,10 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents,
+    setEvents: (newEvents) => {
+      // Merge new events with existing events instead of replacing
+      setEvents(prevEvents => mergeEvents(newEvents, prevEvents));
+    },
     handleRepost,
     fetchProfileData,
     feedType,
@@ -68,9 +89,6 @@ export function useFeedEvents({
       const cachedFeed = contentCache.getFeed(feedType, {
         authorPubkeys: following,
         hashtag: activeHashtag,
-        // Fix: use the correct property name 'hashtag' since the cache interface doesn't accept 'hashtags'
-        // If we have an activeHashtag, it takes precedence; otherwise we use the hashtags array via effectiveHashtags
-        // We'll pass undefined, which will make the cache use only the activeHashtag property
         since,
         until,
         mediaOnly
@@ -85,7 +103,6 @@ export function useFeedEvents({
         const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
           authorPubkeys: following,
           hashtag: activeHashtag,
-          // Same fix here for cache key generation
           since,
           until,
           mediaOnly
@@ -97,7 +114,6 @@ export function useFeedEvents({
         }
         
         // Only fetch profiles for visible posts to reduce initial load
-        // This is more efficient than prefetching all profiles
         const visiblePosts = cachedFeed.slice(0, 10); // Only first 10 visible posts
         const visibleAuthors = new Set<string>();
         
@@ -107,38 +123,54 @@ export function useFeedEvents({
           }
         });
         
-        // Fetch profiles for visible authors only
+        // Fetch profiles for visible authors
         visibleAuthors.forEach(pubkey => {
           fetchProfileData(pubkey);
         });
+        
+        // Start loading fresh data immediately in the background without waiting
+        const currentTime = Math.floor(Date.now() / 1000);
+        const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
+        const newUntil = currentTime;
+        
+        setIsLoadingLiveData(true);
+        const newSubId = setupSubscription(newSince, newUntil, effectiveHashtags);
+        setSubId(newSubId);
+      } else {
+        // No cached data, load fresh data
+        const currentTime = Math.floor(Date.now() / 1000);
+        const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
+        const newUntil = currentTime;
+        
+        setIsLoadingLiveData(true);
+        const newSubId = setupSubscription(newSince, newUntil, effectiveHashtags);
+        setSubId(newSubId);
       }
       
       setLoadingFromCache(false);
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, effectiveHashtags, since, until, mediaOnly, fetchProfileData]);
+    
+    return () => {
+      // Clean up subscription when component unmounts
+      if (subId) {
+        nostrService.unsubscribe(subId);
+      }
+    };
+  }, [feedType, following, activeHashtag, effectiveHashtags, since, until, mediaOnly, fetchProfileData, setupSubscription, setSubId]);
   
-  // Refresh feed by clearing cache and setting up a new subscription
-  const refreshFeed = () => {
-    // Clear the specific feed from cache
-    contentCache.feedCache.clearFeed(feedType, {
-      authorPubkeys: following,
-      hashtag: activeHashtag,
-      // Same fix for cache clearing
-      since,
-      until,
-      mediaOnly
-    });
-    
-    setCacheHit(false);
-    setLastUpdated(null);
-    
+  // Refresh feed by fetching new data and merging with existing
+  const refreshFeed = useCallback(() => {
     // Cancel existing subscription
     if (subId) {
       nostrService.unsubscribe(subId);
       setSubId(null);
     }
+    
+    // Set up for fresh data
+    setIsLoadingLiveData(true);
+    setCacheHit(false);
     
     // Setup a new subscription
     const currentTime = Math.floor(Date.now() / 1000);
@@ -146,7 +178,10 @@ export function useFeedEvents({
     
     const newSubId = setupSubscription(newSince, currentTime, effectiveHashtags);
     setSubId(newSubId);
-  };
+    
+    // Update timestamp
+    setLastUpdated(new Date());
+  }, [subId, setupSubscription, setSubId, effectiveHashtags]);
 
   return {
     events,
@@ -159,6 +194,8 @@ export function useFeedEvents({
     refreshFeed,
     lastUpdated,
     cacheHit,
-    loadingFromCache
+    loadingFromCache,
+    isLoadingLiveData,
+    mergeEvents
   };
 }

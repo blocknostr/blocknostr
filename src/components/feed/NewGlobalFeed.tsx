@@ -1,5 +1,4 @@
-
-import React, { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback, useState, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
@@ -23,6 +22,7 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { preferences } = useUserPreferences();
+  const initialLoadDone = useRef(false);
 
   // Default hashtags if none set
   const defaultGlobalTags = ["bitcoin", "alephium", "ergo"];
@@ -60,13 +60,30 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
     }
   }, [profiles]);
 
+  // Helper to merge new events with existing ones
+  const mergeEvents = useCallback((newEvents: any[], currentEvents: any[]) => {
+    // Create a set of existing IDs for quick lookup
+    const existingIds = new Set(currentEvents.map(e => e.id));
+    
+    // Filter out duplicates
+    const uniqueNewEvents = newEvents.filter(e => !existingIds.has(e.id));
+    
+    // Merge and sort
+    return [...currentEvents, ...uniqueNewEvents]
+      .sort((a, b) => b.created_at - a.created_at);
+  }, []);
+
   // Load initial events
   const loadEvents = useCallback(async () => {
-    setLoading(true);
+    const wasEmpty = events.length === 0;
+    if (wasEmpty) {
+      setLoading(true);
+    }
     setError(null);
-    setEvents([]);
     
-    if (onLoadingChange) onLoadingChange(true);
+    if (onLoadingChange && wasEmpty) {
+      onLoadingChange(true);
+    }
     
     try {
       // Connect to relays
@@ -97,23 +114,45 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
         }
       );
       
-      // Wait for events to come in
-      await new Promise(resolve => setTimeout(resolve, 4000));
+      // Wait for initial events to come in (shorter initial timeout)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // If we have any events, update state while keeping subscription open
+      if (collectedEvents.length > 0) {
+        // Sort events by created_at (newest first)
+        const sortedEvents = collectedEvents.sort((a, b) => b.created_at - a.created_at);
+        
+        // Update events - merge with existing if any
+        setEvents(prev => wasEmpty ? sortedEvents : mergeEvents(sortedEvents, prev));
+        
+        // Fetch profiles for collected pubkeys
+        if (collectedPubkeys.length > 0) {
+          fetchProfiles(collectedPubkeys);
+        }
+        
+        setHasMore(collectedEvents.length >= 10);
+        
+        // Update loading states
+        setLoading(false);
+        if (onLoadingChange) onLoadingChange(false);
+      }
+      
+      // Wait a bit longer for more events
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Unsubscribe after timeout
       nostrService.unsubscribe(subId);
       
-      // Sort events by created_at (newest first)
-      const sortedEvents = collectedEvents.sort((a, b) => b.created_at - a.created_at);
-      
-      setEvents(sortedEvents);
-      
-      // Fetch profiles for all collected pubkeys
-      if (collectedPubkeys.length > 0) {
-        fetchProfiles(collectedPubkeys);
+      // Final update with all collected events
+      if (collectedEvents.length > 0) {
+        // Sort events by created_at (newest first)
+        const sortedEvents = collectedEvents.sort((a, b) => b.created_at - a.created_at);
+        
+        // Update events - merge with existing if any
+        setEvents(prev => mergeEvents(sortedEvents, prev));
       }
       
-      setHasMore(sortedEvents.length >= 20);
+      initialLoadDone.current = true;
     } catch (error) {
       console.error("Error loading global feed:", error);
       setError("Failed to load feed. Please try again later.");
@@ -121,7 +160,7 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
       setLoading(false);
       if (onLoadingChange) onLoadingChange(false);
     }
-  }, [hashtags, fetchProfiles, onLoadingChange]);
+  }, [hashtags, fetchProfiles, onLoadingChange, events.length, mergeEvents]);
 
   // Load more events (older events)
   const loadMoreEvents = async () => {
@@ -173,8 +212,10 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
       // Sort events by created_at (newest first)
       const sortedEvents = collectedEvents.sort((a, b) => b.created_at - a.created_at);
       
-      // Add new events to the list
-      setEvents(prev => [...prev, ...sortedEvents]);
+      // Add new events to the list - use merge function
+      if (sortedEvents.length > 0) {
+        setEvents(prev => mergeEvents(sortedEvents, prev));
+      }
       
       // Fetch profiles for all collected pubkeys
       if (collectedPubkeys.length > 0) {
