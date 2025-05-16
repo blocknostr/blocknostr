@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Hash, Database, Activity, Clock, Blocks } from "lucide-react";
+import { Loader2, Hash, Database, Activity, Clock, Blocks, Network, Server } from "lucide-react";
 import { fetchNetworkStats } from "@/lib/api/alephiumApi";
 
 interface NetworkStats {
@@ -59,6 +59,11 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
     };
 
     fetchStats();
+    
+    // Refresh data every 2 minutes
+    const intervalId = setInterval(fetchStats, 120000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const formatTimestamp = (timestamp: number): string => {
@@ -73,8 +78,11 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle>Network Statistics</CardTitle>
-        <CardDescription>Current Alephium network status from explorer.alephium.org</CardDescription>
+        <CardTitle className="flex items-center gap-2">
+          <Network className="h-5 w-5 text-primary" />
+          Network Statistics
+        </CardTitle>
+        <CardDescription>Current Alephium blockchain metrics from explorer.alephium.org</CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -83,7 +91,7 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1 flex items-start">
                 <Activity className="h-4 w-4 mr-2 mt-1 text-primary" />
                 <div>
@@ -119,11 +127,35 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
                   <p className="text-lg font-medium">{stats?.blockTime}</p>
                 </div>
               </div>
+              <div className="space-y-1 flex items-start">
+                <Server className="h-4 w-4 mr-2 mt-1 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Addresses</p>
+                  <p className="text-lg font-medium">{stats?.activeAddresses.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="space-y-1 flex items-start">
+                <Database className="h-4 w-4 mr-2 mt-1 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Token Types</p>
+                  <p className="text-lg font-medium">{stats?.tokenCount}</p>
+                </div>
+              </div>
+              <div className="space-y-1 flex items-start">
+                <Hash className="h-4 w-4 mr-2 mt-1 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Difficulty</p>
+                  <p className="text-lg font-medium">{stats?.difficulty}</p>
+                </div>
+              </div>
             </div>
             
             {stats?.latestBlocks && stats.latestBlocks.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Latest Blocks</h4>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5">
+                  <Blocks className="h-4 w-4 text-primary" />
+                  Latest Blocks
+                </h4>
                 <div className="space-y-2 bg-muted/40 rounded-md p-2">
                   {stats.latestBlocks.map((block, idx) => (
                     <div key={idx} className="flex justify-between text-sm border-b last:border-0 border-muted pb-1 last:pb-0">
@@ -146,9 +178,10 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
                 href="https://explorer.alephium.org/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-sm text-primary hover:underline inline-flex items-center"
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               >
                 View more on Explorer
+                <Network className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>

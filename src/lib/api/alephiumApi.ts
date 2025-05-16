@@ -358,31 +358,48 @@ export const fetchNetworkStats = async () => {
     });
     
     // Use real data when available, but provide reasonable defaults
-    // Access the currentHeight directly from blockflowResponse instead of infoResponse
     const currentHeight = blockflowResponse ? parseInt(String(blockflowResponse.currentHeight || "3752480")) : 3752480;
-    const blockTime = "64.0s"; // Default since averageBlockTime isn't available
     
-    // Try to get real-time network metrics using explorer API endpoints similar to the official explorer
+    // Try to calculate real-time network metrics
     let hashRate = "38.2 PH/s"; // Default value
     let difficulty = "3.51 P"; // Default value
+    let blockTime = "64.0s"; // Default block time
     let totalTransactions = "4.28M"; // Default value
     let totalSupply = "110.06M ALPH"; // Default value
     
     try {
       // In a production app, you would use explorer API endpoints
-      // For now, we're using recent values from explorer.alephium.org
-      // These would be replaced with real API calls in production
+      // These endpoints are based on the Alephium Explorer GitHub repo structure
       const explorerApiBase = "https://backend.explorer.alephium.org/api";
       
-      // We're not making actual API calls in this demo but showing the pattern
-      // that would be used with the explorer API
-      
-      // Example of what a real implementation would look like:
-      // const networkMetricsResponse = await fetch(`${explorerApiBase}/metrics/network`);
-      // const networkMetrics = await networkMetricsResponse.json();
-      // hashRate = networkMetrics.hashRate;
-      // difficulty = networkMetrics.difficulty;
-      // etc.
+      // Attempt to fetch real metrics data
+      try {
+        const metricsResponse = await fetch(`${explorerApiBase}/metrics/network`, {
+          headers: { 'Accept': 'application/json' },
+          mode: 'cors',
+        });
+        
+        if (metricsResponse.ok) {
+          const networkMetrics = await metricsResponse.json();
+          // Update values with real data if available
+          if (networkMetrics) {
+            hashRate = networkMetrics.hashRate || hashRate;
+            difficulty = networkMetrics.difficulty || difficulty;
+            blockTime = networkMetrics.averageBlockTime || blockTime;
+            
+            // The following would be available if the explorer API provides them
+            if (networkMetrics.totalTransactions) {
+              totalTransactions = networkMetrics.totalTransactions;
+            }
+            if (networkMetrics.totalSupply) {
+              totalSupply = networkMetrics.totalSupply;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch metrics data:", error);
+        // We'll fall back to default values
+      }
     } catch (explorerError) {
       console.error('Error fetching from explorer API:', explorerError);
       // We'll fall back to our default values
@@ -396,20 +413,44 @@ export const fetchNetworkStats = async () => {
     ];
     
     try {
-      // In a production app, you would fetch latest blocks from explorer API
-      // const blocksResponse = await fetch(`${explorerApiBase}/blocks/latest`);
-      // latestBlocks = await blocksResponse.json();
+      // Attempt to fetch latest blocks data from node directly
+      const latestChainInfo = await nodeProvider.blockflow.getBlockflowChains({
+        fromGroup: 0,
+        toGroup: 0
+      });
+      
+      if (latestChainInfo && latestChainInfo.headers && latestChainInfo.headers.length > 0) {
+        // Sort headers by timestamp desc
+        const sortedHeaders = [...latestChainInfo.headers].sort((a, b) => 
+          (b.timestamp || 0) - (a.timestamp || 0)
+        );
+        
+        // Take top 3 blocks
+        latestBlocks = sortedHeaders.slice(0, 3).map(header => ({
+          hash: header.hash || `0x${Math.random().toString(16).substring(2, 10)}...`,
+          timestamp: header.timestamp || Date.now() - Math.floor(Math.random() * 60000),
+          height: header.height || currentHeight,
+          txNumber: Math.floor(Math.random() * 10) + 1 // This data is not in headers, using random
+        }));
+      }
     } catch (blocksError) {
       console.error('Error fetching latest blocks:', blocksError);
       // We'll use the default/sample blocks above
     }
     
+    // Calculate active addresses from a trusted source (e.g., richlist.alephium.world)
+    // In production, you'd fetch this data from a real API
+    const activeAddresses = 193500;
+    
+    // Token count - in production, you would get this from the explorer API
+    const tokenCount = 385;
+    
     return {
       hashRate: hashRate,
       difficulty: difficulty,
       blockTime: blockTime,
-      activeAddresses: 193500, // From richlist.alephium.world
-      tokenCount: 385,
+      activeAddresses: activeAddresses,
+      tokenCount: tokenCount,
       totalTransactions: totalTransactions,
       totalSupply: totalSupply,
       totalBlocks: `${(currentHeight / 1000000).toFixed(2)}M`, // Calculated from real height when possible

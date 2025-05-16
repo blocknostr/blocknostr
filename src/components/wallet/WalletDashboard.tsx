@@ -173,18 +173,51 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   if (activeTab === "alephium") {
     return (
       <div className="space-y-6">
-        {/* Single full-width network stats card with all the important data */}
+        {/* Network stats card with all the important data */}
         <NetworkStatsCard className="w-full" />
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Wallet Addresses</CardTitle>
-            <CardDescription>Historical growth of wallet addresses on Alephium</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[280px]">
-            <TransactionActivityChart address={address} />
-          </CardContent>
-        </Card>
+        {/* Address growth chart */}
+        <NetworkActivityCard className="w-full" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Network Security</CardTitle>
+              <CardDescription>How Alephium maintains security through PoLW</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Alephium uses a unique Proof of Less Work (PoLW) consensus algorithm that reduces energy 
+                consumption to 1/8th of Bitcoin's traditional PoW while maintaining the same security guarantees.
+              </p>
+              <div className="rounded-md bg-muted p-3 text-sm">
+                <h4 className="font-medium mb-1">BlockFlow Architecture</h4>
+                <p>Alephium combines sharding with a DAG structure called BlockFlow to achieve high throughput 
+                and security. The network is divided into 4 groups with 16 parallel chains.</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Token Economics</CardTitle>
+              <CardDescription>ALPH token distribution and utility</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                The ALPH token is used for transaction fees, smart contract execution, staking, and governance.
+              </p>
+              <div className="rounded-md bg-muted p-3 text-sm">
+                <h4 className="font-medium mb-1">Supply Information</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Max Supply: 1 billion ALPH</li>
+                  <li>Circulating Supply: ~110 million ALPH</li>
+                  <li>Emission Schedule: Halving every 4 years</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
