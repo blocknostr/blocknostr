@@ -3,6 +3,7 @@ import { EVENT_KINDS } from "../constants";
 import { nostrService } from "../index";
 import { SavedWallet, WalletList } from "@/types/wallet";
 import { handleError } from "@/lib/utils/errorHandling";
+import { NostrFilter } from "../types";
 
 // Custom kind for storing wallet addresses (using a high number in the replaceable range)
 const WALLET_LIST_KIND = 30078;
@@ -47,13 +48,14 @@ export async function loadWalletList(): Promise<WalletList | null> {
 
   try {
     // Query relays for the latest wallet list event
-    const filter = {
+    const filter: NostrFilter = {
       kinds: [WALLET_LIST_KIND],
       authors: [nostrService.publicKey],
       "#d": ["alephium-wallet-list"]
     };
 
-    // Fix: Pass filter as part of an array of filters
+    // Call getEvents with the proper parameter format based on its implementation
+    // The method likely expects an array of filters
     const events = await nostrService.getEvents([filter]);
     if (!events || events.length === 0) {
       return null;
