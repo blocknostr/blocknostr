@@ -1,8 +1,6 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import PageHeader from "@/components/navigation/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import ArticleFeed from "@/components/articles/ArticleFeed";
@@ -19,81 +17,86 @@ const ArticlesPage: React.FC = () => {
   
   return (
     <div className="container max-w-7xl mx-auto px-4 py-6">
-      <div className="flex flex-col md:flex-row items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Articles</h1>
-          <p className="text-muted-foreground mt-1">
-            Discover and read articles from the community
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {isLoggedIn && (
-            <Button asChild>
-              <Link to="/articles/create" className="flex items-center gap-2">
-                <Plus size={16} />
-                Write Article
-              </Link>
-            </Button>
-          )}
-          
-          {isLoggedIn && (
-            <Button variant="outline" asChild>
-              <Link to="/articles/me">My Articles</Link>
-            </Button>
-          )}
-          
-          {!isLoggedIn && (
-            <Button variant="outline" asChild>
-              <Link to="/settings">Login to Write</Link>
-            </Button>
-          )}
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Articles</h1>
+        <Button asChild>
+          <Link to="/articles/create" className="flex items-center gap-2">
+            <Plus size={16} />
+            New Article
+          </Link>
+        </Button>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-6">
-          <ArticleFeatured />
+      <div className="my-6">
+        <ArticleSearch 
+          onSearch={setSearchQuery}
+          onTagSelect={setSelectedTag}
+          selectedTag={selectedTag}
+        />
+      </div>
+      
+      {!searchQuery && !selectedTag && (
+        <>
+          <div className="mb-8">
+            <ArticleFeatured />
+          </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full grid grid-cols-3 mb-2">
-              <TabsTrigger value="latest">Latest</TabsTrigger>
-              <TabsTrigger value="trending">Trending</TabsTrigger>
-              <TabsTrigger value="following">Following</TabsTrigger>
-            </TabsList>
+            <div className="flex justify-between items-center mb-4">
+              <TabsList>
+                <TabsTrigger value="latest">Latest</TabsTrigger>
+                <TabsTrigger value="trending">Trending</TabsTrigger>
+                {isLoggedIn && <TabsTrigger value="following">Following</TabsTrigger>}
+              </TabsList>
+              
+              {isLoggedIn && (
+                <div className="flex gap-3">
+                  <Button variant="outline" asChild>
+                    <Link to="/articles/me">My Articles</Link>
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/articles/drafts">Drafts</Link>
+                  </Button>
+                </div>
+              )}
+            </div>
             
-            <TabsContent value="latest">
+            <TabsContent value="latest" className="mt-0">
               <ArticleFeed type="latest" />
             </TabsContent>
             
-            <TabsContent value="trending">
+            <TabsContent value="trending" className="mt-0">
               <ArticleFeed type="trending" />
             </TabsContent>
             
-            <TabsContent value="following">
-              <ArticleFeed type="following" />
-            </TabsContent>
+            {isLoggedIn && (
+              <TabsContent value="following" className="mt-0">
+                <ArticleFeed type="following" />
+              </TabsContent>
+            )}
           </Tabs>
-        </div>
-        
-        <div className="lg:col-span-4 space-y-6">
-          <ArticleSearch
-            onSearch={setSearchQuery}
-            onTagSelect={setSelectedTag}
-            selectedTag={selectedTag}
+        </>
+      )}
+      
+      {(searchQuery || selectedTag) && (
+        <div className="mt-4">
+          <h2 className="text-2xl font-bold mb-4">
+            {searchQuery ? `Search results for "${searchQuery}"` : `Articles tagged with #${selectedTag}`}
+          </h2>
+          <ArticleFeed 
+            type="search" 
+            searchQuery={searchQuery}
+            hashtag={selectedTag || undefined}
           />
-          
-          {searchQuery || selectedTag ? (
-            <ArticleFeed 
-              type="search" 
-              searchQuery={searchQuery} 
-              hashtag={selectedTag || undefined} 
-            />
-          ) : (
-            <RecommendedArticles />
-          )}
         </div>
-      </div>
+      )}
+      
+      {!searchQuery && !selectedTag && (
+        <div className="mt-10">
+          <h2 className="text-2xl font-bold mb-4">Recommended For You</h2>
+          <RecommendedArticles />
+        </div>
+      )}
     </div>
   );
 };
