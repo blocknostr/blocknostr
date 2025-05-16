@@ -1,4 +1,3 @@
-
 import { SimplePool, getEventHash, Event, Filter } from 'nostr-tools';
 import { TokenMetadata, fetchTokenList } from './tokenMetadata';
 
@@ -119,10 +118,10 @@ export const subscribeToTokenTransactions = (
   
   console.log(`Subscribing to token transactions for ${tokenId} (${symbol})`);
   
-  // Fix: Use the proper subscription method with single filter object
-  const sub = pool.subscribe(NOSTR_RELAYS, filter);
+  // Fixed: SimplePool.subscribe expects relays array, filter object, and optional options
+  const sub = pool.subscribe(NOSTR_RELAYS, [filter], { id: `token-tx-${tokenId}` });
   
-  // Set up event handler
+  // Set up event handler with manual event handling
   const eventHandler = (event: Event) => {
     try {
       // Parse transaction from event content
@@ -149,8 +148,9 @@ export const subscribeToTokenTransactions = (
     }
   };
   
-  // Add event listener for the subscription
-  sub.on('event', eventHandler);
+  // Register event handler
+  sub.eose = () => console.log(`Initial sync complete for ${tokenId}`);
+  sub.onevent = eventHandler;
   
   // Return unsubscribe function
   return () => {
@@ -199,8 +199,8 @@ export const subscribeToAllTokenUpdates = (
   
   console.log('Subscribing to all token transactions');
   
-  // Fix: Use the proper subscription method with single filter object
-  const sub = pool.subscribe(NOSTR_RELAYS, filter);
+  // Fixed: SimplePool.subscribe expects relays array, filter object, and optional options
+  const sub = pool.subscribe(NOSTR_RELAYS, [filter], { id: 'all-token-tx' });
   
   // Set up event handler
   const eventHandler = (event: Event) => {
@@ -238,8 +238,9 @@ export const subscribeToAllTokenUpdates = (
     }
   };
   
-  // Add event listener for the subscription
-  sub.on('event', eventHandler);
+  // Register event handler
+  sub.eose = () => console.log('Initial sync complete for all tokens');
+  sub.onevent = eventHandler;
   
   // Return unsubscribe function
   return () => {

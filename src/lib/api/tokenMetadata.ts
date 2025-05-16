@@ -93,7 +93,7 @@ export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvi
         const response = await nodeProvider.request({
           method: 'GET',
           path: `/tokens/${tokenId}`,
-          params: {} // Empty object for params, not undefined
+          params: [] // Fixed: Use empty array instead of empty object for params
         });
         
         if (response) {
