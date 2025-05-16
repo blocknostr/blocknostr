@@ -20,8 +20,35 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
+  const [iOSSafeArea, setIOSSafeArea] = useState(false);
   
-  // Setup swipe handlers for mobile gesture navigation
+  // Check for iOS device
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIOSSafeArea(isIOS);
+    
+    // Add class to body for iOS-specific styling
+    if (isIOS) {
+      document.body.classList.add('ios-device');
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+      
+      // Update on resize or orientation change
+      const updateHeight = () => {
+        document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+      };
+      
+      window.addEventListener('resize', updateHeight);
+      window.addEventListener('orientationchange', updateHeight);
+      
+      return () => {
+        window.removeEventListener('resize', updateHeight);
+        window.removeEventListener('orientationchange', updateHeight);
+        document.body.classList.remove('ios-device');
+      };
+    }
+  }, []);
+  
+  // Setup swipe handlers for mobile gesture navigation with improved sensitivity
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => {
       if (isMobile && !rightPanelOpen) {
@@ -36,7 +63,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       }
     },
     preventDefaultTouchmoveEvent: true,
-    trackMouse: false
+    trackMouse: false,
+    delta: 10, // Make swipe detection more sensitive for iOS
+    swipeDuration: 250 // Reduce duration needed for swipe on iOS
   });
 
   // Listen for hashtag changes from global events
@@ -76,8 +105,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <NavigationProvider>
       <div
         className={cn(
-          "flex min-h-screen bg-background relative",
-          preferences.uiPreferences?.compactMode ? "text-sm" : ""
+          "flex min-h-screen bg-background relative overscroll-none",
+          preferences.uiPreferences?.compactMode ? "text-sm" : "",
+          iOSSafeArea ? "ios-safe-area" : ""
         )}
       >
         {/* Desktop sidebar - only visible on non-mobile */}
@@ -86,7 +116,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <div
           className={cn(
             "flex-1 transition-all duration-200",
-            !isMobile && "ml-64"
+            !isMobile && "ml-64",
+            iOSSafeArea && "ios-safe-padding-bottom"
           )}
           {...swipeHandlers}
         >
@@ -101,7 +132,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
           <div className="flex">
             <main
-              className="flex-1 min-h-screen mt-14" /* Added mt-4 for top margin */
+              className={cn(
+                "flex-1 min-h-screen mt-14", /* Added top margin for header */
+                iOSSafeArea && "ios-safe-padding-bottom"
+              )}
               onClick={handleMainContentClick}
             >
               {children || <Outlet />}

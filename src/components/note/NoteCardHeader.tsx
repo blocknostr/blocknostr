@@ -135,7 +135,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   return (
     <div className="flex justify-between">
       <div className="flex">
-        <Link to={`/profile/${stableValues.npub}`} className="mr-3 shrink-0">
+        <Link to={`/profile/${stableValues.npub}`} className="mr-3 shrink-0 touch-target">
           <Avatar className={cn(
             "h-11 w-11 border border-muted transition-opacity duration-300",
             transitionStage === 'loading' ? "opacity-70" : "opacity-100"
@@ -162,7 +162,10 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-x-1 flex-wrap">
-            <Link to={`/profile/${stableValues.npub}`} className="font-bold truncate hover:underline">
+            <Link 
+              to={`/profile/${stableValues.npub}`} 
+              className="font-bold truncate hover:underline touch-target"
+            >
               {isLoading ? (
                 <span className="inline-block transition-all duration-300">
                   {stableValues.displayName}
@@ -176,7 +179,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
               @{stableValues.shortNpub}
             </span>
             <span className="text-muted-foreground text-sm mx-0.5">·</span>
-            <span className="text-muted-foreground text-sm hover:underline cursor-pointer">
+            <span className="text-muted-foreground text-sm hover:underline cursor-pointer touch-target">
               {timeAgo}
             </span>
           </div>

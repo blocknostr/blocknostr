@@ -112,11 +112,33 @@
 
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
   
   /* Smooth scrolling for whole page */
   html {
     scroll-behavior: smooth;
+    height: -webkit-fill-available;
+  }
+  
+  /* Support for iOS height */
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+  }
+  
+  /* Fix iOS text size adjustment issues */
+  input, textarea, button, select {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+  
+  /* Remove iOS default button styles */
+  button {
+    -webkit-appearance: none;
+    appearance: none;
   }
 }
 
@@ -316,6 +338,17 @@ html.color-theme-in-transition {
     @apply mx-auto max-w-[95%];
   }
   
+  /* Make page content account for iOS notches and home indicator */
+  .main-content {
+    @apply pb-safe pt-safe px-safe;
+  }
+  
+  /* Fixed headers for iOS to prevent bounce issues */
+  .fixed-header {
+    @apply sticky top-0 z-50 backdrop-blur-md;
+    transform: translateZ(0);
+  }
+  
   /* Allow smaller heights for specific UI elements that need it */
   .h-auto,
   .min-h-auto,
@@ -408,4 +441,30 @@ html.color-theme-in-transition {
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* iOS specific optimizations */
+.ios-safe-padding-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.ios-safe-padding-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.ios-safe-padding-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.ios-safe-padding-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.overscroll-none {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.touch-target {
+  @apply min-h-[44px] min-w-[44px];
 }
