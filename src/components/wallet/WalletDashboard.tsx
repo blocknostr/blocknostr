@@ -242,11 +242,6 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
             </CardContent>
           </Card>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <TransactionsList address={address} />
-          <TokenList address={address} />
-        </div>
       </div>
     );
   }
