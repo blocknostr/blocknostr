@@ -1,21 +1,13 @@
-import Phaser from 'phaser';
-import axios from 'axios';
-import { toast } from 'sonner';
 
-interface PetState {
-  id: string;
-  name: string;
-  hunger: number;
-  happiness: number;
-  energy: number;
-  level: number;
-  experience: number;
-  evolutionStage: number;
-  customization: { color: string; accessory: string; aura: string };
-  inventory: { itemId: string; quantity: number }[];
-  lastReward: number;
-  lastEvent: number;
-}
+import Phaser from 'phaser';
+import { toast } from 'sonner';
+import { PetStorageService } from '../services/PetStorageService';
+import { PetState } from '../types/PetTypes';
+import { setupPetAnimations } from '../utils/AnimationUtils';
+import { UIUtils } from '../utils/UIUtils';
+import { CustomizationManager } from '../managers/CustomizationManager';
+import { PetActivityManager } from '../managers/PetActivityManager';
+import { EvolutionManager } from '../managers/EvolutionManager';
 
 /**
  * Main game scene for NostrPet
@@ -105,7 +97,7 @@ export default class GameScene extends Phaser.Scene {
     // Initialize pet sprite
     this.pet = this.add.sprite(400, 300, `pet_stage${this.evolutionStage}`).setScale(2);
     
-    // Setup particle effects
+    // Setup particle effects - FIX: Use proper particle configuration
     const particles = this.add.particles('particle_star');
     this.petEmitter = particles.createEmitter({
       x: 400,
@@ -115,12 +107,12 @@ export default class GameScene extends Phaser.Scene {
       scale: { start: 0.2, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 1000,
-      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum
+      blendMode: Phaser.BlendModes.ADD,
       on: false
     });
     
     // Setup animations
-    this.setupAnimations();
+    setupPetAnimations(this.anims);
     this.pet.play(`idle_stage${this.evolutionStage}`);
     
     // Setup UI elements
@@ -143,7 +135,7 @@ export default class GameScene extends Phaser.Scene {
     this.walletBalance = 5000; // sats
     
     // Notice when pet is ready
-    this.showMessage(`${this.petName} is ready to play!`);
+    UIUtils.showMessage(this, `${this.petName} is ready to play!`);
     
     // Start game loop
     this.lastTick = this.time.now;
@@ -165,43 +157,10 @@ export default class GameScene extends Phaser.Scene {
     if (time - this.lastReward > 180000) {
       if (this.level > 1 && this.happiness >= 70) {
         this.walletBalance += 20;
-        this.showMessage('+20 sats earned!');
+        UIUtils.showMessage(this, '+20 sats earned!');
         this.updateUI();
       }
       this.lastReward = time;
-    }
-  }
-
-  private setupAnimations() {
-    // Create animations for each evolution stage
-    for (let stage = 1; stage <= 3; stage++) {
-      this.anims.create({
-        key: `idle_stage${stage}`,
-        frames: this.anims.generateFrameNumbers(`pet_stage${stage}`, { start: 0, end: 3 }),
-        frameRate: 4,
-        repeat: -1
-      });
-      
-      this.anims.create({
-        key: `eat_stage${stage}`,
-        frames: this.anims.generateFrameNumbers(`pet_stage${stage}`, { start: 4, end: 7 }),
-        frameRate: 8,
-        repeat: 0
-      });
-      
-      this.anims.create({
-        key: `play_stage${stage}`,
-        frames: this.anims.generateFrameNumbers(`pet_stage${stage}`, { start: 8, end: 11 }),
-        frameRate: 8,
-        repeat: 0
-      });
-      
-      this.anims.create({
-        key: `rest_stage${stage}`,
-        frames: this.anims.generateFrameNumbers(`pet_stage${stage}`, { start: 12, end: 15 }),
-        frameRate: 6,
-        repeat: 0
-      });
     }
   }
 
@@ -249,69 +208,72 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private feed() {
-    if (this.hunger > 0 && this.energy >= 10) {
-      this.hunger = Phaser.Math.Clamp(this.hunger - 30, 0, 100);
-      this.energy = Phaser.Math.Clamp(this.energy - 10, 0, 100);
-      this.experience += 15;
-      
-      // Play animation and sound
-      this.eatSound.play();
-      this.pet.play(`eat_stage${this.evolutionStage}`);
-      this.pet.once('animationcomplete', () => {
-        this.pet.play(`idle_stage${this.evolutionStage}`);
-      });
-      
-      this.checkEvolution();
-      this.updateUI();
-      this.saveState();
-      this.showMessage(`${this.petName} enjoys the food!`);
-    } else {
-      this.showMessage("Not enough energy to eat or not hungry");
-    }
+    PetActivityManager.feed(
+      this,
+      this.pet,
+      this.petName,
+      this.evolutionStage,
+      this.eatSound,
+      {
+        hunger: this.hunger,
+        energy: this.energy,
+        experience: this.experience
+      },
+      () => this.checkEvolution(),
+      () => this.updateUI(),
+      () => this.saveState()
+    );
+    
+    // Update local variables after the operation
+    this.hunger = Phaser.Math.Clamp(this.hunger - 30, 0, 100);
+    this.energy = Phaser.Math.Clamp(this.energy - 10, 0, 100);
+    this.experience += 15;
   }
 
   private play() {
-    if (this.happiness < 100 && this.energy >= 15) {
-      this.happiness = Phaser.Math.Clamp(this.happiness + 30, 0, 100);
-      this.energy = Phaser.Math.Clamp(this.energy - 15, 0, 100);
-      this.experience += 20;
-      
-      // Play animation and sound
-      this.laughSound.play();
-      this.pet.play(`play_stage${this.evolutionStage}`);
-      this.pet.once('animationcomplete', () => {
-        this.pet.play(`idle_stage${this.evolutionStage}`);
-      });
-      
-      this.checkEvolution();
-      this.updateUI();
-      this.saveState();
-      this.showMessage(`${this.petName} is having fun!`);
-    } else {
-      this.showMessage("Not enough energy to play or already happy");
-    }
+    PetActivityManager.play(
+      this,
+      this.pet,
+      this.petName,
+      this.evolutionStage,
+      this.laughSound,
+      {
+        happiness: this.happiness,
+        energy: this.energy,
+        experience: this.experience
+      },
+      () => this.checkEvolution(),
+      () => this.updateUI(),
+      () => this.saveState()
+    );
+    
+    // Update local variables after the operation
+    this.happiness = Phaser.Math.Clamp(this.happiness + 30, 0, 100);
+    this.energy = Phaser.Math.Clamp(this.energy - 15, 0, 100);
+    this.experience += 20;
   }
 
   private rest() {
-    if (this.energy < 100) {
-      this.energy = Phaser.Math.Clamp(this.energy + 40, 0, 100);
-      this.hunger = Phaser.Math.Clamp(this.hunger + 5, 0, 100);
-      this.experience += 10;
-      
-      // Play animation and sound
-      this.restSound.play();
-      this.pet.play(`rest_stage${this.evolutionStage}`);
-      this.pet.once('animationcomplete', () => {
-        this.pet.play(`idle_stage${this.evolutionStage}`);
-      });
-      
-      this.checkEvolution();
-      this.updateUI();
-      this.saveState();
-      this.showMessage(`${this.petName} is resting peacefully`);
-    } else {
-      this.showMessage("Already fully energized");
-    }
+    PetActivityManager.rest(
+      this,
+      this.pet,
+      this.petName,
+      this.evolutionStage,
+      this.restSound,
+      {
+        energy: this.energy,
+        hunger: this.hunger,
+        experience: this.experience
+      },
+      () => this.checkEvolution(),
+      () => this.updateUI(),
+      () => this.saveState()
+    );
+    
+    // Update local variables after the operation
+    this.energy = Phaser.Math.Clamp(this.energy + 40, 0, 100);
+    this.hunger = Phaser.Math.Clamp(this.hunger + 5, 0, 100);
+    this.experience += 10;
   }
 
   private customize() {
@@ -326,109 +288,64 @@ export default class GameScene extends Phaser.Scene {
     this.applyCustomization();
     this.updateUI();
     this.saveState();
-    this.showMessage(`${this.petName} has a new look!`);
+    UIUtils.showMessage(this, `${this.petName} has a new look!`);
   }
 
   private applyCustomization() {
-    // Apply color tint
-    this.pet.clearTint();
-    if (this.customization.color === 'red') this.pet.setTint(0xff0000);
-    else if (this.customization.color === 'blue') this.pet.setTint(0x0000ff);
-    else if (this.customization.color === 'green') this.pet.setTint(0x00ff00);
-    else if (this.customization.color === 'purple') this.pet.setTint(0x800080);
-    
-    // Apply particle effects
-    this.petEmitter.stop();
-    if (this.customization.aura !== 'none') {
-      this.petEmitter.setPosition(this.pet.x, this.pet.y);
-      
-      if (this.customization.aura === 'glow') {
-        this.petEmitter.setFrequency(200);
-        this.petEmitter.setScale({ start: 0.1, end: 0 });
-      } else if (this.customization.aura === 'sparkle') {
-        this.petEmitter.setFrequency(500);
-        this.petEmitter.setScale({ start: 0.2, end: 0 });
-      }
-      
-      this.petEmitter.start();
-    }
+    CustomizationManager.applyCustomization(
+      this.pet,
+      this.customization,
+      this.petEmitter
+    );
   }
 
   private checkEvolution() {
-    const xpNeeded = this.level * 100;
+    EvolutionManager.checkEvolution(
+      this, 
+      this.pet,
+      this.petName,
+      {
+        level: this.level,
+        experience: this.experience,
+        evolutionStage: this.evolutionStage
+      },
+      this.evolveSound,
+      this.petEmitter
+    );
     
+    // Update local state after evolution check
+    const xpNeeded = this.level * 100;
     if (this.experience >= xpNeeded) {
       this.level += 1;
       this.experience -= xpNeeded;
       
-      // Check for stage evolution
+      // Update evolution stage if needed
       if (this.level >= 10 && this.evolutionStage === 1) {
-        this.evolveStage(2);
+        this.evolutionStage = 2;
       } else if (this.level >= 20 && this.evolutionStage === 2) {
-        this.evolveStage(3);
-      } else {
-        this.showMessage(`${this.petName} leveled up to ${this.level}!`);
+        this.evolutionStage = 3;
       }
     }
   }
 
-  private evolveStage(stage: number) {
-    this.evolutionStage = stage;
-    this.evolveSound.play();
-    
-    // Start particle burst
-    this.petEmitter.setPosition(this.pet.x, this.pet.y);
-    this.petEmitter.explode(30);
-    
-    // Change texture and restart idle animation
-    this.pet.setTexture(`pet_stage${stage}`);
-    this.pet.play(`idle_stage${stage}`);
-    
-    this.showMessage(`${this.petName} evolved to Stage ${stage}!`, 0xffff00);
-    
-    // Notify outside the game
-    toast.success(`${this.petName} evolved to Stage ${stage}!`, {
-      description: "Your pet has grown and gained new abilities!"
-    });
-  }
-
-  private showMessage(text: string, color: number = 0xffffff) {
-    const message = this.add.text(400, 500, text, {
-      fontSize: '24px',
-      color: `#${color.toString(16).padStart(6, '0')}`,
-      stroke: '#000000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
-    
-    this.tweens.add({
-      targets: message,
-      alpha: 0,
-      y: 480,
-      duration: 2000,
-      ease: 'Power2',
-      onComplete: () => message.destroy()
-    });
-  }
-
   private async loadState() {
     try {
-      // Try to load state from backend or localStorage
-      const savedState = localStorage.getItem(`nosterpet_${this.walletAddress}`);
+      // Try to load state from localStorage using the service
+      const savedState = PetStorageService.loadState(this.walletAddress);
       
       if (savedState) {
-        const state = JSON.parse(savedState) as PetState;
-        this.petId = state.id;
-        this.petName = state.name;
-        this.hunger = state.hunger;
-        this.happiness = state.happiness;
-        this.energy = state.energy;
-        this.level = state.level;
-        this.experience = state.experience;
-        this.evolutionStage = state.evolutionStage || 1;
-        this.customization = state.customization || { color: 'default', accessory: 'none', aura: 'none' };
-        this.inventory = state.inventory || [];
-        this.lastReward = state.lastReward || 0;
-        this.lastEvent = state.lastEvent || 0;
+        this.petId = savedState.id;
+        this.petName = savedState.name;
+        this.hunger = savedState.hunger;
+        this.happiness = savedState.happiness;
+        this.energy = savedState.energy;
+        this.level = savedState.level;
+        this.experience = savedState.experience;
+        this.evolutionStage = savedState.evolutionStage || 1;
+        this.customization = savedState.customization || { color: 'default', accessory: 'none', aura: 'none' };
+        this.inventory = savedState.inventory || [];
+        this.lastReward = savedState.lastReward || 0;
+        this.lastEvent = savedState.lastEvent || 0;
       } else {
         // Generate a name based on wallet address
         this.petName = `NostrPet_${this.walletAddress.substring(0, 6)}`;
@@ -445,7 +362,7 @@ export default class GameScene extends Phaser.Scene {
 
   private saveState() {
     try {
-      // Save state to localStorage
+      // Save state to localStorage using the service
       const state: PetState = {
         id: this.petId,
         name: this.petName,
@@ -461,7 +378,7 @@ export default class GameScene extends Phaser.Scene {
         lastEvent: this.lastEvent
       };
       
-      localStorage.setItem(`nosterpet_${this.walletAddress}`, JSON.stringify(state));
+      PetStorageService.saveState(this.walletAddress, state);
       
       // In a future update: Save to blockchain or backend API
     } catch (error) {

@@ -28,9 +28,11 @@ export class CustomizationManager {
       
       if (customization.aura === 'glow') {
         emitter.setFrequency(200);
+        // Fix: Use setScale with proper number parameters instead of object
         emitter.setScale(0.1, 0); 
       } else if (customization.aura === 'sparkle') {
         emitter.setFrequency(500);
+        // Fix: Use setScale with proper number parameters instead of object
         emitter.setScale(0.2, 0);
       }
       
