@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -257,7 +258,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </TabsList>
           
           <TabsContent value="tokens" className="mt-0">
-            <TokenList address={address} allTokens={Object.values(allTokens)} refreshFlag={refreshFlag} />
+            <TokenList address={address} allTokens={Object.values(allTokens)} />
           </TabsContent>
           
           <TabsContent value="nfts" className="mt-0">
@@ -422,7 +423,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         </CardContent>
       </Card>
       
-      <TokenList address={address} allTokens={Object.values(allTokens)} refreshFlag={refreshFlag} />
+      <TokenList address={address} allTokens={Object.values(allTokens)} />
       
       <TransactionsList address={address} />
     </div>

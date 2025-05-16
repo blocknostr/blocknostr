@@ -1,3 +1,4 @@
+
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -157,8 +158,9 @@ const fetchNFTMetadata = async (tokenURI?: string) => {
  */
 export const getAddressTokens = async (address: string): Promise<EnrichedToken[]> => {
   try {
-    // Import necessary modules
-    const { getTokenMetadata, formatTokenAmount } = await import('./tokenMetadata');
+    // Fetch token metadata first
+    const tokenMetadataMap = await fetchTokenList();
+    console.log("Token metadata map:", tokenMetadataMap);
     
     // Get all UTXOs for the address
     const response = await getAddressUtxos(address);
@@ -180,8 +182,8 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
           const tokenId = token.id;
           
           if (!tokenMap[tokenId]) {
-            // Get metadata from the node or token list
-            const metadata = await getTokenMetadata(tokenId, nodeProvider);
+            // Get metadata from the token list or use fallback
+            const metadata = tokenMetadataMap[tokenId] || getFallbackTokenData(tokenId);
             
             // Check if this token is likely an NFT
             const nftStatus = isLikelyNFT(metadata);

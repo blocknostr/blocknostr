@@ -4,16 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { EnrichedToken, getAddressTokens } from "@/lib/api/alephiumApi";
 import { formatCurrency } from "@/lib/utils/formatters";
-import { BadgeInfo } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TokenListProps {
   address: string;
   allTokens?: EnrichedToken[]; // New prop to receive aggregated tokens
-  refreshFlag?: number; // Add refreshFlag to trigger refreshes
 }
 
-const TokenList: React.FC<TokenListProps> = ({ address, allTokens, refreshFlag = 0 }) => {
+const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
   const [tokens, setTokens] = useState<EnrichedToken[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,27 +35,6 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens, refreshFlag =
     };
 
     fetchTokens();
-  }, [address, allTokens, refreshFlag]); // Add refreshFlag to dependencies
-
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    if (!allTokens) { // Only setup auto-refresh if we're not using passed tokens
-      const refreshInterval = setInterval(() => {
-        const fetchTokens = async () => {
-          try {
-            const tokenData = await getAddressTokens(address);
-            setTokens(tokenData.filter(token => !token.isNFT));
-          } catch (error) {
-            console.error('Error refreshing tokens:', error);
-          }
-        };
-        
-        fetchTokens();
-        console.log("Auto-refreshing token data");
-      }, 5 * 60 * 1000); // 5 minutes in milliseconds
-
-      return () => clearInterval(refreshInterval); // Cleanup on unmount
-    }
   }, [address, allTokens]);
 
   // Render loading skeleton or error state
@@ -134,24 +110,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens, refreshFlag =
                 )}
                 
                 <div className="ml-3">
-                  <div className="flex items-center">
-                    <span className="font-medium">{token.name || token.symbol}</span>
-                    {token.nameOnChain && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <BadgeInfo className="h-3.5 w-3.5 ml-1 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="space-y-1">
-                              <p>Token ID: {token.id.substring(0, 10)}...</p>
-                              {token.description && <p>{token.description}</p>}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
+                  <div className="font-medium">{token.name || token.symbol}</div>
                   <div className="text-xs text-muted-foreground">{token.symbol}</div>
                 </div>
               </div>
