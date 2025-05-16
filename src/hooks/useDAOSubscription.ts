@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { SimplePool, Filter, Sub } from 'nostr-tools';
+import { SimplePool, Filter } from 'nostr-tools';
 import { toast } from 'sonner';
 import { DAO, DAOProposal } from '@/types/dao';
 
@@ -25,7 +25,7 @@ export function useDAOSubscription({
   onDAOUpdate
 }: UseDAOSubscriptionProps) {
   const [isConnected, setIsConnected] = useState(false);
-  const [subscriptions, setSubscriptions] = useState<Sub[]>([]);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   
   // Define relays - use the most reliable NIP-72 compatible ones
   const relays = [
@@ -41,7 +41,7 @@ export function useDAOSubscription({
     
     console.log(`Setting up subscriptions for DAO ${daoId}...`);
     const pool = new SimplePool();
-    const activeSubscriptions: Sub[] = [];
+    const activeSubscriptions: any[] = [];
     
     try {
       // Subscribe to DAO updates
@@ -50,15 +50,14 @@ export function useDAOSubscription({
         ids: [daoId]
       };
       
-      // Use subscribe instead of sub
-      const daoSub = pool.subscribe(relays, [daoFilter], {
+      const daoSub = pool.subscribe(relays, daoFilter, {
         onevent: (event) => {
           console.log('Received DAO update event:', event);
           if (onDAOUpdate) {
             try {
-              let content = {};
+              let content: Record<string, any> = {};
               try {
-                content = JSON.parse(event.content);
+                content = JSON.parse(event.content) as Record<string, any>;
               } catch (error) {
                 console.error('Error parsing DAO content:', error);
                 content = {};
@@ -79,7 +78,6 @@ export function useDAOSubscription({
                 moderators: [],
                 treasury: content.treasury || { balance: 0, tokenSymbol: "ALPH" },
                 tags: content.tags || [],
-                // Add missing properties required by the DAO type
                 proposals: content.proposals || 0,
                 activeProposals: content.activeProposals || 0
               };
@@ -102,15 +100,14 @@ export function useDAOSubscription({
         since: Math.floor(Date.now() / 1000) // Only get new proposals from now
       };
       
-      // Use subscribe instead of sub
-      const proposalSub = pool.subscribe(relays, [proposalFilter], {
+      const proposalSub = pool.subscribe(relays, proposalFilter, {
         onevent: (event) => {
           console.log('Received new proposal event:', event);
           if (onNewProposal) {
             try {
-              let content = {};
+              let content: Record<string, any> = {};
               try {
-                content = JSON.parse(event.content);
+                content = JSON.parse(event.content) as Record<string, any>;
               } catch (error) {
                 console.error('Error parsing proposal content:', error);
                 content = {};
@@ -149,8 +146,7 @@ export function useDAOSubscription({
           since: Math.floor(Date.now() / 1000) // Only get new votes from now
         };
         
-        // Use subscribe instead of sub
-        const voteSub = pool.subscribe(relays, [voteFilter], {
+        const voteSub = pool.subscribe(relays, voteFilter, {
           onevent: (event) => {
             console.log('Received vote event:', event);
             try {
@@ -162,7 +158,7 @@ export function useDAOSubscription({
                 
                 // Parse vote content (both JSON and non-JSON formats)
                 try {
-                  const content = JSON.parse(event.content);
+                  const content = JSON.parse(event.content) as Record<string, any>;
                   optionIndex = content.optionIndex;
                 } catch (e) {
                   optionIndex = parseInt(event.content.trim());
