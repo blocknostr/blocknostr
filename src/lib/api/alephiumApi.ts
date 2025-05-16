@@ -34,12 +34,19 @@ export const getAddressTransactions = async (address: string, limit = 20) => {
   try {
     // For now, we'll fetch UTXOs and use them to construct a simplified transaction history
     // In a production app, you might want to use the explorer API or build a more sophisticated solution
-    const utxos = await nodeProvider.addresses.getAddressesAddressUtxos(address);
+    const response = await nodeProvider.addresses.getAddressesAddressUtxos(address);
+    
+    // The API returns an object with a 'utxos' property that contains the array we need
+    // Check if we have the expected structure
+    if (!response || !response.utxos || !Array.isArray(response.utxos)) {
+      console.warn('Unexpected UTXO response structure:', response);
+      return [];
+    }
     
     // Transform UTXOs into a simplified transaction history
-    // Note: This is a simplified approach that doesn't capture the full transaction history
-    const simplifiedTxs = utxos.slice(0, limit).map((utxo: any, index: number) => ({
-      hash: utxo.txId || `tx-${index}`,
+    const utxoArray = response.utxos;
+    const simplifiedTxs = utxoArray.slice(0, limit).map((utxo: any, index: number) => ({
+      hash: utxo.ref?.key || `tx-${index}`,
       blockHash: `block-${index}`, // We don't have this info from UTXOs
       timestamp: Date.now() - index * 3600000, // Fake timestamps, newest first
       inputs: [{
@@ -78,13 +85,18 @@ export const getAddressUtxos = async (address: string) => {
 export const getAddressTokens = async (address: string) => {
   try {
     // Get all UTXOs for the address
-    const utxos = await getAddressUtxos(address);
+    const response = await getAddressUtxos(address);
     
     // Extract token information from UTXOs
     const tokenMap: Record<string, { id: string, amount: number, name?: string, symbol?: string }> = {};
     
-    // Ensure utxos is an array before iterating
-    const utxoArray = Array.isArray(utxos) ? utxos : [];
+    // Check if we have the expected structure
+    if (!response || !response.utxos || !Array.isArray(response.utxos)) {
+      console.warn('Unexpected UTXO response structure:', response);
+      return [];
+    }
+    
+    const utxoArray = response.utxos;
     
     for (const utxo of utxoArray) {
       if (utxo.tokens && utxo.tokens.length > 0) {
