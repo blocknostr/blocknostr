@@ -52,7 +52,8 @@ export function useFeedEvents({
   
   // Initialize the setEvents function in the repostHandler
   useEffect(() => {
-    initSetEvents((newEvents) => {
+    // Fix #1: Pass a direct function that accepts NostrEvent[] instead of SetStateAction
+    initSetEvents((newEvents: NostrEvent[]) => {
       setEvents(prev => mergeEvents(newEvents, prev));
     });
   }, [initSetEvents, mergeEvents]);
@@ -70,9 +71,9 @@ export function useFeedEvents({
     since,
     until,
     limit,
-    setEvents: (newEvents) => {
-      // Merge new events with existing events instead of replacing
-      setEvents(prevEvents => mergeEvents(newEvents, prevEvents));
+    // Fix #2: Pass a direct function that accepts NostrEvent[] instead of SetStateAction
+    setEvents: (newEvents: NostrEvent[]) => {
+      setEvents(prev => mergeEvents(newEvents, prev));
     },
     handleRepost,
     fetchProfileData,
