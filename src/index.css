@@ -121,6 +121,7 @@
   html {
     scroll-behavior: smooth;
     height: -webkit-fill-available;
+    height: 100%;
   }
   
   /* Support for iOS height */
@@ -129,6 +130,8 @@
     min-height: -webkit-fill-available;
     overflow-x: hidden;
     overscroll-behavior-y: none;
+    /* Use custom viewport height variable */
+    min-height: calc(var(--vh, 1vh) * 100);
   }
   
   /* Fix iOS text size adjustment issues */
@@ -339,9 +342,18 @@ html.color-theme-in-transition {
     @apply mx-auto max-w-[95%];
   }
   
-  /* Make page content account for iOS notches and home indicator */
-  .main-content {
-    @apply pb-safe pt-safe px-safe;
+  /* iOS-specific padding classes */
+  .ios-safe-padding-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  .ios-safe-padding-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
   }
   
   /* Fixed headers for iOS to prevent bounce issues */
@@ -445,20 +457,11 @@ html.color-theme-in-transition {
 }
 
 /* iOS specific optimizations */
-.ios-safe-padding-top {
-  padding-top: env(safe-area-inset-top, 0px);
-}
-
-.ios-safe-padding-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.ios-safe-padding-left {
-  padding-left: env(safe-area-inset-left, 0px);
-}
-
-.ios-safe-padding-right {
-  padding-right: env(safe-area-inset-right, 0px);
+.ios-safe-area {
+  height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .overscroll-none {

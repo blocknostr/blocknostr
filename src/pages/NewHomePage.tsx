@@ -9,6 +9,7 @@ import NewFollowingFeed from "@/components/feed/NewFollowingFeed";
 import NewCreateNote from "@/components/note/NewCreateNote";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import CustomizeGlobalFeedDialog from "@/components/feed/CustomizeGlobalFeedDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const NewHomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("global");
@@ -17,6 +18,14 @@ const NewHomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { preferences, updateNestedPreference } = useUserPreferences();
   const isLoggedIn = !!nostrService.publicKey;
+  const isMobile = useIsMobile();
+  const [isIOS, setIsIOS] = useState(false);
+
+  useEffect(() => {
+    // Detect iOS device
+    const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(detectIOS);
+  }, []);
 
   // Callback for feed loading state changes
   const handleLoadingChange = useCallback((loading: boolean) => {
@@ -35,7 +44,7 @@ const NewHomePage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4">
+    <div className={`max-w-2xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`}>
       {/* Login message for users not logged in */}
       {!isLoggedIn && (
         <div className="mb-6 p-4 rounded-lg border border-border bg-card">
@@ -47,10 +56,10 @@ const NewHomePage: React.FC = () => {
       )}
 
       {/* Create Note component (only shown when logged in) */}
-      {isLoggedIn && <NewCreateNote className="mb-6" />}
+      {isLoggedIn && <NewCreateNote className="mb-6 w-full" />}
 
       {/* Tabs for switching between feeds */}
-      <div className="mb-6">
+      <div className="mb-6 w-full">
         <div className="flex items-center justify-between mb-2">
           <Tabs
             value={activeTab}
@@ -58,12 +67,12 @@ const NewHomePage: React.FC = () => {
             className="w-full"
           >
             <div className="flex items-center justify-between">
-              <TabsList>
-                <TabsTrigger value="global" className="min-w-[100px]">Global</TabsTrigger>
-                <TabsTrigger value="following" className="min-w-[100px]" disabled={!isLoggedIn}>Following</TabsTrigger>
+              <TabsList className="w-full">
+                <TabsTrigger value="global" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`}>Global</TabsTrigger>
+                <TabsTrigger value="following" className={`${isMobile ? 'flex-1' : 'min-w-[100px]'}`} disabled={!isLoggedIn}>Following</TabsTrigger>
               </TabsList>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 ml-2">
                 {activeTab === "global" && (
                   <Button 
                     variant="outline" 
@@ -109,14 +118,14 @@ const NewHomePage: React.FC = () => {
             )}
 
             {/* Feed content */}
-            <TabsContent value="global" className="mt-2 p-0 border-none">
+            <TabsContent value="global" className="mt-2 p-0 border-none w-full">
               <NewGlobalFeed 
                 activeHashtag={activeHashtag} 
                 onLoadingChange={handleLoadingChange} 
               />
             </TabsContent>
             
-            <TabsContent value="following" className="mt-2 p-0 border-none">
+            <TabsContent value="following" className="mt-2 p-0 border-none w-full">
               {isLoggedIn ? (
                 <NewFollowingFeed 
                   activeHashtag={activeHashtag}

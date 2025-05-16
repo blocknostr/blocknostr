@@ -26,12 +26,19 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [scrolledDown, setScrolledDown] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const feedContainerRef = useRef<HTMLDivElement>(null);
+  const [isIOS, setIsIOS] = useState(false);
   
   // Store scroll position to restore later
   const scrollPositionRef = useRef(0);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
+
+  // Detect iOS device
+  useEffect(() => {
+    const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(detectIOS);
+  }, []);
 
   // When preferences change, update the active tab if it's the default feed
   useEffect(() => {
@@ -127,9 +134,10 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   return (
     <div 
       className={cn(
-        "max-w-2xl mx-auto",
+        "max-w-2xl mx-auto w-full",
         fontSizeClass,
-        isLoading ? "relative pointer-events-none" : ""
+        isLoading ? "relative pointer-events-none" : "",
+        isIOS ? "px-safe" : "px-4"
       )}
       ref={feedContainerRef}
     >
@@ -146,20 +154,20 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       )}
       
       {/* Create Note Form - No longer in sticky container */}
-      <div className="mb-4 px-2 sm:px-0 pt-2">
+      <div className="mb-4 sm:px-0 pt-2 w-full">
         <CreateNoteForm />
       </div>
       
       {/* Tabs navigation - Still sticky */}
-      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md">
+      <div className="sticky top-14 z-30 bg-background/95 backdrop-blur-md w-full">
         <div className={cn(
-          "border-b border-border/50",
+          "border-b border-border/50 w-full",
           scrolledDown ? "shadow-sm" : ""
         )}>
           <Tabs 
             value={activeTab} 
             onValueChange={handleTabChange}
-            className="relative"
+            className="relative w-full"
           >
             <TabsList className={cn(
               "w-full",
@@ -188,22 +196,22 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       </div>
       
       {/* Connection Status Banner */}
-      <div className="pt-2">
+      <div className="pt-2 w-full">
         {isLoggedIn && <ConnectionStatusBanner />}
       </div>
       
       {/* Feed content */}
-      <div className="mt-2 space-y-4">
+      <div className="mt-2 space-y-4 w-full">
         <Tabs 
           value={activeTab} 
           onValueChange={handleTabChange}
-          className="relative"
+          className="relative w-full"
         >
-          <TabsContent value="global">
+          <TabsContent value="global" className="w-full">
             <GlobalFeed activeHashtag={activeHashtag} onLoadingChange={setIsLoading} />
           </TabsContent>
           
-          <TabsContent value="following">
+          <TabsContent value="following" className="w-full">
             {!isLoggedIn ? (
               <div className="py-8 text-center text-muted-foreground">
                 You need to log in to see posts from people you follow.

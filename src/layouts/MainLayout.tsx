@@ -21,8 +21,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [iOSSafeArea, setIOSSafeArea] = useState(false);
+  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
   
-  // Check for iOS device
+  // Check for iOS device and set up dynamic viewport height
   useEffect(() => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIOSSafeArea(isIOS);
@@ -34,11 +35,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       
       // Update on resize or orientation change
       const updateHeight = () => {
-        document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        setWindowHeight(window.innerHeight);
       };
       
       window.addEventListener('resize', updateHeight);
       window.addEventListener('orientationchange', updateHeight);
+      
+      // Initial call to set the height
+      updateHeight();
       
       return () => {
         window.removeEventListener('resize', updateHeight);
@@ -109,6 +115,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           preferences.uiPreferences?.compactMode ? "text-sm" : "",
           iOSSafeArea ? "ios-safe-area" : ""
         )}
+        style={iOSSafeArea ? { minHeight: `${windowHeight}px` } : undefined}
       >
         {/* Desktop sidebar - only visible on non-mobile */}
         {!isMobile && <Sidebar />}
@@ -134,9 +141,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <main
               className={cn(
                 "flex-1 min-h-screen mt-14", /* Added top margin for header */
-                iOSSafeArea && "ios-safe-padding-bottom"
+                iOSSafeArea && "ios-safe-padding-bottom px-safe"
               )}
               onClick={handleMainContentClick}
+              style={iOSSafeArea ? { minHeight: `calc(${windowHeight}px - 3.5rem)` } : undefined}
             >
               {children || <Outlet />}
             </main>

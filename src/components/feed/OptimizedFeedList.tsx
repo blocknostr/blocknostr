@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -26,9 +26,16 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
+  const [isIOS, setIsIOS] = useState(false);
   
   // Create more aggressive early loading triggers
   const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
+
+  // Detect if on iOS device
+  useEffect(() => {
+    const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(detectIOS);
+  }, []);
   
   useEffect(() => {
     // Setup early loading triggers with higher threshold and larger margin
@@ -40,7 +47,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
             onLoadMore();
           }
         },
-        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Much larger bottom margin for earlier detection
+        { 
+          threshold: 0.1, 
+          rootMargin: isIOS ? '0px 0px 1000px 0px' : '0px 0px 2000px 0px' // Smaller margin for iOS
+        } 
       );
       
       if (earlyTriggerRef.current) {
@@ -51,10 +61,10 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         earlyTriggerObserver.disconnect();
       };
     }
-  }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
+  }, [events.length, hasMore, loadMoreLoading, onLoadMore, isIOS]);
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 
