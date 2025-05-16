@@ -107,7 +107,7 @@ export const subscribeToTokenTransactions = (
   tokenId: string,
   symbol: string,
   callback: (transaction: TokenTransaction) => void
-): () => void => {
+): (() => void) => {
   const pool = initNostrPool();
   
   // Create filter for Alephium token transactions
@@ -118,9 +118,9 @@ export const subscribeToTokenTransactions = (
   };
   
   // Subscribe to events
-  const sub = pool.sub(NOSTR_RELAYS, [filter]);
+  const subscription = pool.sub(NOSTR_RELAYS, [filter]);
   
-  sub.on('event', (event: Event) => {
+  subscription.on('event', (event: Event) => {
     try {
       // Parse transaction from event content
       const transaction: TokenTransaction = JSON.parse(event.content);
@@ -148,7 +148,7 @@ export const subscribeToTokenTransactions = (
   
   // Return unsubscribe function
   return () => {
-    sub.unsub();
+    subscription.unsub();
   };
 };
 
@@ -182,7 +182,7 @@ export const fetchAllTokenTransactions = async (
  */
 export const subscribeToAllTokenUpdates = (
   callback: (tokenId: string, symbol: string, transaction: TokenTransaction) => void
-): () => void => {
+): (() => void) => {
   const pool = initNostrPool();
   
   // Create filter for all Alephium token transactions
@@ -192,9 +192,9 @@ export const subscribeToAllTokenUpdates = (
   };
   
   // Subscribe to events
-  const sub = pool.sub(NOSTR_RELAYS, [filter]);
+  const subscription = pool.sub(NOSTR_RELAYS, [filter]);
   
-  sub.on('event', (event: Event) => {
+  subscription.on('event', (event: Event) => {
     try {
       // Get token ID from tags
       const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
@@ -231,7 +231,7 @@ export const subscribeToAllTokenUpdates = (
   
   // Return unsubscribe function
   return () => {
-    sub.unsub();
+    subscription.unsub();
   };
 };
 
@@ -240,7 +240,7 @@ export const subscribeToAllTokenUpdates = (
  */
 export const cleanupTokenTransactions = (): void => {
   if (nostrPool) {
-    nostrPool.close();
+    nostrPool.close(NOSTR_RELAYS);
     nostrPool = null;
   }
 };

@@ -15,13 +15,15 @@ interface WalletBalanceCardProps {
   onRefresh?: () => void;
   className?: string;
   refreshFlag?: number; // Add refreshFlag to trigger refreshes from parent
+  isLoggedIn?: boolean; // Add isLoggedIn prop
 }
 
 const WalletBalanceCard = ({ 
   address, 
   onRefresh, 
   className = "",
-  refreshFlag = 0
+  refreshFlag = 0,
+  isLoggedIn = false
 }: WalletBalanceCardProps) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [lockedBalance, setLockedBalance] = useState<number | null>(null);

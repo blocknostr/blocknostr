@@ -89,13 +89,15 @@ export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvi
     // If not in cache and we have a nodeProvider, try to get token info from node
     if (nodeProvider) {
       try {
-        const tokenInfo = await nodeProvider.tokens.getTokensTokenId(tokenId);
-        if (tokenInfo) {
+        // Use direct api calls instead of tokens property
+        const response = await nodeProvider.request('get', `/tokens/${tokenId}`);
+        
+        if (response) {
           return {
             id: tokenId,
-            name: tokenInfo.name || `Token ${tokenId.substring(0, 6)}`,
-            symbol: tokenInfo.symbol || 'TOKEN',
-            decimals: tokenInfo.decimals || 0,
+            name: response.name || `Token ${tokenId.substring(0, 6)}`,
+            symbol: response.symbol || 'TOKEN',
+            decimals: response.decimals || 0,
             description: "Token fetched from Alephium node"
           };
         }

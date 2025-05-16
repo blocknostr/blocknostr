@@ -1,48 +1,43 @@
 
 import React from "react";
-import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@alephium/web3-react";
-import { toast } from "sonner";
+import { Wallet } from "lucide-react";
 
-interface WalletConnectButtonProps {
-  className?: string;
-}
-
-// Note: This component is deprecated as wallet connection is now handled during login
-// Kept for backward compatibility only
-const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
+const WalletConnectButton: React.FC = () => {
   const wallet = useWallet();
-  
-  const handleConnect = () => {
-    toast.info("Your wallet is already connected through login", {
-      description: "No additional connection needed"
-    });
+
+  const handleConnect = async () => {
+    if (wallet.connectionStatus === 'disconnected') {
+      await wallet.connect();
+    }
   };
 
+  // Already connected
   if (wallet.connectionStatus === 'connected' && wallet.account) {
     return (
-      <Button
-        className={className}
-        variant="outline"
-        size="sm"
-        disabled
-      >
+      <Button disabled className="w-full">
         <Wallet className="mr-2 h-4 w-4" />
-        Connected
+        Wallet Connected
       </Button>
     );
   }
 
+  // Connecting
+  if (wallet.connectionStatus === 'connecting') {
+    return (
+      <Button disabled className="w-full">
+        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        Connecting...
+      </Button>
+    );
+  }
+
+  // Not connected
   return (
-    <Button 
-      className={className}
-      variant="outline" 
-      size="sm"
-      onClick={handleConnect}
-    >
+    <Button onClick={handleConnect} className="w-full">
       <Wallet className="mr-2 h-4 w-4" />
-      Wallet Info
+      Connect Wallet
     </Button>
   );
 };

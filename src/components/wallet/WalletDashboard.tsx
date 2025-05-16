@@ -56,9 +56,10 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
             />
           </div>
           <div>
-            <RecentActivityCard 
-              stats={walletStats} 
-              isLoading={isStatsLoading} 
+            <RecentActivityCard
+              address={address}
+              stats={walletStats}
+              isLoading={isStatsLoading}
               refreshFlag={refreshFlag}
             />
           </div>
