@@ -1,3 +1,4 @@
+
 import { SimplePool, getEventHash, Event, Filter } from 'nostr-tools';
 import { TokenMetadata, fetchTokenList } from './tokenMetadata';
 
@@ -118,11 +119,11 @@ export const subscribeToTokenTransactions = (
   
   console.log(`Subscribing to token transactions for ${tokenId} (${symbol})`);
   
-  // Fixed: SimplePool.subscribe expects relays array, filter object, and optional options
-  const sub = pool.subscribe(NOSTR_RELAYS, [filter], { id: `token-tx-${tokenId}` });
+  // Fixed: Subscribe properly using the SimplePool API
+  const sub = pool.subscribeMany(NOSTR_RELAYS, [filter]);
   
-  // Set up event handler with manual event handling
-  const eventHandler = (event: Event) => {
+  // Set up event handler with correct subscription pattern
+  sub.on('event', (event: Event) => {
     try {
       // Parse transaction from event content
       const transaction: TokenTransaction = JSON.parse(event.content);
@@ -146,15 +147,16 @@ export const subscribeToTokenTransactions = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  };
+  });
   
-  // Register event handler
-  sub.eose = () => console.log(`Initial sync complete for ${tokenId}`);
-  sub.onevent = eventHandler;
+  // Log when we're done with initial event load
+  sub.on('eose', () => {
+    console.log(`Initial sync complete for ${tokenId}`);
+  });
   
   // Return unsubscribe function
   return () => {
-    sub.close();
+    sub.unsub();
   };
 };
 
@@ -199,11 +201,11 @@ export const subscribeToAllTokenUpdates = (
   
   console.log('Subscribing to all token transactions');
   
-  // Fixed: SimplePool.subscribe expects relays array, filter object, and optional options
-  const sub = pool.subscribe(NOSTR_RELAYS, [filter], { id: 'all-token-tx' });
+  // Fixed: Subscribe properly using the SimplePool API
+  const sub = pool.subscribeMany(NOSTR_RELAYS, [filter]);
   
   // Set up event handler
-  const eventHandler = (event: Event) => {
+  sub.on('event', (event: Event) => {
     try {
       // Get token ID from tags
       const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
@@ -236,15 +238,16 @@ export const subscribeToAllTokenUpdates = (
     } catch (error) {
       console.error('Error processing Nostr event:', error);
     }
-  };
+  });
   
-  // Register event handler
-  sub.eose = () => console.log('Initial sync complete for all tokens');
-  sub.onevent = eventHandler;
+  // Log when we're done with initial event load
+  sub.on('eose', () => {
+    console.log('Initial sync complete for all tokens');
+  });
   
   // Return unsubscribe function
   return () => {
-    sub.close();
+    sub.unsub();
   };
 };
 
