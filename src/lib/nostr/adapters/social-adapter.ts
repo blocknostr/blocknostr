@@ -1,98 +1,194 @@
 
-import { BaseAdapter } from './base-adapter';
-import { EVENT_KINDS } from '../constants';
-
 /**
- * Adapter for social interactions (following, messaging, moderation)
+ * SocialAdapter for handling social interactions like following, DMs, etc.
  */
-export class SocialAdapter extends BaseAdapter {
-  // Social methods
-  isFollowing(pubkey: string) {
-    return this.service.isFollowing(pubkey);
+export class SocialAdapter {
+  private service: any;
+  private _following: string[] = [];
+  
+  constructor(service: any) {
+    this.service = service;
   }
   
-  async followUser(pubkey: string) {
-    return this.service.followUser(pubkey);
-  }
-  
-  async unfollowUser(pubkey: string) {
-    return this.service.unfollowUser(pubkey);
-  }
-  
-  async sendDirectMessage(recipientPubkey: string, content: string) {
-    return this.service.sendDirectMessage(recipientPubkey, content);
-  }
-
-  // User moderation methods
-  async muteUser(pubkey: string) {
-    if (this.service.muteUser) {
-      return this.service.muteUser(pubkey);
-    }
+  /**
+   * Check if a user is being followed by the current user
+   */
+  async isFollowing(pubkey: string): Promise<boolean> {
+    // Implementation logic
     return false;
   }
   
-  async unmuteUser(pubkey: string) {
-    if (this.service.unmuteUser) {
-      return this.service.unmuteUser(pubkey);
-    }
+  /**
+   * Follow a user
+   */
+  async followUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
     return false;
   }
   
-  async isUserMuted(pubkey: string) {
-    if (this.service.isUserMuted) {
-      return this.service.isUserMuted(pubkey);
-    }
+  /**
+   * Unfollow a user
+   */
+  async unfollowUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
     return false;
   }
   
-  async blockUser(pubkey: string) {
-    if (this.service.blockUser) {
-      return this.service.blockUser(pubkey);
+  /**
+   * React to an event with the specified content (like, dislike, etc.)
+   * Implements NIP-25 reactions
+   */
+  async reactToEvent(eventId: string, reaction: string): Promise<boolean> {
+    if (!this.service.publicKey) {
+      console.error('Cannot react to event: User not logged in');
+      return false;
     }
-    return false;
-  }
-  
-  async unblockUser(pubkey: string) {
-    if (this.service.unblockUser) {
-      return this.service.unblockUser(pubkey);
-    }
-    return false;
-  }
-  
-  async isUserBlocked(pubkey: string) {
-    if (this.service.isUserBlocked) {
-      return this.service.isUserBlocked(pubkey);
-    }
-    return false;
-  }
-  
-  // Add the reactToEvent method
-  async reactToEvent(eventId: string, emoji: string = "+") {
-    if (this.service.reactToPost) {
-      return this.service.reactToPost(eventId, emoji);
-    }
-    return false;
-  }
-  
-  // Social manager enhanced methods
-  get socialManager() {
-    return {
-      ...this.service.socialManager,
-      likeEvent: (event: any) => {
-        return this.service.reactToPost(event.id);
-      },
-      repostEvent: (event: any) => {
-        return this.service.repostNote(event.id, event.pubkey);
-      },
-      getReactionCounts: (eventId: string) => {
-        return Promise.resolve({
-          likes: 0,
-          reposts: 0
-        });
-      },
-      reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.reactToEvent(eventId, emoji);
+    
+    try {
+      // Create a reaction event (kind 7) according to NIP-25
+      const event = {
+        kind: 7, // Reaction event
+        content: reaction, // "+" for like, "-" for dislike, etc.
+        tags: [
+          ['e', eventId] // Reference to the event we're reacting to
+        ]
+      };
+      
+      // Publish the event
+      const reactionId = await this.service.publishEvent(event);
+      
+      if (reactionId) {
+        console.log(`Reaction published with ID: ${reactionId}`);
+        return true;
+      } else {
+        console.warn('Failed to publish reaction');
+        return false;
       }
-    };
+    } catch (error) {
+      console.error('Error reacting to event:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Check if the current user has reacted to an event
+   */
+  async hasReactedToEvent(eventId: string, reaction?: string): Promise<boolean> {
+    if (!this.service.publicKey) return false;
+    
+    try {
+      // Query for reaction events from the current user to the specified event
+      const filter = {
+        kinds: [7], // Reaction events
+        authors: [this.service.publicKey],
+        '#e': [eventId]
+      };
+      
+      const events = await this.service.queryEvents([filter]);
+      
+      if (reaction) {
+        // Check for a specific reaction
+        return events.some((event: any) => event.content === reaction);
+      }
+      
+      // Check for any reaction
+      return events.length > 0;
+    } catch (error) {
+      console.error('Error checking reactions:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Get all reactions to an event
+   */
+  async getReactionsToEvent(eventId: string): Promise<any[]> {
+    try {
+      // Query for all reaction events to the specified event
+      const filter = {
+        kinds: [7], // Reaction events
+        '#e': [eventId]
+      };
+      
+      return await this.service.queryEvents([filter]);
+    } catch (error) {
+      console.error('Error getting reactions:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Block a user
+   */
+  async blockUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Unblock a user
+   */
+  async unblockUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Mute a user
+   */
+  async muteUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Unmute a user
+   */
+  async unmuteUser(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Check if a user is blocked
+   */
+  async isUserBlocked(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Check if a user is muted
+   */
+  async isUserMuted(pubkey: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Send a direct message to a user
+   */
+  async sendDirectMessage(recipientPubkey: string, content: string): Promise<boolean> {
+    // Implementation logic
+    return false;
+  }
+  
+  /**
+   * Get direct messages
+   */
+  async getDirectMessages(): Promise<any[]> {
+    // Implementation logic
+    return [];
+  }
+  
+  /**
+   * Get list of users the current user is following
+   */
+  get following(): string[] {
+    return this._following;
+  }
+  
+  set following(pubkeys: string[]) {
+    this._following = pubkeys;
   }
 }

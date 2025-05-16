@@ -4,6 +4,7 @@ import { NostrEvent } from "@/lib/nostr/types";
 import ArticleList from "./ArticleList";
 import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
 import { ArticleSearchParams } from "@/lib/nostr/types/article";
+import { isNip94FileEvent } from "@/lib/nostr/utils/nip/nip94";
 
 interface ArticleFeedProps {
   type: "latest" | "trending" | "following" | "search";
@@ -81,8 +82,14 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
             break;
         }
         
-        console.log(`Found ${fetchedArticles.length} articles for ${type}`, fetchedArticles);
-        setArticles(fetchedArticles);
+        // Filter out any non-article events that might have been returned
+        // Only allow kind 30023 (NIP-23 long-form content) or 1063 (NIP-94 file metadata)
+        const validArticles = fetchedArticles.filter(event => 
+          event.kind === 30023 || (event.kind === 1063 && isNip94FileEvent(event))
+        );
+        
+        console.log(`Found ${validArticles.length} valid articles for ${type}`, validArticles);
+        setArticles(validArticles);
       } catch (error) {
         console.error("Error fetching articles:", error);
       } finally {

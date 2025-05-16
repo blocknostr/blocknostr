@@ -1,114 +1,114 @@
 
 /**
- * NIP-10: Thread handling utility functions
+ * NIP-10: Thread Replies
  * https://github.com/nostr-protocol/nips/blob/master/10.md
  */
 
+import { NostrEvent } from "@/lib/nostr/types";
+
 /**
- * Parse event tags to properly handle thread markers according to NIP-10
- * @param tags The tags array from a Nostr event
- * @returns Object containing root event ID, reply event ID, and mentions
+ * Get the value of a specific tag from event.tags
  */
-export function parseThreadTags(tags: string[][]): {
-  rootId: string | null;
-  replyId: string | null;
-  mentions: string[];
-} {
-  const result = {
-    rootId: null as string | null,
-    replyId: null as string | null,
-    mentions: [] as string[]
-  };
+export const getTagValue = (event: NostrEvent, tagName: string): string | undefined => {
+  if (!event.tags || !Array.isArray(event.tags)) return undefined;
   
-  if (!tags || !Array.isArray(tags)) {
-    return result;
-  }
+  const tag = event.tags.find(tag => 
+    Array.isArray(tag) && tag.length >= 2 && tag[0] === tagName
+  );
   
-  const eTags = tags.filter(tag => Array.isArray(tag) && tag[0] === 'e');
+  return tag ? tag[1] : undefined;
+};
+
+/**
+ * Get all values of specific tags from event.tags
+ */
+export const getTagValues = (event: NostrEvent, tagName: string): string[] => {
+  if (!event.tags || !Array.isArray(event.tags)) return [];
   
-  // NIP-10 thread logic
-  eTags.forEach((tag) => {
-    // Tag format: ["e", <event-id>, <relay-url>?, <marker>?]
-    if (tag.length < 2) return;
-    
-    const [_, eventId, , marker] = tag;
-    
-    // Handle special markers
-    if (marker === "root") {
-      result.rootId = eventId;
-    } else if (marker === "reply") {
-      result.replyId = eventId;
-    } else if (!marker) {
-      // No marker means it's either a root, reply, or mention
-      if (!result.replyId) {
-        result.replyId = eventId;
-      } else {
-        result.mentions.push(eventId);
-      }
+  return event.tags
+    .filter(tag => Array.isArray(tag) && tag.length >= 2 && tag[0] === tagName)
+    .map(tag => tag[1]);
+};
+
+/**
+ * Get a tagged event reference with specific marker
+ */
+export const getTaggedEventWithMarker = (event: NostrEvent, marker: string): string | undefined => {
+  if (!event.tags || !Array.isArray(event.tags)) return undefined;
+  
+  const tag = event.tags.find(tag => 
+    Array.isArray(tag) && tag.length >= 4 && tag[0] === 'e' && tag[3] === marker
+  );
+  
+  return tag ? tag[1] : undefined;
+};
+
+/**
+ * Get the root event ID from a thread (if available)
+ */
+export const getRootEventId = (event: NostrEvent): string | undefined => {
+  return getTaggedEventWithMarker(event, 'root');
+};
+
+/**
+ * Get the direct reply event ID (if available)
+ */
+export const getReplyEventId = (event: NostrEvent): string | undefined => {
+  return getTaggedEventWithMarker(event, 'reply');
+};
+
+/**
+ * Get all mentioned public keys from p tags
+ */
+export const getMentionedPubkeys = (event: NostrEvent): string[] => {
+  return getTagValues(event, 'p');
+};
+
+/**
+ * Check if an event is a reply to another event
+ */
+export const isReplyToEvent = (event: NostrEvent, eventId: string): boolean => {
+  if (!event.tags || !Array.isArray(event.tags)) return false;
+  
+  return event.tags.some(tag => 
+    Array.isArray(tag) && tag.length >= 2 && tag[0] === 'e' && tag[1] === eventId
+  );
+};
+
+/**
+ * Check if an event mentions a user
+ */
+export const mentionsUser = (event: NostrEvent, pubkey: string): boolean => {
+  if (!event.tags || !Array.isArray(event.tags)) return false;
+  
+  return event.tags.some(tag => 
+    Array.isArray(tag) && tag.length >= 2 && tag[0] === 'p' && tag[1] === pubkey
+  );
+};
+
+/**
+ * Create threading tags for a new post
+ * Handles both top-level posts and replies according to NIP-10
+ */
+export const createThreadingTags = (options: {
+  replyingTo?: string,  // ID of the direct event we're replying to
+  rootEvent?: string    // ID of the root event of the thread
+}): string[][] => {
+  const { replyingTo, rootEvent } = options;
+  const tags: string[][] = [];
+  
+  if (replyingTo) {
+    // If we have both a root and a reply target, and they're different
+    if (rootEvent && rootEvent !== replyingTo) {
+      // Include the root with marker
+      tags.push(['e', rootEvent, '', 'root']);
+      // Include the reply with marker
+      tags.push(['e', replyingTo, '', 'reply']);
     } else {
-      // Any other marker is considered a mention
-      result.mentions.push(eventId);
-    }
-  });
-  
-  // If we have no explicit root but have a reply, the reply becomes our thread context
-  if (!result.rootId && result.replyId) {
-    result.rootId = result.replyId;
-  }
-  
-  return result;
-}
-
-/**
- * Validates that e-tags follow the proper structure according to NIP-10
- */
-export function validateNip10Tags(tags: string[][]): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-  
-  if (!Array.isArray(tags)) {
-    return { valid: false, errors: ['tags must be an array'] };
-  }
-  
-  const eTags = tags.filter(tag => Array.isArray(tag) && tag[0] === 'e');
-  
-  for (let i = 0; i < eTags.length; i++) {
-    const tag = eTags[i];
-    
-    // Validate tag structure ["e", <event-id>, <relay-url>?, <marker>?]
-    if (tag.length < 2) {
-      errors.push(`E-tag at index ${i} must have an event ID`);
-      continue;
-    }
-    
-    // Validate event ID format (hex string of 64 chars)
-    if (!/^[0-9a-fA-F]{64}$/.test(tag[1])) {
-      errors.push(`E-tag at index ${i} has an invalid event ID format`);
-    }
-    
-    // If marker is present, validate it's one of the allowed values
-    if (tag.length >= 4 && tag[3]) {
-      const marker = tag[3];
-      if (!['root', 'reply', 'mention'].includes(marker)) {
-        errors.push(`E-tag at index ${i} has an invalid marker: ${marker}`);
-      }
+      // If replying directly to the root or rootEvent not provided
+      tags.push(['e', replyingTo, '', 'root']);
     }
   }
   
-  return { valid: errors.length === 0, errors };
-}
-
-/**
- * Get a value from a specific tag type in a Nostr event
- * @param event The Nostr event object or tag array
- * @param tagName The tag name to look for (e.g., 'title', 'summary', etc.)
- * @returns The tag value or undefined if not found
- */
-export function getTagValue(event: any, tagName: string): string | undefined {
-  // If event is not an object with tags property, assume it's already a tags array
-  const tags = Array.isArray(event) ? event : (event?.tags || []);
-  
-  if (!Array.isArray(tags)) return undefined;
-  
-  const tag = tags.find(t => Array.isArray(t) && t[0] === tagName);
-  return tag && tag.length > 1 ? tag[1] : undefined;
-}
+  return tags;
+};

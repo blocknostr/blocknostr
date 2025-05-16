@@ -9,4 +9,5 @@ export * from './nip27';
 export * from './nip36';
 export * from './nip44';
 export * from './nip65';
+export * from './nip94';  // Add NIP-94 support
 export * from './validator';
