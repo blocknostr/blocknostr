@@ -103,7 +103,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Close panels when clicking on main content (mobile only)
   const handleMainContentClick = () => {
-    if (iMobile) {
+    if (isMobile) { // Fixed the typo here from iMobile to isMobile
       setLeftPanelOpen(false);
       setRightPanelOpen(false);
     }
