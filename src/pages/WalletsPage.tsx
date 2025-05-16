@@ -1,20 +1,15 @@
-
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { ExternalLink } from "lucide-react";
+import { Wallet, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
-import { SavedWallet, WalletList } from "@/types/wallet";
-import { loadWalletList, addWallet, saveWalletList } from "@/lib/nostr/utils/wallet-persistence";
-import AddWalletDialog from "@/components/wallet/AddWalletDialog";
-import WalletSelector from "@/components/wallet/WalletSelector";
-import { nostrService } from "@/lib/nostr";
 
-// Specify the fixed address if no wallets are saved or user is not logged in
+// Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
 
 // Interface for wallet stats
@@ -27,7 +22,7 @@ interface WalletStats {
 
 const WalletsPage = () => {
   const wallet = useWallet();
-  const [walletList, setWalletList] = useState<WalletList>({ wallets: [], activeWalletIndex: 0 });
+  const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
@@ -36,68 +31,21 @@ const WalletsPage = () => {
     tokenCount: 0
   });
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
-  const isNostrConnected = !!nostrService.publicKey;
-  
-  // Determine which wallet address to use
-  const activeWallet = walletList.wallets[walletList.activeWalletIndex];
-  const walletAddress = connected && wallet.account 
-    ? wallet.account.address 
-    : (activeWallet?.address || FIXED_ADDRESS);
 
-  // Load saved wallets from Nostr
-  useEffect(() => {
-    const fetchSavedWallets = async () => {
-      if (!isNostrConnected) {
-        // If not connected to Nostr, use a default with our fixed address
-        setWalletList({ wallets: [], activeWalletIndex: 0 });
-        return;
-      }
-      
-      const savedList = await loadWalletList();
-      if (savedList && savedList.wallets.length > 0) {
-        setWalletList(savedList);
-      } else {
-        // Initialize with empty list
-        setWalletList({ wallets: [], activeWalletIndex: 0 });
-      }
-    };
-    
-    fetchSavedWallets();
-  }, [isNostrConnected]);
-
-  // Effect to handle connected Alephium wallet
   useEffect(() => {
     if (connected && wallet.account) {
-      // If Alephium wallet is connected, add it to our list if it's not already there
-      const alephiumWalletAddress = wallet.account.address;
-      
-      // Check if the connected wallet is already in our list
-      if (!walletList.wallets.some(w => w.address === alephiumWalletAddress)) {
-        // If not logged into Nostr, we'll just use it directly without saving
-        if (!isNostrConnected) return;
-        
-        // If logged in, add it to our list
-        addWallet(alephiumWalletAddress, "Connected Wallet").then(success => {
-          if (success) {
-            loadWalletList().then(updatedList => {
-              if (updatedList) {
-                setWalletList(updatedList);
-              }
-            });
-          }
-        });
-      }
+      // If user wallet is connected, use that address instead of fixed one
+      setWalletAddress(wallet.account.address);
       
       // Notify user of successful connection
       toast.success("Wallet connected successfully", {
-        description: `Connected to ${alephiumWalletAddress.substring(0, 6)}...${alephiumWalletAddress.substring(alephiumWalletAddress.length - 4)}`
+        description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
       });
     }
-  }, [connected, wallet.account, walletList.wallets, isNostrConnected]);
+  }, [connected, wallet.account]);
 
   // Effect to fetch wallet statistics
   useEffect(() => {
@@ -153,6 +101,9 @@ const WalletsPage = () => {
         });
         return;
       }
+      
+      // Reset to fixed address after disconnect
+      setWalletAddress(FIXED_ADDRESS);
     } catch (error) {
       console.error("Disconnection error:", error);
       toast.error("Disconnection failed", {
@@ -195,7 +146,7 @@ const WalletsPage = () => {
   };
 
   // Decide whether to show connect screen or wallet dashboard
-  if (!connected && walletList.wallets.length === 0 && !FIXED_ADDRESS) {
+  if (!connected && !FIXED_ADDRESS) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
@@ -230,13 +181,6 @@ const WalletsPage = () => {
       </div>
     );
   }
-  
-  const handleRefreshWallets = async () => {
-    const savedList = await loadWalletList();
-    if (savedList) {
-      setWalletList(savedList);
-    }
-  };
 
   // Show wallet dashboard with either connected wallet or fixed address data
   return (
@@ -250,32 +194,16 @@ const WalletsPage = () => {
             <p className="text-muted-foreground">
               {connected 
                 ? "Track and manage your Alephium assets" 
-                : "Viewing wallet data"}
+                : "Viewing public wallet data"}
             </p>
           </div>
           
           {connected && (
-            <div>
-              <button 
-                onClick={handleDisconnect}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input h-9 px-4 py-2 hover:bg-accent hover:text-accent-foreground"
-              >
-                Disconnect Wallet
-              </button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
+              Disconnect Wallet
+            </Button>
           )}
         </div>
-
-        {/* Wallet selector - show if logged in or if we have saved wallets */}
-        {(isNostrConnected || walletList.wallets.length > 0) && (
-          <WalletSelector 
-            wallets={walletList.wallets}
-            activeWalletIndex={walletList.activeWalletIndex}
-            onWalletChange={handleRefreshWallets}
-            onAddWallet={() => setIsAddDialogOpen(true)}
-            isLoggedIn={isNostrConnected}
-          />
-        )}
 
         <AddressDisplay address={walletAddress} />
 
@@ -302,13 +230,6 @@ const WalletsPage = () => {
           setRefreshFlag={setRefreshFlag}
         />
       </div>
-      
-      {/* Add Wallet Dialog */}
-      <AddWalletDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSuccess={handleRefreshWallets}
-      />
     </div>
   );
 };
