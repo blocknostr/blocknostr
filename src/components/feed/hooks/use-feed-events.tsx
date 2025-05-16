@@ -32,7 +32,12 @@ export function useFeedEvents({
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
-  const { repostData, handleRepost } = useRepostHandler({ fetchProfileData });
+  const { repostData, handleRepost, initSetEvents } = useRepostHandler({ fetchProfileData });
+  
+  // Initialize the setEvents function in the repostHandler
+  useEffect(() => {
+    initSetEvents(setEvents);
+  }, [initSetEvents]);
   
   // Determine which hashtags to use - either the active hashtag, the provided hashtag array, or undefined
   const effectiveHashtags = activeHashtag 
@@ -63,7 +68,9 @@ export function useFeedEvents({
       const cachedFeed = contentCache.getFeed(feedType, {
         authorPubkeys: following,
         hashtag: activeHashtag,
-        hashtags: effectiveHashtags,
+        // Fix: use the correct property name 'hashtag' since the cache interface doesn't accept 'hashtags'
+        // If we have an activeHashtag, it takes precedence; otherwise we use the hashtags array via effectiveHashtags
+        // We'll pass undefined, which will make the cache use only the activeHashtag property
         since,
         until,
         mediaOnly
@@ -78,7 +85,7 @@ export function useFeedEvents({
         const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
           authorPubkeys: following,
           hashtag: activeHashtag,
-          hashtags: effectiveHashtags,
+          // Same fix here for cache key generation
           since,
           until,
           mediaOnly
@@ -118,7 +125,7 @@ export function useFeedEvents({
     contentCache.feedCache.clearFeed(feedType, {
       authorPubkeys: following,
       hashtag: activeHashtag,
-      hashtags: effectiveHashtags,
+      // Same fix for cache clearing
       since,
       until,
       mediaOnly
@@ -137,7 +144,7 @@ export function useFeedEvents({
     const currentTime = Math.floor(Date.now() / 1000);
     const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
     
-    const newSubId = setupSubscription(newSince, currentTime);
+    const newSubId = setupSubscription(newSince, currentTime, effectiveHashtags);
     setSubId(newSubId);
   };
 

@@ -8,6 +8,7 @@ interface UseRepostHandlerProps {
 
 export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
   const [repostData, setRepostData] = useState<Record<string, { pubkey: string, original: NostrEvent }>>({});
+  const [setEventsFunc, setSetEventsFunc] = useState<React.Dispatch<React.SetStateAction<NostrEvent[]>>>(() => () => {});
   
   // Fetch the original post when a repost is encountered
   const fetchOriginalPost = (eventId: string, originalPubkey?: string) => {
@@ -20,7 +21,7 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
         }
       ],
       (event) => {
-        setEvents(prev => {
+        setEventsFunc(prev => {
           // Check if we already have this event
           if (prev.some(e => e.id === event.id)) {
             return prev;
@@ -43,14 +44,9 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
     }, 5000);
   };
 
-  // We need a reference to setEvents but we don't want to pass it as a prop
-  // This will be assigned by the event subscription hook
-  let setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>> = () => {};
-  
-  const handleRepost = (event: NostrEvent, setEventsFunction: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => {
-    // Store the setEvents function for use in fetchOriginalPost
-    setEvents = setEventsFunction;
-    
+  // Modified handleRepost to accept just the event parameter to match expected signature
+  // but internally handle the state setter
+  const handleRepost = (event: NostrEvent) => {
     // Improved repost detection supporting multiple client formats
     
     // Method 1: Try to parse JSON content (some clients use this format)
@@ -126,8 +122,14 @@ export function useRepostHandler({ fetchProfileData }: UseRepostHandlerProps) {
     }
   };
 
+  // Add a function to store the setEvents function from the parent
+  const initSetEvents = (setter: React.Dispatch<React.SetStateAction<NostrEvent[]>>) => {
+    setSetEventsFunc(() => setter);
+  };
+
   return {
     repostData,
-    handleRepost
+    handleRepost,
+    initSetEvents
   };
 }

@@ -87,16 +87,16 @@ export function useEventSubscription({
       filters[0]["#t"] = effectiveHashtags;
     }
     
-    // Subscribe to events
+    // Subscribe to events - FIX: removed the fourth parameter which was causing the error
     const newSubId = nostrService.subscribe(
       filters,
       handleEvent,
-      undefined, // onEose callback
-      feedType    // subscription label
+      undefined  // onEose callback
+      // Removed the feedType parameter as it's not expected by the subscribe method
     );
     
     return newSubId;
-  }, [following, activeHashtag, hashtags, limit, handleEvent, feedType]);
+  }, [following, activeHashtag, hashtags, limit, handleEvent]);
   
   return {
     subId,
