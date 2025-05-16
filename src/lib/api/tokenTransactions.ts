@@ -1,5 +1,5 @@
 
-import { SimplePool, getEventHash, Event, Filter, Sub } from 'nostr-tools';
+import { SimplePool, getEventHash, Event, Filter } from 'nostr-tools';
 import { TokenMetadata, fetchTokenList } from './tokenMetadata';
 
 // Transaction interfaces
@@ -111,45 +111,54 @@ export const subscribeToTokenTransactions = (
   const pool = initNostrPool();
   
   // Create filter for Alephium token transactions
-  const filter = {
+  const filter: Filter = {
     kinds: [30000],
     '#d': ['alephium-token-transaction'],
     '#token_id': [tokenId]
   };
   
-  // Fix: Use the subscribe method instead of sub
-  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
+  // Use the correct subscription approach for nostr-tools
+  console.log(`Subscribing to token transactions for ${tokenId} (${symbol})`);
   
-  // Set up event handler
-  subscription.on('event', (event: Event) => {
-    try {
-      // Parse transaction from event content
-      const transaction: TokenTransaction = JSON.parse(event.content);
-      
-      // Update cache with new transaction
-      if (!transactionCache[tokenId]) {
-        transactionCache[tokenId] = {
-          transactions: [],
-          lastFetched: Date.now()
-        };
-      }
-      
-      // Only add if it's a new transaction
-      if (!transactionCache[tokenId].transactions.some(tx => tx.hash === transaction.hash)) {
-        transactionCache[tokenId].transactions.unshift(transaction);
-        transactionCache[tokenId].lastTxHash = transaction.hash;
+  // Create subscription and store the reference
+  const subscriptionIds: string[] = [];
+  
+  // Subscribe using the correct method signature
+  const subId = pool.sub(NOSTR_RELAYS, [filter], {
+    onevent: (event: Event) => {
+      try {
+        // Parse transaction from event content
+        const transaction: TokenTransaction = JSON.parse(event.content);
         
-        // Call the callback with the new transaction
-        callback(transaction);
+        // Update cache with new transaction
+        if (!transactionCache[tokenId]) {
+          transactionCache[tokenId] = {
+            transactions: [],
+            lastFetched: Date.now()
+          };
+        }
+        
+        // Only add if it's a new transaction
+        if (!transactionCache[tokenId].transactions.some(tx => tx.hash === transaction.hash)) {
+          transactionCache[tokenId].transactions.unshift(transaction);
+          transactionCache[tokenId].lastTxHash = transaction.hash;
+          
+          // Call the callback with the new transaction
+          callback(transaction);
+        }
+      } catch (error) {
+        console.error('Error processing Nostr event:', error);
       }
-    } catch (error) {
-      console.error('Error processing Nostr event:', error);
     }
   });
   
+  subscriptionIds.push(subId);
+  
   // Return unsubscribe function
   return () => {
-    subscription.unsub();
+    subscriptionIds.forEach(id => {
+      pool.unsub(id);
+    });
   };
 };
 
@@ -187,53 +196,61 @@ export const subscribeToAllTokenUpdates = (
   const pool = initNostrPool();
   
   // Create filter for all Alephium token transactions
-  const filter = {
+  const filter: Filter = {
     kinds: [30000],
     '#d': ['alephium-token-transaction']
   };
   
-  // Fix: Use the subscribe method instead of sub
-  const subscription = pool.subscribe(NOSTR_RELAYS, [filter]);
+  console.log('Subscribing to all token transactions');
   
-  // Set up event handler
-  subscription.on('event', (event: Event) => {
-    try {
-      // Get token ID from tags
-      const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
-      const symbolTag = event.tags.find(tag => tag[0] === 'symbol');
-      
-      if (tokenIdTag && tokenIdTag[1]) {
-        const tokenId = tokenIdTag[1];
-        const symbol = symbolTag && symbolTag[1] ? symbolTag[1] : 'UNKNOWN';
+  // Create subscription and store subscription IDs
+  const subscriptionIds: string[] = [];
+  
+  // Subscribe using the correct method signature
+  const subId = pool.sub(NOSTR_RELAYS, [filter], {
+    onevent: (event: Event) => {
+      try {
+        // Get token ID from tags
+        const tokenIdTag = event.tags.find(tag => tag[0] === 'token_id');
+        const symbolTag = event.tags.find(tag => tag[0] === 'symbol');
         
-        // Parse transaction from event content
-        const transaction: TokenTransaction = JSON.parse(event.content);
-        
-        // Update cache
-        if (!transactionCache[tokenId]) {
-          transactionCache[tokenId] = {
-            transactions: [],
-            lastFetched: Date.now()
-          };
-        }
-        
-        // Only add if it's a new transaction
-        if (!transactionCache[tokenId].transactions.some(tx => tx.hash === transaction.hash)) {
-          transactionCache[tokenId].transactions.unshift(transaction);
-          transactionCache[tokenId].lastTxHash = transaction.hash;
+        if (tokenIdTag && tokenIdTag[1]) {
+          const tokenId = tokenIdTag[1];
+          const symbol = symbolTag && symbolTag[1] ? symbolTag[1] : 'UNKNOWN';
           
-          // Call the callback with the new transaction
-          callback(tokenId, symbol, transaction);
+          // Parse transaction from event content
+          const transaction: TokenTransaction = JSON.parse(event.content);
+          
+          // Update cache
+          if (!transactionCache[tokenId]) {
+            transactionCache[tokenId] = {
+              transactions: [],
+              lastFetched: Date.now()
+            };
+          }
+          
+          // Only add if it's a new transaction
+          if (!transactionCache[tokenId].transactions.some(tx => tx.hash === transaction.hash)) {
+            transactionCache[tokenId].transactions.unshift(transaction);
+            transactionCache[tokenId].lastTxHash = transaction.hash;
+            
+            // Call the callback with the new transaction
+            callback(tokenId, symbol, transaction);
+          }
         }
+      } catch (error) {
+        console.error('Error processing Nostr event:', error);
       }
-    } catch (error) {
-      console.error('Error processing Nostr event:', error);
     }
   });
   
+  subscriptionIds.push(subId);
+  
   // Return unsubscribe function
   return () => {
-    subscription.unsub();
+    subscriptionIds.forEach(id => {
+      pool.unsub(id);
+    });
   };
 };
 
