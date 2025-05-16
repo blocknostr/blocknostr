@@ -25,5 +25,6 @@ export interface EnrichedTokenWithWallets {
   isNFT: boolean;
   usdValue?: number;
   wallets: TokenWallet[]; // Replace walletAddresses with structured wallets array
+  priceSource?: 'market' | 'estimate'; // Add the missing priceSource property
 }
 
