@@ -184,11 +184,20 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Network Transaction Activity</CardTitle>
-              <CardDescription>Transaction volume over time</CardDescription>
+              <CardTitle>Active Wallet Addresses</CardTitle>
+              <CardDescription>Total active wallets on Alephium</CardDescription>
             </CardHeader>
             <CardContent className="h-[280px]">
-              <TransactionActivityChart address={address} />
+              <div className="w-full h-full flex items-center justify-center">
+                <iframe
+                  src="https://richlist.alephium.world/d-solo/xmBAqzD4k/alephium-network-stats?orgId=1&refresh=5m&panelId=5"
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  title="Alephium Active Addresses"
+                  className="rounded-md"
+                ></iframe>
+              </div>
             </CardContent>
           </Card>
           
