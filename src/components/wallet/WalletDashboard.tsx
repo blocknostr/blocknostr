@@ -11,6 +11,7 @@ import TokenList from "@/components/wallet/TokenList";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import RecentActivityCard from "@/components/wallet/RecentActivityCard";
 import NFTGallery from "@/components/wallet/NFTGallery";
+import DAppsSection from "@/components/wallet/DAppsSection";
 import { formatNumber } from "@/lib/utils/formatters";
 
 interface WalletDashboardProps {
@@ -119,11 +120,12 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
       </div>
       
       <Tabs defaultValue="tokens" className="w-full">
-        <TabsList className="grid grid-cols-4 max-w-md mb-4">
+        <TabsList className="grid grid-cols-5 max-w-md mb-4">
           <TabsTrigger value="tokens">Tokens</TabsTrigger>
           <TabsTrigger value="nfts">NFTs</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+          <TabsTrigger value="dapps">DApps</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tokens" className="mt-0">
@@ -136,6 +138,10 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         
         <TabsContent value="transactions" className="mt-0">
           <TransactionsList address={address} />
+        </TabsContent>
+
+        <TabsContent value="dapps" className="mt-0">
+          <DAppsSection />
         </TabsContent>
         
         <TabsContent value="activity" className="mt-0">
