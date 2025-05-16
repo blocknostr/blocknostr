@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
 import TransactionsList from "@/components/wallet/TransactionsList";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
+import { handleError } from "@/lib/utils/errorHandling";
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
@@ -71,8 +72,9 @@ const WalletsPage = () => {
           // For display purposes, set a placeholder balance
           setBalance("1234560000000000000");
         } else {
-          toast.error("Could not fetch wallet balance", {
-            description: "Please try again later"
+          handleError(error, {
+            toastMessage: "Could not fetch wallet balance",
+            logMessage: "Balance fetch error"
           });
           setBalance("0");
         }
@@ -86,16 +88,21 @@ const WalletsPage = () => {
 
   const handleDisconnect = async () => {
     try {
-      // Using the standard disconnect method
-      await wallet.disconnect();
-      toast.info("Wallet disconnected");
-      
-      // Reset to fixed address after disconnect
-      setWalletAddress(FIXED_ADDRESS);
+      // Use wallet.signer instead of calling disconnect directly
+      if (wallet.signer && typeof wallet.signer.disconnectWallet === 'function') {
+        await wallet.signer.disconnectWallet();
+        toast.info("Wallet disconnected");
+        
+        // Reset to fixed address after disconnect
+        setWalletAddress(FIXED_ADDRESS);
+      } else {
+        throw new Error("Disconnect method not available");
+      }
     } catch (error) {
       console.error("Disconnection error:", error);
-      toast.error("Disconnection failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
+      handleError(error, {
+        toastMessage: "Disconnection failed",
+        logMessage: "Wallet disconnect error"
       });
     }
   };

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlephiumLogo } from "@/components/icons/wallets";
 import { useWallet } from "@alephium/web3-react";
 import { toast } from "sonner";
+import { handleError } from "@/lib/utils/errorHandling";
 
 interface WalletConnectButtonProps {
   className?: string;
@@ -46,13 +47,14 @@ const WalletConnectButton = ({ className }: WalletConnectButtonProps) => {
         return;
       }
 
-      // Using standard connect method - this is adapted to work with Alephium's API
-      await wallet.connect({ addressGroup: undefined });
+      // Use wallet.signer instead of calling connect directly
+      await wallet.signer.connectWallet({ addressGroup: undefined });
       toast.success("Wallet connected successfully");
     } catch (error) {
       console.error("Connection error:", error);
-      toast.error("Connection failed", {
-        description: error instanceof Error ? error.message : "Unknown error"
+      handleError(error, {
+        toastMessage: "Connection failed",
+        logMessage: "Wallet connection error"
       });
     }
   };
