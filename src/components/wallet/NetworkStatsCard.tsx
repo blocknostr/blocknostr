@@ -42,52 +42,49 @@ const NetworkStatsCard: React.FC = () => {
   }, []);
 
   return (
-    <Card className="h-[240px]">
-      <CardContent className="p-4 h-full flex flex-col">
-        <h3 className="text-sm font-medium mb-3">Network Status</h3>
+    <Card className="bg-gradient-to-br from-primary/5 to-background border-primary/10">
+      <CardContent className="p-3">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-xs font-medium">Network Status</h3>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-[10px] h-6 p-0 text-primary hover:text-primary hover:bg-transparent"
+            asChild
+          >
+            <a 
+              href="https://explorer.alephium.org/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center"
+            >
+              Explorer
+              <ExternalLink className="h-2.5 w-2.5 ml-1" />
+            </a>
+          </Button>
+        </div>
         
         {isLoading ? (
-          <div className="flex justify-center items-center flex-1">
-            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-primary/70" />
           </div>
         ) : (
-          <div className="space-y-3 flex-1 flex flex-col justify-center">
-            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground">Hash Rate</p>
-                <p className="text-sm font-medium">{stats?.hashRate}</p>
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground">Difficulty</p>
-                <p className="text-sm font-medium">{stats?.difficulty}</p>
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground">Block Time</p>
-                <p className="text-sm font-medium">{stats?.blockTime}</p>
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs text-muted-foreground">Active Addresses</p>
-                <p className="text-sm font-medium">{stats?.activeAddresses.toLocaleString()}</p>
-              </div>
+          <div className="grid grid-cols-4 gap-x-2 gap-y-1 text-center">
+            <div className="bg-background/80 rounded p-1.5">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Hash Rate</p>
+              <p className="text-xs font-medium">{stats?.hashRate}</p>
             </div>
-            
-            <div className="mt-auto pt-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs h-7 p-0 text-primary hover:text-primary hover:bg-transparent"
-                asChild
-              >
-                <a 
-                  href="https://explorer.alephium.org/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center"
-                >
-                  View Explorer
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </a>
-              </Button>
+            <div className="bg-background/80 rounded p-1.5">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Difficulty</p>
+              <p className="text-xs font-medium">{stats?.difficulty}</p>
+            </div>
+            <div className="bg-background/80 rounded p-1.5">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Block Time</p>
+              <p className="text-xs font-medium">{stats?.blockTime}</p>
+            </div>
+            <div className="bg-background/80 rounded p-1.5">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Addresses</p>
+              <p className="text-xs font-medium">{stats?.activeAddresses.toLocaleString()}</p>
             </div>
           </div>
         )}

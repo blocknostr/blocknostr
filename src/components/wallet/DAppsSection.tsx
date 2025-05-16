@@ -1,13 +1,12 @@
 
 import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 // Hardcoded dApps that we always want to show
 const staticDapps = [
@@ -90,90 +89,85 @@ const DAppsSection = () => {
   }, [allDapps, activeCategory]);
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        {/* Categories Filter */}
-        <div className="mb-2 overflow-auto">
-          <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory}>
-            <TabsList className="inline-flex h-8 w-auto">
-              {categories.map((category) => (
-                <TabsTrigger 
-                  key={category}
-                  value={category}
-                  className="text-xs px-3 py-1"
-                >
-                  {category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* DApps Grid */}
-        {isLoading ? (
-          <div className="flex justify-center p-4">
-            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
-          </div>
-        ) : error ? (
-          <div className="text-center py-4 text-muted-foreground">
-            <p className="text-sm">Failed to load dApps</p>
-            <Button variant="outline" size="sm" className="mt-2 text-xs py-1 h-7" onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </div>
-        ) : filteredDapps.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground text-sm">
-            <p>No dApps found in this category</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {filteredDapps.slice(0, 6).map((dapp) => (
-              <Card key={dapp.name} className="overflow-hidden border-none shadow-sm">
-                <CardContent className="p-0">
-                  <div className="bg-gradient-to-r from-primary/20 to-primary/5 p-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xs font-medium truncate">{dapp.name}</h3>
-                      </div>
-                      {dapp.status && (
-                        <Badge variant={
-                          dapp.status === 'production' ? 'default' : 
-                          dapp.status === 'beta' ? 'secondary' : 
-                          'outline'
-                        } className="text-[10px] h-4">
-                          {dapp.status}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <Badge variant="outline" className="text-[10px] bg-background/50">
-                        {dapp.category || "Other"}
-                      </Badge>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="bg-background/80 backdrop-blur-sm h-6 text-xs py-0 px-2"
-                        asChild
-                      >
-                        <a 
-                          href={dapp.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center"
-                        >
-                          <span>Open</span>
-                          <ExternalLink className="ml-1 h-2.5 w-2.5" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+    <div className="p-2">
+      {/* Categories Filter */}
+      <div className="mb-2 overflow-auto">
+        <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory}>
+          <TabsList className="inline-flex h-7 w-auto">
+            {categories.map((category) => (
+              <TabsTrigger 
+                key={category}
+                value={category}
+                className="text-[10px] px-2 py-0 h-6"
+              >
+                {category}
+              </TabsTrigger>
             ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* DApps Grid */}
+      {isLoading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-primary/70" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-4 text-muted-foreground">
+          <p className="text-xs">Failed to load dApps</p>
+          <Button variant="outline" size="sm" className="mt-2 text-xs py-1 h-7" onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      ) : filteredDapps.length === 0 ? (
+        <div className="text-center py-4 text-muted-foreground text-xs">
+          <p>No dApps found in this category</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+          {filteredDapps.slice(0, 6).map((dapp) => (
+            <div key={dapp.name} className="bg-gradient-to-r from-primary/10 to-primary/5 rounded border border-primary/10 p-2">
+              <div className="flex flex-col h-full">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="text-[10px] font-medium truncate w-4/5">{dapp.name}</h3>
+                  {dapp.status && (
+                    <Badge variant={
+                      dapp.status === 'production' ? 'default' : 
+                      dapp.status === 'beta' ? 'secondary' : 
+                      'outline'
+                    } className="text-[8px] h-3 px-1 ml-1">
+                      {dapp.status}
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="flex justify-between items-center mt-auto">
+                  <Badge variant="outline" className="text-[8px] h-3 px-1 bg-background/50">
+                    {dapp.category || "Other"}
+                  </Badge>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="bg-background/80 h-5 text-[8px] py-0 px-1"
+                    asChild
+                  >
+                    <a 
+                      href={dapp.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center"
+                    >
+                      <span>Open</span>
+                      <ExternalLink className="ml-0.5 h-2 w-2" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

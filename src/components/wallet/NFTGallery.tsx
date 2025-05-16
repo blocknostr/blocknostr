@@ -40,14 +40,14 @@ const NFTGallery: React.FC<NFTGalleryProps> = ({ address }) => {
     const [imageError, setImageError] = useState(false);
     
     return imageError || !nft.imageUrl ? (
-      <div className="h-24 w-full bg-muted flex items-center justify-center rounded-md">
-        <FileQuestion className="h-8 w-8 text-muted-foreground" />
+      <div className="h-16 w-full bg-muted flex items-center justify-center rounded-md">
+        <FileQuestion className="h-6 w-6 text-muted-foreground" />
       </div>
     ) : (
       <img 
         src={nft.imageUrl} 
         alt={nft.name} 
-        className="h-24 w-full object-cover rounded-md"
+        className="h-16 w-full object-cover rounded-md"
         onError={() => setImageError(true)} 
       />
     );
@@ -57,11 +57,11 @@ const NFTGallery: React.FC<NFTGalleryProps> = ({ address }) => {
     if (!attributes || attributes.length === 0) return null;
     
     return (
-      <div className="grid grid-cols-2 gap-2 mt-4">
+      <div className="grid grid-cols-2 gap-1 mt-3">
         {attributes.slice(0, 4).map((attr, index) => (
-          <div key={index} className="bg-muted/50 p-2 rounded-md text-xs">
-            <div className="font-medium text-muted-foreground">{attr.trait_type || attr.name}</div>
-            <div>{attr.value}</div>
+          <div key={index} className="bg-muted/50 p-1.5 rounded-md text-xs">
+            <div className="font-medium text-muted-foreground text-[10px]">{attr.trait_type || attr.name}</div>
+            <div className="truncate">{attr.value}</div>
           </div>
         ))}
       </div>
@@ -79,7 +79,9 @@ const NFTGallery: React.FC<NFTGalleryProps> = ({ address }) => {
         </DialogHeader>
         
         <div className="space-y-4">
-          <NFTImage nft={selectedNFT} />
+          <div className="aspect-square max-h-64 overflow-hidden rounded-lg">
+            <NFTImage nft={selectedNFT} />
+          </div>
           
           {selectedNFT.description && (
             <div>
@@ -117,40 +119,38 @@ const NFTGallery: React.FC<NFTGalleryProps> = ({ address }) => {
   };
 
   return (
-    <Card>
-      <CardContent className="p-4">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-24">
-            <Loader2 className="h-6 w-6 animate-spin text-primary/70" />
-          </div>
-        ) : nfts.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-            {nfts.slice(0, 8).map((nft) => (
-              <Dialog key={nft.id}>
-                <DialogTrigger asChild>
-                  <div 
-                    className="cursor-pointer group relative rounded-md overflow-hidden border bg-card hover:border-primary transition-colors"
-                    onClick={() => setSelectedNFT(nft)}
-                  >
-                    <NFTImage nft={nft} />
-                    <div className="p-2">
-                      <h3 className="font-medium truncate text-xs">
-                        {nft.name || `NFT ${truncateAddress(nft.id)}`}
-                      </h3>
-                    </div>
+    <div className="p-2">
+      {isLoading ? (
+        <div className="flex justify-center items-center h-20">
+          <Loader2 className="h-5 w-5 animate-spin text-primary/70" />
+        </div>
+      ) : nfts.length > 0 ? (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {nfts.slice(0, 8).map((nft) => (
+            <Dialog key={nft.id}>
+              <DialogTrigger asChild>
+                <div 
+                  className="cursor-pointer group relative rounded-md overflow-hidden border bg-card hover:border-primary transition-colors"
+                  onClick={() => setSelectedNFT(nft)}
+                >
+                  <NFTImage nft={nft} />
+                  <div className="p-1">
+                    <h3 className="font-medium truncate text-[10px]">
+                      {nft.name || `NFT ${truncateAddress(nft.id)}`}
+                    </h3>
                   </div>
-                </DialogTrigger>
-                <NFTDetailsDialog />
-              </Dialog>
-            ))}
-          </div>
-        ) : (
-          <div className="flex justify-center items-center h-24 text-muted-foreground text-sm">
-            No NFTs found for this address
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                </div>
+              </DialogTrigger>
+              <NFTDetailsDialog />
+            </Dialog>
+          ))}
+        </div>
+      ) : (
+        <div className="flex justify-center items-center h-20 text-muted-foreground text-xs">
+          No NFTs found for this address
+        </div>
+      )}
+    </div>
   );
 };
 

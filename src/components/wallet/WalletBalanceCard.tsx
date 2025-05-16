@@ -20,7 +20,6 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   const [balance, setBalance] = useState<number | null>(null);
   const [lockedBalance, setLockedBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [priceData, setPriceData] = useState<{
     price: number;
     priceChange24h: number;
@@ -37,7 +36,6 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
       const data = await getAddressBalance(address);
       setBalance(data.balance);
       setLockedBalance(data.lockedBalance);
-      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching balance:', error);
       toast.error("Could not fetch wallet balance", {
@@ -76,84 +74,83 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
   
   return (
     <Card className={`bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20 ${className}`}>
-      <CardContent className="p-4 flex flex-col h-full justify-center">
-        <div className="flex justify-between items-center mb-3">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Wallet className="h-4 w-4 text-primary" />
+      <CardContent className="p-3 h-full">
+        <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center gap-1.5">
+            <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+              <Wallet className="h-3 w-3 text-primary" />
             </div>
-            <span className="text-sm font-medium">Your Balance</span>
+            <span className="text-xs font-medium">Balance</span>
           </div>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={handleRefresh} 
             disabled={isLoading || isPriceLoading}
-            className="h-7 w-7 p-0"
+            className="h-6 w-6 p-0"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${isLoading || isPriceLoading ? 'animate-spin' : ''}`} />
             <span className="sr-only">Refresh</span>
           </Button>
         </div>
         
-        <div>
-          {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-28" />
-              <Skeleton className="h-4 w-20" />
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-24" />
+            <Skeleton className="h-3.5 w-16" />
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-baseline">
+              <div className="text-xl font-bold">
+                {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
+              </div>
+              <div className="ml-1.5 text-sm font-medium text-primary">ALPH</div>
             </div>
-          ) : (
-            <>
-              <div className="flex items-baseline">
-                <div className="text-2xl font-bold">
-                  {balance !== null ? balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
-                </div>
-                <div className="ml-2 text-base font-medium text-primary">ALPH</div>
+            
+            <div className="flex items-center gap-2 mt-1">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <DollarSign className="h-2.5 w-2.5" />
+                {usdValue !== null 
+                  ? isPriceLoading 
+                    ? <Skeleton className="h-3 w-12" />
+                    : formatCurrency(usdValue)
+                  : "$0.00"
+                }
               </div>
               
-              <div className="flex items-center gap-2 mt-1">
-                <div className="text-sm text-muted-foreground flex items-center gap-1">
-                  <DollarSign className="h-3 w-3" />
-                  {usdValue !== null 
-                    ? isPriceLoading 
-                      ? <Skeleton className="h-4 w-16" />
-                      : formatCurrency(usdValue)
-                    : "$0.00"
-                  }
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div 
-                        className={`flex items-center text-xs ${
-                          priceData.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
-                        }`}
-                      >
-                        {priceData.priceChange24h >= 0 ? (
-                          <TrendingUp className="h-3 w-3 mr-1" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                        )}
-                        {formatPercentage(priceData.priceChange24h)}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>24h price change</p>
-                      <p className="text-xs text-muted-foreground">Current price: {formatCurrency(priceData.price)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className={`flex items-center text-[10px] ${
+                        priceData.priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}
+                    >
+                      {priceData.priceChange24h >= 0 ? (
+                        <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                      ) : (
+                        <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+                      )}
+                      {formatPercentage(priceData.priceChange24h)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs p-2">
+                    <p>24h price change</p>
+                    <p className="text-[10px] text-muted-foreground">Current price: {formatCurrency(priceData.price)}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            
+            {lockedBalance !== null && lockedBalance > 0 && (
+              <div className="text-[10px] text-muted-foreground mt-1 flex items-center">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/30 mr-1"></span>
+                {lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH locked
               </div>
-              
-              {lockedBalance !== null && lockedBalance > 0 && (
-                <div className="text-xs text-muted-foreground mt-1 flex items-center">
-                  <span className="inline-block h-2 w-2 rounded-full bg-primary/30 mr-1.5"></span>
-                  {lockedBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ALPH locked
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
