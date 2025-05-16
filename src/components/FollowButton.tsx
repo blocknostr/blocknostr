@@ -37,7 +37,7 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
         // Unfollow according to NIP-02
         const success = await nostrService.unfollowUser(pubkey);
         if (success) {
-          setIsFollowing(false); // Use direct boolean instead of the Promise
+          setIsFollowing(false); // Fixed: Use direct boolean instead of the Promise
           toast.success("Unfollowed user");
         } else {
           toast.error("Failed to unfollow user");
@@ -46,7 +46,7 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
         // Follow according to NIP-02
         const success = await nostrService.followUser(pubkey);
         if (success) {
-          setIsFollowing(true); // Use direct boolean instead of the Promise
+          setIsFollowing(true); // Fixed: Use direct boolean instead of the Promise
           toast.success("Following user");
         } else {
           toast.error("Failed to follow user");

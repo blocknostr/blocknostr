@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { NostrEvent } from "@/lib/nostr/types";
@@ -225,7 +226,7 @@ export const useMessaging = () => {
         
         // Add message to the UI immediately - Fix the type issue here
         const message: Message = {
-          id: messageId,  // Ensure this is a string, not boolean
+          id: typeof messageId === 'string' ? messageId : `msg-${Date.now()}`,  // Ensure id is always a string
           content: newMessage,
           sender: currentUserPubkey,
           recipient: activeContact.pubkey,
