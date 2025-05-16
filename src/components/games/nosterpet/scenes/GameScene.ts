@@ -33,7 +33,7 @@ export default class GameScene extends Phaser.Scene {
   private evolutionStage = 1;
   private petName = 'NostrPet';
   private petId: string = '';
-  private customization: PetState['customization'] = { color: 'default', accessory: 'none', aura: 'none  aura: 'none' };
+  private customization: PetState['customization'] = { color: 'default', accessory: 'none', aura: 'none' }; // Fixed: Corrected syntax error
   private inventory: PetState['inventory'] = [];
   private lastTick = 0;
   private lastReward = 0;
@@ -59,7 +59,7 @@ export default class GameScene extends Phaser.Scene {
   private eatSound!: Phaser.Sound.BaseSound;
   private laughSound!: Phaser.Sound.BaseSound;
   private restSound!: Phaser.Sound.BaseSound;
-  private evolveSound!: Phaser.Sound  private evolveSound!: Phaser.Sound.BaseSound;
+  private evolveSound!: Phaser.Sound.BaseSound; // Fixed: Removed duplicate declaration
 
   constructor() {
     super({ key: 'GameScene' });
@@ -115,7 +115,7 @@ export default class GameScene extends Phaser.Scene {
       scale: { start: 0.2, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 1000,
-      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum instead of string 'ADD'
+      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum
       on: false
     });
     
