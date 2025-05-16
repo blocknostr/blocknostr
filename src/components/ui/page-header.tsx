@@ -1,3 +1,4 @@
+
 import React from "react";
 import { cn } from "@/lib/utils";
 interface PageHeaderProps {
@@ -14,7 +15,5 @@ export function PageHeader({
   description,
   className
 }: PageHeaderProps) {
-  return <header className={cn("sticky top-0 z-10 border-b bg-background/95 backdrop-blur-sm", className)}>
-      
-    </header>;
+  return <></>;
 }

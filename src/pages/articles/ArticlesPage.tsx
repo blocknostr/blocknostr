@@ -1,8 +1,6 @@
-
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import PageHeader from "@/components/navigation/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import ArticleFeed from "@/components/articles/ArticleFeed";
@@ -19,17 +17,15 @@ const ArticlesPage: React.FC = () => {
   
   return (
     <div className="container max-w-7xl mx-auto px-4 py-6">
-      <PageHeader 
-        title="Articles" 
-        rightContent={
-          <Button asChild>
-            <Link to="/articles/create" className="flex items-center gap-2">
-              <Plus size={16} />
-              New Article
-            </Link>
-          </Button>
-        }
-      />
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Articles</h1>
+        <Button asChild>
+          <Link to="/articles/create" className="flex items-center gap-2">
+            <Plus size={16} />
+            New Article
+          </Link>
+        </Button>
+      </div>
       
       <div className="my-6">
         <ArticleSearch 

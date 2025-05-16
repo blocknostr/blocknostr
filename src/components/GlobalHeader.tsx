@@ -31,7 +31,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const isMobile = useIsMobile();
   const location = useLocation();
   const isLoggedIn = !!nostrService.publicKey;
-
+  
   // Function to get the appropriate title based on the current route
   const getPageTitle = () => {
     const path = location.pathname;

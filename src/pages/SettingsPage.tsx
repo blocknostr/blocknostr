@@ -4,8 +4,6 @@ import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import SettingsTabs from "@/components/settings/SettingsTabs";
-import { PageHeader } from "@/components/ui/page-header";
-import { Settings } from "lucide-react";
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -24,12 +22,6 @@ const SettingsPage = () => {
 
   return (
     <div className="flex-1 min-h-screen">
-      <PageHeader 
-        title="Settings" 
-        icon={<Settings className="h-5 w-5" />}
-        description="Manage your account and preferences"
-      />
-
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         {isLoggedIn && (
           <div className="animate-fade-in">

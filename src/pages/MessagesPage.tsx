@@ -4,19 +4,12 @@ import MessagingSystem from "@/components/MessagingSystem";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import PageHeader from "@/components/navigation/PageHeader";
 
 const MessagesPage = () => {
   const [encryptionInfoShown, setEncryptionInfoShown] = useState(true);
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden">
-      <PageHeader 
-        title="Messages" 
-        showBackButton={false}
-        className="border-b shadow-sm"
-      />
-      
       {encryptionInfoShown && (
         <div className="relative z-10 px-4 py-2">
           <Alert className="border-primary/20 bg-primary/5 max-w-full overflow-hidden">

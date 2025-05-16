@@ -1,3 +1,4 @@
+
 import React from "react";
 import BackButton from "@/components/navigation/BackButton";
 import { Lightbulb } from "lucide-react";
@@ -26,8 +27,6 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     darkMode,
     toggleDarkMode
   } = useTheme();
-  return <header className={cn("border-b sticky top-0 bg-background/80 backdrop-blur-sm z-10", className)}>
-      
-    </header>;
+  return <></>;
 };
 export default PageHeader;

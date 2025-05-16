@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import PageHeader from "@/components/navigation/PageHeader";
+import { ArrowLeft } from "lucide-react"; 
 import ArticleEditor from "@/components/articles/ArticleEditor";
 import { ArticleDraft } from "@/lib/nostr/types/article";
 import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
@@ -143,11 +143,12 @@ const ArticleEditorPage: React.FC = () => {
   
   return (
     <div className="container max-w-5xl mx-auto px-4 py-6">
-      <PageHeader 
-        title={id ? "Edit Article" : "Create Article"} 
-        showBackButton={true}
-        fallbackPath="/articles"
-      />
+      <div className="flex items-center mb-6">
+        <Button variant="ghost" size="sm" asChild className="mr-4">
+          <Link to="/articles"><ArrowLeft size={16} /> Back</Link>
+        </Button>
+        <h1 className="text-2xl font-bold">{id ? "Edit Article" : "Create Article"}</h1>
+      </div>
       
       <div className="mt-6">
         <ArticleEditor 

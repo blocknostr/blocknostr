@@ -15,7 +15,7 @@ const SettingsTabs = () => {
   return (
     <Tabs defaultValue="account" onValueChange={setActiveTab} value={activeTab}>
       <div className="overflow-x-auto pb-2 -mx-4 px-4">
-        <TabsList className="mb-6 w-full md:w-auto flex flex-nowrap transition-all duration-200">
+        <TabsList className="w-full md:w-auto flex flex-nowrap transition-all duration-200">
           <TabsTrigger 
             value="account" 
             className={cn(

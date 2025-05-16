@@ -1,9 +1,7 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import PageHeader from "@/components/navigation/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Pencil, Share2, Bookmark, Heart, MessageCircle } from "lucide-react";
+import { ArrowLeft, Pencil, Share2, Bookmark, Heart, MessageCircle } from "lucide-react";
 import ArticleReader from "@/components/articles/ArticleReader";
 import ArticleAuthorCard from "@/components/articles/ArticleAuthorCard";
 import RelatedArticles from "@/components/articles/RelatedArticles";
@@ -117,21 +115,19 @@ const ArticleViewPage: React.FC = () => {
   
   return (
     <div className="container max-w-5xl mx-auto px-4 py-6">
-      <PageHeader 
-        title="Article" 
-        showBackButton={true} 
-        fallbackPath="/articles"
-        rightContent={
-          isAuthor && (
-            <Button variant="outline" asChild>
-              <Link to={`/articles/edit/${article.id}`} className="flex items-center gap-2">
-                <Pencil size={16} />
-                Edit
-              </Link>
-            </Button>
-          )
-        }
-      />
+      <div className="flex items-center justify-between mb-6">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/articles"><ArrowLeft size={16} /> Back to Articles</Link>
+        </Button>
+        {isAuthor && (
+          <Button variant="outline" asChild>
+            <Link to={`/articles/edit/${article?.id}`} className="flex items-center gap-2">
+              <Pencil size={16} />
+              Edit
+            </Link>
+          </Button>
+        )}
+      </div>
       
       <div className="max-w-4xl mx-auto mt-8">
         <ArticleReader 
