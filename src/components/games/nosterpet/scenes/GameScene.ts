@@ -97,7 +97,7 @@ export default class GameScene extends Phaser.Scene {
     // Initialize pet sprite
     this.pet = this.add.sprite(400, 300, `pet_stage${this.evolutionStage}`).setScale(2);
     
-    // Setup particle effects - FIX: Use proper particle configuration
+    // Setup particle effects - Fix: Use proper particle configuration
     const particles = this.add.particles('particle_star');
     this.petEmitter = particles.createEmitter({
       x: 400,
