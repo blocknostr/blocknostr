@@ -62,15 +62,13 @@ export function usePostsSubscription() {
         // If we have enough cached events, complete early
         if (noteEvents.length >= limit) {
           console.log(`[usePostsSubscription] Found ${noteEvents.length} cached events, completing early`);
-          setTimeout(() => onComplete(), 0);
-          // Still subscribe to get newer posts but with shorter timeout
+          // Complete immediately without timeout
+          onComplete();
+          // Still subscribe to get newer posts
         } else if (noteEvents.length > 0) {
           // We have some cached events but not enough, so mark as partially complete
           // This helps the UI show something immediately
-          setTimeout(() => {
-            console.log(`[usePostsSubscription] Partial data available, triggering UI update`);
-            onComplete();
-          }, 0);
+          onComplete();
         }
       }
       
@@ -118,11 +116,11 @@ export function usePostsSubscription() {
       subscriptionRef.current = notesSubId;
       
       // Set a timeout to check if we got any events and mark loading as complete
-      // Further reduced from 3s to 2s
+      // Reduced to 1 second to remove preload delay
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
         onComplete();
-      }, 2000);
+      }, 1000);
       
       // Return a cleanup function
       return () => {

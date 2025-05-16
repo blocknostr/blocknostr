@@ -15,7 +15,7 @@ const NoteFormAvatar: React.FC<NoteFormAvatarProps> = ({ pubkey }) => {
   React.useEffect(() => {
     if (!pubkey) return;
     
-    // Try to get from cache first
+    // Fetch profile without delay
     const fetchProfile = async () => {
       try {
         const profileData = await unifiedProfileService.getProfile(pubkey);

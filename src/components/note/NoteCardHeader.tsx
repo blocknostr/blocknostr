@@ -70,7 +70,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
       return;
     }
     
-    // Set loading state with slight delay to prevent flash
+    // Set loading state
     setIsLoading(true);
     setTransitionStage('loading');
     
@@ -80,12 +80,10 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
         const profile = await unifiedProfileService.getProfile(pubkey);
         
         if (profile) {
-          // Use timeout to create smooth transition
-          setTimeout(() => {
-            setLocalProfileData(profile);
-            setIsLoading(false);
-            setTransitionStage('loaded');
-          }, 100);
+          // Update immediately without artificial delay
+          setLocalProfileData(profile);
+          setIsLoading(false);
+          setTransitionStage('loaded');
         } else {
           // If no profile found, still transition to loaded state
           setIsLoading(false);
