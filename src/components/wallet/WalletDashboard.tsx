@@ -253,7 +253,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <Tabs defaultValue="tokens" className="w-full">
               <TabsList className="grid grid-cols-3 max-w-md mb-4">
                 <TabsTrigger value="tokens">Tokens</TabsTrigger>
@@ -273,10 +273,6 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 <TransactionsList address={address} />
               </TabsContent>
             </Tabs>
-          </div>
-          
-          <div>
-            <TokenActivity walletAddresses={walletAddresses} />
           </div>
         </div>
       </div>
