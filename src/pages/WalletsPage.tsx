@@ -328,28 +328,6 @@ const WalletsPage = () => {
           />
         )}
 
-        {!connected && (
-          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
-            <CardContent className="p-4 text-sm">
-              <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
-                <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                <span>
-                  {activeWallet ? (
-                    <>
-                      Currently tracking wallet <strong>{activeWallet.address.substring(0, 8)}...{activeWallet.address.substring(activeWallet.address.length - 8)}</strong>.
-                      Connect your own wallet to see your personal balance and transactions.
-                    </>
-                  ) : (
-                    <>
-                      No wallet selected. Please select or add a wallet to track.
-                    </>
-                  )}
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="flex justify-center">
           <div className="w-full max-w-md">
             <WalletConnectButton />
