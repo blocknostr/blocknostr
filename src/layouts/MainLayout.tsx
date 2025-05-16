@@ -64,7 +64,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     },
     preventDefaultTouchmoveEvent: true,
     trackMouse: false,
-    delta: 10, // Make swipe detection more sensitive for iOS
+    swipeThreshold: 10, // Make swipe detection more sensitive for iOS
     swipeDuration: 250 // Reduce duration needed for swipe on iOS
   });
 

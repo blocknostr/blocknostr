@@ -21,7 +21,7 @@ const MobileSidebar = ({ isOpen, onOpenChange }: MobileSidebarProps) => {
     },
     preventDefaultTouchmoveEvent: true,
     trackMouse: false,
-    delta: 10, // More sensitive for iOS
+    swipeThreshold: 10, // More sensitive for iOS
     swipeDuration: 250
   });
 

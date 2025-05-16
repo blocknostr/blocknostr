@@ -9,6 +9,7 @@ interface SwipeableOptions {
   onSwipedDown?: () => void;
   preventDefaultTouchmoveEvent?: boolean;
   trackMouse?: boolean;
+  swipeDuration?: number;
   swipeThreshold?: number;
   enableNavigationGestures?: boolean;
 }
@@ -35,6 +36,7 @@ export function useSwipeable({
   preventDefaultTouchmoveEvent = false,
   trackMouse = false,
   swipeThreshold = 50,
+  swipeDuration = 300,
   enableNavigationGestures = true,
 }: SwipeableOptions): SwipeableHandlers {
   const touchStart = useRef<Position | null>(null);

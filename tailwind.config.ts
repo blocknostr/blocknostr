@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -89,8 +90,37 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+			},
+			padding: {
+				'safe-top': 'env(safe-area-inset-top)',
+				'safe-bottom': 'env(safe-area-inset-bottom)',
+				'safe-left': 'env(safe-area-inset-left)',
+				'safe-right': 'env(safe-area-inset-right)',
+			},
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		function({ addUtilities }) {
+			const newUtilities = {
+				'.pt-safe': {
+					paddingTop: 'env(safe-area-inset-top, 0px)'
+				},
+				'.pb-safe': {
+					paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+				},
+				'.pl-safe': {
+					paddingLeft: 'env(safe-area-inset-left, 0px)'
+				},
+				'.pr-safe': {
+					paddingRight: 'env(safe-area-inset-right, 0px)'
+				},
+				'.px-safe': {
+					paddingLeft: 'env(safe-area-inset-left, 0px)',
+					paddingRight: 'env(safe-area-inset-right, 0px)'
+				}
+			};
+			addUtilities(newUtilities);
+		}
+	],
 } satisfies Config;
