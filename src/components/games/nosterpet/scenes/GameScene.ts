@@ -1,9 +1,7 @@
-import { Application } from 'pixi.js';
-import * as PIXI from 'pixi.js';
+import { Application, Text, Texture, Graphics, settings, SCALE_MODES } from 'pixi.js';
 import { AnimatedSprite } from '@pixi/sprite-animated';
 import { Emitter, EmitterConfigV3 } from '@pixi/particle-emitter';
 import { Assets } from '@pixi/assets';
-import type { IMediaInstance, Sound as PixiSound } from '@pixi/sound';
 import { PetActivityManager, PetStatsInput, PetStatsUpdate } from '../managers/PetActivityManager';
 import { EvolutionManager, EvolutionStats, EvolutionUpdate } from '../managers/EvolutionManager';
 import { CustomizationManager } from '../managers/CustomizationManager';
@@ -44,15 +42,6 @@ export default class GameScene {
   private lastReward: number = 0;
   private customization: { color: string; accessory: string; aura: string } = { color: '', accessory: '', aura: '' };
   private nostrService: NostrService;
-
-  private eatSoundInstance!: IMediaInstance | null;
-  private laughSound!: PixiSound | null;
-  private restSound!: PixiSound | null;
-  private evolveSound!: PixiSound | null;
-  private happySound!: PixiSound | null;
-  private sadSound!: PixiSound | null;
-  private surprisedSound!: PixiSound | null;
-  private talkingSound!: PixiSound | null;
 
   static async create(parent: HTMLElement, walletAddress: string, nostrPubkey: string) {
     const instance = new GameScene(walletAddress, nostrPubkey);
@@ -105,33 +94,8 @@ export default class GameScene {
       await PetActivityManager.loadAssets();
       const assetUrls = [
         { alias: 'particle_star_img', src: '/assets/games/nosterpet/particle_star.png' },
-        { alias: 'eat_sound', src: '/assets/games/nosterpet/eat.wav' },
-        { alias: 'laugh_sound', src: '/assets/games/nosterpet/laugh.wav' },
-        { alias: 'rest_sound', src: '/assets/games/nosterpet/rest.wav' },
-        { alias: 'evolve_sound', src: '/assets/games/nosterpet/evolve.wav' },
-        { alias: 'happy_sound', src: '/assets/games/nosterpet/happy.wav' },
-        { alias: 'sad_sound', src: '/assets/games/nosterpet/sad.wav' },
-        { alias: 'surprised_sound', src: '/assets/games/nosterpet/surprised.wav' },
-        { alias: 'talking_sound', src: '/assets/games/nosterpet/talking.wav' },
       ];
       await Assets.load(assetUrls);
-
-      const eatSoundAsset = Assets.get('eat_sound') as PixiSound;
-      if (eatSoundAsset) {
-        const playPromise = eatSoundAsset.play({ loop: false, volume: 1 });
-        if (playPromise instanceof Promise) {
-          this.eatSoundInstance = await playPromise;
-        } else {
-          this.eatSoundInstance = playPromise;
-        }
-      }
-      this.laughSound = Assets.get('laugh_sound') as PixiSound;
-      this.restSound = Assets.get('rest_sound') as PixiSound;
-      this.evolveSound = Assets.get('evolve_sound') as PixiSound;
-      this.happySound = Assets.get('happy_sound') as PixiSound;
-      this.sadSound = Assets.get('sad_sound') as PixiSound;
-      this.surprisedSound = Assets.get('surprised_sound') as PixiSound;
-      this.talkingSound = Assets.get('talking_sound') as PixiSound;
 
       this.loadPet();
       this.app.ticker.add(this.gameLoop.bind(this));
@@ -309,10 +273,6 @@ export default class GameScene {
   }
 
   feedPet() {
-    const eatSound = Assets.get('eat_sound') as PixiSound;
-    const inst = eatSound.play({ loop: false, volume: 1 });
-    this.eatSoundInstance = inst as IMediaInstance;
-
     PetActivityManager.feed((updatedStats: PetStatsUpdate) => {
       if (updatedStats.hunger !== undefined) this.hunger = updatedStats.hunger;
       if (updatedStats.energy !== undefined) this.energy = updatedStats.energy;
@@ -326,7 +286,6 @@ export default class GameScene {
   }
 
   playWithPet() {
-    this.laughSound?.play({ loop: false, volume: 0.8 });
     PetActivityManager.play((updatedStats: PetStatsUpdate) => {
       if (updatedStats.happiness !== undefined) this.happiness = updatedStats.happiness;
       if (updatedStats.energy !== undefined) this.energy = updatedStats.energy;
@@ -340,7 +299,6 @@ export default class GameScene {
   }
 
   letPetRest() {
-    this.restSound?.play({ loop: false, volume: 0.7 });
     PetActivityManager.rest((updatedStats: PetStatsUpdate) => {
       if (updatedStats.energy !== undefined) this.energy = updatedStats.energy;
       if (updatedStats.happiness !== undefined) this.happiness = updatedStats.happiness;
@@ -353,28 +311,24 @@ export default class GameScene {
   }
 
   triggerHappyAnimation() {
-    this.happySound?.play({ loop: false, volume: 0.8 });
     PetActivityManager.makePetHappy(this.pet, (updatedStats: PetStatsUpdate) => {
     });
     UIUtils.showMessage(this.app.stage, `${this.petName} is very happy!`, 0x00ff00, this.app.ticker);
   }
 
   triggerSadAnimation() {
-    this.sadSound?.play({ loop: false, volume: 0.8 });
     PetActivityManager.makePetSad(this.pet, (updatedStats: PetStatsUpdate) => {
     });
     UIUtils.showMessage(this.app.stage, `${this.petName} is feeling sad...`, 0xffa500, this.app.ticker);
   }
 
   triggerSurprisedAnimation() {
-    this.surprisedSound?.play({ loop: false, volume: 0.8 });
     PetActivityManager.makePetSurprised(this.pet, (updatedStats: PetStatsUpdate) => {
     });
     UIUtils.showMessage(this.app.stage, `${this.petName} is surprised!`, 0x00ffff, this.app.ticker);
   }
 
   triggerTalkingAnimation() {
-    this.talkingSound?.play({ loop: false, volume: 0.8 });
     PetActivityManager.makePetTalk(this.pet, (updatedStats: PetStatsUpdate) => {
     });
     UIUtils.showMessage(this.app.stage, `${this.petName} is chattering!`, 0xcccccc, this.app.ticker);
@@ -401,7 +355,7 @@ export default class GameScene {
       evolutionInput,
       this.app.stage,
       this.petName,
-      this.evolveSound,
+      undefined, // No evolveSound, pass undefined
       this.app.ticker
     );
   }
@@ -474,32 +428,6 @@ export default class GameScene {
 
   destroy() {
     console.log("GameScene: Destroying...");
-
-    this.eatSoundInstance?.stop();
-    this.laughSound?.stop();
-    this.restSound?.stop();
-    this.evolveSound?.stop();
-    this.happySound?.stop();
-    this.sadSound?.stop();
-    this.surprisedSound?.stop();
-    this.talkingSound?.stop();
-
-    const assetAliases = [
-      'particle_star_img', 'eat_sound', 'laugh_sound', 'rest_sound',
-      'evolve_sound', 'happy_sound', 'sad_sound', 'surprised_sound', 'talking_sound'
-    ];
-    assetAliases.forEach(alias => {
-      try {
-        if (Assets.cache.has(alias)) {
-          Assets.unload(alias);
-        }
-      } catch (e) {
-        console.warn(`GameScene: Error unloading asset '${alias}':`, e);
-        if (Assets.cache.has(alias)) {
-          Assets.cache.remove(alias);
-        }
-      }
-    });
 
     if (this.petEmitter) {
       this.petEmitter.destroy();

@@ -2,6 +2,7 @@ import * as React from "react"
 import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu"
 import { cva } from "class-variance-authority"
 import { ChevronDown } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
 
@@ -126,3 +127,19 @@ export {
   NavigationMenuIndicator,
   NavigationMenuViewport,
 }
+
+// Add a new menu item for 'Games'
+const MenuItem = ({ label, onClick }) => {
+  const router = useRouter()
+
+  return (
+    <NavigationMenuItem>
+      <NavigationMenuTrigger onClick={onClick}>
+        {label}
+      </NavigationMenuTrigger>
+    </NavigationMenuItem>
+  )
+}
+
+// Usage example
+<MenuItem label="Games" onClick={() => router.push('/games/nostrpet')} />

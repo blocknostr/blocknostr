@@ -1,5 +1,6 @@
 import { Stage, Sprite, Text, Graphics } from '@pixi/react';
 import { useEffect, useState, useRef } from 'react';
+import { TextStyle } from '@pixi/text';
 
 interface ReactPixiGameProps {
     width?: number;
@@ -12,10 +13,7 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
     const [petTexture, setPetTexture] = useState<string | null>(null);
     const [happiness, setHappiness] = useState(50);
     const [bounce, setBounce] = useState(0);
-    const [showPlusOne, setShowPlusOne] = useState(false);
-    const [plusOneY, setPlusOneY] = useState(height / 2 - 60);
     const bounceRef = useRef<number>(0);
-    const plusOneTimeout = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         setPetTexture('/assets/games/nosterpet/idle.svg');
@@ -33,28 +31,9 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
         return () => cancelAnimationFrame(frame);
     }, []);
 
-    // Floating +1 animation (stack multiple +1s)
-    const [plusOnes, setPlusOnes] = useState<number[]>([]); // array of unique ids
-    useEffect(() => {
-        if (showPlusOne) {
-            setPlusOnes(prev => [...prev, Date.now()]); // add a new +1 with unique id
-        }
-    }, [showPlusOne]);
-
-    // Remove +1 after animation
-    useEffect(() => {
-        if (plusOnes.length > 0) {
-            const timeout = setTimeout(() => {
-                setPlusOnes(prev => prev.slice(1)); // remove the oldest +1
-            }, 600);
-            return () => clearTimeout(timeout);
-        }
-    }, [plusOnes]);
-
     // Handle pet click
     const handlePetClick = () => {
         setHappiness(h => Math.min(100, h + 1));
-        setShowPlusOne(true);
     };
 
     // Draw happiness bar
@@ -84,7 +63,7 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
                     anchor={0.5}
                     interactive
                     pointerdown={handlePetClick}
-                    scale={showPlusOne ? { x: 1.15, y: 1.15 } : { x: 1, y: 1 }}
+                    scale={{ x: 1, y: 1 }}
                     cursor="pointer"
                 />
             )}
@@ -94,7 +73,7 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
                 x={width / 2}
                 y={height - 80}
                 anchor={0.5}
-                style={{
+                style={new TextStyle({
                     fontFamily: 'Arial',
                     fontSize: 22,
                     fill: '#fff',
@@ -102,29 +81,10 @@ export default function ReactPixiGame({ width = 640, height = 480, address, nost
                     dropShadow: true,
                     dropShadowDistance: 2,
                     dropShadowColor: '#222',
-                } as any}
+                })}
             />
             {/* Happiness bar */}
             {renderHappinessBar()}
-            {/* Floating +1 animations (stacked) */}
-            {plusOnes.map((id, idx) => (
-                <Text
-                    key={id}
-                    text={'+1'}
-                    x={width / 2}
-                    y={height / 2 - 60 - idx * 28}
-                    anchor={0.5}
-                    style={{
-                        fontFamily: 'Arial',
-                        fontSize: 28,
-                        fill: '#ffeb3b',
-                        fontWeight: 'bold',
-                        stroke: '#222',
-                        strokeThickness: 4,
-                        alpha: 1 - idx * 0.2
-                    } as any}
-                />
-            ))}
         </Stage>
     );
 }
