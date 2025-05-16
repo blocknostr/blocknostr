@@ -1,8 +1,9 @@
 
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
+import { useInView } from "@/components/shared/useInView";
 
 interface OptimizedFeedListProps {
   events: NostrEvent[];
@@ -27,30 +28,24 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   
-  // Create early loading trigger
-  const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
+  // Use the useInView hook for more reliable intersection detection
+  const { ref: loadMoreRef, inView } = useInView({
+    rootMargin: '0px 0px 1500px 0px',
+    threshold: 0.1,
+  });
   
-  // Simplified effect for early loading - no scroll position handling
-  React.useEffect(() => {
-    if (hasMore && !loadMoreLoading && onLoadMore) {
-      const earlyTriggerObserver = new IntersectionObserver(
-        (entries) => {
-          if (entries.some(entry => entry.isIntersecting) && hasMore && !loadMoreLoading && onLoadMore) {
-            onLoadMore();
-          }
-        },
-        { threshold: 0.1, rootMargin: '0px 0px 1500px 0px' }
-      );
-      
-      if (earlyTriggerRef.current) {
-        earlyTriggerObserver.observe(earlyTriggerRef.current);
-      }
-      
-      return () => {
-        earlyTriggerObserver.disconnect();
-      };
+  // Use callback for loadMore logic to prevent unnecessary rerenders
+  const handleLoadMoreVisible = useCallback(() => {
+    if (inView && hasMore && !loadMoreLoading && onLoadMore) {
+      console.log("Trigger load more from InView");
+      onLoadMore();
     }
-  }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
+  }, [inView, hasMore, loadMoreLoading, onLoadMore]);
+  
+  // Effect to trigger load more when inView changes
+  React.useEffect(() => {
+    handleLoadMoreVisible();
+  }, [inView, handleLoadMoreVisible]);
   
   return (
     <div className="space-y-4" ref={feedContainerRef}>
@@ -67,11 +62,11 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         />
       ))}
       
-      {/* Early loading trigger */}
-      {events.length > 5 && (
+      {/* Invisible load more trigger that uses useInView for reliable detection */}
+      {events.length > 0 && hasMore && (
         <div 
-          ref={earlyTriggerRef}
-          className="h-0 w-full" 
+          ref={loadMoreRef}
+          className="h-10 w-full" 
           aria-hidden="true"
         />
       )}
