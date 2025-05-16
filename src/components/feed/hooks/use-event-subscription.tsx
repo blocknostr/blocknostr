@@ -119,10 +119,7 @@ export function useEventSubscription({
           const newSubId = nostrService.subscribe(
             filters,
             handleEvent,
-            connectedRelays,
-            {
-              isRenewable: true
-            }
+            connectedRelays // Pass relays as the third argument
           );
           
           // Update the subscription ID state
@@ -137,10 +134,7 @@ export function useEventSubscription({
       const newSubId = nostrService.subscribe(
         filters,
         handleEvent,
-        relays, // Pass relays array instead of EOSE callback
-        {
-          isRenewable: true
-        }
+        relays // Pass relays as the third argument
       );
       
       return newSubId;
