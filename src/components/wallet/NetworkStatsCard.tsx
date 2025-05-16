@@ -28,12 +28,12 @@ const NetworkStatsCard: React.FC<NetworkStatsCardProps> = ({ className = "" }) =
         setStats(data);
       } catch (error) {
         console.error("Error fetching network stats:", error);
-        // Set sample data
+        // Set updated sample data
         setStats({
           hashRate: "38.2 PH/s",
           difficulty: "3.51 P",
           blockTime: "64.0s",
-          activeAddresses: 152789,
+          activeAddresses: 193500,
           tokenCount: 385
         });
       } finally {

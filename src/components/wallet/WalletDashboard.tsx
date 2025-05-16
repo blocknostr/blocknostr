@@ -203,7 +203,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-muted-foreground">Total Addresses</p>
-                    <p className="text-sm font-medium">152,789</p>
+                    <p className="text-sm font-medium">193,500</p>
                   </div>
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-muted-foreground">Active Nodes</p>

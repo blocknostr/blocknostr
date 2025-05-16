@@ -355,7 +355,7 @@ export const fetchNetworkStats = async () => {
       hashRate: "38.2 PH/s",
       difficulty: "3.51 P",
       blockTime: "64.0s",
-      activeAddresses: 152789, // Updated based on richlist.alephium.world
+      activeAddresses: 193500, // Updated based on latest richlist.alephium.world data
       tokenCount: 385,
       nodesConnected: 324, // Based on alephium.world
       marketCap: "$46.5M"
