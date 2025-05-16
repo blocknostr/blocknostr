@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,7 +5,7 @@ import { EnrichedToken, getAddressTokens } from "@/lib/api/alephiumApi";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+import { Info, TrendingUp, TrendingDown } from "lucide-react";
 import { EnrichedTokenWithWallets } from "@/types/wallet";
 
 interface TokenListProps {
@@ -22,7 +21,24 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
     // If allTokens is provided, use those instead of fetching for a single address
     if (allTokens && allTokens.length > 0) {
       // Filter out NFTs, they're shown in the NFT gallery
-      setTokens(allTokens.filter(token => !token.isNFT));
+      const sortedTokens = allTokens
+        .filter(token => !token.isNFT)
+        // Sort by USD value (descending) when available
+        .sort((a, b) => {
+          // If both have USD values, sort by value
+          if (a.usdValue !== undefined && b.usdValue !== undefined) {
+            return b.usdValue - a.usdValue;
+          }
+          // If only one has a USD value, prioritize that one
+          if (a.usdValue !== undefined) return -1;
+          if (b.usdValue !== undefined) return 1;
+          // Otherwise sort by token amount
+          const aAmount = Number(a.amount || "0");
+          const bAmount = Number(b.amount || "0");
+          return bAmount - aAmount;
+        });
+      
+      setTokens(sortedTokens);
       setLoading(false);
       return;
     }
@@ -31,6 +47,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
       try {
         setLoading(true);
         const tokenData = await getAddressTokens(address);
+        // Filter out NFTs, they're shown in the NFT gallery
         setTokens(tokenData.filter(token => !token.isNFT));
       } catch (error) {
         console.error('Error fetching tokens:', error);
@@ -99,81 +116,83 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
             // Cast token to EnrichedTokenWithWallets to access wallets safely
             const tokenWithWallets = token as EnrichedTokenWithWallets;
             const walletCount = tokenWithWallets.wallets?.length || 0;
+            const hasUsdValue = tokenWithWallets.usdValue !== undefined;
             
             return (
-            <div key={token.id} className="flex items-center justify-between p-4">
-              <div className="flex items-center">
-                {token.logoURI ? (
-                  <img 
-                    src={token.logoURI} 
-                    alt={token.symbol} 
-                    className="h-8 w-8 rounded-full"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
-                    }}
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-xs font-medium">
-                      {token.symbol ? token.symbol.substring(0, 2) : '??'}
-                    </span>
-                  </div>
-                )}
-                
-                <div className="ml-3">
-                  <div className="font-medium">{token.name || token.symbol}</div>
-                  <div className="text-xs text-muted-foreground">{token.symbol}</div>
+              <div key={token.id} className="flex items-center justify-between p-4">
+                <div className="flex items-center">
+                  {token.logoURI ? (
+                    <img 
+                      src={token.logoURI} 
+                      alt={token.symbol} 
+                      className="h-8 w-8 rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      <span className="text-xs font-medium">
+                        {token.symbol ? token.symbol.substring(0, 2) : '??'}
+                      </span>
+                    </div>
+                  )}
                   
-                  {walletCount > 0 && (
-                    <div className="mt-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="text-xs">
-                              {walletCount} wallet{walletCount > 1 ? 's' : ''}
-                              <Info className="h-3 w-3 ml-1" />
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Found in {walletCount} tracked wallet{walletCount > 1 ? 's' : ''}</p>
-                            {walletCount > 1 && tokenWithWallets.wallets && (
-                              <div className="mt-2 text-xs">
-                                <div className="font-medium">Distribution:</div>
-                                <div className="max-h-32 overflow-y-auto">
-                                  {tokenWithWallets.wallets.map((wallet, idx) => (
-                                    <div key={idx} className="flex justify-between mt-1">
-                                      <div className="truncate max-w-32 mr-4">
-                                        {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
+                  <div className="ml-3">
+                    <div className="font-medium">{token.name || token.symbol}</div>
+                    <div className="text-xs text-muted-foreground">{token.symbol}</div>
+                    
+                    {walletCount > 0 && (
+                      <div className="mt-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs">
+                                {walletCount} wallet{walletCount > 1 ? 's' : ''}
+                                <Info className="h-3 w-3 ml-1" />
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Found in {walletCount} tracked wallet{walletCount > 1 ? 's' : ''}</p>
+                              {walletCount > 1 && tokenWithWallets.wallets && (
+                                <div className="mt-2 text-xs">
+                                  <div className="font-medium">Distribution:</div>
+                                  <div className="max-h-32 overflow-y-auto">
+                                    {tokenWithWallets.wallets.map((wallet, idx) => (
+                                      <div key={idx} className="flex justify-between mt-1">
+                                        <div className="truncate max-w-32 mr-4">
+                                          {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
+                                        </div>
+                                        <div>
+                                          {(Number(wallet.amount) / 10**token.decimals).toLocaleString(
+                                            undefined, 
+                                            { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                                          )}
+                                        </div>
                                       </div>
-                                      <div>
-                                        {(Number(wallet.amount) / 10**token.decimals).toLocaleString(
-                                          undefined, 
-                                          { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <div className="font-medium">{token.formattedAmount}</div>
+                  {hasUsdValue && (
+                    <div className={`text-xs ${tokenWithWallets.usdValue > 100 ? 'text-green-500' : 'text-muted-foreground'}`}>
+                      {formatCurrency(tokenWithWallets.usdValue)}
                     </div>
                   )}
                 </div>
               </div>
-              
-              <div className="text-right">
-                <div className="font-medium">{token.formattedAmount}</div>
-                {token.usdValue ? (
-                  <div className="text-xs text-muted-foreground">
-                    {formatCurrency(token.usdValue)}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          )})}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

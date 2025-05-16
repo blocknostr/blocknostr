@@ -28,7 +28,8 @@ interface TokenList {
   tokens: TokenMetadata[];
 }
 
-const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens.json";
+// Updated URL to the correct path for the mainnet token list
+const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens/mainnet.json";
 let tokenCache: Record<string, TokenMetadata> | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
@@ -45,6 +46,7 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
   }
   
   try {
+    console.log("Fetching token list from:", TOKEN_LIST_URL);
     const response = await fetch(TOKEN_LIST_URL);
     
     if (!response.ok) {

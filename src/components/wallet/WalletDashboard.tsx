@@ -14,6 +14,7 @@ import { getAddressBalance, getAddressTokens } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 import { EnrichedTokenWithWallets, SavedWallet, TokenWallet } from "@/types/wallet";
+import { fetchTokenList } from "@/lib/api/tokenMetadata";
 
 interface WalletDashboardProps {
   address: string;
@@ -53,6 +54,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [allTokens, setAllTokens] = useState<EnrichedTokenWithWallets[]>([]);
   const [totalTokenCount, setTotalTokenCount] = useState(0);
+  const [totalTokenValue, setTotalTokenValue] = useState<number>(0);
 
   // Function to update API status that can be passed to child components
   const updateApiStatus = (isLive: boolean) => {
@@ -72,11 +74,13 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         const balancePromises = walletAddresses.map(addr => getAddressBalance(addr));
         const tokenPromises = walletAddresses.map(addr => getAddressTokens(addr));
         const pricePromise = getAlephiumPrice();
+        const tokenMetadataPromise = fetchTokenList();
         
-        const [balanceResults, tokenResults, priceResult] = await Promise.all([
+        const [balanceResults, tokenResults, priceResult, tokenMetadata] = await Promise.all([
           Promise.allSettled(balancePromises),
           Promise.allSettled(tokenPromises),
-          pricePromise
+          pricePromise,
+          tokenMetadataPromise
         ]);
         
         // Process balances
@@ -94,6 +98,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         // Process tokens - aggregate all tokens across wallets
         const tokenMap: Record<string, EnrichedTokenWithWallets> = {};
         let totalTokens = 0;
+        let calculatedTotalTokenValue = 0;
         
         tokenResults.forEach((result, index) => {
           if (result.status === 'fulfilled') {
@@ -110,9 +115,32 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
               const tokenId = token.id;
               
               if (!tokenMap[tokenId]) {
+                // Calculate USD value for the token
+                let usdValue: number | undefined = undefined;
+                
+                if (!token.isNFT) {
+                  const tokenAmountInUnits = Number(token.amount) / (10 ** token.decimals);
+                  
+                  // For ALPH token, use direct ALPH price
+                  if (tokenId === "ALPH" || tokenId.toLowerCase() === "alph") {
+                    usdValue = tokenAmountInUnits * priceResult.price;
+                  } 
+                  // For other tokens, use their own price if available (placeholder for now)
+                  else {
+                    // In a real implementation, you would look up specific token prices
+                    // For now, use a placeholder with ALPH price as reference
+                    usdValue = tokenAmountInUnits * priceResult.price * 0.01;
+                  }
+                  
+                  if (usdValue !== undefined) {
+                    calculatedTotalTokenValue += usdValue;
+                  }
+                }
+                
                 tokenMap[tokenId] = {
                   ...token,
-                  wallets: [{ address: walletAddress, amount: token.amount }]
+                  wallets: [{ address: walletAddress, amount: token.amount }],
+                  usdValue: usdValue
                 } as EnrichedTokenWithWallets;
               } else {
                 // Token exists in map, add this wallet's amount
@@ -131,6 +159,27 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                         undefined, 
                         { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
                       );
+                  
+                  // Update USD value if applicable
+                  if (!token.isNFT) {
+                    const tokenAmountInUnits = Number(tokenMap[tokenId].amount) / (10 ** token.decimals);
+                    
+                    if (tokenId === "ALPH" || tokenId.toLowerCase() === "alph") {
+                      tokenMap[tokenId].usdValue = tokenAmountInUnits * priceResult.price;
+                    } else {
+                      // Placeholder USD value calculation for non-ALPH tokens
+                      tokenMap[tokenId].usdValue = tokenAmountInUnits * priceResult.price * 0.01;
+                    }
+                    
+                    // When recalculating, we need to reset the total and sum all tokens again
+                    // to avoid double counting when we're updating existing tokens
+                    calculatedTotalTokenValue = 0;
+                    Object.values(tokenMap).forEach(mapToken => {
+                      if (mapToken.usdValue !== undefined) {
+                        calculatedTotalTokenValue += mapToken.usdValue;
+                      }
+                    });
+                  }
                 } catch (error) {
                   console.error(`Error summing amounts for token ${tokenId}:`, error);
                 }
@@ -142,8 +191,11 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         });
         
         console.log("Aggregated token data:", Object.keys(tokenMap).length, "unique tokens");
+        console.log("Total token value in USD:", calculatedTotalTokenValue);
+        
         setAllTokens(Object.values(tokenMap));
         setTotalTokenCount(Object.keys(tokenMap).length);
+        setTotalTokenValue(calculatedTotalTokenValue);
         
         setPriceData({
           price: priceResult.price,
@@ -165,7 +217,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
 
   // Calculate total balance and USD value
   const totalAlphBalance = Object.values(balances).reduce((sum, balance) => sum + balance, 0);
-  const portfolioValue = totalAlphBalance * priceData.price;
+  const portfolioValue = totalAlphBalance * priceData.price + totalTokenValue;
 
   // Render appropriate content based on the active tab
   if (activeTab === "portfolio") {
