@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
+import { fetchAlephiumDApps, DAppProject } from "@/lib/api/dappsApi";
 import { toast } from "@/components/ui/sonner";
 
-// Hardcoded dApps that we always want to show
-const staticDapps = [
+// Fallback dApps that we show if API fails
+const fallbackDapps = [
   {
+    id: "ayin",
     name: "Ayin Finance",
     description: "Lending protocol for Alephium",
     url: "https://app.ayin.finance",
@@ -19,6 +20,7 @@ const staticDapps = [
     status: "production"
   },
   {
+    id: "guppy",
     name: "Guppy DEX",
     description: "Decentralized exchange for Alephium",
     url: "https://app.guppy.fi",
@@ -26,6 +28,7 @@ const staticDapps = [
     status: "production"
   },
   {
+    id: "checkin",
     name: "CheckIn dApp",
     description: "Check-in dApp for the Alephium ecosystem",
     url: "https://checkin-six.vercel.app/",
@@ -33,6 +36,7 @@ const staticDapps = [
     status: "beta"
   },
   {
+    id: "nfta",
     name: "NFTA Marketplace",
     description: "NFT marketplace for Alephium",
     url: "https://nfta.vercel.app/",
@@ -47,41 +51,22 @@ const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   
-  // Fetch dApps from LinxLabs API with the modified useQuery configuration
-  const { data: linxLabsProjects, isLoading, error } = useQuery({
-    queryKey: ['linxlabs-dapps'],
+  // Fetch dApps from alph.land API
+  const { data: alphLandDapps, isLoading, error } = useQuery({
+    queryKey: ['alph-land-dapps'],
     queryFn: fetchAlephiumDApps,
-    // Using onSettled instead of onError in @tanstack/react-query v5+
     meta: {
-      onError: () => toast.error("Failed to fetch DApps from LinxLabs")
+      onSettled: (data, error) => {
+        if (error) toast.error("Failed to fetch DApps from alph.land")
+      }
     }
   });
 
-  // Combine static dApps with LinxLabs projects
+  // Use the API data or fallback to static list
   const allDapps = React.useMemo(() => {
-    if (!linxLabsProjects) return staticDapps;
-    
-    // Convert LinxLabs projects to our format
-    const formattedLinxLabsProjects = linxLabsProjects.map((project: LinxLabsProject) => ({
-      name: project.name,
-      description: project.description,
-      url: project.url,
-      category: project.category || "Other",
-      logo: project.logo,
-      status: project.status
-    }));
-    
-    // Merge with static dApps and remove duplicates (based on URL)
-    const combinedDapps = [...staticDapps];
-    
-    formattedLinxLabsProjects.forEach(project => {
-      if (!combinedDapps.some(dapp => dapp.url === project.url)) {
-        combinedDapps.push(project);
-      }
-    });
-    
-    return combinedDapps;
-  }, [linxLabsProjects]);
+    if (!alphLandDapps || alphLandDapps.length === 0) return fallbackDapps;
+    return alphLandDapps;
+  }, [alphLandDapps]);
   
   // Filter dApps by category
   const filteredDapps = React.useMemo(() => {
@@ -93,7 +78,7 @@ const DAppsSection = () => {
     <Card>
       <CardHeader>
         <CardTitle>DApp Integrations</CardTitle>
-        <CardDescription>Interact with Alephium dApps</CardDescription>
+        <CardDescription>Interact with Alephium dApps from alph.land</CardDescription>
       </CardHeader>
       <CardContent>
         {/* Categories Filter */}
@@ -132,13 +117,22 @@ const DAppsSection = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredDapps.map((dapp) => (
-              <Card key={dapp.name} className="overflow-hidden border-none shadow-md">
+              <Card key={dapp.id || dapp.name} className="overflow-hidden border-none shadow-md">
                 <CardContent className="p-0">
                   <div className="bg-gradient-to-r from-primary/30 to-primary/10 p-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-md font-medium">{dapp.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">{dapp.description}</p>
+                      <div className="flex items-center gap-3">
+                        {dapp.logo && (
+                          <img 
+                            src={dapp.logo} 
+                            alt={`${dapp.name} logo`}
+                            className="w-8 h-8 rounded-full object-cover bg-background" 
+                          />
+                        )}
+                        <div>
+                          <h3 className="text-md font-medium">{dapp.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{dapp.description}</p>
+                        </div>
                       </div>
                       {dapp.status && (
                         <Badge variant={
