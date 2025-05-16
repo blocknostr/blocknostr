@@ -7,10 +7,16 @@ export interface SavedWallet {
 
 export type WalletType = "Bitcoin" | "Alephium" | "Ergo";
 
-// Extended token interface with wallet addresses
+// Wallet entry for tracking token ownership across multiple wallets
+export interface TokenWallet {
+  address: string;
+  amount: string;
+}
+
+// Extended token interface with wallet tracking
 export interface EnrichedTokenWithWallets {
   id: string;
-  name: string; // Removed optional marker to match EnrichedToken
+  name: string;
   symbol: string;
   decimals: number;
   amount: string;
@@ -18,5 +24,6 @@ export interface EnrichedTokenWithWallets {
   logoURI?: string;
   isNFT: boolean;
   usdValue?: number;
-  walletAddresses?: string[];
+  wallets: TokenWallet[]; // Replace walletAddresses with structured wallets array
 }
+

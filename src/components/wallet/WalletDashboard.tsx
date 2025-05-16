@@ -13,6 +13,7 @@ import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
 import { getAddressBalance, getAddressTokens } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
+import { EnrichedTokenWithWallets, SavedWallet, TokenWallet } from "@/types/wallet";
 
 interface SavedWallet {
   address: string;
@@ -56,7 +57,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
     priceChange24h: number;
   }>({ price: 0, priceChange24h: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [allTokens, setAllTokens] = useState<Record<string, any>>({});
+  const [allTokens, setAllTokens] = useState<EnrichedTokenWithWallets[]>([]);
   const [totalTokenCount, setTotalTokenCount] = useState(0);
 
   // Function to update API status that can be passed to child components
@@ -97,7 +98,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         setBalances(newBalances);
         
         // Process tokens - aggregate all tokens across wallets
-        const tokenMap: Record<string, any> = {};
+        const tokenMap: Record<string, EnrichedTokenWithWallets> = {};
         let totalTokens = 0;
         
         tokenResults.forEach((result, index) => {
@@ -118,7 +119,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                 tokenMap[tokenId] = {
                   ...token,
                   wallets: [{ address: walletAddress, amount: token.amount }]
-                };
+                } as EnrichedTokenWithWallets;
               } else {
                 // Token exists in map, add this wallet's amount
                 tokenMap[tokenId].wallets.push({ address: walletAddress, amount: token.amount });
@@ -147,7 +148,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
         });
         
         console.log("Aggregated token data:", Object.keys(tokenMap).length, "unique tokens");
-        setAllTokens(tokenMap);
+        setAllTokens(Object.values(tokenMap));
         setTotalTokenCount(Object.keys(tokenMap).length);
         
         setPriceData({
@@ -275,7 +276,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
               </TabsList>
               
               <TabsContent value="tokens" className="mt-0">
-                <TokenList address={address} allTokens={Object.values(allTokens)} />
+                <TokenList address={address} allTokens={allTokens} />
               </TabsContent>
               
               <TabsContent value="nfts" className="mt-0">

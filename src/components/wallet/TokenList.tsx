@@ -11,7 +11,7 @@ import { EnrichedTokenWithWallets } from "@/types/wallet";
 
 interface TokenListProps {
   address: string;
-  allTokens?: EnrichedTokenWithWallets[]; // Updated type to include walletAddresses
+  allTokens?: EnrichedTokenWithWallets[]; // Updated type to include wallets
 }
 
 const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
@@ -96,8 +96,9 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
       <CardContent className="p-0">
         <div className="divide-y">
           {tokens.map((token) => {
-            // Cast token to EnrichedTokenWithWallets to access walletAddresses safely
+            // Cast token to EnrichedTokenWithWallets to access wallets safely
             const tokenWithWallets = token as EnrichedTokenWithWallets;
+            const walletCount = tokenWithWallets.wallets?.length || 0;
             
             return (
             <div key={token.id} className="flex items-center justify-between p-4">
@@ -123,18 +124,38 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                   <div className="font-medium">{token.name || token.symbol}</div>
                   <div className="text-xs text-muted-foreground">{token.symbol}</div>
                   
-                  {tokenWithWallets.walletAddresses && tokenWithWallets.walletAddresses.length > 0 && (
+                  {walletCount > 0 && (
                     <div className="mt-1">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Badge variant="outline" className="text-xs">
-                              {tokenWithWallets.walletAddresses.length} wallet{tokenWithWallets.walletAddresses.length > 1 ? 's' : ''}
+                              {walletCount} wallet{walletCount > 1 ? 's' : ''}
                               <Info className="h-3 w-3 ml-1" />
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Found in {tokenWithWallets.walletAddresses.length} tracked wallet{tokenWithWallets.walletAddresses.length > 1 ? 's' : ''}</p>
+                            <p>Found in {walletCount} tracked wallet{walletCount > 1 ? 's' : ''}</p>
+                            {walletCount > 1 && tokenWithWallets.wallets && (
+                              <div className="mt-2 text-xs">
+                                <div className="font-medium">Distribution:</div>
+                                <div className="max-h-32 overflow-y-auto">
+                                  {tokenWithWallets.wallets.map((wallet, idx) => (
+                                    <div key={idx} className="flex justify-between mt-1">
+                                      <div className="truncate max-w-32 mr-4">
+                                        {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
+                                      </div>
+                                      <div>
+                                        {(Number(wallet.amount) / 10**token.decimals).toLocaleString(
+                                          undefined, 
+                                          { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

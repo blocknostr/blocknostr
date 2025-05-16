@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { fetchTokenList } from "@/lib/api/tokenMetadata";
 import { fetchTokenTransactions, getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
-import { EnrichedTokenWithWallets } from "@/types/wallet";
+import { EnrichedTokenWithWallets, TokenWallet } from "@/types/wallet";
 
 export interface TokenTransaction {
   hash: string;
@@ -17,7 +16,7 @@ export interface EnrichedTokenData extends EnrichedToken {
   transactions: TokenTransaction[];
   isLoading: boolean;
   lastUpdated: number;
-  walletAddresses?: string[]; // Wallets that hold this token
+  wallets: TokenWallet[]; // Updated to use the structured wallets array
 }
 
 /**
@@ -32,7 +31,6 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
   const [tokenIds, setTokenIds] = useState<string[]>([]);
   const [prioritizedTokenIds, setPrioritizedTokenIds] = useState<string[]>([]);
   const [ownedTokens, setOwnedTokens] = useState<Set<string>>(new Set());
-  // Define refreshFlag before using it
   const [refreshFlag, setRefreshFlag] = useState(0);
 
   // Identify tokens in tracked wallets and fetch token metadata
@@ -77,19 +75,17 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
                 transactions: [],
                 isLoading: true,
                 lastUpdated: Date.now(),
-                walletAddresses: [walletAddress]
+                wallets: [{ address: walletAddress, amount: token.amount }]
               };
             } else {
               // Token exists in map, update with this wallet's data
               const currentToken = tokenMap[tokenId];
               
               // Add this wallet to the token's wallets
-              if (currentToken.walletAddresses) {
-                if (!currentToken.walletAddresses.includes(walletAddress)) {
-                  currentToken.walletAddresses.push(walletAddress);
-                }
+              if (currentToken.wallets) {
+                currentToken.wallets.push({ address: walletAddress, amount: token.amount });
               } else {
-                currentToken.walletAddresses = [walletAddress];
+                currentToken.wallets = [{ address: walletAddress, amount: token.amount }];
               }
               
               // Sum the amount (use BigInt to handle large numbers)
