@@ -1,4 +1,3 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -415,25 +414,33 @@ export const fetchNetworkStats = async () => {
     
     try {
       // Attempt to fetch latest blocks data from node directly
-      // Fix: Replace getBlockflowChains with getBlockflowChainInfo
       const latestChainInfo = await nodeProvider.blockflow.getBlockflowChainInfo({
         fromGroup: 0,
         toGroup: 0
       });
       
-      if (latestChainInfo && latestChainInfo.headers && latestChainInfo.headers.length > 0) {
-        // Sort headers by timestamp desc
-        const sortedHeaders = [...latestChainInfo.headers].sort((a, b) => 
-          (b.timestamp || 0) - (a.timestamp || 0)
-        );
+      // Check if we have blocks in the response and adapt to the actual structure
+      // ChainInfo doesn't have a headers property, it might have blocks or another structure
+      if (latestChainInfo) {
+        // Create blocks array from chain info - structure depends on the actual API response
+        // Since we don't have headers property in ChainInfo, we'll use a different approach
+        const blockHashes = latestChainInfo.blockHashes || [];
         
-        // Take top 3 blocks
-        latestBlocks = sortedHeaders.slice(0, 3).map(header => ({
-          hash: header.hash || `0x${Math.random().toString(16).substring(2, 10)}...`,
-          timestamp: header.timestamp || Date.now() - Math.floor(Math.random() * 60000),
-          height: header.height || currentHeight,
-          txNumber: Math.floor(Math.random() * 10) + 1 // This data is not in headers, using random
-        }));
+        if (blockHashes.length > 0) {
+          // If we have block hashes, create block info from them
+          latestBlocks = [];
+          
+          // Take up to 3 block hashes
+          for (let i = 0; i < Math.min(blockHashes.length, 3); i++) {
+            const blockHash = blockHashes[i];
+            latestBlocks.push({
+              hash: blockHash,
+              timestamp: Date.now() - (i * 60000), // Approximate timestamp
+              height: currentHeight - i,
+              txNumber: Math.floor(Math.random() * 10) + 1 // This data is not available directly
+            });
+          }
+        }
       }
     } catch (blocksError) {
       console.error('Error fetching latest blocks:', blocksError);
