@@ -10,6 +10,7 @@ import WalletManager from "@/components/wallet/WalletManager";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 
 // Interface for wallet stats
 interface WalletStats {
