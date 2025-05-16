@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -25,15 +25,13 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   hasMore = true,
   loadMoreLoading = false
 }) => {
-  const lastRef = useRef<HTMLDivElement>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
-  const prevEventsLength = useRef<number>(events.length);
   
   // Create early loading trigger
   const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
   
-  // Effect for early loading
-  useEffect(() => {
+  // Simplified effect for early loading - no scroll position handling
+  React.useEffect(() => {
     if (hasMore && !loadMoreLoading && onLoadMore) {
       const earlyTriggerObserver = new IntersectionObserver(
         (entries) => {
@@ -80,7 +78,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center" ref={lastRef}>
+        <div className="py-4 text-center">
           {loadMoreLoading && (
             <div className="flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
