@@ -47,7 +47,7 @@ const NewHomePage: React.FC = () => {
     <div className={`max-w-2xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`}>
       {/* Login message for users not logged in */}
       {!isLoggedIn && (
-        <div className="mb-6 p-4 rounded-lg border border-border bg-card">
+        <div className="mb-8 p-4 rounded-lg border border-border bg-card">
           <h2 className="text-xl font-medium mb-2">Welcome to BlockNoster</h2>
           <p className="text-muted-foreground mb-4">
             Connect your Nostr wallet using the Connect button in the header to access all features.
@@ -56,11 +56,11 @@ const NewHomePage: React.FC = () => {
       )}
 
       {/* Create Note component (only shown when logged in) */}
-      {isLoggedIn && <NewCreateNote className="mb-6 w-full" />}
+      {isLoggedIn && <NewCreateNote className="mb-8 w-full" />}
 
       {/* Tabs for switching between feeds */}
       <div className="mb-6 w-full">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
@@ -73,7 +73,7 @@ const NewHomePage: React.FC = () => {
                   size="icon"
                   onClick={() => setIsCustomizeOpen(true)}
                   aria-label="Customize feed"
-                  className="h-8 w-8"
+                  className="h-8 w-8 mr-1"
                 >
                   <Settings2 className="h-4 w-4" />
                 </Button>
@@ -83,7 +83,7 @@ const NewHomePage: React.FC = () => {
             </div>
 
             {activeHashtag && (
-              <div className="mt-2 flex items-center">
+              <div className="mt-3 flex items-center">
                 <div className="text-sm text-muted-foreground">
                   Showing posts with <span className="font-medium">#{activeHashtag}</span>
                 </div>
@@ -99,14 +99,14 @@ const NewHomePage: React.FC = () => {
             )}
 
             {/* Feed content */}
-            <TabsContent value="global" className="mt-2 p-0 border-none w-full">
+            <TabsContent value="global" className="mt-4 p-0 border-none w-full">
               <NewGlobalFeed 
                 activeHashtag={activeHashtag} 
                 onLoadingChange={handleLoadingChange} 
               />
             </TabsContent>
             
-            <TabsContent value="following" className="mt-2 p-0 border-none w-full">
+            <TabsContent value="following" className="mt-4 p-0 border-none w-full">
               {isLoggedIn ? (
                 <NewFollowingFeed 
                   activeHashtag={activeHashtag}
