@@ -33,7 +33,7 @@ export default class GameScene extends Phaser.Scene {
   private evolutionStage = 1;
   private petName = 'NostrPet';
   private petId: string = '';
-  private customization: PetState['customization'] = { color: 'default', accessory: 'none', aura: 'none' }; // Fixed: Corrected syntax error
+  private customization: PetState['customization'] = { color: 'default', accessory: 'none', aura: 'none' };
   private inventory: PetState['inventory'] = [];
   private lastTick = 0;
   private lastReward = 0;
@@ -59,7 +59,7 @@ export default class GameScene extends Phaser.Scene {
   private eatSound!: Phaser.Sound.BaseSound;
   private laughSound!: Phaser.Sound.BaseSound;
   private restSound!: Phaser.Sound.BaseSound;
-  private evolveSound!: Phaser.Sound.BaseSound; // Fixed: Removed duplicate declaration
+  private evolveSound!: Phaser.Sound.BaseSound;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -115,7 +115,7 @@ export default class GameScene extends Phaser.Scene {
       scale: { start: 0.2, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: 1000,
-      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum
+      blendMode: Phaser.BlendModes.ADD, // Fixed: Use BlendModes enum instead of string
       on: false
     });
     
@@ -330,7 +330,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private applyCustomization() {
-    // Apply color tint
+    // ApplyDot: Apply color tint
     this.pet.clearTint();
     if (this.customization.color === 'red') this.pet.setTint(0xff0000);
     else if (this.customization.color === 'blue') this.pet.setTint(0x0000ff);
@@ -344,12 +344,10 @@ export default class GameScene extends Phaser.Scene {
       
       if (this.customization.aura === 'glow') {
         this.petEmitter.setFrequency(200);
-        this.petEmitter.scaleX.setTo({ start: 0.1, end: 0 }); // Fixed: Use scaleX.setTo for range
-        this.petEmitter.scaleY.setTo({ start: 0.1, end: 0 }); // Fixed: Use scaleY.setTo for range
+        this.petEmitter.setScale({ start: 0.1, end: 0 }); // Fixed: Use setScale with range object
       } else if (this.customization.aura === 'sparkle') {
         this.petEmitter.setFrequency(500);
-        this.petEmitter.scaleX.setTo({ start: 0.2, end: 0 }); // Fixed: Use scaleX.setTo for range
-        this.petEmitter.scaleY.setTo({ start: 0.2, end: 0 }); // Fixed: Use scaleY.setTo for range
+        this.petEmitter.setScale({ start: 0.2, end: 0 }); // Fixed: Use setScale with range object
       }
       
       this.petEmitter.start();
