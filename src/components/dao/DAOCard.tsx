@@ -4,18 +4,32 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Check, Gavel } from "lucide-react";
+import { Users, Check, Gavel, Shield } from "lucide-react";
 import { DAO } from "@/types/dao";
 import { formatDistanceToNow } from "date-fns";
+import { useDAO } from "@/hooks/useDAO";
 
 interface DAOCardProps {
   dao: DAO;
-  isMember: boolean;
   currentUserPubkey: string;
 }
 
-const DAOCard: React.FC<DAOCardProps> = ({ dao, isMember, currentUserPubkey }) => {
+const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
+  const { joinDAO } = useDAO();
+  
+  const isMember = dao.members.includes(currentUserPubkey);
   const isCreator = dao.creator === currentUserPubkey;
+  const isModerator = dao.moderators?.includes(currentUserPubkey) || false;
+  
+  const memberCount = dao.members.length;
+  const createdAt = new Date(dao.createdAt * 1000);
+  
+  const handleJoinDAO = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!currentUserPubkey) return;
+    
+    await joinDAO(dao.id);
+  };
   
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md h-full flex flex-col">
@@ -25,13 +39,23 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, isMember, currentUserPubkey }) =
           alt={dao.name} 
           className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
         />
-        {isMember && (
-          <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
+          {isMember && (
             <Badge variant="default" className="bg-primary/80 hover:bg-primary">
               <Check className="h-3 w-3 mr-1" /> Member
             </Badge>
-          </div>
-        )}
+          )}
+          {isCreator && (
+            <Badge variant="default" className="bg-amber-500/80 hover:bg-amber-500">
+              Creator
+            </Badge>
+          )}
+          {isModerator && !isCreator && (
+            <Badge variant="default" className="bg-blue-500/80 hover:bg-blue-500">
+              <Shield className="h-3 w-3 mr-1" /> Moderator
+            </Badge>
+          )}
+        </div>
       </div>
       
       <CardHeader className="pb-2">
@@ -43,9 +67,9 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, isMember, currentUserPubkey }) =
           </CardTitle>
         </div>
         <CardDescription className="flex items-center text-xs">
-          <Users className="h-3 w-3 mr-1" /> {dao.members.length} members
+          <Users className="h-3 w-3 mr-1" /> {memberCount} {memberCount === 1 ? 'member' : 'members'}
           <span className="mx-2">•</span>
-          Created {formatDistanceToNow(new Date(dao.createdAt), { addSuffix: true })}
+          Created {formatDistanceToNow(createdAt, { addSuffix: true })}
         </CardDescription>
       </CardHeader>
       
@@ -55,7 +79,7 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, isMember, currentUserPubkey }) =
         </p>
         
         <div className="flex flex-wrap gap-1 mt-2">
-          {dao.tags.map(tag => (
+          {dao.tags && dao.tags.map(tag => (
             <Badge key={tag} variant="outline" className="text-xs bg-muted/50">
               {tag}
             </Badge>
@@ -74,11 +98,21 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, isMember, currentUserPubkey }) =
       </CardContent>
       
       <CardFooter className="pt-2 pb-4">
-        <Button asChild variant={isMember ? "outline" : "default"} className="w-full">
-          <Link to={`/dao/${dao.id}`}>
-            {isMember ? "View DAO" : "Join DAO"}
-          </Link>
-        </Button>
+        {isMember ? (
+          <Button asChild variant="outline" className="w-full">
+            <Link to={`/dao/${dao.id}`}>
+              View DAO
+            </Link>
+          </Button>
+        ) : (
+          <Button 
+            className="w-full"
+            onClick={handleJoinDAO}
+            disabled={!currentUserPubkey}
+          >
+            Join DAO
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

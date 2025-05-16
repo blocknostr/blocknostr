@@ -1,110 +1,50 @@
 
-import React, { useEffect, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import React, { useState } from "react";
+import { Loader2, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import DAOGrid from "./DAOGrid";
 import DAOEmptyState from "./DAOEmptyState";
 import { DAO } from "@/types/dao";
 import CreateDAODialog from "./CreateDAODialog";
+import { useDAO } from "@/hooks/useDAO";
 
 interface DAOListProps {
   type: "discover" | "my-daos" | "trending";
 }
 
 const DAOList: React.FC<DAOListProps> = ({ type }) => {
-  const [daos, setDaos] = useState<DAO[]>([]);
-  const [filteredDaos, setFilteredDaos] = useState<DAO[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   
-  const currentUserPubkey = "user-pubkey-placeholder"; // This would come from your auth system
+  const {
+    daos,
+    myDaos,
+    trendingDaos,
+    loading,
+    createDAO,
+    currentUserPubkey
+  } = useDAO();
   
-  // Mock data for demonstration
-  useEffect(() => {
-    const mockData: DAO[] = [
-      {
-        id: "dao-1",
-        name: "AlephDAO",
-        description: "Governance for the Alephium ecosystem",
-        image: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&h=225&fit=crop",
-        creator: "creator-pubkey-1",
-        createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
-        members: ["member-1", "member-2", "creator-pubkey-1", "user-pubkey-placeholder"],
-        treasury: {
-          balance: 450000,
-          tokenSymbol: "ALPH"
-        },
-        proposals: 12,
-        activeProposals: 3,
-        tags: ["defi", "governance"]
-      },
-      {
-        id: "dao-2",
-        name: "NostrCollective",
-        description: "Community-driven development of Nostr clients",
-        image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&h=225&fit=crop",
-        creator: "creator-pubkey-2",
-        createdAt: Date.now() - 60 * 24 * 60 * 60 * 1000,
-        members: ["member-3", "member-4", "creator-pubkey-2"],
-        treasury: {
-          balance: 230000,
-          tokenSymbol: "NST"
-        },
-        proposals: 24,
-        activeProposals: 2,
-        tags: ["social", "development"]
-      },
-      {
-        id: "dao-3",
-        name: "BlockNostrDAO",
-        description: "Funding integration projects between Alephium and Nostr",
-        image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=225&fit=crop",
-        creator: "creator-pubkey-3",
-        createdAt: Date.now() - 15 * 24 * 60 * 60 * 1000,
-        members: ["member-5", "member-6", "creator-pubkey-3", "user-pubkey-placeholder"],
-        treasury: {
-          balance: 780000,
-          tokenSymbol: "BNA"
-        },
-        proposals: 8,
-        activeProposals: 5,
-        tags: ["integration", "funding"]
-      }
-    ];
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      const filteredByType = type === "my-daos" 
-        ? mockData.filter(dao => dao.members.includes(currentUserPubkey))
-        : type === "trending"
-          ? [...mockData].sort((a, b) => b.members.length - a.members.length)
-          : mockData;
-      
-      setDaos(filteredByType);
-      setFilteredDaos(filteredByType);
-      setLoading(false);
-    }, 1000);
-  }, [type, currentUserPubkey]);
+  // Determine which list to use based on type
+  const daoList = type === "my-daos" ? myDaos : 
+                  type === "trending" ? trendingDaos : 
+                  daos;
   
-  // Handle search filtering
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = daos.filter(dao => 
+  // Filter by search term
+  const filteredDaos = searchTerm 
+    ? daoList.filter(dao => 
         dao.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         dao.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dao.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredDaos(filtered);
-    } else {
-      setFilteredDaos(daos);
-    }
-  }, [searchTerm, daos]);
+      )
+    : daoList;
   
-  const handleCreateDAO = (newDao: DAO) => {
-    setDaos(prev => [newDao, ...prev]);
-    setFilteredDaos(prev => [newDao, ...prev]);
-    setCreateDialogOpen(false);
+  const handleCreateDAO = async (name: string, description: string, tags: string[]) => {
+    const daoId = await createDAO(name, description, tags);
+    if (daoId) {
+      setCreateDialogOpen(false);
+    }
   };
 
   return (
@@ -121,6 +61,15 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
           />
         </div>
         
+        <Button 
+          onClick={() => setCreateDialogOpen(true)}
+          className="w-full sm:w-auto"
+          disabled={!currentUserPubkey}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create DAO
+        </Button>
+        
         <CreateDAODialog 
           open={createDialogOpen}
           onOpenChange={setCreateDialogOpen}
@@ -133,7 +82,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : filteredDaos.length > 0 ? (
-        <DAOGrid daos={filteredDaos} currentUserPubkey={currentUserPubkey} />
+        <DAOGrid daos={filteredDaos} currentUserPubkey={currentUserPubkey || ""} />
       ) : (
         <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
       )}

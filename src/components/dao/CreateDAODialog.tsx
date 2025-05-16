@@ -1,151 +1,152 @@
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
-import { DAO } from "@/types/dao";
+import { DialogDescription } from "@/radix-ui/react-dialog";
+import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 interface CreateDAODialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateDAO: (dao: DAO) => void;
+  onCreateDAO: (name: string, description: string, tags: string[]) => void;
 }
 
-const CreateDAODialog: React.FC<CreateDAODialogProps> = ({ 
-  open, 
-  onOpenChange, 
-  onCreateDAO 
+const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
+  open,
+  onOpenChange,
+  onCreateDAO
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [image, setImage] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setTags([]);
+    setTagInput("");
+    setIsSubmitting(false);
+  };
+  
+  const handleClose = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !description) return;
+    if (!name.trim()) return;
     
     setIsSubmitting(true);
-    
-    const tags = tagsInput
-      .split(",")
-      .map(tag => tag.trim().toLowerCase())
-      .filter(tag => tag.length > 0);
-    
-    // Create a new DAO with default values
-    const newDao: DAO = {
-      id: `dao-${Date.now()}`,
-      name,
-      description,
-      image: image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=225&fit=crop",
-      creator: "user-pubkey-placeholder", // Would be the actual user's pubkey
-      createdAt: Date.now(),
-      members: ["user-pubkey-placeholder"], // Creator is the first member
-      treasury: {
-        balance: 0,
-        tokenSymbol: "ALPH" 
-      },
-      proposals: 0,
-      activeProposals: 0,
-      tags: tags.length ? tags : ["new"]
-    };
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      onCreateDAO(newDao);
-      
-      // Reset form
-      setName("");
-      setDescription("");
-      setImage("");
-      setTagsInput("");
+    try {
+      await onCreateDAO(name, description, tags);
+      handleClose();
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
+  };
+  
+  const addTag = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && tagInput.trim()) {
+      e.preventDefault();
+      
+      if (!tags.includes(tagInput.trim())) {
+        setTags([...tags, tagInput.trim()]);
+      }
+      
+      setTagInput("");
+    }
+  };
+  
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-1" /> Create DAO
-        </Button>
-      </DialogTrigger>
-      
-      <DialogContent className="sm:max-w-[550px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Create a new DAO</DialogTitle>
-            <DialogDescription>
-              Create your own Decentralized Autonomous Organization to bring your community together
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 py-6">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Awesome DAO"
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="What is your DAO's mission?"
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="image">Image URL</Label>
-              <Input
-                id="image"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                placeholder="https://example.com/image.png"
-              />
-              <p className="text-xs text-muted-foreground">
-                Leave blank to use a default image
-              </p>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="tags">Tags</Label>
-              <Input
-                id="tags"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="finance, governance, social, etc."
-              />
-              <p className="text-xs text-muted-foreground">
-                Comma separated list of tags
-              </p>
-            </div>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create a new DAO</DialogTitle>
+          <DialogDescription>
+            Start a decentralized autonomous organization on Nostr to govern your community
+          </DialogDescription>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter DAO name"
+              required
+              maxLength={50}
+            />
           </div>
           
-          <DialogFooter>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your DAO's purpose and goals"
+              rows={3}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="tags">Tags</Label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="px-2 py-1 text-xs">
+                  {tag}
+                  <button 
+                    type="button" 
+                    onClick={() => removeTag(tag)}
+                    className="ml-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <Input
+              id="tags"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="Add tags (press Enter)"
+              onKeyDown={addTag}
+            />
+          </div>
+          
+          <DialogFooter className="pt-4">
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create DAO"}
+            <Button type="submit" disabled={!name.trim() || isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create DAO"
+              )}
             </Button>
           </DialogFooter>
         </form>
