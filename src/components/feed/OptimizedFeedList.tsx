@@ -48,7 +48,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   }, [inView, handleLoadMoreVisible]);
   
   return (
-    <div className="space-y-4" ref={feedContainerRef}>
+    <div className="space-y-3" ref={feedContainerRef}>
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 
@@ -73,7 +73,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center">
+        <div className="py-3 text-center">
           {loadMoreLoading && (
             <div className="flex items-center justify-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

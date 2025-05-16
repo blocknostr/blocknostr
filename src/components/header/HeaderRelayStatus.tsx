@@ -46,29 +46,20 @@ export function HeaderRelayStatus() {
     }
   };
 
-  // Get status classes - Match WorldChat indicator
+  // Get status classes - Match Nostream.pub indicator
   const getStatusClasses = () => {
-    if (!isOnline) return "text-red-500 bg-red-500/10";
-    if (connectionStatus === 'connecting' || isReconnecting) return "text-yellow-500 bg-yellow-500/10";
-    if (connectedCount === 0) return "text-red-500 bg-red-500/10";
-    return "text-green-500 bg-green-500/10";
+    if (!isOnline) return "text-red-500 bg-red-500/5 border-red-500/20";
+    if (connectionStatus === 'connecting' || isReconnecting) return "text-yellow-500 bg-yellow-500/5 border-yellow-500/20";
+    if (connectedCount === 0) return "text-red-500 bg-red-500/5 border-red-500/20";
+    return "text-emerald-500 bg-emerald-500/5 border-emerald-500/20";
   };
 
-  // Get status text - Make "connecting" more prominent
+  // Get status text - Make more concise like Nostream
   const getStatusText = () => {
     if (!isOnline) return "Offline";
-    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting...";
-    if (connectedCount === 0) return "Disconnected";
-    return "Connected";
-  };
-
-  // Get status message for tooltip
-  const getStatusMessage = () => {
-    if (!isOnline) return "Browser offline";
-    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting to relays...";
-    if (connectedCount === 0) return "No relays connected. Click to reconnect";
-    if (connectedCount === totalCount) return "All relays connected";
-    return `${connectedCount}/${totalCount} relays connected`;
+    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting";
+    if (connectedCount === 0) return "No relays";
+    return `${connectedCount}/${totalCount}`;
   };
 
   return (
@@ -77,9 +68,8 @@ export function HeaderRelayStatus() {
         <TooltipTrigger asChild>
           <div 
             className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full cursor-pointer",
-              getStatusClasses(),
-              connectedCount === 0 && isOnline && !isReconnecting ? "hover:bg-opacity-20" : ""
+              "flex items-center gap-1.5 text-xs py-1 px-2 rounded border cursor-pointer",
+              getStatusClasses()
             )}
             onClick={connectedCount === 0 && isOnline ? handleReconnect : undefined}
           >
@@ -91,16 +81,12 @@ export function HeaderRelayStatus() {
               <WifiOff className="h-3 w-3" />
             )}
             <span className="font-medium">{getStatusText()}</span>
-            <span className="font-medium text-xs opacity-80">({connectedCount}/{totalCount})</span>
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{getStatusMessage()}</p>
+          <p>{connectedCount > 0 ? `${connectedCount} relays connected` : "No relays connected"}</p>
           {connectedCount === 0 && isOnline && !isReconnecting && (
             <p className="text-xs mt-1">Click to reconnect</p>
-          )}
-          {isReconnecting && (
-            <p className="text-xs mt-1">Reconnecting...</p>
           )}
         </TooltipContent>
       </Tooltip>

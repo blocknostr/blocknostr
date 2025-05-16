@@ -4,7 +4,7 @@ import MainFeed from "@/components/MainFeed";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { toast } from "sonner";
-import { AlertTriangle, HardDrive, Shield, ExternalLink } from "lucide-react";
+import { AlertTriangle, HardDrive, ShieldCheck, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Index: React.FC = () => {
@@ -82,7 +82,7 @@ const Index: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-4">
+    <div className="max-w-xl mx-auto px-4 py-4">
       {storageQuotaReached && !storageErrorDismissed && (
         <div className="mb-4 p-4 border rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 text-sm">
           <div className="flex flex-col space-y-3">
@@ -118,18 +118,15 @@ const Index: React.FC = () => {
       
       {/* Welcome message (no login button) */}
       {!isLoggedIn && (
-        <div className="p-6 rounded-xl bg-gradient-to-br from-background/80 to-background/60 mb-6 shadow-md border border-border/30 animate-in fade-in slide-in-from-bottom-5 backdrop-blur-sm">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            <div className="p-4 bg-primary/10 rounded-full shadow-inner border border-primary/20 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
-              <Shield className="h-10 w-10 text-primary relative z-10" />
+        <div className="p-5 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 mb-6 shadow border border-primary/10">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-5">
+            <div className="p-3 bg-primary/10 rounded-full shadow-inner border border-primary/20">
+              <ShieldCheck className="h-8 w-8 text-primary" />
             </div>
             
             <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl font-light tracking-tight mb-2">
-                <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                  Welcome to BlockNoster
-                </span>
+              <h2 className="text-xl font-semibold mb-2">
+                Welcome to BlockNoster
               </h2>
               <p className="text-muted-foreground">
                 Connect your Nostr wallet using the button in the top right corner to access the decentralized social network.

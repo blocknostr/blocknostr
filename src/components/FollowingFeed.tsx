@@ -5,7 +5,7 @@ import FeedLoading from "./feed/FeedLoading";
 import FeedList from "./feed/FeedList";
 import { useFollowingFeed } from "./feed/useFollowingFeed";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { HistoryIcon, RefreshCcwIcon } from "lucide-react";
+import { History, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
 
@@ -53,10 +53,10 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
     <>
       {/* Show cache status if we're showing cached content */}
       {cacheHit && lastUpdated && (
-        <Alert variant="default" className="mb-4 bg-primary/10 border-primary/20">
+        <Alert variant="default" className="mb-4 bg-primary/5 border-primary/20 rounded-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <HistoryIcon className="h-4 w-4 text-primary" />
+              <History className="h-4 w-4 text-primary" />
               <AlertDescription>
                 Showing cached content from {formatDistanceToNow(lastUpdated, { addSuffix: true })}
               </AlertDescription>
@@ -65,9 +65,9 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
               variant="outline" 
               size="sm" 
               onClick={refreshFeed}
-              className="text-xs h-8"
+              className="text-xs h-8 rounded-full"
             >
-              <RefreshCcwIcon className="h-3 w-3 mr-1" />
+              <RefreshCw className="h-3 w-3 mr-1" />
               Refresh
             </Button>
           </div>
