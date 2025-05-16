@@ -3,21 +3,22 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
-import { Loader2, ArrowLeft, Users, Gavel, Shield, Calendar } from "lucide-react";
+import { UserX, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { PageHeader } from "@/components/ui/page-header";
-import { formatDistanceToNow } from "date-fns";
 import DAOProposalsList from "@/components/dao/DAOProposalsList";
 import DAOMembersList from "@/components/dao/DAOMembersList";
+import DAOSettingsDialog from "@/components/dao/DAOSettingsDialog";
+import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
+import DAOHeader from "@/components/dao/DAOHeader";
+import { toast } from "sonner";
 
 const SingleDAOPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("proposals");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
   
   const {
     currentDao,
@@ -26,10 +27,19 @@ const SingleDAOPage: React.FC = () => {
     loadingProposals,
     isMember,
     isCreator,
+    isModerator,
     currentUserPubkey,
     createProposal,
     voteOnProposal,
-    joinDAO
+    joinDAO,
+    updateDAOPrivacy,
+    updateDAOGuidelines,
+    updateDAOTags,
+    addDAOModerator,
+    removeDAOModerator,
+    createDAOInvite,
+    createKickProposal,
+    voteOnKickProposal
   } = useDAO(id);
 
   // Set up real-time subscriptions for DAO updates
@@ -53,7 +63,7 @@ const SingleDAOPage: React.FC = () => {
     return (
       <div className="container max-w-6xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center h-64">
-          <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
+          <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
           <p className="text-lg text-muted-foreground">Loading DAO information...</p>
         </div>
       </div>
@@ -78,7 +88,32 @@ const SingleDAOPage: React.FC = () => {
   }
 
   const handleJoinDAO = async () => {
-    await joinDAO(currentDao.id);
+    if (!currentUserPubkey) {
+      toast.error("Please login to join this DAO");
+      return;
+    }
+    
+    try {
+      await joinDAO(currentDao.id);
+    } catch (error) {
+      console.error("Error joining DAO:", error);
+      toast.error("Failed to join the DAO");
+    }
+  };
+  
+  const handleCreateKickProposal = async (memberToKick: string, reason: string) => {
+    if (!currentUserPubkey || !isMember(currentDao)) {
+      toast.error("You must be a member to create kick proposals");
+      return false;
+    }
+    
+    try {
+      const success = await createKickProposal(currentDao.id, memberToKick, reason);
+      return success;
+    } catch (error) {
+      console.error("Error creating kick proposal:", error);
+      return false;
+    }
   };
 
   return (
@@ -95,95 +130,15 @@ const SingleDAOPage: React.FC = () => {
       </Button>
       
       {/* DAO Header */}
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <PageHeader 
-              title={currentDao.name}
-              description={currentDao.description}
-              icon={<Gavel />}
-            />
-          </div>
-          
-          {!isMember(currentDao) ? (
-            <Button 
-              className="w-full md:w-auto"
-              onClick={handleJoinDAO}
-              disabled={!currentUserPubkey}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              Join DAO
-            </Button>
-          ) : (
-            <Badge variant="outline" className="px-3 py-1.5">
-              <Users className="h-4 w-4 mr-2" />
-              Member
-            </Badge>
-          )}
-        </div>
-        
-        {/* DAO metadata */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          {currentDao.tags && currentDao.tags.map(tag => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* DAO Info Card */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-xl">DAO Information</CardTitle>
-          <CardDescription>Key details about this DAO</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Members</h3>
-              <p className="text-2xl font-bold">{currentDao.members.length}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Treasury</h3>
-              <p className="text-2xl font-bold">
-                {currentDao.treasury.balance} {currentDao.treasury.tokenSymbol}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Created</h3>
-              <p className="text-md">
-                {formatDistanceToNow(new Date(currentDao.createdAt * 1000), { addSuffix: true })}
-              </p>
-            </div>
-          </div>
-          
-          <Separator className="my-6" />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-medium mb-2 flex items-center">
-                <Shield className="h-4 w-4 mr-2" />
-                Governance
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                This DAO has {currentDao.proposals || 0} total proposals with 
-                {' '}{currentDao.activeProposals || 0} currently active.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium mb-2 flex items-center">
-                <Calendar className="h-4 w-4 mr-2" />
-                Activity
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Created by {currentDao.creator.slice(0, 8)}... with
-                {' '}{currentDao.moderators.length} moderators.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <DAOHeader
+        dao={currentDao}
+        isMember={isMember(currentDao)}
+        isCreator={isCreator(currentDao)}
+        currentUserPubkey={currentUserPubkey}
+        onJoinDAO={handleJoinDAO}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenKickDialog={() => setIsKickDialogOpen(true)}
+      />
 
       {/* Tabs for Proposals and Members */}
       <Tabs 
@@ -194,13 +149,16 @@ const SingleDAOPage: React.FC = () => {
       >
         <TabsList className="mb-6">
           <TabsTrigger value="proposals">
-            <Gavel className="h-4 w-4 mr-2" />
             Proposals
           </TabsTrigger>
           <TabsTrigger value="members">
-            <Users className="h-4 w-4 mr-2" />
             Members
           </TabsTrigger>
+          {currentDao.guidelines && (
+            <TabsTrigger value="guidelines">
+              Guidelines
+            </TabsTrigger>
+          )}
         </TabsList>
         
         <TabsContent value="proposals" className="mt-0">
@@ -222,7 +180,42 @@ const SingleDAOPage: React.FC = () => {
             currentUserPubkey={currentUserPubkey}
           />
         </TabsContent>
+        
+        {currentDao.guidelines && (
+          <TabsContent value="guidelines" className="mt-0">
+            <div className="bg-card border rounded-lg p-6">
+              <h2 className="text-xl font-bold mb-4">DAO Guidelines</h2>
+              <div className="prose prose-sm max-w-none">
+                {currentDao.guidelines.split('\n').map((line, i) => (
+                  <p key={i} className="mb-2">{line}</p>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
+      
+      {/* Settings Dialog */}
+      <DAOSettingsDialog
+        dao={currentDao}
+        isOpen={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+        isCreator={isCreator(currentDao)}
+        onUpdatePrivacy={updateDAOPrivacy}
+        onUpdateGuidelines={updateDAOGuidelines}
+        onUpdateTags={updateDAOTags}
+        onAddModerator={addDAOModerator}
+        onRemoveModerator={removeDAOModerator}
+        onCreateInviteLink={() => createDAOInvite(currentDao.id)}
+      />
+      
+      {/* Kick Proposal Dialog */}
+      <DAOKickProposalDialog
+        dao={currentDao}
+        isOpen={isKickDialogOpen}
+        onOpenChange={setIsKickDialogOpen}
+        onCreateKickProposal={handleCreateKickProposal}
+      />
     </div>
   );
 };

@@ -9,6 +9,7 @@ const DAO_KINDS = {
   VOTE: 34552,           // Vote on a proposal
   METADATA: 34553,       // Community metadata (guidelines, etc)
   MODERATION: 34554,      // Moderation events (kick, ban)
+  INVITE: 34555,         // Invite to private community
 };
 
 /**
@@ -407,7 +408,477 @@ export class DAOService {
       return false;
     }
   }
-
+  
+  /**
+   * Update DAO metadata (privacy, guidelines, tags)
+   */
+  async updateDAOMetadata(daoId: string, metadata: {
+    type: string;
+    content?: any;
+    isPrivate?: boolean;
+  }): Promise<boolean> {
+    try {
+      // Get the current DAO data
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        console.error("DAO not found:", daoId);
+        return false;
+      }
+      
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Only the creator can update metadata
+      if (dao.creator !== pubkey) {
+        throw new Error("Only the DAO creator can update metadata");
+      }
+      
+      console.log(`Updating DAO metadata for ${daoId}, type: ${metadata.type}`);
+      
+      // Create updated data based on metadata type
+      let updatedData = { ...dao };
+      
+      switch (metadata.type) {
+        case "privacy":
+          updatedData.isPrivate = metadata.isPrivate;
+          break;
+        case "guidelines":
+          updatedData.guidelines = metadata.content;
+          break;
+        case "tags":
+          updatedData.tags = metadata.content;
+          break;
+        default:
+          throw new Error("Unknown metadata type");
+      }
+      
+      // Get the original unique identifier if available
+      let uniqueId = daoId;
+      const event = await this.getDAOEventById(daoId);
+      if (event) {
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        if (dTag && dTag[1]) {
+          uniqueId = dTag[1];
+        }
+      }
+      
+      // NIP-72 compliant event for metadata update
+      const eventData = {
+        kind: DAO_KINDS.METADATA,
+        content: JSON.stringify({ 
+          type: metadata.type,
+          content: metadata.content,
+          isPrivate: metadata.isPrivate,
+          updatedAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ["e", daoId], // Reference to DAO
+          ["d", uniqueId]
+        ]
+      };
+      
+      console.log("Publishing DAO metadata event:", eventData);
+      await nostrService.publishEvent(eventData);
+      
+      // Also update the main DAO definition with the changes for clients that don't follow the metadata events
+      // This ensures backwards compatibility
+      const mainEventData = {
+        kind: DAO_KINDS.COMMUNITY,
+        content: JSON.stringify({
+          name: dao.name,
+          description: dao.description,
+          creator: dao.creator,
+          createdAt: dao.createdAt,
+          image: dao.image,
+          guidelines: metadata.type === "guidelines" ? metadata.content : dao.guidelines,
+          isPrivate: metadata.type === "privacy" ? metadata.isPrivate : dao.isPrivate,
+          treasury: dao.treasury,
+          proposals: dao.proposals,
+          activeProposals: dao.activeProposals,
+          tags: metadata.type === "tags" ? metadata.content : dao.tags
+        }),
+        tags: [
+          ["d", uniqueId],
+          ...dao.members.map(member => ["p", member]),
+          ...dao.moderators.map(mod => ["p", mod, "moderator"])
+        ]
+      };
+      
+      await nostrService.publishEvent(mainEventData);
+      
+      console.log(`Successfully updated DAO ${daoId} metadata`);
+      return true;
+    } catch (error) {
+      console.error("Error updating DAO metadata:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Update DAO roles (add/remove moderators)
+   */
+  async updateDAORoles(daoId: string, update: {
+    role: string;
+    action: "add" | "remove";
+    pubkey: string;
+  }): Promise<boolean> {
+    try {
+      // Get the current DAO data
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        console.error("DAO not found:", daoId);
+        return false;
+      }
+      
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Only the creator can update roles
+      if (dao.creator !== pubkey) {
+        throw new Error("Only the DAO creator can update roles");
+      }
+      
+      console.log(`Updating DAO role for ${daoId}, ${update.action} ${update.role}: ${update.pubkey}`);
+      
+      // Update the moderators list
+      let moderators = [...dao.moderators];
+      
+      if (update.role === "moderator") {
+        if (update.action === "add" && !moderators.includes(update.pubkey)) {
+          moderators.push(update.pubkey);
+        } else if (update.action === "remove") {
+          moderators = moderators.filter(mod => mod !== update.pubkey);
+        }
+      }
+      
+      // Get the original unique identifier if available
+      let uniqueId = daoId;
+      const event = await this.getDAOEventById(daoId);
+      if (event) {
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        if (dTag && dTag[1]) {
+          uniqueId = dTag[1];
+        }
+      }
+      
+      // NIP-72 compliant event for role update
+      const eventData = {
+        kind: DAO_KINDS.MODERATION,
+        content: JSON.stringify({ 
+          role: update.role,
+          action: update.action,
+          updatedAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ["e", daoId], // Reference to DAO
+          ["p", update.pubkey, update.role] // Target pubkey with role
+        ]
+      };
+      
+      console.log("Publishing DAO role event:", eventData);
+      await nostrService.publishEvent(eventData);
+      
+      // Also update the main DAO definition with the new moderators
+      // This ensures backwards compatibility
+      const mainEventData = {
+        kind: DAO_KINDS.COMMUNITY,
+        content: JSON.stringify({
+          name: dao.name,
+          description: dao.description,
+          creator: dao.creator,
+          createdAt: dao.createdAt,
+          image: dao.image,
+          guidelines: dao.guidelines,
+          isPrivate: dao.isPrivate,
+          treasury: dao.treasury,
+          proposals: dao.proposals,
+          activeProposals: dao.activeProposals,
+          tags: dao.tags
+        }),
+        tags: [
+          ["d", uniqueId],
+          ...dao.members.map(member => ["p", member]),
+          ...moderators.map(mod => ["p", mod, "moderator"])
+        ]
+      };
+      
+      await nostrService.publishEvent(mainEventData);
+      
+      console.log(`Successfully updated DAO ${daoId} roles`);
+      return true;
+    } catch (error) {
+      console.error("Error updating DAO roles:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Create invite link for a DAO
+   */
+  async createDAOInvite(daoId: string, expiresIn?: number, maxUses?: number): Promise<string | null> {
+    try {
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        console.error("DAO not found:", daoId);
+        return null;
+      }
+      
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Check if user is creator or moderator
+      if (dao.creator !== pubkey && !dao.moderators.includes(pubkey)) {
+        throw new Error("Only creator or moderators can create invites");
+      }
+      
+      const now = Math.floor(Date.now() / 1000);
+      const inviteData = {
+        daoId,
+        createdAt: now,
+        creatorPubkey: pubkey,
+        expiresAt: expiresIn ? now + expiresIn : undefined,
+        maxUses,
+        usedCount: 0
+      };
+      
+      // Create a unique identifier for this invite
+      const uniqueId = `invite_${Math.random().toString(36).substring(2, 10)}`;
+      
+      // NIP-72 compliant event for invitation
+      const eventData = {
+        kind: DAO_KINDS.INVITE,
+        content: JSON.stringify(inviteData),
+        tags: [
+          ["e", daoId], // Reference to DAO
+          ["d", uniqueId] // Unique identifier for this invite
+        ]
+      };
+      
+      console.log("Publishing DAO invite event:", eventData);
+      const inviteId = await nostrService.publishEvent(eventData);
+      
+      if (inviteId) {
+        console.log(`Successfully created DAO invite ${inviteId}`);
+        return inviteId;
+      } else {
+        throw new Error("Failed to publish invite event");
+      }
+    } catch (error) {
+      console.error("Error creating DAO invite:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Create a kick proposal
+   */
+  async createKickProposal(
+    daoId: string,
+    title: string,
+    description: string,
+    options: string[],
+    memberToKick: string,
+    durationDays: number = 7
+  ): Promise<string | null> {
+    try {
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+      
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      // Check if the target is a member
+      if (!dao.members.includes(memberToKick)) {
+        throw new Error("Target is not a member of the DAO");
+      }
+      
+      // Check if the target is the creator (who cannot be kicked)
+      if (memberToKick === dao.creator) {
+        throw new Error("The creator cannot be kicked from the DAO");
+      }
+      
+      // Check if the initiator is a member
+      if (!dao.members.includes(pubkey)) {
+        throw new Error("Only members can propose kicks");
+      }
+      
+      const now = Math.floor(Date.now() / 1000);
+      const endsAt = now + (durationDays * 24 * 60 * 60); // Convert days to seconds
+      
+      // Prepare proposal data - include kick metadata
+      const proposalData = {
+        title,
+        description,
+        options,
+        createdAt: now,
+        endsAt: endsAt,
+        type: "kick",
+        targetPubkey: memberToKick
+      };
+      
+      // Generate a unique identifier for the proposal
+      const uniqueId = `kickproposal_${Math.random().toString(36).substring(2, 10)}`;
+      
+      // NIP-72 compliant proposal event with kick metadata
+      const eventData = {
+        kind: DAO_KINDS.PROPOSAL,
+        content: JSON.stringify(proposalData),
+        tags: [
+          ["e", daoId], // Reference to DAO/community event
+          ["d", uniqueId], // Unique identifier
+          ["p", memberToKick, "kick"] // Tag the target user with kick action
+        ]
+      };
+      
+      console.log("Publishing kick proposal event:", eventData);
+      
+      const eventId = await nostrService.publishEvent(eventData);
+      console.log("Kick proposal created with ID:", eventId);
+      
+      return eventId;
+    } catch (error) {
+      console.error("Error creating kick proposal:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Check if a kick proposal has passed (>51% voted yes)
+   * and execute kick if necessary
+   */
+  async checkAndExecuteKickProposal(proposal: DAOProposal): Promise<boolean> {
+    try {
+      // Parse the proposal content to get kick metadata
+      const content = JSON.parse(proposal.description);
+      if (content.type !== "kick" || !content.targetPubkey) {
+        return false; // Not a kick proposal
+      }
+      
+      const memberToKick = content.targetPubkey;
+      
+      // Get total votes
+      const totalVotes = Object.keys(proposal.votes).length;
+      if (totalVotes === 0) return false;
+      
+      // Count yes votes (option 0)
+      const yesVotes = Object.values(proposal.votes).filter(vote => vote === 0).length;
+      
+      // Calculate percentage
+      const yesPercentage = (yesVotes / totalVotes) * 100;
+      
+      console.log(`Kick proposal for ${memberToKick}: ${yesPercentage}% voted yes`);
+      
+      // If >51% voted yes, execute the kick
+      if (yesPercentage > 51) {
+        console.log(`Executing kick for ${memberToKick}`);
+        return await this.kickMember(proposal.daoId, memberToKick);
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error checking kick proposal:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Kick a member from the DAO
+   */
+  private async kickMember(daoId: string, memberToKick: string): Promise<boolean> {
+    try {
+      const dao = await this.getDAOById(daoId);
+      if (!dao) return false;
+      
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) return false;
+      
+      // Only creator, moderators, or kick proposals can kick members
+      const isCreatorOrMod = dao.creator === pubkey || dao.moderators.includes(pubkey);
+      if (!isCreatorOrMod) {
+        throw new Error("Not authorized to kick members");
+      }
+      
+      // Check if target is a member and not the creator
+      if (!dao.members.includes(memberToKick) || memberToKick === dao.creator) {
+        return false;
+      }
+      
+      // Get the unique identifier
+      let uniqueId = daoId;
+      const event = await this.getDAOEventById(daoId);
+      if (event) {
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        if (dTag && dTag[1]) {
+          uniqueId = dTag[1];
+        }
+      }
+      
+      // Create updated member list without kicked member
+      const updatedMembers = dao.members.filter(member => member !== memberToKick);
+      
+      // Remove from moderators as well if applicable
+      const updatedModerators = dao.moderators.filter(mod => mod !== memberToKick);
+      
+      // Create event to update DAO membership
+      const eventData = {
+        kind: DAO_KINDS.COMMUNITY,
+        content: JSON.stringify({
+          name: dao.name,
+          description: dao.description,
+          creator: dao.creator,
+          createdAt: dao.createdAt,
+          image: dao.image,
+          guidelines: dao.guidelines,
+          isPrivate: dao.isPrivate,
+          treasury: dao.treasury,
+          proposals: dao.proposals,
+          activeProposals: dao.activeProposals,
+          tags: dao.tags
+        }),
+        tags: [
+          ["d", uniqueId],
+          ...updatedMembers.map(member => ["p", member]),
+          ...updatedModerators.map(mod => ["p", mod, "moderator"])
+        ]
+      };
+      
+      await nostrService.publishEvent(eventData);
+      
+      // Also publish a moderation event
+      const moderationEvent = {
+        kind: DAO_KINDS.MODERATION,
+        content: JSON.stringify({
+          action: "kick",
+          target: memberToKick,
+          reason: "Voted by DAO members",
+          executedBy: pubkey,
+          executedAt: Math.floor(Date.now() / 1000)
+        }),
+        tags: [
+          ["e", daoId], // Reference to DAO
+          ["p", memberToKick, "kicked"] // Target pubkey with action
+        ]
+      };
+      
+      await nostrService.publishEvent(moderationEvent);
+      
+      return true;
+    } catch (error) {
+      console.error("Error kicking member:", error);
+      return false;
+    }
+  }
+  
   /**
    * Helper function to get the original DAO event
    */

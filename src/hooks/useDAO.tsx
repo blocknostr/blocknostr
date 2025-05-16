@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
@@ -11,6 +10,7 @@ export function useDAO(daoId?: string) {
   const [trendingDaos, setTrendingDaos] = useState<DAO[]>([]);
   const [currentDao, setCurrentDao] = useState<DAO | null>(null);
   const [proposals, setProposals] = useState<DAOProposal[]>([]);
+  const [kickProposals, setKickProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingProposals, setLoadingProposals] = useState<boolean>(true);
   
@@ -71,6 +71,14 @@ export function useDAO(daoId?: string) {
         const daoProposals = await daoService.getDAOProposals(daoId);
         console.log(`Fetched ${daoProposals.length} proposals`);
         setProposals(daoProposals);
+        
+        // Fetch kick proposals if implemented
+        try {
+          const kickProps = await daoService.getDAOKickProposals?.(daoId) || [];
+          setKickProposals(kickProps);
+        } catch (e) {
+          console.log("Kick proposals not implemented yet:", e);
+        }
       } else {
         console.error("DAO not found:", daoId);
         toast.error("DAO not found");
@@ -246,6 +254,279 @@ export function useDAO(daoId?: string) {
     }
   };
   
+  // Update DAO privacy setting
+  const updateDAOPrivacy = async (isPrivate: boolean) => {
+    try {
+      if (!currentDao || !currentUserPubkey) return false;
+      
+      // Only creator can update privacy
+      if (currentDao.creator !== currentUserPubkey) {
+        toast.error("Only the DAO creator can update privacy settings");
+        return false;
+      }
+      
+      console.log(`Setting DAO ${currentDao.id} privacy to ${isPrivate}`);
+      
+      const success = await daoService.updateDAOMetadata(
+        currentDao.id,
+        { type: "privacy", isPrivate }
+      );
+      
+      if (success) {
+        // Update local state
+        setCurrentDao(prev => {
+          if (!prev) return null;
+          return { ...prev, isPrivate };
+        });
+        return true;
+      } else {
+        toast.error("Failed to update privacy settings");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating DAO privacy:", error);
+      toast.error("Failed to update privacy settings");
+      return false;
+    }
+  };
+  
+  // Update DAO guidelines
+  const updateDAOGuidelines = async (guidelines: string) => {
+    try {
+      if (!currentDao || !currentUserPubkey) return false;
+      
+      // Only creator can update guidelines
+      if (currentDao.creator !== currentUserPubkey) {
+        toast.error("Only the DAO creator can update guidelines");
+        return false;
+      }
+      
+      console.log(`Updating guidelines for DAO ${currentDao.id}`);
+      
+      const success = await daoService.updateDAOMetadata(
+        currentDao.id,
+        { type: "guidelines", content: guidelines }
+      );
+      
+      if (success) {
+        // Update local state
+        setCurrentDao(prev => {
+          if (!prev) return null;
+          return { ...prev, guidelines };
+        });
+        return true;
+      } else {
+        toast.error("Failed to update guidelines");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating DAO guidelines:", error);
+      toast.error("Failed to update guidelines");
+      return false;
+    }
+  };
+  
+  // Update DAO tags
+  const updateDAOTags = async (tags: string[]) => {
+    try {
+      if (!currentDao || !currentUserPubkey) return false;
+      
+      // Only creator can update tags
+      if (currentDao.creator !== currentUserPubkey) {
+        toast.error("Only the DAO creator can update tags");
+        return false;
+      }
+      
+      console.log(`Updating tags for DAO ${currentDao.id}:`, tags);
+      
+      const success = await daoService.updateDAOMetadata(
+        currentDao.id,
+        { type: "tags", content: tags }
+      );
+      
+      if (success) {
+        // Update local state
+        setCurrentDao(prev => {
+          if (!prev) return null;
+          return { ...prev, tags };
+        });
+        return true;
+      } else {
+        toast.error("Failed to update tags");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error updating DAO tags:", error);
+      toast.error("Failed to update tags");
+      return false;
+    }
+  };
+  
+  // Add DAO moderator
+  const addDAOModerator = async (pubkey: string) => {
+    try {
+      if (!currentDao || !currentUserPubkey) return false;
+      
+      // Only creator can add moderators
+      if (currentDao.creator !== currentUserPubkey) {
+        toast.error("Only the DAO creator can add moderators");
+        return false;
+      }
+      
+      // Check if already a moderator
+      if (currentDao.moderators.includes(pubkey)) {
+        toast.error("This user is already a moderator");
+        return false;
+      }
+      
+      // Check if pubkey is valid
+      if (!pubkey.match(/^[0-9a-f]{64}$/)) {
+        toast.error("Invalid pubkey format");
+        return false;
+      }
+      
+      console.log(`Adding moderator ${pubkey} to DAO ${currentDao.id}`);
+      
+      const success = await daoService.updateDAORoles(
+        currentDao.id,
+        { role: "moderator", action: "add", pubkey }
+      );
+      
+      if (success) {
+        // Update local state
+        setCurrentDao(prev => {
+          if (!prev) return null;
+          const moderators = [...prev.moderators, pubkey];
+          return { ...prev, moderators };
+        });
+        return true;
+      } else {
+        toast.error("Failed to add moderator");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error adding DAO moderator:", error);
+      toast.error("Failed to add moderator");
+      return false;
+    }
+  };
+  
+  // Remove DAO moderator
+  const removeDAOModerator = async (pubkey: string) => {
+    try {
+      if (!currentDao || !currentUserPubkey) return false;
+      
+      // Only creator can remove moderators
+      if (currentDao.creator !== currentUserPubkey) {
+        toast.error("Only the DAO creator can remove moderators");
+        return false;
+      }
+      
+      console.log(`Removing moderator ${pubkey} from DAO ${currentDao.id}`);
+      
+      const success = await daoService.updateDAORoles(
+        currentDao.id,
+        { role: "moderator", action: "remove", pubkey }
+      );
+      
+      if (success) {
+        // Update local state
+        setCurrentDao(prev => {
+          if (!prev) return null;
+          const moderators = prev.moderators.filter(mod => mod !== pubkey);
+          return { ...prev, moderators };
+        });
+        return true;
+      } else {
+        toast.error("Failed to remove moderator");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error removing DAO moderator:", error);
+      toast.error("Failed to remove moderator");
+      return false;
+    }
+  };
+  
+  // Create DAO invite link
+  const createDAOInvite = async (daoId: string) => {
+    try {
+      if (!currentUserPubkey) return null;
+      
+      console.log(`Creating invite link for DAO ${daoId}`);
+      
+      const inviteId = await daoService.createDAOInvite(daoId);
+      
+      if (inviteId) {
+        // Generate shareable link
+        const inviteLink = `https://${window.location.host}/dao/invite/${inviteId}`;
+        return inviteLink;
+      } else {
+        toast.error("Failed to create invite link");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error creating DAO invite:", error);
+      toast.error("Failed to create invite link");
+      return null;
+    }
+  };
+  
+  // Create kick proposal
+  const createKickProposal = async (daoId: string, memberToKick: string, reason: string) => {
+    try {
+      if (!currentUserPubkey) return false;
+      
+      console.log(`Creating kick proposal for member ${memberToKick} in DAO ${daoId}`);
+      
+      // For kick proposals, use standard proposal mechanism with special options
+      const title = `Remove member ${memberToKick.substring(0, 8)}...`;
+      const description = `Reason for removal: ${reason}`;
+      const options = ["Yes, remove member", "No, keep member"];
+      
+      // Create a special proposal with kick metadata
+      const proposalId = await daoService.createKickProposal(
+        daoId,
+        title,
+        description,
+        options,
+        memberToKick
+      );
+      
+      if (proposalId) {
+        // Refresh proposals after creating kick proposal
+        if (currentDao) {
+          const updatedProposals = await daoService.getDAOProposals(daoId);
+          setProposals(updatedProposals);
+        }
+        return true;
+      } else {
+        toast.error("Failed to create kick proposal");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error creating kick proposal:", error);
+      toast.error("Failed to create kick proposal");
+      return false;
+    }
+  };
+  
+  // Vote on kick proposal
+  const voteOnKickProposal = async (proposalId: string, optionIndex: number) => {
+    try {
+      if (!currentUserPubkey) return false;
+      
+      console.log(`Voting on kick proposal ${proposalId}, option ${optionIndex}`);
+      
+      // Use standard voting mechanism
+      return await voteOnProposal(proposalId, optionIndex);
+    } catch (error) {
+      console.error("Error voting on kick proposal:", error);
+      toast.error("Failed to record vote");
+      return false;
+    }
+  };
+  
   // Check if user is a member
   const isMember = (dao: DAO): boolean => {
     return !!currentUserPubkey && dao.members.includes(currentUserPubkey);
@@ -267,12 +548,21 @@ export function useDAO(daoId?: string) {
     trendingDaos,
     currentDao,
     proposals,
+    kickProposals,
     loading,
     loadingProposals,
     createDAO,
     createProposal,
     voteOnProposal,
     joinDAO,
+    updateDAOPrivacy,
+    updateDAOGuidelines,
+    updateDAOTags,
+    addDAOModerator,
+    removeDAOModerator,
+    createDAOInvite,
+    createKickProposal,
+    voteOnKickProposal,
     isMember,
     isModerator,
     isCreator,
