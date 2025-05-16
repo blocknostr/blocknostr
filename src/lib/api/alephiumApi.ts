@@ -1,3 +1,4 @@
+
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -360,52 +361,89 @@ export const fetchNetworkStats = async () => {
     // Use real data when available, but provide reasonable defaults
     const currentHeight = blockflowResponse ? parseInt(String(blockflowResponse.currentHeight || "3752480")) : 3752480;
     
-    // Try to calculate real-time network metrics
-    let hashRate = "38.2 PH/s"; // Default value
-    let difficulty = "3.51 P"; // Default value
-    let blockTime = "64.0s"; // Default block time
-    let totalTransactions = "4.28M"; // Default value
-    let totalSupply = "110.06M ALPH"; // Default value
+    // Updated API endpoints based on Alephium Explorer GitHub repository
+    // The correct Explorer API base URL
+    const explorerApiBase = "https://explorer.alephium.org/api";
     
+    // Default values in case API calls fail
+    let hashRate = "38.2 PH/s";
+    let difficulty = "3.51 P";
+    let blockTime = "64.0s";
+    let totalTransactions = "4.28M";
+    let totalSupply = "110.06M ALPH";
+    
+    // Try to fetch actual network metrics from the Explorer API
     try {
-      // In a production app, you would use explorer API endpoints
-      // These endpoints are based on the Alephium Explorer GitHub repo structure
-      const explorerApiBase = "https://backend.explorer.alephium.org/api";
+      // Fetch hashrates data using the correct API endpoint
+      const hashRateResponse = await fetch(`${explorerApiBase}/hashrates`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
       
-      // Attempt to fetch real metrics data
-      try {
-        const metricsResponse = await fetch(`${explorerApiBase}/metrics/network`, {
-          headers: { 'Accept': 'application/json' },
-          mode: 'cors',
-        });
-        
-        if (metricsResponse.ok) {
-          const networkMetrics = await metricsResponse.json();
-          // Update values with real data if available
-          if (networkMetrics) {
-            hashRate = networkMetrics.hashRate || hashRate;
-            difficulty = networkMetrics.difficulty || difficulty;
-            blockTime = networkMetrics.averageBlockTime || blockTime;
-            
-            // The following would be available if the explorer API provides them
-            if (networkMetrics.totalTransactions) {
-              totalTransactions = networkMetrics.totalTransactions;
-            }
-            if (networkMetrics.totalSupply) {
-              totalSupply = networkMetrics.totalSupply;
-            }
-          }
+      if (hashRateResponse.ok) {
+        const hashRateData = await hashRateResponse.json();
+        if (hashRateData && hashRateData.length > 0) {
+          // Get the most recent hashrate data
+          const latestHashRateData = hashRateData[hashRateData.length - 1];
+          hashRate = `${(latestHashRateData.hashrate / 1e15).toFixed(2)} PH/s`;
+          difficulty = `${(latestHashRateData.difficulty / 1e15).toFixed(2)} P`;
         }
-      } catch (error) {
-        console.warn("Could not fetch metrics data:", error);
-        // We'll fall back to default values
+      }
+      
+      // Fetch average block time data
+      const blockTimeResponse = await fetch(`${explorerApiBase}/block-times`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
+      
+      if (blockTimeResponse.ok) {
+        const blockTimeData = await blockTimeResponse.json();
+        if (blockTimeData && blockTimeData.length > 0) {
+          // Get the most recent block time data
+          const latestBlockTimeData = blockTimeData[blockTimeData.length - 1];
+          blockTime = `${latestBlockTimeData.averageTime.toFixed(1)}s`;
+        }
+      }
+      
+      // Fetch supply data
+      const supplyResponse = await fetch(`${explorerApiBase}/supply`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
+      
+      if (supplyResponse.ok) {
+        const supplyData = await supplyResponse.json();
+        if (supplyData && supplyData.circulatingSupply) {
+          // Format the circulating supply
+          const circulatingSupply = supplyData.circulatingSupply / 1e18; // Convert from alph to ALPH
+          totalSupply = `${(circulatingSupply / 1e6).toFixed(2)}M ALPH`;
+        }
+      }
+      
+      // Fetch total transaction count
+      const txCountResponse = await fetch(`${explorerApiBase}/charts/txs`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
+      
+      if (txCountResponse.ok) {
+        const txCountData = await txCountResponse.json();
+        if (txCountData && txCountData.length > 0) {
+          // Sum up all transaction counts
+          const totalTxs = txCountData.reduce((sum, item) => sum + item.count, 0);
+          totalTransactions = totalTxs > 1e6 
+            ? `${(totalTxs / 1e6).toFixed(2)}M` 
+            : totalTxs > 1e3 
+              ? `${(totalTxs / 1e3).toFixed(1)}K` 
+              : totalTxs.toString();
+        }
       }
     } catch (explorerError) {
       console.error('Error fetching from explorer API:', explorerError);
       // We'll fall back to our default values
     }
     
-    // Get the latest blocks information
+    // Fetch the latest blocks information from the node directly
     let latestBlocks = [
       { hash: "0x" + Math.random().toString(16).substring(2, 10) + "...", timestamp: Date.now() - Math.floor(Math.random() * 60000), height: currentHeight, txNumber: Math.floor(Math.random() * 10) + 1 },
       { hash: "0x" + Math.random().toString(16).substring(2, 10) + "...", timestamp: Date.now() - Math.floor(Math.random() * 60000 + 60000), height: currentHeight - 1, txNumber: Math.floor(Math.random() * 8) + 1 },
@@ -413,26 +451,30 @@ export const fetchNetworkStats = async () => {
     ];
     
     try {
-      // Attempt to fetch latest blocks data from node directly
-      const latestChainInfo = await nodeProvider.blockflow.getBlockflowChainInfo({
-        fromGroup: 0,
-        toGroup: 0
+      // Attempt to fetch real blocks data from the Explorer API
+      const blocksResponse = await fetch(`${explorerApiBase}/blocks?page=1&limit=3`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
       });
       
-      // Check if we have blocks in the response and adapt to the actual structure
-      // ChainInfo doesn't have a blockHashes property, examine what's available
-      if (latestChainInfo) {
-        // Inspect the structure and use what's available
-        // For now, we'll fall back to our default blocks since we can't access actual block hashes
-        console.log("Chain info:", latestChainInfo);
-        
-        // Update the height information at least
-        if (latestChainInfo.currentHeight) {
-          const height = parseInt(String(latestChainInfo.currentHeight));
-          latestBlocks = latestBlocks.map((block, index) => ({
-            ...block,
-            height: height - index
+      if (blocksResponse.ok) {
+        const blocksData = await blocksResponse.json();
+        if (blocksData && blocksData.blocks && blocksData.blocks.length > 0) {
+          latestBlocks = blocksData.blocks.map(block => ({
+            hash: block.hash,
+            timestamp: new Date(block.timestamp).getTime(),
+            height: block.height,
+            txNumber: block.txNumber || 0
           }));
+        } else {
+          // If we couldn't get real blocks data, update the height at least
+          if (blockflowResponse && blockflowResponse.currentHeight) {
+            const height = parseInt(String(blockflowResponse.currentHeight));
+            latestBlocks = latestBlocks.map((block, index) => ({
+              ...block,
+              height: height - index
+            }));
+          }
         }
       }
     } catch (blocksError) {
@@ -440,12 +482,45 @@ export const fetchNetworkStats = async () => {
       // We'll use the default/sample blocks above
     }
     
-    // Calculate active addresses from a trusted source (e.g., richlist.alephium.world)
-    // In production, you'd fetch this data from a real API
-    const activeAddresses = 193500;
+    // Get active addresses count from the explorer API
+    let activeAddresses = 193500; // Default value
     
-    // Token count - in production, you would get this from the explorer API
-    const tokenCount = 385;
+    try {
+      const addressCountResponse = await fetch(`${explorerApiBase}/addresses/total`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
+      
+      if (addressCountResponse.ok) {
+        const addressData = await addressCountResponse.json();
+        if (addressData && typeof addressData.total === 'number') {
+          activeAddresses = addressData.total;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching address count:', error);
+      // Fall back to default value
+    }
+    
+    // Get token count from the explorer API
+    let tokenCount = 385; // Default value
+    
+    try {
+      const tokenCountResponse = await fetch(`${explorerApiBase}/tokens/total`, {
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors',
+      });
+      
+      if (tokenCountResponse.ok) {
+        const tokenData = await tokenCountResponse.json();
+        if (tokenData && typeof tokenData.total === 'number') {
+          tokenCount = tokenData.total;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching token count:', error);
+      // Fall back to default value
+    }
     
     return {
       hashRate: hashRate,
