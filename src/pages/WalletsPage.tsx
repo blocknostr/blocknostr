@@ -30,7 +30,7 @@ interface SavedWallet {
 const WalletsPage = () => {
   const wallet = useWallet();
   const [savedWallets, setSavedWallets] = useLocalStorage<SavedWallet[]>("blocknoster_saved_wallets", []);
-  const [walletAddress, setWalletAddress] = useLocalStorage<string>("blocknoster_selected_wallet", "");
+  const [walletAddress, setWalletAddress] = useState<string>("");
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
@@ -69,11 +69,21 @@ const WalletsPage = () => {
     } else if (savedWallets.length > 0 && !walletAddress) {
       // If no wallet is connected but we have saved wallets, use the first one
       setWalletAddress(savedWallets[0].address);
-    } else if (savedWallets.length === 0) {
-      // If no saved wallets, we'll use the default demo wallet
-      // The default wallet is now added in the WalletManager component
+    } else if (!walletAddress) {
+      // Default demo wallet if no connected wallet and no saved wallets
+      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+      setWalletAddress(defaultAddress);
+      
+      // Add default wallet to saved wallets
+      if (!savedWallets.some(w => w.address === defaultAddress)) {
+        setSavedWallets([{ 
+          address: defaultAddress, 
+          label: "Demo Wallet", 
+          dateAdded: Date.now() 
+        }]);
+      }
     }
-  }, [connected, wallet.account, savedWallets, walletAddress]);
+  }, [connected, wallet.account, savedWallets]);
 
   // Effect to fetch wallet statistics
   useEffect(() => {
