@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useWallet } from "@alephium/web3-react";
 import { Wallet, PieChart, BarChart, LineChart, ArrowUpRight, ArrowDownLeft, Settings, RefreshCw, ExternalLink } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
@@ -13,10 +12,18 @@ import AddressDisplay from "@/components/wallet/AddressDisplay";
 import TokenList from "@/components/wallet/TokenList";
 import SendTransaction from "@/components/wallet/SendTransaction";
 import DAppsSection from "@/components/wallet/DAppsSection";
-import { getAddressTransactions } from "@/lib/api/alephiumApi";
+import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
 
 // Specify the fixed address if we want to track a specific wallet
 const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
+
+// Interface for wallet stats
+interface WalletStats {
+  transactionCount: number;
+  receivedAmount: number;
+  sentAmount: number;
+  tokenCount: number;
+}
 
 const WalletsPage = () => {
   const wallet = useWallet();
@@ -25,6 +32,13 @@ const WalletsPage = () => {
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [isRecentTransactionsLoading, setIsRecentTransactionsLoading] = useState<boolean>(true);
+  const [walletStats, setWalletStats] = useState<WalletStats>({
+    transactionCount: 0,
+    receivedAmount: 0,
+    sentAmount: 0,
+    tokenCount: 0
+  });
+  const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
@@ -61,6 +75,49 @@ const WalletsPage = () => {
     };
     
     fetchRecentTransactions();
+  }, [walletAddress, refreshFlag]);
+
+  // Effect to fetch wallet statistics
+  useEffect(() => {
+    const fetchWalletStats = async () => {
+      if (!walletAddress) return;
+      
+      setIsStatsLoading(true);
+      try {
+        // Fetch a larger set of transactions for stats calculation
+        const transactions = await getAddressTransactions(walletAddress, 50);
+        const tokens = await getAddressTokens(walletAddress);
+        
+        // Calculate stats from transactions
+        let received = 0;
+        let sent = 0;
+        
+        transactions.forEach(tx => {
+          const type = getTransactionType(tx);
+          const amount = getTransactionAmount(tx);
+          
+          if (type === 'received') {
+            received += amount;
+          } else if (type === 'sent') {
+            sent += amount;
+          }
+        });
+        
+        setWalletStats({
+          transactionCount: transactions.length,
+          receivedAmount: received,
+          sentAmount: sent,
+          tokenCount: tokens.length
+        });
+      } catch (error) {
+        console.error("Error fetching wallet stats:", error);
+        // Keep default zero values on error
+      } finally {
+        setIsStatsLoading(false);
+      }
+    };
+    
+    fetchWalletStats();
   }, [walletAddress, refreshFlag]);
 
   const handleRefresh = () => {
@@ -132,6 +189,13 @@ const WalletsPage = () => {
     }
     
     return 0;
+  };
+
+  // Format numbers with thousand separators
+  const formatNumber = (num: number) => {
+    return num.toLocaleString(undefined, {
+      maximumFractionDigits: 2
+    });
   };
 
   // Decide whether to show connect screen or wallet dashboard
@@ -254,19 +318,35 @@ const WalletsPage = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Transactions</p>
-                      <p className="text-2xl font-bold">{Math.floor(Math.random() * 50) + 1}</p>
+                      {isStatsLoading ? (
+                        <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+                      ) : (
+                        <p className="text-2xl font-bold">{formatNumber(walletStats.transactionCount)}</p>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Received</p>
-                      <p className="text-2xl font-bold text-green-500">+{(Math.random() * 500).toFixed(2)}</p>
+                      {isStatsLoading ? (
+                        <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+                      ) : (
+                        <p className="text-2xl font-bold text-green-500">+{formatNumber(walletStats.receivedAmount)}</p>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Sent</p>
-                      <p className="text-2xl font-bold text-blue-500">-{(Math.random() * 300).toFixed(2)}</p>
+                      {isStatsLoading ? (
+                        <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+                      ) : (
+                        <p className="text-2xl font-bold text-blue-500">-{formatNumber(walletStats.sentAmount)}</p>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">Tokens</p>
-                      <p className="text-2xl font-bold">{Math.floor(Math.random() * 10) + 1}</p>
+                      {isStatsLoading ? (
+                        <div className="h-8 w-12 bg-muted animate-pulse rounded" />
+                      ) : (
+                        <p className="text-2xl font-bold">{formatNumber(walletStats.tokenCount)}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>
