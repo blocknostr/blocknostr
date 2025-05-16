@@ -53,6 +53,7 @@ export async function loadWalletList(): Promise<WalletList | null> {
       "#d": ["alephium-wallet-list"]
     };
 
+    // Fix: Pass filter as part of an array of filters
     const events = await nostrService.getEvents([filter]);
     if (!events || events.length === 0) {
       return null;
