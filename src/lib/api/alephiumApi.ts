@@ -1,4 +1,3 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -346,231 +345,22 @@ export const fetchBalanceHistory = async (address: string, days: number = 30) =>
 };
 
 /**
- * Fetches network statistics from explorer.alephium.org
- * Using similar endpoints as the official explorer
+ * Fetches network statistics
  */
 export const fetchNetworkStats = async () => {
   try {
-    // First try to get some real data from the node
-    const infoResponse = await nodeProvider.infos.getInfosNode();
-    const blockflowResponse = await nodeProvider.blockflow.getBlockflowChainInfo({
-      fromGroup: 0,
-      toGroup: 0
-    });
-    
-    // Use real data when available, but provide reasonable defaults
-    const currentHeight = blockflowResponse ? parseInt(String(blockflowResponse.currentHeight || "3752480")) : 3752480;
-    
-    // Updated API endpoints based on Alephium Explorer GitHub repository
-    // The correct Explorer API base URL
-    const explorerApiBase = "https://explorer.alephium.org/api";
-    
-    // Default values in case API calls fail
-    let hashRate = "38.2 PH/s";
-    let difficulty = "3.51 P";
-    let blockTime = "64.0s";
-    let totalTransactions = "4.28M";
-    let totalSupply = "110.06M ALPH";
-    let isLiveData = false; // Flag to indicate if we're using live data
-    
-    // To track if any API call succeeded
-    let anyApiCallSucceeded = false;
-    
-    // Try to fetch actual network metrics from the Explorer API
-    try {
-      // Fetch hashrates data using the correct API endpoint
-      const hashRateResponse = await fetch(`${explorerApiBase}/hashrates`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (hashRateResponse.ok) {
-        anyApiCallSucceeded = true;
-        const hashRateData = await hashRateResponse.json();
-        if (hashRateData && hashRateData.length > 0) {
-          // Get the most recent hashrate data
-          const latestHashRateData = hashRateData[hashRateData.length - 1];
-          hashRate = `${(latestHashRateData.hashrate / 1e15).toFixed(2)} PH/s`;
-          difficulty = `${(latestHashRateData.difficulty / 1e15).toFixed(2)} P`;
-        }
-      }
-      
-      // Fetch average block time data
-      const blockTimeResponse = await fetch(`${explorerApiBase}/block-times`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (blockTimeResponse.ok) {
-        anyApiCallSucceeded = true;
-        const blockTimeData = await blockTimeResponse.json();
-        if (blockTimeData && blockTimeData.length > 0) {
-          // Get the most recent block time data
-          const latestBlockTimeData = blockTimeData[blockTimeData.length - 1];
-          blockTime = `${latestBlockTimeData.averageTime.toFixed(1)}s`;
-        }
-      }
-      
-      // Fetch supply data
-      const supplyResponse = await fetch(`${explorerApiBase}/supply`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (supplyResponse.ok) {
-        anyApiCallSucceeded = true;
-        const supplyData = await supplyResponse.json();
-        if (supplyData && supplyData.circulatingSupply) {
-          // Format the circulating supply
-          const circulatingSupply = supplyData.circulatingSupply / 1e18; // Convert from alph to ALPH
-          totalSupply = `${(circulatingSupply / 1e6).toFixed(2)}M ALPH`;
-        }
-      }
-      
-      // Fetch total transaction count
-      const txCountResponse = await fetch(`${explorerApiBase}/charts/txs`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (txCountResponse.ok) {
-        anyApiCallSucceeded = true;
-        const txCountData = await txCountResponse.json();
-        if (txCountData && txCountData.length > 0) {
-          // Sum up all transaction counts
-          const totalTxs = txCountData.reduce((sum, item) => sum + item.count, 0);
-          totalTransactions = totalTxs > 1e6 
-            ? `${(totalTxs / 1e6).toFixed(2)}M` 
-            : totalTxs > 1e3 
-              ? `${(totalTxs / 1e3).toFixed(1)}K` 
-              : totalTxs.toString();
-        }
-      }
-
-      // If any API call was successful, mark data as live
-      isLiveData = anyApiCallSucceeded;
-    } catch (explorerError) {
-      console.error('Error fetching from explorer API:', explorerError);
-      // We'll fall back to our default values
-      isLiveData = false;
-    }
-    
-    // Fetch the latest blocks information from the node directly
-    let latestBlocks = [
-      { hash: "0x" + Math.random().toString(16).substring(2, 10) + "...", timestamp: Date.now() - Math.floor(Math.random() * 60000), height: currentHeight, txNumber: Math.floor(Math.random() * 10) + 1 },
-      { hash: "0x" + Math.random().toString(16).substring(2, 10) + "...", timestamp: Date.now() - Math.floor(Math.random() * 60000 + 60000), height: currentHeight - 1, txNumber: Math.floor(Math.random() * 8) + 1 },
-      { hash: "0x" + Math.random().toString(16).substring(2, 10) + "...", timestamp: Date.now() - Math.floor(Math.random() * 60000 + 120000), height: currentHeight - 2, txNumber: Math.floor(Math.random() * 12) + 1 }
-    ];
-    
-    try {
-      // Attempt to fetch real blocks data from the Explorer API
-      const blocksResponse = await fetch(`${explorerApiBase}/blocks?page=1&limit=3`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (blocksResponse.ok) {
-        anyApiCallSucceeded = true;
-        isLiveData = true;
-        const blocksData = await blocksResponse.json();
-        if (blocksData && blocksData.blocks && blocksData.blocks.length > 0) {
-          latestBlocks = blocksData.blocks.map(block => ({
-            hash: block.hash,
-            timestamp: new Date(block.timestamp).getTime(),
-            height: block.height,
-            txNumber: block.txNumber || 0
-          }));
-        } else {
-          // If we couldn't get real blocks data, update the height at least
-          if (blockflowResponse && blockflowResponse.currentHeight) {
-            const height = parseInt(String(blockflowResponse.currentHeight));
-            latestBlocks = latestBlocks.map((block, index) => ({
-              ...block,
-              height: height - index
-            }));
-          }
-        }
-      }
-    } catch (blocksError) {
-      console.error('Error fetching latest blocks:', blocksError);
-      // We'll use the default/sample blocks above
-    }
-    
-    // Get active addresses count from the explorer API
-    let activeAddresses = 193500; // Default value
-    
-    try {
-      const addressCountResponse = await fetch(`${explorerApiBase}/addresses/total`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (addressCountResponse.ok) {
-        anyApiCallSucceeded = true;
-        isLiveData = true;
-        const addressData = await addressCountResponse.json();
-        if (addressData && typeof addressData.total === 'number') {
-          activeAddresses = addressData.total;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching address count:', error);
-      // Fall back to default value
-    }
-    
-    // Get token count from the explorer API
-    let tokenCount = 385; // Default value
-    
-    try {
-      const tokenCountResponse = await fetch(`${explorerApiBase}/tokens/total`, {
-        headers: { 'Accept': 'application/json' },
-        mode: 'cors',
-      });
-      
-      if (tokenCountResponse.ok) {
-        anyApiCallSucceeded = true;
-        isLiveData = true;
-        const tokenData = await tokenCountResponse.json();
-        if (tokenData && typeof tokenData.total === 'number') {
-          tokenCount = tokenData.total;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching token count:', error);
-      // Fall back to default value
-    }
-    
-    return {
-      hashRate: hashRate,
-      difficulty: difficulty,
-      blockTime: blockTime,
-      activeAddresses: activeAddresses,
-      tokenCount: tokenCount,
-      totalTransactions: totalTransactions,
-      totalSupply: totalSupply,
-      totalBlocks: `${(currentHeight / 1000000).toFixed(2)}M`, // Calculated from real height when possible
-      latestBlocks: latestBlocks,
-      isLiveData: isLiveData // Add the flag to the returned object
-    };
-  } catch (error) {
-    console.error('Error fetching network stats:', error);
-    // Return fallback data if we can't connect
+    // In a real application, we would fetch this from an API
+    // For now, return static data
     return {
       hashRate: "38.2 PH/s",
       difficulty: "3.51 P",
       blockTime: "64.0s",
-      activeAddresses: 193500,
-      tokenCount: 385,
-      totalTransactions: "4.28M",
-      totalSupply: "110.06M ALPH",
-      totalBlocks: "3.75M",
-      isLiveData: false, // Mark as fallback data
-      latestBlocks: [
-        { hash: "0xa1b2c3...", timestamp: Date.now() - 60000, height: 3752480, txNumber: 5 },
-        { hash: "0xd4e5f6...", timestamp: Date.now() - 120000, height: 3752479, txNumber: 3 },
-        { hash: "0x789012...", timestamp: Date.now() - 180000, height: 3752478, txNumber: 7 }
-      ]
+      activeAddresses: 24890,
+      tokenCount: 385
     };
+  } catch (error) {
+    console.error('Error fetching network stats:', error);
+    throw error;
   }
 };
 

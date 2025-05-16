@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, Blocks, LayoutGrid, ChartLine, RefreshCw } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Wallet, ExternalLink } from "lucide-react";
+import WalletConnectButton from "@/components/wallet/WalletConnectButton";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
-import WalletManager from "@/components/wallet/WalletManager";
 import WalletDashboard from "@/components/wallet/WalletDashboard";
 import { getAddressTransactions, getAddressTokens } from "@/lib/api/alephiumApi";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import WalletConnectButton from "@/components/wallet/WalletConnectButton";
+
+// Specify the fixed address if we want to track a specific wallet
+const FIXED_ADDRESS = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
 
 // Interface for wallet stats
 interface WalletStats {
@@ -20,16 +20,9 @@ interface WalletStats {
   tokenCount: number;
 }
 
-interface SavedWallet {
-  address: string;
-  label: string;
-  dateAdded: number;
-}
-
 const WalletsPage = () => {
   const wallet = useWallet();
-  const [savedWallets, setSavedWallets] = useLocalStorage<SavedWallet[]>("blocknoster_saved_wallets", []);
-  const [walletAddress, setWalletAddress] = useLocalStorage<string>("blocknoster_selected_wallet", "");
+  const [walletAddress, setWalletAddress] = useState<string>(FIXED_ADDRESS);
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
@@ -38,56 +31,21 @@ const WalletsPage = () => {
     tokenCount: 0
   });
   const [isStatsLoading, setIsStatsLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>("portfolio");
   
   // Check if wallet is connected
   const connected = wallet.connectionStatus === 'connected';
 
-  // Auto-refresh data every 5 minutes
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      setRefreshFlag(prev => prev + 1);
-      console.log("Auto-refreshing wallet data");
-    }, 5 * 60 * 1000); // 5 minutes in milliseconds
-
-    return () => clearInterval(refreshInterval); // Cleanup on unmount
-  }, []);
-
-  // Initialize with connected wallet or first saved wallet
   useEffect(() => {
     if (connected && wallet.account) {
-      // If user wallet is connected, use that address
+      // If user wallet is connected, use that address instead of fixed one
       setWalletAddress(wallet.account.address);
       
-      // Add the connected wallet to saved wallets if it doesn't exist
-      if (!savedWallets.some(w => w.address === wallet.account?.address)) {
-        setSavedWallets(prev => [
-          ...prev, 
-          { 
-            address: wallet.account!.address, 
-            label: "Connected Wallet", 
-            dateAdded: Date.now() 
-          }
-        ]);
-      }
-    } else if (savedWallets.length > 0 && !walletAddress) {
-      // If no wallet is connected but we have saved wallets, use the first one
-      setWalletAddress(savedWallets[0].address);
-    } else if (!walletAddress) {
-      // Default demo wallet if no connected wallet and no saved wallets
-      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
-      setWalletAddress(defaultAddress);
-      
-      // Add default wallet to saved wallets
-      if (!savedWallets.some(w => w.address === defaultAddress)) {
-        setSavedWallets([{ 
-          address: defaultAddress, 
-          label: "Demo Wallet", 
-          dateAdded: Date.now() 
-        }]);
-      }
+      // Notify user of successful connection
+      toast.success("Wallet connected successfully", {
+        description: `Connected to ${wallet.account.address.substring(0, 6)}...${wallet.account.address.substring(wallet.account.address.length - 4)}`
+      });
     }
-  }, [connected, wallet.account, savedWallets]);
+  }, [connected, wallet.account]);
 
   // Effect to fetch wallet statistics
   useEffect(() => {
@@ -131,6 +89,28 @@ const WalletsPage = () => {
     
     fetchWalletStats();
   }, [walletAddress, refreshFlag]);
+
+  const handleDisconnect = async () => {
+    try {
+      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
+        await (wallet.signer as any).requestDisconnect();
+        toast.info("Wallet disconnected");
+      } else {
+        toast.error("Wallet disconnection failed", {
+          description: "Your wallet doesn't support disconnect method"
+        });
+        return;
+      }
+      
+      // Reset to fixed address after disconnect
+      setWalletAddress(FIXED_ADDRESS);
+    } catch (error) {
+      console.error("Disconnection error:", error);
+      toast.error("Disconnection failed", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  };
   
   // Helper to determine if transaction is incoming or outgoing
   const getTransactionType = (tx: any) => {
@@ -165,13 +145,8 @@ const WalletsPage = () => {
     return 0;
   };
 
-  const handleRefresh = () => {
-    setRefreshFlag(prev => prev + 1);
-    toast.success("Refreshing wallet data...");
-  };
-
   // Decide whether to show connect screen or wallet dashboard
-  if (!connected && savedWallets.length === 0 && !walletAddress) {
+  if (!connected && !FIXED_ADDRESS) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="flex flex-col items-center justify-center space-y-6 text-center">
@@ -207,112 +182,53 @@ const WalletsPage = () => {
     );
   }
 
-  // Show wallet dashboard with either connected wallet or saved address data
+  // Show wallet dashboard with either connected wallet or fixed address data
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight mb-1">
-              {connected ? "Alephium Wallet" : "Alephium Portfolio Tracker"}
+              {connected ? "Your Portfolio" : "Alephium Portfolio Tracker"}
             </h2>
             <p className="text-muted-foreground">
               {connected 
-                ? "Manage your Alephium assets and dApps" 
-                : "Viewing portfolio data for all tracked wallets"}
+                ? "Track and manage your Alephium assets" 
+                : "Viewing public wallet data"}
             </p>
           </div>
           
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              className="flex items-center gap-1.5 h-9"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Refresh</span>
+          {connected && (
+            <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
+              Disconnect Wallet
             </Button>
-          </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            {!connected && (
-              <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 mb-6 p-4">
-                <div className="flex items-center">
-                  <Wallet className="h-5 w-5 mr-2 text-amber-600 dark:text-amber-400" />
-                  <p className="text-sm text-amber-800 dark:text-amber-300">
-                    Sign in with your wallet to see your personal balance and transactions.
-                  </p>
-                </div>
-              </Card>
-            )}
+        <AddressDisplay address={walletAddress} />
 
-            <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-3 max-w-md mb-6">
-                <TabsTrigger value="portfolio" className="flex items-center gap-2">
-                  <ChartLine className="h-4 w-4" />
-                  <span>My Portfolio</span>
-                </TabsTrigger>
-                <TabsTrigger value="dapps" className="flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
-                  <span>My dApps</span>
-                </TabsTrigger>
-                <TabsTrigger value="alephium" className="flex items-center gap-2">
-                  <Blocks className="h-4 w-4" />
-                  <span>My Alephium</span>
-                </TabsTrigger>
-              </TabsList>
+        {!connected && (
+          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <CardContent className="p-4 text-sm">
+              <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
+                <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                <span>
+                  Currently tracking wallet <strong>{walletAddress.substring(0, 8)}...{walletAddress.substring(walletAddress.length - 8)}</strong>.
+                  Connect your own wallet to see your personal balance and transactions.
+                </span>
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-              <TabsContent value="portfolio" className="mt-0 space-y-6">
-                <WalletDashboard
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab="portfolio"
-                />
-              </TabsContent>
-
-              <TabsContent value="dapps" className="mt-0 space-y-6">
-                <WalletDashboard
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab="dapps"
-                />
-              </TabsContent>
-
-              <TabsContent value="alephium" className="mt-0 space-y-6">
-                <WalletDashboard
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab="alephium"
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          <div>
-            <WalletManager 
-              currentAddress={walletAddress} 
-              onSelectWallet={setWalletAddress} 
-            />
-          </div>
-        </div>
+        <WalletDashboard
+          address={walletAddress}
+          isLoggedIn={connected}
+          walletStats={walletStats}
+          isStatsLoading={isStatsLoading}
+          refreshFlag={refreshFlag}
+          setRefreshFlag={setRefreshFlag}
+        />
       </div>
     </div>
   );

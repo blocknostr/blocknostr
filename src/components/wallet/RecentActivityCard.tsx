@@ -7,25 +7,12 @@ import { getAddressTransactions } from "@/lib/api/alephiumApi";
 import { toast } from "sonner";
 
 interface RecentActivityCardProps {
-  address?: string;
-  stats?: {
-    transactionCount: number;
-    receivedAmount: number;
-    sentAmount: number;
-    tokenCount: number;
-  };
-  isLoading?: boolean;
-  refreshFlag?: number;
+  address: string;
 }
 
-const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ 
-  address,
-  stats,
-  isLoading: externalIsLoading,
-  refreshFlag 
-}) => {
+const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ address }) => {
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(externalIsLoading ?? true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchRecentTransactions = async () => {
@@ -44,13 +31,8 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
       }
     };
     
-    if (address) {
-      fetchRecentTransactions();
-    } else {
-      // If stats are provided externally, use those instead of fetching
-      setIsLoading(externalIsLoading ?? false);
-    }
-  }, [address, refreshFlag, externalIsLoading]);
+    fetchRecentTransactions();
+  }, [address]);
 
   // Helper function to format date
   const formatDate = (timestamp: number) => {
@@ -66,8 +48,6 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
   
   // Helper to determine if transaction is incoming or outgoing
   const getTransactionType = (tx: any) => {
-    if (!address) return 'unknown';
-    
     // If any output is to this address, it's incoming
     const isIncoming = tx.outputs.some((output: any) => output.address === address);
     // If any input is from this address, it's outgoing
@@ -80,8 +60,6 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
   
   // Calculate amount transferred to/from this address
   const getTransactionAmount = (tx: any) => {
-    if (!address) return 0;
-    
     const type = getTransactionType(tx);
     
     if (type === 'received') {
@@ -103,8 +81,6 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
   
   // Get the counterparty address
   const getCounterpartyAddress = (tx: any) => {
-    if (!address) return 'Unknown';
-    
     const type = getTransactionType(tx);
     
     if (type === 'received') {
@@ -119,9 +95,6 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
     return 'Unknown';
   };
 
-  // Show stats if provided and no transactions
-  const showStats = stats && (!transactions || transactions.length === 0);
-
   return (
     <Card>
       <CardHeader>
@@ -132,25 +105,6 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
-          </div>
-        ) : showStats ? (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 border-b">
-              <span className="text-muted-foreground">Total Transactions:</span>
-              <span className="font-medium">{stats.transactionCount}</span>
-            </div>
-            <div className="flex items-center justify-between p-2 border-b">
-              <span className="text-muted-foreground">Received:</span>
-              <span className="font-medium text-green-500">+{stats.receivedAmount.toFixed(4)} ALPH</span>
-            </div>
-            <div className="flex items-center justify-between p-2 border-b">
-              <span className="text-muted-foreground">Sent:</span>
-              <span className="font-medium text-blue-500">-{stats.sentAmount.toFixed(4)} ALPH</span>
-            </div>
-            <div className="flex items-center justify-between p-2">
-              <span className="text-muted-foreground">Tokens Held:</span>
-              <span className="font-medium">{stats.tokenCount}</span>
-            </div>
           </div>
         ) : transactions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -201,21 +155,19 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
           </div>
         )}
       </CardContent>
-      {address && (
-        <CardFooter>
-          <Button variant="ghost" size="sm" className="w-full" asChild>
-            <a
-              href={`https://explorer.alephium.org/addresses/${address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2"
-            >
-              <span>View All Transactions</span>
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </Button>
-        </CardFooter>
-      )}
+      <CardFooter>
+        <Button variant="ghost" size="sm" className="w-full" asChild>
+          <a
+            href={`https://explorer.alephium.org/addresses/${address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2"
+          >
+            <span>View All Transactions</span>
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </Button>
+      </CardFooter>
     </Card>
   );
 };

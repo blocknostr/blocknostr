@@ -3,7 +3,6 @@
  * Token metadata service for Alephium tokens
  * Fetches and caches token information from the official Alephium token list
  */
-import { NodeProvider } from '@alephium/web3';
 
 // Token interface matching the Alephium token list schema
 export interface TokenMetadata {
@@ -29,8 +28,7 @@ interface TokenList {
   tokens: TokenMetadata[];
 }
 
-// Official Alephium token list URLs
-const MAINNET_TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/refs/heads/master/tokens/mainnet.json";
+const TOKEN_LIST_URL = "https://raw.githubusercontent.com/alephium/token-list/master/tokens.json";
 let tokenCache: Record<string, TokenMetadata> | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
@@ -47,15 +45,14 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
   }
   
   try {
-    // Fetch from GitHub directly
-    const response = await fetch(MAINNET_TOKEN_LIST_URL);
+    const response = await fetch(TOKEN_LIST_URL);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch token list: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json() as TokenList;
-    console.log("GitHub token list fetched:", data.tokens.length);
+    console.log("Fetched token list:", data);
     
     // Create a map of token ID to token data for quick lookups
     const tokenMap: Record<string, TokenMetadata> = {};
@@ -78,44 +75,9 @@ export const fetchTokenList = async (): Promise<Record<string, TokenMetadata>> =
 /**
  * Gets metadata for a specific token ID
  */
-export const getTokenMetadata = async (tokenId: string, nodeProvider?: NodeProvider): Promise<TokenMetadata> => {
-  try {
-    // First check our cache
-    const tokenMap = await fetchTokenList();
-    if (tokenMap[tokenId]) {
-      return tokenMap[tokenId];
-    }
-    
-    // If not in cache and we have a nodeProvider, try to get token info from node
-    if (nodeProvider) {
-      try {
-        // Fix: Use the correct API format with method, path and params for nodeProvider.request
-        const response = await nodeProvider.request({
-          method: 'GET',
-          path: `/tokens/${tokenId}`,
-          params: [] // Fixed: Use empty array instead of empty object for params
-        });
-        
-        if (response) {
-          return {
-            id: tokenId,
-            name: response.name || `Token ${tokenId.substring(0, 6)}`,
-            symbol: response.symbol || 'TOKEN',
-            decimals: response.decimals || 0,
-            description: "Token fetched from Alephium node"
-          };
-        }
-      } catch (nodeError) {
-        console.warn(`Could not fetch token ${tokenId} from node:`, nodeError);
-      }
-    }
-    
-    // Fallback to default data
-    return getFallbackTokenData(tokenId);
-  } catch (error) {
-    console.error(`Error in getTokenMetadata for ${tokenId}:`, error);
-    return getFallbackTokenData(tokenId);
-  }
+export const getTokenMetadata = async (tokenId: string): Promise<TokenMetadata | undefined> => {
+  const tokenMap = await fetchTokenList();
+  return tokenMap[tokenId];
 };
 
 /**

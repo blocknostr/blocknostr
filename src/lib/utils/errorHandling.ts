@@ -1,5 +1,5 @@
 
-import { toast } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 
 export interface ErrorConfig {
   toastMessage?: string;

@@ -1,25 +1,21 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import WalletBalanceCard from "./WalletBalanceCard";
-import TokenList from "./TokenList";
-import NFTGallery from "./NFTGallery";
-import TransactionsList from "./TransactionsList";
-import DAppsSection from "./DAppsSection";
-import NetworkStatsCard from "./NetworkStatsCard";
-import NetworkActivityCard from "./NetworkActivityCard";
-import RecentActivityCard from "./RecentActivityCard";
-import TokenTransactionsDashboard from "./TokenTransactionsDashboard";
-
-interface SavedWallet {
-  address: string;
-  label: string;
-  dateAdded: number;
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WalletBalanceCard from "@/components/wallet/WalletBalanceCard";
+import TokenDistributionChart from "@/components/wallet/charts/TokenDistributionChart";
+import BalanceHistoryChart from "@/components/wallet/charts/BalanceHistoryChart";
+import TransactionActivityChart from "@/components/wallet/charts/TransactionActivityChart";
+import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
+import TokenList from "@/components/wallet/TokenList";
+import TransactionsList from "@/components/wallet/TransactionsList";
+import RecentActivityCard from "@/components/wallet/RecentActivityCard";
+import NFTGallery from "@/components/wallet/NFTGallery";
+import DAppsSection from "@/components/wallet/DAppsSection";
+import { formatNumber } from "@/lib/utils/formatters";
 
 interface WalletDashboardProps {
   address: string;
-  allWallets: SavedWallet[];
   isLoggedIn: boolean;
   walletStats: {
     transactionCount: number;
@@ -30,97 +26,129 @@ interface WalletDashboardProps {
   isStatsLoading: boolean;
   refreshFlag: number;
   setRefreshFlag: (flag: number) => void;
-  activeTab?: string;
 }
 
-const WalletDashboard: React.FC<WalletDashboardProps> = ({
-  address,
-  allWallets,
-  isLoggedIn,
-  walletStats,
+const WalletDashboard: React.FC<WalletDashboardProps> = ({ 
+  address, 
+  isLoggedIn, 
+  walletStats, 
   isStatsLoading,
   refreshFlag,
-  setRefreshFlag,
-  activeTab = "portfolio"
+  setRefreshFlag
 }) => {
-  // If we're in portfolio tab
-  if (activeTab === "portfolio") {
-    return (
-      <>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <WalletBalanceCard
-              address={address}
-              isLoggedIn={isLoggedIn}
-              refreshFlag={refreshFlag}
-            />
-          </div>
-          <div>
-            <RecentActivityCard
-              address={address}
-              stats={walletStats}
-              isLoading={isStatsLoading}
-              refreshFlag={refreshFlag}
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <div className="md:col-span-2">
-            <TransactionsList address={address} />
-          </div>
-          <div>
-            <TokenList address={address} />
-          </div>
-        </div>
-        
-        <div className="mt-6">
-          <NFTGallery address={address} />
-        </div>
-      </>
-    );
-  }
-  
-  // If we're in dapps tab
-  else if (activeTab === "dapps") {
-    return (
-      <>
-        <DAppsSection address={address} isLoggedIn={isLoggedIn} />
-      </>
-    );
-  }
-  
-  // If we're in alephium tab
-  else if (activeTab === "alephium") {
-    return (
-      <>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <NetworkStatsCard refreshFlag={refreshFlag} />
-          </div>
-          <div>
-            <NetworkActivityCard refreshFlag={refreshFlag} />
-          </div>
-        </div>
-        
-        <div className="mt-6">
-          <TokenTransactionsDashboard address={address} />
-        </div>
-      </>
-    );
-  }
-  
-  // Default fallback
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Dashboard</CardTitle>
-        <CardDescription>Invalid tab selected</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p>Please select a valid tab.</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <WalletBalanceCard 
+          address={address} 
+          onRefresh={() => setRefreshFlag(refreshFlag + 1)}
+          className="lg:col-span-2" 
+        />
+        
+        <Card className="bg-gradient-to-br from-blue-500/10 via-blue-400/5 to-background">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Transactions</CardTitle>
+            <CardDescription className="text-xs">Total activity</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="text-2xl font-bold">{formatNumber(walletStats.transactionCount)}</div>
+            )}
+            <div className="text-xs text-muted-foreground mt-1">
+              Lifetime transactions
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-gradient-to-br from-green-500/10 via-green-400/5 to-background">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Token Assets</CardTitle>
+            <CardDescription className="text-xs">Your assets</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isStatsLoading ? (
+              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="text-2xl font-bold">{formatNumber(walletStats.tokenCount)}</div>
+            )}
+            <div className="text-xs text-muted-foreground mt-1">
+              Distinct token types
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Balance History</CardTitle>
+            <CardDescription>Your portfolio value over time</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <BalanceHistoryChart address={address} />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Token Distribution</CardTitle>
+            <CardDescription>Value by token type</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <TokenDistributionChart address={address} />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* NFT Gallery Section */}
+      <NFTGallery address={address} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Transaction Activity</CardTitle>
+            <CardDescription>Recent transaction volume</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            <TransactionActivityChart address={address} />
+          </CardContent>
+        </Card>
+        
+        <NetworkStatsCard />
+      </div>
+      
+      <Tabs defaultValue="tokens" className="w-full">
+        <TabsList className="grid grid-cols-5 max-w-md mb-4">
+          <TabsTrigger value="tokens">Tokens</TabsTrigger>
+          <TabsTrigger value="nfts">NFTs</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="dapps">DApps</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="tokens" className="mt-0">
+          <TokenList address={address} />
+        </TabsContent>
+        
+        <TabsContent value="nfts" className="mt-0">
+          <NFTGallery address={address} />
+        </TabsContent>
+        
+        <TabsContent value="transactions" className="mt-0">
+          <TransactionsList address={address} />
+        </TabsContent>
+
+        <TabsContent value="dapps" className="mt-0">
+          <DAppsSection />
+        </TabsContent>
+        
+        <TabsContent value="activity" className="mt-0">
+          <RecentActivityCard address={address} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
