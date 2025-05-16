@@ -7,10 +7,11 @@ import { formatCurrency } from "@/lib/utils/formatters";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { EnrichedTokenWithWallets } from "@/types/wallet";
 
 interface TokenListProps {
   address: string;
-  allTokens?: EnrichedToken[]; // For receiving aggregated tokens
+  allTokens?: EnrichedTokenWithWallets[]; // Updated type to include walletAddresses
 }
 
 const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
@@ -94,7 +95,11 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y">
-          {tokens.map((token) => (
+          {tokens.map((token) => {
+            // Cast token to EnrichedTokenWithWallets to access walletAddresses safely
+            const tokenWithWallets = token as EnrichedTokenWithWallets;
+            
+            return (
             <div key={token.id} className="flex items-center justify-between p-4">
               <div className="flex items-center">
                 {token.logoURI ? (
@@ -118,18 +123,18 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                   <div className="font-medium">{token.name || token.symbol}</div>
                   <div className="text-xs text-muted-foreground">{token.symbol}</div>
                   
-                  {token.walletAddresses && token.walletAddresses.length > 0 && (
+                  {tokenWithWallets.walletAddresses && tokenWithWallets.walletAddresses.length > 0 && (
                     <div className="mt-1">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Badge variant="outline" className="text-xs">
-                              {token.walletAddresses.length} wallet{token.walletAddresses.length > 1 ? 's' : ''}
+                              {tokenWithWallets.walletAddresses.length} wallet{tokenWithWallets.walletAddresses.length > 1 ? 's' : ''}
                               <Info className="h-3 w-3 ml-1" />
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Found in {token.walletAddresses.length} tracked wallet{token.walletAddresses.length > 1 ? 's' : ''}</p>
+                            <p>Found in {tokenWithWallets.walletAddresses.length} tracked wallet{tokenWithWallets.walletAddresses.length > 1 ? 's' : ''}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -147,7 +152,7 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
                 ) : null}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       </CardContent>
     </Card>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchTokenList } from "@/lib/api/tokenMetadata";
 import { fetchTokenTransactions, getAddressTokens, EnrichedToken } from "@/lib/api/alephiumApi";
+import { EnrichedTokenWithWallets } from "@/types/wallet";
 
 export interface TokenTransaction {
   hash: string;
@@ -31,6 +32,8 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
   const [tokenIds, setTokenIds] = useState<string[]>([]);
   const [prioritizedTokenIds, setPrioritizedTokenIds] = useState<string[]>([]);
   const [ownedTokens, setOwnedTokens] = useState<Set<string>>(new Set());
+  // Define refreshFlag before using it
+  const [refreshFlag, setRefreshFlag] = useState(0);
 
   // Identify tokens in tracked wallets and fetch token metadata
   useEffect(() => {
@@ -131,9 +134,6 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     fetchWalletTokens();
   }, [trackedWallets, refreshFlag]);
 
-  // Trigger refresh
-  const [refreshFlag, setRefreshFlag] = useState(0);
-
   // Fetch transactions for each token, prioritizing those in tracked wallets
   useEffect(() => {
     if (prioritizedTokenIds.length === 0) return;
@@ -210,7 +210,7 @@ export const useTokenData = (trackedWallets: string[] = [], refreshInterval = 5 
     }, refreshInterval);
     
     return () => clearInterval(intervalId);
-  }, [prioritizedTokenIds, ownedTokens]);
+  }, [prioritizedTokenIds, ownedTokens, tokenData]);
 
   return {
     tokenData,
