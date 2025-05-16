@@ -31,13 +31,13 @@ const AddressDisplay = ({ address }: AddressDisplayProps) => {
 
   return (
     <Card className="bg-muted/50">
-      <CardContent className="flex items-center justify-between p-4">
+      <CardContent className="flex items-center justify-between py-2 px-3">
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+          <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
             <span className="text-xs font-medium">ID</span>
           </div>
           <div>
-            <p className="text-sm font-medium">Your Alephium Address</p>
+            <p className="text-xs font-medium">Your Address</p>
             <p className="text-xs text-muted-foreground break-all sm:break-normal">
               {formatAddress(address)}
             </p>
@@ -48,9 +48,9 @@ const AddressDisplay = ({ address }: AddressDisplayProps) => {
           variant="ghost" 
           size="sm" 
           onClick={copyToClipboard} 
-          className="h-8 px-2"
+          className="h-7 px-2 py-0"
         >
-          {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? <CheckCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           <span className="sr-only">Copy address</span>
         </Button>
       </CardContent>
