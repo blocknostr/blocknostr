@@ -141,7 +141,7 @@ export const sendTransaction = async (
     console.log("Starting transaction build...");
     
     // Convert ALPH to nanoALPH (1 ALPH = 10^18 nanoALPH)
-    const amountInNanoAlph = BigInt(Math.floor(amountInAlph * 10**18)).toString();
+    const amountInNanoAlph = (BigInt(Math.round(amountInAlph * 10**18))).toString();
     
     console.log(`Amount in nanoALPH: ${amountInNanoAlph}`);
     
@@ -168,13 +168,13 @@ export const sendTransaction = async (
     
     // Sign the transaction
     console.log("Signing transaction...");
-    const signature = await signer.signTransactionWithSignature(unsignedTxResult);
+    const signature = await signer.signTransaction(unsignedTxResult.unsignedTx);
     
     if (!signature) {
       throw new Error("Failed to sign transaction: No signature returned");
     }
     
-    console.log("Transaction signed, submitting to network...");
+    console.log("Transaction signed with signature:", signature.substring(0, 20) + "...");
     
     // Submit the transaction
     const result = await nodeProvider.transactions.postTransactionsSubmit({
@@ -182,7 +182,7 @@ export const sendTransaction = async (
       signature: signature
     });
     
-    console.log("Transaction submitted:", result);
+    console.log("Transaction submitted successfully:", result);
     return result;
   } catch (error) {
     console.error('Error sending transaction:', error);

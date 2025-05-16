@@ -29,13 +29,15 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
       return;
     }
     
-    if (!recipient) {
+    // Validate recipient address (simple format check)
+    if (!recipient || !recipient.startsWith("1") && !recipient.startsWith("r")) {
       toast.error("Invalid recipient", {
         description: "Please enter a valid Alephium address"
       });
       return;
     }
     
+    // Validate amount
     const amountValue = parseFloat(amount);
     if (isNaN(amountValue) || amountValue <= 0) {
       toast.error("Invalid amount", {
@@ -45,6 +47,9 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     }
     
     setIsLoading(true);
+    toast.info("Processing transaction", {
+      description: "Your transaction is being processed..."
+    });
     
     try {
       console.log("Sending transaction:", {
@@ -62,13 +67,17 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
       
       console.log("Transaction result:", result);
       
-      toast.success("Transaction submitted", {
-        description: `Transaction ID: ${result.txId.substring(0, 10)}...`
-      });
-      
-      // Reset form
-      setRecipient("");
-      setAmount("");
+      if (result && result.txId) {
+        toast.success("Transaction submitted", {
+          description: `Transaction ID: ${result.txId.substring(0, 10)}...`
+        });
+        
+        // Reset form
+        setRecipient("");
+        setAmount("");
+      } else {
+        throw new Error("Transaction failed: No transaction ID returned");
+      }
     } catch (error) {
       console.error("Transaction error:", error);
       toast.error("Transaction failed", {
