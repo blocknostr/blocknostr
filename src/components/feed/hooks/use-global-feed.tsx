@@ -90,8 +90,9 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
   }, [events.length, isRetrying, retryCount, subId, setupSubscription, hashtags]);
   
+  // Critical Fix: Improved loadMoreEvents implementation
   const loadMoreEvents = useCallback(async () => {
-    if (!subId || loadingMore) return;
+    if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     
     // Cancel any existing timeout
@@ -100,36 +101,59 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
     
     try {
-      // Close previous subscription
-      if (subId) {
-        nostrService.unsubscribe(subId);
-      }
-      
-      // Find the oldest event in the current events array
+      // Find the oldest event timestamp in the current events array
       const oldestEvent = EventDeduplication.findOldestEvent(events);
       
       if (oldestEvent) {
+        // CRITICAL FIX: Create a new subscription BEFORE closing the old one
+        // This prevents data loss during the transition between subscriptions
+        console.log("Loading more events, oldestEvent timestamp:", oldestEvent.created_at);
+        
         // Use the oldest event's timestamp for the new 'until' value
-        const newUntil = oldestEvent.created_at - 1;
-        // Get older posts from the last 72 hours
-        const newSince = newUntil - 72 * 60 * 60;
-        
-        setSince(newSince);
-        setUntil(newUntil);
+        const newUntil = oldestEvent.created_at - 1; // Subtract 1 second to avoid overlap
+        // Get older posts from the last 7 days (instead of 3 days)
+        const newSince = newUntil - 7 * 24 * 60 * 60; // 7 days window
         
         // Start the new subscription with the older timestamp range
+        // CRITICAL FIX: Start new subscription before closing the old one
         const newSubId = await setupSubscription(newSince, newUntil, hashtags);
-        setSubId(newSubId);
+        
+        if (newSubId) {
+          // Only after new subscription is created, close the old one
+          if (subId) {
+            nostrService.unsubscribe(subId);
+          }
+          
+          // Set the new subscription ID
+          setSubId(newSubId);
+          
+          // Update the timestamp parameters
+          setSince(newSince);
+          setUntil(newUntil);
+          
+          console.log("New subscription created for older posts:", newSubId, 
+            "timeframe:", new Date(newSince * 1000), "to", new Date(newUntil * 1000));
+        }
       } else {
+        console.warn("No events to determine oldest timestamp");
+        
         // If no events yet, get a broader time range
-        const newUntil = until;
-        const newSince = newUntil - 72 * 60 * 60;
+        const currentTime = Math.floor(Date.now() / 1000);
+        const newUntil = currentTime - (24 * 60 * 60); // Start from 1 day ago
+        const newSince = newUntil - (7 * 24 * 60 * 60); // Go back 7 days
         
-        setSince(newSince);
-        
-        // Start the new subscription with the older timestamp range
+        // Create new subscription for this broader range
         const newSubId = await setupSubscription(newSince, newUntil, hashtags);
-        setSubId(newSubId);
+        
+        if (newSubId) {
+          if (subId) {
+            nostrService.unsubscribe(subId);
+          }
+          
+          setSubId(newSubId);
+          setSince(newSince);
+          setUntil(newUntil);
+        }
       }
     } catch (error) {
       console.error("Error loading more events:", error);
@@ -137,11 +161,12 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
     }
     
     // Set loading more to false after a delay
+    // CRITICAL FIX: Use a shorter timeout to improve responsiveness
     loadMoreTimeoutRef.current = window.setTimeout(() => {
       setLoadingMore(false);
       loadMoreTimeoutRef.current = null;
-    }, 2000);
-  }, [subId, events, until, setupSubscription, loadingMore, hashtags]);
+    }, 1000); // Reduced from 2000ms to 1000ms
+  }, [events, hashtags, loadingMore, setupSubscription, subId, hasMore]);
   
   const {
     loadMoreRef,
@@ -153,7 +178,7 @@ export function useGlobalFeed({ activeHashtag }: UseGlobalFeedProps) {
   } = useInfiniteScroll(loadMoreEvents, { 
     initialLoad: true,
     threshold: 800,
-    aggressiveness: 'medium',
+    aggressiveness: 'high', // Changed from 'medium' to 'high' for more aggressive loading
     preservePosition: true
   });
 

@@ -28,11 +28,11 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
 }) => {
   const feedContainerRef = useRef<HTMLDivElement>(null);
   
-  // Use the useInView hook with a more aggressive threshold and margin
-  // to ensure it triggers before the user reaches the bottom
+  // CRITICAL FIX: Use an extremely aggressive rootMargin to ensure we load more content
+  // well before the user reaches the bottom (similar to iris.to's approach)
   const { ref: loadMoreRef, inView } = useInView({
-    rootMargin: '0px 0px 2000px 0px', // Increased from 1500px to 2000px
-    threshold: 0.05, // Reduced from 0.1 to 0.05 to trigger earlier
+    rootMargin: '0px 0px 4000px 0px', // Dramatically increased from 2000px to 4000px
+    threshold: 0.01, // Very low threshold to trigger earlier
   });
   
   // Use callback for loadMore logic to prevent unnecessary rerenders
@@ -63,11 +63,11 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
         />
       ))}
       
-      {/* Always render the load more trigger if there are posts and hasMore is true */}
+      {/* CRITICAL FIX: Always render the load more trigger, with improved visibility */}
       {hasMore && (
         <div 
           ref={loadMoreRef}
-          className="h-20 w-full" // Increased height to ensure it's visible
+          className="h-32 w-full" // Increased from h-20 to h-32 for better visibility
           aria-hidden="true"
           data-testid="load-more-trigger"
         />
