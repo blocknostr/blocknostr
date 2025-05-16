@@ -1,4 +1,3 @@
-
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 
@@ -120,19 +119,14 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
     
     const utxoArray = response.utxos;
     
-    // Log raw UTXO data for debugging
-    console.log("Raw UTXOs with tokens:", utxoArray.filter(utxo => utxo.tokens && utxo.tokens.length > 0));
-    
     for (const utxo of utxoArray) {
       if (utxo.tokens && utxo.tokens.length > 0) {
         for (const token of utxo.tokens) {
           const tokenId = token.id;
-          console.log(`Processing token ${tokenId} with amount ${token.amount}`);
           
           if (!tokenMap[tokenId]) {
             // Get metadata from the token list or use fallback
             const metadata = tokenMetadataMap[tokenId] || getFallbackTokenData(tokenId);
-            console.log(`Token metadata for ${tokenId}:`, metadata);
             
             tokenMap[tokenId] = {
               id: tokenId,
@@ -150,21 +144,15 @@ export const getAddressTokens = async (address: string): Promise<EnrichedToken[]
           
           // Add the amount as string to avoid precision issues
           tokenMap[tokenId].amount = (BigInt(tokenMap[tokenId].amount) + BigInt(token.amount)).toString();
-          console.log(`Updated amount for ${tokenId} to ${tokenMap[tokenId].amount}`);
         }
       }
     }
     
     // Convert the map to an array and format amounts
-    const result = Object.values(tokenMap).map(token => {
-      const formattedAmount = formatTokenAmount(token.amount, token.decimals);
-      console.log(`Formatting token ${token.id} with amount ${token.amount} and decimals ${token.decimals} -> ${formattedAmount}`);
-      
-      return {
-        ...token,
-        formattedAmount
-      };
-    });
+    const result = Object.values(tokenMap).map(token => ({
+      ...token,
+      formattedAmount: formatTokenAmount(token.amount, token.decimals)
+    }));
     
     console.log("Enriched tokens with proper decimal formatting:", result);
     return result;
