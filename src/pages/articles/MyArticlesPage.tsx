@@ -1,5 +1,6 @@
+
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
 import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
