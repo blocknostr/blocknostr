@@ -11,7 +11,7 @@ import { formatNumber, formatCurrency } from "@/lib/utils/formatters";
 import NetworkActivityCard from "@/components/wallet/NetworkActivityCard";
 import { WifiOff, Wifi, DollarSign, Wallet, TrendingUp, TrendingDown } from "lucide-react";
 import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
-import { getAddressBalance } from "@/lib/api/alephiumApi";
+import { getAddressBalance, getAddressTokens } from "@/lib/api/alephiumApi";
 import { Skeleton } from "@/components/ui/skeleton";
 import NetworkStatsCard from "@/components/wallet/NetworkStatsCard";
 
@@ -57,13 +57,15 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
     priceChange24h: number;
   }>({ price: 0, priceChange24h: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [allTokens, setAllTokens] = useState<Record<string, any>>({});
+  const [totalTokenCount, setTotalTokenCount] = useState(0);
 
   // Function to update API status that can be passed to child components
   const updateApiStatus = (isLive: boolean) => {
     setApiStatus({ isLive, lastChecked: new Date() });
   };
 
-  // Fetch balance for all wallets
+  // Fetch balance and tokens for all wallets
   useEffect(() => {
     const fetchAllBalances = async () => {
       if (allWallets.length === 0) return;
@@ -73,10 +75,12 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
       try {
         const walletAddresses = allWallets.map(wallet => wallet.address);
         const balancePromises = walletAddresses.map(addr => getAddressBalance(addr));
+        const tokenPromises = walletAddresses.map(addr => getAddressTokens(addr));
         const pricePromise = getAlephiumPrice();
         
-        const [balanceResults, priceResult] = await Promise.all([
+        const [balanceResults, tokenResults, priceResult] = await Promise.all([
           Promise.allSettled(balancePromises),
+          Promise.allSettled(tokenPromises),
           pricePromise
         ]);
         
@@ -90,8 +94,53 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
             newBalances[walletAddresses[index]] = 0;
           }
         });
-        
         setBalances(newBalances);
+        
+        // Process tokens - aggregate all tokens across wallets
+        const tokenMap: Record<string, any> = {};
+        let totalTokens = 0;
+        
+        tokenResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const walletAddress = walletAddresses[index];
+            const tokens = result.value;
+            
+            // Count unique tokens for this wallet
+            totalTokens += tokens.length;
+            
+            // Aggregate token data across wallets
+            tokens.forEach(token => {
+              const tokenId = token.id;
+              
+              if (!tokenMap[tokenId]) {
+                tokenMap[tokenId] = {
+                  ...token,
+                  wallets: [{ address: walletAddress, amount: token.amount }]
+                };
+              } else {
+                // Token exists in map, add this wallet's amount
+                tokenMap[tokenId].wallets.push({ address: walletAddress, amount: token.amount });
+                
+                // Update total amount for this token (as BigInt to handle large numbers)
+                const currentAmount = BigInt(tokenMap[tokenId].amount || "0");
+                const additionalAmount = BigInt(token.amount || "0");
+                tokenMap[tokenId].amount = (currentAmount + additionalAmount).toString();
+                
+                // Recalculate formatted amount with new total
+                tokenMap[tokenId].formattedAmount = token.isNFT 
+                  ? tokenMap[tokenId].amount 
+                  : (Number(tokenMap[tokenId].amount) / 10**token.decimals).toLocaleString(
+                      undefined, 
+                      { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                    );
+              }
+            });
+          }
+        });
+        
+        setAllTokens(tokenMap);
+        setTotalTokenCount(Object.keys(tokenMap).length);
+        
         setPriceData({
           price: priceResult.price,
           priceChange24h: priceResult.priceChange24h
@@ -162,6 +211,11 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
                       {priceData.priceChange24h.toFixed(2)}%
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <span>Tokens:</span>
+                    <span className="font-medium">{totalTokenCount}</span>
+                  </div>
                 </>
               )}
             </div>
@@ -204,7 +258,7 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           </TabsList>
           
           <TabsContent value="tokens" className="mt-0">
-            <TokenList address={address} />
+            <TokenList address={address} allTokens={Object.values(allTokens)} />
           </TabsContent>
           
           <TabsContent value="nfts" className="mt-0">
@@ -362,10 +416,14 @@ const WalletDashboard: React.FC<WalletDashboardProps> = ({
           <div className="mt-2 text-sm text-muted-foreground">
             {formatCurrency(portfolioValue)}
           </div>
+          
+          <div className="mt-2 text-sm text-muted-foreground">
+            Tokens: {totalTokenCount}
+          </div>
         </CardContent>
       </Card>
       
-      <TokenList address={address} />
+      <TokenList address={address} allTokens={Object.values(allTokens)} />
       
       <TransactionsList address={address} />
     </div>
