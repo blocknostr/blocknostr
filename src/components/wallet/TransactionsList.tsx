@@ -23,35 +23,6 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Format ALPH amount from raw balance with 18 decimal precision
-  const formatAlphAmount = (rawAmount: string | number): string => {
-    try {
-      const decimals = 18; // ALPH uses 18 decimals
-      const amount = typeof rawAmount === 'string' ? rawAmount : rawAmount.toString();
-      const rawValue = BigInt(amount);
-      
-      if (rawValue === BigInt(0)) return "0.0000";
-      
-      const divisor = BigInt(10 ** decimals);
-      
-      // Calculate whole and fractional parts
-      const wholePart = rawValue / divisor;
-      const fractionalPart = rawValue % divisor;
-      
-      // Format the fractional part with proper precision
-      let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
-      
-      // Trim to 4 decimal places for display
-      fractionalStr = fractionalStr.slice(0, 4);
-      
-      // Return the formatted amount
-      return `${wholePart.toString()}.${fractionalStr}`;
-    } catch (error) {
-      console.error('[formatAlphAmount] Error formatting amount:', error);
-      return "0.0000";
-    }
-  };
-
   useEffect(() => {
     const fetchTransactions = async () => {
       if (!address) return;
@@ -59,46 +30,24 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       setIsLoading(true);
       
       try {
-        // Updated API endpoint for transactions - using /addresses/{address}/transactions path
-        // instead of /transactions/address/{address} which returned 404
-        const response = await fetch(`https://backend.mainnet.alephium.org/addresses/${address}/transactions?page=1&limit=10`);
+        // Try to fetch transaction data from the Alephium Explorer API
+        const response = await fetch(`https://backend.mainnet.alephium.org/transactions/address/${address}`);
         
         if (!response.ok) {
           throw new Error(`Failed to fetch transactions: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log("[TransactionsList] Raw transactions data:", data);
         
         // Transform the data into our transaction format
-        // Note: This transformation handles the actual API response format 
-        const formattedTransactions: Transaction[] = (data?.transactions || []).map((tx: any) => {
-          // Determine if this is an incoming or outgoing transaction
+        // Note: This transformation is an approximation as the exact API response format may differ
+        const formattedTransactions: Transaction[] = data.slice(0, 10).map((tx: any) => {
           const isSent = tx.inputs && tx.inputs.some((input: any) => input.address === address);
           
-          // Calculate amount
-          let amount = "0";
-          if (isSent) {
-            // Outgoing transaction - sum outputs not going to our address
-            amount = tx.outputs
-              .filter((output: any) => output.address !== address)
-              .reduce((sum: bigint, output: any) => sum + BigInt(output.amount || 0), BigInt(0))
-              .toString();
-          } else {
-            // Incoming transaction - sum outputs going to our address
-            amount = tx.outputs
-              .filter((output: any) => output.address === address)
-              .reduce((sum: bigint, output: any) => sum + BigInt(output.amount || 0), BigInt(0))
-              .toString();
-          }
-          
-          // Convert raw amount to ALPH with correct decimal precision
-          const alphAmount = formatAlphAmount(amount);
-
           return {
-            id: tx.hash || tx.txId || tx.transactionHash || "unknown",
+            id: tx.hash || tx.txId,
             type: isSent ? 'sent' : 'received',
-            amount: alphAmount,
+            amount: tx.amount || (tx.outputs?.[0]?.amount ?? "0"),
             timestamp: tx.timestamp || Date.now(),
             status: 'confirmed',
             address: isSent 
@@ -107,16 +56,15 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           };
         });
         
-        console.log("[TransactionsList] Formatted transactions:", formattedTransactions);
         setTransactions(formattedTransactions);
       } catch (error) {
-        console.error('[TransactionsList] Error fetching transactions:', error);
+        console.error('Error fetching transactions:', error);
         // Fallback to mock data if API fails
         const mockTransactions: Transaction[] = [
           {
             id: "0x123456789abcdef",
             type: "received",
-            amount: "100.0000",
+            amount: "100.00",
             timestamp: Date.now() - 3600000 * 2,
             status: "confirmed",
             address: "0xabcdef123456789"
@@ -124,7 +72,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           {
             id: "0x987654321fedcba",
             type: "sent",
-            amount: "50.2500",
+            amount: "50.25",
             timestamp: Date.now() - 86400000,
             status: "confirmed",
             address: "0x567890abcdef123"
@@ -132,7 +80,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           {
             id: "0xabcdef123456789",
             type: "received",
-            amount: "250.7500",
+            amount: "250.75",
             timestamp: Date.now() - 86400000 * 3,
             status: "confirmed",
             address: "0x123abcdef456789"
@@ -140,7 +88,7 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
           {
             id: "0x456789abcdef123",
             type: "sent",
-            amount: "75.5000",
+            amount: "75.50",
             timestamp: Date.now() - 86400000 * 7,
             status: "confirmed",
             address: "0x789abcdef123456"

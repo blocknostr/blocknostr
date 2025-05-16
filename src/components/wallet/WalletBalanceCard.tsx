@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,47 +14,14 @@ interface WalletBalanceCardProps {
 const WalletBalanceCard = ({ balance, isLoading, address }: WalletBalanceCardProps) => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   
-  // Format balance with commas for thousands, respecting ALPH's 18 decimal precision
+  // Format balance with commas for thousands
   const formatBalance = (balanceStr: string | null) => {
     if (!balanceStr) return "0.00";
     
-    // Convert from ALPH units (smallest denomination) to ALPH with proper precision
-    // ALPH specifically uses 18 decimals
-    try {
-      const decimals = 18; // ALPH uses 18 decimals
-      const rawValue = BigInt(balanceStr);
-      const divisor = BigInt(10 ** decimals);
-      
-      if (rawValue === BigInt(0)) return "0.00";
-      
-      // Convert to a decimal string with proper precision
-      const wholePart = rawValue / divisor;
-      const fractionalPart = rawValue % divisor;
-      
-      // Format the fractional part to have leading zeros if needed
-      let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
-      
-      // Trim trailing zeros but keep at least 2 decimal places
-      while (fractionalStr.length > 2 && fractionalStr.endsWith('0')) {
-        fractionalStr = fractionalStr.slice(0, -1);
-      }
-      
-      // Format the whole part with commas
-      const formattedWhole = wholePart.toLocaleString();
-      
-      return `${formattedWhole}.${fractionalStr.slice(0, 4)}`;
-    } catch (error) {
-      console.error("[WalletBalanceCard] Error formatting balance:", error);
-      return "0.00";
-    }
+    // Convert from ALPH units (smallest denomination) to ALPH
+    const balanceInALPH = parseFloat(balanceStr) / 10**18;
+    return balanceInALPH.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   };
-  
-  // Update last updated timestamp whenever balance changes
-  useEffect(() => {
-    if (!isLoading && balance) {
-      setLastUpdated(new Date());
-    }
-  }, [balance, isLoading]);
   
   return (
     <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20">
