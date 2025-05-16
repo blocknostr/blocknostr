@@ -76,7 +76,7 @@ const AddressDisplay = ({
           <div className="flex items-center space-x-2">
             <div className="flex flex-col">
               <p className="text-xs font-medium">
-                {wallet.label || "Your Address"}
+                {wallet.label || "Connected Wallet"}
                 {onLabelEdit && (
                   <Button 
                     variant="ghost" 

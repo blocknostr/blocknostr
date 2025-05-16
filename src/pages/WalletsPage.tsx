@@ -77,7 +77,7 @@ const WalletsPage = () => {
     if (savedWallets.length === 0) {
       // Default wallet address
       const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
-      addWallet(defaultAddress, "Default Demo Wallet");
+      addWallet(defaultAddress, "Connected Wallet");
     }
   }, [savedWallets.length]);
 
