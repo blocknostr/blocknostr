@@ -71,4 +71,22 @@ export class EventDeduplication {
   static hasEventId(events: NostrEvent[], eventId: string): boolean {
     return events.some(event => event.id === eventId);
   }
+  
+  /**
+   * Deduplicate and sort events by timestamp
+   * @param events Array of events to process
+   * @param newestFirst Whether to sort newest first (true) or oldest first (false)
+   * @returns Deduplicated and sorted array of events
+   */
+  static deduplicateAndSort(events: NostrEvent[], newestFirst: boolean = true): NostrEvent[] {
+    // First deduplicate
+    const deduplicated = this.deduplicateById(events);
+    
+    // Then sort
+    return deduplicated.sort((a, b) => {
+      return newestFirst 
+        ? b.created_at - a.created_at // Newest first
+        : a.created_at - b.created_at; // Oldest first
+    });
+  }
 }

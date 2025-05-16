@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { NostrEvent } from "@/lib/nostr";
 import NoteCard from "@/components/note/NoteCard";
 import { Loader2 } from "lucide-react";
@@ -26,12 +26,29 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   loadMoreLoading = false
 }) => {
   const lastRef = useRef<HTMLDivElement>(null);
-  
-  // Create more aggressive early loading triggers
   const earlyTriggerRef = useRef<HTMLDivElement | null>(null);
+  const prevEventsCountRef = useRef<number>(events.length);
+  const [newContentReceived, setNewContentReceived] = useState(false);
   
+  // Detect when new content is received
   useEffect(() => {
-    // Setup early loading triggers with higher threshold and larger margin
+    if (events.length > prevEventsCountRef.current && !loading) {
+      // We received new content
+      setNewContentReceived(true);
+      
+      // Clear the notification after a delay
+      const timeout = setTimeout(() => {
+        setNewContentReceived(false);
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
+    }
+    
+    prevEventsCountRef.current = events.length;
+  }, [events.length, loading]);
+  
+  // Setup early loading triggers with higher threshold
+  useEffect(() => {
     if (hasMore && !loadMoreLoading && onLoadMore) {
       const earlyTriggerObserver = new IntersectionObserver(
         (entries) => {
@@ -40,7 +57,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
             onLoadMore();
           }
         },
-        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Much larger bottom margin for earlier detection
+        { threshold: 0.1, rootMargin: '0px 0px 2000px 0px' } // Large bottom margin for earlier detection
       );
       
       if (earlyTriggerRef.current) {
@@ -54,7 +71,14 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   }, [events.length, hasMore, loadMoreLoading, onLoadMore]);
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* New content notification */}
+      {newContentReceived && (
+        <div className="sticky top-14 z-40 bg-primary text-primary-foreground text-sm py-1 px-3 rounded-md mx-auto w-fit transform animate-fade-in-down">
+          New content loaded
+        </div>
+      )}
+      
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 
@@ -79,11 +103,15 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
       
       {/* Auto-loading indicator */}
       {hasMore && (
-        <div className="py-4 text-center" ref={lastRef}>
+        <div 
+          className="py-4 text-center relative" 
+          ref={lastRef}
+          style={{ minHeight: loadMoreLoading ? '60px' : '40px' }}
+        >
           {loadMoreLoading && (
-            <div className="flex items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Loading more posts...
+            <div className="flex items-center justify-center text-sm text-muted-foreground gap-2 absolute left-0 right-0">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading more posts...</span>
             </div>
           )}
         </div>
