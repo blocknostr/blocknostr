@@ -269,19 +269,6 @@ const WalletsPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
-            {!connected && (
-              <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 mb-6">
-                <CardContent className="p-4 text-sm">
-                  <p className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
-                    <ExternalLink className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                    <span>
-                      Viewing all tracked wallets. Connect your own wallet to see your personal balance and transactions.
-                    </span>
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-
             {selectedWalletType === "Alephium" && (
               <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid grid-cols-3 max-w-md mb-6">
