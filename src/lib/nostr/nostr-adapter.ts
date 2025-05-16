@@ -1,4 +1,3 @@
-
 import { nostrService } from './service';
 import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
@@ -10,6 +9,7 @@ import { MessagingAdapter } from './adapters/messaging-adapter';
 import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
 import { relaySelector } from './relay/selection/relay-selector';
 import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
+import { ArticleAdapter } from './adapters/article-adapter';
 
 /**
  * Main NostrAdapter that implements all functionality through domain-specific adapters
@@ -23,6 +23,7 @@ export class NostrAdapter extends BaseAdapter {
   private communityAdapter: CommunityAdapter;
   private bookmarkAdapter: BookmarkAdapter;
   private messagingAdapter: MessagingAdapter;
+  private articleAdapter: ArticleAdapter;
   
   constructor(service: typeof nostrService) {
     super(service);
@@ -32,7 +33,7 @@ export class NostrAdapter extends BaseAdapter {
     this.relayAdapter = new RelayAdapter(service);
     this.dataAdapter = new DataAdapter(service);
     this.communityAdapter = new CommunityAdapter(service);
-    this.bookmarkAdapter = new BookmarkAdapter(service);
+    this.articleAdapter = new ArticleAdapter(service);
     this.messagingAdapter = new MessagingAdapter(service);
   }
 
@@ -59,6 +60,10 @@ export class NostrAdapter extends BaseAdapter {
   
   get messaging() {
     return this.messagingAdapter;
+  }
+  
+  get article() {
+    return this.articleAdapter;
   }
   
   // Forward methods to appropriate adapters
@@ -390,6 +395,48 @@ export class NostrAdapter extends BaseAdapter {
   
   async processPendingOperations() {
     return this.bookmarkAdapter.processPendingOperations();
+  }
+  
+  // Article methods (New)
+  async publishArticle(title: string, content: string, metadata = {}, tags = []) {
+    return this.articleAdapter.publishArticle(title, content, metadata, tags);
+  }
+  
+  async getArticleById(id: string) {
+    return this.articleAdapter.getArticleById(id);
+  }
+  
+  async getArticlesByAuthor(pubkey: string, limit = 10) {
+    return this.articleAdapter.getArticlesByAuthor(pubkey, limit);
+  }
+  
+  async searchArticles(params: any) {
+    return this.articleAdapter.searchArticles(params);
+  }
+  
+  async getRecommendedArticles(limit = 10) {
+    return this.articleAdapter.getRecommendedArticles(limit);
+  }
+  
+  // Article draft methods
+  saveDraft(draft: any) {
+    return this.articleAdapter.saveDraft(draft);
+  }
+  
+  getDraft(id: string) {
+    return this.articleAdapter.getDraft(id);
+  }
+  
+  getAllDrafts() {
+    return this.articleAdapter.getAllDrafts();
+  }
+  
+  deleteDraft(id: string) {
+    return this.articleAdapter.deleteDraft(id);
+  }
+  
+  async getArticleVersions(articleId: string) {
+    return this.articleAdapter.getArticleVersions(articleId);
   }
   
   // Manager getters

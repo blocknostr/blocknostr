@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AlephiumWalletProvider } from '@alephium/web3-react';
@@ -16,6 +17,11 @@ import NotFound from './pages/NotFound';
 import ProfilePage from './pages/ProfilePage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
+import ArticlesPage from './pages/articles/ArticlesPage';
+import ArticleEditorPage from './pages/articles/ArticleEditorPage';
+import ArticleViewPage from './pages/articles/ArticleViewPage';
+import MyArticlesPage from './pages/articles/MyArticlesPage';
+import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -46,6 +52,15 @@ function App() {
                   <Route path="/wallets" element={<WalletsPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
                   <Route path="/profile/:npub" element={<ProfilePage />} />
+                  
+                  {/* Articles Routes */}
+                  <Route path="/articles" element={<ArticlesPage />} />
+                  <Route path="/articles/create" element={<ArticleEditorPage />} />
+                  <Route path="/articles/edit/:id" element={<ArticleEditorPage />} />
+                  <Route path="/articles/view/:id" element={<ArticleViewPage />} />
+                  <Route path="/articles/me" element={<MyArticlesPage />} />
+                  <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
+                  
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
