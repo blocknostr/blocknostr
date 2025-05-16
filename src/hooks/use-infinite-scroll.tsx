@@ -12,7 +12,7 @@ type UseInfiniteScrollOptions = {
 export const useInfiniteScroll = (
   onLoadMore: () => void,
   { 
-    threshold = 800,
+    threshold = 800, // Increased from 400 to 800
     initialLoad = true, 
     disabled = false,
     aggressiveness = 'medium',
@@ -32,6 +32,11 @@ export const useInfiniteScroll = (
   const lastScrollTime = useRef<number>(0);
   const scrollVelocity = useRef<number>(0);
   
+  // Store the document height before loading new content
+  const prevDocumentHeightRef = useRef<number>(0);
+  // Store the scroll position before loading new content
+  const scrollPositionRef = useRef<number>(0);
+
   // Get actual threshold based on aggressiveness setting
   const getActualThreshold = useCallback(() => {
     switch(aggressiveness) {
@@ -78,11 +83,39 @@ export const useInfiniteScroll = (
         isFetchingRef.current = true;
         setLoadingMore(true);
         
+        // Store current scroll position and document height before loading more content
+        if (preservePosition) {
+          scrollPositionRef.current = window.scrollY;
+          prevDocumentHeightRef.current = document.body.scrollHeight;
+        }
+        
         try {
           await onLoadMore();
-          // Completely removed scroll position restoration logic
+          
+          // After new content is loaded, we need to adjust the scroll position
+          if (preservePosition) {
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+              // Calculate how much the document height has changed
+              const newDocumentHeight = document.body.scrollHeight;
+              const heightDifference = newDocumentHeight - prevDocumentHeightRef.current;
+              
+              // Only adjust if the height actually changed and we're not at the top
+              if (heightDifference > 0 && scrollPositionRef.current > 0) {
+                // Restore the scroll position plus the height difference
+                window.scrollTo(0, scrollPositionRef.current + heightDifference);
+                
+                // Debug log
+                console.log("[InfiniteScroll] Preserved scroll position:", {
+                  before: scrollPositionRef.current,
+                  after: scrollPositionRef.current + heightDifference,
+                  heightDiff: heightDifference
+                });
+              }
+            });
+          }
         } finally {
-          // Reset the fetching flag after a shorter delay
+          // Reset the fetching flag after a shorter delay (reduced from 500ms to 300ms)
           setTimeout(() => {
             isFetchingRef.current = false;
             setLoadingMore(false);
@@ -90,7 +123,7 @@ export const useInfiniteScroll = (
         }
       }
     },
-    [onLoadMore, hasMore, disabled]
+    [onLoadMore, hasMore, disabled, preservePosition]
   );
 
   useEffect(() => {

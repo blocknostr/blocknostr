@@ -1,10 +1,9 @@
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
 import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
-import { EventDeduplication } from "@/lib/nostr/utils/event-deduplication";
 
 interface UseFeedEventsProps {
   following?: string[];
@@ -31,7 +30,6 @@ export function useFeedEvents({
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [cacheHit, setCacheHit] = useState<boolean>(false);
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
-  const subscriptionSetupInProgress = useRef<boolean>(false);
   
   const { profiles, fetchProfileData } = useProfileFetcher();
   const { repostData, handleRepost, initSetEvents } = useRepostHandler({ fetchProfileData });
@@ -47,7 +45,7 @@ export function useFeedEvents({
     : hashtags;
   
   // Handle event subscription
-  const { subId, setSubId, setupSubscription, connectionAttemptsMade } = useEventSubscription({
+  const { subId, setSubId, setupSubscription } = useEventSubscription({
     following,
     activeHashtag,
     hashtags: effectiveHashtags,
@@ -61,83 +59,73 @@ export function useFeedEvents({
     mediaOnly,
   });
   
-  // Try to load from cache first when component mounts or dependencies change
+  // Try to load from cache first when component mounts
   useEffect(() => {
     const loadFromCache = async () => {
-      // Prevent loading from cache if already loading
-      if (loadingFromCache) return;
-      
       setLoadingFromCache(true);
       
-      try {
-        // Check if we have this feed in cache
-        const cachedFeed = contentCache.getFeed(feedType, {
+      // Check if we have this feed in cache
+      const cachedFeed = contentCache.getFeed(feedType, {
+        authorPubkeys: following,
+        hashtag: activeHashtag,
+        // Fix: use the correct property name 'hashtag' since the cache interface doesn't accept 'hashtags'
+        // If we have an activeHashtag, it takes precedence; otherwise we use the hashtags array via effectiveHashtags
+        // We'll pass undefined, which will make the cache use only the activeHashtag property
+        since,
+        until,
+        mediaOnly
+      });
+      
+      if (cachedFeed && cachedFeed.length > 0) {
+        // Use cached feed
+        setEvents(cachedFeed);
+        setCacheHit(true);
+        
+        // Get cache timestamp
+        const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
           authorPubkeys: following,
           hashtag: activeHashtag,
+          // Same fix here for cache key generation
           since,
           until,
           mediaOnly
         });
         
-        if (cachedFeed && cachedFeed.length > 0) {
-          // Use cached feed
-          setEvents(prev => {
-            if (prev.length === 0) {
-              return cachedFeed;
-            }
-            
-            // Merge with existing events if we have any
-            return EventDeduplication.mergeEvents(prev, cachedFeed);
-          });
-          
-          setCacheHit(true);
-          
-          // Get cache timestamp
-          const cacheKey = contentCache.feedCache.generateCacheKey(feedType, {
-            authorPubkeys: following,
-            hashtag: activeHashtag,
-            since,
-            until,
-            mediaOnly
-          });
-          
-          const cacheEntry = contentCache.feedCache.getRawEntry(cacheKey);
-          if (cacheEntry) {
-            setLastUpdated(new Date(cacheEntry.timestamp));
-          }
-          
-          // Only fetch profiles for visible posts to reduce initial load
-          // This is more efficient than prefetching all profiles
-          const visiblePosts = cachedFeed.slice(0, 10); // Only first 10 visible posts
-          const visibleAuthors = new Set<string>();
-          
-          visiblePosts.forEach(event => {
-            if (event.pubkey) {
-              visibleAuthors.add(event.pubkey);
-            }
-          });
-          
-          // Fetch profiles for visible authors only
-          visibleAuthors.forEach(pubkey => {
-            fetchProfileData(pubkey);
-          });
+        const cacheEntry = contentCache.feedCache.getRawEntry(cacheKey);
+        if (cacheEntry) {
+          setLastUpdated(new Date(cacheEntry.timestamp));
         }
-      } catch (error) {
-        console.error("Error loading from cache:", error);
-      } finally {
-        setLoadingFromCache(false);
+        
+        // Only fetch profiles for visible posts to reduce initial load
+        // This is more efficient than prefetching all profiles
+        const visiblePosts = cachedFeed.slice(0, 10); // Only first 10 visible posts
+        const visibleAuthors = new Set<string>();
+        
+        visiblePosts.forEach(event => {
+          if (event.pubkey) {
+            visibleAuthors.add(event.pubkey);
+          }
+        });
+        
+        // Fetch profiles for visible authors only
+        visibleAuthors.forEach(pubkey => {
+          fetchProfileData(pubkey);
+        });
       }
+      
+      setLoadingFromCache(false);
     };
     
     loadFromCache();
-  }, [feedType, following, activeHashtag, effectiveHashtags, since, until, mediaOnly, fetchProfileData, loadingFromCache]);
+  }, [feedType, following, activeHashtag, effectiveHashtags, since, until, mediaOnly, fetchProfileData]);
   
   // Refresh feed by clearing cache and setting up a new subscription
-  const refreshFeed = useCallback(() => {
+  const refreshFeed = () => {
     // Clear the specific feed from cache
     contentCache.feedCache.clearFeed(feedType, {
       authorPubkeys: following,
       hashtag: activeHashtag,
+      // Same fix for cache clearing
       since,
       until,
       mediaOnly
@@ -152,24 +140,13 @@ export function useFeedEvents({
       setSubId(null);
     }
     
-    // Reset in-progress flag to allow setup of a new subscription
-    subscriptionSetupInProgress.current = false;
-    
-    // Setup a new subscription with latest timestamp range
+    // Setup a new subscription
     const currentTime = Math.floor(Date.now() / 1000);
     const newSince = currentTime - 24 * 60 * 60; // Last 24 hours
     
-    // Set up the new subscription
-    setupSubscription(newSince, currentTime, effectiveHashtags)
-      .then(newSubId => {
-        if (newSubId) {
-          console.log("[useFeedEvents] Refreshed subscription:", newSubId);
-        }
-      })
-      .catch(error => {
-        console.error("[useFeedEvents] Error refreshing feed:", error);
-      });
-  }, [feedType, following, activeHashtag, since, until, mediaOnly, subId, effectiveHashtags, setupSubscription]);
+    const newSubId = setupSubscription(newSince, currentTime, effectiveHashtags);
+    setSubId(newSubId);
+  };
 
   return {
     events,
@@ -182,7 +159,6 @@ export function useFeedEvents({
     refreshFeed,
     lastUpdated,
     cacheHit,
-    loadingFromCache,
-    connectionAttemptsMade
+    loadingFromCache
   };
 }

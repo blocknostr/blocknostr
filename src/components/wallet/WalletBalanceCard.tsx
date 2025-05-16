@@ -14,9 +14,15 @@ interface WalletBalanceCardProps {
   address: string;
   onRefresh?: () => void;
   className?: string;
+  refreshFlag?: number; // Add refreshFlag to trigger refreshes from parent
 }
 
-const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalanceCardProps) => {
+const WalletBalanceCard = ({ 
+  address, 
+  onRefresh, 
+  className = "",
+  refreshFlag = 0
+}: WalletBalanceCardProps) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [lockedBalance, setLockedBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,9 +67,29 @@ const WalletBalanceCard = ({ address, onRefresh, className = "" }: WalletBalance
     }
   };
   
+  // Fetch data when address changes
   useEffect(() => {
     fetchBalance();
     fetchPrice();
+  }, [address]);
+  
+  // Refresh data when refreshFlag changes (triggered by parent)
+  useEffect(() => {
+    if (refreshFlag > 0) {
+      fetchBalance();
+      fetchPrice();
+    }
+  }, [refreshFlag]);
+
+  // Auto-refresh every 5 minutes
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      fetchBalance();
+      fetchPrice();
+      console.log("Auto-refreshing balance data");
+    }, 5 * 60 * 1000); // 5 minutes in milliseconds
+
+    return () => clearInterval(refreshInterval); // Cleanup on unmount
   }, [address]);
 
   const handleRefresh = () => {

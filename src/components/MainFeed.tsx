@@ -25,9 +25,10 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
   const [isCustomizationDialogOpen, setIsCustomizationDialogOpen] = useState(false);
   const [scrolledDown, setScrolledDown] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasContent, setHasContent] = useState(false);
   const feedContainerRef = useRef<HTMLDivElement>(null);
   
+  // Store scroll position to restore later
+  const scrollPositionRef = useRef(0);
   const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const isOffline = contentCache.isOffline();
@@ -44,13 +45,18 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     const handleScroll = () => {
       const position = window.scrollY;
       setScrolledDown(position > 10);
+      
+      // Store current scroll position when not loading
+      if (!isLoading) {
+        scrollPositionRef.current = position;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [isLoading]);
   
   // Handle loading state changes
   useEffect(() => {
@@ -58,14 +64,22 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
     const handleLoadingChange = (event: CustomEvent) => {
       const isLoading = event.detail.isLoading;
       
-      if (isLoading && !hasContent) {
-        // Only apply scroll lock if there's no content
+      if (isLoading) {
+        // Store current scroll position before locking
+        scrollPositionRef.current = window.scrollY;
+        
+        // Apply scroll lock
         document.body.style.overflow = 'hidden';
         document.body.style.height = '100vh';
       } else {
         // Remove scroll lock
         document.body.style.overflow = '';
         document.body.style.height = '';
+        
+        // Restore scroll position
+        setTimeout(() => {
+          window.scrollTo(0, scrollPositionRef.current);
+        }, 50);
       }
       
       setIsLoading(isLoading);
@@ -79,18 +93,6 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       // Ensure scroll lock is removed when component unmounts
       document.body.style.overflow = '';
       document.body.style.height = '';
-    };
-  }, [hasContent]);
-
-  // Listen for content availability
-  useEffect(() => {
-    const handleContentChange = (event: CustomEvent) => {
-      setHasContent(event.detail.hasContent);
-    };
-    
-    window.addEventListener('feed-content-change', handleContentChange as EventListener);
-    return () => {
-      window.removeEventListener('feed-content-change', handleContentChange as EventListener);
     };
   }, []);
 
@@ -127,13 +129,13 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       className={cn(
         "max-w-2xl mx-auto",
         fontSizeClass,
-        isLoading && !hasContent ? "relative" : ""
+        isLoading ? "relative pointer-events-none" : ""
       )}
       ref={feedContainerRef}
     >
-      {/* Loading overlay - only visible when loading AND no content is available */}
-      {isLoading && !hasContent && (
-        <div className="absolute inset-0 bg-background/10 z-20" />
+      {/* Loading overlay - only visible when loading */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-20" />
       )}
       
       {/* Offline banner */}
@@ -143,7 +145,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         </div>
       )}
       
-      {/* Create Note Form */}
+      {/* Create Note Form - No longer in sticky container */}
       <div className="mb-4 px-2 sm:px-0 pt-2">
         <CreateNoteForm />
       </div>
@@ -198,17 +200,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
           className="relative"
         >
           <TabsContent value="global">
-            <GlobalFeed 
-              activeHashtag={activeHashtag} 
-              onLoadingChange={setIsLoading}
-              onContentChange={(hasContent) => {
-                setHasContent(hasContent);
-                // Dispatch event for any other components that need to know
-                window.dispatchEvent(new CustomEvent('feed-content-change', {
-                  detail: { hasContent }
-                }));
-              }}
-            />
+            <GlobalFeed activeHashtag={activeHashtag} onLoadingChange={setIsLoading} />
           </TabsContent>
           
           <TabsContent value="following">

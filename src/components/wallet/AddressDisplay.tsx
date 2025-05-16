@@ -2,27 +2,19 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, CheckCheck, Pencil } from "lucide-react";
+import { Copy, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
-import { SavedWallet } from "@/hooks/use-saved-wallets";
 
 interface AddressDisplayProps {
-  wallet: SavedWallet;
-  onLabelEdit?: (address: string, newLabel: string) => void;
-  className?: string;
+  address: string;
+  label?: string;
 }
 
-const AddressDisplay = ({ 
-  wallet, 
-  onLabelEdit,
-  className 
-}: AddressDisplayProps) => {
+const AddressDisplay = ({ address, label = "Your Address" }: AddressDisplayProps) => {
   const [copied, setCopied] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [newLabel, setNewLabel] = useState(wallet.label);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(wallet.address);
+    navigator.clipboard.writeText(address);
     setCopied(true);
     toast.success("Address copied to clipboard");
     
@@ -38,71 +30,28 @@ const AddressDisplay = ({
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 6)}`;
   };
 
-  const handleEditSave = () => {
-    if (isEditing) {
-      onLabelEdit?.(wallet.address, newLabel);
-    }
-    setIsEditing(!isEditing);
-  };
-
   return (
-    <Card className={`bg-muted/50 ${className}`}>
-      <CardContent className="flex items-center justify-between py-2 px-3">
-        {isEditing ? (
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="text-xs font-medium bg-background border px-1 py-0.5 rounded w-24 sm:w-32"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleEditSave();
-                }
-              }}
-            />
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleEditSave}
-              className="h-5 w-5 p-0"
-            >
-              <CheckCheck className="h-3 w-3" />
-              <span className="sr-only">Save label</span>
-            </Button>
+    <Card className="bg-muted/50">
+      <CardContent className="flex items-center justify-between py-1 px-2">
+        <div className="flex items-center gap-1">
+          <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center mr-1">
+            <span className="text-xs font-medium">ID</span>
           </div>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <div className="flex flex-col">
-              <p className="text-xs font-medium">
-                {wallet.label || "Connected Wallet"}
-                {onLabelEdit && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleEditSave}
-                    className="h-5 w-5 p-0 ml-1"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    <span className="sr-only">Edit label</span>
-                  </Button>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground break-all sm:break-normal">
-                {formatAddress(wallet.address)}
-              </p>
-            </div>
+          <div>
+            <p className="text-xs font-medium truncate max-w-[120px]">{label}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatAddress(address)}
+            </p>
           </div>
-        )}
+        </div>
         
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={copyToClipboard} 
-          className="h-7 px-2 py-0"
+          className="h-6 w-6 p-0"
         >
-          {copied ? <CheckCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <CheckCheck className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           <span className="sr-only">Copy address</span>
         </Button>
       </CardContent>
