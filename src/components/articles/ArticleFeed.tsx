@@ -26,6 +26,7 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
   
   useEffect(() => {
     setLoading(true);
+    console.log(`Fetching ${type} articles...`);
     
     const fetchArticles = async () => {
       try {
@@ -39,13 +40,14 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
         
         switch (type) {
           case "latest":
-            fetchedArticles = await nostrAdapter.searchArticles(params);
+            console.log("Fetching latest articles with params:", params);
+            fetchedArticles = await nostrAdapter.article.searchArticles(params);
             break;
             
           case "trending":
             // For trending, we'll simulate with most recent for now
-            // In a real app, this would use a more complex algorithm
-            fetchedArticles = await nostrAdapter.searchArticles({
+            console.log("Fetching trending articles");
+            fetchedArticles = await nostrAdapter.article.searchArticles({
               ...params,
               since: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 7, // Last 7 days
             });
@@ -53,17 +55,19 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
             
           case "following":
             if (isLoggedIn) {
+              console.log("Fetching following articles");
               // Get users the current user is following
               const following = nostrAdapter.social.following || [];
               
               if (following.length > 0) {
                 params.author = following.join('|'); // This is simplified; real impl would need multiple queries
-                fetchedArticles = await nostrAdapter.searchArticles(params);
+                fetchedArticles = await nostrAdapter.article.searchArticles(params);
               }
             }
             break;
             
           case "search":
+            console.log("Searching articles with params:", { searchQuery, hashtag, authorPubkey });
             if (searchQuery) {
               params.query = searchQuery;
             }
@@ -73,10 +77,11 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
             if (authorPubkey) {
               params.author = authorPubkey;
             }
-            fetchedArticles = await nostrAdapter.searchArticles(params);
+            fetchedArticles = await nostrAdapter.article.searchArticles(params);
             break;
         }
         
+        console.log(`Found ${fetchedArticles.length} articles for ${type}`, fetchedArticles);
         setArticles(fetchedArticles);
       } catch (error) {
         console.error("Error fetching articles:", error);

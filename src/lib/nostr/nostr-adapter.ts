@@ -411,6 +411,7 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   async searchArticles(params: any) {
+    console.log("NostrAdapter.searchArticles called with params:", params);
     return this.articleAdapter.searchArticles(params);
   }
   

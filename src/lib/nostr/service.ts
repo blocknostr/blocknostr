@@ -559,6 +559,54 @@ export class NostrService {
     }
   }
   
+  /**
+   * Query events based on filters
+   * @param filters Array of filter objects according to NIP-01
+   * @returns Promise resolving to array of events
+   */
+  public async queryEvents(filters: any[]): Promise<any[]> {
+    const connectedRelays = this.getConnectedRelayUrls();
+    
+    if (connectedRelays.length === 0) {
+      console.warn("No connected relays found, attempting to connect to default relays");
+      await this.connectToDefaultRelays();
+    }
+    
+    const updatedRelays = this.getConnectedRelayUrls();
+    if (updatedRelays.length === 0) {
+      console.error("No relays available for querying events");
+      return [];
+    }
+    
+    console.log(`Using relays for querying events:`, updatedRelays);
+    console.log(`With filters:`, filters);
+    
+    try {
+      return new Promise((resolve) => {
+        const events: any[] = [];
+        const startTime = Date.now();
+        
+        // Subscribe to events matching the filters
+        const sub = this.subscribe(filters, (event) => {
+          // Add event to our results
+          events.push(event);
+        }, updatedRelays);
+        
+        // Set timeout for the query (10 seconds)
+        setTimeout(() => {
+          this.unsubscribe(sub);
+          const timeElapsed = Date.now() - startTime;
+          
+          console.log(`Query completed in ${timeElapsed}ms. Found ${events.length} events`);
+          resolve(events);
+        }, 10000);
+      });
+    } catch (error) {
+      console.error("Error querying events:", error);
+      return [];
+    }
+  }
+  
   private async fetchFollowingList(): Promise<void> {
     if (!this.publicKey) return;
     

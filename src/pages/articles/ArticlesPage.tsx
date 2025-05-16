@@ -9,13 +9,13 @@ import ArticleFeed from "@/components/articles/ArticleFeed";
 import ArticleFeatured from "@/components/articles/ArticleFeatured";
 import RecommendedArticles from "@/components/articles/RecommendedArticles";
 import ArticleSearch from "@/components/articles/ArticleSearch";
-import { nostrService } from "@/lib/nostr";
+import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
 
 const ArticlesPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("latest");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const isLoggedIn = !!nostrService.publicKey;
+  const isLoggedIn = !!nostrAdapter.publicKey;
   
   return (
     <div className="container max-w-7xl mx-auto px-4 py-6">

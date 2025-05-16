@@ -1,4 +1,3 @@
-
 import { NostrEvent } from '../types';
 import { ArticleDraft, ArticleMetadata, ArticleSearchParams, ArticleVersion } from '../types/article';
 import { getTagValue } from '../utils/nip/nip10';
@@ -98,16 +97,18 @@ export class ArticleAdapter {
    */
   async getArticlesByAuthor(pubkey: string, limit: number = 10): Promise<NostrEvent[]> {
     try {
+      console.log(`Fetching articles by author ${pubkey}`);
       const filters = [
         {
           authors: [pubkey],
-          kinds: [30023],
+          kinds: [30023], // NIP-23 long-form content
           limit
         }
       ];
       
       // Use the pool to query events from relays
       const events = await this.service.queryEvents(filters);
+      console.log(`Found ${events.length} articles by author ${pubkey}`);
       return events;
     } catch (error) {
       console.error(`Error fetching articles by author ${pubkey}:`, error);
@@ -121,10 +122,11 @@ export class ArticleAdapter {
   async searchArticles(params: ArticleSearchParams): Promise<NostrEvent[]> {
     try {
       const { query, author, hashtag, since, until, limit = 20 } = params;
+      console.log("ArticleAdapter: Searching articles with params:", params);
       
       // Build the filter
       const filter: any = {
-        kinds: [30023],
+        kinds: [30023], // NIP-23 long-form content
         limit
       };
       
@@ -137,8 +139,11 @@ export class ArticleAdapter {
         filter['#t'] = [hashtag];
       }
       
+      console.log("Using filter:", filter);
+      
       // Execute the query
       let events = await this.service.queryEvents([filter]);
+      console.log(`Query returned ${events.length} articles`);
       
       // If there's a text query, filter results client-side
       if (query && query.trim().length > 0) {
@@ -155,11 +160,12 @@ export class ArticleAdapter {
           // Check the content
           return event.content.toLowerCase().includes(lowerQuery);
         });
+        console.log(`After text filtering, found ${events.length} articles`);
       }
       
       return events;
     } catch (error) {
-      console.error('Error searching articles:', error);
+      console.error("Error searching articles:", error);
       return [];
     }
   }
