@@ -81,7 +81,7 @@ const ArticleFeatured: React.FC = () => {
                 to={`/profile/${featuredArticle.pubkey}`}
                 className="text-sm font-medium hover:underline text-muted-foreground"
               >
-                By {formatPubkey(featuredArticle.pubkey, 'short')}
+                By {formatPubkey(featuredArticle.pubkey)}
               </Link>
             </div>
             

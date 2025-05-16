@@ -16,7 +16,7 @@ const ArticleAuthorCard: React.FC<ArticleAuthorCardProps> = ({ pubkey }) => {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const isLoggedIn = !!nostrAdapter.publicKey;
-  const isCurrentUser = adaptedNostrService.publicKey === pubkey;
+  const isCurrentUser = nostrAdapter.publicKey === pubkey;
   
   useEffect(() => {
     const fetchAuthorProfile = async () => {

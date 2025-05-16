@@ -109,8 +109,7 @@ const ArticleEditorPage: React.FC = () => {
         articleDraft.title,
         articleDraft.content,
         metadata,
-        tags,
-        articleDraft.publishedId
+        tags
       );
       
       if (eventId) {

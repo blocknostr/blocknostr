@@ -64,7 +64,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               to={`/profile/${article.pubkey}`}
               className="text-sm font-medium hover:underline text-muted-foreground"
             >
-              {formatPubkey(article.pubkey, 'short')}
+              {formatPubkey(article.pubkey)}
             </Link>
             <span className="text-xs text-muted-foreground">•</span>
             <span className="text-xs text-muted-foreground">{timeAgo}</span>

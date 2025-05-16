@@ -66,6 +66,14 @@ export class SocialAdapter extends BaseAdapter {
     return false;
   }
   
+  // Add the reactToEvent method
+  async reactToEvent(eventId: string, emoji: string = "+") {
+    if (this.service.reactToPost) {
+      return this.service.reactToPost(eventId, emoji);
+    }
+    return false;
+  }
+  
   // Social manager enhanced methods
   get socialManager() {
     return {
@@ -83,7 +91,7 @@ export class SocialAdapter extends BaseAdapter {
         });
       },
       reactToEvent: (eventId: string, emoji: string = "+") => {
-        return this.service.reactToPost(eventId, emoji);
+        return this.reactToEvent(eventId, emoji);
       }
     };
   }

@@ -96,3 +96,19 @@ export function validateNip10Tags(tags: string[][]): { valid: boolean; errors: s
   
   return { valid: errors.length === 0, errors };
 }
+
+/**
+ * Get a value from a specific tag type in a Nostr event
+ * @param event The Nostr event object or tag array
+ * @param tagName The tag name to look for (e.g., 'title', 'summary', etc.)
+ * @returns The tag value or undefined if not found
+ */
+export function getTagValue(event: any, tagName: string): string | undefined {
+  // If event is not an object with tags property, assume it's already a tags array
+  const tags = Array.isArray(event) ? event : (event?.tags || []);
+  
+  if (!Array.isArray(tags)) return undefined;
+  
+  const tag = tags.find(t => Array.isArray(t) && t[0] === tagName);
+  return tag && tag.length > 1 ? tag[1] : undefined;
+}

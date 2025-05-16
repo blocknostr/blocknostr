@@ -39,7 +39,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
           to={`/profile/${article.pubkey}`}
           className="font-medium no-underline hover:underline"
         >
-          {formatPubkey(article.pubkey, 'short')}
+          {formatPubkey(article.pubkey)}
         </Link>
         <span>•</span>
         <time dateTime={new Date(publishedAt).toISOString()}>
