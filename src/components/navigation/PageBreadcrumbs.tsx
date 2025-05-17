@@ -31,10 +31,10 @@ const PageBreadcrumbs: React.FC<PageBreadcrumbsProps> = ({
 
   return (
     <Breadcrumb className={className}>
-      <BreadcrumbList>
+      <BreadcrumbList className="flex-wrap">
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link to="/">Home</Link>
+            <Link to="/" className="hover:text-primary transition-colors">Home</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         
@@ -47,7 +47,7 @@ const PageBreadcrumbs: React.FC<PageBreadcrumbsProps> = ({
                 <BreadcrumbPage>{item.label}</BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link to={item.path}>{item.label}</Link>
+                  <Link to={item.path} className="hover:text-primary transition-colors">{item.label}</Link>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>

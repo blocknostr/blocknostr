@@ -15,7 +15,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const isLoggedIn = !!nostrService.publicKey;
   
   return (
-    <header className="sticky top-0 z-40 bg-background border-b h-14 flex items-center px-4">
+    <header className="sticky top-0 z-40 bg-transparent backdrop-blur-sm h-14 flex items-center px-4">
       <div className="flex items-center w-full max-w-7xl mx-auto justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleSidebar}>
