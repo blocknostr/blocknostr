@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
@@ -46,6 +47,7 @@ export function useDAO(daoId?: string) {
     
     // Set up subscription for real-time updates
     try {
+      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
       const unsubscribe = daoService.subscribeToDAOs((dao) => {
         setDaos(prevDaos => {
           // Only add if not already in the list
@@ -59,6 +61,7 @@ export function useDAO(daoId?: string) {
         setLoading(false);
       });
       
+      // Store the cleanup function reference
       subscriptionsRef.current.push(unsubscribe);
       
       // Set loading to false after a timeout even if no data received
@@ -68,7 +71,10 @@ export function useDAO(daoId?: string) {
       
       return () => {
         clearTimeout(timeout);
-        unsubscribe();
+        // Call the actual unsubscribe function
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
       };
     } catch (error) {
       console.error("Error subscribing to DAOs:", error);
@@ -92,7 +98,7 @@ export function useDAO(daoId?: string) {
     });
     
     try {
-      // Set up subscription for real-time updates
+      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
       const unsubscribe = daoService.subscribeToUserDAOs(currentUserPubkey, (dao) => {
         setMyDaos(prevDaos => {
           // Only add if not already in the list
@@ -116,7 +122,10 @@ export function useDAO(daoId?: string) {
       
       return () => {
         clearTimeout(timeout);
-        unsubscribe();
+        // Call the actual unsubscribe function
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
       };
     } catch (error) {
       console.error("Error subscribing to user DAOs:", error);
@@ -162,7 +171,7 @@ export function useDAO(daoId?: string) {
     });
     
     try {
-      // Set up subscription for real-time updates
+      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
       const unsubscribe = daoService.subscribeToDAO(daoId, (dao) => {
         if (dao) {
           setCurrentDao(dao);
@@ -180,7 +189,10 @@ export function useDAO(daoId?: string) {
       
       return () => {
         clearTimeout(timeout);
-        unsubscribe();
+        // Call the actual unsubscribe function
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
       };
     } catch (error) {
       console.error(`Error subscribing to DAO ${daoId}:`, error);
@@ -226,7 +238,7 @@ export function useDAO(daoId?: string) {
     });
     
     try {
-      // Set up subscription for real-time updates
+      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
       const unsubscribe = daoService.subscribeToDAOProposals(daoId, (proposal) => {
         setProposals(prevProposals => {
           // Update or add the proposal
@@ -274,7 +286,10 @@ export function useDAO(daoId?: string) {
       
       return () => {
         clearTimeout(timeout);
-        unsubscribe();
+        // Call the actual unsubscribe function
+        if (unsubscribe && typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
       };
     } catch (error) {
       console.error(`Error subscribing to proposals for DAO ${daoId}:`, error);
@@ -290,36 +305,71 @@ export function useDAO(daoId?: string) {
     
     if (daoId) {
       // Viewing a specific DAO
-      unsubFuncs.push(subscribeToDAO());
-      unsubFuncs.push(subscribeToProposals());
+      const subDao = subscribeToDAO();
+      if (subDao) unsubFuncs.push(subDao);
+      
+      const subProposals = subscribeToProposals();
+      if (subProposals) unsubFuncs.push(subProposals);
     } else {
       // Viewing DAOs list
-      unsubFuncs.push(subscribeToDAOs());
-      unsubFuncs.push(subscribeToMyDAOs());
+      const subGeneral = subscribeToDAOs();
+      if (subGeneral) unsubFuncs.push(subGeneral);
+      
+      const subMy = subscribeToMyDAOs();
+      if (subMy) unsubFuncs.push(subMy);
+      
       subscribeToTrendingDAOs(); // This doesn't return an unsubscribe function
     }
     
     return () => {
       // Clean up all subscriptions
-      unsubFuncs.forEach(unsub => unsub && unsub());
+      unsubFuncs.forEach(unsub => {
+        if (unsub && typeof unsub === 'function') {
+          try {
+            unsub();
+          } catch (error) {
+            console.error("Error during cleanup:", error);
+          }
+        }
+      });
       
       // Also clean up any references
       if (userSubscriptionRef.current) {
-        userSubscriptionRef.current();
+        try {
+          userSubscriptionRef.current();
+        } catch (error) {
+          console.error("Error cleaning up user subscription:", error);
+        }
         userSubscriptionRef.current = null;
       }
       
       if (daoSubscriptionRef.current) {
-        daoSubscriptionRef.current();
+        try {
+          daoSubscriptionRef.current();
+        } catch (error) {
+          console.error("Error cleaning up DAO subscription:", error);
+        }
         daoSubscriptionRef.current = null;
       }
       
       if (proposalSubscriptionRef.current) {
-        proposalSubscriptionRef.current();
+        try {
+          proposalSubscriptionRef.current();
+        } catch (error) {
+          console.error("Error cleaning up proposal subscription:", error);
+        }
         proposalSubscriptionRef.current = null;
       }
       
-      subscriptionsRef.current.forEach(unsub => unsub());
+      subscriptionsRef.current.forEach(unsub => {
+        if (unsub && typeof unsub === 'function') {
+          try {
+            unsub();
+          } catch (error) {
+            console.error("Error cleaning up subscription:", error);
+          }
+        }
+      });
       subscriptionsRef.current = [];
     };
   }, [daoId, currentUserPubkey, subscribeToDAOs, subscribeToMyDAOs, subscribeToTrendingDAOs, subscribeToDAO, subscribeToProposals]);

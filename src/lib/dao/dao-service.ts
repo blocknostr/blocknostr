@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import { Event, Filter } from 'nostr-tools';
 import { convertToFilter, flattenPromises, promiseAny } from './dao-utils';
@@ -53,22 +54,28 @@ export class DAOService {
     }
   }
 
-  async subscribeToUserDAOs(pubkey: string, callback: (dao: DAO) => void): Promise<() => void> {
+  // IMPORTANT: Return a function directly, not a Promise<function>
+  subscribeToUserDAOs(pubkey: string, callback: (dao: DAO) => void): () => void {
     try {
       // Setup subscription for user DAOs
-      const unsub = () => {};
-      return unsub;
+      console.log("Setting up subscription for user DAOs");
+      return () => {
+        console.log("Cleaning up user DAOs subscription");
+      };
     } catch (error) {
       console.error("Error subscribing to user DAOs:", error);
       return () => {};
     }
   }
 
-  async subscribeToDAOProposals(daoId: string, callback: (proposal: DAOProposal) => void): Promise<() => void> {
+  // IMPORTANT: Return a function directly, not a Promise<function>
+  subscribeToDAOProposals(daoId: string, callback: (proposal: DAOProposal) => void): () => void {
     try {
       // Setup subscription for DAO proposals
-      const unsub = () => {};
-      return unsub;
+      console.log("Setting up subscription for DAO proposals");
+      return () => {
+        console.log("Cleaning up DAO proposals subscription");
+      };
     } catch (error) {
       console.error("Error subscribing to DAO proposals:", error);
       return () => {};
@@ -105,12 +112,13 @@ export class DAOService {
     }
   }
 
-  async voteOnKickProposal(proposalId: string, optionIndex: number): Promise<boolean> {
+  voteOnKickProposal(proposalId: string, optionIndex: number): Promise<boolean> {
     // This is just a wrapper around voteOnProposal for semantic clarity
     return this.voteOnProposal(proposalId, optionIndex);
   }
 
-  async subscribeToDAOs(callback: (dao: DAO) => void): Promise<() => void> {
+  // IMPORTANT: Return a function directly, not a Promise<function>
+  subscribeToDAOs(callback: (dao: DAO) => void): () => void {
     try {
       // Use the adapterInstance property instead of adapter
       const sub = this.adapterInstance.subscribeToEvents([{
@@ -126,7 +134,13 @@ export class DAOService {
           console.log("DAO subscription closed");
         }
       });
-      return sub.unsubscribe;
+      
+      // Return a proper cleanup function
+      return () => {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+      };
     } catch (error) {
       console.error("Error subscribing to DAOs:", error);
       return () => {};
@@ -154,7 +168,8 @@ export class DAOService {
     };
   }
 
-  async subscribeToDAO(daoId: string, callback: (dao: DAO) => void): Promise<() => void> {
+  // IMPORTANT: Return a function directly, not a Promise<function>
+  subscribeToDAO(daoId: string, callback: (dao: DAO) => void): () => void {
     try {
       // Use the adapterInstance property
       const sub = this.adapterInstance.subscribeToEvents([{
@@ -169,7 +184,13 @@ export class DAOService {
           console.log("DAO subscription closed");
         }
       });
-      return sub.unsubscribe;
+      
+      // Return a proper cleanup function
+      return () => {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+      };
     } catch (error) {
       console.error("Error subscribing to DAO:", error);
       return () => {};
@@ -334,4 +355,4 @@ export class DAOService {
 }
 
 // Create and export the daoService instance
-export const daoService = new DAOService(nostrService, nostrService.adapter);
+export const daoService = new DAOService(nostrService, nostrService.getAdapter());

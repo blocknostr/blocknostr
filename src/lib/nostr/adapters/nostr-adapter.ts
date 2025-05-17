@@ -81,30 +81,57 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   subscribeToEvents(filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) {
-    // Access pool through the service
-    if (typeof this.service.getPool !== 'function') {
-      throw new Error("getPool method is not available on the service");
+    try {
+      // Check if the pool is available
+      if (typeof this.service.getPool !== 'function') {
+        console.error("getPool method is not available on the service");
+        return {
+          unsubscribe: () => {}
+        };
+      }
+      
+      const pool = this.service.getPool();
+      if (!pool) {
+        console.error("Pool is not available");
+        return {
+          unsubscribe: () => {}
+        };
+      }
+      
+      // Make sure the pool has a sub method
+      if (typeof pool.sub !== 'function') {
+        console.error("Pool does not have a sub method");
+        return {
+          unsubscribe: () => {}
+        };
+      }
+      
+      const sub = pool.sub(relays, filters);
+      
+      // Set up event handlers
+      sub.on('event', (event: any) => {
+        callbacks.onevent(event);
+      });
+      
+      sub.on('eose', () => {
+        // End of stored events
+      });
+      
+      // Return a valid unsubscribe function
+      return {
+        unsubscribe: () => {
+          if (sub && typeof sub.unsub === 'function') {
+            sub.unsub();
+          }
+        }
+      };
+    } catch (error) {
+      console.error("Error in subscribeToEvents:", error);
+      // Return a no-op unsubscribe function to avoid runtime errors
+      return {
+        unsubscribe: () => {}
+      };
     }
-    
-    const pool = this.service.getPool();
-    if (!pool) {
-      throw new Error("Pool is not available");
-    }
-    
-    const sub = pool.sub(relays, filters);
-    
-    sub.on('event', (event: any) => {
-      callbacks.onevent(event);
-    });
-    
-    sub.on('eose', () => {
-      // End of stored events
-    });
-    
-    return {
-      sub,
-      unsubscribe: () => sub.unsub()
-    };
   }
   
   // Manager getters
