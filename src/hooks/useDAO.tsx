@@ -173,9 +173,9 @@ export function useDAO(daoId?: string) {
   }, [fetchDaoDetails]);
   
   // Create new DAO
-  const createDAO = async (name: string, description: string, tags: string[] = [], alephiumProjectId?: string) => {
+  const createDAO = async (name: string, description: string, tags: string[] = []) => {
     try {
-      console.log(`Creating new DAO: ${name}, linked to Alephium project: ${alephiumProjectId || 'none'}`);
+      console.log(`Creating new DAO: ${name}`);
       
       if (!name.trim()) {
         toast.error("DAO name is required");
@@ -187,8 +187,7 @@ export function useDAO(daoId?: string) {
         return null;
       }
       
-      // Pass the Alephium project ID to the service
-      const daoId = await daoService.createDAO(name, description, tags, alephiumProjectId);
+      const daoId = await daoService.createDAO(name, description, tags);
       
       if (daoId) {
         toast.success("Successfully created DAO");

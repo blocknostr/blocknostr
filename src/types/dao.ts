@@ -4,11 +4,13 @@ export interface DAO {
   id: string;            // Event ID of the community definition event
   name: string;          // Community name
   description: string;   // Community description
-  image?: string;         // Community image URL
+  image: string;         // Community image URL
   creator: string;       // Pubkey of the community creator
   createdAt: number;     // Timestamp of community creation
   members: string[];     // List of member pubkeys
   moderators: string[];  // List of moderator pubkeys (NIP-72)
+  guidelines?: string;   // Community guidelines (optional)
+  isPrivate?: boolean;   // Whether the community is private (invitation only)
   treasury: {
     balance: number;
     tokenSymbol: string;
@@ -16,9 +18,6 @@ export interface DAO {
   proposals: number;     // Total number of proposals
   activeProposals: number; // Number of active proposals
   tags: string[];       // Community tags
-  isPrivate: boolean;   // Whether the community is private (invitation only)
-  guidelines?: string;   // Community guidelines (optional)
-  alephiumProject?: string | null; // Alephium project ID (optional)
 }
 
 export interface DAOProposal {
