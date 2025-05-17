@@ -1,5 +1,5 @@
 
-import { SimplePool } from 'nostr-tools';
+import { SimplePool, Event, getEventHash, generatePrivateKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 
 /**
@@ -154,14 +154,49 @@ export class NostrAdapter {
   get relays(): Relay[] {
     return this._relays;
   }
+
+  // Add getRelayUrls method to fix the errors
+  getRelayUrls = (): string[] => {
+    return this._relays.map(relay => relay.url);
+  }
+  
+  // Add signEvent method
+  signEvent = (event: Partial<Event>): Event => {
+    // Generate a private key for testing purposes
+    const sk = generatePrivateKey();
+    const pk = getPublicKey(sk);
+    
+    // Fill in required fields if they're missing
+    const completeEvent: Event = {
+      id: '',
+      pubkey: pk,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: event.kind || 1,
+      tags: event.tags || [],
+      content: event.content || '',
+      sig: ''
+    };
+    
+    // Set the ID
+    completeEvent.id = getEventHash(completeEvent);
+    
+    // In a real implementation, this would use NDK or the browser extension to sign
+    // For now, we're just returning the event with mock data
+    completeEvent.sig = 'mock_signature_for_testing';
+    
+    return completeEvent;
+  }
   
   // Add missing subscribeToEvents method
   subscribeToEvents = (filters: any[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
     const sub = 'subscription-' + Math.random().toString(36).substring(2, 10);
     console.log(`Subscribing to events with filters:`, filters);
+    
+    // Set up a timeout to simulate subscription closure after some time
     setTimeout(() => {
       callbacks.onclose();
     }, 5000);
+    
     return {
       sub,
       unsubscribe: () => console.log(`Unsubscribing from ${sub}`)
