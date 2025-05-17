@@ -20,6 +20,7 @@ export class DAOService {
   private pool: SimplePool;
   private relays: string[];
   private fastRelays: string[]; // Subset of faster, more reliable relays
+  private serialNumberCounter: number = 1;
   
   constructor() {
     this.pool = new SimplePool();
@@ -75,10 +76,19 @@ export class DAOService {
           dao.name.trim() !== ""
         );
       
-      // Cache the results
-      daoCache.cacheAllDAOs(daos);
+      // Assign serial numbers to DAOs
+      const daosWithSerialNumbers = daos.map((dao, index) => ({
+        ...dao,
+        serialNumber: index + 1
+      }));
       
-      return daos;
+      // Update the counter to ensure unique serial numbers
+      this.serialNumberCounter = Math.max(this.serialNumberCounter, daosWithSerialNumbers.length + 1);
+      
+      // Cache the results
+      daoCache.cacheAllDAOs(daosWithSerialNumbers);
+      
+      return daosWithSerialNumbers;
     } catch (error) {
       console.error("Error fetching DAOs:", error);
       return [];
@@ -102,8 +112,24 @@ export class DAOService {
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
+      // Maintain existing serial numbers if available and assign new ones
+      const existingDAOs = daoCache.getAllDAOs() || [];
+      const existingDAOMap = new Map(existingDAOs.map(dao => [dao.id, dao]));
+      
+      const daosWithSerialNumbers = daos.map((dao, index) => {
+        const existingDAO = existingDAOMap.get(dao.id);
+        return {
+          ...dao,
+          serialNumber: existingDAO?.serialNumber || (index + 1)
+        };
+      });
+      
+      // Update the counter
+      const maxSerialNumber = Math.max(...daosWithSerialNumbers.map(dao => dao.serialNumber || 0), 0);
+      this.serialNumberCounter = Math.max(this.serialNumberCounter, maxSerialNumber + 1);
+      
       // Update cache with fresh data
-      daoCache.cacheAllDAOs(daos);
+      daoCache.cacheAllDAOs(daosWithSerialNumbers);
     } catch (error) {
       console.error("Error refreshing DAOs:", error);
     }
@@ -423,6 +449,9 @@ export class DAOService {
       // Generate a unique identifier for the DAO
       const uniqueId = `dao_${Math.random().toString(36).substring(2, 10)}`;
       
+      // Generate a unique serial number for the DAO
+      const serialNumber = this.serialNumberCounter++;
+      
       const communityData = {
         name: trimmedName, // Use trimmed name
         description,
@@ -435,7 +464,8 @@ export class DAOService {
         },
         proposals: 0,
         activeProposals: 0,
-        tags: tags
+        tags: tags,
+        serialNumber: serialNumber // Add the serial number
       };
       
       // NIP-72 compliant community event
@@ -444,7 +474,8 @@ export class DAOService {
         content: JSON.stringify(communityData),
         tags: [
           ["d", uniqueId], // Unique identifier as required by NIP-72
-          ["p", pubkey] // Creator is the first member
+          ["p", pubkey], // Creator is the first member
+          ["serialNumber", serialNumber.toString()] // Add the serial number as a tag for retrieval
         ]
       };
       
@@ -1186,6 +1217,15 @@ export class DAOService {
         .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
         .map(tag => tag[1]);
       
+      // Extract serialNumber from tags or content
+      let serialNumber = content.serialNumber;
+      if (!serialNumber) {
+        const serialTag = event.tags.find(tag => tag.length >= 2 && tag[0] === 'serialNumber');
+        if (serialTag) {
+          serialNumber = parseInt(serialTag[1], 10);
+        }
+      }
+      
       // Construct DAO object
       const dao: DAO = {
         id: event.id,
@@ -1204,7 +1244,8 @@ export class DAOService {
         },
         proposals: content.proposals || 0,
         activeProposals: content.activeProposals || 0,
-        tags: content.tags || []
+        tags: content.tags || [],
+        serialNumber: serialNumber || undefined
       };
       
       return dao;
