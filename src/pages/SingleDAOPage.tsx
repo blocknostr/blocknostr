@@ -15,8 +15,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import DAOPageHeader from "@/components/dao/DAOPageHeader";
 import DAOGuidelines from "@/components/dao/DAOGuidelines";
-import DAOGroupChat from "@/components/dao/DAOGroupChat";
-import { formatDAOSerialNumber } from "@/lib/dao/serial-number";
 
 const SingleDAOPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -193,18 +191,13 @@ const SingleDAOPage: React.FC = () => {
     return await voteOnKickProposal(proposalId, optionIndex);
   };
 
-  // Generate a serial number if one doesn't exist (temporary)
-  // In a real implementation, this would come from the backend
-  const serialNumber = currentDao.serialNumber || Math.floor(Math.random() * 10000) + 1;
-  const formattedSerialNumber = formatDAOSerialNumber(serialNumber);
-
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
       <div className="flex-1 ml-0 md:ml-64 overflow-auto">
         <DAOPageHeader
-          name={`${currentDao.name} ${formattedSerialNumber}`}
+          name={currentDao.name}
           isMember={isMemberOfCurrentDao}
           isCreator={isCreatorOfCurrentDao}
           isCreatorOnlyMember={isCreatorOnlyMember}
@@ -215,11 +208,11 @@ const SingleDAOPage: React.FC = () => {
           isPrivate={currentDao.isPrivate}
         />
         
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 py-6 max-w-3xl"> {/* Changed max-w-4xl to max-w-3xl for better centering */}
           <div className="space-y-5">
             {/* DAO Info */}
             <DAOHeader 
-              dao={{...currentDao, serialNumber}}
+              dao={currentDao}
               currentUserPubkey={currentUserPubkey}
               userRole={userRole}
               onLeaveDAO={handleLeaveDAO}
@@ -227,18 +220,8 @@ const SingleDAOPage: React.FC = () => {
               isCreatorOnlyMember={isCreatorOnlyMember}
             />
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Group Chat - Left Side */}
-              <div className="lg:col-span-1">
-                <div className="space-y-5">
-                  <DAOGroupChat 
-                    dao={{...currentDao, serialNumber}}
-                    currentUserPubkey={currentUserPubkey}
-                  />
-                </div>
-              </div>
-              
-              {/* Main Content - Center */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content */}
               <div className="lg:col-span-2 space-y-5">
                 <Tabs defaultValue="proposals" className="w-full">
                   <TabsList className="grid grid-cols-2 mb-4">

@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
 import { Users } from "lucide-react";
-import { formatDAOSerialNumber } from "@/lib/dao/serial-number";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -23,6 +22,7 @@ const DAOList = () => {
   const [connectionError, setConnectionError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("trending");
+  
   const isLoggedIn = !!nostrService.publicKey;
   
   const {
@@ -39,7 +39,7 @@ const DAOList = () => {
     fetchMyDAOs,
     fetchTrendingDAOs
   } = useDAO();
-
+  
   // Lazy load only the data for the current tab
   useEffect(() => {
     const loadTabData = async () => {
@@ -54,61 +54,49 @@ const DAOList = () => {
           break;
       }
     };
+    
     loadTabData();
   }, [activeTab, currentUserPubkey, fetchMyDAOs, fetchTrendingDAOs]);
-
+  
   // Determine which list and loading state to use based on active tab
   const getDaoList = () => {
     switch (activeTab) {
-      case "my-daos":
+      case "my-daos": 
         return myDaos;
-      case "trending":
+      case "trending": 
         return trendingDaos;
-      default:
+      default: 
         return daos;
     }
   };
   
   const getLoadingState = () => {
     switch (activeTab) {
-      case "my-daos":
+      case "my-daos": 
         return loadingMyDaos;
-      case "trending":
+      case "trending": 
         return loadingTrending;
-      default:
+      default: 
         return loading;
     }
   };
   
   const daoList = getDaoList();
   const isLoading = getLoadingState();
-
-  // Filter by search term or serial number
-  const filteredDaos = searchTerm ? daoList.filter(dao => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Check if searching by serial number format
-    if (searchLower.startsWith('#')) {
-      // If dao has a serialNumber, format it and compare
-      if (dao.serialNumber) {
-        const serialFormatted = formatDAOSerialNumber(dao.serialNumber).toLowerCase();
-        return serialFormatted.includes(searchLower);
-      }
-      return false;
-    }
-    
-    // Regular search by name, description, or tags
-    return (
-      dao.name.toLowerCase().includes(searchLower) || 
-      dao.description.toLowerCase().includes(searchLower) || 
-      dao.tags.some(tag => tag.toLowerCase().includes(searchLower))
-    );
-  }) : daoList;
-
+  
+  // Filter by search term
+  const filteredDaos = searchTerm 
+    ? daoList.filter(dao => 
+        dao.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        dao.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dao.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : daoList;
+  
   // Split the DAOs into carousel and remaining display portions
   const carouselDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
   const remainingDaos = filteredDaos.slice(ITEMS_PER_PAGE);
-
+  
   // Connection check
   useEffect(() => {
     const checkConnection = async () => {
@@ -157,7 +145,7 @@ const DAOList = () => {
       setIsRefreshing(false);
     }
   };
-  
+
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
@@ -167,26 +155,26 @@ const DAOList = () => {
       window.location.reload(); // Refresh after login
     });
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div className="relative w-full sm:w-64 mb-4 sm:mb-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            type="search" 
-            placeholder="Search DAOs or #AAA000 serial" 
-            className="pl-8" 
-            value={searchTerm} 
-            onChange={e => setSearchTerm(e.target.value)} 
+          <Input
+            type="search"
+            placeholder="Search DAOs..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         
         <div className="flex space-x-2">
           <Button 
-            variant="outline" 
-            onClick={handleRefreshDAOs} 
-            disabled={isRefreshing || isLoading} 
+            variant="outline"
+            onClick={handleRefreshDAOs}
+            disabled={isRefreshing || isLoading}
             className="w-full sm:w-auto"
             title="Refresh DAOs"
           >
@@ -195,8 +183,8 @@ const DAOList = () => {
           </Button>
           
           <Button 
-            onClick={() => setCreateDialogOpen(true)} 
-            className="w-full sm:w-auto" 
+            onClick={() => setCreateDialogOpen(true)}
+            className="w-full sm:w-auto"
             disabled={!currentUserPubkey}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -205,9 +193,9 @@ const DAOList = () => {
         </div>
         
         <CreateDAODialog 
-          open={createDialogOpen} 
-          onOpenChange={setCreateDialogOpen} 
-          onCreateDAO={handleCreateDAO} 
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          onCreateDAO={handleCreateDAO}
         />
       </div>
       
@@ -226,7 +214,11 @@ const DAOList = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="trending" className="w-full" onValueChange={handleTabChange}>
+      <Tabs 
+        defaultValue="trending" 
+        className="w-full" 
+        onValueChange={handleTabChange}
+      >
         <TabsList className="w-full sm:w-auto mb-4">
           <TabsTrigger value="my-daos" disabled={!isLoggedIn}>
             <Users className="h-4 w-4 mr-2" />
@@ -247,7 +239,12 @@ const DAOList = () => {
                 <div className="space-y-8">
                   <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
                   
-                  {remainingDaos.length > 0}
+                  {remainingDaos.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
+                      <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
