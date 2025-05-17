@@ -131,6 +131,18 @@ const DAOList = () => {
         </div>
         
         <div className="flex space-x-2">
+          {connectionError && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRetryConnection}
+              className="flex items-center text-destructive border-destructive"
+            >
+              <AlertCircle className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">Connection error</span>
+            </Button>
+          )}
+          
           <Button 
             variant="outline"
             onClick={handleRefreshDAOs}
@@ -159,21 +171,6 @@ const DAOList = () => {
         />
       </div>
       
-      {/* Connection error alert */}
-      {connectionError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>
-              Unable to connect to Nostr relays or no DAOs found. Please check your connection and try again.
-            </span>
-            <Button variant="outline" onClick={handleRetryConnection} size="sm" className="ml-2">
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {isLoggedIn && (
         <div className="flex items-center gap-2 mb-2">
           <Users className="h-5 w-5 text-primary" />
