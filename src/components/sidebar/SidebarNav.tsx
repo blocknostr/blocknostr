@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { 
   Home, 
@@ -10,9 +10,11 @@ import {
   FileText, 
   Wallet, 
   Crown,
-  BookOpen
+  BookOpen,
+  UserRound
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
+import { nostrService } from "@/lib/nostr";
 
 interface SidebarNavProps {
   isLoggedIn: boolean;
@@ -20,6 +22,21 @@ interface SidebarNavProps {
 
 const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const location = useLocation();
+  const [profileUrl, setProfileUrl] = useState("/profile-view");
+  
+  // Update profile URL when auth state changes
+  useEffect(() => {
+    if (isLoggedIn && nostrService.publicKey) {
+      try {
+        const npub = nostrService.getNpubFromHex(nostrService.publicKey);
+        setProfileUrl(`/profile-view/${npub}`);
+      } catch (error) {
+        console.error("Failed to convert pubkey to npub:", error);
+      }
+    } else {
+      setProfileUrl("/profile-view");
+    }
+  }, [isLoggedIn]);
   
   const navItems = [
     {
@@ -33,6 +50,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Wallet,
       href: "/wallets",
       requiresAuth: true
+    },
+    {
+      name: "Profile",
+      icon: UserRound,
+      href: profileUrl,
+      requiresAuth: false
     },
     {
       name: "Notifications",
@@ -86,7 +109,10 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
             return null;
           }
           
-          const isActive = location.pathname === item.href;
+          // Check if current path starts with the nav item's href
+          const isActive = item.href !== "/" ? 
+            location.pathname.startsWith(item.href) : 
+            location.pathname === "/";
           
           return (
             <SidebarNavItem
