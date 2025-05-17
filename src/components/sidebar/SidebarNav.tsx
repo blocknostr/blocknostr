@@ -11,7 +11,7 @@ import {
   Wallet, 
   Crown,
   BookOpen,
-  Globe
+  Compass
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -55,7 +55,7 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
     },
     {
       name: "Communities",
-      icon: Globe,
+      icon: Compass,
       href: "/communities",
       requiresAuth: false
     },
