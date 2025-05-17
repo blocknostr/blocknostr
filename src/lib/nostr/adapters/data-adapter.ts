@@ -42,10 +42,9 @@ export class DataAdapter extends BaseAdapter {
         limit
       };
       
-      // Use the existing getEvents method with the filter
-      // We need to pass an array of filters, not just a single filter
-      const events = await this.service.getEvents([filter]);
-      return Array.isArray(events) ? events : [];
+      // Use the service's queryEvents method which accepts Filter objects
+      // This avoids the type mismatch with getEvents which expects string IDs
+      return await this.service.queryEvents([filter]) || [];
     } catch (error) {
       console.error(`Error getting events for user ${pubkey}:`, error);
       return [];
