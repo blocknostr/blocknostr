@@ -40,6 +40,9 @@ export default function SingleDAOPage() {
   const [userIsMember, setUserIsMember] = useState(false);
   const [userIsCreator, setUserIsCreator] = useState(false);
   const [userIsModerator, setUserIsModerator] = useState(false);
+  const [inviteLinks, setInviteLinks] = useState<string[]>([]);
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [kickProposals, setKickProposals] = useState<any[]>([]);
   
   const { createProposal, createKickProposal, joinDAO, leaveDAO, deleteDAO, currentUserPubkey } = useDAO();
   const { daoId } = useParams();
@@ -60,6 +63,14 @@ export default function SingleDAOPage() {
       }
       
       setDao(daoData);
+      
+      // Fetch proposals
+      const daoProposals = await daoService.getDAOProposals(daoId);
+      setProposals(daoProposals);
+      
+      // Fetch kick proposals
+      const daoKickProposals = await daoService.getDAOKickProposals(daoId);
+      setKickProposals(daoKickProposals);
       
       // Set user roles
       const pubkey = nostrService.publicKey;
@@ -152,6 +163,40 @@ export default function SingleDAOPage() {
     // Reload the DAO data after settings update
     fetchData();
   };
+  
+  const handleVoteOnProposal = async (proposalId: string, optionIndex: number): Promise<boolean> => {
+    try {
+      const result = await daoService.voteOnProposal(proposalId, optionIndex);
+      if (result) {
+        toast.success("Vote recorded successfully!");
+        fetchData();
+      }
+      return result;
+    } catch (error) {
+      console.error("Error voting:", error);
+      toast.error("Failed to vote on proposal");
+      return false;
+    }
+  };
+  
+  const handleCreateInvite = async (): Promise<string | null> => {
+    if (!daoId) return null;
+    
+    try {
+      const inviteId = await daoService.createDAOInvite(daoId);
+      if (inviteId) {
+        // In a real app, we would create an invite link
+        const newInviteLink = `https://app.blocknoster.com/dao/invite/${inviteId}`;
+        setInviteLinks(prev => [...prev, newInviteLink]);
+        return inviteId;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      toast.error("Failed to create invite");
+      return null;
+    }
+  };
 
   if (loading) {
     return (
@@ -171,7 +216,6 @@ export default function SingleDAOPage() {
       <div className="container max-w-7xl py-8">
         <PageHeader
           title="DAO Not Found"
-          backButton={{ href: "/dao", label: "Back to DAOs" }} 
         />
         <Alert variant="destructive" className="mt-6">
           <AlertTriangle className="h-4 w-4" />
@@ -247,28 +291,27 @@ export default function SingleDAOPage() {
               
               {dao.guidelines && (
                 <DAOGuidelines 
-                  guidelines={dao.guidelines} 
-                  canEdit={userIsCreator} 
+                  guidelines={dao.guidelines}
+                  canEdit={userIsCreator}
                   onUpdate={() => fetchData()}
                 />
               )}
               
-              {/* We'll need to adjust these components to match their expected props */}
+              {/* Proposals list */}
               <DAOProposalsList 
                 daoId={dao.id} 
-                currentUserPubkey={currentUserPubkey || ""} 
-                proposals={[]} // This would need to be fetched separately
+                currentUserPubkey={currentUserPubkey || ""}
+                proposals={proposals}
                 isLoading={false}
                 isMember={userIsMember}
                 isCreator={userIsCreator}
-                onVote={() => {}} // This would need implementation
-                onRefresh={() => {}} // This would need implementation
               />
               
               {/* Kick proposals section */}
               {(userIsCreator || userIsModerator) && (
                 <DAOKickProposalsList 
-                  proposalId={dao.id}
+                  daoId={dao.id}
+                  proposals={kickProposals}
                   currentUserPubkey={currentUserPubkey || ""}
                 />
               )}
@@ -287,11 +330,18 @@ export default function SingleDAOPage() {
               <DAOMembersList 
                 dao={dao}
                 currentUserPubkey={currentUserPubkey || ""}
+                onKickProposal={handleCreateKickProposal}
+                kickProposals={kickProposals}
+                onVoteKick={handleVoteOnProposal}
+                onLeaveDAO={handleLeaveDAO}
               />
               
               {userIsCreator && (
                 <DAOInvites 
                   daoId={dao.id}
+                  inviteLinks={inviteLinks}
+                  onCreateInvite={handleCreateInvite}
+                  isPrivate={dao.isPrivate}
                 />
               )}
             </TabsContent>
@@ -436,12 +486,14 @@ export default function SingleDAOPage() {
         currentUserPubkey={currentUserPubkey || ""}
       />
       
-      <DAOSettingsDialog
-        open={isSettingsDialogOpen}
-        onOpenChange={setIsSettingsDialogOpen}
-        dao={dao}
-        onUpdate={handleUpdateSettings}
-      />
+      {dao && (
+        <DAOSettingsDialog
+          isOpen={isSettingsDialogOpen}
+          onClose={() => setIsSettingsDialogOpen(false)}
+          dao={dao}
+          onUpdate={handleUpdateSettings}
+        />
+      )}
     </div>
   );
 }

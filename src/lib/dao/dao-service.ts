@@ -200,7 +200,7 @@ async function getDAOs(): Promise<DAO[]> {
   try {
     const events = await nostrService.getEvents({
       filter: {
-        kinds: [DAO_KINDS.COMMUNITY],
+        kind: [DAO_KINDS.COMMUNITY],
         limit: 100
       }
     });
@@ -229,7 +229,7 @@ async function getUserDAOs(pubkey: string): Promise<DAO[]> {
   try {
     const events = await nostrService.getEvents({
       filter: {
-        kinds: [DAO_KINDS.COMMUNITY],
+        kind: [DAO_KINDS.COMMUNITY],
         authors: [pubkey],
         limit: 100
       }
@@ -646,7 +646,7 @@ async function getDAOProposals(daoId: string): Promise<DAOProposal[]> {
   try {
     const events = await nostrService.getEvents({
       filter: {
-        kinds: [DAO_KINDS.PROPOSAL],
+        kind: [DAO_KINDS.PROPOSAL],
         "#e": [daoId], // Proposals for this DAO
         limit: 100
       }
@@ -671,7 +671,7 @@ async function getDAOKickProposals(daoId: string): Promise<DAOProposal[]> {
   try {
     const events = await nostrService.getEvents({
       filter: {
-        kinds: [DAO_KINDS.PROPOSAL],
+        kind: [DAO_KINDS.PROPOSAL],
         "#e": [daoId], // Proposals for this DAO
         "#reason": [], // Kick proposals with a reason tag
         limit: 100

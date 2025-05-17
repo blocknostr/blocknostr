@@ -69,12 +69,32 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
           </div>
         )}
         
-        {/* Action buttons can be added here based on user role */}
-        {userIsMember && onOpenSettings && userIsCreator && (
-          <Button onClick={onOpenSettings} variant="outline">
-            DAO Settings
-          </Button>
-        )}
+        {/* Action buttons based on user role */}
+        <div className="flex gap-2 flex-wrap">
+          {!userIsMember && !userIsCreator && onJoinDAO && (
+            <Button onClick={onJoinDAO} variant="default">
+              Join DAO
+            </Button>
+          )}
+          
+          {userIsMember && !userIsCreator && onLeaveDAO && (
+            <Button onClick={onLeaveDAO} variant="outline" className="text-red-500">
+              Leave DAO
+            </Button>
+          )}
+          
+          {userIsMember && userIsCreator && onOpenSettings && (
+            <Button onClick={onOpenSettings} variant="outline">
+              DAO Settings
+            </Button>
+          )}
+          
+          {userIsCreator && onDeleteDAO && (
+            <Button onClick={onDeleteDAO} variant="destructive">
+              Delete DAO
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
