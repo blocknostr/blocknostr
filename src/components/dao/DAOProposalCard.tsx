@@ -41,9 +41,8 @@ const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
   
   // Check if proposal is active
   const now = Math.floor(Date.now() / 1000);
-  const endTimestamp = proposal.endsAt || proposal.endTime || 0;
-  const isActive = endTimestamp > now;
-  const timeRemaining = formatDistanceToNow(new Date(endTimestamp * 1000), { addSuffix: true });
+  const isActive = proposal.endsAt > now;
+  const timeRemaining = formatDistanceToNow(new Date(proposal.endsAt * 1000), { addSuffix: true });
   
   const handleVote = async (optionIndex: number) => {
     if (!currentUserPubkey) return;
@@ -59,11 +58,11 @@ const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
   };
   
   const getStatusBadge = () => {
-    if (isActive || proposal.status === "active") {
+    if (isActive) {
       return <Badge variant="default" className="bg-green-500">Active</Badge>;
-    } else if (proposal.status === "passed" || proposal.status === "completed") {
+    } else if (proposal.status === "passed") {
       return <Badge variant="default" className="bg-blue-500">Passed</Badge>;
-    } else if (proposal.status === "rejected" || proposal.status === "cancelled") {
+    } else if (proposal.status === "rejected") {
       return <Badge variant="default" className="bg-red-500">Rejected</Badge>;
     } else {
       return <Badge variant="outline">Closed</Badge>;

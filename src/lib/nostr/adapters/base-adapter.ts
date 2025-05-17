@@ -18,17 +18,15 @@ export class BaseAdapter {
   }
   
   get following() {
-    return []; // Return an empty array as fallback
+    return this.service.following;
   }
   
   async login() {
-    console.log("Base adapter login called");
-    return false;
+    return this.service.login();
   }
   
   signOut() {
-    console.log("Base adapter signOut called");
-    return false;
+    return this.service.signOut();
   }
   
   // Utilities
@@ -46,17 +44,15 @@ export class BaseAdapter {
   
   // Core methods
   async publishEvent(event: any) {
-    console.log("Base adapter publishEvent called");
-    return null;
+    return this.service.publishEvent(event);
   }
   
-  subscribe(filters: any[], onEvent: (event: any) => void) {
-    console.log("Base adapter subscribe called");
-    return () => {}; // Return cleanup function
+  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
+    return this.service.subscribe(filters, onEvent, relays);
   }
   
   unsubscribe(subId: string) {
-    return this.service.unsubscribe?.(subId) || false;
+    return this.service.unsubscribe(subId);
   }
   
   /**
@@ -65,7 +61,13 @@ export class BaseAdapter {
    * @returns Timestamp of the oldest metadata event or null
    */
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
-    console.log(`Getting account creation date for ${pubkey}`);
+    // Delegate to the underlying service implementation
+    if (this.service.getAccountCreationDate) {
+      return this.service.getAccountCreationDate(pubkey);
+    }
+    
+    // Fallback implementation if the service doesn't have this method
+    console.warn('getAccountCreationDate not implemented in underlying service');
     return null;
   }
 }

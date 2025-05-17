@@ -1,13 +1,10 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from "@/lib/nostr";
-import { Event } from "nostr-tools";
 
 export function useDAO(daoId?: string) {
-  // State for storing DAOs
   const [daos, setDaos] = useState<DAO[]>([]);
   const [myDaos, setMyDaos] = useState<DAO[]>([]);
   const [trendingDaos, setTrendingDaos] = useState<DAO[]>([]);
@@ -15,372 +12,34 @@ export function useDAO(daoId?: string) {
   const [proposals, setProposals] = useState<DAOProposal[]>([]);
   const [kickProposals, setKickProposals] = useState<any[]>([]);
   
-  // Loading states for progressive rendering
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(true);
-  const [loadingTrending, setLoadingTrending] = useState<boolean>(true);
+  // Split loading states for progressive rendering
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(false);
+  const [loadingTrending, setLoadingTrending] = useState<boolean>(false);
   const [loadingProposals, setLoadingProposals] = useState<boolean>(true);
   const [loadingKickProposals, setLoadingKickProposals] = useState<boolean>(true);
   
-  // Track subscriptions for cleanup
-  const subscriptionsRef = useRef<(() => void)[]>([]);
-  const userSubscriptionRef = useRef<(() => void) | null>(null);
-  const daoSubscriptionRef = useRef<(() => void) | null>(null);
-  const proposalSubscriptionRef = useRef<(() => void) | null>(null);
+  // Track data initialization
+  const initializedRef = useRef({
+    general: false,
+    myDaos: false,
+    trending: false
+  });
   
-  // Current user
   const currentUserPubkey = nostrService.publicKey;
   
-  // Subscribe to general DAOs
-  const subscribeToDAOs = useCallback(() => {
-    if (daoId) return undefined; // Skip if viewing a specific DAO
-    
-    console.log("Subscribing to general DAOs");
-    setLoading(true);
-    
-    // Initially, try to get DAOs from cache to populate UI faster
-    daoService.getDAOs().then(cachedDaos => {
-      if (cachedDaos.length > 0) {
-        setDaos(cachedDaos);
-      }
-    });
-    
-    // Set up subscription for real-time updates
-    try {
-      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
-      const unsubscribe = daoService.subscribeToDAOs((dao) => {
-        setDaos(prevDaos => {
-          // Only add if not already in the list
-          const exists = prevDaos.some(d => d.id === dao.id);
-          if (exists) {
-            return prevDaos.map(d => d.id === dao.id ? dao : d);
-          } else {
-            return [dao, ...prevDaos];
-          }
-        });
-        setLoading(false);
-      });
-      
-      // Store the cleanup function reference
-      subscriptionsRef.current.push(unsubscribe);
-      
-      // Set loading to false after a timeout even if no data received
-      const timeout = setTimeout(() => {
-        setLoading(false);
-      }, 5000);
-      
-      return () => {
-        clearTimeout(timeout);
-        // Call the actual unsubscribe function
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } catch (error) {
-      console.error("Error subscribing to DAOs:", error);
-      setLoading(false);
-      return () => {}; // Return empty cleanup function
-    }
-  }, [daoId]);
-  
-  // Subscribe to user's DAOs
-  const subscribeToMyDAOs = useCallback(() => {
-    if (daoId || !currentUserPubkey) return undefined; // Skip if viewing a specific DAO or not logged in
-    
-    console.log("Subscribing to user DAOs");
-    setLoadingMyDaos(true);
-    
-    // Initially, try to get DAOs from cache to populate UI faster
-    daoService.getUserDAOs(currentUserPubkey).then(cachedDaos => {
-      if (cachedDaos.length > 0) {
-        setMyDaos(cachedDaos);
-      }
-    });
-    
-    try {
-      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
-      const unsubscribe = daoService.subscribeToUserDAOs(currentUserPubkey, (dao) => {
-        setMyDaos(prevDaos => {
-          // Only add if not already in the list
-          const exists = prevDaos.some(d => d.id === dao.id);
-          if (exists) {
-            return prevDaos.map(d => d.id === dao.id ? dao : d);
-          } else {
-            return [dao, ...prevDaos];
-          }
-        });
-        setLoadingMyDaos(false);
-      });
-      
-      userSubscriptionRef.current = unsubscribe;
-      subscriptionsRef.current.push(unsubscribe);
-      
-      // Set loading to false after a timeout even if no data received
-      const timeout = setTimeout(() => {
-        setLoadingMyDaos(false);
-      }, 5000);
-      
-      return () => {
-        clearTimeout(timeout);
-        // Call the actual unsubscribe function
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } catch (error) {
-      console.error("Error subscribing to user DAOs:", error);
-      setLoadingMyDaos(false);
-      return () => {}; // Return empty cleanup function
-    }
-  }, [daoId, currentUserPubkey]);
-  
-  // Subscribe to trending DAOs
-  const subscribeToTrendingDAOs = useCallback(() => {
-    if (daoId) return undefined; // Skip if viewing a specific DAO
-    
-    console.log("Fetching trending DAOs");
-    setLoadingTrending(true);
-    
-    // Trending DAOs don't have a real-time subscription model
-    // We'll just fetch them once since they don't change frequently
-    daoService.getTrendingDAOs().then(trending => {
-      setTrendingDaos(trending);
-      setLoadingTrending(false);
-    }).catch(error => {
-      console.error("Error fetching trending DAOs:", error);
-      setLoadingTrending(false);
-    });
-    
-    // No unsubscribe function needed since this is just a one-time fetch
-    return () => {};
-  }, [daoId]);
-  
-  // Subscribe to a specific DAO
-  const subscribeToDAO = useCallback(() => {
-    if (!daoId) return undefined;
-    
-    console.log(`Subscribing to DAO ${daoId}`);
-    setLoading(true);
-    
-    // Initially, try to get DAO from cache
-    daoService.getDAOById(daoId).then(dao => {
-      if (dao) {
-        setCurrentDao(dao);
-        setLoading(false);
-      }
-    });
-    
-    try {
-      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
-      const unsubscribe = daoService.subscribeToDAO(daoId, (dao) => {
-        if (dao) {
-          setCurrentDao(dao);
-          setLoading(false);
-        }
-      });
-      
-      daoSubscriptionRef.current = unsubscribe;
-      subscriptionsRef.current.push(unsubscribe);
-      
-      // Set loading to false after a timeout even if no data received
-      const timeout = setTimeout(() => {
-        setLoading(false);
-      }, 5000);
-      
-      return () => {
-        clearTimeout(timeout);
-        // Call the actual unsubscribe function
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } catch (error) {
-      console.error(`Error subscribing to DAO ${daoId}:`, error);
-      setLoading(false);
-      return () => {}; // Return empty cleanup function
-    }
-  }, [daoId]);
-  
-  // Subscribe to DAO proposals
-  const subscribeToProposals = useCallback(() => {
-    if (!daoId) return undefined;
-    
-    console.log(`Subscribing to proposals for DAO ${daoId}`);
-    setLoadingProposals(true);
-    
-    // Initially, try to get proposals from cache
-    daoService.getDAOProposals(daoId).then(cachedProposals => {
-      setProposals(cachedProposals);
-      setLoadingProposals(false);
-      
-      // Identify kick proposals
-      const kickProps = cachedProposals.filter(proposal => {
-        try {
-          const content = JSON.parse(proposal.description);
-          return content.type === "kick" && content.targetPubkey;
-        } catch (e) {
-          return false;
-        }
-      }).map(proposal => {
-        try {
-          const content = JSON.parse(proposal.description);
-          return {
-            ...proposal,
-            targetPubkey: content.targetPubkey
-          };
-        } catch (e) {
-          return null;
-        }
-      }).filter((p): p is any => p !== null);
-      
-      setKickProposals(kickProps);
-      setLoadingKickProposals(false);
-    });
-    
-    try {
-      // ⚠️ Important fix: immediately returns the cleanup function, not a Promise
-      const unsubscribe = daoService.subscribeToDAOProposals(daoId, (proposal) => {
-        setProposals(prevProposals => {
-          // Update or add the proposal
-          const exists = prevProposals.some(p => p.id === proposal.id);
-          
-          if (exists) {
-            return prevProposals.map(p => p.id === proposal.id ? proposal : p);
-          } else {
-            return [proposal, ...prevProposals];
-          }
-        });
-        
-        // Check if it's a kick proposal and update accordingly
-        try {
-          const content = JSON.parse(proposal.description);
-          if (content.type === "kick" && content.targetPubkey) {
-            const kickProposal = {
-              ...proposal,
-              targetPubkey: content.targetPubkey
-            };
-            
-            setKickProposals(prevKickProposals => {
-              const exists = prevKickProposals.some(p => p.id === proposal.id);
-              
-              if (exists) {
-                return prevKickProposals.map(p => p.id === proposal.id ? kickProposal : p);
-              } else {
-                return [kickProposal, ...prevKickProposals];
-              }
-            });
-          }
-        } catch (e) {
-          // Not a kick proposal or invalid JSON
-        }
-      });
-      
-      proposalSubscriptionRef.current = unsubscribe;
-      subscriptionsRef.current.push(unsubscribe);
-      
-      // Set loading to false after a timeout even if no data received
-      const timeout = setTimeout(() => {
-        setLoadingProposals(false);
-        setLoadingKickProposals(false);
-      }, 5000);
-      
-      return () => {
-        clearTimeout(timeout);
-        // Call the actual unsubscribe function
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
-    } catch (error) {
-      console.error(`Error subscribing to proposals for DAO ${daoId}:`, error);
-      setLoadingProposals(false);
-      setLoadingKickProposals(false);
-      return () => {}; // Return empty cleanup function
-    }
-  }, [daoId]);
-  
-  // Set up subscriptions based on the view
-  useEffect(() => {
-    const unsubFuncs: (() => void)[] = [];
-    
-    if (daoId) {
-      // Viewing a specific DAO
-      const subDao = subscribeToDAO();
-      if (subDao) unsubFuncs.push(subDao);
-      
-      const subProposals = subscribeToProposals();
-      if (subProposals) unsubFuncs.push(subProposals);
-    } else {
-      // Viewing DAOs list
-      const subGeneral = subscribeToDAOs();
-      if (subGeneral) unsubFuncs.push(subGeneral);
-      
-      const subMy = subscribeToMyDAOs();
-      if (subMy) unsubFuncs.push(subMy);
-      
-      subscribeToTrendingDAOs(); // This doesn't return an unsubscribe function
-    }
-    
-    return () => {
-      // Clean up all subscriptions
-      unsubFuncs.forEach(unsub => {
-        if (unsub && typeof unsub === 'function') {
-          try {
-            unsub();
-          } catch (error) {
-            console.error("Error during cleanup:", error);
-          }
-        }
-      });
-      
-      // Also clean up any references
-      if (userSubscriptionRef.current) {
-        try {
-          userSubscriptionRef.current();
-        } catch (error) {
-          console.error("Error cleaning up user subscription:", error);
-        }
-        userSubscriptionRef.current = null;
-      }
-      
-      if (daoSubscriptionRef.current) {
-        try {
-          daoSubscriptionRef.current();
-        } catch (error) {
-          console.error("Error cleaning up DAO subscription:", error);
-        }
-        daoSubscriptionRef.current = null;
-      }
-      
-      if (proposalSubscriptionRef.current) {
-        try {
-          proposalSubscriptionRef.current();
-        } catch (error) {
-          console.error("Error cleaning up proposal subscription:", error);
-        }
-        proposalSubscriptionRef.current = null;
-      }
-      
-      subscriptionsRef.current.forEach(unsub => {
-        if (unsub && typeof unsub === 'function') {
-          try {
-            unsub();
-          } catch (error) {
-            console.error("Error cleaning up subscription:", error);
-          }
-        }
-      });
-      subscriptionsRef.current = [];
-    };
-  }, [daoId, currentUserPubkey, subscribeToDAOs, subscribeToMyDAOs, subscribeToTrendingDAOs, subscribeToDAO, subscribeToProposals]);
-  
-  // Direct fetch methods for lazy loading
+  // Fetch DAOs for general discovery page in parallel
   const fetchGeneralDAOs = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
+    if (initializedRef.current.general) return; // Skip if already initialized
     
+    initializedRef.current.general = true;
     setLoading(true);
+    
     try {
+      console.log("Fetching general DAOs...");
       const fetchedDaos = await daoService.getDAOs();
+      console.log(`Fetched ${fetchedDaos.length} DAOs`);
       setDaos(fetchedDaos);
     } catch (error) {
       console.error("Error fetching general DAOs:", error);
@@ -389,12 +48,18 @@ export function useDAO(daoId?: string) {
     }
   }, [daoId]);
   
+  // Fetch user DAOs in parallel
   const fetchMyDAOs = useCallback(async () => {
     if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
+    if (initializedRef.current.myDaos) return; // Skip if already initialized
     
+    initializedRef.current.myDaos = true;
     setLoadingMyDaos(true);
+    
     try {
+      console.log("Fetching user DAOs...");
       const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+      console.log(`Fetched ${userDaos.length} user DAOs`);
       setMyDaos(userDaos);
     } catch (error) {
       console.error("Error fetching user DAOs:", error);
@@ -403,12 +68,18 @@ export function useDAO(daoId?: string) {
     }
   }, [daoId, currentUserPubkey]);
   
+  // Fetch trending DAOs in parallel
   const fetchTrendingDAOs = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
+    if (initializedRef.current.trending) return; // Skip if already initialized
     
+    initializedRef.current.trending = true;
     setLoadingTrending(true);
+    
     try {
+      console.log("Fetching trending DAOs...");
       const trending = await daoService.getTrendingDAOs();
+      console.log(`Fetched ${trending.length} trending DAOs`);
       setTrendingDaos(trending);
     } catch (error) {
       console.error("Error fetching trending DAOs:", error);
@@ -419,26 +90,24 @@ export function useDAO(daoId?: string) {
   
   // Refresh function to manually trigger data reload
   const refreshDaos = useCallback(async () => {
-    if (daoId) {
-      // Refresh the current DAO
-      fetchDaoDetails();
-    } else {
-      // Clear all caches
-      const daoCache = await import('@/lib/dao/dao-cache');
-      daoCache.daoCache.clearAll();
-      
-      // Refetch data
-      await fetchGeneralDAOs();
-      if (currentUserPubkey) {
-        await fetchMyDAOs();
-      }
-      await fetchTrendingDAOs();
-    }
+    if (daoId) return; // Skip if viewing a specific DAO
     
+    // Reset initialization flags
+    initializedRef.current = {
+      general: false,
+      myDaos: false,
+      trending: false
+    };
+    
+    // Clear the cache - force a fresh load
+    const daoCache = await import('@/lib/dao/dao-cache');
+    daoCache.daoCache.clearAll();
+    
+    // Only fetch the DAOs for the currently active tab
     return true;
-  }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs, currentUserPubkey]);
+  }, [daoId]);
   
-  // Fetch DAO details (for direct API access when needed)
+  // Fetch specific DAO if daoId is provided
   const fetchDaoDetails = useCallback(async () => {
     if (!daoId) return;
     
@@ -456,32 +125,11 @@ export function useDAO(daoId?: string) {
         
         // Now fetch proposals in background
         setLoadingProposals(true);
-        const proposals = await daoService.getDAOProposals(daoId);
-        setProposals(proposals);
-        setLoadingProposals(false);
+        fetchDaoProposals(daoId);
         
-        // Process kick proposals
-        const kickProps = proposals.filter(proposal => {
-          try {
-            const content = JSON.parse(proposal.description);
-            return content.type === "kick" && content.targetPubkey;
-          } catch (e) {
-            return false;
-          }
-        }).map(proposal => {
-          try {
-            const content = JSON.parse(proposal.description);
-            return {
-              ...proposal,
-              targetPubkey: content.targetPubkey
-            };
-          } catch (e) {
-            return null;
-          }
-        }).filter(p => p !== null);
-        
-        setKickProposals(kickProps);
-        setLoadingKickProposals(false);
+        // Fetch kick proposals in background
+        setLoadingKickProposals(true);
+        fetchDaoKickProposals(daoId);
       } else {
         console.error("DAO not found:", daoId);
         toast.error("DAO not found");
@@ -493,6 +141,36 @@ export function useDAO(daoId?: string) {
       setLoading(false);
     }
   }, [daoId]);
+  
+  // Fetch proposals in background
+  const fetchDaoProposals = async (daoId: string) => {
+    try {
+      const daoProposals = await daoService.getDAOProposals(daoId);
+      console.log(`Fetched ${daoProposals.length} proposals`);
+      setProposals(daoProposals);
+    } catch (error) {
+      console.error(`Error fetching proposals for DAO ${daoId}:`, error);
+    } finally {
+      setLoadingProposals(false);
+    }
+  };
+  
+  // Fetch kick proposals in background
+  const fetchDaoKickProposals = async (daoId: string) => {
+    try {
+      const kickProps = await daoService.getDAOKickProposals(daoId);
+      console.log(`Fetched ${kickProps.length} kick proposals`);
+      setKickProposals(kickProps);
+    } catch (error) {
+      console.error(`Error fetching kick proposals for DAO ${daoId}:`, error);
+    } finally {
+      setLoadingKickProposals(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchDaoDetails();
+  }, [fetchDaoDetails]);
   
   // Create new DAO
   const createDAO = async (name: string, description: string, tags: string[] = []) => {
@@ -514,7 +192,13 @@ export function useDAO(daoId?: string) {
       if (daoId) {
         toast.success("Successfully created DAO");
         // Refetch DAOs
-        refreshDaos();
+        const updatedDaos = await daoService.getDAOs();
+        setDaos(updatedDaos);
+        
+        if (currentUserPubkey) {
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
+        }
         return daoId;
       } else {
         toast.error("Failed to create DAO");
@@ -532,7 +216,8 @@ export function useDAO(daoId?: string) {
     daoId: string, 
     title: string, 
     description: string, 
-    options: string[]
+    options: string[],
+    durationDays: number = 7
   ) => {
     try {
       console.log(`Creating proposal for DAO ${daoId}: ${title}`);
@@ -552,17 +237,18 @@ export function useDAO(daoId?: string) {
         return null;
       }
       
-      // Verify user is a member
-      if (currentDao && !isMember(currentDao)) {
-        toast.error("Only members can create proposals");
-        return null;
-      }
-      
-      // Use the correct parameter count (removed durationDays)
-      const proposalId = await daoService.createProposal(daoId, title, description, options);
+      const proposalId = await daoService.createProposal(daoId, title, description, options, durationDays);
       
       if (proposalId) {
         toast.success("Successfully created proposal");
+        
+        // Refetch proposals if we're viewing this DAO
+        if (currentDao?.id === daoId) {
+          setLoadingProposals(true);
+          const updatedProposals = await daoService.getDAOProposals(daoId);
+          setProposals(updatedProposals);
+          setLoadingProposals(false);
+        }
         return proposalId;
       } else {
         toast.error("Failed to create proposal");
@@ -585,12 +271,6 @@ export function useDAO(daoId?: string) {
         return false;
       }
       
-      // Verify user is a member
-      if (currentDao && !isMember(currentDao)) {
-        toast.error("Only members can vote on proposals");
-        return false;
-      }
-      
       const success = await daoService.voteOnProposal(proposalId, optionIndex);
       
       if (success) {
@@ -610,6 +290,16 @@ export function useDAO(daoId?: string) {
           });
         }
         
+        // Background refresh for accurate data
+        if (currentDao) {
+          daoService.getDAOProposals(currentDao.id)
+            .then(updatedProposals => {
+              setProposals(updatedProposals);
+            })
+            .catch(err => {
+              console.error("Error refreshing proposals:", err);
+            });
+        }
         return true;
       } else {
         toast.error("Failed to record vote");
@@ -627,17 +317,6 @@ export function useDAO(daoId?: string) {
     try {
       console.log(`Voting on kick proposal ${proposalId}, option ${optionIndex}`);
       
-      if (!currentUserPubkey) {
-        toast.error("You must be logged in to vote");
-        return false;
-      }
-      
-      // Verify user is a member
-      if (currentDao && !isMember(currentDao)) {
-        toast.error("Only members can vote on kick proposals");
-        return false;
-      }
-      
       // Optimistic update for kick proposals
       if (currentUserPubkey) {
         setKickProposals(currentProposals => {
@@ -651,9 +330,8 @@ export function useDAO(daoId?: string) {
         });
       }
       
-      // Use specialized kick voting mechanism
-      const voteId = await daoService.voteOnKickProposal(proposalId, optionIndex);
-      return !!voteId;
+      // Use standard voting mechanism
+      return await voteOnProposal(proposalId, optionIndex);
     } catch (error) {
       console.error("Error voting on kick proposal:", error);
       toast.error("Failed to record vote");
@@ -676,13 +354,17 @@ export function useDAO(daoId?: string) {
       if (success) {
         toast.success("Successfully joined DAO");
         
-        // Refresh DAO data
+        // If we're currently viewing this DAO, update it
         if (currentDao?.id === daoId) {
-          await fetchDaoDetails();
+          const updatedDao = await daoService.getDAOById(daoId);
+          setCurrentDao(updatedDao);
         }
         
         // Update myDaos list
-        await fetchMyDAOs();
+        if (currentUserPubkey) {
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
+        }
         
         return true;
       } else {
@@ -696,92 +378,13 @@ export function useDAO(daoId?: string) {
     }
   };
   
-  // Leave a DAO
-  const leaveDAO = async (daoId: string) => {
-    try {
-      console.log(`Leaving DAO ${daoId}`);
-      
-      if (!currentUserPubkey) {
-        toast.error("You must be logged in to leave a DAO");
-        return false;
-      }
-      
-      // Verify user is a member but not the creator
-      if (currentDao) {
-        if (!isMember(currentDao)) {
-          toast.error("You are not a member of this DAO");
-          return false;
-        }
-        
-        if (isCreator(currentDao)) {
-          toast.error("Creator cannot leave their own DAO. You may delete it instead.");
-          return false;
-        }
-      }
-      
-      const success = await daoService.leaveDAO(daoId);
-      
-      if (success) {
-        toast.success("Successfully left DAO");
-        
-        // Refresh DAO data and my DAOs
-        await refreshDaos();
-        
-        return true;
-      } else {
-        toast.error("Failed to leave DAO");
-        return false;
-      }
-    } catch (error: any) {
-      console.error("Error leaving DAO:", error);
-      toast.error(error.message || "Failed to leave DAO");
-      return false;
-    }
-  };
-  
-  // Delete a DAO (creator only)
-  const deleteDAO = async (daoId: string) => {
-    try {
-      console.log(`Deleting DAO ${daoId}`);
-      
-      if (!currentUserPubkey) {
-        toast.error("You must be logged in to delete a DAO");
-        return false;
-      }
-      
-      // Verify user is the creator
-      if (currentDao && !isCreator(currentDao)) {
-        toast.error("Only the creator can delete a DAO");
-        return false;
-      }
-      
-      const success = await daoService.deleteDAO(daoId);
-      
-      if (success) {
-        toast.success("Successfully deleted DAO");
-        
-        // Refresh all DAOs
-        await refreshDaos();
-        
-        return true;
-      } else {
-        toast.error("Failed to delete DAO");
-        return false;
-      }
-    } catch (error: any) {
-      console.error("Error deleting DAO:", error);
-      toast.error(error.message || "Failed to delete DAO");
-      return false;
-    }
-  };
-  
   // Update DAO privacy setting
   const updateDAOPrivacy = async (isPrivate: boolean) => {
     try {
       if (!currentDao || !currentUserPubkey) return false;
       
       // Only creator can update privacy
-      if (!isCreator(currentDao)) {
+      if (currentDao.creator !== currentUserPubkey) {
         toast.error("Only the DAO creator can update privacy settings");
         return false;
       }
@@ -817,14 +420,17 @@ export function useDAO(daoId?: string) {
       if (!currentDao || !currentUserPubkey) return false;
       
       // Only creator can update guidelines
-      if (!isCreator(currentDao)) {
+      if (currentDao.creator !== currentUserPubkey) {
         toast.error("Only the DAO creator can update guidelines");
         return false;
       }
       
       console.log(`Updating guidelines for DAO ${currentDao.id}`);
       
-      const success = await daoService.updateDAOGuidelines(currentDao.id, guidelines);
+      const success = await daoService.updateDAOMetadata(
+        currentDao.id,
+        { type: "guidelines", content: guidelines }
+      );
       
       if (success) {
         // Update local state
@@ -850,14 +456,17 @@ export function useDAO(daoId?: string) {
       if (!currentDao || !currentUserPubkey) return false;
       
       // Only creator can update tags
-      if (!isCreator(currentDao)) {
+      if (currentDao.creator !== currentUserPubkey) {
         toast.error("Only the DAO creator can update tags");
         return false;
       }
       
       console.log(`Updating tags for DAO ${currentDao.id}:`, tags);
       
-      const success = await daoService.updateDAOTags(currentDao.id, tags);
+      const success = await daoService.updateDAOMetadata(
+        currentDao.id,
+        { type: "tags", content: tags }
+      );
       
       if (success) {
         // Update local state
@@ -883,7 +492,7 @@ export function useDAO(daoId?: string) {
       if (!currentDao || !currentUserPubkey) return false;
       
       // Only creator can add moderators
-      if (!isCreator(currentDao)) {
+      if (currentDao.creator !== currentUserPubkey) {
         toast.error("Only the DAO creator can add moderators");
         return false;
       }
@@ -902,7 +511,10 @@ export function useDAO(daoId?: string) {
       
       console.log(`Adding moderator ${pubkey} to DAO ${currentDao.id}`);
       
-      const success = await daoService.addDAOModerator(currentDao.id, pubkey);
+      const success = await daoService.updateDAORoles(
+        currentDao.id,
+        { role: "moderator", action: "add", pubkey }
+      );
       
       if (success) {
         // Update local state
@@ -929,14 +541,17 @@ export function useDAO(daoId?: string) {
       if (!currentDao || !currentUserPubkey) return false;
       
       // Only creator can remove moderators
-      if (!isCreator(currentDao)) {
+      if (currentDao.creator !== currentUserPubkey) {
         toast.error("Only the DAO creator can remove moderators");
         return false;
       }
       
       console.log(`Removing moderator ${pubkey} from DAO ${currentDao.id}`);
       
-      const success = await daoService.removeDAOModerator(currentDao.id, pubkey);
+      const success = await daoService.updateDAORoles(
+        currentDao.id,
+        { role: "moderator", action: "remove", pubkey }
+      );
       
       if (success) {
         // Update local state
@@ -962,12 +577,6 @@ export function useDAO(daoId?: string) {
     try {
       if (!currentUserPubkey) return null;
       
-      // Verify user has permission (creator or moderator)
-      if (currentDao && !isCreator(currentDao) && !isModerator(currentDao)) {
-        toast.error("Only creators and moderators can create invite links");
-        return null;
-      }
-      
       console.log(`Creating invite link for DAO ${daoId}`);
       
       const inviteId = await daoService.createDAOInvite(daoId);
@@ -992,43 +601,28 @@ export function useDAO(daoId?: string) {
     try {
       if (!currentUserPubkey) return false;
       
-      // Verify user has permission (member)
-      if (currentDao && !isMember(currentDao)) {
-        toast.error("Only members can propose to kick other members");
-        return false;
-      }
-      
-      // Can't kick creator
-      if (currentDao && currentDao.creator === memberToKick) {
-        toast.error("Cannot kick the DAO creator");
-        return false;
-      }
-      
-      // Can't kick yourself
-      if (currentUserPubkey === memberToKick) {
-        toast.error("Cannot kick yourself. Use 'Leave DAO' instead.");
-        return false;
-      }
-      
       console.log(`Creating kick proposal for member ${memberToKick} in DAO ${daoId}`);
       
       // For kick proposals, use standard proposal mechanism with special options
       const title = `Remove member ${memberToKick.substring(0, 8)}...`;
-      const description = JSON.stringify({
-        type: "kick",
-        reason: reason,
-        targetPubkey: memberToKick
-      });
+      const description = `Reason for removal: ${reason}`;
+      const options = ["Yes, remove member", "No, keep member"];
       
-      // Create a special proposal with kick metadata (use only 3 arguments as expected)
+      // Create a special proposal with kick metadata
       const proposalId = await daoService.createKickProposal(
         daoId,
         title,
-        description
+        description,
+        options,
+        memberToKick
       );
       
       if (proposalId) {
-        toast.success("Successfully created kick proposal");
+        // Refresh proposals after creating kick proposal
+        if (currentDao) {
+          const updatedProposals = await daoService.getDAOProposals(daoId);
+          setProposals(updatedProposals);
+        }
         return true;
       } else {
         toast.error("Failed to create kick proposal");
@@ -1040,8 +634,6 @@ export function useDAO(daoId?: string) {
       return false;
     }
   };
-  
-  // Role/permission check functions
   
   // Check if user is a member
   const isMember = (dao: DAO): boolean => {
@@ -1056,16 +648,6 @@ export function useDAO(daoId?: string) {
   // Check if user is the creator
   const isCreator = (dao: DAO): boolean => {
     return !!currentUserPubkey && dao.creator === currentUserPubkey;
-  };
-  
-  // Check if user is creator or moderator (has admin privileges)
-  const isAdmin = (dao: DAO): boolean => {
-    return isCreator(dao) || isModerator(dao);
-  };
-  
-  // Check if creator is the only member (for dao delete validation)
-  const isCreatorOnlyMember = (dao: DAO): boolean => {
-    return dao.members.length === 1 && dao.members[0] === dao.creator;
   };
   
   return {
@@ -1084,8 +666,6 @@ export function useDAO(daoId?: string) {
     createProposal,
     voteOnProposal,
     joinDAO,
-    leaveDAO,
-    deleteDAO,
     updateDAOPrivacy,
     updateDAOGuidelines,
     updateDAOTags,
@@ -1094,13 +674,9 @@ export function useDAO(daoId?: string) {
     createDAOInvite,
     createKickProposal,
     voteOnKickProposal,
-    // Permission helpers
     isMember,
     isModerator,
     isCreator,
-    isAdmin,
-    isCreatorOnlyMember,
-    // Utils
     currentUserPubkey,
     refreshDaos,
     fetchDaoDetails,

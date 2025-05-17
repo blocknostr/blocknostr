@@ -1,13 +1,21 @@
-import { useEffect } from "react";
-import { toast } from "sonner";
-import { nostrService } from "@/lib/nostr";
-import { DAOProposal } from "@/types/dao";
 
-interface DAOSubscriptionProps {
-  daoId: string;
-  onNewProposal: (proposal: DAOProposal) => void;
-  onNewVote: (vote: any) => void;
-  onDAOUpdate: (dao: any) => void;
+import { useEffect, useState } from 'react';
+import { SimplePool, Filter } from 'nostr-tools';
+import { toast } from 'sonner';
+import { DAO, DAOProposal } from '@/types/dao';
+
+// NIP-72 event kinds
+const DAO_KINDS = {
+  COMMUNITY: 34550,       // Community definition
+  PROPOSAL: 34551,        // Community proposal
+  VOTE: 34552,           // Vote on a proposal
+};
+
+interface UseDAOSubscriptionProps {
+  daoId?: string;
+  onNewProposal?: (proposal: DAOProposal) => void;
+  onNewVote?: (vote: any) => void;
+  onDAOUpdate?: (dao: DAO) => void;
 }
 
 export function useDAOSubscription({
@@ -15,105 +23,185 @@ export function useDAOSubscription({
   onNewProposal,
   onNewVote,
   onDAOUpdate
-}: DAOSubscriptionProps) {
-  // Subscribe to DAO events
+}: UseDAOSubscriptionProps) {
+  const [isConnected, setIsConnected] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  
+  // Define relays - use the most reliable NIP-72 compatible ones
+  const relays = [
+    "wss://relay.damus.io",
+    "wss://nos.lol",
+    "wss://relay.nostr.band",
+    "wss://relay.snort.social"
+  ];
+  
   useEffect(() => {
+    // Skip if no daoId is provided
     if (!daoId) return;
-
-    console.log(`Subscribing to DAO events for DAO ${daoId}`);
-
-    // Define filters for proposals, votes, and DAO updates
-    const filters = [
-      {
-        kinds: [30000], // Assuming 30000 is the kind for DAO proposals
-        '#d': [daoId] // Assuming 'd' tag contains the DAO ID
-      },
-      {
-        kinds: [3], // Assuming kind 3 is for votes (adjust as needed)
-        '#dao': [daoId] // Assuming 'dao' tag contains the DAO ID
-      },
-      {
-        kinds: [30001], // Assuming 30001 is the kind for DAO metadata updates
-        ids: [daoId] // Subscribe directly to the DAO ID for updates
-      }
-    ];
-
-    // Subscribe to events
-    const sub = nostrService.subscribe(filters, (event: any) => {
-      // Process new proposals
-      if (event.kind === 30000) {
-        try {
-          // Parse the content of the event to get proposal details
-          const content = JSON.parse(event.content);
-          const duration = content.duration || 24 * 60 * 60; // Default 24 hours
-
-          // Create a DAOProposal object
-          const proposal: DAOProposal = {
-            id: event.id,
-            daoId: daoId,
-            creator: event.pubkey,
-            createdAt: event.created_at,
-            title: content.title,
-            description: content.description,
-            options: content.options,
-            votes: {},
-            status: 'active', // Default status
-            endTime: event.created_at + duration,
-            endsAt: event.created_at + duration
-          };
-
-          onNewProposal(proposal);
-        } catch (error) {
-          console.error("Error processing new proposal:", error);
-          toast.error("Failed to process new proposal");
-        }
-      }
-      // Process new votes
-      else if (event.kind === 3) {
-        try {
-          // Extract relevant information from the vote event
-          const proposalId = event.tags.find((tag: string[]) => tag[0] === 'e')?.[1];
-          const voteValue = event.content; // Assuming the content is the vote value
-
-          if (proposalId) {
-            // Notify about the new vote
-            onNewVote({
-              proposalId: proposalId,
-              voter: event.pubkey,
-              vote: voteValue,
-              timestamp: event.created_at
-            });
+    
+    console.log(`Setting up subscriptions for DAO ${daoId}...`);
+    const pool = new SimplePool();
+    const activeSubscriptions: any[] = [];
+    
+    try {
+      // Subscribe to DAO updates
+      const daoFilter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        ids: [daoId]
+      };
+      
+      const daoSub = pool.subscribe(relays, daoFilter, {
+        onevent: (event) => {
+          console.log('Received DAO update event:', event);
+          if (onDAOUpdate) {
+            try {
+              let content: Record<string, any> = {};
+              try {
+                content = JSON.parse(event.content) as Record<string, any>;
+              } catch (error) {
+                console.error('Error parsing DAO content:', error);
+                content = {};
+              }
+              
+              const members = event.tags
+                .filter(tag => tag.length >= 2 && tag[0] === 'p')
+                .map(tag => tag[1]);
+                
+              const dao: DAO = {
+                id: event.id,
+                name: content.name || "Unnamed DAO",
+                description: content.description || "",
+                image: content.image || "",
+                creator: event.pubkey,
+                createdAt: event.created_at,
+                members,
+                moderators: [],
+                treasury: content.treasury || { balance: 0, tokenSymbol: "ALPH" },
+                tags: content.tags || [],
+                proposals: content.proposals || 0,
+                activeProposals: content.activeProposals || 0
+              };
+              
+              onDAOUpdate(dao);
+            } catch (error) {
+              console.error('Error processing DAO update:', error);
+            }
           }
-        } catch (error) {
-          console.error("Error processing new vote:", error);
-          toast.error("Failed to process new vote");
-        }
+        },
+        oneose: () => console.log('DAO events eose')
+      });
+      
+      activeSubscriptions.push(daoSub);
+      
+      // Subscribe to new proposals
+      const proposalFilter: Filter = {
+        kinds: [DAO_KINDS.PROPOSAL],
+        '#e': [daoId],
+        since: Math.floor(Date.now() / 1000) // Only get new proposals from now
+      };
+      
+      const proposalSub = pool.subscribe(relays, proposalFilter, {
+        onevent: (event) => {
+          console.log('Received new proposal event:', event);
+          if (onNewProposal) {
+            try {
+              let content: Record<string, any> = {};
+              try {
+                content = JSON.parse(event.content) as Record<string, any>;
+              } catch (error) {
+                console.error('Error parsing proposal content:', error);
+                content = {};
+              }
+              
+              const proposal: DAOProposal = {
+                id: event.id,
+                daoId,
+                title: content.title || "Unnamed Proposal",
+                description: content.description || "",
+                options: content.options || ["Yes", "No"],
+                createdAt: event.created_at,
+                endsAt: content.endsAt || (event.created_at + 7 * 24 * 60 * 60),
+                creator: event.pubkey,
+                votes: {},
+                status: "active"
+              };
+              
+              onNewProposal(proposal);
+              toast.info(`New proposal: ${proposal.title}`);
+            } catch (error) {
+              console.error('Error processing new proposal:', error);
+            }
+          }
+        },
+        oneose: () => console.log('Proposal events eose')
+      });
+      
+      activeSubscriptions.push(proposalSub);
+      
+      // Subscribe to votes if we have onNewVote handler
+      if (onNewVote) {
+        const voteFilter: Filter = {
+          kinds: [DAO_KINDS.VOTE],
+          '#e': [daoId],
+          since: Math.floor(Date.now() / 1000) // Only get new votes from now
+        };
+        
+        const voteSub = pool.subscribe(relays, voteFilter, {
+          onevent: (event) => {
+            console.log('Received vote event:', event);
+            try {
+              // Find the proposal reference
+              const proposalTag = event.tags.find(tag => tag[0] === 'e' && tag[1] !== daoId);
+              if (proposalTag) {
+                const proposalId = proposalTag[1];
+                let optionIndex: number;
+                
+                // Parse vote content (both JSON and non-JSON formats)
+                try {
+                  const content = JSON.parse(event.content) as Record<string, any>;
+                  optionIndex = content.optionIndex;
+                } catch (e) {
+                  optionIndex = parseInt(event.content.trim());
+                }
+                
+                if (!isNaN(optionIndex)) {
+                  onNewVote({
+                    proposalId,
+                    pubkey: event.pubkey,
+                    optionIndex
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('Error processing vote event:', error);
+            }
+          },
+          oneose: () => console.log('Vote events eose')
+        });
+        
+        activeSubscriptions.push(voteSub);
       }
-      // Process DAO metadata updates
-      else if (event.kind === 30001) {
-        try {
-          // Parse the content of the event to get DAO details
-          const dao = JSON.parse(event.content);
-
-          // Notify about the DAO update
-          onDAOUpdate({
-            id: event.id,
-            daoId: daoId,
-            ...dao
-          });
-        } catch (error) {
-          console.error("Error processing DAO update:", error);
-          toast.error("Failed to process DAO update");
-        }
-      }
-    });
-
-    // Clean up subscription on unmount
+      
+      setSubscriptions(activeSubscriptions);
+      setIsConnected(true);
+      
+      console.log(`Started ${activeSubscriptions.length} subscriptions for DAO ${daoId}`);
+    } catch (error) {
+      console.error('Error setting up DAO subscriptions:', error);
+      setIsConnected(false);
+    }
+    
+    // Cleanup function
     return () => {
-      console.log(`Unsubscribing from DAO events for DAO ${daoId}`);
-      sub();
+      console.log('Cleaning up DAO subscriptions...');
+      activeSubscriptions.forEach(sub => sub.close());
+      setSubscriptions([]);
+      pool.close(relays);
     };
   }, [daoId, onNewProposal, onNewVote, onDAOUpdate]);
-
-  return { isConnected: !!nostrService.pool };
+  
+  return {
+    isConnected,
+    subscriptionsCount: subscriptions.length
+  };
 }

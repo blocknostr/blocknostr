@@ -73,11 +73,14 @@ export function useDAOKickProposals(daoId?: string) {
         targetPubkey: memberToKick
       });
       
-      // Use only 3 parameters as expected by the service
+      const options = ["Yes, remove member", "No, keep member"];
+      
       const proposalId = await daoService.createKickProposal(
         daoId,
         title,
-        description
+        description,
+        options,
+        memberToKick
       );
       
       if (proposalId) {

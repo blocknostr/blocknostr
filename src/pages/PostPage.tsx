@@ -1,70 +1,269 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import NoteCardHeader from '@/components/note/NoteCardHeader';
+import NoteCardContent from '@/components/note/NoteCardContent';
+import NoteCardComments from '@/components/note/NoteCardComments';
+import NoteCardActions from '@/components/note/NoteCardActions'; 
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { nostrService } from '@/lib/nostr';
+import { SimplePool } from 'nostr-tools';
+import { SocialManager } from '@/lib/nostr/social';
 import { toast } from 'sonner';
 import { Note } from '@/components/notebin/hooks/types';
-import { useNoteCardActions } from '@/components/note/hooks/useNoteCardActions';
-import NoteCard from '@/components/note/NoteCard';
-import { useNostr } from '@/lib/nostr';
-import { BackButton } from '@/components/ui/back-button';
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { useProfile } from '@/hooks/useProfile';
-import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ProfileTabs } from '@/components/profile/ProfileTabs';
-import { ProfileNotes } from '@/components/profile/ProfileNotes';
-import { ProfileBadges } from '@/components/profile/ProfileBadges';
-import { ProfileSettings } from '@/components/profile/ProfileSettings';
-import { ProfileContactList } from '@/components/profile/ProfileContactList';
-import { ProfileRelays } from '@/components/profile/ProfileRelays';
-import { ProfileCommunities } from '@/components/profile/ProfileCommunities';
-import { ProfileHighlights } from '@/components/profile/ProfileHighlights';
-import { ProfileHighlightsSkeleton } from '@/components/profile/ProfileHighlightsSkeleton';
-import { ProfileNotesSkeleton } from '@/components/profile/ProfileNotesSkeleton';
-import { ProfileContactListSkeleton } from '@/components/profile/ProfileContactListSkeleton';
-import { ProfileRelaysSkeleton } from '@/components/profile/ProfileRelaysSkeleton';
-import { ProfileCommunitiesSkeleton } from '@/components/profile/ProfileCommunitiesSkeleton';
-import { ProfileBadgesSkeleton } from '@/components/profile/ProfileBadgesSkeleton';
-import { ProfileSettingsSkeleton } from '@/components/profile/ProfileSettingsSkeleton';
-import { useEventSubscription } from '@/components/feed/hooks';
-import { EVENT_KINDS } from '@/lib/nostr';
 
-const PostPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>();
-  const [note, setNote] = useState<Note | null>(null);
-  const { nostrService } = useNostr();
-  const { subscribe } = useEventSubscription();
+const PostPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentNote, setCurrentNote] = useState<any>(null);
+  const [profileData, setProfileData] = useState<Record<string, any> | null>(null);
+  const [reactionCounts, setReactionCounts] = useState({
+    likes: 0,
+    reposts: 0,
+    replies: 0,
+    zaps: 0,
+    zapAmount: 0
+  });
+  const [showReplies, setShowReplies] = useState(true);
+  const [replyUpdated, setReplyUpdated] = useState(0);
+  const [pool] = useState(() => new SimplePool());
 
+  // Create SocialManager instance with the SimplePool
+  const socialManager = new SocialManager(pool, {});
+  
+  // Define default relays if nostrService.relays is not available
+  const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
+
+  // Fetch the note data on component mount
   useEffect(() => {
-    if (!eventId || !nostrService) return;
+    if (!id) return;
 
-    const filters = [{ ids: [eventId] }];
-
-    subscribe(filters, (event: any) => {
-      if (event) {
-        setNote({
-          id: event.id,
-          author: event.pubkey,
-          content: event.content,
-          createdAt: event.created_at,
-          event: event,
-        });
+    const fetchNote = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Connect to relays
+        await nostrService.connectToUserRelays();
+        
+        // Subscribe to the specific note using the ID
+        const filters = [{ ids: [id] }];
+        
+        if (nostrService.subscribe) {
+          const sub = nostrService.subscribe(filters, (event) => {
+            handleEvent(event);
+          }, defaultRelays);
+          
+          // Cleanup subscription
+          return () => {
+            if (sub && nostrService.unsubscribe) {
+              nostrService.unsubscribe(sub);
+            }
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching note:', error);
+        toast.error('Failed to load post');
+      } finally {
+        setIsLoading(false);
       }
-    });
+    };
 
-  }, [eventId, nostrService, subscribe]);
+    fetchNote();
+  }, [id]);
+  
+  // Handle received events
+  const handleEvent = (event: any) => {
+    setCurrentNote(event);
+    
+    // If we have the event, fetch the author's profile
+    if (event && event.pubkey) {
+      fetchAuthorProfile(event.pubkey);
+    }
 
-  if (!note) {
+    // Also fetch reaction counts
+    if (event && event.id) {
+      fetchReactionCounts(event.id);
+    }
+  };
+
+  // Fetch the author's profile data
+  const fetchAuthorProfile = async (pubkey: string) => {
+    try {
+      const profile = await nostrService.getUserProfile(pubkey);
+      if (profile) {
+        setProfileData(profile);
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
+
+  // Fetch reaction counts for the post
+  const fetchReactionCounts = async (eventId: string) => {
+    try {
+      if (!eventId) return;
+      
+      // Get reaction counts from the social manager with correct parameters
+      const counts = await socialManager.getReactionCounts(eventId, defaultRelays);
+      setReactionCounts(counts);
+    } catch (error) {
+      console.error("Error fetching reaction counts:", error);
+    }
+  };
+  
+  // Fix the stats section to use the right properties
+  const renderStats = () => {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <h2>Loading post...</h2>
+      <div className="flex gap-4 text-xs text-muted-foreground py-2 border-b px-4 md:px-6">
+        <div title="Replies">
+          <span className="font-medium">{reactionCounts.replies || 0}</span> {reactionCounts.replies === 1 ? 'Reply' : 'Replies'}
+        </div>
+        <div title="Reposts">
+          <span className="font-medium">{reactionCounts.reposts || 0}</span> {reactionCounts.reposts === 1 ? 'Repost' : 'Reposts'}
+        </div>
+        <div title="Likes">
+          <span className="font-medium">{reactionCounts.likes || 0}</span> {reactionCounts.likes === 1 ? 'Like' : 'Likes'}
+        </div>
+        <div title="Zaps">
+          <span className="font-medium">{reactionCounts.zaps || 0}</span> {reactionCounts.zaps === 1 ? 'Zap' : 'Zaps'}
+        </div>
+        {reactionCounts.zapAmount > 0 && (
+          <div title="Zap Amount">
+            <span className="font-medium">{reactionCounts.zapAmount}</span> sats
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Handle back navigation
+  const handleBack = () => {
+    navigate(-1);
+  };
+
+  // Convert the event to a Note object for NoteCardActions
+  const getAsNote = () => {
+    return {
+      id: currentNote?.id || '',
+      author: currentNote?.pubkey || '',
+      content: currentNote?.content || '',
+      createdAt: currentNote?.created_at || 0,
+      event: currentNote
+    };
+  };
+
+  // Handle reply being added
+  const handleReplyAdded = () => {
+    // Update reaction counts
+    if (currentNote?.id) {
+      fetchReactionCounts(currentNote.id);
+      // Force comments component to refresh
+      setReplyUpdated(prev => prev + 1);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container py-6">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4 mb-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-4 w-[150px]" />
+              </div>
+            </div>
+            
+            <div className="space-y-2 mt-4">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentNote) {
+    return (
+      <div className="container py-6">
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </div>
+        
+        <Card>
+          <CardContent className="p-6 text-center py-12">
+            <h2 className="text-2xl font-bold mb-2">Post not found</h2>
+            <p className="text-muted-foreground">The note you're looking for doesn't exist or has been deleted.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto">
-      <BackButton />
-      <NoteCard note={note} />
+    <div className="container py-6">
+      <div className="mb-6">
+        <Button variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
+        </Button>
+      </div>
+      
+      <Card className="mb-4">
+        <CardContent className="p-0">
+          <div className="p-4 md:p-6">
+            {/* Note header with author info */}
+            <NoteCardHeader 
+              pubkey={currentNote?.pubkey || ''} 
+              createdAt={currentNote?.created_at || 0} 
+              profileData={profileData || undefined}
+            />
+            
+            {/* Note content */}
+            <NoteCardContent 
+              content={currentNote?.content || ''} 
+              tags={currentNote?.tags || []}
+              event={currentNote}
+            />
+            
+            {/* Note Actions */}
+            <div className="mt-3">
+              <NoteCardActions 
+                note={getAsNote()}
+                setActiveReply={() => setShowReplies(true)}
+              />
+            </div>
+          </div>
+
+          {/* Render stats */}
+          {renderStats()}
+          
+          {/* Comments section */}
+          {currentNote?.id && (
+            <NoteCardComments 
+              eventId={currentNote.id}
+              pubkey={currentNote.pubkey}
+              onReplyAdded={handleReplyAdded}
+              key={`comments-${replyUpdated}`}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
