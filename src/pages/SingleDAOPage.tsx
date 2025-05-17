@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -10,7 +9,7 @@ import DAOSettingsDialog from "@/components/dao/DAOSettingsDialog";
 import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
 import DAOHeader from "@/components/dao/DAOHeader";
 import DAOKickProposalsList from "@/components/dao/DAOKickProposalsList";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/sidebar/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import DAOPageHeader from "@/components/dao/DAOPageHeader";
@@ -84,8 +83,8 @@ const SingleDAOPage: React.FC = () => {
     return (
       <div className="flex min-h-screen bg-background">
         <Sidebar />
-        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12">
+        <div className="flex-1">
+          <div className="container max-w-6xl mx-auto px-4 py-6">
             <div className="flex flex-col items-center justify-center h-64">
               <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
               <p className="text-lg text-muted-foreground">Loading DAO information...</p>
@@ -100,8 +99,8 @@ const SingleDAOPage: React.FC = () => {
     return (
       <div className="flex min-h-screen bg-background">
         <Sidebar />
-        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12">
+        <div className="flex-1">
+          <div className="container max-w-6xl mx-auto px-4 py-6">
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
               <p className="text-muted-foreground mb-6">
@@ -184,7 +183,7 @@ const SingleDAOPage: React.FC = () => {
   
   // Fix for the voteOnKickProposal issue - accept boolean and convert to number
   const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
-    // Convert boolean vote to number (true -> 1, false -> 0)
+    // Convert boolean vote to number (true -> 0, false -> 1)
     const optionIndex = vote ? 0 : 1; // Invert the logic: true = "Yes, remove" (0), false = "No, keep" (1)
     return await voteOnKickProposal(proposalId, optionIndex);
   };
@@ -193,7 +192,7 @@ const SingleDAOPage: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       
-      <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+      <div className="flex-1">
         <DAOPageHeader
           name={currentDao?.name || ""}
           isMember={isMemberOfCurrentDao}
@@ -206,7 +205,7 @@ const SingleDAOPage: React.FC = () => {
           isPrivate={currentDao?.isPrivate}
         />
         
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
+        <div className="container max-w-6xl mx-auto px-4 py-6">
           <div className="space-y-5">
             {/* DAO Info */}
             {currentDao && (
