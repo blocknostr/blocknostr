@@ -1,3 +1,4 @@
+
 import { nostrService } from "@/lib/nostr";
 import { daoCache } from "./dao-cache";
 import { DAO_KINDS } from "@/lib/nostr/constants";
@@ -16,7 +17,7 @@ async function leaveDAO(daoId: string): Promise<boolean> {
     }
     
     // First fetch the DAO to get current data
-    const dao = await daoService.getDAOById(daoId);
+    const dao = await getDAOById(daoId);
     if (!dao) {
       console.error("DAO not found:", daoId);
       throw new Error("DAO not found");
@@ -38,7 +39,7 @@ async function leaveDAO(daoId: string): Promise<boolean> {
     
     // Extract the unique identifier from d tag if available
     let uniqueId = daoId;
-    const event = await daoService.getDAOEventById(daoId);
+    const event = await getDAOEventById(daoId);
     if (event) {
       const dTag = event.tags.find(tag => tag[0] === 'd');
       if (dTag && dTag[1]) {
@@ -80,7 +81,7 @@ async function leaveDAO(daoId: string): Promise<boolean> {
     
     console.log("Publishing leave DAO event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully left DAO ${daoId}`);
     
     return true;
@@ -102,7 +103,7 @@ async function deleteDAO(daoId: string): Promise<boolean> {
     }
     
     // First fetch the DAO to get current data
-    const dao = await daoService.getDAOById(daoId);
+    const dao = await getDAOById(daoId);
     if (!dao) {
       console.error("DAO not found:", daoId);
       throw new Error("DAO not found");
@@ -142,7 +143,7 @@ async function deleteDAO(daoId: string): Promise<boolean> {
     
     console.log("Publishing DAO deletion event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully deleted DAO ${daoId}`);
     
     // Clear the cache for this DAO
@@ -160,7 +161,7 @@ async function deleteDAO(daoId: string): Promise<boolean> {
  */
 async function getDAOById(daoId: string): Promise<DAO | null> {
   try {
-    return await daoCache.get(daoId, async () => {
+    return await daoCache.getItem(daoId, async () => {
       const event = await nostrService.getEventById(daoId);
       if (!event) {
         console.warn(`DAO event not found: ${daoId}`);
@@ -199,8 +200,10 @@ async function getDAOEventById(daoId: string) {
 async function getDAOs(): Promise<DAO[]> {
   try {
     const events = await nostrService.getEvents({
-      kinds: [DAO_KINDS.COMMUNITY],
-      limit: 100
+      filter: {
+        kinds: [DAO_KINDS.COMMUNITY],
+        limit: 100
+      }
     });
     
     const daos = events.map(event => parseDAOEvent(event)).filter(Boolean) as DAO[];
@@ -226,9 +229,11 @@ async function getDAOs(): Promise<DAO[]> {
 async function getUserDAOs(pubkey: string): Promise<DAO[]> {
   try {
     const events = await nostrService.getEvents({
-      kinds: [DAO_KINDS.COMMUNITY],
-      authors: [pubkey],
-      limit: 100
+      filter: {
+        kinds: [DAO_KINDS.COMMUNITY],
+        authors: [pubkey],
+        limit: 100
+      }
     });
     
     const daos = events.map(event => parseDAOEvent(event)).filter(Boolean) as DAO[];
@@ -307,7 +312,7 @@ async function createDAO(name: string, description: string, tags: string[] = [])
     
     const event = await nostrService.publishEvent(eventData);
     
-    if (event?.id) {
+    if (event && event.id) {
       console.log(`Successfully created DAO ${name} with ID ${event.id}`);
       return event.id;
     } else {
@@ -381,11 +386,11 @@ async function updateDAOMetadata(
     
     console.log("Publishing update DAO metadata event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully updated DAO ${daoId} metadata`);
     
     // Clear the cache for this DAO
-    setTimeout(() => daoCache.clear(daoId), 1000);
+    setTimeout(() => daoCache.clearItem(daoId), 1000);
     
     return true;
   } catch (error) {
@@ -469,11 +474,11 @@ async function updateDAORoles(
     
     console.log("Publishing update DAO roles event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully updated DAO ${daoId} roles`);
     
     // Clear the cache for this DAO
-    setTimeout(() => daoCache.clear(daoId), 1000);
+    setTimeout(() => daoCache.clearItem(daoId), 1000);
     
     return true;
   } catch (error) {
@@ -527,7 +532,7 @@ async function createProposal(
     
     const event = await nostrService.publishEvent(eventData);
     
-    if (event?.id) {
+    if (event && event.id) {
       console.log(`Successfully created proposal ${title} with ID ${event.id}`);
       return event.id;
     } else {
@@ -585,7 +590,7 @@ async function createKickProposal(
     
     const event = await nostrService.publishEvent(eventData);
     
-    if (event?.id) {
+    if (event && event.id) {
       console.log(`Successfully created kick proposal for ${memberToKick} with ID ${event.id}`);
       return event.id;
     } else {
@@ -625,7 +630,7 @@ async function voteOnProposal(proposalId: string, optionIndex: number): Promise<
     
     console.log("Publishing vote event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully voted on proposal ${proposalId}`);
     
     return true;
@@ -641,9 +646,11 @@ async function voteOnProposal(proposalId: string, optionIndex: number): Promise<
 async function getDAOProposals(daoId: string): Promise<DAOProposal[]> {
   try {
     const events = await nostrService.getEvents({
-      kinds: [DAO_KINDS.PROPOSAL],
-      "#e": [daoId], // Proposals for this DAO
-      limit: 100
+      filter: {
+        kinds: [DAO_KINDS.PROPOSAL],
+        "#e": [daoId], // Proposals for this DAO
+        limit: 100
+      }
     });
     
     const proposals = events.map(event => parseProposalEvent(event)).filter(Boolean) as DAOProposal[];
@@ -664,10 +671,12 @@ async function getDAOProposals(daoId: string): Promise<DAOProposal[]> {
 async function getDAOKickProposals(daoId: string): Promise<DAOProposal[]> {
   try {
     const events = await nostrService.getEvents({
-      kinds: [DAO_KINDS.PROPOSAL],
-      "#e": [daoId], // Proposals for this DAO
-      "#p": ["kick"], // Kick proposals
-      limit: 100
+      filter: {
+        kinds: [DAO_KINDS.PROPOSAL],
+        "#e": [daoId], // Proposals for this DAO
+        "#p": ["kick"], // Kick proposals
+        limit: 100
+      }
     });
     
     const proposals = events.map(event => parseProposalEvent(event)).filter(Boolean) as DAOProposal[];
@@ -749,7 +758,7 @@ async function joinDAO(daoId: string): Promise<boolean> {
     
     console.log("Publishing join DAO event:", eventData);
     
-    await nostrService.publishEvent(eventData);
+    const result = await nostrService.publishEvent(eventData);
     console.log(`Successfully joined DAO ${daoId}`);
     
     return true;
@@ -790,7 +799,7 @@ async function createDAOInvite(daoId: string): Promise<string | null> {
     
     const event = await nostrService.publishEvent(eventData);
     
-    if (event?.id) {
+    if (event && event.id) {
       console.log(`Successfully created invite for DAO ${daoId} with ID ${event.id}`);
       return event.id;
     } else {

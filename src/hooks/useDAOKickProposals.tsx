@@ -1,130 +1,52 @@
 
-import { useState, useEffect } from "react";
-import { daoService } from "@/lib/dao/dao-service";
-import { DAO, DAOProposal } from "@/types/dao";
-import { nostrService } from "@/lib/nostr";
-import { toast } from "sonner";
+import { useState, useEffect, useCallback } from 'react';
+import { daoService } from '@/lib/dao/dao-service';
+import { DAOProposal } from '@/types/dao';
 
-interface KickProposal extends DAOProposal {
-  targetPubkey: string;
-}
-
-export function useDAOKickProposals(daoId?: string) {
-  const [kickProposals, setKickProposals] = useState<KickProposal[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+export function useDAOKickProposals(daoId: string) {
+  const [proposals, setProposals] = useState<DAOProposal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  const currentUserPubkey = nostrService.publicKey;
-  
-  // Fetch kick proposals
-  useEffect(() => {
+  const fetchProposals = useCallback(async () => {
     if (!daoId) return;
     
-    const fetchKickProposals = async () => {
+    try {
       setLoading(true);
-      try {
-        const proposals = await daoService.getDAOProposals(daoId);
-        
-        // Filter for kick proposals
-        const kickProps = proposals
-          .filter(proposal => {
-            try {
-              const content = JSON.parse(proposal.description);
-              return content.type === "kick" && content.targetPubkey;
-            } catch (e) {
-              return false;
-            }
-          })
-          .map(proposal => {
-            try {
-              const content = JSON.parse(proposal.description);
-              return {
-                ...proposal,
-                targetPubkey: content.targetPubkey
-              } as KickProposal;
-            } catch (e) {
-              return null;
-            }
-          })
-          .filter((p): p is KickProposal => p !== null);
-        
-        setKickProposals(kickProps);
-      } catch (error) {
-        console.error("Error fetching kick proposals:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchKickProposals();
+      setError(null);
+      const fetchedProposals = await daoService.getDAOKickProposals(daoId);
+      setProposals(fetchedProposals);
+    } catch (err) {
+      console.error('Error fetching kick proposals:', err);
+      setError('Failed to load kick proposals');
+    } finally {
+      setLoading(false);
+    }
   }, [daoId]);
   
-  // Create kick proposal
-  const createKickProposal = async (daoId: string, memberToKick: string, reason: string) => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to create kick proposals");
-      return false;
-    }
-    
-    try {
-      const title = `Remove member ${memberToKick.substring(0, 8)}...`;
-      const description = JSON.stringify({
-        type: "kick",
-        reason: reason,
-        targetPubkey: memberToKick
-      });
-      
-      const options = ["Yes, remove member", "No, keep member"];
-      
-      const proposalId = await daoService.createKickProposal(
-        daoId,
-        title,
-        description,
-        options,
-        memberToKick
-      );
-      
-      if (proposalId) {
-        toast.success("Kick proposal created successfully");
-        return true;
-      } else {
-        toast.error("Failed to create kick proposal");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error creating kick proposal:", error);
-      toast.error("Failed to create kick proposal");
-      return false;
-    }
-  };
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
   
-  // Vote on kick proposal
-  const voteOnKickProposal = async (proposalId: string, optionIndex: number) => {
-    if (!currentUserPubkey) {
-      toast.error("You must be logged in to vote");
-      return false;
-    }
-    
+  const voteOnProposal = async (proposalId: string, optionIndex: number) => {
     try {
       const success = await daoService.voteOnProposal(proposalId, optionIndex);
-      
       if (success) {
-        toast.success("Vote recorded successfully");
-        return true;
-      } else {
-        toast.error("Failed to record vote");
-        return false;
+        // Refetch proposals
+        fetchProposals();
       }
-    } catch (error) {
-      console.error("Error voting on kick proposal:", error);
-      toast.error("Failed to record vote");
+      return success;
+    } catch (err) {
+      console.error('Error voting on kick proposal:', err);
       return false;
     }
   };
   
   return {
-    kickProposals,
+    proposals,
     loading,
-    createKickProposal,
-    voteOnKickProposal
+    error,
+    fetchProposals,
+    voteOnProposal
   };
 }

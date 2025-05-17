@@ -36,3 +36,12 @@ export const EVENT_KINDS = {
   ZAP_REQUEST: 9734, // Zap request (NIP-57)
   ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
 }
+
+// DAO-specific kinds (NIP-72 compatible)
+export const DAO_KINDS = {
+  COMMUNITY: 34550, // DAO/Community definition event
+  PROPOSAL: 34551, // DAO proposal event
+  VOTE: 34552, // Vote on a DAO proposal
+  INVITE: 34553, // DAO invitation
+  CHAT_MESSAGE: 42, // Chat message (using standard channel message kind)
+}

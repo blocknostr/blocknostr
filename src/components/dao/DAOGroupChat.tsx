@@ -41,6 +41,12 @@ const DAOGroupChat: React.FC<DAOGroupChatProps> = ({
     isReconnecting
   } = useWorldChat(chatTag);
 
+  // Wrapper to handle the return type mismatch
+  const handleSendMessage = async (messageContent: string): Promise<boolean> => {
+    await sendMessage(messageContent);
+    return true;
+  };
+
   if (!isLoggedIn) {
     return (
       <Card className="chat-card flex flex-col h-[500px] shadow-md overflow-hidden rounded-lg relative bg-background/90 backdrop-blur-sm border-border/50">
@@ -138,7 +144,7 @@ const DAOGroupChat: React.FC<DAOGroupChatProps> = ({
       <ChatInput
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
-        onSendMessage={sendMessage}
+        onSendMessage={handleSendMessage}
         disabled={connectionStatus === 'disconnected'}
         placeholder={`Message the ${daoName} DAO...`}
       />
