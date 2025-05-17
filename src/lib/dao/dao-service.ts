@@ -514,11 +514,11 @@ export class DAOService {
       // If successful, immediately invalidate the cache for proposals
       if (eventId) {
         // First invalidate the proposals cache for this DAO
-        daoCache.clearProposals(daoId);
+        daoCache.invalidateProposals(daoId);
         
         // Construct a basic proposal object to add to the cache temporarily 
         // until a full refresh happens
-        const newProposal = {
+        const newProposal: DAOProposal = {
           id: eventId,
           daoId: daoId,
           title: title,
@@ -528,7 +528,7 @@ export class DAOService {
           endsAt: endsAt,
           creator: pubkey,
           votes: {},
-          status: "active"
+          status: "active" as "active" | "passed" | "rejected" | "canceled"
         };
         
         // Get existing cached proposals or empty array
@@ -1257,7 +1257,8 @@ export class DAOService {
       
       // Calculate status based on end time
       const now = Math.floor(Date.now() / 1000);
-      const status = content.endsAt > now ? "active" : "passed"; // Simple logic for now
+      const status: "active" | "passed" | "rejected" | "canceled" = 
+        content.endsAt > now ? "active" : "passed"; // Simple logic for now
       
       return {
         id: event.id,
