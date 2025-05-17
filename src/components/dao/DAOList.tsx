@@ -13,7 +13,7 @@ import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
 import { Users } from "lucide-react";
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 8;
 
 const DAOList = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -192,7 +192,10 @@ const DAOList = () => {
           
           {remainingDaos.length > 0 && (
             <div className="pt-4 border-t">
-              <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="h-5 w-5 text-primary" />
+                <h3 className="text-lg font-medium">Additional DAOs</h3>
+              </div>
               <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
             </div>
           )}
