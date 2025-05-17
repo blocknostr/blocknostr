@@ -1,3 +1,4 @@
+
 // NIP-72 compliant DAO/Community types
 export interface DAO {
   id: string;            // Event ID of the community definition event
@@ -17,7 +18,7 @@ export interface DAO {
   tags: string[];       // Community tags
   isPrivate: boolean;   // Whether the community is private (invitation only)
   guidelines?: string;   // Community guidelines (optional)
-  alephiumProject?: string | null;
+  alephiumProject?: string | null; // Alephium project ID (optional)
 }
 
 export interface DAOProposal {

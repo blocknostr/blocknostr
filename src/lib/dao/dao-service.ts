@@ -1,4 +1,5 @@
-import { getEventHash, verifySignature } from "nostr-tools";
+
+import { getEventHash } from "nostr-tools";
 import { DAO } from "@/types/dao";
 import { DAOProposal } from "@/types/dao";
 import { nostrService } from "../nostr";
@@ -18,7 +19,7 @@ class DAOService {
   async getDAOs(): Promise<DAO[]> {
     try {
       // Try to get from cache first
-      const cachedDAOs = await daoCache.getAllDAOs();
+      const cachedDAOs = daoCache.getAllDAOs();
       if (cachedDAOs && cachedDAOs.length > 0) {
         console.log("Returning cached DAOs");
         return cachedDAOs;
@@ -31,7 +32,7 @@ class DAOService {
         limit: 100,
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log("No DAO events found.");
@@ -63,7 +64,7 @@ class DAOService {
       }).filter(dao => dao !== null) as DAO[];
       
       // Update the cache with the fetched DAOs
-      await daoCache.setAllDAOs(daos);
+      daoCache.cacheAllDAOs(daos);
       
       return daos;
     } catch (error) {
@@ -75,7 +76,7 @@ class DAOService {
   async getDAOById(daoId: string): Promise<DAO | null> {
     try {
       // Try to get from cache first
-      const cachedDAO = await daoCache.getDAO(daoId);
+      const cachedDAO = daoCache.getDAODetails(daoId);
       if (cachedDAO) {
         console.log(`Returning cached DAO ${daoId}`);
         return cachedDAO;
@@ -89,7 +90,7 @@ class DAOService {
         limit: 1
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`DAO ${daoId} not found.`);
@@ -126,7 +127,7 @@ class DAOService {
         };
         
         // Update the cache with the fetched DAO
-        await daoCache.addDAO(fullDAO);
+        daoCache.cacheDAODetails(daoId, fullDAO);
         
         return fullDAO;
       } catch (error) {
@@ -150,7 +151,7 @@ class DAOService {
         limit: 100
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO membership events found for user ${pubkey}.`);
@@ -221,7 +222,7 @@ class DAOService {
       // Create an event for this DAO with NIP-72 tag
       const now = Math.floor(Date.now() / 1000);
       
-      const tags = [
+      const eventTags = [
         ["d", daoId],
         ["title", name],
         ["nip72", "dao-creation"],
@@ -229,13 +230,13 @@ class DAOService {
       
       // Add Alephium project tag if provided
       if (alephiumProjectId) {
-        tags.push(["alephium", alephiumProjectId]);
+        eventTags.push(["alephium", alephiumProjectId]);
       }
       
       const event = {
         kind: 30072,
         created_at: now,
-        tags,
+        tags: eventTags,
         content: JSON.stringify(daoContent)
       };
       
@@ -244,7 +245,7 @@ class DAOService {
       
       if (publishResult) {
         // Immediately update the cache with the new DAO
-        await daoCache.addDAO({
+        daoCache.cacheDAODetails(daoId, {
           id: daoId,
           name,
           description,
@@ -299,7 +300,14 @@ class DAOService {
       
       if (publishResult) {
         // Update DAO members list in cache
-        await daoCache.addDAOMember(daoId, pubkey);
+        const currentDao = daoCache.getDAODetails(daoId);
+        if (currentDao) {
+          const updatedDao = {
+            ...currentDao,
+            members: [...currentDao.members, pubkey]
+          };
+          daoCache.cacheDAODetails(daoId, updatedDao);
+        }
         return true;
       }
       
@@ -330,7 +338,7 @@ class DAOService {
         limit: 1
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO membership event found for user ${pubkey} in DAO ${daoId}.`);
@@ -354,7 +362,14 @@ class DAOService {
       
       if (publishResult) {
         // Update DAO members list in cache
-        await daoCache.removeDAOMember(daoId, pubkey);
+        const currentDao = daoCache.getDAODetails(daoId);
+        if (currentDao) {
+          const updatedDao = {
+            ...currentDao,
+            members: currentDao.members.filter(member => member !== pubkey)
+          };
+          daoCache.cacheDAODetails(daoId, updatedDao);
+        }
         return true;
       }
       
@@ -370,13 +385,6 @@ class DAOService {
     try {
       console.log(`Fetching members for DAO ${daoId}...`);
       
-      // Try to get from cache first
-      const cachedMembers = await daoCache.getDAOMembers(daoId);
-      if (cachedMembers) {
-        console.log(`Returning cached members for DAO ${daoId}`);
-        return cachedMembers;
-      }
-      
       // Get all DAO membership events for this DAO
       const filter = {
         kinds: [30071],
@@ -384,7 +392,7 @@ class DAOService {
         limit: 100
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO membership events found for DAO ${daoId}.`);
@@ -393,9 +401,6 @@ class DAOService {
       
       // Extract pubkeys from the events
       const members = events.map(event => event.pubkey);
-      
-      // Update the cache with the fetched members
-      await daoCache.setDAOMembers(daoId, members);
       
       return members;
     } catch (error) {
@@ -409,13 +414,6 @@ class DAOService {
     try {
       console.log(`Fetching moderators for DAO ${daoId}...`);
       
-      // Try to get from cache first
-      const cachedModerators = await daoCache.getDAOModerators(daoId);
-      if (cachedModerators) {
-        console.log(`Returning cached moderators for DAO ${daoId}`);
-        return cachedModerators;
-      }
-      
       // Get all DAO moderator events for this DAO
       const filter = {
         kinds: [30073],
@@ -423,7 +421,7 @@ class DAOService {
         limit: 100
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO moderator events found for DAO ${daoId}.`);
@@ -435,9 +433,6 @@ class DAOService {
         const pTag = event.tags.find(tag => tag[0] === "p");
         return pTag ? pTag[1] : null;
       }).filter(pubkey => pubkey !== null) as string[];
-      
-      // Update the cache with the fetched moderators
-      await daoCache.setDAOModerators(daoId, moderators);
       
       return moderators;
     } catch (error) {
@@ -483,7 +478,7 @@ class DAOService {
       // Create an event for this DAO metadata update
       const now = Math.floor(Date.now() / 1000);
       
-      const tags = [
+      const eventTags = [
         ["d", daoId],
         ["title", dao.name],
         ["nip72", "dao-metadata-update"],
@@ -492,7 +487,7 @@ class DAOService {
       const event = {
         kind: 30072,
         created_at: now,
-        tags,
+        tags: eventTags,
         content: JSON.stringify(updatedDAO)
       };
       
@@ -501,7 +496,7 @@ class DAOService {
       
       if (publishResult) {
         // Update the cache with the updated DAO
-        await daoCache.addDAO(updatedDAO);
+        daoCache.cacheDAODetails(daoId, updatedDAO);
         return true;
       }
       
@@ -563,7 +558,14 @@ class DAOService {
         
         if (publishResult) {
           // Update DAO moderators list in cache
-          await daoCache.addDAOModerator(daoId, roleUpdate.pubkey);
+          const currentDao = daoCache.getDAODetails(daoId);
+          if (currentDao) {
+            const updatedDao = {
+              ...currentDao,
+              moderators: [...currentDao.moderators, roleUpdate.pubkey]
+            };
+            daoCache.cacheDAODetails(daoId, updatedDao);
+          }
           return true;
         }
       } else if (roleUpdate.action === "remove") {
@@ -576,7 +578,7 @@ class DAOService {
           limit: 1
         };
         
-        const events = await this.adapter.getEvents([filter]);
+        const events = await this.adapter.getEvents([filter as any]);
         
         if (!events || events.length === 0) {
           console.log(`No DAO moderator event found for user ${roleUpdate.pubkey} in DAO ${daoId}.`);
@@ -600,7 +602,14 @@ class DAOService {
         
         if (publishResult) {
           // Update DAO moderators list in cache
-          await daoCache.removeDAOModerator(daoId, roleUpdate.pubkey);
+          const currentDao = daoCache.getDAODetails(daoId);
+          if (currentDao) {
+            const updatedDao = {
+              ...currentDao,
+              moderators: currentDao.moderators.filter(mod => mod !== roleUpdate.pubkey)
+            };
+            daoCache.cacheDAODetails(daoId, updatedDao);
+          }
           return true;
         }
       } else {
@@ -683,7 +692,7 @@ class DAOService {
       };
       
       // Create an event for this proposal
-      const tags = [
+      const eventTags = [
         ["d", proposalId],
         ["dao", daoId],
         ["title", title],
@@ -693,7 +702,7 @@ class DAOService {
       const event = {
         kind: 7000, // Custom kind for DAO proposals
         created_at: now,
-        tags,
+        tags: eventTags,
         content: JSON.stringify(proposalContent)
       };
       
@@ -745,7 +754,7 @@ class DAOService {
       };
       
       // Create an event for this proposal
-      const tags = [
+      const eventTags = [
         ["d", proposalId],
         ["dao", daoId],
         ["title", title],
@@ -756,7 +765,7 @@ class DAOService {
       const event = {
         kind: 7000, // Custom kind for DAO proposals
         created_at: now,
-        tags,
+        tags: eventTags,
         content: JSON.stringify(proposalContent)
       };
       
@@ -797,7 +806,7 @@ class DAOService {
       const publishResult = await this.adapter.publishEvent(event);
       console.log("DAO proposal vote result:", publishResult);
       
-      return publishResult;
+      return !!publishResult;
     } catch (error) {
       console.error("Error voting on DAO proposal:", error);
       return false;
@@ -815,7 +824,7 @@ class DAOService {
         limit: 100
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO proposals found for DAO ${daoId}.`);
@@ -858,7 +867,7 @@ class DAOService {
         limit: 100
       };
       
-      const events = await this.adapter.getEvents([filter]);
+      const events = await this.adapter.getEvents([filter as any]);
       
       if (!events || events.length === 0) {
         console.log(`No DAO kick proposals found for DAO ${daoId}.`);
