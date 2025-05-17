@@ -1,264 +1,293 @@
-import React, { useState, useEffect } from "react";
-import { Search, Shield, Crown, UserX } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DAO } from "@/types/dao";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+import React, { useState } from "react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useProfileCache } from "@/hooks/useProfileCache";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MoreHorizontal, Crown, Shield, UserPlus, Copy, Check } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { DAO } from "@/types/dao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { nostrService } from "@/lib/nostr";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 interface DAOMembersListProps {
   dao: DAO;
   currentUserPubkey: string | null;
-  onKickProposal?: (memberToKick: string, reason: string) => Promise<boolean>;
-  kickProposals?: any[];
-  onVoteKick?: (proposalId: string, vote: boolean) => Promise<boolean>;
-  onLeaveDAO?: () => void;
-  userRole?: 'creator' | 'moderator' | 'member' | null;
-  canKickPropose?: boolean;
-}
-
-interface MemberProfile {
-  pubkey: string;
-  displayName: string;
-  picture: string;
-  nip05: string;
-  role: 'creator' | 'moderator' | 'member';
+  onKickProposal: (memberPubkey: string, reason: string) => Promise<boolean>;
+  kickProposals: any[];
+  onVoteKick: (proposalId: string, vote: boolean) => Promise<boolean>;
+  onLeaveDAO: () => Promise<void>;
+  userRole: string | null;
+  canKickPropose: boolean;
+  onCreateInvite?: () => Promise<string | null>; // New prop for invite creation
 }
 
 const DAOMembersList: React.FC<DAOMembersListProps> = ({
-  dao, 
+  dao,
   currentUserPubkey,
   onKickProposal,
+  kickProposals,
+  onVoteKick,
+  onLeaveDAO,
   userRole,
-  canKickPropose = false
+  canKickPropose,
+  onCreateInvite
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [members, setMembers] = useState<MemberProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
-  const [kickReason, setKickReason] = useState("");
-  const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
-  const [isSubmittingKick, setIsSubmittingKick] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [isKickModalOpen, setIsKickModalOpen] = useState<boolean>(false);
+  const [kickReason, setKickReason] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      setLoading(true);
-      try {
-        const memberProfiles: MemberProfile[] = [];
-        
-        // Process all members
-        for (const pubkey of dao.members) {
-          // Fix: Use getUserProfile instead of getProfile
-          const profile = await nostrService.getUserProfile(pubkey);
-          
-          let role: 'creator' | 'moderator' | 'member' = 'member';
-          if (pubkey === dao.creator) role = 'creator';
-          else if (dao.moderators.includes(pubkey)) role = 'moderator';
-          
-          memberProfiles.push({
-            pubkey,
-            displayName: profile?.name || profile?.displayName || pubkey.substring(0, 8),
-            picture: profile?.picture || '',
-            nip05: profile?.nip05 || '',
-            role
-          });
-        }
-        
-        setMembers(memberProfiles);
-      } catch (error) {
-        console.error("Error fetching member profiles:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchProfiles();
-  }, [dao]);
+  // New state for invite functionality
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [isCreatingInvite, setIsCreatingInvite] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  // Get user profiles for all members
+  const { profiles, isLoading } = useProfileCache(dao.members);
   
-  const filteredMembers = searchTerm
-    ? members.filter(member => 
-        member.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.pubkey.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.nip05?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : members;
-  
-  // Sort by role (creator first, then moderators, then members)
-  const sortedMembers = [...filteredMembers].sort((a, b) => {
-    const roleOrder = { creator: 0, moderator: 1, member: 2 };
-    return roleOrder[a.role] - roleOrder[b.role];
-  });
-  
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'creator':
-        return <Badge variant="default" className="bg-amber-500"><Crown className="h-3 w-3 mr-1" /> Creator</Badge>;
-      case 'moderator':
-        return <Badge variant="default" className="bg-blue-500"><Shield className="h-3 w-3 mr-1" /> Moderator</Badge>;
-      default:
-        return null;
-    }
+  // Check if current user has a pending kick proposal
+  const hasKickProposal = (memberPubkey: string): boolean => {
+    return kickProposals.some(proposal => 
+      proposal.memberToKick === memberPubkey && proposal.status === "active"
+    );
   };
   
-  const handleKickMember = async () => {
-    if (!selectedMember || !onKickProposal) return;
+  // Handle creating kick proposal
+  const handleKickSubmit = async () => {
+    if (!selectedMember) return;
     
-    setIsSubmittingKick(true);
+    setIsSubmitting(true);
     try {
-      const success = await onKickProposal(selectedMember.pubkey, kickReason);
+      const success = await onKickProposal(selectedMember, kickReason);
       if (success) {
-        setIsKickDialogOpen(false);
+        setIsKickModalOpen(false);
         setKickReason("");
+        toast.success("Kick proposal created successfully");
       }
     } catch (error) {
       console.error("Error creating kick proposal:", error);
     } finally {
-      setIsSubmittingKick(false);
+      setIsSubmitting(false);
     }
   };
   
-  const openKickDialog = (member: MemberProfile) => {
-    // Don't allow kicking the creator or yourself
-    if (member.role === 'creator' || member.pubkey === currentUserPubkey) return;
+  // New function to handle invite creation
+  const handleCreateInvite = async () => {
+    if (!onCreateInvite) return;
     
-    setSelectedMember(member);
-    setKickReason("");
-    setIsKickDialogOpen(true);
+    setIsCreatingInvite(true);
+    try {
+      const link = await onCreateInvite();
+      if (link) {
+        setInviteLink(link);
+        toast.success("Invite link created successfully");
+      }
+    } catch (error) {
+      console.error("Error creating invite link:", error);
+      toast.error("Failed to create invite link");
+    } finally {
+      setIsCreatingInvite(false);
+    }
+  };
+  
+  // New function to copy invite link
+  const copyInviteLink = () => {
+    if (!inviteLink) return;
+    
+    navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    toast.success("Invite link copied to clipboard");
+    
+    setTimeout(() => {
+      setCopied(false);
+    }, 3000);
+  };
+
+  // Check if member is creator or moderator
+  const getMemberRole = (pubkey: string): string | null => {
+    if (pubkey === dao.creator) return "creator";
+    if (dao.moderators.includes(pubkey)) return "moderator";
+    return null;
+  };
+  
+  // Get avatar letters for fallback
+  const getAvatarLetters = (pubkey: string, profile?: any): string => {
+    if (profile?.name) {
+      return profile.name.substring(0, 2).toUpperCase();
+    }
+    if (profile?.displayName) {
+      return profile.displayName.substring(0, 2).toUpperCase();
+    }
+    return pubkey.substring(0, 2).toUpperCase();
+  };
+  
+  // Get display name for member
+  const getDisplayName = (pubkey: string, profile?: any): string => {
+    if (profile?.name) return profile.name;
+    if (profile?.displayName) return profile.displayName;
+    return pubkey.substring(0, 8) + "..." + pubkey.substring(pubkey.length - 4);
   };
   
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Members ({dao.members.length})</CardTitle>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        <div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search members..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-lg">
+            Members ({dao.members.length})
+          </CardTitle>
+          
+          {/* Add invite button if user can create invites */}
+          {onCreateInvite && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleCreateInvite}
+              disabled={isCreatingInvite}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Invite
+            </Button>
+          )}
+        </CardHeader>
         
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <p className="text-muted-foreground">Loading members...</p>
-          </div>
-        ) : sortedMembers.length > 0 ? (
-          <div className="space-y-3">
-            {sortedMembers.map((member) => (
-              <div 
-                key={member.pubkey} 
-                className={`flex items-center justify-between p-2 rounded-md ${
-                  member.pubkey === currentUserPubkey ? 'bg-muted/50' : 'hover:bg-muted/30'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarImage src={member.picture} alt={member.displayName} />
-                    <AvatarFallback>{member.displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{member.displayName}</p>
-                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                      {member.nip05 || member.pubkey.substring(0, 16) + '...'}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {getRoleBadge(member.role)}
-                  
-                  {member.pubkey === currentUserPubkey && (
-                    <Badge variant="outline">You</Badge>
-                  )}
-                  
-                  {canKickPropose && member.role !== 'creator' && member.pubkey !== currentUserPubkey && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => openKickDialog(member)}
-                      title="Propose to kick this member"
-                    >
-                      <UserX className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-4">
-            <p className="text-muted-foreground">No members found</p>
-          </div>
-        )}
-        
-        {/* Kick Dialog */}
-        <Dialog open={isKickDialogOpen} onOpenChange={setIsKickDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Propose to Remove Member</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {selectedMember && (
-                <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-md">
-                  <Avatar>
-                    <AvatarImage src={selectedMember.picture} alt={selectedMember.displayName} />
-                    <AvatarFallback>{selectedMember.displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{selectedMember.displayName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedMember.nip05 || selectedMember.pubkey.substring(0, 16) + '...'}
-                    </p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <label htmlFor="kickReason" className="text-sm font-medium">
-                  Reason (required)
-                </label>
-                <Textarea
-                  id="kickReason"
-                  value={kickReason}
-                  onChange={(e) => setKickReason(e.target.value)}
-                  placeholder="Explain why this member should be removed from the DAO"
-                  className="min-h-[100px]"
-                  required
+        <CardContent>
+          {/* Invite link section */}
+          {inviteLink && (
+            <div className="mb-4 p-3 border rounded-md bg-muted/30">
+              <div className="text-sm font-medium mb-2">Share invite link:</div>
+              <div className="flex gap-2">
+                <Input
+                  value={inviteLink}
+                  readOnly
+                  className="flex-1 font-mono text-xs"
                 />
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsKickDialogOpen(false)}
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={copyInviteLink}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleKickMember}
-                  disabled={!kickReason.trim() || isSubmittingKick}
-                >
-                  {isSubmittingKick ? "Creating Proposal..." : "Create Kick Proposal"}
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          )}
+
+          {/* Members list */}
+          {isLoading ? (
+            <div className="py-8 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              <p className="mt-2 text-sm text-muted-foreground">Loading members...</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {dao.members.map((memberPubkey) => {
+                const profile = profiles?.find(p => p.pubkey === memberPubkey);
+                const memberRole = getMemberRole(memberPubkey);
+                const isPending = hasKickProposal(memberPubkey);
+                const isCurrentUser = currentUserPubkey === memberPubkey;
+                
+                return (
+                  <li key={memberPubkey} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={profile?.picture} alt={getDisplayName(memberPubkey, profile)} />
+                        <AvatarFallback>{getAvatarLetters(memberPubkey, profile)}</AvatarFallback>
+                      </Avatar>
+                      
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{getDisplayName(memberPubkey, profile)}</span>
+                          {memberRole === "creator" && (
+                            <Crown className="h-4 w-4 text-yellow-500" />
+                          )}
+                          {memberRole === "moderator" && (
+                            <Shield className="h-4 w-4 text-blue-500" />
+                          )}
+                          {isCurrentUser && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {memberPubkey.substring(0, 8) + "..." + memberPubkey.substring(memberPubkey.length - 4)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Member actions (kick, etc.) */}
+                    {canKickPropose && !isCurrentUser && memberPubkey !== dao.creator && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedMember(memberPubkey);
+                              setIsKickModalOpen(true);
+                            }}
+                            disabled={isPending}
+                          >
+                            {isPending ? "Kick proposal pending" : "Propose to kick"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Kick proposal modal */}
+      <Dialog open={isKickModalOpen} onOpenChange={setIsKickModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Propose to kick member</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reason">Reason for kicking</Label>
+              <Textarea
+                id="reason"
+                placeholder="Please provide a reason for your proposal..."
+                value={kickReason}
+                onChange={(e) => setKickReason(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsKickModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleKickSubmit}
+              disabled={!kickReason.trim() || isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit proposal"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

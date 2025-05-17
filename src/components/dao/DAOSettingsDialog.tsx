@@ -25,6 +25,7 @@ interface DAOSettingsDialogProps {
   onRemoveModerator: (daoId: string, pubkey: string) => Promise<boolean>;
   onCreateInviteLink: () => Promise<string | null>;
   embedded?: boolean; // New prop for embedded mode
+  hideGuidelines?: boolean; // New prop to hide guidelines section
 }
 
 const DAOSettingsDialog: React.FC<DAOSettingsDialogProps> = ({
@@ -38,7 +39,8 @@ const DAOSettingsDialog: React.FC<DAOSettingsDialogProps> = ({
   onAddModerator,
   onRemoveModerator,
   onCreateInviteLink,
-  embedded = false // Default to false
+  embedded = false,
+  hideGuidelines = false
 }) => {
   const [isPrivate, setIsPrivate] = useState(dao.isPrivate || false);
   const [guidelines, setGuidelines] = useState(dao.guidelines || "");
@@ -212,24 +214,26 @@ const DAOSettingsDialog: React.FC<DAOSettingsDialogProps> = ({
         </div>
       )}
       
-      {/* Guidelines */}
-      <div>
-        <h3 className="text-lg font-medium mb-2">DAO Guidelines</h3>
-        <div className="space-y-2">
-          <Textarea
-            value={guidelines}
-            onChange={(e) => setGuidelines(e.target.value)}
-            placeholder="Enter guidelines for your DAO members..."
-            className="min-h-[150px]"
-          />
-          <Button 
-            onClick={handleGuidelinesUpdate}
-            disabled={isUpdatingGuidelines}
-          >
-            {isUpdatingGuidelines ? "Updating..." : "Update Guidelines"}
-          </Button>
+      {/* Guidelines - Only show if not hidden */}
+      {!hideGuidelines && (
+        <div>
+          <h3 className="text-lg font-medium mb-2">DAO Guidelines</h3>
+          <div className="space-y-2">
+            <Textarea
+              value={guidelines}
+              onChange={(e) => setGuidelines(e.target.value)}
+              placeholder="Enter guidelines for your DAO members..."
+              className="min-h-[150px]"
+            />
+            <Button 
+              onClick={handleGuidelinesUpdate}
+              disabled={isUpdatingGuidelines}
+            >
+              {isUpdatingGuidelines ? "Updating..." : "Update Guidelines"}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Tags */}
       <div>

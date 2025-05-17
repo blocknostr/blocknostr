@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -15,7 +14,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import DAOPageHeader from "@/components/dao/DAOPageHeader";
 import DAOGuidelines from "@/components/dao/DAOGuidelines";
-import DAOInvites from "@/components/dao/DAOInvites";
 
 const SingleDAOPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,7 +77,7 @@ const SingleDAOPage: React.FC = () => {
   const canModerate = isCreatorOfCurrentDao || isModeratorOfCurrentDao;
   const canCreateProposal = currentUserPubkey && isMemberOfCurrentDao;
   const canKickPropose = currentUserPubkey && isMemberOfCurrentDao && !isCreatorOfCurrentDao;
-  const canSetGuidelines = canModerate;
+  const canCreateInvite = canModerate; // Only moderators and creators can create invites
 
   if (loading) {
     return (
@@ -155,8 +153,8 @@ const SingleDAOPage: React.FC = () => {
   };
   
   const handleCreateInvite = async () => {
-    if (!currentUserPubkey || !isMemberOfCurrentDao) {
-      toast.error("You must be a member to create invites");
+    if (!currentUserPubkey || !canModerate) {
+      toast.error("Only moderators and creators can create invites");
       return null;
     }
     
@@ -192,40 +190,6 @@ const SingleDAOPage: React.FC = () => {
     return await voteOnKickProposal(proposalId, optionIndex);
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen bg-background">
-        <Sidebar />
-        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12">
-            <div className="flex flex-col items-center justify-center h-64">
-              <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
-              <p className="text-lg text-muted-foreground">Loading DAO information...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentDao) {
-    return (
-      <div className="flex min-h-screen bg-background">
-        <Sidebar />
-        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12">
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
-              <p className="text-muted-foreground mb-6">
-                The DAO you're looking for doesn't exist or has been removed.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -243,93 +207,79 @@ const SingleDAOPage: React.FC = () => {
           isPrivate={currentDao.isPrivate}
         />
         
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Main Content - Left side */}
-            <div className="lg:col-span-8 space-y-5">
-              {/* DAO Info */}
-              <DAOHeader 
-                dao={currentDao}
-                currentUserPubkey={currentUserPubkey}
-                userRole={userRole}
-                onLeaveDAO={handleLeaveDAO}
-                onDeleteDAO={handleDeleteDAO}
-                isCreatorOnlyMember={isCreatorOnlyMember}
-              />
-              
-              <Tabs defaultValue="proposals" className="w-full">
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="proposals">Proposals</TabsTrigger>
-                  <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
-                  {canModerate && (
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
-                  )}
-                </TabsList>
-                
-                {/* Proposals Tab */}
-                <TabsContent value="proposals">
-                  <DAOProposalsList
-                    daoId={currentDao.id}
-                    proposals={proposals}
-                    isLoading={loadingProposals}
-                    isMember={isMemberOfCurrentDao}
-                    isCreator={isCreatorOfCurrentDao}
-                    currentUserPubkey={currentUserPubkey}
-                    onCreateProposal={createProposal}
-                    onVoteProposal={handleVoteOnProposal}
-                  />
-                </TabsContent>
-                
-                {/* Guidelines Tab */}
-                <TabsContent value="guidelines">
-                  <DAOGuidelines
-                    guidelines={currentDao.guidelines}
-                    canEdit={canSetGuidelines}
-                    onUpdate={updateDAOGuidelines}
-                  />
-                </TabsContent>
-                
-                {/* Settings Tab - Only for Creator/Moderators */}
-                {canModerate && (
-                  <TabsContent value="settings">
-                    <DAOSettingsDialog
-                      dao={currentDao}
-                      isOpen={true}
-                      onOpenChange={() => {}}
+        <div className="container mx-auto px-4 py-6 max-w-4xl"> {/* Changed max-w-7xl to max-w-4xl for better centering */}
+          <div className="space-y-5">
+            {/* DAO Info */}
+            <DAOHeader 
+              dao={currentDao}
+              currentUserPubkey={currentUserPubkey}
+              userRole={userRole}
+              onLeaveDAO={handleLeaveDAO}
+              onDeleteDAO={handleDeleteDAO}
+              isCreatorOnlyMember={isCreatorOnlyMember}
+            />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-5">
+                <Tabs defaultValue="proposals" className="w-full">
+                  <TabsList className="grid grid-cols-2 mb-4">
+                    <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    {canModerate && (
+                      <TabsTrigger value="settings">Settings</TabsTrigger>
+                    )}
+                  </TabsList>
+                  
+                  {/* Proposals Tab */}
+                  <TabsContent value="proposals">
+                    <DAOProposalsList
+                      daoId={currentDao.id}
+                      proposals={proposals}
+                      isLoading={loadingProposals}
+                      isMember={isMemberOfCurrentDao}
                       isCreator={isCreatorOfCurrentDao}
-                      onUpdatePrivacy={handleUpdateDAOPrivacy}
-                      onUpdateGuidelines={updateDAOGuidelines}
-                      onUpdateTags={handleUpdateDAOTags}
-                      onAddModerator={addDAOModerator}
-                      onRemoveModerator={removeDAOModerator}
-                      onCreateInviteLink={() => createDAOInvite(currentDao.id)}
-                      embedded={true}
+                      currentUserPubkey={currentUserPubkey}
+                      onCreateProposal={createProposal}
+                      onVoteProposal={handleVoteOnProposal}
                     />
                   </TabsContent>
-                )}
-              </Tabs>
-            </div>
-            
-            {/* Right Panel - Members list & Invites */}
-            <div className="lg:col-span-4 space-y-5">
-              <DAOMembersList 
-                dao={currentDao}
-                currentUserPubkey={currentUserPubkey}
-                onKickProposal={handleCreateKickProposal}
-                kickProposals={kickProposals}
-                onVoteKick={handleVoteOnKickProposal}
-                onLeaveDAO={handleLeaveDAO}
-                userRole={userRole}
-                canKickPropose={canKickPropose}
-              />
+                  
+                  {/* Settings Tab - Only for Creator/Moderators */}
+                  {canModerate && (
+                    <TabsContent value="settings">
+                      <DAOSettingsDialog
+                        dao={currentDao}
+                        isOpen={true}
+                        onOpenChange={() => {}}
+                        isCreator={isCreatorOfCurrentDao}
+                        onUpdatePrivacy={handleUpdateDAOPrivacy}
+                        onUpdateGuidelines={updateDAOGuidelines}
+                        onUpdateTags={handleUpdateDAOTags}
+                        onAddModerator={addDAOModerator}
+                        onRemoveModerator={removeDAOModerator}
+                        onCreateInviteLink={() => createDAOInvite(currentDao.id)}
+                        embedded={true}
+                        hideGuidelines={true} // Hide guidelines section
+                      />
+                    </TabsContent>
+                  )}
+                </Tabs>
+              </div>
               
-              {isMemberOfCurrentDao && (
-                <DAOInvites
-                  daoId={currentDao.id}
-                  onCreateInvite={handleCreateInvite}
-                  isPrivate={currentDao.isPrivate}
+              {/* Right Panel - Members list */}
+              <div className="lg:col-span-1">
+                <DAOMembersList 
+                  dao={currentDao}
+                  currentUserPubkey={currentUserPubkey}
+                  onKickProposal={handleCreateKickProposal}
+                  kickProposals={kickProposals}
+                  onVoteKick={handleVoteOnKickProposal}
+                  onLeaveDAO={handleLeaveDAO}
+                  userRole={userRole}
+                  canKickPropose={canKickPropose}
+                  onCreateInvite={canModerate ? handleCreateInvite : undefined} // Pass invite function only if user can moderate
                 />
-              )}
+              </div>
             </div>
           </div>
         </div>
