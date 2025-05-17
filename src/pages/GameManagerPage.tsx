@@ -742,7 +742,11 @@ const GameManagerPage: React.FC = () => {
                                             <td className="px-6 py-4 flex gap-2">
                                                 <button
                                                     className="px-3 py-1 rounded bg-black text-white font-semibold shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
-                                                    onClick={() => setSelectedGame(game.id)}
+                                                    onClick={() => {
+                                                        setSelectedGame(game.id);
+                                                        setShowLeaderboard(false);
+                                                        setShowAnalytics(null);
+                                                    }}
                                                     aria-label={`Play ${game.name}`}
                                                 >
                                                     Play
@@ -752,6 +756,7 @@ const GameManagerPage: React.FC = () => {
                                                     onClick={() => {
                                                         setSelectedLeaderboardGame(game.id);
                                                         setShowLeaderboard(true);
+                                                        setShowAnalytics(null);
                                                     }}
                                                     aria-label={`View leaderboard for ${game.name}`}
                                                 >
@@ -759,7 +764,10 @@ const GameManagerPage: React.FC = () => {
                                                 </button>
                                                 <button
                                                     className="px-3 py-1 rounded bg-gray-800 text-white font-semibold shadow hover:bg-gray-700 border border-white/10 focus:outline-white"
-                                                    onClick={() => setShowAnalytics(game.id)}
+                                                    onClick={() => {
+                                                        setShowAnalytics(game.id);
+                                                        setShowLeaderboard(false);
+                                                    }}
                                                     aria-label={`View analytics for ${game.name}`}
                                                 >
                                                     Analytics
