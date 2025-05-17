@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -85,7 +84,7 @@ const SingleDAOPage: React.FC = () => {
       <div className="flex min-h-screen bg-background">
         <Sidebar />
         <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12 max-w-5xl">
+          <div className="container mx-auto px-4 py-12">
             <div className="flex flex-col items-center justify-center h-64">
               <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
               <p className="text-lg text-muted-foreground">Loading DAO information...</p>
@@ -101,7 +100,7 @@ const SingleDAOPage: React.FC = () => {
       <div className="flex min-h-screen bg-background">
         <Sidebar />
         <div className="flex-1 ml-0 md:ml-64 overflow-auto">
-          <div className="container mx-auto px-4 py-12 max-w-5xl">
+          <div className="container mx-auto px-4 py-12">
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
               <p className="text-muted-foreground mb-6">
@@ -208,7 +207,7 @@ const SingleDAOPage: React.FC = () => {
           isPrivate={currentDao.isPrivate}
         />
         
-        <div className="container mx-auto px-4 py-6 max-w-3xl"> {/* Changed max-w-4xl to max-w-3xl for better centering */}
+        <div className="container mx-auto px-4 py-6 max-w-4xl"> {/* Changed max-w-7xl to max-w-4xl for better centering */}
           <div className="space-y-5">
             {/* DAO Info */}
             <DAOHeader 
@@ -260,7 +259,7 @@ const SingleDAOPage: React.FC = () => {
                         onRemoveModerator={removeDAOModerator}
                         onCreateInviteLink={() => createDAOInvite(currentDao.id)}
                         embedded={true}
-                        hideGuidelines={true}
+                        hideGuidelines={true} // Hide guidelines section
                       />
                     </TabsContent>
                   )}
@@ -278,7 +277,7 @@ const SingleDAOPage: React.FC = () => {
                   onLeaveDAO={handleLeaveDAO}
                   userRole={userRole}
                   canKickPropose={canKickPropose}
-                  onCreateInvite={canModerate ? handleCreateInvite : undefined}
+                  onCreateInvite={canModerate ? handleCreateInvite : undefined} // Pass invite function only if user can moderate
                 />
               </div>
             </div>
