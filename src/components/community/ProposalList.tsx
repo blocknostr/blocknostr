@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, ListOrdered } from "lucide-react";
@@ -6,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ProposalCard from "./ProposalCard";
 import CreateProposalForm from "./CreateProposalForm";
 import { Proposal, ProposalCategory } from "@/types/community";
-import { toast } from "@/hooks/use-toast";
 
 interface ProposalListProps {
   communityId: string;
@@ -15,7 +15,6 @@ interface ProposalListProps {
   isCreator: boolean;
   currentUserPubkey: string | null;
   canCreateProposal: boolean;
-  onRefreshProposals?: () => Promise<void>;
 }
 
 const ProposalList = ({ 
@@ -24,13 +23,11 @@ const ProposalList = ({
   isMember, 
   isCreator, 
   currentUserPubkey,
-  canCreateProposal,
-  onRefreshProposals
+  canCreateProposal
 }: ProposalListProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<ProposalCategory | 'all'>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Filter proposals by category
   const filteredProposals = categoryFilter === 'all' 
@@ -45,22 +42,6 @@ const ProposalList = ({
     acc[category] = proposals.filter(p => p.category === category).length;
     return acc;
   }, {} as Record<string, number>);
-  
-  const handleProposalCreated = async () => {
-    setIsDialogOpen(false);
-    
-    if (onRefreshProposals) {
-      setIsRefreshing(true);
-      try {
-        await onRefreshProposals();
-        toast.success("Proposal list refreshed");
-      } catch (error) {
-        console.error("Error refreshing proposals:", error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    }
-  };
   
   return (
     <>
@@ -104,7 +85,7 @@ const ProposalList = ({
               </DialogHeader>
               <CreateProposalForm 
                 communityId={communityId} 
-                onProposalCreated={handleProposalCreated} 
+                onProposalCreated={() => setIsDialogOpen(false)} 
               />
             </DialogContent>
           </Dialog>
@@ -116,11 +97,7 @@ const ProposalList = ({
         ) : null}
       </div>
       
-      {isRefreshing ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : filteredProposals.length === 0 ? (
+      {filteredProposals.length === 0 ? (
         <div className="text-center text-muted-foreground py-8 bg-muted/30 rounded-lg">
           {categoryFilter === 'all' ? (
             <>

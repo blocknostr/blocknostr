@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X, Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface DAOCreateProposalDialogProps {
   daoId: string;
@@ -63,9 +63,7 @@ const DAOCreateProposalDialog: React.FC<DAOCreateProposalDialogProps> = ({
       );
       
       if (proposalId) {
-        toast.success("Proposal created successfully", {
-          description: "Your proposal has been successfully added to the DAO"
-        });
+        toast.success("Proposal created successfully");
         onSuccess();
         
         // Reset form

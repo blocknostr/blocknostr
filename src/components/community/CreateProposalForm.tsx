@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,7 +5,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { Loader2, Plus, X } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -65,15 +64,7 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
       );
       
       if (proposalId) {
-        toast.success("Proposal created successfully!", {
-          description: "Your proposal is now visible in the community"
-        });
-        
-        // Reset the form
-        form.reset();
-        setOptions(["Yes", "No"]);
-        
-        // Notify parent to refresh proposals and close dialog
+        toast.success("Proposal created successfully!");
         onProposalCreated();
       } else {
         toast.error("Failed to create proposal");
