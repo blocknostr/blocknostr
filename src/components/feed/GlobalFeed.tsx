@@ -85,13 +85,17 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
 
   // Show loading state when no events and loading or in extended loading period
   if ((loading || extendedLoading) && events.length === 0) {
-    return <FeedLoading activeHashtag={activeHashtag} />;
+    return (
+      <div style={{ overscrollBehavior: 'contain' }}>
+        <FeedLoading activeHashtag={activeHashtag} />
+      </div>
+    );
   }
   
   // Show retry button when no events and not loading, after extended loading period
   if (events.length === 0 && showRetry) {
     return (
-      <div className="py-8 text-center flex flex-col items-center">
+      <div className="py-8 text-center flex flex-col items-center" style={{ overscrollBehavior: 'contain' }}>
         <div className="mb-3">
           <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto" />
         </div>
@@ -117,7 +121,7 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
   // Show empty state when no events and not loading
   if (events.length === 0) {
     return (
-      <div className="py-8 text-center text-muted-foreground">
+      <div className="py-8 text-center text-muted-foreground" style={{ overscrollBehavior: 'contain' }}>
         {activeHashtag ? 
           `No posts found with #${activeHashtag} hashtag` :
           "No posts found. Connect to more relays to see posts here."
@@ -128,16 +132,18 @@ const GlobalFeed: React.FC<GlobalFeedProps> = ({
 
   // Show events list
   return (
-    <FeedList 
-      events={events}
-      profiles={profiles}
-      repostData={repostData}
-      loadMoreRef={loadMoreRef}
-      loading={loading}
-      onLoadMore={loadMoreEvents}
-      hasMore={hasMore}
-      loadMoreLoading={loadingMore}
-    />
+    <div style={{ overscrollBehavior: 'contain' }}>
+      <FeedList 
+        events={events}
+        profiles={profiles}
+        repostData={repostData}
+        loadMoreRef={loadMoreRef}
+        loading={loading}
+        onLoadMore={loadMoreEvents}
+        hasMore={hasMore}
+        loadMoreLoading={loadingMore}
+      />
+    </div>
   );
 };
 

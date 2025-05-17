@@ -65,7 +65,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
   }, [loading, loadingFromCache, isRetrying, onLoadingChange, events.length, initialRender]);
 
   return (
-    <>
+    <div style={{ overscrollBehavior: 'contain' }}>
       {/* Show cache status if we're showing cached content */}
       {cacheHit && lastUpdated && !loading && events.length > 0 && (
         <Alert variant="default" className="mb-4 bg-primary/10 border-primary/20">
@@ -115,7 +115,7 @@ const FollowingFeed: React.FC<FollowingFeedProps> = ({
           />
         </div>
       )}
-    </>
+    </div>
   );
 };
 

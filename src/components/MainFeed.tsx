@@ -140,6 +140,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
         isIOS ? "px-safe" : "px-4"
       )}
       ref={feedContainerRef}
+      style={{ overscrollBehavior: 'contain' }}
     >
       {/* Loading overlay - only visible when loading */}
       {isLoading && (
@@ -201,7 +202,7 @@ const MainFeed = ({ activeHashtag, onClearHashtag }: MainFeedProps) => {
       </div>
       
       {/* Feed content */}
-      <div className="mt-2 space-y-4 w-full">
+      <div className="mt-2 space-y-4 w-full" style={{ overscrollBehavior: 'contain' }}>
         <Tabs 
           value={activeTab} 
           onValueChange={handleTabChange}

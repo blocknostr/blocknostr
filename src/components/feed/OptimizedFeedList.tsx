@@ -64,7 +64,7 @@ const OptimizedFeedList: React.FC<OptimizedFeedListProps> = ({
   }, [events.length, hasMore, loadMoreLoading, onLoadMore, isIOS]);
   
   return (
-    <div className="space-y-5 w-full pt-2">
+    <div className="space-y-5 w-full pt-2" style={{ overscrollBehavior: 'contain' }}>
       {/* Render events as note cards */}
       {events.map((event) => (
         <NoteCard 

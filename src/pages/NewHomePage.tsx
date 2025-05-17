@@ -44,7 +44,10 @@ const NewHomePage: React.FC = () => {
   };
 
   return (
-    <div className={`max-w-2xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`}>
+    <div 
+      className={`max-w-2xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`} 
+      style={{ overscrollBehavior: 'contain' }}
+    >
       {/* Login message for users not logged in */}
       {!isLoggedIn && (
         <div className="mb-8 p-4 rounded-lg border border-border bg-card">
@@ -99,14 +102,22 @@ const NewHomePage: React.FC = () => {
             )}
 
             {/* Feed content */}
-            <TabsContent value="global" className="mt-4 p-0 border-none w-full">
+            <TabsContent 
+              value="global" 
+              className="mt-4 p-0 border-none w-full" 
+              style={{ overscrollBehavior: 'contain' }}
+            >
               <NewGlobalFeed 
                 activeHashtag={activeHashtag} 
                 onLoadingChange={handleLoadingChange} 
               />
             </TabsContent>
             
-            <TabsContent value="following" className="mt-4 p-0 border-none w-full">
+            <TabsContent 
+              value="following" 
+              className="mt-4 p-0 border-none w-full"
+              style={{ overscrollBehavior: 'contain' }}
+            >
               {isLoggedIn ? (
                 <NewFollowingFeed 
                   activeHashtag={activeHashtag}
