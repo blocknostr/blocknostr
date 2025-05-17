@@ -25,20 +25,23 @@ const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey }) =>
         opts={{
           align: "start",
           loop: true,
+          slidesToScroll: 1
         }}
         className="w-full"
       >
         <CarouselContent className="-ml-4">
           {daos.map((dao) => (
-            <CarouselItem key={dao.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
+            <CarouselItem key={dao.id} className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
               <DAOCard dao={dao} currentUserPubkey={currentUserPubkey} />
             </CarouselItem>
           ))}
         </CarouselContent>
-        <div className="flex justify-center mt-6">
-          <CarouselPrevious className="relative static -left-0 translate-y-0 mr-4" />
-          <CarouselNext className="relative static -right-0 translate-y-0" />
-        </div>
+        {daos.length > 4 && (
+          <>
+            <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4" />
+            <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4" />
+          </>
+        )}
       </Carousel>
     </div>
   );

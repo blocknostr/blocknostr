@@ -4,7 +4,6 @@ import { Loader2, Search, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DAOGrid from "./DAOGrid";
 import DAOEmptyState from "./DAOEmptyState";
 import CreateDAODialog from "./CreateDAODialog";
@@ -21,68 +20,33 @@ const DAOList = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("trending");
   
   const isLoggedIn = !!nostrService.publicKey;
   
   const {
     daos,
     myDaos,
-    trendingDaos,
     loading,
     loadingMyDaos,
-    loadingTrending,
     createDAO,
     currentUserPubkey,
     refreshDaos,
     fetchGeneralDAOs,
     fetchMyDAOs,
-    fetchTrendingDAOs
   } = useDAO();
   
-  // Lazy load only the data for the current tab
+  // Load the appropriate data on component mount
   useEffect(() => {
-    const loadTabData = async () => {
-      switch (activeTab) {
-        case "my-daos":
-          if (currentUserPubkey) {
-            await fetchMyDAOs();
-          }
-          break;
-        case "trending":
-          await fetchTrendingDAOs();
-          break;
-      }
-    };
-    
-    loadTabData();
-  }, [activeTab, currentUserPubkey, fetchMyDAOs, fetchTrendingDAOs]);
-  
-  // Determine which list and loading state to use based on active tab
-  const getDaoList = () => {
-    switch (activeTab) {
-      case "my-daos": 
-        return myDaos;
-      case "trending": 
-        return trendingDaos;
-      default: 
-        return daos;
+    if (isLoggedIn) {
+      fetchMyDAOs();
+    } else {
+      fetchGeneralDAOs();
     }
-  };
+  }, [isLoggedIn, fetchMyDAOs, fetchGeneralDAOs]);
   
-  const getLoadingState = () => {
-    switch (activeTab) {
-      case "my-daos": 
-        return loadingMyDaos;
-      case "trending": 
-        return loadingTrending;
-      default: 
-        return loading;
-    }
-  };
-  
-  const daoList = getDaoList();
-  const isLoading = getLoadingState();
+  // Determine which list and loading state to use
+  const daoList = isLoggedIn ? myDaos : daos;
+  const isLoading = isLoggedIn ? loadingMyDaos : loading;
   
   // Filter by search term
   const filteredDaos = searchTerm 
@@ -144,10 +108,6 @@ const DAOList = () => {
     } finally {
       setIsRefreshing(false);
     }
-  };
-
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
   };
   
   const handleLogin = () => {
@@ -214,77 +174,40 @@ const DAOList = () => {
         </Alert>
       )}
 
-      <Tabs 
-        defaultValue="trending" 
-        className="w-full" 
-        onValueChange={handleTabChange}
-      >
-        <TabsList className="w-full sm:w-auto mb-4">
-          <TabsTrigger value="my-daos" disabled={!isLoggedIn}>
-            <Users className="h-4 w-4 mr-2" />
-            My DAOs
-          </TabsTrigger>
-          <TabsTrigger value="trending">Trending</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="my-daos" className="mt-2">
-          {activeTab === "my-daos" && (
-            isLoggedIn ? (
-              isLoading ? (
-                <div className="flex flex-col items-center justify-center h-48">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Loading your DAOs...</p>
-                </div>
-              ) : filteredDaos.length > 0 ? (
-                <div className="space-y-8">
-                  <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
-                  
-                  {remainingDaos.length > 0 && (
-                    <div className="pt-4 border-t">
-                      <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
-                      <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
-              )
-            ) : (
-              <div className="text-center py-16">
-                <h3 className="text-lg font-medium mb-2">Login to view your DAOs</h3>
-                <p className="text-muted-foreground mb-6">
-                  You need to be logged in to view and manage your DAOs.
-                </p>
-                <Button onClick={handleLogin}>Login with Nostr</Button>
-              </div>
-            )
+      {isLoggedIn && (
+        <div className="flex items-center gap-2 mb-2">
+          <Users className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Your DAOs</h2>
+        </div>
+      )}
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center h-48">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">Loading DAOs from Nostr network...</p>
+        </div>
+      ) : filteredDaos.length > 0 ? (
+        <div className="space-y-8">
+          <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
+          
+          {remainingDaos.length > 0 && (
+            <div className="pt-4 border-t">
+              <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
+              <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
+            </div>
           )}
-        </TabsContent>
-        
-        <TabsContent value="trending" className="mt-2">
-          {activeTab === "trending" && (
-            isLoading ? (
-              <div className="flex flex-col items-center justify-center h-48">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Loading trending DAOs from Nostr network...</p>
-              </div>
-            ) : filteredDaos.length > 0 ? (
-              <div className="space-y-8">
-                <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
-                
-                {remainingDaos.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
-                    <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
-            )
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      ) : !isLoggedIn ? (
+        <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
+      ) : (
+        <div className="text-center py-16">
+          <h3 className="text-lg font-medium mb-2">No DAOs found</h3>
+          <p className="text-muted-foreground mb-6">
+            You haven't joined any DAOs yet. Create a new DAO or search for existing ones.
+          </p>
+          <Button onClick={() => setCreateDialogOpen(true)}>Create Your First DAO</Button>
+        </div>
+      )}
     </div>
   );
 };
