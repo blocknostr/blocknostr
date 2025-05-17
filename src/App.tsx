@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AlephiumWalletProvider } from '@alephium/web3-react';
@@ -7,7 +6,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Index from './pages/Index';
 import NewHomePage from './pages/NewHomePage';
 import SettingsPage from './pages/SettingsPage';
-import CommunitiesPage from './pages/CommunitiesPage';
 import CommunityPage from './pages/CommunityPage';
 import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -45,7 +43,6 @@ function App() {
                   {/* Keep old Index page accessible via /feed */}
                   <Route path="/feed" element={<Index />} />
                   <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/communities" element={<CommunitiesPage />} />
                   <Route path="/communities/:id" element={<CommunityPage />} />
                   <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
                   <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
