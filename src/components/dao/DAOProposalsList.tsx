@@ -47,11 +47,6 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
   
   const canCreateProposal = currentUserPubkey && (isMember || isCreator);
 
-  // Log the proposals count to help debug
-  useEffect(() => {
-    console.log(`DAOProposalsList: Received ${proposals.length} proposals, filtered to ${filteredProposals.length}`);
-  }, [proposals, filteredProposals.length]);
-
   // Effect to scroll to highlighted proposal if exists
   useEffect(() => {
     if (highlightedProposalId) {
@@ -76,14 +71,12 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
     // Refresh the proposals list
     if (onRefreshProposals) {
       await onRefreshProposals();
-      console.log("Refreshed proposals after creation");
     }
     
     // Highlight the newly created proposal
     if (proposalId) {
       setExpandedProposal(proposalId);
       setHighlightedProposalId(proposalId);
-      console.log(`Highlighting proposal: ${proposalId}`);
     }
   };
   
