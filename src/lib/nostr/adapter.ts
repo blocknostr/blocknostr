@@ -155,12 +155,12 @@ export class NostrAdapter {
     return this._relays;
   }
 
-  // Add getRelayUrls method to fix the errors
+  // Get relay URLs (renamed from getRelays to getRelayUrls)
   getRelayUrls = (): string[] => {
     return this._relays.map(relay => relay.url);
   }
   
-  // Add signEvent method
+  // Sign events
   signEvent = (event: Partial<Event>): Event => {
     // Generate a private key for testing purposes
     const sk = generatePrivateKey();
@@ -187,7 +187,7 @@ export class NostrAdapter {
     return completeEvent;
   }
   
-  // Add missing subscribeToEvents method
+  // Subscribe to events
   subscribeToEvents = (filters: any[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
     const sub = 'subscription-' + Math.random().toString(36).substring(2, 10);
     console.log(`Subscribing to events with filters:`, filters);
