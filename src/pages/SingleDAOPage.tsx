@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -181,10 +182,10 @@ const SingleDAOPage: React.FC = () => {
     return await voteOnProposal(proposalId, optionIndex);
   };
   
-  // Fix for the voteOnKickProposal issue - convert boolean to number
+  // Fix for the voteOnKickProposal issue - accept boolean and convert to number
   const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
     // Convert boolean vote to number (true -> 1, false -> 0)
-    const optionIndex = vote ? 1 : 0;
+    const optionIndex = vote ? 0 : 1; // Invert the logic: true = "Yes, remove" (0), false = "No, keep" (1)
     return await voteOnKickProposal(proposalId, optionIndex);
   };
 
@@ -222,9 +223,14 @@ const SingleDAOPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-5">
-                <Tabs defaultValue="proposals" className="w-full">
-                  <TabsList className="grid grid-cols-2 mb-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid grid-cols-3 mb-4">
                     <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    {hasKickProposals && (
+                      <TabsTrigger value="kick-proposals">
+                        Member Removals
+                      </TabsTrigger>
+                    )}
                     {canModerate && (
                       <TabsTrigger value="settings">Settings</TabsTrigger>
                     )}
@@ -243,6 +249,18 @@ const SingleDAOPage: React.FC = () => {
                       onVoteProposal={handleVoteOnProposal}
                     />
                   </TabsContent>
+                  
+                  {/* Kick Proposals Tab */}
+                  {hasKickProposals && (
+                    <TabsContent value="kick-proposals">
+                      <DAOKickProposalsList
+                        proposals={kickProposals}
+                        currentUserPubkey={currentUserPubkey}
+                        onVote={handleVoteOnKickProposal}
+                        isLoading={loadingKickProposals}
+                      />
+                    </TabsContent>
+                  )}
                   
                   {/* Settings Tab - Only for Creator/Moderators */}
                   {canModerate && currentDao && (
@@ -288,7 +306,7 @@ const SingleDAOPage: React.FC = () => {
         <Toaster position="bottom-right" />
       </div>
       
-      {/* Keep the kick proposal dialog */}
+      {/* Show the kick proposal dialog when needed */}
       {currentDao && (
         <DAOKickProposalDialog
           dao={currentDao}

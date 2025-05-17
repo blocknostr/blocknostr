@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ interface KickProposal {
 interface DAOKickProposalsListProps {
   proposals: KickProposal[];
   currentUserPubkey: string | null;
-  onVote: (proposalId: string, optionIndex: number) => Promise<boolean>;
+  onVote: (proposalId: string, vote: boolean) => Promise<boolean>; // Updated signature to match DAOMembersList
   isLoading: boolean;
 }
 
@@ -56,10 +57,11 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
     );
   }
   
-  const handleVote = async (proposalId: string, optionIndex: number) => {
+  // Updated to use boolean values for vote as expected by handleVoteOnKickProposal
+  const handleVote = async (proposalId: string, vote: boolean) => {
     setIsVoting(prev => ({ ...prev, [proposalId]: true }));
     try {
-      await onVote(proposalId, optionIndex);
+      await onVote(proposalId, vote);
     } finally {
       setIsVoting(prev => ({ ...prev, [proposalId]: false }));
     }
@@ -163,7 +165,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => handleVote(proposal.id, 0)}
+                    onClick={() => handleVote(proposal.id, true)} // true = vote to remove
                     disabled={isVoting[proposal.id]}
                     className="w-full"
                   >
@@ -172,7 +174,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleVote(proposal.id, 1)}
+                    onClick={() => handleVote(proposal.id, false)} // false = vote to keep
                     disabled={isVoting[proposal.id]}
                     className="w-full"
                   >

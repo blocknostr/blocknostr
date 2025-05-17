@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ interface DAOMembersListProps {
   currentUserPubkey: string | null;
   onKickProposal: (memberPubkey: string, reason: string) => Promise<boolean>;
   kickProposals: any[];
-  onVoteKick: (proposalId: string, vote: boolean) => Promise<boolean>;
+  onVoteKick: (proposalId: string, vote: boolean) => Promise<boolean>; // Updated to use boolean
   onLeaveDAO: () => Promise<void>;
   userRole: string | null;
   canKickPropose: boolean;
