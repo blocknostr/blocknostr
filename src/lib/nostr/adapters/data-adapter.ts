@@ -42,9 +42,16 @@ export class DataAdapter extends BaseAdapter {
         limit
       };
       
-      // Use the service's queryEvents method which accepts Filter objects
-      // This avoids the type mismatch with getEvents which expects string IDs
-      return await this.service.queryEvents([filter]) || [];
+      // Add a shorter timeout for this specific operation
+      const timeoutPromise = new Promise<NostrEvent[]>(resolve => {
+        setTimeout(() => resolve([]), 5000); // 5 second timeout max
+      });
+      
+      // Race between the actual query and the timeout
+      const queryPromise = this.service.queryEvents([filter]);
+      const events = await Promise.race([queryPromise, timeoutPromise]);
+      
+      return Array.isArray(events) ? events : [];
     } catch (error) {
       console.error(`Error getting events for user ${pubkey}:`, error);
       return [];

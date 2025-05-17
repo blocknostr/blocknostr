@@ -582,24 +582,51 @@ export class NostrService {
     console.log(`With filters:`, filters);
     
     try {
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         const events: any[] = [];
+        let subId: string = "";
         const startTime = Date.now();
         
-        // Subscribe to events matching the filters
-        const sub = this.subscribe(filters, (event) => {
-          // Add event to our results
-          events.push(event);
-        }, updatedRelays);
+        // Shorter timeout (5 seconds max) to prevent resource exhaustion
+        const timeout = Math.min(5000, 1000 * filters.length); 
         
-        // Set timeout for the query (10 seconds)
-        setTimeout(() => {
-          this.unsubscribe(sub);
-          const timeElapsed = Date.now() - startTime;
+        try {
+          // Subscribe to events matching the filters
+          subId = this.subscribe(filters, (event) => {
+            // Add event to our results
+            events.push(event);
+          }, updatedRelays);
           
-          console.log(`Query completed in ${timeElapsed}ms. Found ${events.length} events`);
-          resolve(events);
-        }, 10000);
+          if (!subId) {
+            // If subscription creation failed, resolve with empty array
+            console.error("Failed to create subscription for query");
+            resolve([]);
+            return;
+          }
+        } catch (error) {
+          console.error("Error creating subscription:", error);
+          resolve([]);
+          return;
+        }
+        
+        // Set timeout for the query (reduced to 5 seconds max)
+        const timeoutId = setTimeout(() => {
+          if (subId) {
+            this.unsubscribe(subId);
+            const timeElapsed = Date.now() - startTime;
+            
+            console.log(`Query completed in ${timeElapsed}ms. Found ${events.length} events`);
+            resolve(events);
+          }
+        }, timeout);
+        
+        // Ensure cleanup happens even on errors
+        return () => {
+          clearTimeout(timeoutId);
+          if (subId) {
+            this.unsubscribe(subId);
+          }
+        };
       });
     } catch (error) {
       console.error("Error querying events:", error);
