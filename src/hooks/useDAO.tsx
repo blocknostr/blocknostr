@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from "@/lib/nostr";
-import { SimplePool, Filter, Event } from "nostr-tools";
+import { SimplePool, Filter, Event, Sub } from "nostr-tools";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 
 // Define DAO-specific event kinds
@@ -44,19 +44,19 @@ export function useDAO(daoId?: string) {
       "wss://relay.nostr.band"
     ];
     
-    // Create a subscription that processes events as they arrive
-    const sub = poolRef.current.sub(relays, filters);
+    // Create a subscription using the correct SimplePool interface
+    const subscription = poolRef.current.subscribe(relays, filters);
     
     // Set up event handlers
-    sub.on('event', (event: Event) => {
+    subscription.on('event', (event: Event) => {
       callback(event);
     });
     
     // Set loading state to false immediately to show UI faster
     setLoading(false);
     
-    // Store subscription ID
-    const subId = sub.id;
+    // Store subscription ID - note that we're using subscription.id now
+    const subId = subscription.id;
     activeSubscriptions.current.push(subId);
     
     return subId;
@@ -201,7 +201,7 @@ export function useDAO(daoId?: string) {
   // Set up a separate subscription for proposals
   const fetchProposals = useCallback((daoId: string) => {
     // Try to get from cache first
-    const cachedProposals = daoService.getProposals(daoId);
+    const cachedProposals = daoService.getDAOProposals(daoId);
     if (cachedProposals) {
       setProposals(cachedProposals);
       setLoadingProposals(false);
@@ -549,10 +549,7 @@ export function useDAO(daoId?: string) {
       
       console.log(`Updating guidelines for DAO ${currentDao.id}`);
       
-      const success = await daoService.updateDAOMetadata(
-        currentDao.id,
-        { type: "guidelines", content: guidelines }
-      );
+      const success = await daoService.updateDAOGuidelines(currentDao.id, guidelines);
       
       if (success) {
         // Update local state
@@ -585,10 +582,7 @@ export function useDAO(daoId?: string) {
       
       console.log(`Updating tags for DAO ${currentDao.id}:`, tags);
       
-      const success = await daoService.updateDAOMetadata(
-        currentDao.id,
-        { type: "tags", content: tags }
-      );
+      const success = await daoService.updateDAOTags(currentDao.id, tags);
       
       if (success) {
         // Update local state
@@ -633,10 +627,7 @@ export function useDAO(daoId?: string) {
       
       console.log(`Adding moderator ${pubkey} to DAO ${currentDao.id}`);
       
-      const success = await daoService.updateDAORoles(
-        currentDao.id,
-        { role: "moderator", action: "add", pubkey }
-      );
+      const success = await daoService.addDAOModerator(currentDao.id, pubkey);
       
       if (success) {
         // Update local state
@@ -670,10 +661,7 @@ export function useDAO(daoId?: string) {
       
       console.log(`Removing moderator ${pubkey} from DAO ${currentDao.id}`);
       
-      const success = await daoService.updateDAORoles(
-        currentDao.id,
-        { role: "moderator", action: "remove", pubkey }
-      );
+      const success = await daoService.removeDAOModerator(currentDao.id, pubkey);
       
       if (success) {
         // Update local state

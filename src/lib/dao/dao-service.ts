@@ -64,8 +64,8 @@ export class DAOService {
       console.log("Fetching DAOs with filter:", filter);
       console.log("Using fast relays:", this.fastRelays);
       
-      // Use fast relays for initial load
-      const events = await this.pool.list(this.fastRelays, [filter]);
+      // Use the fetch method of SimplePool instead of list
+      const events = await this.pool.querySync(this.fastRelays, [filter]);
       console.log("Received DAO events:", events.length);
       
       const daos = events
@@ -96,8 +96,8 @@ export class DAOService {
         limit: limit
       };
       
-      // Use all relays for complete refresh
-      const events = await this.pool.list(this.relays, [filter]);
+      // Use querySync instead of list
+      const events = await this.pool.querySync(this.relays, [filter]);
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
@@ -133,7 +133,7 @@ export class DAOService {
       };
       
       console.log(`Fetching DAOs for user ${pubkey}`);
-      const events = await this.pool.list(this.fastRelays, [filter]);
+      const events = await this.pool.querySync(this.fastRelays, [filter]);
       console.log(`Received ${events.length} user DAO events`);
       
       const daos = events
@@ -161,7 +161,7 @@ export class DAOService {
         limit: limit
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, [filter]);
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
@@ -218,7 +218,7 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.list(this.fastRelays, [filter]);
+      const events = await this.pool.querySync(this.fastRelays, [filter]);
       
       if (events.length === 0) {
         console.log(`No DAO found with ID: ${id}`);
@@ -250,7 +250,7 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, [filter]);
       
       if (events.length > 0) {
         const dao = this.parseDaoEvent(events[0]);
@@ -284,7 +284,7 @@ export class DAOService {
       };
       
       console.log(`Fetching proposals for DAO: ${daoId}`);
-      const events = await this.pool.list(this.fastRelays, [filter]);
+      const events = await this.pool.querySync(this.fastRelays, [filter]);
       console.log(`Found ${events.length} proposals for DAO ${daoId}`);
       
       const proposals = events
@@ -322,7 +322,7 @@ export class DAOService {
         limit: 50
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, [filter]);
       
       const proposals = events
         .map(event => this.parseProposalEvent(event, daoId))
@@ -368,7 +368,7 @@ export class DAOService {
         limit: 200
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, [filter]);
       console.log(`Found ${events.length} votes for proposal ${proposalId}`);
       
       const votes: Record<string, number> = {};
@@ -551,6 +551,13 @@ export class DAOService {
   }
   
   /**
+   * Vote on kick proposal with the same mechanism
+   */
+  async voteOnKickProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+    return this.voteOnProposal(proposalId, optionIndex);
+  }
+  
+  /**
    * Join a DAO/community
    */
   async joinDAO(daoId: string): Promise<boolean> {
@@ -596,6 +603,8 @@ export class DAOService {
         creator: dao.creator,
         createdAt: dao.createdAt,
         image: dao.image,
+        guidelines: dao.guidelines,
+        isPrivate: dao.isPrivate,
         treasury: dao.treasury,
         proposals: dao.proposals,
         activeProposals: dao.activeProposals,
@@ -732,6 +741,20 @@ export class DAOService {
   }
   
   /**
+   * Update DAO guidelines specifically
+   */
+  async updateDAOGuidelines(daoId: string, guidelines: string): Promise<boolean> {
+    return this.updateDAOMetadata(daoId, { type: "guidelines", content: guidelines });
+  }
+  
+  /**
+   * Update DAO tags specifically
+   */
+  async updateDAOTags(daoId: string, tags: string[]): Promise<boolean> {
+    return this.updateDAOMetadata(daoId, { type: "tags", content: tags });
+  }
+  
+  /**
    * Update DAO roles (add/remove moderators)
    */
   async updateDAORoles(daoId: string, update: {
@@ -829,6 +852,20 @@ export class DAOService {
       console.error("Error updating DAO roles:", error);
       return false;
     }
+  }
+  
+  /**
+   * Add DAO moderator specifically
+   */
+  async addDAOModerator(daoId: string, pubkey: string): Promise<boolean> {
+    return this.updateDAORoles(daoId, { role: "moderator", action: "add", pubkey });
+  }
+  
+  /**
+   * Remove DAO moderator specifically
+   */
+  async removeDAOModerator(daoId: string, pubkey: string): Promise<boolean> {
+    return this.updateDAORoles(daoId, { role: "moderator", action: "remove", pubkey });
   }
   
   /**
@@ -1147,7 +1184,7 @@ export class DAOService {
         kinds: [DAO_KINDS.COMMUNITY],
       };
       
-      const events = await this.pool.list(this.relays, [filter]);
+      const events = await this.pool.querySync(this.relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error(`Error fetching DAO event ${id}:`, error);
@@ -1156,9 +1193,9 @@ export class DAOService {
   }
   
   /**
-   * Helper function to parse a DAO event
+   * Helper function to parse a DAO event - making it public for the hook to use
    */
-  private parseDaoEvent(event: Event): DAO | null {
+  public parseDaoEvent(event: Event): DAO | null {
     try {
       console.log("Parsing DAO event:", event.id);
       
@@ -1216,9 +1253,9 @@ export class DAOService {
   }
   
   /**
-   * Helper function to parse a proposal event
+   * Helper function to parse a proposal event - making it public for the hook to use
    */
-  private parseProposalEvent(event: Event, daoId: string): DAOProposal | null {
+  public parseProposalEvent(event: Event, daoId: string): DAOProposal | null {
     try {
       // Parse content with error handling
       let content: any = {};
@@ -1249,6 +1286,13 @@ export class DAOService {
       console.error("Error parsing proposal event:", e);
       return null;
     }
+  }
+  
+  /**
+   * Gets proposals - added as alias for useDAO hook compatibility
+   */
+  public getProposals(daoId: string): DAOProposal[] | null {
+    return daoCache.getProposals(daoId);
   }
 }
 
