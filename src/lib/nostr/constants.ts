@@ -11,10 +11,13 @@ export const DEFAULT_RELAYS = [
 export const EventKinds = {
   METADATA: 0,
   TEXT: 1,
+  TEXT_NOTE: 1, // Alias for TEXT for compatibility
   RECOMMEND_RELAY: 2,
   CONTACTS: 3,
   ENCRYPTED_DIRECT_MESSAGE: 4,
+  ENCRYPTED_DM: 4, // Alias for ENCRYPTED_DIRECT_MESSAGE for compatibility
   EVENT_DELETION: 5,
+  DELETE: 5, // Alias for EVENT_DELETION for compatibility
   REACTION: 7,
   BADGE_AWARD: 8,
   CHANNEL_CREATE: 40,
@@ -28,8 +31,13 @@ export const EventKinds = {
   REPOST: 6,
   BADGE_DEFINITION: 30009,
   LONG_FORM_CONTENT: 30023,
-  COMMUNITY_DEFINITION: 34550,
-  ARTICLE: 30023
+  COMMUNITY: 34550, // Community definition (NIP-72)
+  COMMUNITY_DEFINITION: 34550, // Alias for COMMUNITY
+  ARTICLE: 30023,
+  
+  // Bookmark related kinds (for backward compatibility)
+  BOOKMARK_COLLECTIONS: 30001,
+  BOOKMARK_METADATA: 30003
 };
 
 // Export EVENT_KINDS as an alias for EventKinds for backward compatibility

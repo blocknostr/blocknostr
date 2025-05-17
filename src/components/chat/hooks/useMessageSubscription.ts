@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EventKinds } from "@/lib/nostr/constants";
@@ -122,7 +121,7 @@ export const useMessageSubscription = (
     const messagesSub = chatNostrService.subscribe(
       [
         {
-          kinds: [EventKinds.TEXT_NOTE],
+          kinds: [EventKinds.TEXT],
           '#t': [chatTag], // Using '#t' for tag filtering
           limit: INITIAL_LOAD_LIMIT
         } as NostrFilter

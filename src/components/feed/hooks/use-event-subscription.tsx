@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EventKinds } from "@/lib/nostr/constants";
@@ -67,7 +66,7 @@ export function useEventSubscription({
     // Build filter
     const filters: any[] = [
       {
-        kinds: [EventKinds.TEXT_NOTE, EventKinds.REPOST],
+        kinds: [EventKinds.TEXT, EventKinds.REPOST],
         since,
         until,
         limit

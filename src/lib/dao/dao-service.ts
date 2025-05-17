@@ -1,6 +1,7 @@
+
 import { nostrService } from "@/lib/nostr";
 import { daoCache } from "./dao-cache";
-import { DAO_KINDS } from "@/lib/nostr/constants";
+import { DAO_KINDS, EventKinds } from "@/lib/nostr/constants";
 import { DAO, DAOProposal } from "@/types/dao";
 
 /**
