@@ -1,85 +1,76 @@
-import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
+// Import necessary dependencies
+import { Event, SimplePool, getEventHash, getSignature, utils } from 'nostr-tools';
+import { nostrService } from '../nostr';
 import { DAO, DAOProposal } from '@/types/dao';
-import { nostrService } from '@/lib/nostr';
 import { daoCache } from './dao-cache';
 
-// NIP-72 kind numbers (ensure full compliance)
-const DAO_KINDS = {
-  COMMUNITY: 34550,       // Community definition
-  PROPOSAL: 34551,        // Community proposal
-  VOTE: 34552,           // Vote on a proposal
-  METADATA: 34553,       // Community metadata (guidelines, etc)
-  MODERATION: 34554,      // Moderation events (kick, ban)
-  INVITE: 34555,         // Invite to private community
+// Constants for DAO-related event kinds
+const DAO_CREATION_KIND = 8000;
+const DAO_UPDATE_KIND = 8001;
+const DAO_PROPOSAL_KIND = 8002;
+const DAO_VOTE_KIND = 8003;
+const DAO_MEMBER_KIND = 8004; // Join/Leave
+const DAO_DELETE_KIND = 8005;
+const DAO_META_KIND = 8006; // For privacy settings, etc.
+const DAO_INVITE_KIND = 8007;
+const DAO_KICK_PROPOSAL_KIND = 8008;
+const DAO_KICK_VOTE_KIND = 8009;
+const DAO_MODERATOR_KIND = 8010;
+
+// Available DAO-related tags
+export const DAO_TAGS = {
+  DAO_ID: 'd',
+  DAO_NAME: 'name',
+  PROPOSAL_ID: 'p',
+  VOTE: 'vote',
+  MEMBER: 'member',
+  CREATOR: 'creator',
+  PROPOSAL_TITLE: 'title',
+  PROPOSAL_OPTIONS: 'options',
+  PROPOSAL_CLOSES: 'closes',
+  USER: 'u',
+  ACTION: 'action',
+  INVITE_ID: 'i',
+  MODERATOR: 'mod',
+  TAGS: 'tags',
 };
 
 /**
- * Service for interacting with DAOs using NIP-72
+ * Service for handling DAO-related operations
  */
-export class DAOService {
+class DAOService {
+  // Private pool for Nostr events
   private pool: SimplePool;
-  private relays: string[];
-  private fastRelays: string[]; // Subset of faster, more reliable relays
-  private relaySubscriptions: Map<string, () => void>;
   
   constructor() {
     this.pool = new SimplePool();
-    // Add NIP-72 compatible relays
-    this.relays = [
-      "wss://relay.damus.io",
-      "wss://nos.lol",
-      "wss://relay.nostr.band",
-      "wss://nostr.bitcoiner.social",
-      "wss://relay.nostr.bg",
-      "wss://relay.snort.social"
-    ];
-    
-    // Faster subset for initial loads
-    this.fastRelays = [
-      "wss://relay.damus.io",
-      "wss://nos.lol",
-      "wss://relay.nostr.band"
-    ];
-    
-    this.relaySubscriptions = new Map();
   }
   
   /**
-   * Get list of DAOs/communities
+   * Get all DAOs from relays
    */
-  async getDAOs(limit: number = 20): Promise<DAO[]> {
+  async getDAOs(): Promise<DAO[]> {
+    // Try to get from cache first
+    const cachedDaos = await daoCache.getAllDAOs();
+    if (cachedDaos.length > 0) {
+      console.log("Returning cached DAOs:", cachedDaos.length);
+      return cachedDaos;
+    }
+    
+    // If not in cache, fetch from relays
+    console.log("Fetching DAOs from relays");
+    
     try {
-      // Try to get from cache first
-      const cachedDAOs = daoCache.getAllDAOs();
-      if (cachedDAOs) {
-        console.log("Using cached DAOs");
-        // Fetch fresh data in the background to update cache
-        this.refreshDAOs(limit);
-        return cachedDAOs.filter(dao => dao.name !== "Unnamed DAO" && dao.name.trim() !== "");
-      }
+      const relays = nostrService.getRelays();
+      const filter = { kinds: [DAO_CREATION_KIND] };
       
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        limit: limit
-      };
+      const events = await this.pool.list(relays, [filter]);
+      console.log(`Fetched ${events.length} DAO events`);
       
-      console.log("Fetching DAOs with filter:", filter);
-      console.log("Using fast relays:", this.fastRelays);
+      const daos = events.map(event => this.parseDaoEvent(event)).filter(Boolean) as DAO[];
       
-      // Use fast relays for initial load
-      const events = await this.pool.querySync(this.fastRelays, filter);
-      console.log("Received DAO events:", events.length);
-      
-      const daos = events
-        .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => 
-          dao !== null && 
-          dao.name !== "Unnamed DAO" && 
-          dao.name.trim() !== ""
-        );
-      
-      // Cache the results
-      daoCache.cacheAllDAOs(daos);
+      // Update cache
+      await daoCache.cacheDAOs(daos);
       
       return daos;
     } catch (error) {
@@ -89,338 +80,278 @@ export class DAOService {
   }
   
   /**
-   * Background refresh of DAOs to update cache
+   * Get DAOs created by or joined by a specific user
    */
-  private async refreshDAOs(limit: number = 20): Promise<void> {
-    try {
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        limit: limit
-      };
-      
-      // Use all relays for complete refresh
-      const events = await this.pool.querySync(this.relays, filter);
-      
-      const daos = events
-        .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => dao !== null);
-      
-      // Update cache with fresh data
-      daoCache.cacheAllDAOs(daos);
-    } catch (error) {
-      console.error("Error refreshing DAOs:", error);
+  async getUserDAOs(pubkey: string): Promise<DAO[]> {
+    // Try to get from cache first
+    const cachedDaos = await daoCache.getUserDAOs(pubkey);
+    if (cachedDaos.length > 0) {
+      console.log(`Returning cached DAOs for user ${pubkey}:`, cachedDaos.length);
+      return cachedDaos;
     }
-  }
-  
-  /**
-   * Subscribe to DAO events real-time
-   */
-  subscribeToDAOs(callback: (dao: DAO) => void): () => void {
-    const filter: Filter = {
-      kinds: [DAO_KINDS.COMMUNITY],
-      limit: 50
-    };
     
-    // Create unique subscription id
-    const subId = `daos_sub_${Date.now()}`;
-    
-    console.log(`Creating DAO subscription ${subId}`);
-    
-    const sub = this.pool.sub(this.relays, [filter]);
-    
-    sub.on('event', (event: Event) => {
-      const dao = this.parseDaoEvent(event);
-      if (dao && dao.name !== "Unnamed DAO" && dao.name.trim() !== "") {
-        callback(dao);
-      }
-    });
-    
-    // Store unsubscribe function
-    this.relaySubscriptions.set(subId, () => sub.unsub());
-    
-    // Return unsubscribe function
-    return () => {
-      console.log(`Unsubscribing from DAO subscription ${subId}`);
-      if (this.relaySubscriptions.has(subId)) {
-        const unsubFunc = this.relaySubscriptions.get(subId);
-        if (unsubFunc) unsubFunc();
-        this.relaySubscriptions.delete(subId);
-      }
-    };
-  }
-  
-  /**
-   * Get DAOs that a user is a member of
-   */
-  async getUserDAOs(pubkey: string, limit: number = 20): Promise<DAO[]> {
-    if (!pubkey) return [];
+    // If not in cache, fetch from relays
+    console.log(`Fetching DAOs for user ${pubkey} from relays`);
     
     try {
-      // Try to get from cache first
-      const cachedUserDAOs = daoCache.getUserDAOs(pubkey);
-      if (cachedUserDAOs) {
-        console.log(`Using cached DAOs for user ${pubkey}`);
-        // Fetch fresh data in the background
-        this.refreshUserDAOs(pubkey, limit);
-        return cachedUserDAOs;
-      }
+      const relays = nostrService.getRelays();
       
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        '#p': [pubkey],
-        limit: limit
+      // Fetch DAOs where the user is the creator
+      const creatorFilter = { 
+        kinds: [DAO_CREATION_KIND],
+        authors: [pubkey]
       };
       
-      console.log(`Fetching DAOs for user ${pubkey}`);
-      const events = await this.pool.querySync(this.fastRelays, filter);
-      console.log(`Received ${events.length} user DAO events`);
+      // Fetch DAOs where the user is a member
+      const memberFilter = {
+        kinds: [DAO_MEMBER_KIND],
+        '#u': [pubkey],
+        '#action': ['join']
+      };
       
-      const daos = events
+      const [creatorEvents, memberEvents] = await Promise.all([
+        this.pool.list(relays, [creatorFilter]),
+        this.pool.list(relays, [memberFilter])
+      ]);
+      
+      console.log(`Fetched ${creatorEvents.length} creator DAO events and ${memberEvents.length} member DAO events`);
+      
+      // Extract DAO IDs from member events
+      const memberDaoIds = memberEvents.map(event => {
+        const daoId = event.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+        return daoId;
+      }).filter(Boolean);
+      
+      // Fetch the full DAO details for member DAOs
+      const daoDetailsFilter = {
+        kinds: [DAO_CREATION_KIND],
+        '#d': memberDaoIds
+      };
+      
+      const memberDaoEvents = await this.pool.list(relays, [daoDetailsFilter]);
+      
+      // Combine and parse all DAO events
+      const allDaoEvents = [...creatorEvents, ...memberDaoEvents];
+      const uniqueDaoIds = new Set();
+      const daos = allDaoEvents
         .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => dao !== null);
+        .filter(dao => {
+          if (!dao || uniqueDaoIds.has(dao.id)) return false;
+          uniqueDaoIds.add(dao.id);
+          return true;
+        }) as DAO[];
       
-      // Cache the results
-      daoCache.cacheUserDAOs(pubkey, daos);
+      // Update cache
+      await daoCache.cacheUserDAOs(pubkey, daos);
       
       return daos;
     } catch (error) {
-      console.error("Error fetching user DAOs:", error);
+      console.error(`Error fetching DAOs for user ${pubkey}:`, error);
       return [];
     }
   }
   
   /**
-   * Subscribe to user's DAOs real-time
+   * Get trending DAOs (most members or activity)
    */
-  subscribeToUserDAOs(pubkey: string, callback: (dao: DAO) => void): () => void {
-    if (!pubkey) {
-      return () => {}; // Empty unsubscribe function if no pubkey
-    }
-    
-    const filter: Filter = {
-      kinds: [DAO_KINDS.COMMUNITY],
-      '#p': [pubkey],
-      limit: 50
-    };
-    
-    // Create unique subscription id
-    const subId = `user_daos_sub_${pubkey}_${Date.now()}`;
-    
-    console.log(`Creating user DAOs subscription ${subId}`);
-    
-    const sub = this.pool.sub(this.relays, [filter]);
-    
-    sub.on('event', (event: Event) => {
-      const dao = this.parseDaoEvent(event);
-      if (dao) {
-        callback(dao);
-      }
-    });
-    
-    // Store unsubscribe function
-    this.relaySubscriptions.set(subId, () => sub.unsub());
-    
-    // Return unsubscribe function
-    return () => {
-      console.log(`Unsubscribing from user DAOs subscription ${subId}`);
-      if (this.relaySubscriptions.has(subId)) {
-        const unsubFunc = this.relaySubscriptions.get(subId);
-        if (unsubFunc) unsubFunc();
-        this.relaySubscriptions.delete(subId);
-      }
-    };
-  }
-  
-  /**
-   * Background refresh of user DAOs
-   */
-  private async refreshUserDAOs(pubkey: string, limit: number = 20): Promise<void> {
-    try {
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        '#p': [pubkey],
-        limit: limit
-      };
-      
-      const events = await this.pool.querySync(this.relays, filter);
-      
-      const daos = events
-        .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => dao !== null);
-      
-      // Update cache with fresh data
-      daoCache.cacheUserDAOs(pubkey, daos);
-    } catch (error) {
-      console.error(`Error refreshing user DAOs for ${pubkey}:`, error);
-    }
-  }
-  
-  /**
-   * Get trending DAOs based on member count
-   */
-  async getTrendingDAOs(limit: number = 20): Promise<DAO[]> {
+  async getTrendingDAOs(): Promise<DAO[]> {
     // Try to get from cache first
-    const cachedTrending = daoCache.getTrendingDAOs();
-    if (cachedTrending) {
-      console.log("Using cached trending DAOs");
-      return cachedTrending;
+    const cachedDaos = await daoCache.getTrendingDAOs();
+    if (cachedDaos.length > 0) {
+      console.log("Returning cached trending DAOs:", cachedDaos.length);
+      return cachedDaos;
     }
     
-    const daos = await this.getDAOs(limit * 2);
-    const trending = daos
-      .sort((a, b) => b.members.length - a.members.length)
-      .slice(0, limit);
+    try {
+      // For now, just return the top 10 DAOs by member count
+      const allDaos = await this.getDAOs();
+      const sortedDaos = allDaos.sort((a, b) => b.members.length - a.members.length);
+      const trendingDaos = sortedDaos.slice(0, 10);
       
-    // Cache trending results
-    daoCache.cacheTrendingDAOs(trending);
-    
-    return trending;
+      // Update cache
+      await daoCache.cacheTrendingDAOs(trendingDaos);
+      
+      return trendingDaos;
+    } catch (error) {
+      console.error("Error fetching trending DAOs:", error);
+      return [];
+    }
   }
   
   /**
-   * Get a single DAO by ID
+   * Get a specific DAO by ID
    */
-  async getDAOById(id: string): Promise<DAO | null> {
+  async getDAOById(daoId: string): Promise<DAO | null> {
+    // Try to get from cache first
+    const cachedDao = await daoCache.getDAOById(daoId);
+    if (cachedDao) {
+      console.log(`Returning cached DAO ${daoId}`);
+      return cachedDao;
+    }
+    
+    console.log(`Fetching DAO ${daoId} from relays`);
+    
     try {
-      // Check cache first
-      const cachedDAO = daoCache.getDAODetails(id);
-      if (cachedDAO) {
-        console.log(`Using cached DAO with ID: ${id}`);
-        // Refresh in background
-        this.refreshDAOById(id);
-        return cachedDAO;
-      }
-      
-      console.log(`Fetching DAO with ID: ${id}`);
-      
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        ids: [id],
-        limit: 1
+      const relays = nostrService.getRelays();
+      const filter = { 
+        kinds: [DAO_CREATION_KIND],
+        '#d': [daoId]
       };
       
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.pool.list(relays, [filter]);
+      console.log(`Fetched ${events.length} events for DAO ${daoId}`);
       
       if (events.length === 0) {
-        console.log(`No DAO found with ID: ${id}`);
         return null;
       }
       
-      const dao = this.parseDaoEvent(events[0]);
+      // Use the most recent event
+      const latestEvent = events.sort((a, b) => b.created_at - a.created_at)[0];
+      const dao = this.parseDaoEvent(latestEvent);
       
-      // Cache the result
-      if (dao) {
-        daoCache.cacheDAODetails(id, dao);
+      if (!dao) {
+        return null;
       }
       
-      return dao;
+      // Get DAO members
+      const membersFilter = {
+        kinds: [DAO_MEMBER_KIND],
+        '#d': [daoId],
+        '#action': ['join']
+      };
+      
+      const memberEvents = await this.pool.list(relays, [membersFilter]);
+      console.log(`Fetched ${memberEvents.length} member events for DAO ${daoId}`);
+      
+      const members = memberEvents.map(event => event.tags
+        .find(tag => tag[0] === DAO_TAGS.USER)?.[1])
+        .filter(Boolean) as string[];
+      
+      // Get DAO moderators
+      const moderatorsFilter = {
+        kinds: [DAO_MODERATOR_KIND],
+        '#d': [daoId]
+      };
+      
+      const moderatorEvents = await this.pool.list(relays, [moderatorsFilter]);
+      console.log(`Fetched ${moderatorEvents.length} moderator events for DAO ${daoId}`);
+      
+      const moderators = moderatorEvents.map(event => event.tags
+        .find(tag => tag[0] === DAO_TAGS.MODERATOR)?.[1])
+        .filter(Boolean) as string[];
+      
+      // Get metadata updates (privacy settings, etc.)
+      const metaFilter = {
+        kinds: [DAO_META_KIND],
+        '#d': [daoId]
+      };
+      
+      const metaEvents = await this.pool.list(relays, [metaFilter]);
+      console.log(`Fetched ${metaEvents.length} metadata events for DAO ${daoId}`);
+      
+      // Process metadata (e.g., privacy settings)
+      let isPrivate = false;
+      let guidelines = '';
+      
+      if (metaEvents.length > 0) {
+        // Sort by timestamp to get the latest
+        const sortedMetaEvents = metaEvents.sort((a, b) => b.created_at - a.created_at);
+        
+        for (const event of sortedMetaEvents) {
+          try {
+            const content = JSON.parse(event.content);
+            
+            if ('isPrivate' in content) {
+              isPrivate = content.isPrivate;
+            }
+            
+            if ('guidelines' in content) {
+              guidelines = content.guidelines;
+            }
+          } catch (error) {
+            console.error("Error parsing metadata event content:", error);
+          }
+        }
+      }
+      
+      // Create the complete DAO object with members and metadata
+      const completeDao: DAO = {
+        ...dao,
+        members: Array.from(new Set([dao.creator, ...members])),
+        moderators: Array.from(new Set(moderators)),
+        isPrivate,
+        guidelines
+      };
+      
+      // Update cache
+      await daoCache.cacheDAO(completeDao);
+      
+      return completeDao;
     } catch (error) {
-      console.error(`Error fetching DAO ${id}:`, error);
+      console.error(`Error fetching DAO ${daoId}:`, error);
       return null;
     }
   }
   
   /**
-   * Subscribe to a specific DAO by ID for real-time updates
-   */
-  subscribeToDAO(id: string, callback: (dao: DAO | null) => void): () => void {
-    const filter: Filter = {
-      kinds: [DAO_KINDS.COMMUNITY],
-      ids: [id],
-    };
-    
-    // Create unique subscription id
-    const subId = `dao_${id}_${Date.now()}`;
-    
-    console.log(`Creating DAO subscription for ${id}`);
-    
-    const sub = this.pool.sub(this.relays, [filter]);
-    
-    sub.on('event', (event: Event) => {
-      const dao = this.parseDaoEvent(event);
-      callback(dao);
-    });
-    
-    // Store unsubscribe function
-    this.relaySubscriptions.set(subId, () => sub.unsub());
-    
-    // Return unsubscribe function
-    return () => {
-      console.log(`Unsubscribing from DAO subscription ${subId}`);
-      if (this.relaySubscriptions.has(subId)) {
-        const unsubFunc = this.relaySubscriptions.get(subId);
-        if (unsubFunc) unsubFunc();
-        this.relaySubscriptions.delete(subId);
-      }
-    };
-  }
-  
-  /**
-   * Background refresh of a single DAO
-   */
-  private async refreshDAOById(id: string): Promise<void> {
-    try {
-      const filter: Filter = {
-        kinds: [DAO_KINDS.COMMUNITY],
-        ids: [id],
-        limit: 1
-      };
-      
-      const events = await this.pool.querySync(this.relays, filter);
-      
-      if (events.length > 0) {
-        const dao = this.parseDaoEvent(events[0]);
-        if (dao) {
-          daoCache.cacheDAODetails(id, dao);
-        }
-      }
-    } catch (error) {
-      console.error(`Error refreshing DAO ${id}:`, error);
-    }
-  }
-  
-  /**
-   * Get DAO proposals
+   * Get proposals for a specific DAO
    */
   async getDAOProposals(daoId: string): Promise<DAOProposal[]> {
+    console.log(`Fetching proposals for DAO ${daoId}`);
+    
     try {
-      // Check cache first
-      const cachedProposals = daoCache.getProposals(daoId);
-      if (cachedProposals) {
-        console.log(`Using cached proposals for DAO: ${daoId}`);
-        // Refresh in background
-        this.refreshDAOProposals(daoId);
-        return cachedProposals;
-      }
-      
-      const filter: Filter = {
-        kinds: [DAO_KINDS.PROPOSAL],
-        '#e': [daoId],
-        limit: 50
+      const relays = nostrService.getRelays();
+      const filter = { 
+        kinds: [DAO_PROPOSAL_KIND, DAO_KICK_PROPOSAL_KIND],
+        '#d': [daoId]
       };
       
-      console.log(`Fetching proposals for DAO: ${daoId}`);
-      const events = await this.pool.querySync(this.fastRelays, filter);
-      console.log(`Found ${events.length} proposals for DAO ${daoId}`);
+      // Get votes filter to fetch all votes for this DAO's proposals
+      const votesFilter = {
+        kinds: [DAO_VOTE_KIND, DAO_KICK_VOTE_KIND],
+        '#d': [daoId]
+      };
       
-      const proposals = events
-        .map(event => this.parseProposalEvent(event, daoId))
-        .filter((proposal): proposal is DAOProposal => proposal !== null);
+      const [proposalEvents, voteEvents] = await Promise.all([
+        this.pool.list(relays, [filter]),
+        this.pool.list(relays, [votesFilter])
+      ]);
+      
+      console.log(`Fetched ${proposalEvents.length} proposals and ${voteEvents.length} votes for DAO ${daoId}`);
+      
+      // Organize votes by proposal ID
+      const votesByProposal: Record<string, Record<string, number>> = {};
+      
+      for (const voteEvent of voteEvents) {
+        const proposalId = voteEvent.tags.find(tag => tag[0] === DAO_TAGS.PROPOSAL_ID)?.[1];
+        if (!proposalId) continue;
         
-      // Fetch votes for each proposal
-      const votesPromises = proposals.map(proposal => this.getVotesForProposal(proposal.id));
-      const votesResults = await Promise.all(votesPromises);
+        const vote = voteEvent.tags.find(tag => tag[0] === DAO_TAGS.VOTE)?.[1];
+        if (!vote) continue;
+        
+        const voteIndex = parseInt(vote);
+        if (isNaN(voteIndex)) continue;
+        
+        if (!votesByProposal[proposalId]) {
+          votesByProposal[proposalId] = {};
+        }
+        
+        votesByProposal[proposalId][voteEvent.pubkey] = voteIndex;
+      }
       
-      // Merge votes into proposals
-      const proposalsWithVotes = proposals.map((proposal, index) => ({
-        ...proposal,
-        votes: votesResults[index]
-      }));
+      // Parse proposals
+      const proposals = proposalEvents.map(event => {
+        const proposal = this.parseProposalEvent(event);
+        if (!proposal) return null;
+        
+        // Add votes to the proposal
+        proposal.votes = votesByProposal[proposal.id] || {};
+        
+        return proposal;
+      }).filter(Boolean) as DAOProposal[];
       
-      // Cache the result
-      daoCache.cacheProposals(daoId, proposalsWithVotes);
-      
-      return proposalsWithVotes;
+      // Sort by created_at (newest first)
+      return proposals.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error) {
       console.error(`Error fetching proposals for DAO ${daoId}:`, error);
       return [];
@@ -428,195 +359,384 @@ export class DAOService {
   }
   
   /**
+   * Subscribe to DAOs (real-time updates)
+   */
+  subscribeToDAOs(callback: (dao: DAO) => void): () => void {
+    console.log("Setting up subscription for DAOs");
+    const relays = nostrService.getRelays();
+    
+    // First try to get cached DAOs
+    daoCache.getAllDAOs().then(daos => {
+      for (const dao of daos) {
+        callback(dao);
+      }
+    });
+    
+    // Subscribe to new DAO events
+    const filter = { kinds: [DAO_CREATION_KIND] };
+    
+    const sub = this.pool.subscribe(relays, [filter], {
+      onevent: (event) => {
+        const dao = this.parseDaoEvent(event);
+        if (dao) {
+          callback(dao);
+          // Update cache
+          daoCache.cacheDAO(dao);
+        }
+      },
+      oneose: () => {
+        console.log("Initial DAO load complete");
+      }
+    });
+    
+    return () => {
+      sub.close();
+    };
+  }
+  
+  /**
+   * Subscribe to a specific DAO
+   */
+  subscribeToDAO(daoId: string, callback: (dao: DAO | null) => void): () => void {
+    console.log(`Setting up subscription for DAO ${daoId}`);
+    const relays = nostrService.getRelays();
+    
+    // First try to get cached DAO
+    daoCache.getDAOById(daoId).then(dao => {
+      if (dao) {
+        callback(dao);
+      }
+    });
+    
+    // Subscribe to DAO events
+    const daoFilter = { 
+      kinds: [DAO_CREATION_KIND],
+      '#d': [daoId]
+    };
+    
+    const memberFilter = {
+      kinds: [DAO_MEMBER_KIND],
+      '#d': [daoId]
+    };
+    
+    const modFilter = {
+      kinds: [DAO_MODERATOR_KIND],
+      '#d': [daoId]
+    };
+    
+    const metaFilter = {
+      kinds: [DAO_META_KIND],
+      '#d': [daoId]
+    };
+    
+    const sub = this.pool.subscribe(relays, [daoFilter, memberFilter, modFilter, metaFilter], {
+      onevent: async (event) => {
+        if (event.kind === DAO_CREATION_KIND) {
+          // DAO creation/update event
+          const dao = this.parseDaoEvent(event);
+          if (dao) {
+            // Fetch complete DAO info
+            const completeDao = await this.getDAOById(daoId);
+            if (completeDao) {
+              callback(completeDao);
+              // Update cache
+              daoCache.cacheDAO(completeDao);
+            }
+          }
+        } else if (event.kind === DAO_MEMBER_KIND || 
+                   event.kind === DAO_MODERATOR_KIND || 
+                   event.kind === DAO_META_KIND) {
+          // Member/Moderator/Metadata update, refetch the complete DAO
+          const completeDao = await this.getDAOById(daoId);
+          if (completeDao) {
+            callback(completeDao);
+            // Update cache
+            daoCache.cacheDAO(completeDao);
+          }
+        }
+      },
+      oneose: () => {
+        console.log(`Initial DAO ${daoId} load complete`);
+      }
+    });
+    
+    return () => {
+      sub.close();
+    };
+  }
+  
+  /**
+   * Subscribe to DAOs for a specific user
+   */
+  subscribeToUserDAOs(pubkey: string, callback: (dao: DAO) => void): () => void {
+    console.log(`Setting up subscription for DAOs belonging to ${pubkey}`);
+    const relays = nostrService.getRelays();
+    
+    // First try to get cached DAOs
+    daoCache.getUserDAOs(pubkey).then(daos => {
+      for (const dao of daos) {
+        callback(dao);
+      }
+    });
+    
+    // Subscribe to DAO events for this user
+    const createdFilter = { 
+      kinds: [DAO_CREATION_KIND],
+      authors: [pubkey]
+    };
+    
+    const memberFilter = {
+      kinds: [DAO_MEMBER_KIND],
+      '#u': [pubkey],
+      '#action': ['join']
+    };
+    
+    const sub = this.pool.subscribe(relays, [createdFilter, memberFilter], {
+      onevent: async (event) => {
+        if (event.kind === DAO_CREATION_KIND) {
+          // DAO creation event by the user
+          const dao = this.parseDaoEvent(event);
+          if (dao) {
+            callback(dao);
+            // Update cache
+            daoCache.cacheDAO(dao);
+            daoCache.addUserDAO(pubkey, dao.id);
+          }
+        } else if (event.kind === DAO_MEMBER_KIND) {
+          // User joined a DAO
+          const daoId = event.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+          if (daoId) {
+            const dao = await this.getDAOById(daoId);
+            if (dao) {
+              callback(dao);
+              // Update cache
+              daoCache.addUserDAO(pubkey, daoId);
+            }
+          }
+        }
+      },
+      oneose: () => {
+        console.log(`Initial user DAOs for ${pubkey} load complete`);
+      }
+    });
+    
+    return () => {
+      sub.close();
+    };
+  }
+  
+  /**
    * Subscribe to DAO proposals
    */
   subscribeToDAOProposals(daoId: string, callback: (proposal: DAOProposal) => void): () => void {
-    const filter: Filter = {
-      kinds: [DAO_KINDS.PROPOSAL],
-      '#e': [daoId],
-    };
+    console.log(`Setting up subscription for proposals of DAO ${daoId}`);
+    const relays = nostrService.getRelays();
     
-    // Create unique subscription id
-    const subId = `proposals_${daoId}_${Date.now()}`;
-    
-    console.log(`Creating proposals subscription for DAO ${daoId}`);
-    
-    const sub = this.pool.sub(this.relays, [filter]);
-    
-    sub.on('event', async (event: Event) => {
-      const proposal = this.parseProposalEvent(event, daoId);
-      if (proposal) {
-        // Fetch votes for this proposal
-        const votes = await this.getVotesForProposal(proposal.id);
-        proposal.votes = votes;
+    // First try to get cached proposals
+    this.getDAOProposals(daoId).then(proposals => {
+      for (const proposal of proposals) {
         callback(proposal);
       }
     });
     
-    // Store unsubscribe function
-    this.relaySubscriptions.set(subId, () => sub.unsub());
+    // Subscribe to proposal events
+    const proposalFilter = { 
+      kinds: [DAO_PROPOSAL_KIND, DAO_KICK_PROPOSAL_KIND],
+      '#d': [daoId]
+    };
     
-    // Return unsubscribe function
-    return () => {
-      console.log(`Unsubscribing from proposals subscription for DAO ${daoId}`);
-      if (this.relaySubscriptions.has(subId)) {
-        const unsubFunc = this.relaySubscriptions.get(subId);
-        if (unsubFunc) unsubFunc();
-        this.relaySubscriptions.delete(subId);
+    const voteFilter = {
+      kinds: [DAO_VOTE_KIND, DAO_KICK_VOTE_KIND],
+      '#d': [daoId]
+    };
+    
+    // Keep track of proposals and their votes
+    const proposals: Record<string, DAOProposal> = {};
+    const votesByProposal: Record<string, Record<string, number>> = {};
+    
+    const sub = this.pool.subscribe(relays, [proposalFilter, voteFilter], {
+      onevent: (event) => {
+        if (event.kind === DAO_PROPOSAL_KIND || event.kind === DAO_KICK_PROPOSAL_KIND) {
+          // New proposal
+          const proposal = this.parseProposalEvent(event);
+          if (proposal) {
+            // Add existing votes if any
+            const existingVotes = votesByProposal[proposal.id] || {};
+            proposal.votes = existingVotes;
+            proposals[proposal.id] = proposal;
+            callback(proposal);
+          }
+        } else if (event.kind === DAO_VOTE_KIND || event.kind === DAO_KICK_VOTE_KIND) {
+          // New vote
+          const proposalId = event.tags.find(tag => tag[0] === DAO_TAGS.PROPOSAL_ID)?.[1];
+          if (!proposalId) return;
+          
+          const vote = event.tags.find(tag => tag[0] === DAO_TAGS.VOTE)?.[1];
+          if (!vote) return;
+          
+          const voteIndex = parseInt(vote);
+          if (isNaN(voteIndex)) return;
+          
+          // Store the vote
+          if (!votesByProposal[proposalId]) {
+            votesByProposal[proposalId] = {};
+          }
+          votesByProposal[proposalId][event.pubkey] = voteIndex;
+          
+          // Update the proposal if we have it
+          if (proposals[proposalId]) {
+            const updatedProposal = {
+              ...proposals[proposalId],
+              votes: { ...votesByProposal[proposalId] }
+            };
+            proposals[proposalId] = updatedProposal;
+            callback(updatedProposal);
+          }
+        }
+      },
+      oneose: () => {
+        console.log(`Initial proposals for DAO ${daoId} load complete`);
       }
+    });
+    
+    return () => {
+      sub.close();
     };
   }
   
   /**
-   * Background refresh of DAO proposals
+   * Parse a DAO event
    */
-  private async refreshDAOProposals(daoId: string): Promise<void> {
+  public parseDaoEvent(event: Event): DAO | null {
     try {
-      const filter: Filter = {
-        kinds: [DAO_KINDS.PROPOSAL],
-        '#e': [daoId],
-        limit: 50
-      };
-      
-      const events = await this.pool.querySync(this.relays, filter);
-      
-      const proposals = events
-        .map(event => this.parseProposalEvent(event, daoId))
-        .filter((proposal): proposal is DAOProposal => proposal !== null);
-        
-      // Only fetch votes for active proposals to save bandwidth
-      const activeProposals = proposals.filter(p => p.status === "active");
-      const votesPromises = activeProposals.map(proposal => this.getVotesForProposal(proposal.id));
-      const votesResults = await Promise.all(votesPromises);
-      
-      // Update only active proposals with votes
-      activeProposals.forEach((proposal, index) => {
-        proposal.votes = votesResults[index];
-      });
-      
-      // For non-active proposals, keep existing votes or use empty object
-      const allProposalsWithVotes = proposals.map(proposal => {
-        if (proposal.status !== "active") {
-          const existingProposal = daoCache.getProposals(daoId)?.find(p => p.id === proposal.id);
-          return {
-            ...proposal,
-            votes: existingProposal?.votes || {}
-          };
-        }
-        return proposal;
-      });
-      
-      // Cache the updated result
-      daoCache.cacheProposals(daoId, allProposalsWithVotes);
-    } catch (error) {
-      console.error(`Error refreshing proposals for DAO ${daoId}:`, error);
-    }
-  }
-  
-  /**
-   * Get votes for a specific proposal
-   */
-  async getVotesForProposal(proposalId: string): Promise<Record<string, number>> {
-    try {
-      const filter: Filter = {
-        kinds: [DAO_KINDS.VOTE],
-        '#e': [proposalId],
-        limit: 200
-      };
-      
-      const events = await this.pool.querySync(this.relays, filter);
-      console.log(`Found ${events.length} votes for proposal ${proposalId}`);
-      
-      const votes: Record<string, number> = {};
-      
-      for (const event of events) {
-        try {
-          // Handle both JSON and non-JSON vote formats (for compatibility)
-          let optionIndex: number;
-          
-          if (event.content.startsWith('{')) {
-            const content = JSON.parse(event.content);
-            optionIndex = content.optionIndex;
-          } else {
-            // Simple format where content is just the option index
-            optionIndex = parseInt(event.content.trim());
-          }
-          
-          if (!isNaN(optionIndex) && event.pubkey) {
-            votes[event.pubkey] = optionIndex;
-          }
-        } catch (e) {
-          console.error("Error parsing vote content:", e, "Content:", event.content);
-        }
+      const daoId = event.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+      if (!daoId) {
+        console.error("DAO event missing ID tag:", event);
+        return null;
       }
       
-      return votes;
+      const name = event.tags.find(tag => tag[0] === DAO_TAGS.DAO_NAME)?.[1];
+      if (!name) {
+        console.error("DAO event missing name tag:", event);
+        return null;
+      }
+      
+      // Extract tags from the event
+      const tagsTags = event.tags.filter(tag => tag[0] === DAO_TAGS.TAGS);
+      const tags = tagsTags.map(tag => tag[1]).filter(Boolean);
+      
+      return {
+        id: daoId,
+        name,
+        creator: event.pubkey,
+        description: event.content,
+        createdAt: event.created_at,
+        members: [event.pubkey], // Initially, just the creator
+        moderators: [], // Initially empty
+        isPrivate: false, // Default to public
+        proposals: [], // Will be filled separately
+        tags: tags, // Tags from the event
+        guidelines: '' // Will be filled from metadata events
+      };
     } catch (error) {
-      console.error(`Error fetching votes for proposal ${proposalId}:`, error);
-      return {};
+      console.error("Error parsing DAO event:", error);
+      return null;
     }
   }
   
   /**
-   * Create a new DAO/community
+   * Parse a proposal event
+   */
+  public parseProposalEvent(event: Event): DAOProposal | null {
+    try {
+      const proposalId = event.id;
+      
+      const daoId = event.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+      if (!daoId) {
+        console.error("Proposal event missing DAO ID tag:", event);
+        return null;
+      }
+      
+      const title = event.tags.find(tag => tag[0] === DAO_TAGS.PROPOSAL_TITLE)?.[1];
+      if (!title) {
+        console.error("Proposal event missing title tag:", event);
+        return null;
+      }
+      
+      const optionsTag = event.tags.find(tag => tag[0] === DAO_TAGS.PROPOSAL_OPTIONS);
+      if (!optionsTag || optionsTag.length < 2) {
+        console.error("Proposal event missing options tag:", event);
+        return null;
+      }
+      
+      // Options are stored as additional values in the tag
+      const options = optionsTag.slice(1);
+      
+      const closesTag = event.tags.find(tag => tag[0] === DAO_TAGS.PROPOSAL_CLOSES)?.[1];
+      const closesAt = closesTag ? parseInt(closesTag) : (event.created_at + 7 * 24 * 60 * 60); // Default to 7 days
+      
+      return {
+        id: proposalId,
+        daoId,
+        creator: event.pubkey,
+        title,
+        description: event.content,
+        options,
+        createdAt: event.created_at,
+        closesAt,
+        votes: {} // Will be filled separately
+      };
+    } catch (error) {
+      console.error("Error parsing proposal event:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Create a new DAO
    */
   async createDAO(name: string, description: string, tags: string[] = []): Promise<string | null> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      // Get the user's pubkey from the Nostr service
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
+      const daoId = utils.randomId(); // Generate a random ID for the DAO
+      
+      const daoTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.DAO_NAME, name],
+        ['client', 'blocknoster']
+      ];
+      
+      // Add tags if provided
+      for (const tag of tags) {
+        daoTags.push([DAO_TAGS.TAGS, tag]);
       }
       
-      // Validate name - prevent empty names
-      const trimmedName = name.trim();
-      if (!trimmedName) {
-        console.error("DAO creation failed: Name cannot be empty");
-        throw new Error("DAO name cannot be empty");
-      }
-      
-      console.log(`Creating DAO: ${trimmedName} with creator ${pubkey}`);
-      
-      // Generate a unique identifier for the DAO
-      const uniqueId = `dao_${Math.random().toString(36).substring(2, 10)}`;
-      
-      const communityData = {
-        name: trimmedName, // Use trimmed name
-        description,
-        creator: pubkey,
-        createdAt: Math.floor(Date.now() / 1000),
-        image: "", // Optional image URL
-        treasury: {
-          balance: 0,
-          tokenSymbol: "ALPH"
-        },
-        proposals: 0,
-        activeProposals: 0,
-        tags: tags
+      const event: Partial<Event> = {
+        kind: DAO_CREATION_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: daoTags,
+        content: description || "",
+        pubkey: nostrService.publicKey
       };
       
-      // NIP-72 compliant community event
-      const eventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify(communityData),
-        tags: [
-          ["d", uniqueId], // Unique identifier as required by NIP-72
-          ["p", pubkey] // Creator is the first member
-        ]
-      };
-      
-      console.log("Publishing DAO event:", eventData);
-      
-      // Publish the event using nostrService
-      const eventId = await nostrService.publishEvent(eventData);
-      console.log("DAO created with ID:", eventId);
-      
-      if (eventId && pubkey) {
-        daoCache.invalidateUserDAOs(pubkey);
-        setTimeout(() => daoCache.clearAll(), 1000); // Clear all DAO caches after a delay
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
       }
       
-      return eventId;
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      
+      return daoId;
     } catch (error) {
       console.error("Error creating DAO:", error);
       return null;
@@ -624,443 +744,52 @@ export class DAOService {
   }
   
   /**
-   * Create a proposal for a DAO
+   * Update DAO metadata (privacy, etc.)
    */
-  async createProposal(
-    daoId: string,
-    title: string,
-    description: string,
-    options: string[],
-    durationDays: number = 7
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-      
-      const now = Math.floor(Date.now() / 1000);
-      const endsAt = now + (durationDays * 24 * 60 * 60); // Convert days to seconds
-      
-      const proposalData = {
-        title,
-        description,
-        options,
-        createdAt: now,
-        endsAt: endsAt,
-      };
-      
-      // Generate a unique identifier for the proposal
-      const uniqueId = `proposal_${Math.random().toString(36).substring(2, 10)}`;
-      
-      // NIP-72 compliant proposal event
-      const eventData = {
-        kind: DAO_KINDS.PROPOSAL,
-        content: JSON.stringify(proposalData),
-        tags: [
-          ["e", daoId], // Reference to DAO/community event
-          ["d", uniqueId] // Unique identifier
-        ]
-      };
-      
-      console.log("Publishing proposal event:", eventData);
-      
-      const eventId = await nostrService.publishEvent(eventData);
-      console.log("Proposal created with ID:", eventId);
-      
-      return eventId;
-    } catch (error) {
-      console.error("Error creating proposal:", error);
-      return null;
+  async updateDAOMetadata(daoId: string, metadata: { type: string; isPrivate?: boolean; guidelines?: string }): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
     }
-  }
-  
-  /**
-   * Vote on a proposal
-   */
-  async voteOnProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+    
     try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-      
-      // NIP-72 compliant vote event - keep content simple
-      const eventData = {
-        kind: DAO_KINDS.VOTE,
-        content: JSON.stringify({ optionIndex }),
-        tags: [
-          ["e", proposalId] // Reference to proposal event
-        ]
-      };
-      
-      console.log("Publishing vote event:", eventData);
-      
-      const eventId = await nostrService.publishEvent(eventData);
-      console.log("Vote recorded with ID:", eventId);
-      
-      return eventId;
-    } catch (error) {
-      console.error("Error voting on proposal:", error);
-      return null;
-    }
-  }
-  
-  /**
-   * Join a DAO/community
-   */
-  async joinDAO(daoId: string): Promise<boolean> {
-    try {
-      // First fetch the DAO to get current data
       const dao = await this.getDAOById(daoId);
       if (!dao) {
-        console.error("DAO not found:", daoId);
         throw new Error("DAO not found");
       }
       
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
+      // Verify user is the creator
+      if (dao.creator !== nostrService.publicKey) {
+        throw new Error("Only the creator can update DAO metadata");
       }
       
-      console.log(`User ${pubkey} joining DAO ${daoId}`);
+      const metaTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        ['client', 'blocknoster'],
+        ['type', metadata.type]
+      ];
       
-      // Check if already a member
-      if (dao.members.includes(pubkey)) {
-        console.log("Already a member of this DAO");
-        return true;
-      }
-      
-      // Extract the unique identifier from d tag if available
-      let uniqueId = daoId;
-      const event = await this.getDAOEventById(daoId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
-      
-      // Create updated member list including the current user
-      const members = [...dao.members, pubkey];
-      
-      // Create a new community event with the same uniqueId
-      // This follows NIP-72 replacement approach
-      const updatedData = {
-        name: dao.name,
-        description: dao.description,
-        creator: dao.creator,
-        createdAt: dao.createdAt,
-        image: dao.image,
-        treasury: dao.treasury,
-        proposals: dao.proposals,
-        activeProposals: dao.activeProposals,
-        tags: dao.tags
+      const event: Partial<Event> = {
+        kind: DAO_META_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: metaTags,
+        content: JSON.stringify(metadata),
+        pubkey: nostrService.publicKey
       };
       
-      // NIP-72 compliant event for joining
-      const eventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify(updatedData),
-        tags: [
-          ["d", uniqueId], // Same unique identifier
-          ...members.map(member => ["p", member]) // Include all members
-        ]
-      };
-      
-      console.log("Publishing join DAO event:", eventData);
-      
-      await nostrService.publishEvent(eventData);
-      console.log(`Successfully joined DAO ${daoId}`);
-      
-      return true;
-    } catch (error) {
-      console.error("Error joining DAO:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Leave a DAO/community
-   */
-  async leaveDAO(daoId: string): Promise<boolean> {
-    try {
-      // First fetch the DAO to get current data
-      const dao = await this.getDAOById(daoId);
-      if (!dao) {
-        console.error("DAO not found:", daoId);
-        throw new Error("DAO not found");
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
       }
       
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
       
-      console.log(`User ${pubkey} leaving DAO ${daoId}`);
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
       
-      // Check if the user is a member
-      if (!dao.members.includes(pubkey)) {
-        console.log("Not a member of this DAO");
-        return true; // Already not a member
-      }
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
       
-      // Creator cannot leave their own DAO
-      if (dao.creator === pubkey) {
-        throw new Error("Creator cannot leave their own DAO. Consider deleting the DAO instead.");
-      }
-      
-      // Extract the unique identifier from d tag if available
-      let uniqueId = daoId;
-      const event = await this.getDAOEventById(daoId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
-      
-      // Create updated member list without the current user
-      const updatedMembers = dao.members.filter(member => member !== pubkey);
-      
-      // Also remove from moderators if applicable
-      const updatedModerators = dao.moderators.filter(mod => mod !== pubkey);
-      
-      // Create a new community event with the same uniqueId but without the user
-      const updatedData = {
-        name: dao.name,
-        description: dao.description,
-        creator: dao.creator,
-        createdAt: dao.createdAt,
-        image: dao.image,
-        guidelines: dao.guidelines,
-        isPrivate: dao.isPrivate,
-        treasury: dao.treasury,
-        proposals: dao.proposals,
-        activeProposals: dao.activeProposals,
-        tags: dao.tags
-      };
-      
-      // NIP-72 compliant event for leaving
-      const eventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify(updatedData),
-        tags: [
-          ["d", uniqueId], // Same unique identifier
-          ...updatedMembers.map(member => ["p", member]), // Include updated members
-          ...updatedModerators.map(mod => ["p", mod, "moderator"]) // Include updated moderators
-        ]
-      };
-      
-      console.log("Publishing leave DAO event:", eventData);
-      
-      await nostrService.publishEvent(eventData);
-      console.log(`Successfully left DAO ${daoId}`);
-      
-      // Clear user DAO cache
-      daoCache.invalidateUserDAOs(pubkey);
-      
-      return true;
-    } catch (error) {
-      console.error("Error leaving DAO:", error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Delete a DAO (creator only)
-   */
-  async deleteDAO(daoId: string): Promise<boolean> {
-    try {
-      // First fetch the DAO to get current data
-      const dao = await this.getDAOById(daoId);
-      if (!dao) {
-        console.error("DAO not found:", daoId);
-        throw new Error("DAO not found");
-      }
-      
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-      
-      // Only creator can delete the DAO
-      if (dao.creator !== pubkey) {
-        throw new Error("Only the creator can delete a DAO");
-      }
-      
-      console.log(`Creator ${pubkey} deleting DAO ${daoId}`);
-      
-      // In Nostr, we mark events as deleted by publishing a special deletion event
-      // This is as per NIP-09: Event Deletion
-      const deletionEvent = {
-        kind: 5, // NIP-09 deletion event kind
-        content: "Deleted DAO",
-        tags: [
-          ["e", daoId] // Reference to the event being deleted
-        ]
-      };
-      
-      console.log("Publishing DAO deletion event:", deletionEvent);
-      await nostrService.publishEvent(deletionEvent);
-      
-      // Also delete all associated proposals, metadata, etc.
-      // This helps clean up associated data
-      const associatedEventIds = await this.getAssociatedEventIds(daoId);
-      
-      for (const eventId of associatedEventIds) {
-        const deletionEvent = {
-          kind: 5,
-          content: "Deleted DAO associated event",
-          tags: [
-            ["e", eventId]
-          ]
-        };
-        await nostrService.publishEvent(deletionEvent);
-      }
-      
-      console.log(`Successfully deleted DAO ${daoId}`);
-      
-      // Clear relevant caches
-      daoCache.invalidateDAODetails(daoId);
-      if (pubkey) {
-        daoCache.invalidateUserDAOs(pubkey);
-      }
-      daoCache.invalidateTrendingDAOs();
-      daoCache.invalidateAllDAOs();
-      
-      return true;
-    } catch (error) {
-      console.error("Error deleting DAO:", error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Helper function to get all associated event IDs for a DAO
-   */
-  private async getAssociatedEventIds(daoId: string): Promise<string[]> {
-    try {
-      // Get all events that reference this DAO
-      const filter: Filter = {
-        "#e": [daoId],
-        kinds: [
-          DAO_KINDS.PROPOSAL,
-          DAO_KINDS.VOTE,
-          DAO_KINDS.METADATA,
-          DAO_KINDS.MODERATION,
-          DAO_KINDS.INVITE
-        ]
-      };
-      
-      const events = await this.pool.querySync(this.relays, filter);
-      return events.map(event => event.id);
-    } catch (error) {
-      console.error("Error fetching associated events:", error);
-      return [];
-    }
-  }
-  
-  /**
-   * Update DAO metadata (privacy, guidelines, tags)
-   */
-  async updateDAOMetadata(daoId: string, metadata: {
-    type: string;
-    content?: any;
-    isPrivate?: boolean;
-  }): Promise<boolean> {
-    try {
-      // Get the current DAO data
-      const dao = await this.getDAOById(daoId);
-      if (!dao) {
-        console.error("DAO not found:", daoId);
-        return false;
-      }
-      
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-      
-      // Only the creator can update metadata
-      if (dao.creator !== pubkey) {
-        throw new Error("Only the DAO creator can update metadata");
-      }
-      
-      console.log(`Updating DAO metadata for ${daoId}, type: ${metadata.type}`);
-      
-      // Create updated data based on metadata type
-      let updatedData = { ...dao };
-      
-      switch (metadata.type) {
-        case "privacy":
-          updatedData.isPrivate = metadata.isPrivate;
-          break;
-        case "guidelines":
-          updatedData.guidelines = metadata.content;
-          break;
-        case "tags":
-          updatedData.tags = metadata.content;
-          break;
-        default:
-          throw new Error("Unknown metadata type");
-      }
-      
-      // Get the original unique identifier if available
-      let uniqueId = daoId;
-      const event = await this.getDAOEventById(daoId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
-      
-      // NIP-72 compliant event for metadata update
-      const eventData = {
-        kind: DAO_KINDS.METADATA,
-        content: JSON.stringify({ 
-          type: metadata.type,
-          content: metadata.content,
-          isPrivate: metadata.isPrivate,
-          updatedAt: Math.floor(Date.now() / 1000)
-        }),
-        tags: [
-          ["e", daoId], // Reference to DAO
-          ["d", uniqueId]
-        ]
-      };
-      
-      console.log("Publishing DAO metadata event:", eventData);
-      await nostrService.publishEvent(eventData);
-      
-      // Also update the main DAO definition with the changes for clients that don't follow the metadata events
-      // This ensures backwards compatibility
-      const mainEventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify({
-          name: dao.name,
-          description: dao.description,
-          creator: dao.creator,
-          createdAt: dao.createdAt,
-          image: dao.image,
-          guidelines: metadata.type === "guidelines" ? metadata.content : dao.guidelines,
-          isPrivate: metadata.type === "privacy" ? metadata.isPrivate : dao.isPrivate,
-          treasury: dao.treasury,
-          proposals: dao.proposals,
-          activeProposals: dao.activeProposals,
-          tags: metadata.type === "tags" ? metadata.content : dao.tags
-        }),
-        tags: [
-          ["d", uniqueId],
-          ...dao.members.map(member => ["p", member]),
-          ...dao.moderators.map(mod => ["p", mod, "moderator"])
-        ]
-      };
-      
-      await nostrService.publishEvent(mainEventData);
-      
-      console.log(`Successfully updated DAO ${daoId} metadata`);
       return true;
     } catch (error) {
       console.error("Error updating DAO metadata:", error);
@@ -1072,26 +801,63 @@ export class DAOService {
    * Update DAO guidelines
    */
   async updateDAOGuidelines(daoId: string, guidelines: string): Promise<boolean> {
-    try {
-      return await this.updateDAOMetadata(daoId, {
-        type: "guidelines",
-        content: guidelines
-      });
-    } catch (error) {
-      console.error("Error updating DAO guidelines:", error);
-      return false;
-    }
+    return this.updateDAOMetadata(daoId, { type: 'guidelines', guidelines });
   }
   
   /**
    * Update DAO tags
    */
   async updateDAOTags(daoId: string, tags: string[]): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      return await this.updateDAOMetadata(daoId, {
-        type: "tags",
-        content: tags
-      });
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      // Verify user is the creator
+      if (dao.creator !== nostrService.publicKey) {
+        throw new Error("Only the creator can update DAO tags");
+      }
+      
+      // Create an update event with the new tags
+      const tagArray = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.DAO_NAME, dao.name],
+        ['client', 'blocknoster']
+      ];
+      
+      // Add tags
+      for (const tag of tags) {
+        tagArray.push([DAO_TAGS.TAGS, tag]);
+      }
+      
+      const event: Partial<Event> = {
+        kind: DAO_UPDATE_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: tagArray,
+        content: dao.description || "",
+        pubkey: nostrService.publicKey
+      };
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      
+      return true;
     } catch (error) {
       console.error("Error updating DAO tags:", error);
       return false;
@@ -1099,192 +865,183 @@ export class DAOService {
   }
   
   /**
-   * Update DAO roles (add/remove moderators)
+   * Add a moderator to the DAO
    */
-  async updateDAORoles(daoId: string, update: {
-    role: string;
-    action: "add" | "remove";
-    pubkey: string;
-  }): Promise<boolean> {
+  async addDAOModerator(daoId: string, moderatorPubkey: string): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      // Get the current DAO data
       const dao = await this.getDAOById(daoId);
       if (!dao) {
-        console.error("DAO not found:", daoId);
-        return false;
+        throw new Error("DAO not found");
       }
       
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
+      // Verify user is the creator
+      if (dao.creator !== nostrService.publicKey) {
+        throw new Error("Only the creator can add moderators");
       }
       
-      // Only the creator can update roles
-      if (dao.creator !== pubkey) {
-        throw new Error("Only the DAO creator can update roles");
-      }
+      // Create a moderator event
+      const modTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.MODERATOR, moderatorPubkey],
+        ['client', 'blocknoster']
+      ];
       
-      console.log(`Updating DAO role for ${daoId}, ${update.action} ${update.role}: ${update.pubkey}`);
-      
-      // Update the moderators list
-      let moderators = [...dao.moderators];
-      
-      if (update.role === "moderator") {
-        if (update.action === "add" && !moderators.includes(update.pubkey)) {
-          moderators.push(update.pubkey);
-        } else if (update.action === "remove") {
-          moderators = moderators.filter(mod => mod !== update.pubkey);
-        }
-      }
-      
-      // Get the original unique identifier if available
-      let uniqueId = daoId;
-      const event = await this.getDAOEventById(daoId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
-      
-      // NIP-72 compliant event for role update
-      const eventData = {
-        kind: DAO_KINDS.MODERATION,
-        content: JSON.stringify({ 
-          role: update.role,
-          action: update.action,
-          updatedAt: Math.floor(Date.now() / 1000)
-        }),
-        tags: [
-          ["e", daoId], // Reference to DAO
-          ["p", update.pubkey, update.role] // Target pubkey with role
-        ]
+      const event: Partial<Event> = {
+        kind: DAO_MODERATOR_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: modTags,
+        content: "",
+        pubkey: nostrService.publicKey
       };
       
-      console.log("Publishing DAO role event:", eventData);
-      await nostrService.publishEvent(eventData);
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
       
-      // Also update the main DAO definition with the new moderators
-      // This ensures backwards compatibility
-      const mainEventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify({
-          name: dao.name,
-          description: dao.description,
-          creator: dao.creator,
-          createdAt: dao.createdAt,
-          image: dao.image,
-          guidelines: dao.guidelines,
-          isPrivate: dao.isPrivate,
-          treasury: dao.treasury,
-          proposals: dao.proposals,
-          activeProposals: dao.activeProposals,
-          tags: dao.tags
-        }),
-        tags: [
-          ["d", uniqueId],
-          ...dao.members.map(member => ["p", member]),
-          ...moderators.map(mod => ["p", mod, "moderator"])
-        ]
-      };
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
       
-      await nostrService.publishEvent(mainEventData);
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
       
-      console.log(`Successfully updated DAO ${daoId} roles`);
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      
       return true;
     } catch (error) {
-      console.error("Error updating DAO roles:", error);
+      console.error("Error adding moderator:", error);
       return false;
     }
   }
   
   /**
-   * Add DAO moderator
+   * Remove a moderator from the DAO
    */
-  async addDAOModerator(daoId: string, pubkey: string): Promise<boolean> {
-    try {
-      return await this.updateDAORoles(daoId, {
-        role: "moderator",
-        action: "add",
-        pubkey
-      });
-    } catch (error) {
-      console.error("Error adding DAO moderator:", error);
-      return false;
+  async removeDAOModerator(daoId: string, moderatorPubkey: string): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
     }
-  }
-  
-  /**
-   * Remove DAO moderator
-   */
-  async removeDAOModerator(daoId: string, pubkey: string): Promise<boolean> {
-    try {
-      return await this.updateDAORoles(daoId, {
-        role: "moderator",
-        action: "remove",
-        pubkey
-      });
-    } catch (error) {
-      console.error("Error removing DAO moderator:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Create invite link for a DAO
-   */
-  async createDAOInvite(daoId: string, expiresIn?: number, maxUses?: number): Promise<string | null> {
+    
     try {
       const dao = await this.getDAOById(daoId);
       if (!dao) {
-        console.error("DAO not found:", daoId);
-        return null;
+        throw new Error("DAO not found");
       }
       
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
+      // Verify user is the creator
+      if (dao.creator !== nostrService.publicKey) {
+        throw new Error("Only the creator can remove moderators");
       }
       
-      // Check if user is creator or moderator
-      if (dao.creator !== pubkey && !dao.moderators.includes(pubkey)) {
-        throw new Error("Only creator or moderators can create invites");
-      }
+      // Create a moderator removal event (using the same kind but with 'remove' action)
+      const modTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.MODERATOR, moderatorPubkey],
+        [DAO_TAGS.ACTION, 'remove'],
+        ['client', 'blocknoster']
+      ];
       
-      const now = Math.floor(Date.now() / 1000);
-      const inviteData = {
-        daoId,
-        createdAt: now,
-        creatorPubkey: pubkey,
-        expiresAt: expiresIn ? now + expiresIn : undefined,
-        maxUses,
-        usedCount: 0
+      const event: Partial<Event> = {
+        kind: DAO_MODERATOR_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: modTags,
+        content: "",
+        pubkey: nostrService.publicKey
       };
       
-      // Create a unique identifier for this invite
-      const uniqueId = `invite_${Math.random().toString(36).substring(2, 10)}`;
-      
-      // NIP-72 compliant event for invitation
-      const eventData = {
-        kind: DAO_KINDS.INVITE,
-        content: JSON.stringify(inviteData),
-        tags: [
-          ["e", daoId], // Reference to DAO
-          ["d", uniqueId] // Unique identifier for this invite
-        ]
-      };
-      
-      console.log("Publishing DAO invite event:", eventData);
-      const inviteId = await nostrService.publishEvent(eventData);
-      
-      if (inviteId) {
-        console.log(`Successfully created DAO invite ${inviteId}`);
-        return inviteId;
-      } else {
-        throw new Error("Failed to publish invite event");
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
       }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      
+      return true;
     } catch (error) {
-      console.error("Error creating DAO invite:", error);
+      console.error("Error removing moderator:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Create a new proposal for the DAO
+   */
+  async createProposal(
+    daoId: string, 
+    title: string, 
+    description: string, 
+    options: string[],
+    durationDays: number = 7
+  ): Promise<string | null> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
+    try {
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      // Verify user is a member
+      if (!dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Only members can create proposals");
+      }
+      
+      if (!options || options.length < 2) {
+        throw new Error("At least two options are required");
+      }
+      
+      // Calculate proposal closing time
+      const now = Math.floor(Date.now() / 1000);
+      const closesAt = now + (durationDays * 24 * 60 * 60);
+      
+      // Create proposal tags
+      const proposalTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.PROPOSAL_TITLE, title],
+        [DAO_TAGS.PROPOSAL_CLOSES, closesAt.toString()],
+        ['client', 'blocknoster']
+      ];
+      
+      // Add options as a single tag with multiple values
+      const optionsTag = [DAO_TAGS.PROPOSAL_OPTIONS].concat(options);
+      proposalTags.push(optionsTag);
+      
+      const event: Partial<Event> = {
+        kind: DAO_PROPOSAL_KIND,
+        created_at: now,
+        tags: proposalTags,
+        content: description || "",
+        pubkey: nostrService.publicKey
+      };
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      return signedEvent.id;
+    } catch (error) {
+      console.error("Error creating proposal:", error);
       return null;
     }
   }
@@ -1293,73 +1050,87 @@ export class DAOService {
    * Create a kick proposal
    */
   async createKickProposal(
-    daoId: string,
-    title: string,
-    description: string,
+    daoId: string, 
+    title: string, 
+    reason: string, 
     options: string[],
-    memberToKick: string,
+    targetPubkey: string,
     durationDays: number = 7
   ): Promise<string | null> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-      
       const dao = await this.getDAOById(daoId);
       if (!dao) {
         throw new Error("DAO not found");
       }
       
-      // Check if the target is a member
-      if (!dao.members.includes(memberToKick)) {
+      // Verify user is a member
+      if (!dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Only members can create kick proposals");
+      }
+      
+      // Cannot kick the creator
+      if (targetPubkey === dao.creator) {
+        throw new Error("Cannot kick the DAO creator");
+      }
+      
+      // Cannot kick yourself
+      if (targetPubkey === nostrService.publicKey) {
+        throw new Error("Cannot kick yourself. Use 'Leave DAO' instead.");
+      }
+      
+      // Verify target is a member
+      if (!dao.members.includes(targetPubkey)) {
         throw new Error("Target is not a member of the DAO");
       }
       
-      // Check if the target is the creator (who cannot be kicked)
-      if (memberToKick === dao.creator) {
-        throw new Error("The creator cannot be kicked from the DAO");
-      }
-      
-      // Check if the initiator is a member
-      if (!dao.members.includes(pubkey)) {
-        throw new Error("Only members can propose kicks");
-      }
-      
+      // Calculate proposal closing time
       const now = Math.floor(Date.now() / 1000);
-      const endsAt = now + (durationDays * 24 * 60 * 60); // Convert days to seconds
+      const closesAt = now + (durationDays * 24 * 60 * 60);
       
-      // Prepare proposal data - include kick metadata
-      const proposalData = {
-        title,
-        description,
-        options,
-        createdAt: now,
-        endsAt: endsAt,
+      // Create proposal content with kick metadata
+      const content = JSON.stringify({
         type: "kick",
-        targetPubkey: memberToKick
+        reason,
+        targetPubkey
+      });
+      
+      // Create proposal tags
+      const proposalTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.PROPOSAL_TITLE, title],
+        [DAO_TAGS.PROPOSAL_CLOSES, closesAt.toString()],
+        [DAO_TAGS.USER, targetPubkey], // Target user
+        ['client', 'blocknoster']
+      ];
+      
+      // Add options as a single tag with multiple values
+      const optionsTag = [DAO_TAGS.PROPOSAL_OPTIONS].concat(options);
+      proposalTags.push(optionsTag);
+      
+      const event: Partial<Event> = {
+        kind: DAO_KICK_PROPOSAL_KIND,
+        created_at: now,
+        tags: proposalTags,
+        content,
+        pubkey: nostrService.publicKey
       };
       
-      // Generate a unique identifier for the proposal
-      const uniqueId = `kickproposal_${Math.random().toString(36).substring(2, 10)}`;
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
       
-      // NIP-72 compliant proposal event with kick metadata
-      const eventData = {
-        kind: DAO_KINDS.PROPOSAL,
-        content: JSON.stringify(proposalData),
-        tags: [
-          ["e", daoId], // Reference to DAO/community event
-          ["d", uniqueId], // Unique identifier
-          ["p", memberToKick, "kick"] // Tag the target user with kick action
-        ]
-      };
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
       
-      console.log("Publishing kick proposal event:", eventData);
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
       
-      const eventId = await nostrService.publishEvent(eventData);
-      console.log("Kick proposal created with ID:", eventId);
-      
-      return eventId;
+      return signedEvent.id;
     } catch (error) {
       console.error("Error creating kick proposal:", error);
       return null;
@@ -1367,22 +1138,133 @@ export class DAOService {
   }
   
   /**
-   * Vote on kick proposal with specialized logic
+   * Vote on a proposal
    */
-  async voteOnKickProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+  async voteOnProposal(proposalId: string, optionIndex: number): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      // Use standard voting mechanism but with specialized tracking for kick proposals
-      const voteId = await this.voteOnProposal(proposalId, optionIndex);
+      // Find the proposal to get its DAO ID
+      const relays = nostrService.getRelays();
+      const filter = { ids: [proposalId] };
       
-      if (voteId) {
-        // Check if we need to execute a kick (if vote threshold is met)
-        const proposal = await this.getProposalById(proposalId);
-        if (proposal) {
-          await this.checkAndExecuteKickProposal(proposal);
-        }
+      const events = await this.pool.list(relays, [filter]);
+      if (events.length === 0) {
+        throw new Error("Proposal not found");
       }
       
-      return voteId;
+      const proposalEvent = events[0];
+      const daoId = proposalEvent.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+      if (!daoId) {
+        throw new Error("Invalid proposal format");
+      }
+      
+      // Check if the user is a member
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      if (!dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Only members can vote");
+      }
+      
+      // Create vote tags
+      const voteTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.PROPOSAL_ID, proposalId],
+        [DAO_TAGS.VOTE, optionIndex.toString()],
+        ['client', 'blocknoster']
+      ];
+      
+      const event: Partial<Event> = {
+        kind: DAO_VOTE_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: voteTags,
+        content: "",
+        pubkey: nostrService.publicKey
+      };
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      return true;
+    } catch (error) {
+      console.error("Error voting on proposal:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Vote on a kick proposal
+   */
+  async voteOnKickProposal(proposalId: string, optionIndex: number): Promise<string | null> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
+    try {
+      // Find the proposal to get its DAO ID
+      const relays = nostrService.getRelays();
+      const filter = { ids: [proposalId] };
+      
+      const events = await this.pool.list(relays, [filter]);
+      if (events.length === 0) {
+        throw new Error("Kick proposal not found");
+      }
+      
+      const proposalEvent = events[0];
+      const daoId = proposalEvent.tags.find(tag => tag[0] === DAO_TAGS.DAO_ID)?.[1];
+      if (!daoId) {
+        throw new Error("Invalid proposal format");
+      }
+      
+      // Check if the user is a member
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      if (!dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Only members can vote");
+      }
+      
+      // Create vote tags
+      const voteTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.PROPOSAL_ID, proposalId],
+        [DAO_TAGS.VOTE, optionIndex.toString()],
+        ['client', 'blocknoster']
+      ];
+      
+      const event: Partial<Event> = {
+        kind: DAO_KICK_VOTE_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: voteTags,
+        content: "",
+        pubkey: nostrService.publicKey
+      };
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      return signedEvent.id;
     } catch (error) {
       console.error("Error voting on kick proposal:", error);
       return null;
@@ -1390,326 +1272,241 @@ export class DAOService {
   }
   
   /**
-   * Get a specific proposal by ID
+   * Join a DAO
    */
-  private async getProposalById(proposalId: string): Promise<DAOProposal | null> {
-    try {
-      const filter: Filter = {
-        ids: [proposalId],
-        kinds: [DAO_KINDS.PROPOSAL],
-      };
-      
-      const events = await this.pool.querySync(this.fastRelays, filter);
-      
-      if (events.length === 0) {
-        return null;
-      }
-      
-      const event = events[0];
-      
-      // Find which DAO this proposal belongs to
-      const daoRef = event.tags.find(tag => tag.length >= 2 && tag[0] === 'e');
-      if (!daoRef) return null;
-      
-      const daoId = daoRef[1];
-      
-      const proposal = this.parseProposalEvent(event, daoId);
-      if (!proposal) return null;
-      
-      // Add votes
-      const votes = await this.getVotesForProposal(proposalId);
-      proposal.votes = votes;
-      
-      return proposal;
-    } catch (error) {
-      console.error("Error fetching proposal:", error);
-      return null;
+  async joinDAO(daoId: string): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
     }
-  }
-  
-  /**
-   * Check if a kick proposal has passed (>51% voted yes)
-   * and execute kick if necessary
-   */
-  async checkAndExecuteKickProposal(proposal: DAOProposal): Promise<boolean> {
+    
     try {
-      // Parse the proposal content to get kick metadata
-      const content = JSON.parse(proposal.description);
-      if (content.type !== "kick" || !content.targetPubkey) {
-        return false; // Not a kick proposal
-      }
-      
-      const memberToKick = content.targetPubkey;
-      
-      // Get total votes
-      const totalVotes = Object.keys(proposal.votes).length;
-      if (totalVotes === 0) return false;
-      
-      // Count yes votes (option 0)
-      const yesVotes = Object.values(proposal.votes).filter(vote => vote === 0).length;
-      
-      // Calculate percentage
-      const yesPercentage = (yesVotes / totalVotes) * 100;
-      
-      console.log(`Kick proposal for ${memberToKick}: ${yesPercentage}% voted yes`);
-      
-      // If >51% voted yes, execute the kick
-      if (yesPercentage > 51) {
-        console.log(`Executing kick for ${memberToKick}`);
-        return await this.kickMember(proposal.daoId, memberToKick);
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Error checking kick proposal:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Kick a member from the DAO
-   */
-  private async kickMember(daoId: string, memberToKick: string): Promise<boolean> {
-    try {
+      // Check if DAO exists
       const dao = await this.getDAOById(daoId);
-      if (!dao) return false;
-      
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) return false;
-      
-      // Only creator, moderators, or kick proposals can kick members
-      const isCreatorOrMod = dao.creator === pubkey || dao.moderators.includes(pubkey);
-      if (!isCreatorOrMod) {
-        throw new Error("Not authorized to kick members");
+      if (!dao) {
+        throw new Error("DAO not found");
       }
       
-      // Check if target is a member and not the creator
-      if (!dao.members.includes(memberToKick) || memberToKick === dao.creator) {
-        return false;
+      // Check if already a member
+      if (dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Already a member");
       }
       
-      // Get the unique identifier
-      let uniqueId = daoId;
-      const event = await this.getDAOEventById(daoId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
+      // Create join event
+      const joinTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.USER, nostrService.publicKey],
+        [DAO_TAGS.ACTION, 'join'],
+        ['client', 'blocknoster']
+      ];
       
-      // Create updated member list without kicked member
-      const updatedMembers = dao.members.filter(member => member !== memberToKick);
-      
-      // Remove from moderators as well if applicable
-      const updatedModerators = dao.moderators.filter(mod => mod !== memberToKick);
-      
-      // Create event to update DAO membership
-      const eventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify({
-          name: dao.name,
-          description: dao.description,
-          creator: dao.creator,
-          createdAt: dao.createdAt,
-          image: dao.image,
-          guidelines: dao.guidelines,
-          isPrivate: dao.isPrivate,
-          treasury: dao.treasury,
-          proposals: dao.proposals,
-          activeProposals: dao.activeProposals,
-          tags: dao.tags
-        }),
-        tags: [
-          ["d", uniqueId],
-          ...updatedMembers.map(member => ["p", member]),
-          ...updatedModerators.map(mod => ["p", mod, "moderator"])
-        ]
+      const event: Partial<Event> = {
+        kind: DAO_MEMBER_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: joinTags,
+        content: "",
+        pubkey: nostrService.publicKey
       };
       
-      await nostrService.publishEvent(eventData);
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
       
-      // Also publish a moderation event
-      const moderationEvent = {
-        kind: DAO_KINDS.MODERATION,
-        content: JSON.stringify({
-          action: "kick",
-          target: memberToKick,
-          reason: "Voted by DAO members",
-          executedBy: pubkey,
-          executedAt: Math.floor(Date.now() / 1000)
-        }),
-        tags: [
-          ["e", daoId], // Reference to DAO
-          ["p", memberToKick, "kicked"] // Target pubkey with action
-        ]
-      };
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
       
-      await nostrService.publishEvent(moderationEvent);
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
       
       return true;
     } catch (error) {
-      console.error("Error kicking member:", error);
+      console.error("Error joining DAO:", error);
       return false;
     }
   }
   
   /**
-   * Get kick proposals for a DAO
+   * Leave a DAO
    */
-  async getDAOKickProposals(daoId: string): Promise<any[]> {
+  async leaveDAO(daoId: string): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      // Check cache first
-      const cachedKickProposals = daoCache.getKickProposals(daoId);
-      if (cachedKickProposals) {
-        console.log(`Using cached kick proposals for DAO: ${daoId}`);
-        return cachedKickProposals;
+      // Check if DAO exists
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
       }
       
-      // Use standard proposal fetching and filter for kick proposals
-      const allProposals = await this.getDAOProposals(daoId);
-      const kickProps = allProposals.filter(proposal => {
-        try {
-          const content = JSON.parse(proposal.description);
-          return content.type === "kick" && content.targetPubkey;
-        } catch (e) {
-          return false;
-        }
-      }).map(proposal => {
-        try {
-          const content = JSON.parse(proposal.description);
-          return {
-            ...proposal,
-            targetPubkey: content.targetPubkey
-          };
-        } catch (e) {
-          return null;
-        }
-      }).filter(p => p !== null);
+      // Check if a member
+      if (!dao.members.includes(nostrService.publicKey)) {
+        throw new Error("Not a member");
+      }
       
-      // Cache the result
-      daoCache.cacheKickProposals(daoId, kickProps);
+      // Creator cannot leave their own DAO
+      if (dao.creator === nostrService.publicKey) {
+        throw new Error("Creator cannot leave their own DAO. You may delete it instead.");
+      }
       
-      return kickProps;
+      // Create leave event
+      const leaveTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.USER, nostrService.publicKey],
+        [DAO_TAGS.ACTION, 'leave'],
+        ['client', 'blocknoster']
+      ];
+      
+      const event: Partial<Event> = {
+        kind: DAO_MEMBER_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: leaveTags,
+        content: "",
+        pubkey: nostrService.publicKey
+      };
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      
+      return true;
     } catch (error) {
-      console.error(`Error fetching kick proposals for DAO ${daoId}:`, error);
-      return [];
+      console.error("Error leaving DAO:", error);
+      throw error; // Rethrow to propagate error message
     }
   }
   
   /**
-   * Helper function to get the original DAO event
+   * Delete a DAO (creator only)
    */
-  private async getDAOEventById(id: string): Promise<Event | null> {
+  async deleteDAO(daoId: string): Promise<boolean> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
+    }
+    
     try {
-      const filter: Filter = {
-        ids: [id],
-        kinds: [DAO_KINDS.COMMUNITY],
+      // Check if DAO exists
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
+      }
+      
+      // Verify user is the creator
+      if (dao.creator !== nostrService.publicKey) {
+        throw new Error("Only the creator can delete a DAO");
+      }
+      
+      // Create delete event
+      const deleteTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        ['client', 'blocknoster']
+      ];
+      
+      const event: Partial<Event> = {
+        kind: DAO_DELETE_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: deleteTags,
+        content: "",
+        pubkey: nostrService.publicKey
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
-      return events.length > 0 ? events[0] : null;
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      // Invalidate cache
+      daoCache.invalidateDAO(daoId);
+      daoCache.invalidateUserDAOs(nostrService.publicKey);
+      daoCache.invalidateTrendingDAOs();
+      daoCache.invalidateAllDAOs();
+      
+      return true;
     } catch (error) {
-      console.error(`Error fetching DAO event ${id}:`, error);
-      return null;
+      console.error("Error deleting DAO:", error);
+      throw error; // Rethrow to propagate error message
     }
   }
   
   /**
-   * Make these methods public for use in hooks
+   * Create an invite link for a DAO
    */
-  public parseDaoEvent(event: Event): DAO | null {
-    try {
-      console.log("Parsing DAO event:", event.id);
-      
-      // Parse the content with error handling
-      let content: any = {};
-      try {
-        content = event.content ? JSON.parse(event.content) : {};
-      } catch (e) {
-        console.error("Error parsing DAO content JSON for event", event.id, e);
-        content = {};
-      }
-      
-      // Validate name - log issues with missing names
-      const name = content.name?.trim();
-      if (!name) {
-        console.warn(`DAO event ${event.id} has no name or empty name. Content:`, content);
-      }
-      
-      // Extract members from p tags
-      const members = event.tags
-        .filter(tag => tag.length >= 2 && tag[0] === 'p')
-        .map(tag => tag[1]);
-      
-      // Extract moderators from p tags with role=moderator
-      const moderators = event.tags
-        .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
-        .map(tag => tag[1]);
-      
-      // Construct DAO object
-      const dao: DAO = {
-        id: event.id,
-        name: name || "Unnamed DAO",
-        description: content.description || "",
-        image: content.image || "",
-        creator: event.pubkey,
-        createdAt: event.created_at,
-        members,
-        moderators,
-        guidelines: content.guidelines,
-        isPrivate: content.isPrivate || false,
-        treasury: content.treasury || {
-          balance: 0,
-          tokenSymbol: "ALPH"
-        },
-        proposals: content.proposals || 0,
-        activeProposals: content.activeProposals || 0,
-        tags: content.tags || []
-      };
-      
-      return dao;
-    } catch (e) {
-      console.error("Error parsing DAO event:", e);
-      return null;
+  async createDAOInvite(daoId: string): Promise<string | null> {
+    if (!nostrService.publicKey) {
+      throw new Error("Not logged in");
     }
-  }
-  
-  /**
-   * Public parseProposalEvent method
-   */
-  public parseProposalEvent(event: Event, daoId: string): DAOProposal | null {
+    
     try {
-      // Parse content with error handling
-      let content: any = {};
-      try {
-        content = event.content ? JSON.parse(event.content) : {};
-      } catch (e) {
-        console.error("Error parsing proposal content JSON:", e);
-        content = {};
+      // Check if DAO exists
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        throw new Error("DAO not found");
       }
       
-      // Calculate status based on end time
-      const now = Math.floor(Date.now() / 1000);
-      const status = content.endsAt > now ? "active" : "passed"; // Simple logic for now
+      // Check if the user has permission (creator or moderator)
+      const isCreator = dao.creator === nostrService.publicKey;
+      const isModerator = dao.moderators.includes(nostrService.publicKey);
       
-      return {
-        id: event.id,
-        daoId: daoId,
-        title: content.title || "Unnamed Proposal",
-        description: content.description || "",
-        options: content.options || ["Yes", "No"],
-        createdAt: event.created_at,
-        endsAt: content.endsAt || (event.created_at + 7 * 24 * 60 * 60), // Default 1 week
-        creator: event.pubkey,
-        votes: {},  // Will be filled later
-        status
+      if (!isCreator && !isModerator) {
+        throw new Error("Only creators and moderators can create invite links");
+      }
+      
+      // Generate a unique invite ID
+      const inviteId = utils.randomId();
+      
+      // Create invite event
+      const inviteTags = [
+        [DAO_TAGS.DAO_ID, daoId],
+        [DAO_TAGS.INVITE_ID, inviteId],
+        ['client', 'blocknoster']
+      ];
+      
+      const event: Partial<Event> = {
+        kind: DAO_INVITE_KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: inviteTags,
+        content: "",
+        pubkey: nostrService.publicKey
       };
-    } catch (e) {
-      console.error("Error parsing proposal event:", e);
+      
+      const signedEvent = await nostrService.signEvent(event);
+      if (!signedEvent) {
+        throw new Error("Failed to sign event");
+      }
+      
+      const relays = nostrService.getRelays();
+      const pubs = this.pool.publish(relays, signedEvent);
+      
+      // Wait for confirmation from at least one relay
+      await Promise.any(pubs);
+      
+      return inviteId;
+    } catch (error) {
+      console.error("Error creating DAO invite:", error);
       return null;
     }
   }
 }
 
+// Export a singleton instance
 export const daoService = new DAOService();
