@@ -12,13 +12,9 @@ const DiscoverDAOs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [featuredDAOs, setFeaturedDAOs] = useState<DAO[]>([]);
   const [trendingDAOs, setTrendingDAOs] = useState<DAO[]>([]);
-  const [categoryDAOs, setCategoryDAOs] = useState<Record<string, DAO[]>>({});
   const [loading, setLoading] = useState(true);
   
   const { daos, currentUserPubkey, fetchGeneralDAOs } = useDAO();
-  
-  // Categories to display
-  const categories = ["Finance", "Social", "Governance", "Development"];
   
   // Initial data fetch
   useEffect(() => {
@@ -42,16 +38,6 @@ const DiscoverDAOs = () => {
           
           // Trending DAOs - next 4
           setTrendingDAOs(allDAOs.slice(3, 7));
-          
-          // Categorize remaining DAOs randomly for demo purposes
-          const categorized: Record<string, DAO[]> = {};
-          categories.forEach((category, index) => {
-            const startIdx = 7 + (index * 4) % Math.max(0, allDAOs.length - 7);
-            const endIdx = startIdx + 4;
-            categorized[category] = allDAOs.slice(startIdx, endIdx);
-          });
-          
-          setCategoryDAOs(categorized);
         }
       } catch (error) {
         console.error("Failed to load discover DAOs data:", error);
@@ -74,19 +60,12 @@ const DiscoverDAOs = () => {
     );
   };
   
-  // Combined search results across all categories
+  // Filtered DAOs
   const filteredFeaturedDAOs = filterDAOs(featuredDAOs);
   const filteredTrendingDAOs = filterDAOs(trendingDAOs);
-  const filteredCategoryDAOs = Object.fromEntries(
-    Object.entries(categoryDAOs).map(([category, daoList]) => 
-      [category, filterDAOs(daoList)]
-    )
-  );
   
   // Check if any results exist after filtering
-  const hasResults = filteredFeaturedDAOs.length > 0 || 
-                    filteredTrendingDAOs.length > 0 || 
-                    Object.values(filteredCategoryDAOs).some(list => list.length > 0);
+  const hasResults = filteredFeaturedDAOs.length > 0 || filteredTrendingDAOs.length > 0;
   
   if (loading) {
     return (
@@ -137,16 +116,6 @@ const DiscoverDAOs = () => {
               <h2 className="text-2xl font-semibold">Trending DAOs</h2>
               <DAOCarousel daos={filteredTrendingDAOs} currentUserPubkey={currentUserPubkey || ""} />
             </div>
-          )}
-          
-          {/* Category DAOs */}
-          {Object.entries(filteredCategoryDAOs).map(([category, daoList]) => 
-            daoList.length > 0 ? (
-              <div key={category} className="space-y-4 pt-4">
-                <h2 className="text-2xl font-semibold">{category} DAOs</h2>
-                <DAOCarousel daos={daoList} currentUserPubkey={currentUserPubkey || ""} />
-              </div>
-            ) : null
           )}
         </>
       )}
