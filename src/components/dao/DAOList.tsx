@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Loader2, Search, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,10 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DAOGrid from "./DAOGrid";
 import DAOEmptyState from "./DAOEmptyState";
-import { DAO } from "@/types/dao";
 import CreateDAODialog from "./CreateDAODialog";
 import { useDAO } from "@/hooks/useDAO";
-import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 import { toast } from "sonner";
 import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
