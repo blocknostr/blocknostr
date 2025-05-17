@@ -6,9 +6,9 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "@/components/auth/LoginDialog";
 import WorldChat from "@/components/chat/WorldChat";
+import { useAuth } from "@/hooks/useAuth";
 
 // Lazy load CryptoTracker for better performance
 const CryptoTracker = React.lazy(() => import("@/components/crypto/CryptoTracker"));
@@ -32,7 +32,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
 }) => {
   const { preferences } = useUserPreferences();
   const location = useLocation();
-  const isLoggedIn = !!chatNostrService.publicKey;
+  const { isLoggedIn } = useAuth();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
   const cryptoTrackerFallback = (

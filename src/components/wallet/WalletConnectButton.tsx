@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AlephiumLogo } from "@/components/icons/wallets";
 import { useWallet } from "@alephium/web3-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WalletConnectButtonProps {
   className?: string;
@@ -16,6 +17,7 @@ const WalletConnectButton = ({
 }: WalletConnectButtonProps) => {
   const wallet = useWallet();
   const [hasWalletExtension, setHasWalletExtension] = useState<boolean>(false);
+  const { isLoggedIn } = useAuth();
 
   useEffect(() => {
     // Check if Alephium wallet extension is available
@@ -56,6 +58,9 @@ const WalletConnectButton = ({
   const isConnected = wallet.connectionStatus === 'connected';
   const isConnecting = wallet.connectionStatus === 'connecting';
 
+  // Disable wallet connection if not logged in with Nostr
+  const isDisabled = !isLoggedIn || isConnecting || !hasWalletExtension;
+
   if (isConnected && wallet.account) {
     return (
       <Button className={cn("w-full", className)} variant="outline">
@@ -70,12 +75,17 @@ const WalletConnectButton = ({
       className={cn("w-full", className)}
       variant="default"
       onClick={handleConnect}
-      disabled={isConnecting || !hasWalletExtension}
+      disabled={isDisabled}
     >
       {isConnecting ? (
         <>
           <span className="animate-spin mr-2">⟳</span>
           Connecting...
+        </>
+      ) : !isLoggedIn ? (
+        <>
+          <AlephiumLogo className="mr-2 h-4 w-4" />
+          Connect Nostr First
         </>
       ) : (
         <>

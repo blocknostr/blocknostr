@@ -6,12 +6,13 @@ import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { toast } from "sonner";
 import { AlertTriangle, HardDrive, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const [storageErrorDismissed, setStorageErrorDismissed] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(!!nostrService.publicKey);
+  const { isLoggedIn } = useAuth();
   
   useEffect(() => {
     // Connect to relays in the background if logged in
@@ -29,16 +30,6 @@ const Index: React.FC = () => {
     };
     
     initNostr();
-    
-    // Check login status periodically without page refresh
-    const checkLoginStatus = () => {
-      const currentLoginStatus = !!nostrService.publicKey;
-      if (currentLoginStatus !== isLoggedIn) {
-        setIsLoggedIn(currentLoginStatus);
-      }
-    };
-    
-    const loginStatusInterval = setInterval(checkLoginStatus, 1000);
     
     // Listen for hashtag changes from global events
     const handleHashtagChange = (event: CustomEvent) => {
@@ -60,7 +51,6 @@ const Index: React.FC = () => {
     
     return () => {
       window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
-      clearInterval(loginStatusInterval);
     };
   }, [isLoggedIn, preferences.relayPreferences?.autoConnect, storageAvailable, storageErrorDismissed]);
 

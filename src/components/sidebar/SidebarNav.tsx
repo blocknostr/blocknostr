@@ -13,13 +13,11 @@ import {
   BookOpen
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
+import { useAuth } from "@/hooks/useAuth";
 
-interface SidebarNavProps {
-  isLoggedIn: boolean;
-}
-
-const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
+const SidebarNav = () => {
   const location = useLocation();
+  const { isLoggedIn } = useAuth();
   
   const navItems = [
     {
