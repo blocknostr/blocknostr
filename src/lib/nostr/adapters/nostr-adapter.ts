@@ -98,32 +98,48 @@ export class NostrAdapter extends BaseAdapter {
         };
       }
       
-      // Make sure the pool has a sub method
-      if (typeof pool.sub !== 'function') {
-        console.error("Pool does not have a sub method");
+      // Use the subscribe method available on SimplePool
+      // In newer versions of nostr-tools, it might be named differently
+      if (typeof pool.sub === 'function') {
+        const sub = pool.sub(relays, filters);
+        
+        // Set up event handlers
+        sub.on('event', (event: any) => {
+          callbacks.onevent(event);
+        });
+        
+        sub.on('eose', () => {
+          // End of stored events
+        });
+        
+        // Return a valid unsubscribe function
         return {
-          unsubscribe: () => {}
+          unsubscribe: () => {
+            if (sub && typeof sub.unsub === 'function') {
+              sub.unsub();
+            }
+          }
+        };
+      } else if (typeof pool.subscribe === 'function') {
+        // Alternative implementation if sub is not available
+        const sub = pool.subscribe(relays, filters, {
+          onevent: callbacks.onevent,
+          onclose: callbacks.onclose
+        });
+        
+        return {
+          unsubscribe: () => {
+            if (typeof sub.unsubscribe === 'function') {
+              sub.unsubscribe();
+            }
+          }
         };
       }
       
-      const sub = pool.sub(relays, filters);
-      
-      // Set up event handlers
-      sub.on('event', (event: any) => {
-        callbacks.onevent(event);
-      });
-      
-      sub.on('eose', () => {
-        // End of stored events
-      });
-      
-      // Return a valid unsubscribe function
+      // Fallback if neither method is available
+      console.error("No subscription method available on the pool");
       return {
-        unsubscribe: () => {
-          if (sub && typeof sub.unsub === 'function') {
-            sub.unsub();
-          }
-        }
+        unsubscribe: () => {}
       };
     } catch (error) {
       console.error("Error in subscribeToEvents:", error);

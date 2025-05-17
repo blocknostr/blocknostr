@@ -18,14 +18,17 @@ export class BaseAdapter {
   }
   
   get following() {
+    // The service now has a following property
     return this.service.following;
   }
   
   async login() {
+    // The service now has a login method
     return this.service.login();
   }
   
   signOut() {
+    // The service now has a signOut method
     return this.service.signOut();
   }
   
@@ -44,11 +47,13 @@ export class BaseAdapter {
   
   // Core methods
   async publishEvent(event: any) {
+    // The service now has a publishEvent method
     return this.service.publishEvent(event);
   }
   
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
-    return this.service.subscribe(filters, onEvent, relays);
+  subscribe(filters: any[], onEvent: (event: any) => void) {
+    // Updated to match service signature with two parameters
+    return this.service.subscribe(filters, onEvent);
   }
   
   unsubscribe(subId: string) {
@@ -61,13 +66,7 @@ export class BaseAdapter {
    * @returns Timestamp of the oldest metadata event or null
    */
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
-    // Delegate to the underlying service implementation
-    if (this.service.getAccountCreationDate) {
-      return this.service.getAccountCreationDate(pubkey);
-    }
-    
-    // Fallback implementation if the service doesn't have this method
-    console.warn('getAccountCreationDate not implemented in underlying service');
-    return null;
+    // The service now has a getAccountCreationDate method
+    return this.service.getAccountCreationDate(pubkey);
   }
 }

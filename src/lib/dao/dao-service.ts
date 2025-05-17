@@ -120,7 +120,7 @@ export class DAOService {
   // IMPORTANT: Return a function directly, not a Promise<function>
   subscribeToDAOs(callback: (dao: DAO) => void): () => void {
     try {
-      // Use the adapterInstance property instead of adapter
+      // Use the adapterInstance directly instead of adapter or getAdapter()
       const sub = this.adapterInstance.subscribeToEvents([{
         kinds: [30001], // DAO kind
         limit: 50
@@ -355,4 +355,22 @@ export class DAOService {
 }
 
 // Create and export the daoService instance
-export const daoService = new DAOService(nostrService, nostrService.getAdapter());
+// Use the actual adapter instance if available, or a placeholder that will be updated later
+export const daoService = new DAOService(
+  nostrService,
+  nostrService.getAdapter() || {}
+);
+
+// Ensure the adapter is set when it becomes available
+if (!nostrService.getAdapter()) {
+  setTimeout(() => {
+    const adapter = nostrService.getAdapter();
+    if (adapter) {
+      // Update the adapterInstance on the daoService
+      Object.defineProperty(daoService, 'adapterInstance', {
+        value: adapter,
+        writable: true
+      });
+    }
+  }, 1000);
+}

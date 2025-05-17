@@ -1,54 +1,56 @@
 
-// NIP-72 compliant DAO/Community types
+/**
+ * DAO related type definitions
+ */
+
 export interface DAO {
-  id: string;            // Event ID of the community definition event
-  name: string;          // Community name
-  description: string;   // Community description
-  image: string;         // Community image URL
-  creator: string;       // Pubkey of the community creator
-  createdAt: number;     // Timestamp of community creation
-  members: string[];     // List of member pubkeys
-  moderators: string[];  // List of moderator pubkeys (NIP-72)
-  guidelines?: string;   // Community guidelines (optional)
-  isPrivate?: boolean;   // Whether the community is private (invitation only)
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  creator: string;
+  createdAt: number;
+  members: string[];
+  moderators: string[];
   treasury: {
     balance: number;
     tokenSymbol: string;
   };
-  proposals: number;     // Total number of proposals
-  activeProposals: number; // Number of active proposals
-  tags: string[];       // Community tags
+  proposals: number;
+  activeProposals: number;
+  tags: string[];
+  isPrivate?: boolean;
+  guidelines?: string;
 }
 
 export interface DAOProposal {
-  id: string;           // Event ID of the proposal
-  daoId: string;        // Reference to community
-  title: string;        // Proposal title
-  description: string;  // Proposal description
-  options: string[];    // Voting options
-  createdAt: number;    // Timestamp of proposal creation
-  endsAt: number;       // Timestamp when voting ends
-  creator: string;      // Pubkey of the proposal creator
-  author?: string;      // Alias for creator (for compatibility)
-  votes: Record<string, number>; // Mapping of pubkey to option index
-  status: "active" | "passed" | "rejected" | "canceled";
-  closesAt?: number;    // Alias for endsAt (for compatibility)
-  duration?: number;    // Duration of the proposal in seconds
-  category?: string;    // Optional category for the proposal
+  id: string;
+  daoId: string;
+  creator: string;
+  createdAt: number;
+  title: string;
+  description: string;
+  options: string[];
+  votes: Record<string, number>; // pubkey -> option index
+  status: 'active' | 'completed' | 'cancelled';
+  endTime?: number;
+}
+
+export interface DAOVote {
+  proposalId: string;
+  voter: string;
+  optionIndex: number;
+  timestamp: number;
 }
 
 export interface DAOMember {
   pubkey: string;
+  role: 'member' | 'moderator' | 'creator';
   joinedAt: number;
-  role: 'creator' | 'moderator' | 'member';
-}
-
-export interface DAOInvite {
-  id: string;
-  daoId: string;
-  creatorPubkey: string;
-  createdAt: number;
-  expiresAt?: number;
-  maxUses?: number;
-  usedCount: number;
+  profile?: {
+    displayName?: string;
+    name?: string;
+    nip05?: string;
+    picture?: string;
+  };
 }

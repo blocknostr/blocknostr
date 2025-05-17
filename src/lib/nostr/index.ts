@@ -35,7 +35,7 @@ export { formatPubkey, getNpubFromHex, getHexFromNpub };
 
 // Export service instance and type
 export { nostrServiceInstance as nostrService };
-export type { NostrService };
+export { NostrService };
 
 // Export cache modules
 export { contentCache };

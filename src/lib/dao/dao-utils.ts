@@ -1,65 +1,118 @@
 
-import { Filter } from 'nostr-tools';
+import { Event, Filter } from "nostr-tools";
 
 /**
- * Converts a Filter array to a single Filter object
- * This is needed because nostr-tools expects a single Filter object in some methods
+ * Convert a Filter object to the format expected by the nostr-tools library
  */
-export function convertToFilter(filters: Filter | Filter[]): Filter {
-  if (!Array.isArray(filters)) {
-    return filters;
-  }
-
-  // Merge all filters into a single filter object
-  const mergedFilter: Record<string, any> = {};
+export function convertToFilter(filter: Filter): any {
+  if (!filter) return {};
   
-  for (const filter of filters) {
-    for (const key in filter) {
-      if (key.startsWith('#')) {
-        // For tag filters like #e, #p, #d
-        if (!mergedFilter[key]) {
-          mergedFilter[key] = [];
-        }
-        mergedFilter[key] = [...(mergedFilter[key] || []), ...(filter[key as keyof Filter] as string[])];
-      } else {
-        // For standard filters like kinds, authors, etc.
-        mergedFilter[key] = mergedFilter[key] || filter[key as keyof Filter];
-      }
+  // Deep clone to avoid modifying the original
+  const converted = { ...filter };
+  
+  // Convert nested arrays like tags
+  for (const key in converted) {
+    if (Array.isArray(converted[key])) {
+      converted[key] = [...converted[key]];
     }
   }
   
-  return mergedFilter as Filter;
+  // Remove undefined values
+  for (const key in converted) {
+    if (converted[key] === undefined) {
+      delete converted[key];
+    }
+  }
+  
+  return converted;
 }
 
 /**
- * Flattens nested arrays of promises
+ * Flatten an array of promises
  */
-export function flattenPromises<T>(promises: Promise<T>[][]): Promise<T>[] {
-  return promises.flat();
+export async function flattenPromises<T>(promises: Promise<T[]>[]): Promise<T[]> {
+  const results = await Promise.all(promises);
+  return results.flat();
 }
 
 /**
- * Like Promise.any but with better typing and fallback for older environments
+ * A polyfill for Promise.any that works in older browsers
+ * Returns the value of the first resolved promise or an AggregateError if all promises reject
  */
-export function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
-  // Use Promise.prototype.then to handle Promise.any polyfill
+export async function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
+  if (!promises.length) {
+    throw new Error("No promises provided to promiseAny");
+  }
+  
+  // Use native Promise.any if available
+  if (typeof Promise.any === 'function') {
+    return Promise.any(promises);
+  }
+  
+  // Polyfill implementation
   return new Promise((resolve, reject) => {
     let errors: Error[] = [];
-    let rejected = 0;
+    let pending = promises.length;
     
-    if (promises.length === 0) {
-      reject(new Error("No promises to resolve"));
+    if (pending === 0) {
+      reject(new Error("All promises rejected"));
       return;
     }
     
     promises.forEach((promise, i) => {
-      Promise.resolve(promise).then(resolve, (error) => {
-        errors[i] = error;
-        rejected++;
-        if (rejected === promises.length) {
-          reject(new Error("All promises were rejected: " + errors.map(e => e.message).join(', ')));
-        }
-      });
+      Promise.resolve(promise)
+        .then(value => {
+          resolve(value);
+        })
+        .catch(error => {
+          errors[i] = error;
+          pending--;
+          if (pending === 0) {
+            // Create an error that contains all rejection reasons
+            const aggregateError = new Error("All promises rejected");
+            (aggregateError as any).errors = errors;
+            reject(aggregateError);
+          }
+        });
     });
   });
+}
+
+/**
+ * Converts event IDs to hex format if needed
+ */
+export function normalizeEventIds(ids: string[]): string[] {
+  return ids.map(id => {
+    // If it's a note1... format, convert to hex
+    if (id.startsWith('note1')) {
+      try {
+        // This would need the actual implementation
+        // For now we'll return the original ID
+        return id;
+      } catch (e) {
+        console.error("Failed to convert note1 ID", e);
+        return id;
+      }
+    }
+    return id;
+  });
+}
+
+/**
+ * Ensures a value is an array
+ */
+export function ensureArray<T>(value: T | T[]): T[] {
+  return Array.isArray(value) ? value : [value];
+}
+
+/**
+ * Safely parse JSON with fallback
+ */
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (e) {
+    console.error("Failed to parse JSON", e);
+    return fallback;
+  }
 }

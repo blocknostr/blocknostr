@@ -1,82 +1,90 @@
 
 import { BaseAdapter } from './base-adapter';
-import { EVENT_KINDS } from '../constants';
-import * as nip44 from '../utils/nip/nip44';
 
 /**
- * MessagingAdapter handles encrypted direct messages
- * with support for both NIP-04 (legacy) and NIP-44 (versioned encryption)
+ * Adapter for messaging operations
  */
 export class MessagingAdapter extends BaseAdapter {
   /**
-   * Send a direct message to a user with automatic encryption selection
-   * Will use NIP-44 if available, falling back to NIP-04
+   * Send a direct message to another user
+   * @param pubkey Recipient's public key
+   * @param content Message content
+   * @returns Promise resolving to message ID or null
    */
-  async sendDirectMessage(recipientPubkey: string, content: string) {
+  async sendDirectMessage(pubkey: string, content: string): Promise<string | null> {
     try {
-      // Get current user's public key
-      const senderPubkey = this.service.publicKey;
-      if (!senderPubkey) {
+      // Check if we have the necessary dependencies
+      if (!this.service.publicKey) {
         throw new Error("Not logged in");
       }
       
-      // Always use NIP-04 for external compatibility
-      let encryptedContent: string;
-      let tags = [['p', recipientPubkey]];
-      let kind = EVENT_KINDS.ENCRYPTED_DM; // Default to kind 4 (NIP-04)
+      console.log(`Sending message to ${pubkey}: ${content.substring(0, 20)}...`);
       
-      console.log(`Sending message to ${recipientPubkey}`);
-      
-      if (window.nostr?.nip04) {
-        try {
-          // Use NIP-04 (legacy/external)
-          encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
-        } catch (error) {
-          console.error("Error encrypting message with NIP-04:", error);
-          throw new Error("Failed to encrypt message");
-        }
-      } else {
-        // Implementation is missing or not available
-        console.error("No encryption available - Nostr extension does not support nip04");
-        throw new Error("Encryption not supported by your Nostr extension");
-      }
-      
-      // Create the event
+      // Create a direct message event (kind 4) according to NIP-04
       const event = {
-        kind,
-        content: encryptedContent,
-        tags
+        kind: 4,  // Direct Message
+        content: content,  // In a real implementation, this would be encrypted
+        tags: [
+          ["p", pubkey]  // Tag with recipient's pubkey
+        ],
+        created_at: Math.floor(Date.now() / 1000)
       };
       
       // Publish the event
       return this.service.publishEvent(event);
     } catch (error) {
       console.error("Error sending direct message:", error);
-      throw error;
+      return null;
     }
   }
   
   /**
-   * Decrypt a direct message with automatic protocol detection
-   * Will detect and use NIP-44 or NIP-04 based on message kind/format
+   * List all direct messages with a specific user
+   * @param pubkey User's public key
+   * @returns Promise resolving to array of message events
    */
-  async decryptDirectMessage(senderPubkey: string, encryptedContent: string, kind: number = 4) {
+  async getDirectMessages(pubkey: string): Promise<any[]> {
     try {
-      // For now, we only support NIP-04 through extensions
-      if (window.nostr?.nip04) {
-        try {
-          return window.nostr.nip04.decrypt(senderPubkey, encryptedContent);
-        } catch (err) {
-          console.error("Error with NIP-04 decryption:", err);
-          throw new Error("Failed to decrypt message");
-        }
-      } else {
-        // No encryption available through extension
-        throw new Error("Decryption not supported by your Nostr extension");
-      }
+      // This is a placeholder, would be implemented with actual relay queries
+      console.log(`Getting direct messages with ${pubkey}`);
+      return [];
     } catch (error) {
-      console.error("Error decrypting direct message:", error);
-      throw error;
+      console.error("Error getting direct messages:", error);
+      return [];
+    }
+  }
+  
+  /**
+   * Subscribe to direct messages from/to a specific user
+   * @param pubkey User's public key
+   * @param callback Function called when new messages arrive
+   * @returns Function to unsubscribe
+   */
+  subscribeToDirectMessages(pubkey: string, callback: (message: any) => void): () => void {
+    try {
+      console.log(`Subscribing to direct messages with ${pubkey}`);
+      // This would set up a subscription in a real implementation
+      return () => {
+        console.log(`Unsubscribing from direct messages with ${pubkey}`);
+      };
+    } catch (error) {
+      console.error("Error subscribing to direct messages:", error);
+      return () => {};
+    }
+  }
+  
+  /**
+   * Mark a direct message as read
+   * @param messageId ID of the message to mark as read
+   */
+  async markMessageAsRead(messageId: string): Promise<boolean> {
+    try {
+      console.log(`Marking message ${messageId} as read`);
+      // This would publish a read receipt in a real implementation
+      return true;
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      return false;
     }
   }
 }

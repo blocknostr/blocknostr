@@ -17,5 +17,7 @@ export const generatePrivateKey = (): string => {
 
 // Export a method to get public key from private key
 export const getPublicKeyFromPrivateKey = (privateKey: string): string => {
+  // The nostr-tools getPublicKey function accepts a hex string
+  // so we don't need to convert privateKey to Uint8Array
   return getPublicKey(privateKey);
 };
