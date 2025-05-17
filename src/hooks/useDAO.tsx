@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
@@ -14,9 +13,9 @@ export function useDAO(daoId?: string) {
   const [kickProposals, setKickProposals] = useState<any[]>([]);
   
   // Split loading states for progressive rendering
-  const [loading, setLoading] = useState<boolean>(true);
-  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(true);
-  const [loadingTrending, setLoadingTrending] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(false);
+  const [loadingTrending, setLoadingTrending] = useState<boolean>(false);
   const [loadingProposals, setLoadingProposals] = useState<boolean>(true);
   const [loadingKickProposals, setLoadingKickProposals] = useState<boolean>(true);
   
@@ -32,7 +31,7 @@ export function useDAO(daoId?: string) {
   // Fetch DAOs for general discovery page in parallel
   const fetchGeneralDAOs = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
-    if (initializedRef.current.general) return;
+    if (initializedRef.current.general) return; // Skip if already initialized
     
     initializedRef.current.general = true;
     setLoading(true);
@@ -52,7 +51,7 @@ export function useDAO(daoId?: string) {
   // Fetch user DAOs in parallel
   const fetchMyDAOs = useCallback(async () => {
     if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
-    if (initializedRef.current.myDaos) return;
+    if (initializedRef.current.myDaos) return; // Skip if already initialized
     
     initializedRef.current.myDaos = true;
     setLoadingMyDaos(true);
@@ -72,7 +71,7 @@ export function useDAO(daoId?: string) {
   // Fetch trending DAOs in parallel
   const fetchTrendingDAOs = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
-    if (initializedRef.current.trending) return;
+    if (initializedRef.current.trending) return; // Skip if already initialized
     
     initializedRef.current.trending = true;
     setLoadingTrending(true);
@@ -100,35 +99,13 @@ export function useDAO(daoId?: string) {
       trending: false
     };
     
-    // Set the loading states to true
-    setLoading(true);
-    setLoadingMyDaos(true);
-    setLoadingTrending(true);
-    
     // Clear the cache - force a fresh load
     const daoCache = await import('@/lib/dao/dao-cache');
     daoCache.daoCache.clearAll();
     
-    // Start parallel fetching
-    try {
-      const [generalDAOs, userDAOs, trendingDAOs] = await Promise.allSettled([
-        fetchGeneralDAOs(),
-        fetchMyDAOs(),
-        fetchTrendingDAOs()
-      ]);
-      
-      console.log("Refreshed DAOs:", {
-        general: generalDAOs.status === 'fulfilled' ? 'success' : 'failed',
-        myDaos: userDAOs.status === 'fulfilled' ? 'success' : 'failed',
-        trending: trendingDAOs.status === 'fulfilled' ? 'success' : 'failed'
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Error during DAO refresh:", error);
-      return false;
-    }
-  }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
+    // Only fetch the DAOs for the currently active tab
+    return true;
+  }, [daoId]);
   
   // Fetch specific DAO if daoId is provided
   const fetchDaoDetails = useCallback(async () => {
@@ -702,6 +679,10 @@ export function useDAO(daoId?: string) {
     isCreator,
     currentUserPubkey,
     refreshDaos,
-    fetchDaoDetails
+    fetchDaoDetails,
+    // Expose these methods for lazy loading
+    fetchGeneralDAOs,
+    fetchMyDAOs,
+    fetchTrendingDAOs
   };
 }

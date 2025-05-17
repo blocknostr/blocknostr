@@ -35,7 +35,10 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     loadingTrending,
     createDAO,
     currentUserPubkey,
-    refreshDaos
+    refreshDaos,
+    fetchGeneralDAOs,
+    fetchMyDAOs,
+    fetchTrendingDAOs
   } = useDAO();
   
   // Determine which list and loading state to use based on type
@@ -63,6 +66,27 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
   
   const daoList = getDaoList();
   const isLoading = getLoadingState();
+  
+  // Lazy load only the data for the current tab
+  useEffect(() => {
+    const loadTabData = async () => {
+      switch (type) {
+        case "discover":
+          await fetchGeneralDAOs();
+          break;
+        case "my-daos":
+          if (currentUserPubkey) {
+            await fetchMyDAOs();
+          }
+          break;
+        case "trending":
+          await fetchTrendingDAOs();
+          break;
+      }
+    };
+    
+    loadTabData();
+  }, [type, currentUserPubkey, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
   
   // Filter by search term
   const filteredDaos = searchTerm 

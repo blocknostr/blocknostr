@@ -20,6 +20,11 @@ const DAOPage = () => {
     });
   };
   
+  // Handle tab changes and track active tab
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+  
   return (
     <div className="flex flex-col">
       <div className="container max-w-6xl mx-auto px-4 py-6">
@@ -37,7 +42,7 @@ const DAOPage = () => {
         <Tabs 
           defaultValue="discover" 
           className="w-full mt-6" 
-          onValueChange={(value) => setActiveTab(value)}
+          onValueChange={handleTabChange}
         >
           <TabsList className="w-full sm:w-auto mb-4">
             <TabsTrigger value="discover">
@@ -51,26 +56,29 @@ const DAOPage = () => {
             <TabsTrigger value="trending">Trending</TabsTrigger>
           </TabsList>
           
+          {/* Only render the active tab content */}
           <TabsContent value="discover" className="mt-2">
-            <DAOList type="discover" />
+            {activeTab === "discover" && <DAOList type="discover" />}
           </TabsContent>
           
           <TabsContent value="my-daos" className="mt-2">
-            {isLoggedIn ? (
-              <DAOList type="my-daos" />
-            ) : (
-              <div className="text-center py-16">
-                <h3 className="text-lg font-medium mb-2">Login to view your DAOs</h3>
-                <p className="text-muted-foreground mb-6">
-                  You need to be logged in to view and manage your DAOs.
-                </p>
-                <Button onClick={handleLogin}>Login with Nostr</Button>
-              </div>
+            {activeTab === "my-daos" && (
+              isLoggedIn ? (
+                <DAOList type="my-daos" />
+              ) : (
+                <div className="text-center py-16">
+                  <h3 className="text-lg font-medium mb-2">Login to view your DAOs</h3>
+                  <p className="text-muted-foreground mb-6">
+                    You need to be logged in to view and manage your DAOs.
+                  </p>
+                  <Button onClick={handleLogin}>Login with Nostr</Button>
+                </div>
+              )
             )}
           </TabsContent>
           
           <TabsContent value="trending" className="mt-2">
-            <DAOList type="trending" />
+            {activeTab === "trending" && <DAOList type="trending" />}
           </TabsContent>
         </Tabs>
       </div>
