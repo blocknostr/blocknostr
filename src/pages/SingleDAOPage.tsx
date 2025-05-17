@@ -181,9 +181,11 @@ const SingleDAOPage: React.FC = () => {
     return await voteOnProposal(proposalId, optionIndex);
   };
   
-  // Fix for the voteOnKickProposal issue
+  // Fix for the voteOnKickProposal issue - convert boolean to number
   const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
-    return await voteOnKickProposal(proposalId, vote);
+    // Convert boolean vote to number (true -> 1, false -> 0)
+    const optionIndex = vote ? 1 : 0;
+    return await voteOnKickProposal(proposalId, optionIndex);
   };
 
   return (

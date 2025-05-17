@@ -74,7 +74,9 @@ export class BaseAdapter {
   // Add additional adapter methods that might be needed
   async reactToPost(postId: string, reaction: string): Promise<boolean> {
     if (typeof this.service.reactToPost === 'function') {
-      return this.service.reactToPost(postId, reaction) as Promise<boolean>;
+      const result = await this.service.reactToPost(postId, reaction);
+      // Convert string result to boolean
+      return result ? true : false;
     }
     console.warn('reactToPost not implemented in underlying service');
     return false;
@@ -82,7 +84,9 @@ export class BaseAdapter {
   
   async repostNote(postId: string): Promise<boolean> {
     if (typeof this.service.repostNote === 'function') {
-      return this.service.repostNote(postId) as Promise<boolean>;
+      const result = await this.service.repostNote(postId);
+      // Convert string result to boolean
+      return result ? true : false;
     }
     console.warn('repostNote not implemented in underlying service');
     return false;
