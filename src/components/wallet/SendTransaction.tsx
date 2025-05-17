@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,37 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [signerReady, setSignerReady] = useState(false);
+  
+  // Check if the signer is properly initialized with a public key
+  useEffect(() => {
+    const checkSigner = async () => {
+      if (wallet.signer && wallet.connectionStatus === 'connected') {
+        try {
+          // The signer should have a publicKey property
+          if (wallet.signer.publicKey) {
+            setSignerReady(true);
+            console.log("Signer ready with public key:", wallet.signer.publicKey);
+          } else {
+            console.warn("Signer is connected but missing publicKey");
+            setSignerReady(false);
+          }
+        } catch (error) {
+          console.error("Error checking signer:", error);
+          setSignerReady(false);
+        }
+      } else {
+        setSignerReady(false);
+      }
+    };
+    
+    checkSigner();
+  }, [wallet.signer, wallet.connectionStatus]);
   
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!wallet.signer) {
+    if (!wallet.signer || !signerReady) {
       toast.error("Wallet not connected", {
         description: "Please connect your wallet to send transactions"
       });
@@ -47,6 +73,13 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     setIsLoading(true);
     
     try {
+      console.log("Starting transaction with:", {
+        fromAddress,
+        recipient,
+        amount: amountValue,
+        signerPublicKey: wallet.signer.publicKey
+      });
+      
       // In a real app, you'd want to catch any signer or signature errors here
       const result = await sendTransaction(
         fromAddress,
@@ -118,7 +151,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
             className="w-full mt-3 bg-primary/90 hover:bg-primary" 
             type="submit"
             size="sm" 
-            disabled={isLoading || !wallet.signer}
+            disabled={isLoading || !signerReady}
           >
             {isLoading ? "Processing..." : (
               <>

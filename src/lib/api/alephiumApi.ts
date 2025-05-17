@@ -268,12 +268,18 @@ export const sendTransaction = async (
   signer: any
 ) => {
   try {
+    if (!signer || !signer.publicKey) {
+      throw new Error("Signer object is invalid or missing publicKey");
+    }
+
     // Convert ALPH to nanoALPH
     const amountInNanoAlph = (amountInAlph * 10**18).toString();
     
     // Get the from group
     const addressInfo = await nodeProvider.addresses.getAddressesAddressGroup(fromAddress);
     const fromGroup = addressInfo.group;
+    
+    console.log("Building transaction with public key:", signer.publicKey);
     
     // Build unsigned transaction
     const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
@@ -284,8 +290,11 @@ export const sendTransaction = async (
       }]
     });
     
+    console.log("Transaction built successfully:", unsignedTx);
+    
     // Sign the transaction
     const signature = await signer.signTransactionWithSignature(unsignedTx);
+    console.log("Transaction signed successfully");
     
     // Submit the transaction
     const result = await nodeProvider.transactions.postTransactionsSubmit({
@@ -293,6 +302,7 @@ export const sendTransaction = async (
       signature: signature
     });
     
+    console.log("Transaction submitted successfully:", result);
     return result;
   } catch (error) {
     console.error('Error sending transaction:', error);
