@@ -1,15 +1,15 @@
+
 import React from "react";
 import { useLocation } from "react-router-dom";
-import {
-  Home,
-  Bell,
-  Mail,
-  Users,
-  Settings,
-  FileText,
-  Wallet,
+import { 
+  Home, 
+  Bell, 
+  Mail, 
+  Users, 
+  Settings, 
+  FileText, 
+  Wallet, 
   Crown,
-  Gamepad2,
   BookOpen
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
@@ -20,7 +20,7 @@ interface SidebarNavProps {
 
 const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const location = useLocation();
-
+  
   const navItems = [
     {
       name: "Home",
@@ -65,12 +65,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       requiresAuth: false
     },
     {
-      name: "Games",
-      icon: Gamepad2,
-      href: "/games",
-      requiresAuth: true
-    },
-    {
       name: "Premium",
       icon: Crown,
       href: "/premium",
@@ -91,9 +85,9 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
           if (item.requiresAuth && !isLoggedIn) {
             return null;
           }
-
+          
           const isActive = location.pathname === item.href;
-
+          
           return (
             <SidebarNavItem
               key={item.name}

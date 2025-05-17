@@ -24,13 +24,6 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
   const [error, setError] = useState<string | null>(null);
   const { preferences } = useUserPreferences();
   const initialLoadDone = useRef(false);
-  
-  // Add references for scroll position management
-  const lastKnownScrollPosition = useRef(0);
-  const lastVisiblePostId = useRef<string | null>(null);
-  const lastVisiblePostOffset = useRef(0);
-  const postHeightEstimates = useRef<Record<string, number>>({});
-  const loadMoreDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Default hashtags if none set
   const defaultGlobalTags = ["bitcoin", "alephium", "ergo"];
@@ -42,111 +35,15 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
         ? preferences.feedFilters.globalFeedTags 
         : defaultGlobalTags);
   
-  // Simple debounce function
-  const debounce = useCallback((fn: Function, ms = 200) => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    return function(...args: any[]) {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => fn.apply(null, args), ms);
-    };
-  }, []);
-  
-  // Set up intersection observer for infinite scroll with debouncing
+  // Set up intersection observer for infinite scroll
   const { observedRef } = useIntersectionObserver({
-    onIntersect: debounce(() => {
+    onIntersect: () => {
       if (loading || loadingMore || !hasMore) return;
-      
-      // Clear any previous timer
-      if (loadMoreDebounceTimer.current) {
-        clearTimeout(loadMoreDebounceTimer.current);
-      }
-      
-      // Store current scroll position
-      lastKnownScrollPosition.current = window.scrollY;
-      
-      // Find the most visible post to use as an anchor
-      saveScrollAnchor();
-      
-      // Set a small delay before actually loading more
-      loadMoreDebounceTimer.current = setTimeout(() => {
-        loadMoreEvents();
-        loadMoreDebounceTimer.current = null;
-      }, 150);
-    }, 200),
+      loadMoreEvents();
+    },
     rootMargin: '300px',
     enabled: !loading && !loadingMore && hasMore
   });
-  
-  // Helper function to save the current scroll anchor post
-  const saveScrollAnchor = () => {
-    const posts = document.querySelectorAll('[data-post-id]');
-    if (posts.length === 0) return;
-    
-    const viewportHeight = window.innerHeight;
-    let bestPostId: string | null = null;
-    let bestVisibility = 0;
-    
-    posts.forEach((post) => {
-      const rect = post.getBoundingClientRect();
-      
-      // Skip if not in viewport
-      if (rect.bottom < 0 || rect.top > viewportHeight) return;
-      
-      // Calculate visibility percentage
-      const visibleTop = Math.max(0, rect.top);
-      const visibleBottom = Math.min(viewportHeight, rect.bottom);
-      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-      const visibility = visibleHeight / rect.height;
-      
-      // Track post height for future reference
-      const postId = post.getAttribute('data-post-id');
-      if (postId) {
-        postHeightEstimates.current[postId] = rect.height;
-      }
-      
-      if (visibility > bestVisibility) {
-        bestVisibility = visibility;
-        bestPostId = postId;
-        lastVisiblePostOffset.current = rect.top;
-      }
-    });
-    
-    if (bestPostId && bestVisibility > 0.3) {
-      lastVisiblePostId.current = bestPostId;
-    }
-  };
-  
-  // Helper to restore scroll position after loading
-  const restoreScrollPosition = () => {
-    requestAnimationFrame(() => {
-      // First try to use a specific post as an anchor
-      if (lastVisiblePostId.current) {
-        const anchorPost = document.querySelector(`[data-post-id="${lastVisiblePostId.current}"]`);
-        
-        if (anchorPost) {
-          const rect = anchorPost.getBoundingClientRect();
-          const currentOffset = rect.top;
-          const adjustment = currentOffset - lastVisiblePostOffset.current;
-          
-          if (Math.abs(adjustment) > 5) {
-            window.scrollBy({
-              top: adjustment,
-              behavior: 'auto'
-            });
-            
-            console.log(`[NewGlobalFeed] Restored position using anchor post ${lastVisiblePostId.current}, adjusted by ${adjustment}px`);
-          }
-        }
-      }
-      // Fall back to the last known position
-      else if (lastKnownScrollPosition.current > 0) {
-        window.scrollTo({
-          top: lastKnownScrollPosition.current,
-          behavior: 'auto'
-        });
-      }
-    });
-  };
 
   // Function to fetch profiles for events
   const fetchProfiles = useCallback(async (pubkeys: string[]) => {
@@ -265,7 +162,7 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
     }
   }, [hashtags, fetchProfiles, onLoadingChange, events.length, mergeEvents]);
 
-  // Load more events (older events) with debouncing and position preservation
+  // Load more events (older events)
   const loadMoreEvents = async () => {
     if (loadingMore || !hasMore || events.length === 0) return;
     
@@ -318,11 +215,6 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
       // Add new events to the list - use merge function
       if (sortedEvents.length > 0) {
         setEvents(prev => mergeEvents(sortedEvents, prev));
-        
-        // After adding new events, restore scroll position
-        requestAnimationFrame(() => {
-          restoreScrollPosition();
-        });
       }
       
       // Fetch profiles for all collected pubkeys
@@ -350,11 +242,6 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
     window.addEventListener('refetch-global-feed', handleRefetch);
     return () => {
       window.removeEventListener('refetch-global-feed', handleRefetch);
-      
-      // Clear any debounce timers
-      if (loadMoreDebounceTimer.current) {
-        clearTimeout(loadMoreDebounceTimer.current);
-      }
     };
   }, [hashtags, loadEvents]);
 
@@ -407,16 +294,11 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
   return (
     <div className="space-y-4">
       {events.map((event) => (
-        <div 
-          key={event.id}
-          data-post-id={event.id}
-          className="min-h-[80px]" // Minimum height helps with position calculations
-        >
-          <NewNoteCard 
-            event={event}
-            profileData={profiles[event.pubkey]}
-          />
-        </div>
+        <NewNoteCard 
+          key={event.id} 
+          event={event}
+          profileData={profiles[event.pubkey]}
+        />
       ))}
       
       {/* Load more trigger */}

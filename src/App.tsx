@@ -21,8 +21,6 @@ import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
 import MyArticlesPage from './pages/articles/MyArticlesPage';
 import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
-import GamesPage from './pages/GamesPage';
-import NostrPetGamePage from './pages/NostrPetGamePage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -53,7 +51,7 @@ function App() {
                   <Route path="/wallets" element={<WalletsPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
                   <Route path="/profile/:npub" element={<ProfilePage />} />
-
+                  
                   {/* Articles Routes */}
                   <Route path="/articles" element={<ArticlesPage />} />
                   <Route path="/articles/create" element={<ArticleEditorPage />} />
@@ -61,9 +59,7 @@ function App() {
                   <Route path="/articles/view/:id" element={<ArticleViewPage />} />
                   <Route path="/articles/me" element={<MyArticlesPage />} />
                   <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
-
-                  <Route path="/games" element={<GamesPage />} />
-                  <Route path="/games/nosterpet" element={<NostrPetGamePage />} />
+                  
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
