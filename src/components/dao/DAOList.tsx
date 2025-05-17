@@ -11,9 +11,10 @@ import CreateDAODialog from "./CreateDAODialog";
 import { useDAO } from "@/hooks/useDAO";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 import { toast } from "sonner";
+import DAOCarousel from "./DAOCarousel";
 
 interface DAOListProps {
-  type: "discover" | "my-daos" | "trending";
+  type: "my-daos" | "trending";
 }
 
 const ITEMS_PER_PAGE = 6;
@@ -22,9 +23,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
-  const [displayLimit, setDisplayLimit] = useState(ITEMS_PER_PAGE);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const {
     daos,
@@ -71,9 +70,6 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
   useEffect(() => {
     const loadTabData = async () => {
       switch (type) {
-        case "discover":
-          await fetchGeneralDAOs();
-          break;
         case "my-daos":
           if (currentUserPubkey) {
             await fetchMyDAOs();
@@ -86,7 +82,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     };
     
     loadTabData();
-  }, [type, currentUserPubkey, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
+  }, [type, currentUserPubkey, fetchMyDAOs, fetchTrendingDAOs]);
   
   // Filter by search term
   const filteredDaos = searchTerm 
@@ -97,8 +93,9 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
       )
     : daoList;
   
-  // Get virtualized list of DAOs
-  const virtualizedDaos = filteredDaos.slice(0, displayLimit);
+  // Split the DAOs into fixed display and carousel portions
+  const fixedDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
+  const carouselDaos = filteredDaos.slice(ITEMS_PER_PAGE);
   
   // Connection check
   useEffect(() => {
@@ -106,7 +103,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
       try {
         // Wait 5 seconds and check if we have any data
         await new Promise(resolve => setTimeout(resolve, 5000));
-        if (!isLoading && type === "discover" && daos.length === 0) {
+        if (!isLoading && daoList.length === 0) {
           console.warn("No DAOs loaded after timeout, possible connection issue");
           setConnectionError(true);
         } else {
@@ -118,18 +115,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     };
     
     checkConnection();
-  }, [isLoading, daos.length, type]);
-  
-  // Intersection observer for infinite scrolling
-  useIntersectionObserver({
-    target: loadMoreRef,
-    onIntersect: () => {
-      if (displayLimit < filteredDaos.length && !isLoading) {
-        setDisplayLimit(prev => Math.min(prev + ITEMS_PER_PAGE, filteredDaos.length));
-      }
-    },
-    enabled: displayLimit < filteredDaos.length
-  });
+  }, [isLoading, daoList.length]);
   
   const handleCreateDAO = async (name: string, description: string, tags: string[]) => {
     const daoId = await createDAO(name, description, tags);
@@ -159,11 +145,6 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
       setIsRefreshing(false);
     }
   };
-  
-  // Reset display limit when search changes
-  useEffect(() => {
-    setDisplayLimit(ITEMS_PER_PAGE);
-  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -229,19 +210,18 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
           <p className="text-sm text-muted-foreground">Loading DAOs from Nostr network...</p>
         </div>
       ) : filteredDaos.length > 0 ? (
-        <>
-          <DAOGrid daos={virtualizedDaos} currentUserPubkey={currentUserPubkey || ""} />
+        <div className="space-y-8">
+          {/* Show first 6 DAOs in grid layout */}
+          <DAOGrid daos={fixedDaos} currentUserPubkey={currentUserPubkey || ""} />
           
-          {/* Load more indicator */}
-          {displayLimit < filteredDaos.length && (
-            <div 
-              ref={loadMoreRef} 
-              className="flex justify-center items-center py-4"
-            >
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          {/* Show remaining DAOs in carousel */}
+          {carouselDaos.length > 0 && (
+            <div className="pt-4 border-t">
+              <h3 className="text-lg font-medium mb-4">More DAOs</h3>
+              <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
             </div>
           )}
-        </>
+        </div>
       ) : (
         <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
       )}
