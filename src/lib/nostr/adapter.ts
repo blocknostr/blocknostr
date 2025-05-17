@@ -1,9 +1,5 @@
 
-// Update imports to use available functions from nostr-tools
-import { nip19, getPublicKey } from "nostr-tools";
-import { Event } from "nostr-tools";
-
-// Add a function to generate a private key if needed
+// Update the generatePrivateKey function
 export const generatePrivateKey = (): string => {
   // Create a secure random 32-byte private key
   const privateKey = new Uint8Array(32);
@@ -15,9 +11,8 @@ export const generatePrivateKey = (): string => {
     .join('');
 };
 
-// Export a method to get public key from private key
+// Update getPublicKeyFromPrivateKey to accept hex string
 export const getPublicKeyFromPrivateKey = (privateKey: string): string => {
-  // The nostr-tools getPublicKey function accepts a hex string
-  // so we don't need to convert privateKey to Uint8Array
+  // The nostr-tools getPublicKey function accepts a hex string directly
   return getPublicKey(privateKey);
 };

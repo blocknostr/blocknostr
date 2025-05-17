@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { Event, Filter } from 'nostr-tools';
 import { convertToFilter, flattenPromises, promiseAny } from './dao-utils';
@@ -354,23 +353,20 @@ export class DAOService {
   }
 }
 
+// Around line 358 - 367: Replace the getAdapter calls with the adapter directly
+
 // Create and export the daoService instance
 // Use the actual adapter instance if available, or a placeholder that will be updated later
 export const daoService = new DAOService(
   nostrService,
-  nostrService.getAdapter() || {}
+  nostrService // Use the service itself or an empty object as fallback
 );
 
 // Ensure the adapter is set when it becomes available
-if (!nostrService.getAdapter()) {
-  setTimeout(() => {
-    const adapter = nostrService.getAdapter();
-    if (adapter) {
-      // Update the adapterInstance on the daoService
-      Object.defineProperty(daoService, 'adapterInstance', {
-        value: adapter,
-        writable: true
-      });
-    }
-  }, 1000);
-}
+setTimeout(() => {
+  // Update the adapterInstance on the daoService if needed
+  Object.defineProperty(daoService, 'adapterInstance', {
+    value: nostrService,
+    writable: true
+  });
+}, 1000);

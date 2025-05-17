@@ -1,106 +1,75 @@
-
-import { useState, useCallback } from "react";
-import { NostrEvent, nostrService } from "@/lib/nostr";
-import { EVENT_KINDS } from "@/lib/nostr/constants";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Event } from "nostr-tools";
+import { useRelayContext } from "@/contexts/RelayContext";
+import { useProfileContext } from "@/contexts/ProfileContext";
+import { useSettings } from "@/hooks/useSettings";
+import { useNostr } from "@/hooks/useNostr";
+import { Filter } from "nostr-tools";
 
 interface UseEventSubscriptionProps {
-  following?: string[];
-  activeHashtag?: string;
-  hashtags?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-  setEvents: React.Dispatch<React.SetStateAction<NostrEvent[]>>;
-  handleRepost: (event: NostrEvent) => void;
-  fetchProfileData: (pubkey: string) => void;
-  feedType?: string;
-  mediaOnly?: boolean;
+  filters: Filter[];
+  relays?: string[];
+  enabled?: boolean;
+  onEvent?: (event: Event) => void;
+  cacheKey?: string;
 }
 
 export function useEventSubscription({
-  following,
-  activeHashtag,
-  hashtags,
-  since,
-  until,
-  limit = 50,
-  setEvents,
-  handleRepost,
-  fetchProfileData,
-  feedType,
-  mediaOnly
+  filters,
+  relays: overrideRelays,
+  enabled = true,
+  onEvent,
+  cacheKey,
 }: UseEventSubscriptionProps) {
-  const [subId, setSubId] = useState<string | null>(null);
-  
-  // Event handler
-  const handleEvent = useCallback((event: NostrEvent) => {
-    setEvents(prevEvents => {
-      // Check if we already have this event
-      if (prevEvents.some(e => e.id === event.id)) {
-        return prevEvents;
-      }
-      
-      // Handle reposts
-      if (event.kind === EVENT_KINDS.REPOST) {
-        handleRepost(event);
-        return prevEvents;
-      }
-      
-      // Cache profiles as we receive events
-      if (event.pubkey) {
-        fetchProfileData(event.pubkey);
-      }
-      
-      // Add new event to the list
-      const newEvents = [event, ...prevEvents];
-      
-      // Sort by created_at (newest first)
-      newEvents.sort((a, b) => b.created_at - a.created_at);
-      
-      // Limit the number of events
-      return newEvents.slice(0, limit);
-    });
-  }, [setEvents, handleRepost, fetchProfileData, limit]);
-  
-  // Create or update a subscription
-  const setupSubscription = useCallback((since?: number, until?: number, hashtagOverride?: string[]) => {
-    // Build filter
-    const filters: any[] = [
-      {
-        kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REPOST],
-        since,
-        until,
-        limit
-      }
-    ];
-    
-    // Add authors filter for following feed
-    if (following && following.length > 0) {
-      filters[0].authors = following;
+  const { getRelays } = useRelayContext();
+  const { addEventToCache } = useProfileContext();
+  const { subscribe, unsubscribe } = useNostr();
+  const { settings } = useSettings();
+
+  const [events, setEvents] = useState<Event[]>([]);
+  const subscriptionId = useRef<string | null>(null);
+
+  const relays = overrideRelays || getRelays(settings.defaultRelays);
+
+  const memoizedOnEvent = useCallback(
+    (event: Event) => {
+      setEvents((prevEvents) => {
+        if (prevEvents.find((e) => e.id === event.id)) {
+          return prevEvents;
+        }
+        return [...prevEvents, event];
+      });
+      addEventToCache(event);
+      onEvent?.(event);
+    },
+    [addEventToCache, onEvent]
+  );
+
+  useEffect(() => {
+    if (!enabled || filters.length === 0) {
+      return;
     }
-    
-    // Add hashtag filter - prioritize override if provided
-    const effectiveHashtags = hashtagOverride || hashtags || (activeHashtag ? [activeHashtag] : undefined);
-    
-    if (effectiveHashtags && effectiveHashtags.length > 0) {
-      // Instead of search for exact 't' tag match, use the native '#t' search in nostr-tools
-      filters[0]["#t"] = effectiveHashtags;
-    }
-    
-    // Subscribe to events - FIX: removed the fourth parameter which was causing the error
-    const newSubId = nostrService.subscribe(
-      filters,
-      handleEvent,
-      undefined  // onEose callback
-      // Removed the feedType parameter as it's not expected by the subscribe method
-    );
-    
-    return newSubId;
-  }, [following, activeHashtag, hashtags, limit, handleEvent]);
-  
-  return {
-    subId,
-    setSubId,
-    setupSubscription
-  };
+
+    const subscribeToRelays = async () => {
+      try {
+        const subId = subscribe(filters, (event) => {
+          memoizedOnEvent(event);
+        });
+        subscriptionId.current = subId;
+      } catch (error) {
+        console.error("Error subscribing to events:", error);
+      }
+    };
+
+    subscribeToRelays();
+
+    return () => {
+      if (subscriptionId.current) {
+        unsubscribe(subscriptionId.current);
+        subscriptionId.current = null;
+      }
+    };
+  }, [enabled, filters, relays, memoizedOnEvent, subscribe, unsubscribe]);
+
+  return { events };
 }

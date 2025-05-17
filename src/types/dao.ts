@@ -32,8 +32,9 @@ export interface DAOProposal {
   description: string;
   options: string[];
   votes: Record<string, number>; // pubkey -> option index
-  status: 'active' | 'completed' | 'cancelled';
-  endTime?: number;
+  status: 'active' | 'completed' | 'cancelled' | 'passed' | 'rejected';
+  endTime?: number; // Adding endTime to match the expected property
+  endsAt?: number;  // Adding endsAt as an alternative field name
 }
 
 export interface DAOVote {

@@ -98,39 +98,18 @@ export class NostrAdapter extends BaseAdapter {
         };
       }
       
-      // Use the subscribe method available on SimplePool
-      // In newer versions of nostr-tools, it might be named differently
-      if (typeof pool.sub === 'function') {
-        const sub = pool.sub(relays, filters);
-        
-        // Set up event handlers
-        sub.on('event', (event: any) => {
-          callbacks.onevent(event);
-        });
-        
-        sub.on('eose', () => {
-          // End of stored events
-        });
-        
-        // Return a valid unsubscribe function
-        return {
-          unsubscribe: () => {
-            if (sub && typeof sub.unsub === 'function') {
-              sub.unsub();
-            }
-          }
-        };
-      } else if (typeof pool.subscribe === 'function') {
-        // Alternative implementation if sub is not available
-        const sub = pool.subscribe(relays, filters, {
+      // Handle different versions of SimplePool
+      if (typeof pool.subscribe === 'function') {
+        let filtersArr = Array.isArray(filters) ? filters : [filters];
+        const sub = pool.subscribe(relays, filtersArr, {
           onevent: callbacks.onevent,
           onclose: callbacks.onclose
         });
         
         return {
           unsubscribe: () => {
-            if (typeof sub.unsubscribe === 'function') {
-              sub.unsubscribe();
+            if (sub && typeof sub.close === 'function') {
+              sub.close();
             }
           }
         };

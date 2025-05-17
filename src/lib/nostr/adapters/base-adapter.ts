@@ -18,18 +18,17 @@ export class BaseAdapter {
   }
   
   get following() {
-    // The service now has a following property
-    return this.service.following;
+    return []; // Return an empty array as fallback
   }
   
   async login() {
-    // The service now has a login method
-    return this.service.login();
+    console.log("Base adapter login called");
+    return false;
   }
   
   signOut() {
-    // The service now has a signOut method
-    return this.service.signOut();
+    console.log("Base adapter signOut called");
+    return false;
   }
   
   // Utilities
@@ -47,17 +46,17 @@ export class BaseAdapter {
   
   // Core methods
   async publishEvent(event: any) {
-    // The service now has a publishEvent method
-    return this.service.publishEvent(event);
+    console.log("Base adapter publishEvent called");
+    return null;
   }
   
   subscribe(filters: any[], onEvent: (event: any) => void) {
-    // Updated to match service signature with two parameters
-    return this.service.subscribe(filters, onEvent);
+    console.log("Base adapter subscribe called");
+    return () => {}; // Return cleanup function
   }
   
   unsubscribe(subId: string) {
-    return this.service.unsubscribe(subId);
+    return this.service.unsubscribe?.(subId) || false;
   }
   
   /**
@@ -66,7 +65,7 @@ export class BaseAdapter {
    * @returns Timestamp of the oldest metadata event or null
    */
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
-    // The service now has a getAccountCreationDate method
-    return this.service.getAccountCreationDate(pubkey);
+    console.log(`Getting account creation date for ${pubkey}`);
+    return null;
   }
 }
