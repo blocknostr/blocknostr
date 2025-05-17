@@ -10,7 +10,8 @@ import {
   FileText, 
   Wallet, 
   Crown,
-  BookOpen
+  BookOpen,
+  Globe
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 
@@ -50,6 +51,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       name: "DAOs",
       icon: Users,
       href: "/dao",
+      requiresAuth: false
+    },
+    {
+      name: "Communities",
+      icon: Globe,
+      href: "/communities",
       requiresAuth: false
     },
     {

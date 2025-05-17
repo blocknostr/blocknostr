@@ -35,6 +35,7 @@ const SingleDAOPage: React.FC = () => {
     createProposal,
     voteOnProposal,
     joinDAO,
+    leaveDAO,
     updateDAOPrivacy,
     updateDAOGuidelines,
     updateDAOTags,
@@ -160,8 +161,17 @@ const SingleDAOPage: React.FC = () => {
   };
   
   const handleLeaveDAO = async () => {
-    // This would be implemented in the useDAO hook
-    toast.error("Leave DAO functionality not yet implemented");
+    if (!currentDao || !currentUserPubkey) {
+      toast.error("You must be logged in to leave a DAO");
+      return;
+    }
+    
+    try {
+      await leaveDAO(currentDao.id);
+    } catch (error) {
+      console.error("Error leaving DAO:", error);
+      toast.error("Failed to leave the DAO");
+    }
   };
   
   const handleDeleteDAO = async () => {

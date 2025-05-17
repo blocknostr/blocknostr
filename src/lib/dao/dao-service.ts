@@ -1165,6 +1165,94 @@ export class DAOService {
   }
   
   /**
+   * Leave a DAO/community
+   */
+  async leaveDAO(daoId: string): Promise<boolean> {
+    try {
+      // First fetch the DAO to get current data
+      const dao = await this.getDAOById(daoId);
+      if (!dao) {
+        console.error("DAO not found:", daoId);
+        throw new Error("DAO not found");
+      }
+      
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+      
+      console.log(`User ${pubkey} leaving DAO ${daoId}`);
+      
+      // Check if user is a member
+      if (!dao.members.includes(pubkey)) {
+        console.log("Not a member of this DAO");
+        return false;
+      }
+      
+      // Check if user is the creator and the only member
+      if (dao.creator === pubkey && dao.members.length === 1) {
+        throw new Error("The creator cannot leave if they are the only member. Delete the DAO instead.");
+      }
+      
+      // Extract the unique identifier from d tag if available
+      let uniqueId = daoId;
+      const event = await this.getDAOEventById(daoId);
+      if (event) {
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        if (dTag && dTag[1]) {
+          uniqueId = dTag[1];
+        }
+      }
+      
+      // Create updated member list excluding the current user
+      const members = dao.members.filter(member => member !== pubkey);
+      
+      // Also remove from moderators if applicable
+      const moderators = dao.moderators.filter(mod => mod !== pubkey);
+      
+      // Create a new community event with the same uniqueId
+      // This follows NIP-72 replacement approach
+      const updatedData = {
+        name: dao.name,
+        description: dao.description,
+        creator: dao.creator,
+        createdAt: dao.createdAt,
+        image: dao.image,
+        treasury: dao.treasury,
+        proposals: dao.proposals,
+        activeProposals: dao.activeProposals,
+        tags: dao.tags,
+        guidelines: dao.guidelines,
+        isPrivate: dao.isPrivate
+      };
+      
+      // NIP-72 compliant event for leaving
+      const eventData = {
+        kind: DAO_KINDS.COMMUNITY,
+        content: JSON.stringify(updatedData),
+        tags: [
+          ["d", uniqueId], // Same unique identifier
+          ...members.map(member => ["p", member]), // Include remaining members
+          ...moderators.map(mod => ["p", mod, "moderator"]) // Include remaining moderators
+        ]
+      };
+      
+      console.log("Publishing leave DAO event:", eventData);
+      
+      await nostrService.publishEvent(eventData);
+      console.log(`Successfully left DAO ${daoId}`);
+      
+      // Invalidate user DAOs cache
+      daoCache.invalidateUserDAOs(pubkey);
+      
+      return true;
+    } catch (error) {
+      console.error("Error leaving DAO:", error);
+      return false;
+    }
+  }
+  
+  /**
    * Helper function to get the original DAO event
    */
   private async getDAOEventById(id: string): Promise<Event | null> {

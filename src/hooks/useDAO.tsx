@@ -378,6 +378,45 @@ export function useDAO(daoId?: string) {
     }
   };
   
+  // Leave a DAO
+  const leaveDAO = async (daoId: string): Promise<boolean> => {
+    try {
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to leave a DAO");
+        return false;
+      }
+      
+      console.log(`Leaving DAO ${daoId}`);
+      
+      const success = await daoService.leaveDAO(daoId);
+      
+      if (success) {
+        toast.success("Successfully left the DAO");
+        
+        // If we're currently viewing this DAO, update it
+        if (currentDao?.id === daoId) {
+          const updatedDao = await daoService.getDAOById(daoId);
+          setCurrentDao(updatedDao);
+        }
+        
+        // Update myDaos list
+        if (currentUserPubkey) {
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
+        }
+        
+        return true;
+      } else {
+        toast.error("Failed to leave the DAO");
+        return false;
+      }
+    } catch (error: any) {
+      console.error("Error leaving DAO:", error);
+      toast.error(error?.message || "Failed to leave the DAO");
+      return false;
+    }
+  };
+  
   // Update DAO privacy setting
   const updateDAOPrivacy = async (isPrivate: boolean) => {
     try {
@@ -681,6 +720,7 @@ export function useDAO(daoId?: string) {
     createProposal,
     voteOnProposal,
     joinDAO,
+    leaveDAO,
     updateDAOPrivacy,
     updateDAOGuidelines,
     updateDAOTags,
