@@ -9,7 +9,7 @@ import { Gavel, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const DAOPage = () => {
-  const [activeTab, setActiveTab] = useState<string>("discover");
+  const [activeTab, setActiveTab] = useState<string>("my-daos");
   const navigate = useNavigate();
   const isLoggedIn = !!nostrService.publicKey;
   
@@ -40,26 +40,17 @@ const DAOPage = () => {
         />
         
         <Tabs 
-          defaultValue="discover" 
+          defaultValue="my-daos" 
           className="w-full mt-6" 
           onValueChange={handleTabChange}
         >
           <TabsList className="w-full sm:w-auto mb-4">
-            <TabsTrigger value="discover">
-              <Gavel className="h-4 w-4 mr-2" />
-              Discover
-            </TabsTrigger>
             <TabsTrigger value="my-daos" disabled={!isLoggedIn}>
               <Users className="h-4 w-4 mr-2" />
               My DAOs
             </TabsTrigger>
             <TabsTrigger value="trending">Trending</TabsTrigger>
           </TabsList>
-          
-          {/* Only render the active tab content */}
-          <TabsContent value="discover" className="mt-2">
-            {activeTab === "discover" && <DAOList type="discover" />}
-          </TabsContent>
           
           <TabsContent value="my-daos" className="mt-2">
             {activeTab === "my-daos" && (
