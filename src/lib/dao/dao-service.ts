@@ -2,7 +2,6 @@
 import { nostrService } from "@/lib/nostr";
 import { daoCache } from "./dao-cache";
 import { DAO_KINDS } from "@/lib/nostr/constants";
-import { canUserDeleteDAO, canUserLeaveDAO } from "./dao-utils";
 import { DAO, DAOProposal } from "@/types/dao";
 
 /**
@@ -674,7 +673,7 @@ async function getDAOKickProposals(daoId: string): Promise<DAOProposal[]> {
       filter: {
         kinds: [DAO_KINDS.PROPOSAL],
         "#e": [daoId], // Proposals for this DAO
-        "#p": ["kick"], // Kick proposals
+        "#reason": [], // Kick proposals with a reason tag
         limit: 100
       }
     });

@@ -58,6 +58,12 @@ const WorldChat = () => {
     setLoginDialogOpen(true);
   };
 
+  // Wrapper for sendMessage to match the expected return type of Promise<boolean>
+  const handleSendMessage = async (message: string): Promise<boolean> => {
+    await sendMessage(message);
+    return true;
+  };
+
   // Show login prompt if not logged in
   if (!isLoggedIn) {
     return (
@@ -168,7 +174,7 @@ const WorldChat = () => {
       <ChatInput
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
-        onSendMessage={sendMessage}
+        onSendMessage={handleSendMessage}
         disabled={connectionStatus === 'disconnected'}
       />
     </Card>

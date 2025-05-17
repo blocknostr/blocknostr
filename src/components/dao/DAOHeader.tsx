@@ -5,28 +5,34 @@ import { Badge } from "@/components/ui/badge";
 import { DAO } from "@/types/dao";
 import { formatDistanceToNow } from "date-fns";
 import { Users, Calendar, Lock } from "lucide-react";
-import LeaveDaoButton from "./LeaveDaoButton";
+import { Button } from "@/components/ui/button";
 
 interface DAOHeaderProps {
   dao: DAO;
-  currentUserPubkey: string | null;
-  userRole: 'creator' | 'moderator' | 'member' | null;
-  onLeaveDAO: () => void;
+  userRole?: 'creator' | 'moderator' | 'member' | null;
+  currentUserPubkey?: string | null;
+  onJoinDAO?: () => void;
+  onLeaveDAO?: () => void;
   onDeleteDAO?: () => Promise<void>;
   isCreatorOnlyMember?: boolean;
+  serialNumber?: string | null;
+  onOpenSettings?: () => void;
+  userIsCreator?: boolean;
+  userIsMember?: boolean;
+  userIsModerator?: boolean;
 }
 
 const DAOHeader: React.FC<DAOHeaderProps> = ({ 
-  dao, 
-  currentUserPubkey, 
-  userRole,
+  dao,
+  serialNumber,
+  userIsCreator = false,
+  userIsMember = false, 
+  userIsModerator = false,
+  onJoinDAO,
   onLeaveDAO,
   onDeleteDAO,
-  isCreatorOnlyMember = false
+  onOpenSettings
 }) => {
-  // Determine if the user can delete the DAO (creator and only member)
-  const canDelete = userRole === 'creator' && isCreatorOnlyMember && !!onDeleteDAO;
-  
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
@@ -63,11 +69,11 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
           </div>
         )}
         
-        {userRole === 'member' && (
-          <LeaveDaoButton 
-            onLeave={onLeaveDAO} 
-            daoName={dao.name} 
-          />
+        {/* Action buttons can be added here based on user role */}
+        {userIsMember && onOpenSettings && userIsCreator && (
+          <Button onClick={onOpenSettings} variant="outline">
+            DAO Settings
+          </Button>
         )}
       </CardContent>
     </Card>
