@@ -19,6 +19,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   const [amount, setAmount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [signerReady, setSignerReady] = useState(false);
+  const [sigType, setSigType] = useState<string>("unknown");
   
   // Check if the signer is properly initialized
   useEffect(() => {
@@ -31,8 +32,26 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
             console.log("Signer ready with address:", wallet.account.address);
             if (wallet.account.publicKey) {
               console.log("Public key available:", wallet.account.publicKey);
+              
+              let pubkey = wallet.account.publicKey;
+              if (pubkey.startsWith('0x')) {
+                pubkey = pubkey.substring(2);
+              }
+              
+              // Determine signature type based on key length
+              if (pubkey.length === 64) {
+                setSigType("schnorr");
+                console.log("Using Schnorr signature scheme (32-byte public key)");
+              } else if (pubkey.length === 66) {
+                setSigType("ecdsa");
+                console.log("Using ECDSA signature scheme (33-byte public key)");
+              } else {
+                setSigType("unknown");
+                console.warn(`Unusual public key length: ${pubkey.length}. Type unknown.`);
+              }
             } else {
               console.warn("Public key not available in account");
+              setSigType("unknown");
             }
           } else {
             console.warn("Signer is connected but missing account info");
@@ -81,7 +100,8 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
       console.log("Starting transaction with:", {
         fromAddress,
         recipient,
-        amount: amountValue
+        amount: amountValue,
+        signatureType: sigType
       });
       
       // In a real app, you'd want to catch any signer or signature errors here
@@ -113,7 +133,11 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     <Card className="bg-gradient-to-b from-background to-muted/20 border-muted">
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium">Send ALPH</CardTitle>
-        <CardDescription className="text-xs text-muted-foreground">Transfer to another address</CardDescription>
+        <CardDescription className="text-xs text-muted-foreground">
+          {sigType !== "unknown" 
+            ? `Transfer using ${sigType === "schnorr" ? "Schnorr" : "ECDSA"} signatures` 
+            : "Transfer to another address"}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSend} className="space-y-3">

@@ -1,3 +1,4 @@
+
 import { NodeProvider } from '@alephium/web3';
 import { getTokenMetadata, fetchTokenList, getFallbackTokenData, formatTokenAmount } from './tokenMetadata';
 import { formatNumber } from '@/lib/utils/formatters';
@@ -260,6 +261,7 @@ export const getAddressNFTs = async (address: string): Promise<EnrichedToken[]> 
 
 /**
  * Build and submit a transaction
+ * Supports both ECDSA (default) and Schnorr signature types
  */
 export const sendTransaction = async (
   fromAddress: string,
@@ -283,28 +285,70 @@ export const sendTransaction = async (
     
     // Get the public key from the signer if possible
     let fromPublicKey = '';
+    let signatureType = undefined; // Default to undefined, will be auto-detected by API
+    
     try {
       if (signer.account && signer.account.publicKey) {
         fromPublicKey = signer.account.publicKey;
         console.log("Using wallet's public key:", fromPublicKey);
+        
+        // Check if it's likely a Schnorr key (32 bytes = 64 hex chars)
+        if (fromPublicKey.startsWith('0x')) {
+          fromPublicKey = fromPublicKey.substring(2); // Remove 0x prefix if present
+        }
+        
+        if (fromPublicKey.length === 64) {
+          console.log("Detected Schnorr public key format (32 bytes)");
+          signatureType = 'schnorr'; // Explicitly set signature type for Schnorr
+        } else if (fromPublicKey.length === 66) {
+          console.log("Detected ECDSA public key format (33 bytes)");
+          signatureType = 'default'; // Explicitly set signature type for ECDSA
+        } else {
+          console.warn(`Unusual public key length: ${fromPublicKey.length} chars. Using as provided.`);
+        }
       } else if (signer.publicKey) {
         fromPublicKey = signer.publicKey;
         console.log("Using signer's public key:", fromPublicKey);
+        
+        // Apply the same length check
+        if (fromPublicKey.startsWith('0x')) {
+          fromPublicKey = fromPublicKey.substring(2);
+        }
+        
+        if (fromPublicKey.length === 64) {
+          signatureType = 'schnorr';
+        } else if (fromPublicKey.length === 66) {
+          signatureType = 'default';
+        }
       } else {
-        console.warn("No public key available in signer, building transaction without it");
+        console.warn("No public key available in signer, this may cause issues when building the transaction");
       }
     } catch (error) {
       console.warn("Error accessing public key:", error);
     }
     
-    // Build unsigned transaction - use the correct properties for the API
-    const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
-      fromPublicKey: fromPublicKey,
+    // Build the transaction request object based on available data
+    const txBuildRequest: any = {
       destinations: [{
         address: toAddress,
         attoAlphAmount: amountInNanoAlph
       }]
-    });
+    };
+    
+    // Only add fromPublicKey if we have it
+    if (fromPublicKey) {
+      txBuildRequest.fromPublicKey = fromPublicKey;
+      
+      // Add signature type if we could determine it
+      if (signatureType) {
+        txBuildRequest.sigType = signatureType;
+      }
+    }
+    
+    console.log("Transaction build request:", txBuildRequest);
+    
+    // Build unsigned transaction with the proper params
+    const unsignedTx = await nodeProvider.transactions.postTransactionsBuild(txBuildRequest);
     
     console.log("Transaction built successfully:", unsignedTx);
     
