@@ -20,6 +20,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [signerReady, setSignerReady] = useState(false);
   const [sigType, setSigType] = useState<string>("unknown");
+  const [pubKeyDisplay, setPubKeyDisplay] = useState<string>("");
   
   // Check if the signer is properly initialized
   useEffect(() => {
@@ -30,6 +31,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
           if (wallet.signer && wallet.account) {
             setSignerReady(true);
             console.log("Signer ready with address:", wallet.account.address);
+            
             if (wallet.account.publicKey) {
               console.log("Public key available:", wallet.account.publicKey);
               
@@ -49,9 +51,13 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
                 setSigType("unknown");
                 console.warn(`Unusual public key length: ${pubkey.length}. Type unknown.`);
               }
+              
+              // Set a shortened version of the pubkey for display
+              setPubKeyDisplay(pubkey.substring(0, 6) + "..." + pubkey.substring(pubkey.length - 4));
             } else {
               console.warn("Public key not available in account");
               setSigType("unknown");
+              setPubKeyDisplay("Not available");
             }
           } else {
             console.warn("Signer is connected but missing account info");
@@ -104,6 +110,11 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
         signatureType: sigType
       });
       
+      // Double check we have the public key before proceeding
+      if (!wallet.account?.publicKey) {
+        throw new Error("Public key not available. Please reconnect your wallet.");
+      }
+      
       // In a real app, you'd want to catch any signer or signature errors here
       const result = await sendTransaction(
         fromAddress,
@@ -135,7 +146,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
         <CardTitle className="text-base font-medium">Send ALPH</CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
           {sigType !== "unknown" 
-            ? `Transfer using ${sigType === "schnorr" ? "Schnorr" : "ECDSA"} signatures` 
+            ? `Transfer using ${sigType === "schnorr" ? "Schnorr" : "ECDSA"} signatures (${pubKeyDisplay})` 
             : "Transfer to another address"}
         </CardDescription>
       </CardHeader>

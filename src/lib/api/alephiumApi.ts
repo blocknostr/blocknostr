@@ -275,7 +275,7 @@ export const sendTransaction = async (
     }
 
     // Convert ALPH to nanoALPH
-    const amountInNanoAlph = (amountInAlph * 10**18).toString();
+    const amountInNanoAlph = (BigInt(amountInAlph * 10**18)).toString();
     
     // Get the from group
     const addressInfo = await nodeProvider.addresses.getAddressesAddressGroup(fromAddress);
@@ -321,31 +321,40 @@ export const sendTransaction = async (
           signatureType = 'default';
         }
       } else {
-        console.warn("No public key available in signer, this may cause issues when building the transaction");
+        throw new Error("No public key available in signer, cannot build transaction");
       }
     } catch (error) {
-      console.warn("Error accessing public key:", error);
+      console.error("Error accessing public key:", error);
+      throw new Error("Failed to retrieve public key from wallet");
     }
+    
+    // Ensure we have a public key before proceeding
+    if (!fromPublicKey) {
+      throw new Error("Could not retrieve public key from wallet");
+    }
+    
+    // Always prefix with 0x if not already present
+    if (!fromPublicKey.startsWith('0x')) {
+      fromPublicKey = '0x' + fromPublicKey;
+    }
+    
+    console.log("Final public key to use:", fromPublicKey);
     
     // Build the transaction request object based on available data
     const txBuildRequest: any = {
+      fromPublicKey: fromPublicKey,
       destinations: [{
         address: toAddress,
         attoAlphAmount: amountInNanoAlph
       }]
     };
     
-    // Only add fromPublicKey if we have it
-    if (fromPublicKey) {
-      txBuildRequest.fromPublicKey = fromPublicKey;
-      
-      // Add signature type if we could determine it
-      if (signatureType) {
-        txBuildRequest.sigType = signatureType;
-      }
+    // Add signature type if we could determine it
+    if (signatureType) {
+      txBuildRequest.sigType = signatureType;
     }
     
-    console.log("Transaction build request:", txBuildRequest);
+    console.log("Transaction build request:", JSON.stringify(txBuildRequest, null, 2));
     
     // Build unsigned transaction with the proper params
     const unsignedTx = await nodeProvider.transactions.postTransactionsBuild(txBuildRequest);
