@@ -22,19 +22,19 @@ interface SidebarNavProps {
 
 const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const location = useLocation();
-  const [profileUrl, setProfileUrl] = useState("/profile-view");
+  const [profileUrl, setProfileUrl] = useState("/profile");
   
   // Update profile URL when auth state changes
   useEffect(() => {
     if (isLoggedIn && nostrService.publicKey) {
       try {
         const npub = nostrService.getNpubFromHex(nostrService.publicKey);
-        setProfileUrl(`/profile-view/${npub}`);
+        setProfileUrl(`/profile/${npub}`);
       } catch (error) {
         console.error("Failed to convert pubkey to npub:", error);
       }
     } else {
-      setProfileUrl("/profile-view");
+      setProfileUrl("/profile");
     }
   }, [isLoggedIn]);
   

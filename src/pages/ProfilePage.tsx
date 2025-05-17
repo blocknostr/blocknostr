@@ -1,134 +1,38 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { nostrService } from '@/lib/nostr';
-import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
-import { useProfileRelations } from '@/hooks/profile/useProfileRelations';
-import { useBasicProfile } from '@/hooks/useBasicProfile';
-import { Loader2 } from 'lucide-react';
-import ProfileHeader from '@/components/profile/ProfileHeader';
-import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
-import { useProfileRelays } from '@/hooks/profile/useProfileRelays';
-import ProfileTabs from '@/components/profile/ProfileTabs';
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
+/**
+ * @deprecated This page has been deprecated in favor of ProfileViewPage.
+ * Please use /profile/:npub instead of /profile-deprecated/:npub
+ */
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
-  const [hexPubkey, setHexPubkey] = useState<string | undefined>(undefined);
-  const { profile, loading: profileLoading, error: profileError } = useBasicProfile(npub);
-  const { profiles, fetchProfile } = useUnifiedProfileFetcher();
+  const navigate = useNavigate();
   
-  // Get the current user's pubkey
-  const currentUserPubkey = nostrService.publicKey;
-  
-  // Convert npub to hex pubkey - memoized to avoid unnecessary recalculations
-  useEffect(() => {
-    if (!npub) return;
-    
-    try {
-      const hex = nostrService.getHexFromNpub(npub);
-      setHexPubkey(hex);
-    } catch (error) {
-      console.error('Invalid npub:', error);
-    }
-  }, [npub]);
-  
-  // Determine if this is the current user's profile
-  const isCurrentUser = currentUserPubkey === hexPubkey;
-  
-  // Fetch posts with limited initial count and progressive loading
-  const {
-    events,
-    media,
-    loading: postsLoading,
-    error,
-    refetch: refetchPosts,
-    hasEvents
-  } = useProfilePosts({ 
-    hexPubkey,
-    limit: 5 // Only load first 5 posts initially
-  });
-  
-  // Use true lazy loading for relations/followers data - only trigger after basic profile is ready
-  const {
-    followers,
-    following,
-    isLoading: relationsLoading,
-    refetch: refetchRelations
-  } = useProfileRelations({
-    hexPubkey,
-    isCurrentUser
-  });
-  
-  const {
-    relays,
-    isLoading: relaysLoading,
-    refetch: refetchRelays
-  } = useProfileRelays({
-    hexPubkey,
-    isCurrentUser
-  });
-  
-  // Track individual loading states for stats
-  const statsLoading = {
-    followers: relationsLoading,
-    following: relationsLoading,
-    relays: relaysLoading
+  // Redirect to the new profile page
+  const handleRedirect = () => {
+    navigate(`/profile/${npub}`);
   };
   
-  // Combined refetch function - memoized to prevent recreation
-  const handleRefresh = useCallback(() => {
-    refetchPosts();
-    refetchRelations();
-    refetchRelays();
-  }, [refetchPosts, refetchRelations, refetchRelays]);
-  
-  if (!npub || !hexPubkey) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <h1 className="text-xl font-semibold mb-2">Invalid Profile</h1>
-        <p className="text-muted-foreground">The profile you're looking for doesn't exist.</p>
-      </div>
-    );
-  }
-  
-  // Show a minimal loading state only for the very initial profile data
-  // Everything else will load progressively
-  const isInitialLoading = profileLoading && !profile?.name && !profile?.displayName;
-  
   return (
-    <div className="container max-w-3xl mx-auto px-4 py-6">
-      {isInitialLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading profile...</p>
-        </div>
-      ) : (
-        <>
-          {/* Render profile header with stats data - show immediately even if still loading some data */}
-          <ProfileHeader 
-            profile={profile} 
-            npub={npub} 
-            hexPubkey={hexPubkey}
-            followers={followers || []}
-            following={following || []}
-            relays={relays || []}
-            statsLoading={statsLoading}
-            onRefresh={handleRefresh}
-            currentUserPubkey={currentUserPubkey}
-          />
-          
-          {/* Profile tabs without suspension/lazy loading */}
-          <ProfileTabs 
-            events={events || []} 
-            media={media || []}
-            reposts={[]}
-            profileData={profile}
-            originalPostProfiles={profiles}
-            hexPubkey={hexPubkey}
-            replies={[]}
-          />
-        </>
-      )}
+    <div className="container max-w-3xl mx-auto px-4 py-12">
+      <Alert variant="destructive" className="mb-6">
+        <AlertTitle className="text-lg font-semibold">Deprecated Page</AlertTitle>
+        <AlertDescription>
+          <p className="mb-4">This profile page has been deprecated and will be removed in a future update.</p>
+          <Button onClick={handleRedirect} variant="outline">
+            Go to New Profile Page
+          </Button>
+        </AlertDescription>
+      </Alert>
+      
+      <div className="text-center py-8">
+        <p className="mb-2 text-xl">This page is no longer maintained</p>
+        <p className="text-muted-foreground">Please use the new profile page for an improved experience.</p>
+      </div>
     </div>
   );
 };

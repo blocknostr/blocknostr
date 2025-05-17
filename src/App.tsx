@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AlephiumWalletProvider } from '@alephium/web3-react';
@@ -12,7 +11,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
-import ProfilePage from './pages/ProfilePage';
+import ProfilePage from './pages/ProfilePage'; // Kept but deprecated
 import ProfileViewPage from './pages/ProfileViewPage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
@@ -52,7 +51,12 @@ function App() {
                   <Route path="/notebin" element={<NotebinPage />} />
                   <Route path="/wallets" element={<WalletsPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
-                  <Route path="/profile/:npub" element={<ProfilePage />} />
+                  
+                  {/* Update routes to make ProfileViewPage primary */}
+                  <Route path="/profile/:npub" element={<ProfileViewPage />} />
+                  {/* Keep old profile page route but mark as deprecated */}
+                  <Route path="/profile-deprecated/:npub" element={<ProfilePage />} />
+                  {/* Keep existing ProfileViewPage routes for compatibility */}
                   <Route path="/profile-view" element={<ProfileViewPage />} />
                   <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
                   

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -60,15 +61,9 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Access the queryEvents method with the correct filter structure
-        const filters = [
-          { 
-            authors: [hexPubkey],
-            kinds: [1], // Notes
-            limit: 10 
-          }
-        ];
-        const events = await nostrService.queryEvents(filters);
+        // Use the DataAdapter through nostrService for NIP-compliant event retrieval
+        // Ensure we're using methods that exist on the service
+        const events = await nostrService.getEventsByUser(hexPubkey, 10);
         setNotes(events);
       } catch (error) {
         console.error('Error fetching notes:', error);
