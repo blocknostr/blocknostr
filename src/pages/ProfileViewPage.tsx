@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -61,16 +60,10 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Fix: Use queryEvents with the proper filter structure instead of getEventsByUser
-        // Since getEventsByUser expects only one parameter but was being called with two
-        const filters = [
-          {
-            kinds: [1], // Notes
-            authors: [hexPubkey],
-            limit: 10
-          }
-        ];
-        const events = await nostrService.queryEvents(filters);
+        // Fix: Use getEventsByUser which is available in the adapter
+        // The method in data-adapter.ts expects only 1 parameter (pubkey)
+        // The limit is handled within the method implementation
+        const events = await nostrService.getEventsByUser(hexPubkey);
         setNotes(events);
       } catch (error) {
         console.error('Error fetching notes:', error);
