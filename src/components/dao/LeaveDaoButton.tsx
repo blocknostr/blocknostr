@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface LeaveDaoButtonProps {
   onLeave: () => void;
@@ -23,6 +24,14 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
   daoName
 }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLeave = () => {
+    onLeave();
+    setShowConfirmation(false);
+    // Navigate back to the DAOs page with the MyDAOs tab active
+    navigate('/dao', { state: { activeTab: 'myDaos' } });
+  };
 
   return (
     <>
@@ -46,10 +55,7 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                onLeave();
-                setShowConfirmation(false);
-              }}
+              onClick={handleLeave}
               className="bg-destructive hover:bg-destructive/90"
             >
               Leave DAO

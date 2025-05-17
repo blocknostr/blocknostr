@@ -12,19 +12,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useNavigate } from "react-router-dom";
 
 interface LeaveCommunityButtonProps {
   onLeave: () => void;
   communityName: string;
   subtle?: boolean;
+  redirectPath?: string;
 }
 
-const LeaveCommunityButton = ({ onLeave, communityName, subtle = false }: LeaveCommunityButtonProps) => {
+const LeaveCommunityButton = ({ onLeave, communityName, subtle = false, redirectPath = "/communities" }: LeaveCommunityButtonProps) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const navigate = useNavigate();
 
   const handleConfirmLeave = () => {
     onLeave();
     setShowConfirmation(false);
+    
+    // Redirect to the specified path after leaving
+    if (redirectPath) {
+      navigate(redirectPath);
+    }
   };
 
   if (subtle) {

@@ -1,14 +1,25 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import DAOList from "@/components/dao/DAOList";
 import { Gavel, Compass } from "lucide-react";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DiscoverDAOs from "@/components/dao/DiscoverDAOs";
+import { useLocation } from "react-router-dom";
 
 const DAOPage = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<string>("myDaos");
+  
+  // Check if we have a state with activeTab from navigation
+  useEffect(() => {
+    if (location.state && location.state.activeTab) {
+      setActiveTab(location.state.activeTab);
+      // Clear the state after using it to prevent it from persisting on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   
   return (
     <div className="flex min-h-screen bg-background">

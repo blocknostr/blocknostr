@@ -7,14 +7,42 @@ import DAOCarousel from "./DAOCarousel";
 import { useDAO } from "@/hooks/useDAO";
 import { fetchAlephiumDApps } from "@/lib/api/linxlabsApi";
 import { DAO } from "@/types/dao";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const DiscoverDAOs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [featuredDAOs, setFeaturedDAOs] = useState<DAO[]>([]);
   const [trendingDAOs, setTrendingDAOs] = useState<DAO[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   
-  const { daos, currentUserPubkey, fetchGeneralDAOs } = useDAO();
+  const { daos, currentUserPubkey, fetchGeneralDAOs, joinDAO } = useDAO();
+  
+  // Handle joining a DAO with navigate
+  const handleJoinDAO = async (daoId: string, daoName: string) => {
+    if (!currentUserPubkey) {
+      toast.error("Please login to join this DAO");
+      return;
+    }
+    
+    try {
+      const success = await joinDAO(daoId);
+      if (success) {
+        toast.success(`Successfully joined ${daoName}!`, {
+          description: "Redirecting to DAO page..."
+        });
+        
+        // Navigate to the DAO page
+        setTimeout(() => {
+          navigate(`/dao/${daoId}`);
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Error joining DAO:", error);
+      toast.error("Failed to join the DAO");
+    }
+  };
   
   // Initial data fetch
   useEffect(() => {
@@ -46,7 +74,8 @@ const DiscoverDAOs = () => {
           proposals: Math.floor(Math.random() * 5),
           activeProposals: Math.floor(Math.random() * 3),
           tags: project.tags || [project.category || "DeFi"].filter(Boolean),
-          isPrivate: false
+          isPrivate: false,
+          alephiumProject: project.id
         }));
         
         // Get all available DAOs (combine Nostr DAOs with Alephium projects)
@@ -126,7 +155,11 @@ const DiscoverDAOs = () => {
           {filteredFeaturedDAOs.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold">Featured DAOs</h2>
-              <DAOCarousel daos={filteredFeaturedDAOs} currentUserPubkey={currentUserPubkey || ""} />
+              <DAOCarousel 
+                daos={filteredFeaturedDAOs} 
+                currentUserPubkey={currentUserPubkey || ""} 
+                onJoinDAO={handleJoinDAO}
+              />
             </div>
           )}
           
@@ -134,7 +167,11 @@ const DiscoverDAOs = () => {
           {filteredTrendingDAOs.length > 0 && (
             <div className="space-y-4 pt-4">
               <h2 className="text-2xl font-semibold">Trending DAOs</h2>
-              <DAOCarousel daos={filteredTrendingDAOs} currentUserPubkey={currentUserPubkey || ""} />
+              <DAOCarousel 
+                daos={filteredTrendingDAOs} 
+                currentUserPubkey={currentUserPubkey || ""} 
+                onJoinDAO={handleJoinDAO}
+              />
             </div>
           )}
         </>

@@ -167,7 +167,11 @@ const SingleDAOPage: React.FC = () => {
     }
     
     try {
-      await leaveDAO(currentDao.id);
+      const success = await leaveDAO(currentDao.id);
+      if (success) {
+        // Navigation will be handled by the LeaveDaoButton component
+        // which redirects to the DAOs page
+      }
     } catch (error) {
       console.error("Error leaving DAO:", error);
       toast.error("Failed to leave the DAO");
