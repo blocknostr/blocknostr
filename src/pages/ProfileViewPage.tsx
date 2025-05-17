@@ -60,8 +60,15 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Use the nostrService's getEventsByUser method directly
-        const events = await nostrService.getEventsByUser(hexPubkey, 10);
+        // Access the queryEvents method with the correct filter structure
+        const filters = [
+          { 
+            authors: [hexPubkey],
+            kinds: [1], // Notes
+            limit: 10 
+          }
+        ];
+        const events = await nostrService.queryEvents(filters);
         setNotes(events);
       } catch (error) {
         console.error('Error fetching notes:', error);
