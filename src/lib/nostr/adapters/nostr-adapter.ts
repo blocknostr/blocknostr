@@ -1,4 +1,3 @@
-
 import { nostrService } from '../service';
 import { BaseAdapter } from './base-adapter';
 import { SocialAdapter } from './social-adapter';
@@ -145,11 +144,11 @@ export class NostrAdapter extends BaseAdapter {
 
   // Add missing methods for DAO implementation
   signEvent(event: Partial<Event>): Event {
-    return this._service.signEvent(event as any);
+    return this.service.signEvent(event as any);
   }
   
   subscribeToEvents(filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) {
-    const sub = this._service.pool.sub(relays, filters);
+    const sub = this.service.pool.sub(relays, filters);
     
     sub.on('event', (event: any) => {
       callbacks.onevent(event);

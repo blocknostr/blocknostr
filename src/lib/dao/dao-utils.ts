@@ -1,93 +1,46 @@
 
-/**
- * Utility functions for the DAO module
- */
 import { Filter } from 'nostr-tools';
 
 /**
- * Generate a random ID for use in Nostr events
- * @returns A random string ID
+ * Converts a Filter array to a single Filter object
+ * This is needed because nostr-tools expects a single Filter object in some methods
  */
-export function generateRandomId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
+export function convertToFilter(filters: Filter | Filter[]): Filter {
+  if (!Array.isArray(filters)) {
+    return filters;
+  }
 
-/**
- * Wait for multiple promises to settle and return the successful ones
- * This is a replacement for Promise.any which might not be available in all environments
- * @param promises Array of promises to wait for
- * @returns Promise that resolves when any of the input promises resolves
- */
-export async function settlePromises<T>(promises: Promise<T>[]): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let resolved = false;
-    let rejectedCount = 0;
-    
-    promises.forEach(promise => {
-      promise.then(result => {
-        if (!resolved) {
-          resolved = true;
-          resolve(result);
-        }
-      }).catch(() => {
-        rejectedCount++;
-        if (rejectedCount === promises.length) {
-          reject(new Error('All promises were rejected'));
-        }
-      });
-    });
-    
-    // Fallback if all promises hang
-    setTimeout(() => {
-      if (!resolved) {
-        reject(new Error('Promises timed out'));
-      }
-    }, 15000);
-  });
-}
-
-/**
- * Convert a filter object to a format compatible with the SimplePool API
- * @param filter The filter object to convert
- * @returns A filter object compatible with nostr-tools
- */
-export function convertToFilter(filter: any): Filter {
-  // SimplePool expects filters in a specific format
-  return filter as Filter;
-}
-
-/**
- * Flattens an array of promises into a single promise
- * @param promiseArrays An array of promise arrays
- * @returns A single promise with the combined results
- */
-export function flattenPromises<T>(promiseArrays: Promise<T>[][]): Promise<T[]> {
-  // Flatten the array of promise arrays into a single array of promises
-  const flattenedPromises = promiseArrays.reduce((acc, arr) => [...acc, ...arr], []);
+  // Merge all filters into a single filter object
+  const mergedFilter: Record<string, any> = {};
   
-  // Return a promise that resolves when all promises are settled
-  return Promise.all(flattenedPromises);
+  for (const filter of filters) {
+    for (const key in filter) {
+      if (key.startsWith('#')) {
+        // For tag filters like #e, #p, #d
+        if (!mergedFilter[key]) {
+          mergedFilter[key] = [];
+        }
+        mergedFilter[key] = [...(mergedFilter[key] || []), ...(filter[key as keyof Filter] as string[])];
+      } else {
+        // For standard filters like kinds, authors, etc.
+        mergedFilter[key] = mergedFilter[key] || filter[key as keyof Filter];
+      }
+    }
+  }
+  
+  return mergedFilter as Filter;
 }
 
 /**
- * Wait for any of the promises to resolve and return the first successful result
- * This is a safe implementation of Promise.any for environments that don't support it
- * @param promises Array of promises to wait for
- * @returns Promise that resolves with the first successful result
+ * Flattens nested arrays of promises
  */
-export async function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let rejectedCount = 0;
-    
-    promises.forEach(promise => {
-      promise.then(result => {
-        resolve(result);
-      }).catch(() => {
-        rejectedCount++;
-        if (rejectedCount === promises.length) {
-          reject(new Error('All promises were rejected'));
-        }
-      });
-    });
-  });
+export function flattenPromises<T>(promises: Promise<T>[][]): Promise<T>[] {
+  return promises.flat();
+}
+
+/**
+ * Like Promise.any but with better typing
+ */
+export function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
+  return Promise.any(promises) as Promise<T>;
 }
