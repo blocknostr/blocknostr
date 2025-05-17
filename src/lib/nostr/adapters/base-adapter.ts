@@ -84,7 +84,9 @@ export class BaseAdapter {
   
   async repostNote(postId: string): Promise<boolean> {
     if (typeof this.service.repostNote === 'function') {
-      const result = await this.service.repostNote(postId);
+      // Pass an empty string as the second argument if the service expects two arguments
+      // The second parameter is likely for additional content or a comment on the repost
+      const result = await this.service.repostNote(postId, "");
       // Convert string result to boolean
       return result ? true : false;
     }
