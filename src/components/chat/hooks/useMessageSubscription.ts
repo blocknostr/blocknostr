@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
-import { EventKinds } from "@/lib/nostr/constants";
+import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 
 const MAX_MESSAGES = 500; // Increased from 100 to 500 messages
@@ -121,7 +122,7 @@ export const useMessageSubscription = (
     const messagesSub = chatNostrService.subscribe(
       [
         {
-          kinds: [EventKinds.TEXT],
+          kinds: [EVENT_KINDS.TEXT_NOTE],
           '#t': [chatTag], // Using '#t' for tag filtering
           limit: INITIAL_LOAD_LIMIT
         } as NostrFilter

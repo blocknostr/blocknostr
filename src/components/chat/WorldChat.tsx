@@ -58,17 +58,6 @@ const WorldChat = () => {
     setLoginDialogOpen(true);
   };
 
-  // Wrapper for sendMessage to match the expected return type of Promise<boolean>
-  const handleSendMessage = async (message: string): Promise<boolean> => {
-    try {
-      await sendMessage(message);
-      return true;
-    } catch (error) {
-      console.error("Error sending message:", error);
-      return false;
-    }
-  };
-
   // Show login prompt if not logged in
   if (!isLoggedIn) {
     return (
@@ -155,7 +144,7 @@ const WorldChat = () => {
       )}
       
       {connectionStatus === 'connecting' && (
-        <Alert variant="warning" className="w-auto mx-2 mt-1 mb-0 py-1 px-3 border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
+        <Alert variant="warning" className="w-auto mx-2 mt-1 mb-0 py-1 px-3 border-yellow-300 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 rounded-md">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-3 w-3 animate-spin text-yellow-600 dark:text-yellow-400" />
             <AlertDescription className="text-xs font-medium text-yellow-700 dark:text-yellow-300 whitespace-nowrap">
@@ -179,7 +168,7 @@ const WorldChat = () => {
       <ChatInput
         isLoggedIn={isLoggedIn}
         maxChars={MAX_CHARS}
-        onSendMessage={handleSendMessage}
+        onSendMessage={sendMessage}
         disabled={connectionStatus === 'disconnected'}
       />
     </Card>

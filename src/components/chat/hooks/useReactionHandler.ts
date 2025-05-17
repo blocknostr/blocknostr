@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
-import { EventKinds } from "@/lib/nostr/constants";
+import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
 import { toast } from "sonner";
 
@@ -72,7 +72,7 @@ export const useReactionHandler = (
     const reactionsSub = chatNostrService.subscribe(
       [
         {
-          kinds: [EventKinds.REACTION],
+          kinds: [EVENT_KINDS.REACTION],
           '#t': [chatTag],
           limit: 50
         } as NostrFilter
@@ -115,7 +115,7 @@ export const useReactionHandler = (
       
       // Send reaction to Nostr relays per NIP-25 with channel tag
       await chatNostrService.publishEvent({
-        kind: EventKinds.REACTION,
+        kind: EVENT_KINDS.REACTION,
         content: emoji,
         tags: [
           ['e', messageId],

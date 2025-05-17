@@ -5,34 +5,28 @@ import { Badge } from "@/components/ui/badge";
 import { DAO } from "@/types/dao";
 import { formatDistanceToNow } from "date-fns";
 import { Users, Calendar, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import LeaveDaoButton from "./LeaveDaoButton";
 
 interface DAOHeaderProps {
   dao: DAO;
-  userRole?: 'creator' | 'moderator' | 'member' | null;
-  currentUserPubkey?: string | null;
-  onJoinDAO?: () => Promise<boolean>;
-  onLeaveDAO?: () => Promise<boolean>;
+  currentUserPubkey: string | null;
+  userRole: 'creator' | 'moderator' | 'member' | null;
+  onLeaveDAO: () => void;
   onDeleteDAO?: () => Promise<void>;
   isCreatorOnlyMember?: boolean;
-  serialNumber?: string | null;
-  onOpenSettings?: () => void;
-  userIsCreator?: boolean;
-  userIsMember?: boolean;
-  userIsModerator?: boolean;
 }
 
 const DAOHeader: React.FC<DAOHeaderProps> = ({ 
-  dao,
-  serialNumber,
-  userIsCreator = false,
-  userIsMember = false, 
-  userIsModerator = false,
-  onJoinDAO,
+  dao, 
+  currentUserPubkey, 
+  userRole,
   onLeaveDAO,
   onDeleteDAO,
-  onOpenSettings
+  isCreatorOnlyMember = false
 }) => {
+  // Determine if the user can delete the DAO (creator and only member)
+  const canDelete = userRole === 'creator' && isCreatorOnlyMember && !!onDeleteDAO;
+  
   return (
     <Card>
       <CardContent className="pt-6 space-y-4">
@@ -69,32 +63,12 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
           </div>
         )}
         
-        {/* Action buttons based on user role */}
-        <div className="flex gap-2 flex-wrap">
-          {!userIsMember && !userIsCreator && onJoinDAO && (
-            <Button onClick={onJoinDAO} variant="default">
-              Join DAO
-            </Button>
-          )}
-          
-          {userIsMember && !userIsCreator && onLeaveDAO && (
-            <Button onClick={onLeaveDAO} variant="outline" className="text-red-500">
-              Leave DAO
-            </Button>
-          )}
-          
-          {userIsMember && userIsCreator && onOpenSettings && (
-            <Button onClick={onOpenSettings} variant="outline">
-              DAO Settings
-            </Button>
-          )}
-          
-          {userIsCreator && onDeleteDAO && (
-            <Button onClick={onDeleteDAO} variant="destructive">
-              Delete DAO
-            </Button>
-          )}
-        </div>
+        {userRole === 'member' && (
+          <LeaveDaoButton 
+            onLeave={onLeaveDAO} 
+            daoName={dao.name} 
+          />
+        )}
       </CardContent>
     </Card>
   );

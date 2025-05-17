@@ -8,7 +8,6 @@ import { Users, Check, Gavel, Shield } from "lucide-react";
 import { DAO } from "@/types/dao";
 import { formatDistanceToNow } from "date-fns";
 import { useDAO } from "@/hooks/useDAO";
-import { formatSerialNumber } from "@/lib/dao/dao-utils";
 
 interface DAOCardProps {
   dao: DAO;
@@ -41,11 +40,6 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
           className="w-full h-full object-cover transition-transform hover:scale-105 duration-500"
         />
         <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
-          {dao.serialNumber && (
-            <Badge variant="secondary" className="bg-black/70 text-white hover:bg-black/80 font-mono">
-              {formatSerialNumber(dao.serialNumber)}
-            </Badge>
-          )}
           {isMember && (
             <Badge variant="default" className="bg-primary/80 hover:bg-primary">
               <Check className="h-3 w-3 mr-1" /> Member

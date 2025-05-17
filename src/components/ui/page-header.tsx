@@ -8,10 +8,6 @@ interface PageHeaderProps {
   icon?: React.ReactNode;
   description?: string;
   className?: string;
-  backButton?: {
-    href: string;
-    label: string;
-  };
 }
 
 export function PageHeader({
@@ -19,8 +15,7 @@ export function PageHeader({
   rightContent,
   icon,
   description,
-  className,
-  backButton
+  className
 }: PageHeaderProps) {
   return (
     <div className={cn("flex flex-col space-y-2 mb-8", className)}>
@@ -37,14 +32,6 @@ export function PageHeader({
       </div>
       {description && (
         <p className="text-muted-foreground">{description}</p>
-      )}
-      {backButton && (
-        <a 
-          href={backButton.href} 
-          className="text-sm text-muted-foreground hover:underline inline-flex items-center"
-        >
-          ← {backButton.label}
-        </a>
       )}
     </div>
   );

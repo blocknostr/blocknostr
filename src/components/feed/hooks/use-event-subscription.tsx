@@ -1,6 +1,7 @@
+
 import { useState, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
-import { EventKinds } from "@/lib/nostr/constants";
+import { EVENT_KINDS } from "@/lib/nostr/constants";
 
 interface UseEventSubscriptionProps {
   following?: string[];
@@ -40,7 +41,7 @@ export function useEventSubscription({
       }
       
       // Handle reposts
-      if (event.kind === EventKinds.REPOST) {
+      if (event.kind === EVENT_KINDS.REPOST) {
         handleRepost(event);
         return prevEvents;
       }
@@ -66,7 +67,7 @@ export function useEventSubscription({
     // Build filter
     const filters: any[] = [
       {
-        kinds: [EventKinds.TEXT, EventKinds.REPOST],
+        kinds: [EVENT_KINDS.TEXT_NOTE, EVENT_KINDS.REPOST],
         since,
         until,
         limit

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Loader2, Search, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,6 @@ import { toast } from "sonner";
 import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
 import { Users } from "lucide-react";
-import { formatSerialNumber } from "@/lib/dao/dao-utils";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -84,33 +84,14 @@ const DAOList = () => {
   const daoList = getDaoList();
   const isLoading = getLoadingState();
   
-  // Assign serial numbers to DAOs
-  const daosWithSerialNumbers = daoList.map((dao, index) => ({
-    ...dao,
-    serialNumber: index + 1
-  }));
-  
-  // Filter by search term - now includes serial number search
+  // Filter by search term
   const filteredDaos = searchTerm 
-    ? daosWithSerialNumbers.filter(dao => {
-        const searchLower = searchTerm.toLowerCase();
-        
-        // Check if searching for a serial number format
-        if (searchLower.startsWith('#')) {
-          // Format the dao's serial number for comparison
-          const daoSerialFormat = formatSerialNumber(dao.serialNumber || 0);
-          // Compare with search term, ignoring case
-          return daoSerialFormat.toLowerCase().includes(searchLower);
-        }
-        
-        // Otherwise search by name, description or tags
-        return (
-          dao.name.toLowerCase().includes(searchLower) || 
-          dao.description.toLowerCase().includes(searchLower) ||
-          dao.tags.some(tag => tag.toLowerCase().includes(searchLower))
-        );
-      })
-    : daosWithSerialNumbers;
+    ? daoList.filter(dao => 
+        dao.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        dao.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dao.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : daoList;
   
   // Split the DAOs into carousel and remaining display portions
   const carouselDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
@@ -182,7 +163,7 @@ const DAOList = () => {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search DAOs or #AAA000..."
+            placeholder="Search DAOs..."
             className="pl-8"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

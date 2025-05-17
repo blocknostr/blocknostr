@@ -1,504 +1,301 @@
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { useParams } from "react-router-dom";
-import { MessageSquare, Users, ChevronLeft, Loader2, AlertTriangle, Shield } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
-import { getNpubFromHex } from "@/lib/nostr/utils/keys";
 import { useDAO } from "@/hooks/useDAO";
-import DAOHeader from "@/components/dao/DAOHeader";
+import { useDAOSubscription } from "@/hooks/useDAOSubscription";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DAOProposalsList from "@/components/dao/DAOProposalsList";
-import DAOCreateProposalDialog from "@/components/dao/DAOCreateProposalDialog";
-import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
-import DAOKickProposalsList from "@/components/dao/DAOKickProposalsList";
-import { daoService } from "@/lib/dao/dao-service";
-import { DAO } from "@/types/dao";
-import DAOGroupChat from "@/components/dao/DAOGroupChat";
 import DAOMembersList from "@/components/dao/DAOMembersList";
-import LeaveDaoButton from "@/components/dao/LeaveDaoButton";
 import DAOSettingsDialog from "@/components/dao/DAOSettingsDialog";
+import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
+import DAOHeader from "@/components/dao/DAOHeader";
+import DAOKickProposalsList from "@/components/dao/DAOKickProposalsList";
+import Sidebar from "@/components/Sidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import DAOPageHeader from "@/components/dao/DAOPageHeader";
 import DAOGuidelines from "@/components/dao/DAOGuidelines";
-import { formatSerialNumber } from "@/lib/dao/dao-utils";
-import DAOInvites from "@/components/dao/DAOInvites";
-import { nostrService } from "@/lib/nostr";
-import { PageHeader } from "@/components/ui/page-header";
 
-export default function SingleDAOPage() {
-  const [activeTab, setActiveTab] = useState("proposals");
-  const [dao, setDao] = useState<DAO | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
-  const [isKickProposalDialogOpen, setIsKickProposalDialogOpen] = useState(false);
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [userIsMember, setUserIsMember] = useState(false);
-  const [userIsCreator, setUserIsCreator] = useState(false);
-  const [userIsModerator, setUserIsModerator] = useState(false);
-  const [inviteLinks, setInviteLinks] = useState<string[]>([]);
-  const [proposals, setProposals] = useState<any[]>([]);
-  const [kickProposals, setKickProposals] = useState<any[]>([]);
+const SingleDAOPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const [activeTab, setActiveTab] = useState<string>("proposals");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
   
-  const { createProposal, createKickProposal, joinDAO, leaveDAO, deleteDAO, currentUserPubkey } = useDAO();
-  const { daoId } = useParams();
-  
-  const fetchData = useCallback(async () => {
-    if (!daoId) return;
+  const {
+    currentDao,
+    proposals,
+    kickProposals,
+    loading,
+    loadingProposals,
+    loadingKickProposals,
+    isMember,
+    isCreator,
+    isModerator,
+    currentUserPubkey,
+    createProposal,
+    voteOnProposal,
+    joinDAO,
+    updateDAOPrivacy,
+    updateDAOGuidelines,
+    updateDAOTags,
+    addDAOModerator,
+    removeDAOModerator,
+    createDAOInvite,
+    createKickProposal,
+    voteOnKickProposal
+  } = useDAO(id);
 
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const daoData = await daoService.getDAOById(daoId);
-      
-      if (!daoData) {
-        setError("DAO not found");
-        setLoading(false);
-        return;
-      }
-      
-      setDao(daoData);
-      
-      // Fetch proposals
-      const daoProposals = await daoService.getDAOProposals(daoId);
-      setProposals(daoProposals);
-      
-      // Fetch kick proposals
-      const daoKickProposals = await daoService.getDAOKickProposals(daoId);
-      setKickProposals(daoKickProposals);
-      
-      // Set user roles
-      const pubkey = nostrService.publicKey;
-      if (pubkey) {
-        setUserIsMember(daoData.members.includes(pubkey));
-        setUserIsCreator(daoData.creator === pubkey);
-        setUserIsModerator(daoData.moderators.includes(pubkey));
-      }
-      
-    } catch (err) {
-      console.error("Error fetching DAO:", err);
-      setError("Failed to load DAO data");
-    } finally {
-      setLoading(false);
+  // Set up real-time subscriptions for DAO updates
+  const { isConnected } = useDAOSubscription({
+    daoId: id,
+    onNewProposal: (proposal) => {
+      console.log("New proposal received:", proposal);
+    },
+    onNewVote: (vote) => {
+      console.log("New vote received:", vote);
+    },
+    onDAOUpdate: (dao) => {
+      console.log("DAO update received:", dao);
     }
-  }, [daoId]);
+  });
+
+  // Fix type issues by properly checking if user is a member and creator
+  const isMemberOfCurrentDao = currentDao ? isMember(currentDao) : false;
+  const isCreatorOfCurrentDao = currentDao ? isCreator(currentDao) : false;
+  const isModeratorOfCurrentDao = currentDao ? isModerator(currentDao) : false;
   
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, currentUserPubkey]);
+  // Determine role for member
+  const userRole = isCreatorOfCurrentDao ? 'creator' : isModeratorOfCurrentDao ? 'moderator' : isMemberOfCurrentDao ? 'member' : null;
   
-  const handleCreateProposal = async (title: string, description: string, options: string[], durationDays: number) => {
-    if (!daoId) return null;
-    
-    const proposalId = await createProposal(daoId, title, description, options, durationDays);
-    if (proposalId) {
-      setIsProposalDialogOpen(false);
-      toast.success("Proposal created successfully!");
-      // Refetch the data
-      fetchData();
-      return proposalId;
-    }
-    return null;
-  };
+  // Determine if we should show the kick proposals tab
+  const hasKickProposals = !loadingKickProposals && kickProposals.length > 0;
   
-  const handleCreateKickProposal = async (memberPubkey: string, reason: string) => {
-    if (!daoId) return false;
-    
-    const success = await createKickProposal(daoId, memberPubkey, reason);
-    if (success) {
-      setIsKickProposalDialogOpen(false);
-      toast.success("Kick proposal created successfully!");
-      // Refetch the data
-      fetchData();
-      return true;
-    }
-    return false;
-  };
+  // Check if the creator is the only member
+  const isCreatorOnlyMember = currentDao && currentDao.members.length === 1 && currentDao.members[0] === currentDao.creator;
   
-  const handleJoinDAO = async () => {
-    if (!daoId) return false;
-    
-    const success = await joinDAO(daoId);
-    if (success) {
-      toast.success("You have joined the DAO!");
-      fetchData();
-    }
-    return success;
-  };
-  
-  const handleLeaveDAO = async () => {
-    if (!daoId) return false;
-    
-    try {
-      const success = await leaveDAO(daoId);
-      if (success) {
-        toast.success("You have left the DAO");
-        fetchData();
-      }
-      return success;
-    } catch (error: any) {
-      toast.error(error.message || "Failed to leave DAO");
-      return false;
-    }
-  };
-  
-  const handleDeleteDAO = async (): Promise<void> => {
-    if (!daoId) return;
-    
-    try {
-      const success = await deleteDAO(daoId);
-      if (success) {
-        toast.success("DAO deleted successfully");
-        // Navigate back to DAO list
-        window.location.href = "/dao";
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete DAO");
-    }
-  };
-  
-  const handleUpdateSettings = async () => {
-    // Reload the DAO data after settings update
-    fetchData();
-  };
-  
-  const handleVoteOnProposal = async (proposalId: string, optionIndex: number): Promise<boolean> => {
-    try {
-      const result = await daoService.voteOnProposal(proposalId, optionIndex);
-      if (result) {
-        toast.success("Vote recorded successfully!");
-        fetchData();
-      }
-      return result;
-    } catch (error) {
-      console.error("Error voting:", error);
-      toast.error("Failed to vote on proposal");
-      return false;
-    }
-  };
-  
-  const handleCreateInvite = async (): Promise<string | null> => {
-    if (!daoId) return null;
-    
-    try {
-      const inviteId = await daoService.createDAOInvite(daoId);
-      if (inviteId) {
-        // In a real app, we would create an invite link
-        const newInviteLink = `https://app.blocknoster.com/dao/invite/${inviteId}`;
-        setInviteLinks(prev => [...prev, newInviteLink]);
-        return inviteId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error creating invite:", error);
-      toast.error("Failed to create invite");
-      return null;
-    }
-  };
+  // Permission checks
+  const canModerate = isCreatorOfCurrentDao || isModeratorOfCurrentDao;
+  const canCreateProposal = currentUserPubkey && isMemberOfCurrentDao;
+  const canKickPropose = currentUserPubkey && isMemberOfCurrentDao && !isCreatorOfCurrentDao;
+  const canCreateInvite = canModerate; // Only moderators and creators can create invites
 
   if (loading) {
     return (
-      <div className="container max-w-7xl py-8">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Loading DAO...</p>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12 max-w-5xl">
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+              <p className="text-lg text-muted-foreground">Loading DAO information...</p>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error || !dao) {
+  if (!currentDao) {
     return (
-      <div className="container max-w-7xl py-8">
-        <PageHeader
-          title="DAO Not Found"
-        />
-        <Alert variant="destructive" className="mt-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {error || "This DAO could not be found or no longer exists."}
-          </AlertDescription>
-        </Alert>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12 max-w-5xl">
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
+              <p className="text-muted-foreground mb-6">
+                The DAO you're looking for doesn't exist or has been removed.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Format serial number (like #FD2719)
-  const formattedSerialNumber = dao.serialNumber 
-    ? formatSerialNumber(dao.serialNumber) 
-    : null;
+  const handleJoinDAO = async () => {
+    if (!currentUserPubkey) {
+      toast.error("Please login to join this DAO");
+      return;
+    }
+    
+    try {
+      await joinDAO(currentDao.id);
+    } catch (error) {
+      console.error("Error joining DAO:", error);
+      toast.error("Failed to join the DAO");
+    }
+  };
+  
+  const handleCreateKickProposal = async (memberToKick: string, reason: string) => {
+    if (!currentUserPubkey || !isMemberOfCurrentDao) {
+      toast.error("You must be a member to create kick proposals");
+      return false;
+    }
+    
+    try {
+      const success = await createKickProposal(currentDao.id, memberToKick, reason);
+      return success;
+    } catch (error) {
+      console.error("Error creating kick proposal:", error);
+      return false;
+    }
+  };
+  
+  const handleLeaveDAO = async () => {
+    // This would be implemented in the useDAO hook
+    toast.error("Leave DAO functionality not yet implemented");
+  };
+  
+  const handleDeleteDAO = async () => {
+    // This would be implemented in the useDAO hook
+    toast.error("Delete DAO functionality not yet implemented");
+  };
+  
+  const handleCreateInvite = async () => {
+    if (!currentUserPubkey || !canModerate) {
+      toast.error("Only moderators and creators can create invites");
+      return null;
+    }
+    
+    try {
+      const inviteLink = await createDAOInvite(currentDao.id);
+      return inviteLink;
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      return null;
+    }
+  };
+
+  // Wrapper functions to fix type issues with function parameters
+  const handleUpdateDAOPrivacy = async (daoId: string, isPrivate: boolean) => {
+    return await updateDAOPrivacy(isPrivate);
+  };
+
+  const handleUpdateDAOTags = async (daoId: string, tags: string[]) => {
+    return await updateDAOTags(tags);
+  };
+
+  // Fix for the voteOnProposal issue - adapt the function signature
+  const handleVoteOnProposal = async (proposalId: string, vote: boolean) => {
+    // Convert boolean vote to option index (0 for true, 1 for false)
+    const optionIndex = vote ? 0 : 1;
+    return await voteOnProposal(proposalId, optionIndex);
+  };
+  
+  // Fix for the voteOnKickProposal issue - adapt the function signature
+  const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
+    // Convert boolean vote to option index (0 for true, 1 for false)
+    const optionIndex = vote ? 0 : 1;
+    return await voteOnKickProposal(proposalId, optionIndex);
+  };
 
   return (
-    <div className="container max-w-7xl py-4 md:py-8">
-      {/* Back Button */}
-      <div className="mb-4">
-        <Button variant="ghost" size="sm" className="gap-1" asChild>
-          <a href="/dao">
-            <ChevronLeft className="h-4 w-4" />
-            Back to DAOs
-          </a>
-        </Button>
-      </div>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
       
-      {/* DAO Header */}
-      <DAOHeader
-        dao={dao}
-        serialNumber={formattedSerialNumber}
-        userIsCreator={userIsCreator}
-        userIsMember={userIsMember}
-        userIsModerator={userIsModerator}
-        onJoinDAO={handleJoinDAO}
-        onLeaveDAO={handleLeaveDAO}
-        onDeleteDAO={handleDeleteDAO}
-        onOpenSettings={() => setIsSettingsDialogOpen(true)}
-      />
-      
-      {/* Main Content */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-8">
-        {/* Left Column: Main Content */}
-        <div className="xl:col-span-2 space-y-6">
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="proposals" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" /> Proposals
-              </TabsTrigger>
-              <TabsTrigger value="chat" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" /> Chat
-              </TabsTrigger>
-              <TabsTrigger value="members" className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Members
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="proposals" className="space-y-6">
-              {userIsMember && (
-                <div className="flex gap-2 mb-4 flex-wrap">
-                  <Button onClick={() => setIsProposalDialogOpen(true)}>
-                    Create Proposal
-                  </Button>
-                  
-                  {(userIsCreator || userIsModerator) && (
-                    <Button variant="outline" onClick={() => setIsKickProposalDialogOpen(true)}>
-                      Propose to Kick Member
-                    </Button>
-                  )}
-                </div>
-              )}
-              
-              {dao.guidelines && (
-                <DAOGuidelines 
-                  guidelines={dao.guidelines}
-                  canEdit={userIsCreator}
-                  onUpdate={() => fetchData()}
-                />
-              )}
-              
-              {/* Proposals list */}
-              <DAOProposalsList 
-                daoId={dao.id} 
-                currentUserPubkey={currentUserPubkey || ""}
-                proposals={proposals}
-                isLoading={false}
-                isMember={userIsMember}
-                isCreator={userIsCreator}
-                onCreateProposal={handleCreateProposal}
-                onVoteProposal={handleVoteOnProposal}
-              />
-              
-              {/* Kick proposals section */}
-              {(userIsCreator || userIsModerator) && (
-                <DAOKickProposalsList 
-                  proposals={kickProposals}
-                  currentUserPubkey={currentUserPubkey || ""}
-                  onVoteKick={handleVoteOnProposal}
-                />
-              )}
-            </TabsContent>
-            
-            <TabsContent value="chat">
-              <DAOGroupChat 
-                daoId={dao.id}
-                daoName={dao.name}
-                currentUserPubkey={currentUserPubkey || ""}
-                isMember={userIsMember}
-              />
-            </TabsContent>
-            
-            <TabsContent value="members">
-              <DAOMembersList 
-                dao={dao}
-                currentUserPubkey={currentUserPubkey || ""}
-                onKickProposal={handleCreateKickProposal}
-                kickProposals={kickProposals}
-                onVoteKick={handleVoteOnProposal}
-                onLeaveDAO={handleLeaveDAO}
-              />
-              
-              {userIsCreator && (
-                <DAOInvites 
-                  daoId={dao.id}
-                  inviteLinks={inviteLinks}
-                  onCreateInvite={handleCreateInvite}
-                  isPrivate={dao.isPrivate}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        {/* Right Column: DAO Info */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>About this DAO</CardTitle>
-              <CardDescription>
-                {formattedSerialNumber && (
-                  <Badge variant="outline" className="mb-2">
-                    {formattedSerialNumber}
-                  </Badge>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium mb-1">Description</h4>
-                <p className="text-sm text-muted-foreground">{dao.description}</p>
-              </div>
-              
-              <Separator />
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">Creator</h4>
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${dao.creator.substring(0, 8)}`} />
-                    <AvatarFallback>{dao.creator.substring(0, 2)}</AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm text-muted-foreground truncate">
-                    {getNpubFromHex(dao.creator).substring(0, 10)}...
-                  </span>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">Tags</h4>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {dao.tags && dao.tags.length > 0 ? (
-                    dao.tags.map((tag, i) => (
-                      <Badge key={i} variant="secondary">{tag}</Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No tags</span>
-                  )}
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div>
-                <h4 className="text-sm font-medium mb-1">Stats</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="text-center p-2 bg-muted/50 rounded-md">
-                    <p className="text-lg font-medium">{dao.members.length}</p>
-                    <p className="text-xs text-muted-foreground">Members</p>
-                  </div>
-                  <div className="text-center p-2 bg-muted/50 rounded-md">
-                    <p className="text-lg font-medium">{dao.proposals || 0}</p>
-                    <p className="text-xs text-muted-foreground">Proposals</p>
-                  </div>
-                  <div className="text-center p-2 bg-muted/50 rounded-md">
-                    <p className="text-lg font-medium">{dao.activeProposals || 0}</p>
-                    <p className="text-xs text-muted-foreground">Active</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* User Actions */}
-          {currentUserPubkey && userIsMember && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Membership</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {userIsCreator ? (
-                    <div>
-                      <Badge className="mb-2">Creator</Badge>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        You created this DAO. You can manage settings and moderate members.
-                      </p>
-                      <Button 
-                        variant="destructive" 
-                        onClick={handleDeleteDAO}
-                        disabled={dao.members.length > 1}
-                        className="w-full"
-                      >
-                        Delete DAO
-                      </Button>
-                      {dao.members.length > 1 && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          You can only delete the DAO when you're the only member.
-                        </p>
-                      )}
-                    </div>
-                  ) : userIsModerator ? (
-                    <div>
-                      <Badge className="mb-2">Moderator</Badge>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        You're a moderator of this DAO. You can help manage proposals and members.
-                      </p>
-                      <LeaveDaoButton onLeave={handleLeaveDAO} />
-                    </div>
-                  ) : (
-                    <div>
-                      <Badge className="mb-2">Member</Badge>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        You're a member of this DAO. You can participate in proposals and discussions.
-                      </p>
-                      <LeaveDaoButton onLeave={handleLeaveDAO} />
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
-      
-      {/* Dialogs */}
-      <DAOCreateProposalDialog 
-        open={isProposalDialogOpen} 
-        onOpenChange={setIsProposalDialogOpen}
-        onCreateProposal={handleCreateProposal}
-      />
-      
-      <DAOKickProposalDialog 
-        open={isKickProposalDialogOpen}
-        onOpenChange={setIsKickProposalDialogOpen}
-        onCreateKickProposal={handleCreateKickProposal}
-        dao={dao}
-        currentUserPubkey={currentUserPubkey || ""}
-      />
-      
-      {dao && (
-        <DAOSettingsDialog
-          open={isSettingsDialogOpen}
-          onOpenChange={setIsSettingsDialogOpen}
-          dao={dao}
-          onUpdate={handleUpdateSettings}
+      <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+        <DAOPageHeader
+          name={currentDao.name}
+          isMember={isMemberOfCurrentDao}
+          isCreator={isCreatorOfCurrentDao}
+          isCreatorOnlyMember={isCreatorOnlyMember}
+          currentUserPubkey={currentUserPubkey}
+          onJoinDAO={handleJoinDAO}
+          onLeaveDAO={handleLeaveDAO}
+          onDeleteDAO={isCreatorOnlyMember ? handleDeleteDAO : undefined}
+          isPrivate={currentDao.isPrivate}
         />
-      )}
+        
+        <div className="container mx-auto px-4 py-6 max-w-3xl"> {/* Changed max-w-4xl to max-w-3xl for better centering */}
+          <div className="space-y-5">
+            {/* DAO Info */}
+            <DAOHeader 
+              dao={currentDao}
+              currentUserPubkey={currentUserPubkey}
+              userRole={userRole}
+              onLeaveDAO={handleLeaveDAO}
+              onDeleteDAO={handleDeleteDAO}
+              isCreatorOnlyMember={isCreatorOnlyMember}
+            />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Content */}
+              <div className="lg:col-span-2 space-y-5">
+                <Tabs defaultValue="proposals" className="w-full">
+                  <TabsList className="grid grid-cols-2 mb-4">
+                    <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    {canModerate && (
+                      <TabsTrigger value="settings">Settings</TabsTrigger>
+                    )}
+                  </TabsList>
+                  
+                  {/* Proposals Tab */}
+                  <TabsContent value="proposals">
+                    <DAOProposalsList
+                      daoId={currentDao.id}
+                      proposals={proposals}
+                      isLoading={loadingProposals}
+                      isMember={isMemberOfCurrentDao}
+                      isCreator={isCreatorOfCurrentDao}
+                      currentUserPubkey={currentUserPubkey}
+                      onCreateProposal={createProposal}
+                      onVoteProposal={handleVoteOnProposal}
+                    />
+                  </TabsContent>
+                  
+                  {/* Settings Tab - Only for Creator/Moderators */}
+                  {canModerate && (
+                    <TabsContent value="settings">
+                      <DAOSettingsDialog
+                        dao={currentDao}
+                        isOpen={true}
+                        onOpenChange={() => {}}
+                        isCreator={isCreatorOfCurrentDao}
+                        onUpdatePrivacy={handleUpdateDAOPrivacy}
+                        onUpdateGuidelines={updateDAOGuidelines}
+                        onUpdateTags={handleUpdateDAOTags}
+                        onAddModerator={addDAOModerator}
+                        onRemoveModerator={removeDAOModerator}
+                        onCreateInviteLink={() => createDAOInvite(currentDao.id)}
+                        embedded={true}
+                        hideGuidelines={true}
+                      />
+                    </TabsContent>
+                  )}
+                </Tabs>
+              </div>
+              
+              {/* Right Panel - Members list */}
+              <div className="lg:col-span-1">
+                <DAOMembersList 
+                  dao={currentDao}
+                  currentUserPubkey={currentUserPubkey}
+                  onKickProposal={handleCreateKickProposal}
+                  kickProposals={kickProposals}
+                  onVoteKick={handleVoteOnKickProposal}
+                  onLeaveDAO={handleLeaveDAO}
+                  userRole={userRole}
+                  canKickPropose={canKickPropose}
+                  onCreateInvite={canModerate ? handleCreateInvite : undefined}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <Toaster position="bottom-right" />
+      </div>
+      
+      {/* Keep the kick proposal dialog */}
+      <DAOKickProposalDialog
+        dao={currentDao}
+        isOpen={isKickDialogOpen}
+        onOpenChange={setIsKickDialogOpen}
+        onCreateKickProposal={handleCreateKickProposal}
+      />
     </div>
   );
-}
+};
+
+export default SingleDAOPage;

@@ -17,8 +17,7 @@ export interface DAO {
   };
   proposals: number;     // Total number of proposals
   activeProposals: number; // Number of active proposals
-  tags: string[];        // Community tags
-  serialNumber?: number; // Unique identifier for display
+  tags: string[];       // Community tags
 }
 
 export interface DAOProposal {
