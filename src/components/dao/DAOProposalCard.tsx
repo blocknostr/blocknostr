@@ -1,166 +1,175 @@
 
-import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React from 'react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ChevronDown, ChevronUp, CheckCircle, XCircle } from "lucide-react";
-import { DAOProposal } from "@/types/dao";
-import { formatDistanceToNow } from "date-fns";
+import { CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { formatDistanceToNow } from 'date-fns';
+import { DAOProposal } from '@/types/dao';
+import { nostrService } from '@/lib/nostr';
 
 interface DAOProposalCardProps {
   proposal: DAOProposal;
+  onVote?: (proposalId: string, optionIndex: number) => Promise<boolean>;
   currentUserPubkey: string | null;
-  onVote: (proposalId: string, vote: boolean) => Promise<boolean>;
-  isExpanded: boolean;
-  onToggleExpanded: () => void;
+  isMember: boolean;
 }
 
 const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
   proposal,
-  currentUserPubkey,
   onVote,
-  isExpanded,
-  onToggleExpanded
+  currentUserPubkey,
+  isMember
 }) => {
-  const [isVoting, setIsVoting] = useState(false);
-  
-  // Calculate vote counts and percentages
-  const totalVotes = Object.keys(proposal.votes).length;
-  const voteCounts = proposal.options.map((_, index) => 
-    Object.values(proposal.votes).filter(vote => vote === index).length
-  );
-  
-  const votePercentages = voteCounts.map(count => 
-    totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
-  );
-  
-  // Get user's vote if they have voted
-  const userVote = currentUserPubkey ? proposal.votes[currentUserPubkey] : undefined;
-  const hasVoted = userVote !== undefined;
-  
-  // Check if proposal is active
+  // Current time for checking if proposal is active
   const now = Math.floor(Date.now() / 1000);
-  const isActive = proposal.endsAt > now;
-  const timeRemaining = formatDistanceToNow(new Date(proposal.endsAt * 1000), { addSuffix: true });
+  const isActive = proposal.status === "active" && proposal.endsAt > now;
   
-  const handleVote = async (optionIndex: number) => {
-    if (!currentUserPubkey) return;
-    
-    setIsVoting(true);
-    try {
-      // Convert option index to boolean for the vote value (0 = true, 1 = false)
-      const voteValue = optionIndex === 0;
-      await onVote(proposal.id, voteValue);
-    } finally {
-      setIsVoting(false);
+  // Format end time
+  const endTimeFormatted = proposal.endsAt 
+    ? formatDistanceToNow(new Date(proposal.endsAt * 1000), { addSuffix: true })
+    : 'Unknown';
+
+  // Count votes
+  const totalVotes = Object.keys(proposal.votes).length;
+  
+  // Calculate votes per option
+  const votesPerOption = proposal.options.map((_, index) => {
+    return Object.values(proposal.votes).filter(vote => vote === index).length;
+  });
+  
+  // Get winning option index
+  const winningOptionIndex = votesPerOption.indexOf(Math.max(...votesPerOption));
+  
+  // Check if current user has voted
+  const userVoted = currentUserPubkey ? proposal.votes[currentUserPubkey] !== undefined : false;
+  const userVoteOption = userVoted && currentUserPubkey ? proposal.votes[currentUserPubkey] : null;
+  
+  // Determine status badge
+  const renderStatusBadge = () => {
+    if (isActive) {
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500">Active</Badge>;
+    } else if (proposal.status === "passed") {
+      return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500">Passed</Badge>;
+    } else if (proposal.status === "rejected") {
+      return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500">Rejected</Badge>;
+    } else {
+      return <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500">Canceled</Badge>;
     }
   };
   
-  const getStatusBadge = () => {
-    if (isActive) {
-      return <Badge variant="default" className="bg-green-500">Active</Badge>;
-    } else if (proposal.status === "passed") {
-      return <Badge variant="default" className="bg-blue-500">Passed</Badge>;
-    } else if (proposal.status === "rejected") {
-      return <Badge variant="default" className="bg-red-500">Rejected</Badge>;
-    } else {
-      return <Badge variant="outline">Closed</Badge>;
-    }
+  // Handle vote function
+  const handleVote = (optionIndex: number) => {
+    if (!isMember || !currentUserPubkey || !onVote) return;
+    onVote(proposal.id, optionIndex);
   };
   
   return (
-    <Card className="w-full overflow-hidden transition-all hover:shadow-md">
+    <Card className="shadow-md hover:shadow-lg transition-shadow">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-bold">{proposal.title}</CardTitle>
-            <CardDescription className="flex items-center text-xs mt-1">
-              <Clock className="h-3 w-3 mr-1" />
-              {isActive ? `Ends ${timeRemaining}` : `Ended ${timeRemaining}`}
-              <span className="mx-2">•</span>
-              {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
-            </CardDescription>
-          </div>
-          {getStatusBadge()}
+          <CardTitle className="text-lg font-bold">{proposal.title}</CardTitle>
+          {renderStatusBadge()}
+        </div>
+        <div className="flex items-center mt-1 text-sm text-muted-foreground">
+          <Avatar className="h-5 w-5 mr-2">
+            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${proposal.creator.substring(0, 8)}`} />
+            <AvatarFallback>{proposal.creator.substring(0, 2)}</AvatarFallback>
+          </Avatar>
+          <span className="mr-2">
+            {proposal.creator ? nostrService.getNpubFromHex(proposal.creator).substring(0, 8) + "..." : "Unknown"}
+          </span>
+          <span>·</span>
+          {isActive ? (
+            <span className="ml-2 flex items-center">
+              <Clock className="h-3.5 w-3.5 mr-1" />
+              Ends {endTimeFormatted}
+            </span>
+          ) : (
+            <span className="ml-2 flex items-center">
+              {proposal.status === "passed" ? (
+                <CheckCircle className="h-3.5 w-3.5 mr-1 text-green-500" />
+              ) : (
+                <AlertCircle className="h-3.5 w-3.5 mr-1 text-red-500" />
+              )}
+              Ended {endTimeFormatted}
+            </span>
+          )}
         </div>
       </CardHeader>
-      
-      <CardContent className="pb-0">
-        {!isExpanded ? (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {proposal.description}
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground mb-4">
-            {proposal.description}
-          </p>
-        )}
+      <CardContent>
+        <div className="text-sm mb-6">{proposal.description}</div>
         
-        <div className="space-y-3">
+        {/* Voting options */}
+        <div className="space-y-4">
           {proposal.options.map((option, index) => {
-            const isUserVote = userVote === index;
+            const voteCount = votesPerOption[index] || 0;
+            const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+            const isWinningOption = !isActive && winningOptionIndex === index && totalVotes > 0;
+            const isUserVote = userVoteOption === index;
+            
             return (
               <div key={index} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center">
-                    {isUserVote && <CheckCircle className="h-3 w-3 text-primary mr-1" />}
-                    <span className={isUserVote ? "font-medium text-primary" : ""}>
-                      {option}
-                    </span>
-                  </div>
-                  <span className="text-muted-foreground text-xs">
-                    {voteCounts[index]} · {votePercentages[index]}%
+                <div className="flex justify-between text-sm">
+                  <span className={`font-medium ${isUserVote ? "text-primary" : ""} ${isWinningOption ? "text-green-500" : ""}`}>
+                    {option} {isUserVote && "(Your vote)"}
+                  </span>
+                  <span className={`${isWinningOption ? "text-green-500 font-medium" : "text-muted-foreground"}`}>
+                    {voteCount} ({percentage}%)
                   </span>
                 </div>
-                <Progress value={votePercentages[index]} className="h-2" />
+                <div className="flex items-center gap-2">
+                  <Progress value={percentage} className={`h-2 ${isWinningOption ? "bg-green-500/20" : ""} ${isUserVote ? "bg-primary/20" : ""}`} />
+                  {isActive && !userVoted && isMember && (
+                    <Button 
+                      size="sm" 
+                      variant={isUserVote ? "default" : "outline"}
+                      className="h-7 px-2"
+                      onClick={() => handleVote(index)}
+                      disabled={userVoted || !currentUserPubkey || !isMember}
+                    >
+                      Vote
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
+        
+        {/* Vote count summary */}
+        <div className="mt-4 text-xs text-muted-foreground">
+          {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
+        </div>
       </CardContent>
       
-      <CardFooter className="flex-col pt-4 pb-4">
-        <div className="flex justify-between items-center w-full mb-3">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="px-0 text-xs text-muted-foreground hover:text-foreground"
-            onClick={onToggleExpanded}
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-1" /> Show less
-              </>
-            ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-1" /> Show more
-              </>
-            )}
-          </Button>
-        </div>
-        
-        {isActive && currentUserPubkey && !hasVoted && (
-          <div className="grid grid-cols-2 gap-2 w-full">
-            {proposal.options.map((option, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                onClick={() => handleVote(index)}
-                disabled={isVoting}
-                className="w-full"
-              >
-                {option}
-              </Button>
-            ))}
+      <CardFooter className="pt-0">
+        {isActive && !userVoted && currentUserPubkey && isMember && (
+          <div className="w-full text-xs text-center text-muted-foreground">
+            Click on a voting option to cast your vote
           </div>
         )}
-        
-        {hasVoted && (
-          <p className="text-xs text-center text-muted-foreground">
-            You voted for <span className="font-medium">{proposal.options[userVote]}</span>
-          </p>
+        {isActive && !currentUserPubkey && (
+          <div className="w-full text-xs text-center text-amber-500">
+            You need to login to vote
+          </div>
+        )}
+        {isActive && currentUserPubkey && !isMember && (
+          <div className="w-full text-xs text-center text-amber-500">
+            You need to join this DAO to vote
+          </div>
+        )}
+        {userVoted && (
+          <div className="w-full text-xs text-center text-green-500">
+            You have already voted
+          </div>
+        )}
+        {!isActive && (
+          <div className="w-full text-xs text-center text-muted-foreground">
+            Voting has ended
+          </div>
         )}
       </CardFooter>
     </Card>

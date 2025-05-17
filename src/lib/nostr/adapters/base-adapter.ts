@@ -47,8 +47,8 @@ export class BaseAdapter {
     return this.service.publishEvent(event);
   }
   
-  subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]) {
-    return this.service.subscribe(filters, onEvent, relays);
+  subscribe(filters: any[], onEvent: (event: any) => void) {
+    return this.service.subscribe(filters, onEvent);
   }
   
   unsubscribe(subId: string) {
@@ -62,12 +62,37 @@ export class BaseAdapter {
    */
   async getAccountCreationDate(pubkey: string): Promise<number | null> {
     // Delegate to the underlying service implementation
-    if (this.service.getAccountCreationDate) {
+    if (typeof this.service.getAccountCreationDate === 'function') {
       return this.service.getAccountCreationDate(pubkey);
     }
     
     // Fallback implementation if the service doesn't have this method
     console.warn('getAccountCreationDate not implemented in underlying service');
     return null;
+  }
+  
+  // Add additional adapter methods that might be needed
+  async reactToPost(postId: string, reaction: string): Promise<boolean> {
+    if (typeof this.service.reactToPost === 'function') {
+      return this.service.reactToPost(postId, reaction);
+    }
+    console.warn('reactToPost not implemented in underlying service');
+    return false;
+  }
+  
+  async repostNote(postId: string): Promise<boolean> {
+    if (typeof this.service.repostNote === 'function') {
+      return this.service.repostNote(postId);
+    }
+    console.warn('repostNote not implemented in underlying service');
+    return false;
+  }
+  
+  async publishProfileMetadata(metadata: any): Promise<boolean> {
+    if (typeof this.service.publishProfileMetadata === 'function') {
+      return this.service.publishProfileMetadata(metadata);
+    }
+    console.warn('publishProfileMetadata not implemented in underlying service');
+    return false;
   }
 }
