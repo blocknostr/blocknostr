@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback, useState, useRef } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -40,9 +41,8 @@ const NewGlobalFeed: React.FC<NewGlobalFeedProps> = ({
       if (loading || loadingMore || !hasMore) return;
       loadMoreEvents();
     },
-    options: {
-      rootMargin: '300px',
-    },
+    rootMargin: '300px',
+    enabled: !loading && !loadingMore && hasMore
   });
 
   // Function to fetch profiles for events

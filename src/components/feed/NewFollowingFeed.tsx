@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
@@ -29,9 +30,8 @@ const NewFollowingFeed: React.FC<NewFollowingFeedProps> = ({
       if (loading || loadingMore || !hasMore) return;
       loadMoreEvents();
     },
-    options: {
-      rootMargin: '300px',
-    },
+    rootMargin: '300px',
+    enabled: !loading && !loadingMore && hasMore
   });
 
   // Function to fetch profiles for events
