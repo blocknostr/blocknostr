@@ -61,8 +61,13 @@ const SingleDAOPage: React.FC = () => {
     }
   });
 
+  // Fix type issues by properly checking if user is a member and creator
+  const isMemberOfCurrentDao = currentDao ? isMember(currentDao) : false;
+  const isCreatorOfCurrentDao = currentDao ? isCreator(currentDao) : false;
+  const isModeratorOfCurrentDao = currentDao ? isModerator(currentDao) : false;
+  
   // Determine role for member
-  const userRole = isCreator ? 'creator' : isModerator ? 'moderator' : isMember ? 'member' : null;
+  const userRole = isCreatorOfCurrentDao ? 'creator' : isModeratorOfCurrentDao ? 'moderator' : isMemberOfCurrentDao ? 'member' : null;
   
   // Determine if we should show the kick proposals tab
   const hasKickProposals = !loadingKickProposals && kickProposals.length > 0;
@@ -71,9 +76,9 @@ const SingleDAOPage: React.FC = () => {
   const isCreatorOnlyMember = currentDao && currentDao.members.length === 1 && currentDao.members[0] === currentDao.creator;
   
   // Permission checks
-  const canModerate = isCreator || isModerator;
-  const canCreateProposal = currentUserPubkey && isMember;
-  const canKickPropose = currentUserPubkey && isMember && !isCreator;
+  const canModerate = isCreatorOfCurrentDao || isModeratorOfCurrentDao;
+  const canCreateProposal = currentUserPubkey && isMemberOfCurrentDao;
+  const canKickPropose = currentUserPubkey && isMemberOfCurrentDao && !isCreatorOfCurrentDao;
   const canSetGuidelines = canModerate;
 
   if (loading) {
@@ -125,7 +130,7 @@ const SingleDAOPage: React.FC = () => {
   };
   
   const handleCreateKickProposal = async (memberToKick: string, reason: string) => {
-    if (!currentUserPubkey || !isMember(currentDao)) {
+    if (!currentUserPubkey || !isMemberOfCurrentDao) {
       toast.error("You must be a member to create kick proposals");
       return false;
     }
@@ -150,7 +155,7 @@ const SingleDAOPage: React.FC = () => {
   };
   
   const handleCreateInvite = async () => {
-    if (!currentUserPubkey || !isMember(currentDao)) {
+    if (!currentUserPubkey || !isMemberOfCurrentDao) {
       toast.error("You must be a member to create invites");
       return null;
     }
@@ -164,11 +169,6 @@ const SingleDAOPage: React.FC = () => {
     }
   };
 
-  // Fix type issues by properly checking if user is a member and creator
-  const isMemberOfCurrentDao = currentDao ? isMember(currentDao) : false;
-  const isCreatorOfCurrentDao = currentDao ? isCreator(currentDao) : false;
-  const isModeratorOfCurrentDao = currentDao ? isModerator(currentDao) : false;
-
   // Wrapper functions to fix type issues with function parameters
   const handleUpdateDAOPrivacy = async (daoId: string, isPrivate: boolean) => {
     return await updateDAOPrivacy(isPrivate);
@@ -178,11 +178,46 @@ const SingleDAOPage: React.FC = () => {
     return await updateDAOTags(tags);
   };
 
+  // Fix for the voteOnProposal issue - adapt the function signature
   const handleVoteOnProposal = async (proposalId: string, vote: boolean) => {
     // Convert boolean vote to option index (0 for true, 1 for false)
     const optionIndex = vote ? 0 : 1;
     return await voteOnProposal(proposalId, optionIndex);
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+              <p className="text-lg text-muted-foreground">Loading DAO information...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentDao) {
+    return (
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
+              <p className="text-muted-foreground mb-6">
+                The DAO you're looking for doesn't exist or has been removed.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -234,7 +269,7 @@ const SingleDAOPage: React.FC = () => {
                     isCreator={isCreatorOfCurrentDao}
                     currentUserPubkey={currentUserPubkey}
                     onCreateProposal={createProposal}
-                    onVoteProposal={voteOnProposal}
+                    onVoteProposal={handleVoteOnProposal}
                   />
                 </TabsContent>
                 
