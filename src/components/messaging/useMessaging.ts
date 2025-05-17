@@ -1,8 +1,7 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { nostrService } from "@/lib/nostr";
 import { NostrEvent } from "@/lib/nostr/types";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Contact, Message } from "./types";
 
 export const useMessaging = () => {
@@ -16,7 +15,6 @@ export const useMessaging = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newContactDialog, setNewContactDialog] = useState(false);
   const [newContactPubkey, setNewContactPubkey] = useState("");
-  const { toast } = useToast();
   
   const handleMessageEvent = useCallback(async (event: NostrEvent) => {
     if (!currentUserPubkey) return;
@@ -279,7 +277,7 @@ export const useMessaging = () => {
     } finally {
       setSendingMessage(false);
     }
-  }, [activeContact, newMessage, currentUserPubkey, toast]);
+  }, [activeContact, newMessage, currentUserPubkey]);
 
   const handleAddNewContact = useCallback(async () => {
     if (!newContactPubkey) return;
@@ -330,7 +328,7 @@ export const useMessaging = () => {
     
     setNewContactDialog(false);
     setNewContactPubkey("");
-  }, [newContactPubkey, contacts, fetchProfileForContact, loadMessagesForContact, toast]);
+  }, [newContactPubkey, contacts, fetchProfileForContact, loadMessagesForContact]);
 
   // Initial load contacts and setup message subscription
   useEffect(() => {
