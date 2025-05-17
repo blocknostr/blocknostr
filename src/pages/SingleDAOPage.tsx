@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -163,6 +164,26 @@ const SingleDAOPage: React.FC = () => {
     }
   };
 
+  // Fix type issues by properly checking if user is a member and creator
+  const isMemberOfCurrentDao = currentDao ? isMember(currentDao) : false;
+  const isCreatorOfCurrentDao = currentDao ? isCreator(currentDao) : false;
+  const isModeratorOfCurrentDao = currentDao ? isModerator(currentDao) : false;
+
+  // Wrapper functions to fix type issues with function parameters
+  const handleUpdateDAOPrivacy = async (daoId: string, isPrivate: boolean) => {
+    return await updateDAOPrivacy(isPrivate);
+  };
+
+  const handleUpdateDAOTags = async (daoId: string, tags: string[]) => {
+    return await updateDAOTags(tags);
+  };
+
+  const handleVoteOnProposal = async (proposalId: string, vote: boolean) => {
+    // Convert boolean vote to option index (0 for true, 1 for false)
+    const optionIndex = vote ? 0 : 1;
+    return await voteOnProposal(proposalId, optionIndex);
+  };
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -170,8 +191,8 @@ const SingleDAOPage: React.FC = () => {
       <div className="flex-1 ml-0 md:ml-64 overflow-auto">
         <DAOPageHeader
           name={currentDao.name}
-          isMember={isMember(currentDao)}
-          isCreator={isCreator(currentDao)}
+          isMember={isMemberOfCurrentDao}
+          isCreator={isCreatorOfCurrentDao}
           isCreatorOnlyMember={isCreatorOnlyMember}
           currentUserPubkey={currentUserPubkey}
           onJoinDAO={handleJoinDAO}
@@ -209,8 +230,8 @@ const SingleDAOPage: React.FC = () => {
                     daoId={currentDao.id}
                     proposals={proposals}
                     isLoading={loadingProposals}
-                    isMember={isMember(currentDao)}
-                    isCreator={isCreator(currentDao)}
+                    isMember={isMemberOfCurrentDao}
+                    isCreator={isCreatorOfCurrentDao}
                     currentUserPubkey={currentUserPubkey}
                     onCreateProposal={createProposal}
                     onVoteProposal={voteOnProposal}
@@ -233,10 +254,10 @@ const SingleDAOPage: React.FC = () => {
                       dao={currentDao}
                       isOpen={true}
                       onOpenChange={() => {}}
-                      isCreator={isCreator(currentDao)}
-                      onUpdatePrivacy={updateDAOPrivacy}
+                      isCreator={isCreatorOfCurrentDao}
+                      onUpdatePrivacy={handleUpdateDAOPrivacy}
                       onUpdateGuidelines={updateDAOGuidelines}
-                      onUpdateTags={updateDAOTags}
+                      onUpdateTags={handleUpdateDAOTags}
                       onAddModerator={addDAOModerator}
                       onRemoveModerator={removeDAOModerator}
                       onCreateInviteLink={() => createDAOInvite(currentDao.id)}
@@ -260,7 +281,7 @@ const SingleDAOPage: React.FC = () => {
                 canKickPropose={canKickPropose}
               />
               
-              {isMember && (
+              {isMemberOfCurrentDao && (
                 <DAOInvites
                   daoId={currentDao.id}
                   onCreateInvite={handleCreateInvite}

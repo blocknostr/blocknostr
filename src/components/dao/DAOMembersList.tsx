@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Search, Shield, Crown, UserX } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DAO } from "@/types/dao";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { nostrService } from "@/lib/nostr";
 
 interface DAOMembersListProps {
