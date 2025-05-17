@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +9,19 @@ import { Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
 
 interface CreateDAODialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateDAO: (name: string, description: string, tags: string[]) => Promise<string | null>;
+  onCreateDAO: (name: string, description: string, tags: string[], alephiumProjectId?: string) => Promise<string | null>;
 }
 
 const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
@@ -26,7 +35,29 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [alephiumProjects, setAlephiumProjects] = useState<LinxLabsProject[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [loadingProjects, setLoadingProjects] = useState(false);
   const navigate = useNavigate();
+  
+  // Fetch Alephium projects when dialog opens
+  useEffect(() => {
+    if (open) {
+      const loadProjects = async () => {
+        setLoadingProjects(true);
+        try {
+          const projects = await fetchAlephiumDApps();
+          setAlephiumProjects(projects);
+        } catch (error) {
+          console.error("Failed to load Alephium projects:", error);
+        } finally {
+          setLoadingProjects(false);
+        }
+      };
+      
+      loadProjects();
+    }
+  }, [open]);
   
   const resetForm = () => {
     setName("");
@@ -35,6 +66,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     setTagInput("");
     setIsSubmitting(false);
     setNameError("");
+    setSelectedProjectId("");
   };
   
   const handleClose = () => {
@@ -71,7 +103,8 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     
     setIsSubmitting(true);
     try {
-      const daoId = await onCreateDAO(name.trim(), description, tags);
+      // Add selected project ID to onCreateDAO call
+      const daoId = await onCreateDAO(name.trim(), description, tags, selectedProjectId || undefined);
       if (daoId) {
         toast.success("DAO created successfully!", {
           description: "Redirecting to your new DAO..."
@@ -105,6 +138,22 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
   
   const removeTag = (tagToRemove: string) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+  
+  // Find the selected project to pre-populate tags if needed
+  const handleProjectSelection = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    
+    if (projectId) {
+      const selectedProject = alephiumProjects.find(project => project.id === projectId);
+      if (selectedProject && selectedProject.tags && selectedProject.tags.length > 0) {
+        // Add project tags if they're not already in the tags list
+        const projectTags = selectedProject.tags.filter(tag => !tags.includes(tag));
+        if (projectTags.length > 0) {
+          setTags([...tags, ...projectTags]);
+        }
+      }
+    }
   };
   
   return (
@@ -143,6 +192,26 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
               placeholder="Describe your DAO's purpose and goals"
               rows={3}
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="alephium-project">Alephium Project (optional)</Label>
+            <Select value={selectedProjectId} onValueChange={handleProjectSelection}>
+              <SelectTrigger id="alephium-project" className="w-full" disabled={loadingProjects}>
+                <SelectValue placeholder={loadingProjects ? "Loading projects..." : "Select an Alephium project"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {alephiumProjects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Link this DAO to an Alephium project for better discoverability
+            </p>
           </div>
           
           <div className="space-y-2">
