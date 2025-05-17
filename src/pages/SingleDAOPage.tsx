@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -183,6 +184,13 @@ const SingleDAOPage: React.FC = () => {
     const optionIndex = vote ? 0 : 1;
     return await voteOnProposal(proposalId, optionIndex);
   };
+  
+  // Fix for the voteOnKickProposal issue - adapt the function signature
+  const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
+    // Convert boolean vote to option index (0 for true, 1 for false)
+    const optionIndex = vote ? 0 : 1;
+    return await voteOnKickProposal(proposalId, optionIndex);
+  };
 
   if (loading) {
     return (
@@ -309,7 +317,7 @@ const SingleDAOPage: React.FC = () => {
                 currentUserPubkey={currentUserPubkey}
                 onKickProposal={handleCreateKickProposal}
                 kickProposals={kickProposals}
-                onVoteKick={voteOnKickProposal}
+                onVoteKick={handleVoteOnKickProposal}
                 onLeaveDAO={handleLeaveDAO}
                 userRole={userRole}
                 canKickPropose={canKickPropose}
