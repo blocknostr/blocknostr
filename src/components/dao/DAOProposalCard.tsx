@@ -11,7 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 interface DAOProposalCardProps {
   proposal: DAOProposal;
   currentUserPubkey: string | null;
-  onVote: (proposalId: string, optionIndex: number) => Promise<boolean>;
+  onVote: (proposalId: string, vote: boolean) => Promise<boolean>;
   isExpanded: boolean;
   onToggleExpanded: () => void;
 }
@@ -49,7 +49,9 @@ const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
     
     setIsVoting(true);
     try {
-      await onVote(proposal.id, optionIndex);
+      // Convert option index to boolean for the vote value (0 = true, 1 = false)
+      const voteValue = optionIndex === 0;
+      await onVote(proposal.id, voteValue);
     } finally {
       setIsVoting(false);
     }
