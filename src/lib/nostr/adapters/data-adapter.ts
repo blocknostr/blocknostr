@@ -1,6 +1,6 @@
 
 import { BaseAdapter } from './base-adapter';
-import { NostrEvent, NostrFilter } from '@/lib/nostr';
+import { NostrEvent } from '@/lib/nostr';
 import { Filter } from 'nostr-tools';
 
 /**
@@ -36,7 +36,7 @@ export class DataAdapter extends BaseAdapter {
     
     try {
       // Construct a filter to get user's notes
-      const filter: NostrFilter = { 
+      const filter: Filter = { 
         authors: [pubkey],
         kinds: [1], // Notes
         limit
