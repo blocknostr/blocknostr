@@ -24,7 +24,7 @@ interface KickProposal {
 interface DAOKickProposalsListProps {
   proposals: KickProposal[];
   currentUserPubkey: string | null;
-  onVote: (proposalId: string, vote: boolean) => Promise<boolean>; // Updated signature to match DAOMembersList
+  onVote: (proposalId: string, vote: boolean) => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -36,6 +36,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
 }) => {
   const [isVoting, setIsVoting] = useState<Record<string, boolean>>({});
   
+  // Handle empty states consistently
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -57,7 +58,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
     );
   }
   
-  // Updated to use boolean values for vote as expected by handleVoteOnKickProposal
+  // Handle vote submission with proper boolean parameters
   const handleVote = async (proposalId: string, vote: boolean) => {
     setIsVoting(prev => ({ ...prev, [proposalId]: true }));
     try {
@@ -96,6 +97,9 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
           reason = content.reason || reason;
         } catch (e) {}
         
+        // Format the target pubkey for better readability
+        const displayTargetPubkey = `${proposal.targetPubkey.substring(0, 12)}...${proposal.targetPubkey.substring(60)}`;
+        
         return (
           <Card key={proposal.id} className="border-red-200 bg-red-50/30 dark:bg-red-900/5">
             <CardHeader>
@@ -132,7 +136,7 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium">Target user:</p>
                 <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                  {proposal.targetPubkey.substring(0, 12)}...{proposal.targetPubkey.substring(60)}
+                  {displayTargetPubkey}
                 </code>
               </div>
               

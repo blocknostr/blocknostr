@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useProfileCache } from "@/hooks/useProfileCache";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MoreHorizontal, Crown, Shield, UserPlus, Copy, Check } from "lucide-react";
 import { 
@@ -16,17 +16,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { nostrService } from "@/lib/nostr";
 
 interface DAOMembersListProps {
   dao: DAO;
   currentUserPubkey: string | null;
   onKickProposal: (memberPubkey: string, reason: string) => Promise<boolean>;
   kickProposals: any[];
-  onVoteKick: (proposalId: string, vote: boolean) => Promise<boolean>; // Updated to use boolean
+  onVoteKick: (proposalId: string, vote: boolean) => Promise<boolean>;
   onLeaveDAO: () => Promise<void>;
   userRole: string | null;
   canKickPropose: boolean;
-  onCreateInvite?: () => Promise<string | null>; // New prop for invite creation
+  onCreateInvite?: () => Promise<string | null>;
 }
 
 const DAOMembersList: React.FC<DAOMembersListProps> = ({
@@ -49,32 +50,6 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [isCreatingInvite, setIsCreatingInvite] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(true);
-  const [memberProfiles, setMemberProfiles] = useState<Record<string, any>>({});
-
-  // Get user profiles for all members
-  const profileCache = useProfileCache();
-  
-  // Fix: Fetch profiles manually using the hook
-  useEffect(() => {
-    const fetchMemberProfiles = async () => {
-      if (dao.members.length > 0) {
-        setIsLoadingProfiles(true);
-        try {
-          const fetchedProfiles = await profileCache.fetchProfiles(dao.members);
-          setMemberProfiles(fetchedProfiles);
-        } catch (error) {
-          console.error("Error fetching member profiles:", error);
-        } finally {
-          setIsLoadingProfiles(false);
-        }
-      } else {
-        setIsLoadingProfiles(false);
-      }
-    };
-
-    fetchMemberProfiles();
-  }, [dao.members, profileCache]);
   
   // Check if current user has a pending kick proposal
   const hasKickProposal = (memberPubkey: string): boolean => {
@@ -137,26 +112,34 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
   // Check if member is creator or moderator
   const getMemberRole = (pubkey: string): string | null => {
     if (pubkey === dao.creator) return "creator";
-    if (dao.moderators.includes(pubkey)) return "moderator";
+    if (dao.moderators?.includes(pubkey)) return "moderator";
     return null;
   };
   
-  // Get avatar letters for fallback
-  const getAvatarLetters = (pubkey: string, profile?: any): string => {
-    if (profile?.name) {
-      return profile.name.substring(0, 2).toUpperCase();
-    }
-    if (profile?.displayName) {
-      return profile.displayName.substring(0, 2).toUpperCase();
-    }
+  // Get avatar letters for fallback 
+  const getAvatarLetters = (pubkey: string): string => {
     return pubkey.substring(0, 2).toUpperCase();
   };
   
-  // Get display name for member
-  const getDisplayName = (pubkey: string, profile?: any): string => {
-    if (profile?.name) return profile.name;
-    if (profile?.displayName) return profile.displayName;
+  // Get displayable pubkey (shortened)
+  const getShortenedPubkey = (pubkey: string): string => {
     return pubkey.substring(0, 8) + "..." + pubkey.substring(pubkey.length - 4);
+  };
+  
+  // Format pubkey for display
+  const formatDisplayName = (pubkey: string): string => {
+    // Try to convert to npub if possible
+    try {
+      const npub = nostrService.getNpubFromHex ? nostrService.getNpubFromHex(pubkey) : null;
+      if (npub) {
+        return npub.substring(0, 8) + "...";
+      }
+    } catch (e) {
+      console.warn("Error converting pubkey to npub:", e);
+    }
+    
+    // Fallback to hex format
+    return getShortenedPubkey(pubkey);
   };
   
   return (
@@ -208,72 +191,65 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
           )}
 
           {/* Members list */}
-          {isLoadingProfiles ? (
-            <div className="py-8 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-              <p className="mt-2 text-sm text-muted-foreground">Loading members...</p>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {dao.members.map((memberPubkey) => {
-                const profile = memberProfiles[memberPubkey];
-                const memberRole = getMemberRole(memberPubkey);
-                const isPending = hasKickProposal(memberPubkey);
-                const isCurrentUser = currentUserPubkey === memberPubkey;
-                
-                return (
-                  <li key={memberPubkey} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={profile?.picture} alt={getDisplayName(memberPubkey, profile)} />
-                        <AvatarFallback>{getAvatarLetters(memberPubkey, profile)}</AvatarFallback>
-                      </Avatar>
-                      
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{getDisplayName(memberPubkey, profile)}</span>
-                          {memberRole === "creator" && (
-                            <Crown className="h-4 w-4 text-yellow-500" />
-                          )}
-                          {memberRole === "moderator" && (
-                            <Shield className="h-4 w-4 text-blue-500" />
-                          )}
-                          {isCurrentUser && (
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {memberPubkey.substring(0, 8) + "..." + memberPubkey.substring(memberPubkey.length - 4)}
-                        </div>
+          <ul className="space-y-3">
+            {dao.members.map((memberPubkey) => {
+              const memberRole = getMemberRole(memberPubkey);
+              const isPending = hasKickProposal(memberPubkey);
+              const isCurrentUser = currentUserPubkey === memberPubkey;
+              const avatarSeed = memberPubkey.substring(0, 8);
+              
+              return (
+                <li key={memberPubkey} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${avatarSeed}`} />
+                      <AvatarFallback>{getAvatarLetters(memberPubkey)}</AvatarFallback>
+                    </Avatar>
+                    
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{formatDisplayName(memberPubkey)}</span>
+                        {memberRole === "creator" && (
+                          <Crown className="h-4 w-4 text-yellow-500" />
+                        )}
+                        {memberRole === "moderator" && (
+                          <Shield className="h-4 w-4 text-blue-500" />
+                        )}
+                        {isCurrentUser && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">You</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {getShortenedPubkey(memberPubkey)}
                       </div>
                     </div>
-                    
-                    {/* Member actions (kick, etc.) */}
-                    {canKickPropose && !isCurrentUser && memberPubkey !== dao.creator && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedMember(memberPubkey);
-                              setIsKickModalOpen(true);
-                            }}
-                            disabled={isPending}
-                          >
-                            {isPending ? "Kick proposal pending" : "Propose to kick"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                  </div>
+                  
+                  {/* Member actions (kick, etc.) */}
+                  {canKickPropose && !isCurrentUser && memberPubkey !== dao.creator && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedMember(memberPubkey);
+                            setIsKickModalOpen(true);
+                          }}
+                          disabled={isPending}
+                        >
+                          {isPending ? "Kick proposal pending" : "Propose to kick"}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </CardContent>
       </Card>
       
