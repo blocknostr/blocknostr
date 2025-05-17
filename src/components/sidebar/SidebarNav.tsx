@@ -46,7 +46,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       href: "/messages",
       requiresAuth: true
     },
-    // Communities item removed
     {
       name: "DAOs",
       icon: Users,
