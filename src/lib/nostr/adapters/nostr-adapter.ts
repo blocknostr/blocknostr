@@ -1,3 +1,4 @@
+
 import { nostrService } from '../service';
 import { BaseAdapter } from './base-adapter';
 import { SocialAdapter } from './social-adapter';
@@ -144,11 +145,18 @@ export class NostrAdapter extends BaseAdapter {
 
   // Add missing methods for DAO implementation
   signEvent(event: Partial<Event>): Event {
+    // Using service directly since this is a core function
     return this.service.signEvent(event as any);
   }
   
   subscribeToEvents(filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) {
-    const sub = this.service.pool.sub(relays, filters);
+    // Access pool through the service
+    const pool = this.service.getPool();
+    if (!pool) {
+      throw new Error("Pool is not available");
+    }
+    
+    const sub = pool.sub(relays, filters);
     
     sub.on('event', (event: any) => {
       callbacks.onevent(event);
@@ -159,7 +167,7 @@ export class NostrAdapter extends BaseAdapter {
     });
     
     return {
-      sub: sub.sub,
+      sub,
       unsubscribe: () => sub.unsub()
     };
   }
@@ -175,5 +183,10 @@ export class NostrAdapter extends BaseAdapter {
   
   get communityManager() {
     return this.communityAdapter.communityManager;
+  }
+  
+  // Add utility method to access pool
+  get pool() {
+    return this.service.getPool();
   }
 }

@@ -129,11 +129,14 @@ export function useDAO(daoId?: string) {
       console.error("Error fetching trending DAOs:", error);
       setLoadingTrending(false);
     });
+    
+    // No unsubscribe function needed since this is just a one-time fetch
+    return () => {};
   }, [daoId]);
   
   // Subscribe to a specific DAO
   const subscribeToDAO = useCallback(() => {
-    if (!daoId) return;
+    if (!daoId) return () => {};
     
     console.log(`Subscribing to DAO ${daoId}`);
     setLoading(true);
@@ -170,7 +173,7 @@ export function useDAO(daoId?: string) {
   
   // Subscribe to DAO proposals
   const subscribeToProposals = useCallback(() => {
-    if (!daoId) return;
+    if (!daoId) return () => {};
     
     console.log(`Subscribing to proposals for DAO ${daoId}`);
     setLoadingProposals(true);
@@ -941,7 +944,6 @@ export function useDAO(daoId?: string) {
         reason: reason,
         targetPubkey: memberToKick
       });
-      const options = ["Yes, remove member", "No, keep member"];
       
       // Create a special proposal with kick metadata (use only 3 arguments as expected)
       const proposalId = await daoService.createKickProposal(
