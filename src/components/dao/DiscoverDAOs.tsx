@@ -26,18 +26,38 @@ const DiscoverDAOs = () => {
           await fetchGeneralDAOs();
         }
         
-        // In a real app, these would be fetched from backend with specific criteria
-        // For now, we'll just simulate different categories from the available DAOs
+        // Try to get Alephium projects from LinxLabs API to display as DAOs
+        const alephiumProjects = await fetchAlephiumDApps();
         
-        // Get all available DAOs
-        const allDAOs = [...daos];
+        // Map projects to DAO format
+        const projectDAOs = alephiumProjects.map(project => ({
+          id: project.id,
+          name: project.name,
+          description: project.description || "An Alephium project",
+          image: project.logo || "https://alephium.org/img/logo-simplified.svg",
+          creator: "alephium-project",
+          createdAt: Date.now() / 1000 - Math.random() * 30 * 24 * 60 * 60, // Random date within last 30 days
+          members: Array(Math.floor(Math.random() * 20) + 3).fill(""),
+          moderators: ["alephium-mod"],
+          treasury: {
+            balance: Math.floor(Math.random() * 10000),
+            tokenSymbol: "ALPH"
+          },
+          proposals: Math.floor(Math.random() * 5),
+          activeProposals: Math.floor(Math.random() * 3),
+          tags: project.tags || [project.category || "DeFi"].filter(Boolean),
+          isPrivate: false
+        }));
+        
+        // Get all available DAOs (combine Nostr DAOs with Alephium projects)
+        const allDAOs = [...daos, ...projectDAOs];
         
         if (allDAOs.length > 0) {
-          // Featured DAOs - first 3
-          setFeaturedDAOs(allDAOs.slice(0, 3));
+          // Featured DAOs - first 3 (prioritize actual DAOs)
+          setFeaturedDAOs(allDAOs.slice(0, Math.min(3, allDAOs.length)));
           
           // Trending DAOs - next 4
-          setTrendingDAOs(allDAOs.slice(3, 7));
+          setTrendingDAOs(allDAOs.slice(3, Math.min(7, allDAOs.length)));
         }
       } catch (error) {
         console.error("Failed to load discover DAOs data:", error);
