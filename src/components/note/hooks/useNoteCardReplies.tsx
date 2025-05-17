@@ -1,72 +1,68 @@
 
-import { useState, useEffect } from 'react';
-import { nostrService } from '@/lib/nostr';
+import { useState, useEffect, useCallback } from "react";
+import { NostrEvent, nostrService } from "@/lib/nostr";
+import { EVENT_KINDS } from "@/lib/nostr/constants";
 
-interface UseNoteCardRepliesProps {
-  eventId: string;
-}
-
-export function useNoteCardReplies({ eventId }: UseNoteCardRepliesProps) {
-  const [replyCount, setReplyCount] = useState(0);
+export function useNoteCardReplies(eventId: string) {
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
+  const [replies, setReplies] = useState<NostrEvent[]>([]);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  
+  const fetchReplies = useCallback(async () => {
     if (!eventId) return;
-
-    const fetchReplyCount = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Connect to user relays if not already connected
-        await nostrService.connectToUserRelays();
-        
-        // Get default relays if user relays not available
-        const defaultRelays = ["wss://relay.damus.io", "wss://nos.lol"];
-        
-        // Create filter for replies (e is for event tags, p is for pubkey tags)
-        const filters = [{ "#e": [eventId], kinds: [1] }];
-        
-        // Use SimplePool to count events
-        let count = 0;
-        
-        if (nostrService.subscribe) {
-          const sub = nostrService.subscribe(
-            filters,
-            (event) => {
-              // Count valid reply events
-              if (event && event.kind === 1 && event.tags && 
-                  event.tags.some(tag => tag[0] === 'e' && tag[1] === eventId)) {
-                count++;
+    
+    setIsLoading(true);
+    
+    try {
+      // Create a filter to find events that reference this event
+      const filter = {
+        kinds: [EVENT_KINDS.TEXT_NOTE],
+        "#e": [eventId],
+        limit: 20
+      };
+      
+      // Subscribe to replies
+      const subId = nostrService.subscribe(
+        [filter],
+        (event) => {
+          if (event) {
+            setReplies(prev => {
+              // Avoid duplicates
+              if (prev.some(e => e.id === event.id)) {
+                return prev;
               }
-            },
-            // Use relay list from service if available, otherwise use defaults
-            defaultRelays
-          );
-          
-          // Set timeout to finalize count after 2s
-          setTimeout(() => {
-            setReplyCount(count);
-            setIsLoading(false);
-            
-            if (nostrService.unsubscribe && sub) {
-              nostrService.unsubscribe(sub);
-            }
-          }, 2000);
-          
-          return () => {
-            if (nostrService.unsubscribe && sub) {
-              nostrService.unsubscribe(sub);
-            }
-          };
+              
+              // Add and sort by timestamp (newest first)
+              const updated = [...prev, event];
+              return updated.sort((a, b) => b.created_at - a.created_at);
+            });
+          }
         }
-      } catch (error) {
-        console.error('Error fetching reply count:', error);
-        setIsLoading(false);
+      );
+      
+      if (subId) {
+        setSubscriptionId(subId);
+      }
+    } catch (error) {
+      console.error("Error fetching note replies:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [eventId]);
+  
+  // Clean up subscription
+  useEffect(() => {
+    return () => {
+      if (subscriptionId) {
+        nostrService.unsubscribe(subscriptionId);
       }
     };
-
-    fetchReplyCount();
-  }, [eventId]);
-
-  return { replyCount, isLoading };
+  }, [subscriptionId]);
+  
+  // Initial fetch
+  useEffect(() => {
+    fetchReplies();
+  }, [fetchReplies]);
+  
+  return { replies, isLoading, fetchReplies };
 }

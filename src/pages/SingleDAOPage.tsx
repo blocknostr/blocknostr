@@ -176,17 +176,13 @@ const SingleDAOPage: React.FC = () => {
     return await updateDAOTags(tags);
   };
 
-  // Fix for the voteOnProposal issue - adapt the function signature
-  const handleVoteOnProposal = async (proposalId: string, vote: boolean) => {
-    // Convert boolean vote to option index (0 for true, 1 for false)
-    const optionIndex = vote ? 0 : 1;
+  // Fix for the voteOnProposal issue - use the updated signature
+  const handleVoteOnProposal = async (proposalId: string, optionIndex: number) => {
     return await voteOnProposal(proposalId, optionIndex);
   };
   
-  // Fix for the voteOnKickProposal issue - adapt the function signature
-  const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
-    // Convert boolean vote to option index (0 for true, 1 for false)
-    const optionIndex = vote ? 0 : 1;
+  // Fix for the voteOnKickProposal issue
+  const handleVoteOnKickProposal = async (proposalId: string, optionIndex: number) => {
     return await voteOnKickProposal(proposalId, optionIndex);
   };
 
@@ -196,28 +192,30 @@ const SingleDAOPage: React.FC = () => {
       
       <div className="flex-1 ml-0 md:ml-64 overflow-auto">
         <DAOPageHeader
-          name={currentDao.name}
+          name={currentDao?.name || ""}
           isMember={isMemberOfCurrentDao}
           isCreator={isCreatorOfCurrentDao}
-          isCreatorOnlyMember={isCreatorOnlyMember}
+          isCreatorOnlyMember={currentDao && currentDao.members.length === 1 && currentDao.members[0] === currentDao.creator}
           currentUserPubkey={currentUserPubkey}
           onJoinDAO={handleJoinDAO}
           onLeaveDAO={handleLeaveDAO}
           onDeleteDAO={isCreatorOnlyMember ? handleDeleteDAO : undefined}
-          isPrivate={currentDao.isPrivate}
+          isPrivate={currentDao?.isPrivate}
         />
         
-        <div className="container mx-auto px-4 py-6 max-w-4xl"> {/* Changed max-w-7xl to max-w-4xl for better centering */}
+        <div className="container mx-auto px-4 py-6 max-w-4xl">
           <div className="space-y-5">
             {/* DAO Info */}
-            <DAOHeader 
-              dao={currentDao}
-              currentUserPubkey={currentUserPubkey}
-              userRole={userRole}
-              onLeaveDAO={handleLeaveDAO}
-              onDeleteDAO={handleDeleteDAO}
-              isCreatorOnlyMember={isCreatorOnlyMember}
-            />
+            {currentDao && (
+              <DAOHeader 
+                dao={currentDao}
+                currentUserPubkey={currentUserPubkey}
+                userRole={userRole}
+                onLeaveDAO={handleLeaveDAO}
+                onDeleteDAO={handleDeleteDAO}
+                isCreatorOnlyMember={isCreatorOnlyMember}
+              />
+            )}
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
@@ -233,7 +231,7 @@ const SingleDAOPage: React.FC = () => {
                   {/* Proposals Tab */}
                   <TabsContent value="proposals">
                     <DAOProposalsList
-                      daoId={currentDao.id}
+                      daoId={currentDao?.id || ""}
                       proposals={proposals}
                       isLoading={loadingProposals}
                       isMember={isMemberOfCurrentDao}
@@ -245,7 +243,7 @@ const SingleDAOPage: React.FC = () => {
                   </TabsContent>
                   
                   {/* Settings Tab - Only for Creator/Moderators */}
-                  {canModerate && (
+                  {canModerate && currentDao && (
                     <TabsContent value="settings">
                       <DAOSettingsDialog
                         dao={currentDao}
@@ -268,17 +266,19 @@ const SingleDAOPage: React.FC = () => {
               
               {/* Right Panel - Members list */}
               <div className="lg:col-span-1">
-                <DAOMembersList 
-                  dao={currentDao}
-                  currentUserPubkey={currentUserPubkey}
-                  onKickProposal={handleCreateKickProposal}
-                  kickProposals={kickProposals}
-                  onVoteKick={handleVoteOnKickProposal}
-                  onLeaveDAO={handleLeaveDAO}
-                  userRole={userRole}
-                  canKickPropose={canKickPropose}
-                  onCreateInvite={canModerate ? handleCreateInvite : undefined} // Pass invite function only if user can moderate
-                />
+                {currentDao && (
+                  <DAOMembersList 
+                    dao={currentDao}
+                    currentUserPubkey={currentUserPubkey}
+                    onKickProposal={handleCreateKickProposal}
+                    kickProposals={kickProposals}
+                    onVoteKick={handleVoteOnKickProposal}
+                    onLeaveDAO={handleLeaveDAO}
+                    userRole={userRole}
+                    canKickPropose={canKickPropose}
+                    onCreateInvite={canModerate ? handleCreateInvite : undefined}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -287,12 +287,14 @@ const SingleDAOPage: React.FC = () => {
       </div>
       
       {/* Keep the kick proposal dialog */}
-      <DAOKickProposalDialog
-        dao={currentDao}
-        isOpen={isKickDialogOpen}
-        onOpenChange={setIsKickDialogOpen}
-        onCreateKickProposal={handleCreateKickProposal}
-      />
+      {currentDao && (
+        <DAOKickProposalDialog
+          dao={currentDao}
+          isOpen={isKickDialogOpen}
+          onOpenChange={setIsKickDialogOpen}
+          onCreateKickProposal={handleCreateKickProposal}
+        />
+      )}
     </div>
   );
 };

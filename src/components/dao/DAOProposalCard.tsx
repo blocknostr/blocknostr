@@ -12,16 +12,20 @@ import { nostrService } from '@/lib/nostr';
 
 interface DAOProposalCardProps {
   proposal: DAOProposal;
-  onVote?: (proposalId: string, optionIndex: number) => Promise<boolean>;
+  onVote?: (proposalId: string, optionIndex: number) => Promise<boolean>; // Updated to use optionIndex: number
   currentUserPubkey: string | null;
   isMember: boolean;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
   proposal,
   onVote,
   currentUserPubkey,
-  isMember
+  isMember,
+  isExpanded,
+  onToggleExpanded
 }) => {
   // Current time for checking if proposal is active
   const now = Math.floor(Date.now() / 1000);
