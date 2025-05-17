@@ -14,6 +14,7 @@ export function usePostsSubscription() {
   const subscriptionRef = useRef<string | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const eventCountRef = useRef<number>(0);
+  const processedEventIds = useRef<Set<string>>(new Set());
   
   const subscribe = useCallback(async (
     hexPubkey: string | undefined, 
@@ -35,6 +36,10 @@ export function usePostsSubscription() {
       timeoutRef.current = null;
     }
     
+    // Reset event tracking
+    eventCountRef.current = 0;
+    processedEventIds.current.clear();
+    
     try {
       // First make sure we're connected to relays
       await nostrService.connectToUserRelays();
@@ -51,11 +56,15 @@ export function usePostsSubscription() {
           .slice(0, limit);
           
         noteEvents.forEach(event => {
+          // Skip if we've already processed this event
+          if (processedEventIds.current.has(event.id)) return;
+          
           const mediaUrls = getMediaUrlsFromEvent(event);
           const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
           const isMediaEvent = validMediaUrls.length > 0;
           
           eventCountRef.current++;
+          processedEventIds.current.add(event.id);
           onEvent(event, isMediaEvent);
         });
         
@@ -80,13 +89,13 @@ export function usePostsSubscription() {
           {
             kinds: [1],
             authors: [hexPubkey],
-            limit: limit * 2 // Double the limit for more aggressive loading
+            limit: Math.min(limit * 2, 100) // Double the limit for more aggressive loading, but cap at 100
           }
         ],
         (event) => {
           try {
-            // Skip if we already have this event from cache
-            if (cachedEvents.some(e => e.id === event.id)) {
+            // Skip if we already have this event
+            if (processedEventIds.current.has(event.id)) {
               return;
             }
             
@@ -105,6 +114,7 @@ export function usePostsSubscription() {
             const isMediaEvent = validMediaUrls.length > 0;
             
             eventCountRef.current++;
+            processedEventIds.current.add(event.id);
             onEvent(event, isMediaEvent);
           } catch (err) {
             console.error("Error processing event:", err);
@@ -116,11 +126,11 @@ export function usePostsSubscription() {
       subscriptionRef.current = notesSubId;
       
       // Set a timeout to check if we got any events and mark loading as complete
-      // Reduced to 1 second to remove preload delay
+      // Reduced to 3 second to remove preload delay but still give enough time
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
         onComplete();
-      }, 1000);
+      }, 3000);
       
       // Return a cleanup function
       return () => {

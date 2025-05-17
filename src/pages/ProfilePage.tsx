@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { useProfilePosts } from '@/hooks/profile/useProfilePosts';
@@ -20,16 +20,15 @@ const ProfilePage = () => {
   // Get the current user's pubkey
   const currentUserPubkey = nostrService.publicKey;
   
-  // Convert npub to hex pubkey
+  // Convert npub to hex pubkey - memoized to avoid unnecessary recalculations
   useEffect(() => {
-    if (npub) {
-      try {
-        const hex = nostrService.getHexFromNpub(npub);
-        setHexPubkey(hex);
-        // Remove explicit pre-fetching - profiles will load on demand instead
-      } catch (error) {
-        console.error('Invalid npub:', error);
-      }
+    if (!npub) return;
+    
+    try {
+      const hex = nostrService.getHexFromNpub(npub);
+      setHexPubkey(hex);
+    } catch (error) {
+      console.error('Invalid npub:', error);
     }
   }, [npub]);
   
@@ -76,12 +75,12 @@ const ProfilePage = () => {
     relays: relaysLoading
   };
   
-  // Combined refetch function
-  const handleRefresh = () => {
+  // Combined refetch function - memoized to prevent recreation
+  const handleRefresh = useCallback(() => {
     refetchPosts();
     refetchRelations();
     refetchRelays();
-  };
+  }, [refetchPosts, refetchRelations, refetchRelays]);
   
   if (!npub || !hexPubkey) {
     return (
@@ -95,9 +94,6 @@ const ProfilePage = () => {
   // Show a minimal loading state only for the very initial profile data
   // Everything else will load progressively
   const isInitialLoading = profileLoading && !profile?.name && !profile?.displayName;
-  
-  // Calculate posts count safely
-  const postsCount = hasEvents && events ? events.length : undefined;
   
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">

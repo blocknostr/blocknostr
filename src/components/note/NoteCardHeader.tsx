@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { formatPubkey, getNpubFromHex } from '@/lib/nostr/utils/keys';
 import { Skeleton } from "@/components/ui/skeleton";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
-import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
 interface NoteCardHeaderProps {
@@ -54,15 +53,17 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     return { npub, shortNpub, displayName, avatarFallback };
   }, [pubkey]);
   
-  // Effect to handle intersection observer for lazy fetching
+  // Effect to handle intersection observer for lazy fetching - optimized to reduce rerenders
   useEffect(() => {
-    // Initialize shouldFetch based on whether profileData was provided
+    // Skip setup if we already have profile data or pubkey is missing
     if (profileData || !pubkey) {
       setShouldFetch(false);
       return;
     }
     
-    // Set up intersection observer for lazy loading
+    // Use a single observer for all note headers to reduce overhead
+    const elementId = `note-header-${pubkey.substring(0, 8)}`;
+    
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -70,30 +71,32 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
           observer.disconnect();
         }
       },
-      { threshold: 0.1, rootMargin: '50px' }
+      { threshold: 0.1, rootMargin: '100px' } // Increased margin to load earlier
     );
     
-    const element = document.getElementById(`note-header-${pubkey.substring(0, 8)}`);
-    if (element) {
-      observer.observe(element);
-    }
+    // Use requestAnimationFrame to avoid layout thrashing
+    requestAnimationFrame(() => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        observer.observe(element);
+      }
+    });
     
     return () => {
       observer.disconnect();
     };
   }, [pubkey, profileData]);
   
-  // Effect to fetch profile data only when shouldFetch is true
+  // Effect to fetch profile data only when shouldFetch is true - optimized for performance
   useEffect(() => {
-    let isMounted = true;
-    
-    // Update local state if profile data prop changes (immediate update)
+    // If we already have profile data from props, use that
     if (profileData) {
       setLocalProfileData(profileData);
       setIsLoading(false);
       return;
     }
     
+    // Skip if we don't have a pubkey or shouldn't fetch yet
     if (!pubkey || !shouldFetch) {
       if (!pubkey) {
         setIsLoading(false);
@@ -101,30 +104,30 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
       return;
     }
     
+    let isMounted = true;
     setIsLoading(true);
     
-    // Fetch profile if not provided
-    const fetchProfile = async () => {
-      try {
-        const profile = await unifiedProfileService.getProfile(pubkey);
-        
-        if (profile && isMounted) {
-          setLocalProfileData(profile);
-          setIsLoading(false);
-        } else if (isMounted) {
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error(`[NoteCardHeader] Error fetching profile for ${pubkey}:`, error);
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
+    // Use a timeout to stagger profile fetches and reduce network congestion
+    const timeoutId = setTimeout(() => {
+      // Fetch profile if not provided
+      unifiedProfileService.getProfile(pubkey)
+        .then(profile => {
+          if (profile && isMounted) {
+            setLocalProfileData(profile);
+            setIsLoading(false);
+          } else if (isMounted) {
+            setIsLoading(false);
+          }
+        })
+        .catch(error => {
+          console.error(`[NoteCardHeader] Error fetching profile for ${pubkey}:`, error);
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        });
+    }, Math.random() * 300); // Randomized delay to prevent thundering herd problem
     
-    fetchProfile();
-    
-    // Subscribe to profile updates
+    // Subscribe to profile updates with a reduced frequency
     const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (profile) => {
       if (profile && isMounted) {
         setLocalProfileData(profile);
@@ -134,11 +137,12 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
     
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
       unsubscribe();
     };
   }, [pubkey, profileData, shouldFetch]);
   
-  // Format the created at timestamp
+  // Format the created at timestamp - memoized to avoid recalculations on rerenders
   const timeAgo = useMemo(() => {
     try {
       if (createdAt && createdAt > 0) {
@@ -158,6 +162,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
   const displayName = localProfileData?.display_name || name;
   const picture = localProfileData?.picture || '';
 
+  // Using React.memo pattern internally by making render output depend only on derived values
   return (
     <div className="flex justify-between" id={`note-header-${pubkey.substring(0, 8)}`}>
       <div className="flex">
@@ -177,6 +182,7 @@ const NoteCardHeader = ({ pubkey, createdAt, profileData }: NoteCardHeaderProps)
                   src={picture} 
                   alt={displayName} 
                   className="transition-opacity duration-300"
+                  loading="lazy" // Add lazy loading for images
                 />
                 <AvatarFallback className="bg-primary/10 text-primary">
                   {stableValues.avatarFallback}

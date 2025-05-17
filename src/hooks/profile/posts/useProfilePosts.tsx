@@ -18,6 +18,7 @@ export function useProfilePosts({
   
   const isMounted = useRef(true);
   const eventCountRef = useRef<number>(0);
+  const processedRef = useRef<boolean>(false); // Track if we've already processed
   
   const { checkCache } = useCacheCheck();
   const { subscribe, cleanup, subscriptionRef } = usePostsSubscription();
@@ -27,8 +28,9 @@ export function useProfilePosts({
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+      cleanup(); // Make sure we clean up subscription on unmount
     };
-  }, []);
+  }, [cleanup]);
   
   useEffect(() => {
     // Reset state when pubkey changes
@@ -39,6 +41,7 @@ export function useProfilePosts({
       setLoading(true);
       setHasEvents(false);
       eventCountRef.current = 0;
+      processedRef.current = false; // Reset processed flag
     }
     
     // Guard clause - skip if no pubkey
@@ -98,13 +101,17 @@ export function useProfilePosts({
             console.log("Posts loading timeout - events found:", eventCountRef.current);
             setLoading(false);
             
-            if (eventCountRef.current === 0 && !hasEvents) {
+            // Prevent showing "no posts found" if we're still loading or we have events from cache
+            if (eventCountRef.current === 0 && !hasEvents && !processedRef.current) {
               console.log("No posts found for user");
               // Only show error if we didn't get any events and there are none in the cache
               if (events.length === 0) {
                 setError("No posts found");
               }
             }
+            
+            // Mark as processed to prevent duplicate error messages
+            processedRef.current = true;
           }
         });
         
@@ -120,7 +127,12 @@ export function useProfilePosts({
     // Start subscription without awaiting
     let unsubscribe: (() => void) | undefined;
     startSubscription().then(cleanupFn => {
-      unsubscribe = cleanupFn;
+      if (isMounted.current) {
+        unsubscribe = cleanupFn;
+      } else if (cleanupFn) {
+        // If component was unmounted before promise resolved, cleanup immediately
+        cleanupFn();
+      }
     });
     
     // Return cleanup function
@@ -139,6 +151,7 @@ export function useProfilePosts({
       setLoading(true);
       setHasEvents(false);
       eventCountRef.current = 0;
+      processedRef.current = false; // Reset processed flag
       
       // Unsubscribe from current subscription
       cleanup();

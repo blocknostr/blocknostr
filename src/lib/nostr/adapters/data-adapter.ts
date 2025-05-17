@@ -1,6 +1,7 @@
 
 import { BaseAdapter } from './base-adapter';
 import { NostrEvent } from '@/lib/nostr';
+import { Filter } from 'nostr-tools';
 
 /**
  * Adapter for data retrieval operations
@@ -28,12 +29,25 @@ export class DataAdapter extends BaseAdapter {
   }
   
   /**
-   * Get events authored by a specific user
-   * Stub implementation - returns empty array
+   * Get events authored by a specific user with proper implementation
    */
-  async getEventsByUser(pubkey: string): Promise<NostrEvent[]> {
-    console.log(`Getting events for user ${pubkey} (stub implementation)`);
-    // Return empty array as a placeholder until properly implemented
-    return [];
+  async getEventsByUser(pubkey: string, limit: number = 20): Promise<NostrEvent[]> {
+    if (!pubkey) return [];
+    
+    try {
+      // Construct a filter to get user's notes
+      const filter: Filter = { 
+        authors: [pubkey],
+        kinds: [1], // Notes
+        limit
+      };
+      
+      // Use the existing getEvents method with the filter
+      const events = await this.service.getEvents([filter]);
+      return Array.isArray(events) ? events : [];
+    } catch (error) {
+      console.error(`Error getting events for user ${pubkey}:`, error);
+      return [];
+    }
   }
 }

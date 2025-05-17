@@ -129,29 +129,7 @@ export class NostrAdapter extends BaseAdapter {
     return this.dataAdapter.verifyNip05(identifier, pubkey);
   }
   
-  // Community methods
-  async createCommunity(name: string, description: string) {
-    return this.communityAdapter.createCommunity(name, description);
-  }
-  
-  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
-    return this.communityAdapter.createProposal(communityId, title, description, options, category);
-  }
-
-  async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
-  }
-  
-  // Manager getters
-  get socialManager() {
-    return this.socialAdapter.socialManager;
-  }
-  
-  get relayManager() {
-    return this.relayAdapter.relayManager;
-  }
-  
-  get communityManager() {
-    return this.communityAdapter.communityManager;
+  async getEventsByUser(pubkey: string, limit: number = 20) {
+    return this.dataAdapter.getEventsByUser(pubkey, limit);
   }
 }
