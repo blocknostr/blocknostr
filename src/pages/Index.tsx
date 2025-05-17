@@ -11,7 +11,7 @@ const Index: React.FC = () => {
   const { preferences, storageAvailable, storageQuotaReached } = useUserPreferences();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const [storageErrorDismissed, setStorageErrorDismissed] = useState(false);
-  const isLoggedIn = !!nostrService.publicKey;
+  const [isLoggedIn, setIsLoggedIn] = useState(!!nostrService.publicKey);
   
   useEffect(() => {
     // Connect to relays in the background if logged in
@@ -29,6 +29,16 @@ const Index: React.FC = () => {
     };
     
     initNostr();
+    
+    // Check login status periodically without page refresh
+    const checkLoginStatus = () => {
+      const currentLoginStatus = !!nostrService.publicKey;
+      if (currentLoginStatus !== isLoggedIn) {
+        setIsLoggedIn(currentLoginStatus);
+      }
+    };
+    
+    const loginStatusInterval = setInterval(checkLoginStatus, 1000);
     
     // Listen for hashtag changes from global events
     const handleHashtagChange = (event: CustomEvent) => {
@@ -50,6 +60,7 @@ const Index: React.FC = () => {
     
     return () => {
       window.removeEventListener('set-hashtag', handleHashtagChange as EventListener);
+      clearInterval(loginStatusInterval);
     };
   }, [isLoggedIn, preferences.relayPreferences?.autoConnect, storageAvailable, storageErrorDismissed]);
 

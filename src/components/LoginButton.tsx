@@ -55,11 +55,6 @@ const LoginButton = () => {
     setIsLoggedIn(false);
     setNpub("");
     toast.success("Signed out successfully");
-    
-    // Reload the page to reset all states
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
   };
   
   if (isLoggedIn) {
