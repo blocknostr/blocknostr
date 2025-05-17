@@ -78,7 +78,7 @@ const PostPage: React.FC = () => {
       <div className="flex min-h-screen bg-background">
         <Sidebar />
         <div className="flex-1 ml-0 md:ml-64 p-6">
-          <BackButton onClick={() => navigate(-1)} />
+          <BackButton fallbackPath="/" />
           <div className="text-center mt-10">Loading post...</div>
         </div>
       </div>
@@ -90,7 +90,7 @@ const PostPage: React.FC = () => {
       <div className="flex min-h-screen bg-background">
         <Sidebar />
         <div className="flex-1 ml-0 md:ml-64 p-6">
-          <BackButton onClick={() => navigate(-1)} />
+          <BackButton fallbackPath="/" />
           <div className="text-center mt-10">Post not found.</div>
         </div>
       </div>
@@ -101,11 +101,10 @@ const PostPage: React.FC = () => {
     <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex-1 ml-0 md:ml-64 p-6">
-        <BackButton onClick={() => navigate(-1)} />
+        <BackButton fallbackPath="/" />
         <NoteCard
           event={event}
           profileData={profiles[event.pubkey]}
-          isExpanded={true}
         />
         <Toaster position="bottom-right" />
       </div>
