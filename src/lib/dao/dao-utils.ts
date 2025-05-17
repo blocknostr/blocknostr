@@ -42,17 +42,13 @@ export function flattenPromises<T>(promises: Promise<T>[][]): Promise<T>[] {
  * Like Promise.any but with better typing and fallback for older environments
  */
 export function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
-  if (typeof Promise.any === 'function') {
-    return Promise.any(promises) as Promise<T>;
-  }
-
-  // Fallback implementation for environments without Promise.any
+  // Use Promise.prototype.then to handle Promise.any polyfill
   return new Promise((resolve, reject) => {
     let errors: Error[] = [];
     let rejected = 0;
     
     if (promises.length === 0) {
-      reject(new AggregateError([], "No promises to resolve"));
+      reject(new Error("No promises to resolve"));
       return;
     }
     
@@ -61,25 +57,9 @@ export function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
         errors[i] = error;
         rejected++;
         if (rejected === promises.length) {
-          reject(new AggregateError(errors, "All promises were rejected"));
+          reject(new Error("All promises were rejected: " + errors.map(e => e.message).join(', ')));
         }
       });
     });
   });
-}
-
-// Polyfill for AggregateError if it doesn't exist
-if (typeof globalThis.AggregateError === 'undefined') {
-  class AggregateError extends Error {
-    errors: any[];
-    
-    constructor(errors: any[], message?: string) {
-      super(message);
-      this.errors = errors;
-      this.name = 'AggregateError';
-    }
-  }
-  
-  // @ts-ignore
-  globalThis.AggregateError = AggregateError;
 }

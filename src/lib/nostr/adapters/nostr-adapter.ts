@@ -71,86 +71,21 @@ export class NostrAdapter extends BaseAdapter {
     return this.socialAdapter.isUserBlocked(pubkey);
   }
   
-  // Relay methods
-  async addRelay(relayUrl: string, readWrite: boolean = true) {
-    return this.relayAdapter.addRelay(relayUrl, readWrite);
-  }
-  
-  removeRelay(relayUrl: string) {
-    return this.relayAdapter.removeRelay(relayUrl);
-  }
-  
-  getRelayStatus() {
-    return this.relayAdapter.getRelayStatus();
-  }
-
-  getRelayUrls() {
-    return this.relayAdapter.getRelayUrls();
-  }
-  
-  async getRelaysForUser(pubkey: string) {
-    return this.relayAdapter.getRelaysForUser(pubkey);
-  }
-  
-  async connectToDefaultRelays() {
-    return this.relayAdapter.connectToDefaultRelays();
-  }
-  
-  async connectToUserRelays() {
-    return this.relayAdapter.connectToUserRelays();
-  }
-  
-  async addMultipleRelays(relayUrls: string[]) {
-    return this.relayAdapter.addMultipleRelays(relayUrls);
-  }
-  
-  // Add the new NIP-65 relay list publishing method
-  async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
-    return this.relayAdapter.publishRelayList(relays);
-  }
-  
-  // Data retrieval methods
-  async getEventById(id: string) {
-    return this.dataAdapter.getEventById(id);
-  }
-  
-  async getEvents(ids: string[]) {
-    return this.dataAdapter.getEvents(ids);
-  }
-  
-  async getProfilesByPubkeys(pubkeys: string[]) {
-    return this.dataAdapter.getProfilesByPubkeys(pubkeys);
-  }
-  
-  async getUserProfile(pubkey: string) {
-    return this.dataAdapter.getUserProfile(pubkey);
-  }
-  
-  async verifyNip05(identifier: string, pubkey: string) {
-    return this.dataAdapter.verifyNip05(identifier, pubkey);
-  }
-  
-  // Community methods
-  async createCommunity(name: string, description: string) {
-    return this.communityAdapter.createCommunity(name, description);
-  }
-  
-  async createProposal(communityId: string, title: string, description: string, options: string[] = [], category: string = '') {
-    return this.communityAdapter.createProposal(communityId, title, description, options, category);
-  }
-
-  async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
-  }
-
   // Add missing methods for DAO implementation
   signEvent(event: Partial<Event>): Event {
-    // Using service directly since this is a core function
-    return this.service.signEvent(event as any);
+    // Using service directly 
+    if (typeof this.service.signEvent === 'function') {
+      return this.service.signEvent(event as any);
+    }
+    throw new Error("signEvent method is not available on the service");
   }
   
   subscribeToEvents(filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) {
     // Access pool through the service
+    if (typeof this.service.getPool !== 'function') {
+      throw new Error("getPool method is not available on the service");
+    }
+    
     const pool = this.service.getPool();
     if (!pool) {
       throw new Error("Pool is not available");
@@ -187,6 +122,9 @@ export class NostrAdapter extends BaseAdapter {
   
   // Add utility method to access pool
   get pool() {
+    if (typeof this.service.getPool !== 'function') {
+      throw new Error("getPool method is not available on the service");
+    }
     return this.service.getPool();
   }
 }

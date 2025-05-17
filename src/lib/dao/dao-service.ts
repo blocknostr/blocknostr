@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import { Event, Filter } from 'nostr-tools';
 import { convertToFilter, flattenPromises, promiseAny } from './dao-utils';
@@ -6,12 +5,12 @@ import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from '@/lib/nostr';
 
 export class DAOService {
-  private service: any; // Replace with actual service type
-  private adapter: any; // Replace with actual adapter type
+  private service: any; // Service for Nostr operations
+  private adapterInstance: any; // Instance of NostrAdapter
 
-  constructor(service: any, adapter: any) {
+  constructor(service: any, adapterInstance: any) {
     this.service = service;
-    this.adapter = adapter;
+    this.adapterInstance = adapterInstance;
   }
 
   async getDAOById(daoId: string): Promise<DAO | null> {
@@ -113,8 +112,8 @@ export class DAOService {
 
   async subscribeToDAOs(callback: (dao: DAO) => void): Promise<() => void> {
     try {
-      // Use the adapter's sub method instead of subscribeToEvents
-      const sub = this.adapter.subscribeToEvents([{
+      // Use the adapterInstance property instead of adapter
+      const sub = this.adapterInstance.subscribeToEvents([{
         kinds: [30001], // DAO kind
         limit: 50
       }], [], {
@@ -157,8 +156,8 @@ export class DAOService {
 
   async subscribeToDAO(daoId: string, callback: (dao: DAO) => void): Promise<() => void> {
     try {
-      // Use the adapter's sub method
-      const sub = this.adapter.subscribeToEvents([{
+      // Use the adapterInstance property
+      const sub = this.adapterInstance.subscribeToEvents([{
         ids: [daoId],
         kinds: [30001] // DAO kind
       }], [], {
@@ -178,7 +177,7 @@ export class DAOService {
   }
 
   async list(relays: string[], filter: Filter): Promise<Event[]> {
-    const events = await this.adapter.pool.list(relays, convertToFilter(filter));
+    const events = await this.adapterInstance.pool.list(relays, convertToFilter(filter));
     return events;
   }
 
@@ -293,7 +292,7 @@ export class DAOService {
   }
 
   async signEvent(event: Partial<Event>): Promise<Event> {
-    return this.adapter.signEvent(event);
+    return this.adapterInstance.signEvent(event);
   }
 
   async fetchAllProposals(daoId: string): Promise<DAOProposal[]> {
@@ -306,31 +305,31 @@ export class DAOService {
   }
 
   async getEventById(id: string): Promise<Event | null> {
-    return this.adapter.getEventById(id);
+    return this.adapterInstance.getEventById(id);
   }
 
   async getEvents(ids: string[]): Promise<Event[]> {
-    return this.adapter.getEvents(ids);
+    return this.adapterInstance.getEvents(ids);
   }
 
   async getProfilesByPubkeys(pubkeys: string[]): Promise<any[]> {
-    return this.adapter.getProfilesByPubkeys(pubkeys);
+    return this.adapterInstance.getProfilesByPubkeys(pubkeys);
   }
 
   async getUserProfile(pubkey: string): Promise<any | null> {
-    return this.adapter.getUserProfile(pubkey);
+    return this.adapterInstance.getUserProfile(pubkey);
   }
 
   async verifyNip05(identifier: string, pubkey: string): Promise<boolean> {
-    return this.adapter.verifyNip05(identifier, pubkey);
+    return this.adapterInstance.verifyNip05(identifier, pubkey);
   }
 
   async createCommunity(name: string, description: string): Promise<string | null> {
-    return this.adapter.createCommunity(name, description);
+    return this.adapterInstance.createCommunity(name, description);
   }
 
   async publishRelayList(relays: { url: string, read: boolean, write: boolean }[]): Promise<boolean> {
-    return this.adapter.publishRelayList(relays);
+    return this.adapterInstance.publishRelayList(relays);
   }
 }
 

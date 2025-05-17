@@ -32,7 +32,7 @@ export function useDAO(daoId?: string) {
   
   // Subscribe to general DAOs
   const subscribeToDAOs = useCallback(() => {
-    if (daoId) return; // Skip if viewing a specific DAO
+    if (daoId) return undefined; // Skip if viewing a specific DAO
     
     console.log("Subscribing to general DAOs");
     setLoading(true);
@@ -45,35 +45,41 @@ export function useDAO(daoId?: string) {
     });
     
     // Set up subscription for real-time updates
-    const unsubscribe = daoService.subscribeToDAOs((dao) => {
-      setDaos(prevDaos => {
-        // Only add if not already in the list
-        const exists = prevDaos.some(d => d.id === dao.id);
-        if (exists) {
-          return prevDaos.map(d => d.id === dao.id ? dao : d);
-        } else {
-          return [dao, ...prevDaos];
-        }
+    try {
+      const unsubscribe = daoService.subscribeToDAOs((dao) => {
+        setDaos(prevDaos => {
+          // Only add if not already in the list
+          const exists = prevDaos.some(d => d.id === dao.id);
+          if (exists) {
+            return prevDaos.map(d => d.id === dao.id ? dao : d);
+          } else {
+            return [dao, ...prevDaos];
+          }
+        });
+        setLoading(false);
       });
+      
+      subscriptionsRef.current.push(unsubscribe);
+      
+      // Set loading to false after a timeout even if no data received
+      const timeout = setTimeout(() => {
+        setLoading(false);
+      }, 5000);
+      
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error("Error subscribing to DAOs:", error);
       setLoading(false);
-    });
-    
-    subscriptionsRef.current.push(unsubscribe);
-    
-    // Set loading to false after a timeout even if no data received
-    const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(timeout);
-      unsubscribe();
-    };
+      return () => {}; // Return empty cleanup function
+    }
   }, [daoId]);
   
   // Subscribe to user's DAOs
   const subscribeToMyDAOs = useCallback(() => {
-    if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
+    if (daoId || !currentUserPubkey) return undefined; // Skip if viewing a specific DAO or not logged in
     
     console.log("Subscribing to user DAOs");
     setLoadingMyDaos(true);
@@ -85,37 +91,43 @@ export function useDAO(daoId?: string) {
       }
     });
     
-    // Set up subscription for real-time updates
-    const unsubscribe = daoService.subscribeToUserDAOs(currentUserPubkey, (dao) => {
-      setMyDaos(prevDaos => {
-        // Only add if not already in the list
-        const exists = prevDaos.some(d => d.id === dao.id);
-        if (exists) {
-          return prevDaos.map(d => d.id === dao.id ? dao : d);
-        } else {
-          return [dao, ...prevDaos];
-        }
+    try {
+      // Set up subscription for real-time updates
+      const unsubscribe = daoService.subscribeToUserDAOs(currentUserPubkey, (dao) => {
+        setMyDaos(prevDaos => {
+          // Only add if not already in the list
+          const exists = prevDaos.some(d => d.id === dao.id);
+          if (exists) {
+            return prevDaos.map(d => d.id === dao.id ? dao : d);
+          } else {
+            return [dao, ...prevDaos];
+          }
+        });
+        setLoadingMyDaos(false);
       });
+      
+      userSubscriptionRef.current = unsubscribe;
+      subscriptionsRef.current.push(unsubscribe);
+      
+      // Set loading to false after a timeout even if no data received
+      const timeout = setTimeout(() => {
+        setLoadingMyDaos(false);
+      }, 5000);
+      
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error("Error subscribing to user DAOs:", error);
       setLoadingMyDaos(false);
-    });
-    
-    userSubscriptionRef.current = unsubscribe;
-    subscriptionsRef.current.push(unsubscribe);
-    
-    // Set loading to false after a timeout even if no data received
-    const timeout = setTimeout(() => {
-      setLoadingMyDaos(false);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(timeout);
-      unsubscribe();
-    };
+      return () => {}; // Return empty cleanup function
+    }
   }, [daoId, currentUserPubkey]);
   
   // Subscribe to trending DAOs
   const subscribeToTrendingDAOs = useCallback(() => {
-    if (daoId) return; // Skip if viewing a specific DAO
+    if (daoId) return undefined; // Skip if viewing a specific DAO
     
     console.log("Fetching trending DAOs");
     setLoadingTrending(true);
@@ -136,7 +148,7 @@ export function useDAO(daoId?: string) {
   
   // Subscribe to a specific DAO
   const subscribeToDAO = useCallback(() => {
-    if (!daoId) return () => {};
+    if (!daoId) return undefined;
     
     console.log(`Subscribing to DAO ${daoId}`);
     setLoading(true);
@@ -149,31 +161,37 @@ export function useDAO(daoId?: string) {
       }
     });
     
-    // Set up subscription for real-time updates
-    const unsubscribe = daoService.subscribeToDAO(daoId, (dao) => {
-      if (dao) {
-        setCurrentDao(dao);
+    try {
+      // Set up subscription for real-time updates
+      const unsubscribe = daoService.subscribeToDAO(daoId, (dao) => {
+        if (dao) {
+          setCurrentDao(dao);
+          setLoading(false);
+        }
+      });
+      
+      daoSubscriptionRef.current = unsubscribe;
+      subscriptionsRef.current.push(unsubscribe);
+      
+      // Set loading to false after a timeout even if no data received
+      const timeout = setTimeout(() => {
         setLoading(false);
-      }
-    });
-    
-    daoSubscriptionRef.current = unsubscribe;
-    subscriptionsRef.current.push(unsubscribe);
-    
-    // Set loading to false after a timeout even if no data received
-    const timeout = setTimeout(() => {
+      }, 5000);
+      
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error(`Error subscribing to DAO ${daoId}:`, error);
       setLoading(false);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(timeout);
-      unsubscribe();
-    };
+      return () => {}; // Return empty cleanup function
+    }
   }, [daoId]);
   
   // Subscribe to DAO proposals
   const subscribeToProposals = useCallback(() => {
-    if (!daoId) return () => {};
+    if (!daoId) return undefined;
     
     console.log(`Subscribing to proposals for DAO ${daoId}`);
     setLoadingProposals(true);
@@ -201,62 +219,69 @@ export function useDAO(daoId?: string) {
         } catch (e) {
           return null;
         }
-      }).filter(p => p !== null);
+      }).filter((p): p is any => p !== null);
       
       setKickProposals(kickProps);
       setLoadingKickProposals(false);
     });
     
-    // Set up subscription for real-time updates
-    const unsubscribe = daoService.subscribeToDAOProposals(daoId, (proposal) => {
-      setProposals(prevProposals => {
-        // Update or add the proposal
-        const exists = prevProposals.some(p => p.id === proposal.id);
+    try {
+      // Set up subscription for real-time updates
+      const unsubscribe = daoService.subscribeToDAOProposals(daoId, (proposal) => {
+        setProposals(prevProposals => {
+          // Update or add the proposal
+          const exists = prevProposals.some(p => p.id === proposal.id);
+          
+          if (exists) {
+            return prevProposals.map(p => p.id === proposal.id ? proposal : p);
+          } else {
+            return [proposal, ...prevProposals];
+          }
+        });
         
-        if (exists) {
-          return prevProposals.map(p => p.id === proposal.id ? proposal : p);
-        } else {
-          return [proposal, ...prevProposals];
+        // Check if it's a kick proposal and update accordingly
+        try {
+          const content = JSON.parse(proposal.description);
+          if (content.type === "kick" && content.targetPubkey) {
+            const kickProposal = {
+              ...proposal,
+              targetPubkey: content.targetPubkey
+            };
+            
+            setKickProposals(prevKickProposals => {
+              const exists = prevKickProposals.some(p => p.id === proposal.id);
+              
+              if (exists) {
+                return prevKickProposals.map(p => p.id === proposal.id ? kickProposal : p);
+              } else {
+                return [kickProposal, ...prevKickProposals];
+              }
+            });
+          }
+        } catch (e) {
+          // Not a kick proposal or invalid JSON
         }
       });
       
-      // Check if it's a kick proposal and update accordingly
-      try {
-        const content = JSON.parse(proposal.description);
-        if (content.type === "kick" && content.targetPubkey) {
-          const kickProposal = {
-            ...proposal,
-            targetPubkey: content.targetPubkey
-          };
-          
-          setKickProposals(prevKickProposals => {
-            const exists = prevKickProposals.some(p => p.id === proposal.id);
-            
-            if (exists) {
-              return prevKickProposals.map(p => p.id === proposal.id ? kickProposal : p);
-            } else {
-              return [kickProposal, ...prevKickProposals];
-            }
-          });
-        }
-      } catch (e) {
-        // Not a kick proposal or invalid JSON
-      }
-    });
-    
-    proposalSubscriptionRef.current = unsubscribe;
-    subscriptionsRef.current.push(unsubscribe);
-    
-    // Set loading to false after a timeout even if no data received
-    const timeout = setTimeout(() => {
+      proposalSubscriptionRef.current = unsubscribe;
+      subscriptionsRef.current.push(unsubscribe);
+      
+      // Set loading to false after a timeout even if no data received
+      const timeout = setTimeout(() => {
+        setLoadingProposals(false);
+        setLoadingKickProposals(false);
+      }, 5000);
+      
+      return () => {
+        clearTimeout(timeout);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error(`Error subscribing to proposals for DAO ${daoId}:`, error);
       setLoadingProposals(false);
       setLoadingKickProposals(false);
-    }, 5000);
-    
-    return () => {
-      clearTimeout(timeout);
-      unsubscribe();
-    };
+      return () => {}; // Return empty cleanup function
+    }
   }, [daoId]);
   
   // Set up subscriptions based on the view
