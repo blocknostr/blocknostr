@@ -14,6 +14,7 @@ import { DAO } from "@/types/dao";
 import { NostrEvent } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { toast } from "sonner";
+import { useRelays } from '@/hooks/useRelays';
 
 interface DAOGroupChatProps {
   dao: DAO;
@@ -37,6 +38,7 @@ const DAOGroupChat: React.FC<DAOGroupChatProps> = ({ dao, currentUserPubkey }) =
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const profileCache = useProfileCache();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { connectToRelays } = useRelays();
   
   // Format channel name for our DAO
   const channelName = `blocknostr-dao-${formatDAOSerialNumber(dao.serialNumber || 1).replace('#', '').toLowerCase()}`;
@@ -49,9 +51,8 @@ const DAOGroupChat: React.FC<DAOGroupChatProps> = ({ dao, currentUserPubkey }) =
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        if (!nostrService.pool) {
-          await nostrService.connectToUserRelays();
-        }
+        // Connect to relays first instead of checking for pool
+        await connectToRelays();
         
         setConnected(true);
         setLoading(true);
@@ -86,7 +87,7 @@ const DAOGroupChat: React.FC<DAOGroupChatProps> = ({ dao, currentUserPubkey }) =
     };
     
     fetchMessages();
-  }, [dao.id, channelName]);
+  }, [dao.id, channelName, connectToRelays]);
   
   const handleNewMessage = async (event: NostrEvent) => {
     setLoading(false);
