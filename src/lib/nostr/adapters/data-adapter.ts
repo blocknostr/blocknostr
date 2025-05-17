@@ -43,6 +43,7 @@ export class DataAdapter extends BaseAdapter {
       };
       
       // Use the existing getEvents method with the filter
+      // We need to pass an array of filters, not just a single filter
       const events = await this.service.getEvents([filter]);
       return Array.isArray(events) ? events : [];
     } catch (error) {
