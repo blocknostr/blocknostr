@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -11,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
+import EditProfileDialog from '@/components/profile/edit-profile/EditProfileDialog';
 
 /**
  * A lightweight, NIP-compliant profile viewer page
@@ -23,6 +25,7 @@ const ProfileViewPage = () => {
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [notes, setNotes] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('posts');
+  const [showEditProfile, setShowEditProfile] = useState(false);
   
   // Get current user's pubkey to check if this is the user's own profile
   const currentUserPubkey = nostrService.publicKey;
@@ -31,7 +34,8 @@ const ProfileViewPage = () => {
   const { 
     profiles, 
     fetchProfile, 
-    isLoading: profileLoading 
+    isLoading: profileLoading,
+    refreshProfile
   } = useUnifiedProfileFetcher();
   
   // Convert npub to hex pubkey once
@@ -91,6 +95,13 @@ const ProfileViewPage = () => {
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+  };
+  
+  // Handle profile update
+  const handleProfileUpdate = () => {
+    if (hexPubkey) {
+      refreshProfile(hexPubkey);
+    }
   };
   
   const isOwnProfile = currentUserPubkey && hexPubkey && currentUserPubkey === hexPubkey;
@@ -164,7 +175,11 @@ const ProfileViewPage = () => {
                 {/* Action buttons */}
                 <div className="mt-3 md:mt-0 space-x-2 flex">
                   {isOwnProfile ? (
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowEditProfile(true)}
+                    >
                       Edit Profile
                     </Button>
                   ) : (
@@ -266,6 +281,16 @@ const ProfileViewPage = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit Profile Dialog */}
+      {profile && (
+        <EditProfileDialog
+          open={showEditProfile}
+          onOpenChange={setShowEditProfile}
+          profile={profile}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
     </div>
   );
 };
