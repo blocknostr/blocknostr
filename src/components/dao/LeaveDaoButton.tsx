@@ -3,7 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 
 interface LeaveDaoButtonProps {
-  onLeave: () => void;
+  onLeave: () => Promise<boolean> | void;
   daoName?: string;
 }
 

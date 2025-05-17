@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { getNpubFromHex } from "@/lib/nostr/utils/keys";
-import PageHeader from "@/components/navigation/PageHeader";
 import { useDAO } from "@/hooks/useDAO";
 import DAOHeader from "@/components/dao/DAOHeader";
 import DAOProposalsList from "@/components/dao/DAOProposalsList";
@@ -28,6 +27,7 @@ import DAOGuidelines from "@/components/dao/DAOGuidelines";
 import { formatSerialNumber } from "@/lib/dao/dao-utils";
 import DAOInvites from "@/components/dao/DAOInvites";
 import { nostrService } from "@/lib/nostr";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function SingleDAOPage() {
   const [activeTab, setActiveTab] = useState("proposals");
@@ -107,7 +107,7 @@ export default function SingleDAOPage() {
   };
   
   const handleCreateKickProposal = async (memberPubkey: string, reason: string) => {
-    if (!daoId) return null;
+    if (!daoId) return false;
     
     const proposalId = await createKickProposal(daoId, memberPubkey, reason);
     if (proposalId) {
@@ -115,9 +115,9 @@ export default function SingleDAOPage() {
       toast.success("Kick proposal created successfully!");
       // Refetch the data
       fetchData();
-      return proposalId;
+      return true;
     }
-    return null;
+    return false;
   };
   
   const handleJoinDAO = async () => {
@@ -128,6 +128,7 @@ export default function SingleDAOPage() {
       toast.success("You have joined the DAO!");
       fetchData();
     }
+    return success;
   };
   
   const handleLeaveDAO = async () => {
@@ -139,8 +140,10 @@ export default function SingleDAOPage() {
         toast.success("You have left the DAO");
         fetchData();
       }
+      return success;
     } catch (error: any) {
       toast.error(error.message || "Failed to leave DAO");
+      return false;
     }
   };
   
@@ -305,14 +308,16 @@ export default function SingleDAOPage() {
                 isLoading={false}
                 isMember={userIsMember}
                 isCreator={userIsCreator}
+                onCreateProposal={handleCreateProposal}
+                onVoteProposal={handleVoteOnProposal}
               />
               
               {/* Kick proposals section */}
               {(userIsCreator || userIsModerator) && (
                 <DAOKickProposalsList 
-                  daoId={dao.id}
                   proposals={kickProposals}
                   currentUserPubkey={currentUserPubkey || ""}
+                  onVoteKick={handleVoteOnProposal}
                 />
               )}
             </TabsContent>
@@ -488,8 +493,8 @@ export default function SingleDAOPage() {
       
       {dao && (
         <DAOSettingsDialog
-          isOpen={isSettingsDialogOpen}
-          onClose={() => setIsSettingsDialogOpen(false)}
+          open={isSettingsDialogOpen}
+          onOpenChange={setIsSettingsDialogOpen}
           dao={dao}
           onUpdate={handleUpdateSettings}
         />

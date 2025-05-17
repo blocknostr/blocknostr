@@ -11,8 +11,8 @@ interface DAOHeaderProps {
   dao: DAO;
   userRole?: 'creator' | 'moderator' | 'member' | null;
   currentUserPubkey?: string | null;
-  onJoinDAO?: () => void;
-  onLeaveDAO?: () => void;
+  onJoinDAO?: () => Promise<boolean>;
+  onLeaveDAO?: () => Promise<boolean>;
   onDeleteDAO?: () => Promise<void>;
   isCreatorOnlyMember?: boolean;
   serialNumber?: string | null;
