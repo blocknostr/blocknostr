@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
@@ -11,53 +11,115 @@ export function useDAO(daoId?: string) {
   const [currentDao, setCurrentDao] = useState<DAO | null>(null);
   const [proposals, setProposals] = useState<DAOProposal[]>([]);
   const [kickProposals, setKickProposals] = useState<any[]>([]);
+  
+  // Split loading states for progressive rendering
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(true);
+  const [loadingTrending, setLoadingTrending] = useState<boolean>(true);
   const [loadingProposals, setLoadingProposals] = useState<boolean>(true);
+  const [loadingKickProposals, setLoadingKickProposals] = useState<boolean>(true);
+  
+  // Track data initialization
+  const initializedRef = useRef({
+    general: false,
+    myDaos: false,
+    trending: false
+  });
   
   const currentUserPubkey = nostrService.publicKey;
+  
+  // Fetch DAOs for general discovery page in parallel
+  const fetchGeneralDAOs = useCallback(async () => {
+    if (daoId) return; // Skip if viewing a specific DAO
+    if (initializedRef.current.general) return;
+    
+    initializedRef.current.general = true;
+    setLoading(true);
+    
+    try {
+      console.log("Fetching general DAOs...");
+      const fetchedDaos = await daoService.getDAOs();
+      console.log(`Fetched ${fetchedDaos.length} DAOs`);
+      setDaos(fetchedDaos);
+    } catch (error) {
+      console.error("Error fetching general DAOs:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [daoId]);
+  
+  // Fetch user DAOs in parallel
+  const fetchMyDAOs = useCallback(async () => {
+    if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
+    if (initializedRef.current.myDaos) return;
+    
+    initializedRef.current.myDaos = true;
+    setLoadingMyDaos(true);
+    
+    try {
+      console.log("Fetching user DAOs...");
+      const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+      console.log(`Fetched ${userDaos.length} user DAOs`);
+      setMyDaos(userDaos);
+    } catch (error) {
+      console.error("Error fetching user DAOs:", error);
+    } finally {
+      setLoadingMyDaos(false);
+    }
+  }, [daoId, currentUserPubkey]);
+  
+  // Fetch trending DAOs in parallel
+  const fetchTrendingDAOs = useCallback(async () => {
+    if (daoId) return; // Skip if viewing a specific DAO
+    if (initializedRef.current.trending) return;
+    
+    initializedRef.current.trending = true;
+    setLoadingTrending(true);
+    
+    try {
+      console.log("Fetching trending DAOs...");
+      const trending = await daoService.getTrendingDAOs();
+      console.log(`Fetched ${trending.length} trending DAOs`);
+      setTrendingDaos(trending);
+    } catch (error) {
+      console.error("Error fetching trending DAOs:", error);
+    } finally {
+      setLoadingTrending(false);
+    }
+  }, [daoId]);
   
   // Refresh function to manually trigger data reload
   const refreshDaos = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
     
-    setLoading(true);
-    try {
-      console.log("Refreshing DAOs...");
-      
-      // Fetch general DAOs
-      const fetchedDaos = await daoService.getDAOs();
-      console.log(`Fetched ${fetchedDaos.length} DAOs`);
-      setDaos(fetchedDaos);
-      
-      // If user is logged in, fetch their DAOs
-      if (currentUserPubkey) {
-        const userDaos = await daoService.getUserDAOs(currentUserPubkey);
-        console.log(`Fetched ${userDaos.length} user DAOs`);
-        setMyDaos(userDaos);
-      }
-      
-      // Fetch trending DAOs
-      const trending = await daoService.getTrendingDAOs();
-      console.log(`Fetched ${trending.length} trending DAOs`);
-      setTrendingDaos(trending);
-    } catch (error) {
-      console.error("Error in refreshDaos:", error);
-      toast.error("Failed to load DAOs. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [daoId, currentUserPubkey]);
+    // Reset initialization flags
+    initializedRef.current = {
+      general: false,
+      myDaos: false,
+      trending: false
+    };
+    
+    // Start parallel fetching
+    fetchGeneralDAOs();
+    fetchMyDAOs();
+    fetchTrendingDAOs();
+  }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
   
-  // Fetch DAOs for general discovery page
+  // Initialize parallel fetching on load
   useEffect(() => {
-    refreshDaos();
-  }, [refreshDaos]);
+    if (!daoId) {
+      fetchGeneralDAOs();
+      fetchMyDAOs();
+      fetchTrendingDAOs();
+    }
+  }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
   
   // Fetch specific DAO if daoId is provided
   const fetchDaoDetails = useCallback(async () => {
     if (!daoId) return;
     
     setLoading(true);
+    
     try {
       console.log(`Fetching details for DAO ${daoId}...`);
       
@@ -65,52 +127,53 @@ export function useDAO(daoId?: string) {
       if (dao) {
         console.log("DAO details fetched:", dao.name);
         setCurrentDao(dao);
+        // Mark loading as complete once we have the main DAO data
+        setLoading(false);
         
-        // Also fetch proposals
+        // Now fetch proposals in background
         setLoadingProposals(true);
-        const daoProposals = await daoService.getDAOProposals(daoId);
-        console.log(`Fetched ${daoProposals.length} proposals`);
-        setProposals(daoProposals);
+        fetchDaoProposals(daoId);
         
-        // Fetch kick proposals if implemented
-        try {
-          // Use standard proposal fetching and filter for kick proposals manually
-          const allProposals = await daoService.getDAOProposals(daoId);
-          const kickProps = allProposals.filter(proposal => {
-            try {
-              const content = JSON.parse(proposal.description);
-              return content.type === "kick" && content.targetPubkey;
-            } catch (e) {
-              return false;
-            }
-          }).map(proposal => {
-            try {
-              const content = JSON.parse(proposal.description);
-              return {
-                ...proposal,
-                targetPubkey: content.targetPubkey
-              };
-            } catch (e) {
-              return null;
-            }
-          }).filter(p => p !== null);
-          
-          setKickProposals(kickProps);
-        } catch (e) {
-          console.log("Error fetching kick proposals:", e);
-        }
+        // Fetch kick proposals in background
+        setLoadingKickProposals(true);
+        fetchDaoKickProposals(daoId);
       } else {
         console.error("DAO not found:", daoId);
         toast.error("DAO not found");
+        setLoading(false);
       }
     } catch (error) {
       console.error(`Error fetching DAO ${daoId}:`, error);
       toast.error("Failed to load DAO details");
-    } finally {
       setLoading(false);
-      setLoadingProposals(false);
     }
   }, [daoId]);
+  
+  // Fetch proposals in background
+  const fetchDaoProposals = async (daoId: string) => {
+    try {
+      const daoProposals = await daoService.getDAOProposals(daoId);
+      console.log(`Fetched ${daoProposals.length} proposals`);
+      setProposals(daoProposals);
+    } catch (error) {
+      console.error(`Error fetching proposals for DAO ${daoId}:`, error);
+    } finally {
+      setLoadingProposals(false);
+    }
+  };
+  
+  // Fetch kick proposals in background
+  const fetchDaoKickProposals = async (daoId: string) => {
+    try {
+      const kickProps = await daoService.getDAOKickProposals(daoId);
+      console.log(`Fetched ${kickProps.length} kick proposals`);
+      setKickProposals(kickProps);
+    } catch (error) {
+      console.error(`Error fetching kick proposals for DAO ${daoId}:`, error);
+    } finally {
+      setLoadingKickProposals(false);
+    }
+  };
   
   useEffect(() => {
     fetchDaoDetails();
@@ -188,8 +251,10 @@ export function useDAO(daoId?: string) {
         
         // Refetch proposals if we're viewing this DAO
         if (currentDao?.id === daoId) {
+          setLoadingProposals(true);
           const updatedProposals = await daoService.getDAOProposals(daoId);
           setProposals(updatedProposals);
+          setLoadingProposals(false);
         }
         return proposalId;
       } else {
@@ -203,7 +268,7 @@ export function useDAO(daoId?: string) {
     }
   };
   
-  // Vote on a proposal
+  // Vote on a proposal with immediate UI update
   const voteOnProposal = async (proposalId: string, optionIndex: number) => {
     try {
       console.log(`Voting on proposal ${proposalId}, option ${optionIndex}`);
@@ -218,10 +283,29 @@ export function useDAO(daoId?: string) {
       if (success) {
         toast.success("Vote recorded");
         
-        // Update proposals state with new vote
+        // Optimistic update - immediately update the local state
+        if (currentUserPubkey) {
+          setProposals(currentProposals => {
+            return currentProposals.map(p => {
+              if (p.id === proposalId) {
+                // Create a new votes object with the current user's vote
+                const updatedVotes = { ...p.votes, [currentUserPubkey]: optionIndex };
+                return { ...p, votes: updatedVotes };
+              }
+              return p;
+            });
+          });
+        }
+        
+        // Background refresh for accurate data
         if (currentDao) {
-          const updatedProposals = await daoService.getDAOProposals(currentDao.id);
-          setProposals(updatedProposals);
+          daoService.getDAOProposals(currentDao.id)
+            .then(updatedProposals => {
+              setProposals(updatedProposals);
+            })
+            .catch(err => {
+              console.error("Error refreshing proposals:", err);
+            });
         }
         return true;
       } else {
@@ -230,6 +314,33 @@ export function useDAO(daoId?: string) {
       }
     } catch (error) {
       console.error("Error voting on proposal:", error);
+      toast.error("Failed to record vote");
+      return false;
+    }
+  };
+  
+  // Vote on kick proposal with optimistic update
+  const voteOnKickProposal = async (proposalId: string, optionIndex: number) => {
+    try {
+      console.log(`Voting on kick proposal ${proposalId}, option ${optionIndex}`);
+      
+      // Optimistic update for kick proposals
+      if (currentUserPubkey) {
+        setKickProposals(currentProposals => {
+          return currentProposals.map(p => {
+            if (p.id === proposalId) {
+              const updatedVotes = { ...p.votes, [currentUserPubkey]: optionIndex };
+              return { ...p, votes: updatedVotes };
+            }
+            return p;
+          });
+        });
+      }
+      
+      // Use standard voting mechanism
+      return await voteOnProposal(proposalId, optionIndex);
+    } catch (error) {
+      console.error("Error voting on kick proposal:", error);
       toast.error("Failed to record vote");
       return false;
     }
@@ -531,22 +642,6 @@ export function useDAO(daoId?: string) {
     }
   };
   
-  // Vote on kick proposal
-  const voteOnKickProposal = async (proposalId: string, optionIndex: number) => {
-    try {
-      if (!currentUserPubkey) return false;
-      
-      console.log(`Voting on kick proposal ${proposalId}, option ${optionIndex}`);
-      
-      // Use standard voting mechanism
-      return await voteOnProposal(proposalId, optionIndex);
-    } catch (error) {
-      console.error("Error voting on kick proposal:", error);
-      toast.error("Failed to record vote");
-      return false;
-    }
-  };
-  
   // Check if user is a member
   const isMember = (dao: DAO): boolean => {
     return !!currentUserPubkey && dao.members.includes(currentUserPubkey);
@@ -570,7 +665,10 @@ export function useDAO(daoId?: string) {
     proposals,
     kickProposals,
     loading,
+    loadingMyDaos,
+    loadingTrending,
     loadingProposals,
+    loadingKickProposals,
     createDAO,
     createProposal,
     voteOnProposal,

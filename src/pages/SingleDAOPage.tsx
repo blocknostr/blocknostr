@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
-import { UserX, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DAOProposalsList from "@/components/dao/DAOProposalsList";
@@ -11,6 +11,7 @@ import DAOMembersList from "@/components/dao/DAOMembersList";
 import DAOSettingsDialog from "@/components/dao/DAOSettingsDialog";
 import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
 import DAOHeader from "@/components/dao/DAOHeader";
+import DAOKickProposalsList from "@/components/dao/DAOKickProposalsList";
 import { toast } from "sonner";
 
 const SingleDAOPage: React.FC = () => {
@@ -23,11 +24,12 @@ const SingleDAOPage: React.FC = () => {
   const {
     currentDao,
     proposals,
+    kickProposals,
     loading,
     loadingProposals,
+    loadingKickProposals,
     isMember,
     isCreator,
-    isModerator,
     currentUserPubkey,
     createProposal,
     voteOnProposal,
@@ -47,15 +49,12 @@ const SingleDAOPage: React.FC = () => {
     daoId: id,
     onNewProposal: (proposal) => {
       console.log("New proposal received:", proposal);
-      // Proposals are handled by the useDAO hook which will refresh
     },
     onNewVote: (vote) => {
       console.log("New vote received:", vote);
-      // Votes are handled by the useDAO hook which will refresh
     },
     onDAOUpdate: (dao) => {
       console.log("DAO update received:", dao);
-      // DAO updates are handled by the useDAO hook
     }
   });
 
@@ -115,6 +114,9 @@ const SingleDAOPage: React.FC = () => {
       return false;
     }
   };
+  
+  // Determine if we should show the kick proposals tab
+  const hasKickProposals = !loadingKickProposals && kickProposals.length > 0;
 
   return (
     <div className="container max-w-6xl mx-auto px-4 py-6">
@@ -154,6 +156,11 @@ const SingleDAOPage: React.FC = () => {
           <TabsTrigger value="members">
             Members
           </TabsTrigger>
+          {hasKickProposals && (
+            <TabsTrigger value="kick">
+              Removal Votes
+            </TabsTrigger>
+          )}
           {currentDao.guidelines && (
             <TabsTrigger value="guidelines">
               Guidelines
@@ -180,6 +187,17 @@ const SingleDAOPage: React.FC = () => {
             currentUserPubkey={currentUserPubkey}
           />
         </TabsContent>
+        
+        {hasKickProposals && (
+          <TabsContent value="kick" className="mt-0">
+            <DAOKickProposalsList
+              proposals={kickProposals}
+              currentUserPubkey={currentUserPubkey}
+              onVote={voteOnKickProposal}
+              isLoading={loadingKickProposals}
+            />
+          </TabsContent>
+        )}
         
         {currentDao.guidelines && (
           <TabsContent value="guidelines" className="mt-0">

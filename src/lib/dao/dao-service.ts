@@ -1,6 +1,7 @@
 import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
 import { DAO, DAOProposal } from '@/types/dao';
 import { nostrService } from '@/lib/nostr';
+import { daoCache } from './dao-cache';
 
 // NIP-72 kind numbers (ensure full compliance)
 const DAO_KINDS = {
@@ -18,6 +19,7 @@ const DAO_KINDS = {
 export class DAOService {
   private pool: SimplePool;
   private relays: string[];
+  private fastRelays: string[]; // Subset of faster, more reliable relays
   
   constructor() {
     this.pool = new SimplePool();
@@ -30,6 +32,13 @@ export class DAOService {
       "wss://relay.nostr.bg",
       "wss://relay.snort.social"
     ];
+    
+    // Faster subset for initial loads
+    this.fastRelays = [
+      "wss://relay.damus.io",
+      "wss://nos.lol",
+      "wss://relay.nostr.band"
+    ];
   }
   
   /**
@@ -37,23 +46,62 @@ export class DAOService {
    */
   async getDAOs(limit: number = 20): Promise<DAO[]> {
     try {
+      // Try to get from cache first
+      const cachedDAOs = daoCache.getAllDAOs();
+      if (cachedDAOs) {
+        console.log("Using cached DAOs");
+        // Fetch fresh data in the background to update cache
+        this.refreshDAOs(limit);
+        return cachedDAOs;
+      }
+      
       const filter: Filter = {
         kinds: [DAO_KINDS.COMMUNITY],
         limit: limit
       };
       
       console.log("Fetching DAOs with filter:", filter);
-      console.log("Using relays:", this.relays);
+      console.log("Using fast relays:", this.fastRelays);
       
-      const events = await this.pool.querySync(this.relays, filter);
+      // Use fast relays for initial load
+      const events = await this.pool.querySync(this.fastRelays, filter);
       console.log("Received DAO events:", events.length);
       
-      return events
+      const daos = events
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
+      
+      // Cache the results
+      daoCache.cacheAllDAOs(daos);
+      
+      return daos;
     } catch (error) {
       console.error("Error fetching DAOs:", error);
       return [];
+    }
+  }
+  
+  /**
+   * Background refresh of DAOs to update cache
+   */
+  private async refreshDAOs(limit: number = 20): Promise<void> {
+    try {
+      const filter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        limit: limit
+      };
+      
+      // Use all relays for complete refresh
+      const events = await this.pool.querySync(this.relays, filter);
+      
+      const daos = events
+        .map(event => this.parseDaoEvent(event))
+        .filter((dao): dao is DAO => dao !== null);
+      
+      // Update cache with fresh data
+      daoCache.cacheAllDAOs(daos);
+    } catch (error) {
+      console.error("Error refreshing DAOs:", error);
     }
   }
   
@@ -64,6 +112,15 @@ export class DAOService {
     if (!pubkey) return [];
     
     try {
+      // Try to get from cache first
+      const cachedUserDAOs = daoCache.getUserDAOs(pubkey);
+      if (cachedUserDAOs) {
+        console.log(`Using cached DAOs for user ${pubkey}`);
+        // Fetch fresh data in the background
+        this.refreshUserDAOs(pubkey, limit);
+        return cachedUserDAOs;
+      }
+      
       const filter: Filter = {
         kinds: [DAO_KINDS.COMMUNITY],
         '#p': [pubkey],
@@ -71,12 +128,17 @@ export class DAOService {
       };
       
       console.log(`Fetching DAOs for user ${pubkey}`);
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.querySync(this.fastRelays, filter);
       console.log(`Received ${events.length} user DAO events`);
       
-      return events
+      const daos = events
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
+      
+      // Cache the results
+      daoCache.cacheUserDAOs(pubkey, daos);
+      
+      return daos;
     } catch (error) {
       console.error("Error fetching user DAOs:", error);
       return [];
@@ -84,13 +146,49 @@ export class DAOService {
   }
   
   /**
+   * Background refresh of user DAOs
+   */
+  private async refreshUserDAOs(pubkey: string, limit: number = 20): Promise<void> {
+    try {
+      const filter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        '#p': [pubkey],
+        limit: limit
+      };
+      
+      const events = await this.pool.querySync(this.relays, filter);
+      
+      const daos = events
+        .map(event => this.parseDaoEvent(event))
+        .filter((dao): dao is DAO => dao !== null);
+      
+      // Update cache with fresh data
+      daoCache.cacheUserDAOs(pubkey, daos);
+    } catch (error) {
+      console.error(`Error refreshing user DAOs for ${pubkey}:`, error);
+    }
+  }
+  
+  /**
    * Get trending DAOs based on member count
    */
   async getTrendingDAOs(limit: number = 20): Promise<DAO[]> {
+    // Try to get from cache first
+    const cachedTrending = daoCache.getTrendingDAOs();
+    if (cachedTrending) {
+      console.log("Using cached trending DAOs");
+      return cachedTrending;
+    }
+    
     const daos = await this.getDAOs(limit * 2);
-    return daos
+    const trending = daos
       .sort((a, b) => b.members.length - a.members.length)
       .slice(0, limit);
+      
+    // Cache trending results
+    daoCache.cacheTrendingDAOs(trending);
+    
+    return trending;
   }
   
   /**
@@ -98,6 +196,15 @@ export class DAOService {
    */
   async getDAOById(id: string): Promise<DAO | null> {
     try {
+      // Check cache first
+      const cachedDAO = daoCache.getDAODetails(id);
+      if (cachedDAO) {
+        console.log(`Using cached DAO with ID: ${id}`);
+        // Refresh in background
+        this.refreshDAOById(id);
+        return cachedDAO;
+      }
+      
       console.log(`Fetching DAO with ID: ${id}`);
       
       const filter: Filter = {
@@ -106,17 +213,48 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.querySync(this.fastRelays, filter);
       
       if (events.length === 0) {
         console.log(`No DAO found with ID: ${id}`);
         return null;
       }
       
-      return this.parseDaoEvent(events[0]);
+      const dao = this.parseDaoEvent(events[0]);
+      
+      // Cache the result
+      if (dao) {
+        daoCache.cacheDAODetails(id, dao);
+      }
+      
+      return dao;
     } catch (error) {
       console.error(`Error fetching DAO ${id}:`, error);
       return null;
+    }
+  }
+  
+  /**
+   * Background refresh of a single DAO
+   */
+  private async refreshDAOById(id: string): Promise<void> {
+    try {
+      const filter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        ids: [id],
+        limit: 1
+      };
+      
+      const events = await this.pool.querySync(this.relays, filter);
+      
+      if (events.length > 0) {
+        const dao = this.parseDaoEvent(events[0]);
+        if (dao) {
+          daoCache.cacheDAODetails(id, dao);
+        }
+      }
+    } catch (error) {
+      console.error(`Error refreshing DAO ${id}:`, error);
     }
   }
   
@@ -125,6 +263,15 @@ export class DAOService {
    */
   async getDAOProposals(daoId: string): Promise<DAOProposal[]> {
     try {
+      // Check cache first
+      const cachedProposals = daoCache.getProposals(daoId);
+      if (cachedProposals) {
+        console.log(`Using cached proposals for DAO: ${daoId}`);
+        // Refresh in background
+        this.refreshDAOProposals(daoId);
+        return cachedProposals;
+      }
+      
       const filter: Filter = {
         kinds: [DAO_KINDS.PROPOSAL],
         '#e': [daoId],
@@ -132,7 +279,7 @@ export class DAOService {
       };
       
       console.log(`Fetching proposals for DAO: ${daoId}`);
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.querySync(this.fastRelays, filter);
       console.log(`Found ${events.length} proposals for DAO ${daoId}`);
       
       const proposals = events
@@ -144,13 +291,64 @@ export class DAOService {
       const votesResults = await Promise.all(votesPromises);
       
       // Merge votes into proposals
-      return proposals.map((proposal, index) => ({
+      const proposalsWithVotes = proposals.map((proposal, index) => ({
         ...proposal,
         votes: votesResults[index]
       }));
+      
+      // Cache the result
+      daoCache.cacheProposals(daoId, proposalsWithVotes);
+      
+      return proposalsWithVotes;
     } catch (error) {
       console.error(`Error fetching proposals for DAO ${daoId}:`, error);
       return [];
+    }
+  }
+  
+  /**
+   * Background refresh of DAO proposals
+   */
+  private async refreshDAOProposals(daoId: string): Promise<void> {
+    try {
+      const filter: Filter = {
+        kinds: [DAO_KINDS.PROPOSAL],
+        '#e': [daoId],
+        limit: 50
+      };
+      
+      const events = await this.pool.querySync(this.relays, filter);
+      
+      const proposals = events
+        .map(event => this.parseProposalEvent(event, daoId))
+        .filter((proposal): proposal is DAOProposal => proposal !== null);
+        
+      // Only fetch votes for active proposals to save bandwidth
+      const activeProposals = proposals.filter(p => p.status === "active");
+      const votesPromises = activeProposals.map(proposal => this.getVotesForProposal(proposal.id));
+      const votesResults = await Promise.all(votesPromises);
+      
+      // Update only active proposals with votes
+      activeProposals.forEach((proposal, index) => {
+        proposal.votes = votesResults[index];
+      });
+      
+      // For non-active proposals, keep existing votes or use empty object
+      const allProposalsWithVotes = proposals.map(proposal => {
+        if (proposal.status !== "active") {
+          const existingProposal = daoCache.getProposals(daoId)?.find(p => p.id === proposal.id);
+          return {
+            ...proposal,
+            votes: existingProposal?.votes || {}
+          };
+        }
+        return proposal;
+      });
+      
+      // Cache the updated result
+      daoCache.cacheProposals(daoId, allProposalsWithVotes);
+    } catch (error) {
+      console.error(`Error refreshing proposals for DAO ${daoId}:`, error);
     }
   }
   
@@ -244,6 +442,11 @@ export class DAOService {
       // Publish the event using nostrService
       const eventId = await nostrService.publishEvent(eventData);
       console.log("DAO created with ID:", eventId);
+      
+      if (eventId && pubkey) {
+        daoCache.invalidateUserDAOs(pubkey);
+        setTimeout(() => daoCache.clearAll(), 1000); // Clear all DAO caches after a delay
+      }
       
       return eventId;
     } catch (error) {
@@ -876,6 +1079,49 @@ export class DAOService {
     } catch (error) {
       console.error("Error kicking member:", error);
       return false;
+    }
+  }
+  
+  /**
+   * Get kick proposals for a DAO
+   */
+  async getDAOKickProposals(daoId: string): Promise<any[]> {
+    try {
+      // Check cache first
+      const cachedKickProposals = daoCache.getKickProposals(daoId);
+      if (cachedKickProposals) {
+        console.log(`Using cached kick proposals for DAO: ${daoId}`);
+        return cachedKickProposals;
+      }
+      
+      // Use standard proposal fetching and filter for kick proposals
+      const allProposals = await this.getDAOProposals(daoId);
+      const kickProps = allProposals.filter(proposal => {
+        try {
+          const content = JSON.parse(proposal.description);
+          return content.type === "kick" && content.targetPubkey;
+        } catch (e) {
+          return false;
+        }
+      }).map(proposal => {
+        try {
+          const content = JSON.parse(proposal.description);
+          return {
+            ...proposal,
+            targetPubkey: content.targetPubkey
+          };
+        } catch (e) {
+          return null;
+        }
+      }).filter(p => p !== null);
+      
+      // Cache the result
+      daoCache.cacheKickProposals(daoId, kickProps);
+      
+      return kickProps;
+    } catch (error) {
+      console.error(`Error fetching kick proposals for DAO ${daoId}:`, error);
+      return [];
     }
   }
   

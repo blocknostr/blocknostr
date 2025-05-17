@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2, Search, Plus, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,25 +9,70 @@ import DAOEmptyState from "./DAOEmptyState";
 import { DAO } from "@/types/dao";
 import CreateDAODialog from "./CreateDAODialog";
 import { useDAO } from "@/hooks/useDAO";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 
 interface DAOListProps {
   type: "discover" | "my-daos" | "trending";
 }
 
+const ITEMS_PER_PAGE = 6;
+
 const DAOList: React.FC<DAOListProps> = ({ type }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(ITEMS_PER_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const {
     daos,
     myDaos,
     trendingDaos,
     loading,
+    loadingMyDaos,
+    loadingTrending,
     createDAO,
     currentUserPubkey,
     refreshDaos
   } = useDAO();
+  
+  // Determine which list and loading state to use based on type
+  const getDaoList = () => {
+    switch (type) {
+      case "my-daos": 
+        return myDaos;
+      case "trending": 
+        return trendingDaos;
+      default: 
+        return daos;
+    }
+  };
+  
+  const getLoadingState = () => {
+    switch (type) {
+      case "my-daos": 
+        return loadingMyDaos;
+      case "trending": 
+        return loadingTrending;
+      default: 
+        return loading;
+    }
+  };
+  
+  const daoList = getDaoList();
+  const isLoading = getLoadingState();
+  
+  // Filter by search term
+  const filteredDaos = searchTerm 
+    ? daoList.filter(dao => 
+        dao.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        dao.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dao.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : daoList;
+  
+  // Get virtualized list of DAOs
+  const virtualizedDaos = filteredDaos.slice(0, displayLimit);
   
   // Connection check
   useEffect(() => {
@@ -35,7 +80,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
       try {
         // Wait 5 seconds and check if we have any data
         await new Promise(resolve => setTimeout(resolve, 5000));
-        if (!loading && type === "discover" && daos.length === 0) {
+        if (!isLoading && type === "discover" && daos.length === 0) {
           console.warn("No DAOs loaded after timeout, possible connection issue");
           setConnectionError(true);
         } else {
@@ -47,21 +92,18 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     };
     
     checkConnection();
-  }, [loading, daos.length, type]);
+  }, [isLoading, daos.length, type]);
   
-  // Determine which list to use based on type
-  const daoList = type === "my-daos" ? myDaos : 
-                  type === "trending" ? trendingDaos : 
-                  daos;
-  
-  // Filter by search term
-  const filteredDaos = searchTerm 
-    ? daoList.filter(dao => 
-        dao.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        dao.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        dao.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : daoList;
+  // Intersection observer for infinite scrolling
+  useIntersectionObserver({
+    target: loadMoreRef,
+    onIntersect: () => {
+      if (displayLimit < filteredDaos.length && !isLoading) {
+        setDisplayLimit(prev => Math.min(prev + ITEMS_PER_PAGE, filteredDaos.length));
+      }
+    },
+    enabled: displayLimit < filteredDaos.length
+  });
   
   const handleCreateDAO = async (name: string, description: string, tags: string[]) => {
     const daoId = await createDAO(name, description, tags);
@@ -74,6 +116,11 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     setConnectionError(false);
     refreshDaos();
   };
+  
+  // Reset display limit when search changes
+  useEffect(() => {
+    setDisplayLimit(ITEMS_PER_PAGE);
+  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -120,13 +167,25 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
         </Alert>
       )}
 
-      {loading ? (
+      {isLoading && daoList.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">Loading DAOs from Nostr network...</p>
         </div>
       ) : filteredDaos.length > 0 ? (
-        <DAOGrid daos={filteredDaos} currentUserPubkey={currentUserPubkey || ""} />
+        <>
+          <DAOGrid daos={virtualizedDaos} currentUserPubkey={currentUserPubkey || ""} />
+          
+          {/* Load more indicator */}
+          {displayLimit < filteredDaos.length && (
+            <div 
+              ref={loadMoreRef} 
+              className="flex justify-center items-center py-4"
+            >
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </>
       ) : (
         <DAOEmptyState onCreateDAO={() => setCreateDialogOpen(true)} />
       )}
