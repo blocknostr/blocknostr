@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
@@ -99,18 +100,33 @@ export function useDAO(daoId?: string) {
       trending: false
     };
     
+    // Set the loading states to true
+    setLoading(true);
+    setLoadingMyDaos(true);
+    setLoadingTrending(true);
+    
+    // Clear the cache - force a fresh load
+    const daoCache = await import('@/lib/dao/dao-cache');
+    daoCache.daoCache.clearAll();
+    
     // Start parallel fetching
-    fetchGeneralDAOs();
-    fetchMyDAOs();
-    fetchTrendingDAOs();
-  }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
-  
-  // Initialize parallel fetching on load
-  useEffect(() => {
-    if (!daoId) {
-      fetchGeneralDAOs();
-      fetchMyDAOs();
-      fetchTrendingDAOs();
+    try {
+      const [generalDAOs, userDAOs, trendingDAOs] = await Promise.allSettled([
+        fetchGeneralDAOs(),
+        fetchMyDAOs(),
+        fetchTrendingDAOs()
+      ]);
+      
+      console.log("Refreshed DAOs:", {
+        general: generalDAOs.status === 'fulfilled' ? 'success' : 'failed',
+        myDaos: userDAOs.status === 'fulfilled' ? 'success' : 'failed',
+        trending: trendingDAOs.status === 'fulfilled' ? 'success' : 'failed'
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error during DAO refresh:", error);
+      return false;
     }
   }, [daoId, fetchGeneralDAOs, fetchMyDAOs, fetchTrendingDAOs]);
   

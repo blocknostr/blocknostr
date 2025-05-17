@@ -52,7 +52,7 @@ export class DAOService {
         console.log("Using cached DAOs");
         // Fetch fresh data in the background to update cache
         this.refreshDAOs(limit);
-        return cachedDAOs;
+        return cachedDAOs.filter(dao => dao.name !== "Unnamed DAO" && dao.name.trim() !== "");
       }
       
       const filter: Filter = {
@@ -69,7 +69,11 @@ export class DAOService {
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => dao !== null);
+        .filter((dao): dao is DAO => 
+          dao !== null && 
+          dao.name !== "Unnamed DAO" && 
+          dao.name.trim() !== ""
+        );
       
       // Cache the results
       daoCache.cacheAllDAOs(daos);
@@ -407,13 +411,20 @@ export class DAOService {
         throw new Error("User not authenticated");
       }
       
-      console.log(`Creating DAO: ${name} with creator ${pubkey}`);
+      // Validate name - prevent empty names
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        console.error("DAO creation failed: Name cannot be empty");
+        throw new Error("DAO name cannot be empty");
+      }
+      
+      console.log(`Creating DAO: ${trimmedName} with creator ${pubkey}`);
       
       // Generate a unique identifier for the DAO
       const uniqueId = `dao_${Math.random().toString(36).substring(2, 10)}`;
       
       const communityData = {
-        name,
+        name: trimmedName, // Use trimmed name
         description,
         creator: pubkey,
         createdAt: Math.floor(Date.now() / 1000),
@@ -1155,8 +1166,14 @@ export class DAOService {
       try {
         content = event.content ? JSON.parse(event.content) : {};
       } catch (e) {
-        console.error("Error parsing DAO content JSON:", e);
+        console.error("Error parsing DAO content JSON for event", event.id, e);
         content = {};
+      }
+      
+      // Validate name - log issues with missing names
+      const name = content.name?.trim();
+      if (!name) {
+        console.warn(`DAO event ${event.id} has no name or empty name. Content:`, content);
       }
       
       // Extract members from p tags
@@ -1172,7 +1189,7 @@ export class DAOService {
       // Construct DAO object
       const dao: DAO = {
         id: event.id,
-        name: content.name || "Unnamed DAO",
+        name: name || "Unnamed DAO",
         description: content.description || "",
         image: content.image || "",
         creator: event.pubkey,

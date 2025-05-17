@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface CreateDAODialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nameError, setNameError] = useState("");
   
   const resetForm = () => {
     setName("");
@@ -31,6 +33,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     setTags([]);
     setTagInput("");
     setIsSubmitting(false);
+    setNameError("");
   };
   
   const handleClose = () => {
@@ -38,15 +41,40 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     onOpenChange(false);
   };
   
+  const validateName = (name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setNameError("DAO name cannot be empty");
+      return false;
+    }
+    
+    setNameError("");
+    return true;
+  };
+  
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    if (newName.trim()) {
+      setNameError("");
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim()) return;
+    if (!validateName(name)) {
+      toast.error("Please provide a valid DAO name");
+      return;
+    }
     
     setIsSubmitting(true);
     try {
-      await onCreateDAO(name, description, tags);
+      await onCreateDAO(name.trim(), description, tags);
       handleClose();
+    } catch (error) {
+      console.error("Error creating DAO:", error);
+      toast.error("Failed to create DAO");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,15 +108,19 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">Name <span className="text-red-500">*</span></Label>
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={handleNameChange}
               placeholder="Enter DAO name"
               required
               maxLength={50}
+              className={nameError ? "border-red-500" : ""}
             />
+            {nameError && (
+              <p className="text-red-500 text-sm mt-1">{nameError}</p>
+            )}
           </div>
           
           <div className="space-y-2">

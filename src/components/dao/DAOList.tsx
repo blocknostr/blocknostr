@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { Loader2, Search, Plus, AlertCircle } from "lucide-react";
+import { Loader2, Search, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -10,6 +10,7 @@ import { DAO } from "@/types/dao";
 import CreateDAODialog from "./CreateDAODialog";
 import { useDAO } from "@/hooks/useDAO";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { toast } from "sonner";
 
 interface DAOListProps {
   type: "discover" | "my-daos" | "trending";
@@ -22,6 +23,7 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(ITEMS_PER_PAGE);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const {
@@ -117,6 +119,23 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
     refreshDaos();
   };
   
+  const handleRefreshDAOs = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    toast.info("Refreshing DAOs...");
+    
+    try {
+      await refreshDaos();
+      toast.success("DAOs refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing DAOs:", error);
+      toast.error("Failed to refresh DAOs");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  
   // Reset display limit when search changes
   useEffect(() => {
     setDisplayLimit(ITEMS_PER_PAGE);
@@ -136,14 +155,27 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
           />
         </div>
         
-        <Button 
-          onClick={() => setCreateDialogOpen(true)}
-          className="w-full sm:w-auto"
-          disabled={!currentUserPubkey}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create DAO
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline"
+            onClick={handleRefreshDAOs}
+            disabled={isRefreshing || isLoading}
+            className="w-full sm:w-auto"
+            title="Refresh DAOs"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          
+          <Button 
+            onClick={() => setCreateDialogOpen(true)}
+            className="w-full sm:w-auto"
+            disabled={!currentUserPubkey}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create DAO
+          </Button>
+        </div>
         
         <CreateDAODialog 
           open={createDialogOpen}
