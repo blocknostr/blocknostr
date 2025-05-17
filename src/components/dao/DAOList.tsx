@@ -196,7 +196,7 @@ const DAOList = () => {
                 <Users className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-medium">Additional DAOs</h3>
               </div>
-              <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
+              <DAOCarousel daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
             </div>
           )}
         </div>
