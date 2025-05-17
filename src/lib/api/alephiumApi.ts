@@ -281,12 +281,9 @@ export const sendTransaction = async (
     
     console.log("Building transaction for address:", fromAddress);
     
-    // Get the address info to use for the transaction build
-    const addressesInfo = await nodeProvider.addresses.getAddressesAddressInfo(fromAddress);
-    
-    // Build unsigned transaction - use fromAddress instead of publicKey
+    // Build unsigned transaction - use the correct properties for the API
     const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
-      fromAddress: fromAddress,
+      fromPublicKey: '', // We'll leave this blank since we're using fromAddress
       destinations: [{
         address: toAddress,
         attoAlphAmount: amountInNanoAlph
