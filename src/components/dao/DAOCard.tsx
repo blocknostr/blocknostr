@@ -82,7 +82,7 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
           )}
         </div>
         
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
           <div className="flex items-center">
             <Users className="h-3 w-3 mr-1" />
             {memberCount} {memberCount === 1 ? 'member' : 'members'}
