@@ -534,7 +534,8 @@ export class DAOService {
         // Get existing cached proposals or empty array
         const existingProposals = daoCache.getProposals(daoId) || [];
         
-        // Add the new proposal to the cache
+        // Add the new proposal to the beginning of the array
+        // This ensures we preserve all existing proposals rather than replacing them
         daoCache.cacheProposals(daoId, [newProposal, ...existingProposals]);
       }
       
