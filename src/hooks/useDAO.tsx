@@ -936,16 +936,18 @@ export function useDAO(daoId?: string) {
       
       // For kick proposals, use standard proposal mechanism with special options
       const title = `Remove member ${memberToKick.substring(0, 8)}...`;
-      const description = `Reason for removal: ${reason}`;
+      const description = JSON.stringify({
+        type: "kick",
+        reason: reason,
+        targetPubkey: memberToKick
+      });
       const options = ["Yes, remove member", "No, keep member"];
       
-      // Create a special proposal with kick metadata
+      // Create a special proposal with kick metadata (use only 3 arguments as expected)
       const proposalId = await daoService.createKickProposal(
         daoId,
         title,
-        description,
-        options,
-        memberToKick
+        description
       );
       
       if (proposalId) {

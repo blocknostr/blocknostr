@@ -33,6 +33,8 @@ export interface DAOProposal {
   votes: Record<string, number>; // Mapping of pubkey to option index
   status: "active" | "passed" | "rejected" | "canceled";
   closesAt?: number;    // Alias for endsAt (for compatibility)
+  duration?: number;    // Duration of the proposal in seconds
+  category?: string;    // Optional category for the proposal
 }
 
 export interface DAOMember {
