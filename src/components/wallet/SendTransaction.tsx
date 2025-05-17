@@ -20,17 +20,18 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [signerReady, setSignerReady] = useState(false);
   
-  // Check if the signer is properly initialized with a public key
+  // Check if the signer is properly initialized
   useEffect(() => {
     const checkSigner = async () => {
       if (wallet.signer && wallet.connectionStatus === 'connected') {
         try {
-          // The signer should have a publicKey property
-          if (wallet.signer.publicKey) {
+          // Instead of directly accessing publicKey property, check if the signer is usable
+          // by accessing a common method or property that should exist
+          if (wallet.signer && wallet.account) {
             setSignerReady(true);
-            console.log("Signer ready with public key:", wallet.signer.publicKey);
+            console.log("Signer ready with address:", wallet.account.address);
           } else {
-            console.warn("Signer is connected but missing publicKey");
+            console.warn("Signer is connected but missing account info");
             setSignerReady(false);
           }
         } catch (error) {
@@ -43,7 +44,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     };
     
     checkSigner();
-  }, [wallet.signer, wallet.connectionStatus]);
+  }, [wallet.signer, wallet.connectionStatus, wallet.account]);
   
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +77,7 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
       console.log("Starting transaction with:", {
         fromAddress,
         recipient,
-        amount: amountValue,
-        signerPublicKey: wallet.signer.publicKey
+        amount: amountValue
       });
       
       // In a real app, you'd want to catch any signer or signature errors here

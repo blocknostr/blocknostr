@@ -268,8 +268,8 @@ export const sendTransaction = async (
   signer: any
 ) => {
   try {
-    if (!signer || !signer.publicKey) {
-      throw new Error("Signer object is invalid or missing publicKey");
+    if (!signer) {
+      throw new Error("Signer object is invalid");
     }
 
     // Convert ALPH to nanoALPH
@@ -279,11 +279,14 @@ export const sendTransaction = async (
     const addressInfo = await nodeProvider.addresses.getAddressesAddressGroup(fromAddress);
     const fromGroup = addressInfo.group;
     
-    console.log("Building transaction with public key:", signer.publicKey);
+    console.log("Building transaction for address:", fromAddress);
     
-    // Build unsigned transaction
+    // Get the address info to use for the transaction build
+    const addressesInfo = await nodeProvider.addresses.getAddressesAddressInfo(fromAddress);
+    
+    // Build unsigned transaction - use fromAddress instead of publicKey
     const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
-      fromPublicKey: signer.publicKey,
+      fromAddress: fromAddress,
       destinations: [{
         address: toAddress,
         attoAlphAmount: amountInNanoAlph
