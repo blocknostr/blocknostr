@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useProfileCache } from "@/hooks/useProfileCache";
@@ -50,9 +50,32 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [isCreatingInvite, setIsCreatingInvite] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(true);
+  const [memberProfiles, setMemberProfiles] = useState<Record<string, any>>({});
 
   // Get user profiles for all members
-  const { profiles, isLoading } = useProfileCache(dao.members);
+  const profileCache = useProfileCache();
+  
+  // Fix: Fetch profiles manually using the hook
+  useEffect(() => {
+    const fetchMemberProfiles = async () => {
+      if (dao.members.length > 0) {
+        setIsLoadingProfiles(true);
+        try {
+          const fetchedProfiles = await profileCache.fetchProfiles(dao.members);
+          setMemberProfiles(fetchedProfiles);
+        } catch (error) {
+          console.error("Error fetching member profiles:", error);
+        } finally {
+          setIsLoadingProfiles(false);
+        }
+      } else {
+        setIsLoadingProfiles(false);
+      }
+    };
+
+    fetchMemberProfiles();
+  }, [dao.members, profileCache]);
   
   // Check if current user has a pending kick proposal
   const hasKickProposal = (memberPubkey: string): boolean => {
@@ -186,7 +209,7 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
           )}
 
           {/* Members list */}
-          {isLoading ? (
+          {isLoadingProfiles ? (
             <div className="py-8 text-center">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
               <p className="mt-2 text-sm text-muted-foreground">Loading members...</p>
@@ -194,7 +217,7 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
           ) : (
             <ul className="space-y-3">
               {dao.members.map((memberPubkey) => {
-                const profile = profiles?.find(p => p.pubkey === memberPubkey);
+                const profile = memberProfiles[memberPubkey];
                 const memberRole = getMemberRole(memberPubkey);
                 const isPending = hasKickProposal(memberPubkey);
                 const isCurrentUser = currentUserPubkey === memberPubkey;
