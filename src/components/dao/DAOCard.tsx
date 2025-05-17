@@ -32,8 +32,8 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
   };
   
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md h-full flex flex-col">
-      <div className="relative h-32 overflow-hidden">
+    <Card className="overflow-hidden transition-all hover:shadow-md h-full flex flex-col border border-border/40">
+      <div className="relative h-24 overflow-hidden">
         <img 
           src={dao.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=225&fit=crop"} 
           alt={dao.name} 
@@ -41,25 +41,25 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
         />
         <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
           {isMember && (
-            <Badge variant="default" className="bg-primary/80 hover:bg-primary text-xs">
+            <Badge variant="default" className="bg-primary/80 hover:bg-primary text-xs font-medium py-0 h-5">
               <Check className="h-3 w-3 mr-1" /> Member
             </Badge>
           )}
           {isCreator && (
-            <Badge variant="default" className="bg-amber-500/80 hover:bg-amber-500 text-xs">
+            <Badge variant="default" className="bg-amber-500/80 hover:bg-amber-500 text-xs font-medium py-0 h-5">
               Creator
             </Badge>
           )}
           {isModerator && !isCreator && (
-            <Badge variant="default" className="bg-blue-500/80 hover:bg-blue-500 text-xs">
+            <Badge variant="default" className="bg-blue-500/80 hover:bg-blue-500 text-xs font-medium py-0 h-5">
               <Shield className="h-3 w-3 mr-1" /> Mod
             </Badge>
           )}
         </div>
       </div>
       
-      <CardContent className="p-4 pb-0 flex-grow">
-        <h3 className="font-semibold text-base line-clamp-1 mb-1">
+      <CardContent className="p-3 pb-0 flex-grow">
+        <h3 className="font-semibold text-sm line-clamp-1 mb-1">
           <Link to={`/dao/${dao.id}`} className="hover:underline hover:text-primary">
             {dao.name}
           </Link>
@@ -71,12 +71,12 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
         
         <div className="flex flex-wrap gap-1 mt-1">
           {dao.tags && dao.tags.slice(0, 3).map(tag => (
-            <Badge key={tag} variant="outline" className="text-xs bg-muted/50 px-1.5 py-0">
+            <Badge key={tag} variant="outline" className="text-xs bg-muted/50 px-1.5 py-0 h-4">
               {tag}
             </Badge>
           ))}
           {dao.tags && dao.tags.length > 3 && (
-            <Badge variant="outline" className="text-xs bg-muted/50 px-1.5 py-0">
+            <Badge variant="outline" className="text-xs bg-muted/50 px-1.5 py-0 h-4">
               +{dao.tags.length - 3}
             </Badge>
           )}
@@ -93,16 +93,16 @@ const DAOCard: React.FC<DAOCardProps> = ({ dao, currentUserPubkey }) => {
         </div>
       </CardContent>
       
-      <CardFooter className="p-3">
+      <CardFooter className="p-3 pt-2">
         {isMember ? (
-          <Button asChild variant="outline" className="w-full text-xs h-8">
+          <Button asChild variant="outline" className="w-full text-xs h-7">
             <Link to={`/dao/${dao.id}`}>
               View DAO
             </Link>
           </Button>
         ) : (
           <Button 
-            className="w-full text-xs h-8"
+            className="w-full text-xs h-7"
             onClick={handleJoinDAO}
             disabled={!currentUserPubkey}
           >

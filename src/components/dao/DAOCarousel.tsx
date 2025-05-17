@@ -38,8 +38,8 @@ const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey }) =>
         </CarouselContent>
         {daos.length > 4 && (
           <>
-            <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4" />
-            <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 -mr-4" />
+            <CarouselPrevious className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -ml-4" />
+            <CarouselNext className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 -mr-4" />
           </>
         )}
       </Carousel>
