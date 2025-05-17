@@ -61,9 +61,16 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Use the DataAdapter through nostrService for NIP-compliant event retrieval
-        // Ensure we're using methods that exist on the service
-        const events = await nostrService.getEventsByUser(hexPubkey, 10);
+        // Fix: Use queryEvents with the proper filter structure instead of getEventsByUser
+        // Since getEventsByUser expects only one parameter but was being called with two
+        const filters = [
+          {
+            kinds: [1], // Notes
+            authors: [hexPubkey],
+            limit: 10
+          }
+        ];
+        const events = await nostrService.queryEvents(filters);
         setNotes(events);
       } catch (error) {
         console.error('Error fetching notes:', error);
