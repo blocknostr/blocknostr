@@ -1,11 +1,12 @@
-
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DAO } from "@/types/dao";
 import { formatDistanceToNow } from "date-fns";
-import { Users, Calendar, Lock } from "lucide-react";
+import { Users, Calendar, Lock, UserMinus } from "lucide-react";
 import LeaveDaoButton from "./LeaveDaoButton";
+import { ToolbarButton } from "@/components/ui/toolbar-button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DAOHeaderProps {
   dao: DAO;
@@ -28,8 +29,30 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
   const canDelete = userRole === 'creator' && isCreatorOnlyMember && !!onDeleteDAO;
   
   return (
-    <Card>
+    <Card className="relative">
       <CardContent className="pt-6 space-y-4">
+        {/* Leave DAO button - placed in the absolute top right corner */}
+        {userRole === 'member' && (
+          <div className="absolute top-2 right-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ToolbarButton
+                    onClick={onLeaveDAO}
+                    className="hover:bg-destructive/10 hover:text-destructive" 
+                    aria-label="Leave DAO"
+                  >
+                    <UserMinus className="h-4 w-4" />
+                  </ToolbarButton>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Leave DAO</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
+
         <div>
           <h1 className="text-2xl font-bold mb-2">{dao.name}</h1>
           <p className="text-muted-foreground">{dao.description}</p>
@@ -63,11 +86,14 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
           </div>
         )}
         
+        {/* We'll keep the original button but hide it since we now have the icon button */}
         {userRole === 'member' && (
-          <LeaveDaoButton 
-            onLeave={onLeaveDAO} 
-            daoName={dao.name} 
-          />
+          <div className="hidden">
+            <LeaveDaoButton 
+              onLeave={onLeaveDAO} 
+              daoName={dao.name} 
+            />
+          </div>
         )}
       </CardContent>
     </Card>
