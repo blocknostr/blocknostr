@@ -255,24 +255,19 @@ export const useMessaging = () => {
         });
         
         setNewMessage("");
-        toast({
-          title: "Message sent",
+        toast.success("Message sent", {
           description: "Your encrypted message has been sent"
         });
       } else {
         console.error("Failed to send message, no event ID returned");
-        toast({
-          title: "Failed to send message",
-          description: "Please check your connection and try again",
-          variant: "destructive"
+        toast.error("Failed to send message", {
+          description: "Please check your connection and try again"
         });
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      toast({
-        title: "Failed to send message",
-        description: "Please try again later",
-        variant: "destructive"
+      toast.error("Failed to send message", {
+        description: "Please try again later"
       });
     } finally {
       setSendingMessage(false);
@@ -289,10 +284,8 @@ export const useMessaging = () => {
       try {
         pubkey = nostrService.getHexFromNpub(pubkey);
       } catch (e) {
-        toast({
-          title: "Invalid public key",
-          description: "The entered public key is not valid",
-          variant: "destructive"
+        toast.error("Invalid public key", {
+          description: "The entered public key is not valid"
         });
         return;
       }
@@ -300,8 +293,7 @@ export const useMessaging = () => {
     
     // Check if contact already exists
     if (contacts.some(c => c.pubkey === pubkey)) {
-      toast({
-        title: "Contact already exists",
+      toast.info("Contact already exists", {
         description: "This contact is already in your list"
       });
       setNewContactDialog(false);
@@ -314,15 +306,12 @@ export const useMessaging = () => {
     if (newContact) {
       setContacts(prev => [...prev, newContact]);
       loadMessagesForContact(newContact);
-      toast({
-        title: "Contact added",
+      toast.success("Contact added", {
         description: `${newContact.profile?.display_name || newContact.profile?.name || 'Contact'} has been added to your contacts`
       });
     } else {
-      toast({
-        title: "Could not find user",
-        description: "No profile found for this public key",
-        variant: "destructive"
+      toast.error("Could not find user", {
+        description: "No profile found for this public key"
       });
     }
     
