@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
@@ -42,7 +42,8 @@ const SingleDAOPage: React.FC = () => {
     removeDAOModerator,
     createDAOInvite,
     createKickProposal,
-    voteOnKickProposal
+    voteOnKickProposal,
+    refreshDaos
   } = useDAO(id);
 
   // Set up real-time subscriptions for DAO updates
@@ -188,6 +189,19 @@ const SingleDAOPage: React.FC = () => {
     return await voteOnKickProposal(proposalId, optionIndex);
   };
 
+  // Add a function to refresh proposals
+  const refreshProposals = useCallback(async () => {
+    // Check if there's an ID before trying to refresh
+    if (id) {
+      try {
+        await refreshDaos(); // This should refresh all DAO data including proposals
+      } catch (error) {
+        console.error("Error refreshing proposals:", error);
+        toast.error("Failed to refresh proposals");
+      }
+    }
+  }, [id, refreshDaos]);
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -246,6 +260,7 @@ const SingleDAOPage: React.FC = () => {
                       currentUserPubkey={currentUserPubkey}
                       onCreateProposal={createProposal}
                       onVoteProposal={handleVoteOnProposal}
+                      onRefreshProposals={refreshProposals}
                     />
                   </TabsContent>
                   

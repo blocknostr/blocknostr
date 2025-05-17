@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Loader2, Plus, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +17,7 @@ interface DAOProposalsListProps {
   currentUserPubkey: string | null;
   onCreateProposal: (daoId: string, title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
   onVoteProposal: (proposalId: string, optionIndex: number) => Promise<boolean>;
+  onRefreshProposals?: () => Promise<void>;
 }
 
 const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
@@ -28,7 +28,8 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
   isCreator,
   currentUserPubkey,
   onCreateProposal,
-  onVoteProposal
+  onVoteProposal,
+  onRefreshProposals
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
@@ -52,6 +53,14 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
       </div>
     );
   }
+  
+  const handleProposalCreated = async () => {
+    setIsDialogOpen(false);
+    // Refresh proposals list after creating a new one
+    if (onRefreshProposals) {
+      await onRefreshProposals();
+    }
+  };
   
   return (
     <div>
@@ -93,7 +102,7 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
               <DAOCreateProposalDialog
                 daoId={daoId}
                 onCreateProposal={onCreateProposal}
-                onSuccess={() => setIsDialogOpen(false)}
+                onSuccess={handleProposalCreated}
               />
             </DialogContent>
           </Dialog>
