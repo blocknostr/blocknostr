@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -61,8 +60,8 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Use DataAdapter through nostrService's adapter
-        const events = await nostrService.adapter.data.getEventsByUser(hexPubkey, 10);
+        // Use the nostrService's getEventsByUser method directly
+        const events = await nostrService.getEventsByUser(hexPubkey, 10);
         setNotes(events);
       } catch (error) {
         console.error('Error fetching notes:', error);
