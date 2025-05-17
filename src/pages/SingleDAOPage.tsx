@@ -1,10 +1,7 @@
-
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DAOProposalsList from "@/components/dao/DAOProposalsList";
 import DAOMembersList from "@/components/dao/DAOMembersList";
@@ -12,11 +9,15 @@ import DAOSettingsDialog from "@/components/dao/DAOSettingsDialog";
 import DAOKickProposalDialog from "@/components/dao/DAOKickProposalDialog";
 import DAOHeader from "@/components/dao/DAOHeader";
 import DAOKickProposalsList from "@/components/dao/DAOKickProposalsList";
+import Sidebar from "@/components/Sidebar";
+import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import DAOPageHeader from "@/components/dao/DAOPageHeader";
+import DAOGuidelines from "@/components/dao/DAOGuidelines";
+import DAOInvites from "@/components/dao/DAOInvites";
 
 const SingleDAOPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("proposals");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
@@ -30,6 +31,7 @@ const SingleDAOPage: React.FC = () => {
     loadingKickProposals,
     isMember,
     isCreator,
+    isModerator,
     currentUserPubkey,
     createProposal,
     voteOnProposal,
@@ -58,12 +60,32 @@ const SingleDAOPage: React.FC = () => {
     }
   });
 
+  // Determine role for member
+  const userRole = isCreator ? 'creator' : isModerator ? 'moderator' : isMember ? 'member' : null;
+  
+  // Determine if we should show the kick proposals tab
+  const hasKickProposals = !loadingKickProposals && kickProposals.length > 0;
+  
+  // Check if the creator is the only member
+  const isCreatorOnlyMember = currentDao && currentDao.members.length === 1 && currentDao.members[0] === currentDao.creator;
+  
+  // Permission checks
+  const canModerate = isCreator || isModerator;
+  const canCreateProposal = currentUserPubkey && isMember;
+  const canKickPropose = currentUserPubkey && isMember && !isCreator;
+  const canSetGuidelines = canModerate;
+
   if (loading) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-12">
-        <div className="flex flex-col items-center justify-center h-64">
-          <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
-          <p className="text-lg text-muted-foreground">Loading DAO information...</p>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="h-16 w-16 animate-spin border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+              <p className="text-lg text-muted-foreground">Loading DAO information...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -71,16 +93,17 @@ const SingleDAOPage: React.FC = () => {
 
   if (!currentDao) {
     return (
-      <div className="container max-w-6xl mx-auto px-4 py-12">
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
-          <p className="text-muted-foreground mb-6">
-            The DAO you're looking for doesn't exist or has been removed.
-          </p>
-          <Button onClick={() => navigate("/dao")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to DAOs
-          </Button>
+      <div className="flex min-h-screen bg-background">
+        <Sidebar />
+        <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+          <div className="container mx-auto px-4 py-12">
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <h2 className="text-2xl font-bold mb-4">DAO Not Found</h2>
+              <p className="text-muted-foreground mb-6">
+                The DAO you're looking for doesn't exist or has been removed.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -115,119 +138,142 @@ const SingleDAOPage: React.FC = () => {
     }
   };
   
-  // Determine if we should show the kick proposals tab
-  const hasKickProposals = !loadingKickProposals && kickProposals.length > 0;
+  const handleLeaveDAO = async () => {
+    // This would be implemented in the useDAO hook
+    toast.error("Leave DAO functionality not yet implemented");
+  };
+  
+  const handleDeleteDAO = async () => {
+    // This would be implemented in the useDAO hook
+    toast.error("Delete DAO functionality not yet implemented");
+  };
+  
+  const handleCreateInvite = async () => {
+    if (!currentUserPubkey || !isMember(currentDao)) {
+      toast.error("You must be a member to create invites");
+      return null;
+    }
+    
+    try {
+      const inviteLink = await createDAOInvite(currentDao.id);
+      return inviteLink;
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      return null;
+    }
+  };
 
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-6">
-      {/* Back button */}
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="mb-6"
-        onClick={() => navigate("/dao")}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to DAOs
-      </Button>
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
       
-      {/* DAO Header */}
-      <DAOHeader
-        dao={currentDao}
-        isMember={isMember(currentDao)}
-        isCreator={isCreator(currentDao)}
-        currentUserPubkey={currentUserPubkey}
-        onJoinDAO={handleJoinDAO}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenKickDialog={() => setIsKickDialogOpen(true)}
-      />
-
-      {/* Tabs for Proposals and Members */}
-      <Tabs 
-        defaultValue="proposals" 
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="w-full"
-      >
-        <TabsList className="mb-6">
-          <TabsTrigger value="proposals">
-            Proposals
-          </TabsTrigger>
-          <TabsTrigger value="members">
-            Members
-          </TabsTrigger>
-          {hasKickProposals && (
-            <TabsTrigger value="kick">
-              Removal Votes
-            </TabsTrigger>
-          )}
-          {currentDao.guidelines && (
-            <TabsTrigger value="guidelines">
-              Guidelines
-            </TabsTrigger>
-          )}
-        </TabsList>
+      <div className="flex-1 ml-0 md:ml-64 overflow-auto">
+        <DAOPageHeader
+          name={currentDao.name}
+          isMember={isMember(currentDao)}
+          isCreator={isCreator(currentDao)}
+          isCreatorOnlyMember={isCreatorOnlyMember}
+          currentUserPubkey={currentUserPubkey}
+          onJoinDAO={handleJoinDAO}
+          onLeaveDAO={handleLeaveDAO}
+          onDeleteDAO={isCreatorOnlyMember ? handleDeleteDAO : undefined}
+          isPrivate={currentDao.isPrivate}
+        />
         
-        <TabsContent value="proposals" className="mt-0">
-          <DAOProposalsList 
-            daoId={currentDao.id}
-            proposals={proposals} 
-            isLoading={loadingProposals}
-            isMember={isMember(currentDao)}
-            isCreator={isCreator(currentDao)}
-            currentUserPubkey={currentUserPubkey}
-            onCreateProposal={createProposal}
-            onVoteProposal={voteOnProposal}
-          />
-        </TabsContent>
-        
-        <TabsContent value="members" className="mt-0">
-          <DAOMembersList 
-            dao={currentDao}
-            currentUserPubkey={currentUserPubkey}
-          />
-        </TabsContent>
-        
-        {hasKickProposals && (
-          <TabsContent value="kick" className="mt-0">
-            <DAOKickProposalsList
-              proposals={kickProposals}
-              currentUserPubkey={currentUserPubkey}
-              onVote={voteOnKickProposal}
-              isLoading={loadingKickProposals}
-            />
-          </TabsContent>
-        )}
-        
-        {currentDao.guidelines && (
-          <TabsContent value="guidelines" className="mt-0">
-            <div className="bg-card border rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">DAO Guidelines</h2>
-              <div className="prose prose-sm max-w-none">
-                {currentDao.guidelines.split('\n').map((line, i) => (
-                  <p key={i} className="mb-2">{line}</p>
-                ))}
-              </div>
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main Content - Left side */}
+            <div className="lg:col-span-8 space-y-5">
+              {/* DAO Info */}
+              <DAOHeader 
+                dao={currentDao}
+                currentUserPubkey={currentUserPubkey}
+                userRole={userRole}
+                onLeaveDAO={handleLeaveDAO}
+                onDeleteDAO={handleDeleteDAO}
+                isCreatorOnlyMember={isCreatorOnlyMember}
+              />
+              
+              <Tabs defaultValue="proposals" className="w-full">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                  <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
+                  {canModerate && (
+                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                  )}
+                </TabsList>
+                
+                {/* Proposals Tab */}
+                <TabsContent value="proposals">
+                  <DAOProposalsList
+                    daoId={currentDao.id}
+                    proposals={proposals}
+                    isLoading={loadingProposals}
+                    isMember={isMember(currentDao)}
+                    isCreator={isCreator(currentDao)}
+                    currentUserPubkey={currentUserPubkey}
+                    onCreateProposal={createProposal}
+                    onVoteProposal={voteOnProposal}
+                  />
+                </TabsContent>
+                
+                {/* Guidelines Tab */}
+                <TabsContent value="guidelines">
+                  <DAOGuidelines
+                    guidelines={currentDao.guidelines}
+                    canEdit={canSetGuidelines}
+                    onUpdate={updateDAOGuidelines}
+                  />
+                </TabsContent>
+                
+                {/* Settings Tab - Only for Creator/Moderators */}
+                {canModerate && (
+                  <TabsContent value="settings">
+                    <DAOSettingsDialog
+                      dao={currentDao}
+                      isOpen={true}
+                      onOpenChange={() => {}}
+                      isCreator={isCreator(currentDao)}
+                      onUpdatePrivacy={updateDAOPrivacy}
+                      onUpdateGuidelines={updateDAOGuidelines}
+                      onUpdateTags={updateDAOTags}
+                      onAddModerator={addDAOModerator}
+                      onRemoveModerator={removeDAOModerator}
+                      onCreateInviteLink={() => createDAOInvite(currentDao.id)}
+                      embedded={true}
+                    />
+                  </TabsContent>
+                )}
+              </Tabs>
             </div>
-          </TabsContent>
-        )}
-      </Tabs>
+            
+            {/* Right Panel - Members list & Invites */}
+            <div className="lg:col-span-4 space-y-5">
+              <DAOMembersList 
+                dao={currentDao}
+                currentUserPubkey={currentUserPubkey}
+                onKickProposal={handleCreateKickProposal}
+                kickProposals={kickProposals}
+                onVoteKick={voteOnKickProposal}
+                onLeaveDAO={handleLeaveDAO}
+                userRole={userRole}
+                canKickPropose={canKickPropose}
+              />
+              
+              {isMember && (
+                <DAOInvites
+                  daoId={currentDao.id}
+                  onCreateInvite={handleCreateInvite}
+                  isPrivate={currentDao.isPrivate}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+        <Toaster position="bottom-right" />
+      </div>
       
-      {/* Settings Dialog */}
-      <DAOSettingsDialog
-        dao={currentDao}
-        isOpen={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-        isCreator={isCreator(currentDao)}
-        onUpdatePrivacy={updateDAOPrivacy}
-        onUpdateGuidelines={updateDAOGuidelines}
-        onUpdateTags={updateDAOTags}
-        onAddModerator={addDAOModerator}
-        onRemoveModerator={removeDAOModerator}
-        onCreateInviteLink={() => createDAOInvite(currentDao.id)}
-      />
-      
-      {/* Kick Proposal Dialog */}
+      {/* Keep the kick proposal dialog */}
       <DAOKickProposalDialog
         dao={currentDao}
         isOpen={isKickDialogOpen}
