@@ -22,7 +22,6 @@ import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
 import MyArticlesPage from './pages/articles/MyArticlesPage';
 import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
-import GameManagerPage from './pages/GameManagerPage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -52,8 +51,15 @@ function App() {
                   <Route path="/notebin" element={<NotebinPage />} />
                   <Route path="/wallets" element={<WalletsPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
-                  <Route path="/profile/:npub" element={<ProfilePage />} />
-
+                  
+                  {/* Update routes to make ProfileViewPage primary */}
+                  <Route path="/profile/:npub" element={<ProfileViewPage />} />
+                  {/* Keep old profile page route but mark as deprecated */}
+                  <Route path="/profile-deprecated/:npub" element={<ProfilePage />} />
+                  {/* Keep existing ProfileViewPage routes for compatibility */}
+                  <Route path="/profile-view" element={<ProfileViewPage />} />
+                  <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
+                  
                   {/* Articles Routes */}
                   <Route path="/articles" element={<ArticlesPage />} />
                   <Route path="/articles/create" element={<ArticleEditorPage />} />
@@ -61,8 +67,7 @@ function App() {
                   <Route path="/articles/view/:id" element={<ArticleViewPage />} />
                   <Route path="/articles/me" element={<MyArticlesPage />} />
                   <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
-                  <Route path="/games" element={<GameManagerPage />} />
-
+                  
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
