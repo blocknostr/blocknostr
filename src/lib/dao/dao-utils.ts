@@ -65,3 +65,29 @@ export function parseSerialNumber(serialStr: string): number | null {
   
   return letterIndex * 1000 + numeric;
 }
+
+/**
+ * Generate a unique tag for DAO chat based on DAO ID
+ */
+export function generateDAOChatTag(daoId: string): string {
+  return `dao-chat-${daoId.substring(0, 10)}`;
+}
+
+/**
+ * Check if user can leave DAO
+ */
+export function canUserLeaveDAO(userPubkey: string | null, daoCreator: string, daoMembers: string[]): boolean {
+  // User can leave if they're a member but not the creator
+  return !!userPubkey && daoMembers.includes(userPubkey) && userPubkey !== daoCreator;
+}
+
+/**
+ * Check if user can delete DAO
+ */
+export function canUserDeleteDAO(userPubkey: string | null, daoCreator: string, daoMembers: string[]): boolean {
+  // Creator can delete only if they are the only member
+  return !!userPubkey && 
+    userPubkey === daoCreator && 
+    daoMembers.length === 1 && 
+    daoMembers[0] === daoCreator;
+}

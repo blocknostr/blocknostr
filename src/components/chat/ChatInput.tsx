@@ -1,89 +1,113 @@
 
 import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { SendHorizontal, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SendHorizontal, Smile } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
   isLoggedIn: boolean;
   maxChars: number;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => Promise<boolean>;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ isLoggedIn, maxChars, onSendMessage, disabled = false }) => {
-  const [newMessage, setNewMessage] = useState("");
-
-  const handleSend = () => {
-    if (!newMessage.trim() || !isLoggedIn || disabled) {
-      return;
-    }
-    
-    if (newMessage.length > maxChars) {
-      toast.error(`Message too long, maximum ${maxChars} characters`);
-      return;
-    }
-
-    onSendMessage(newMessage);
-    setNewMessage("");
+const ChatInput: React.FC<ChatInputProps> = ({ 
+  isLoggedIn, 
+  maxChars, 
+  onSendMessage, 
+  disabled = false,
+  placeholder = "Type your message..."
+}) => {
+  const [message, setMessage] = useState<string>("");
+  const [sending, setSending] = useState<boolean>(false);
+  
+  // Character count
+  const charCount = message.length;
+  const isOverLimit = charCount > maxChars;
+  
+  // Handle text changes with auto-growing height
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
   };
-
+  
+  // Handle sending message
+  const handleSend = async () => {
+    if (!message.trim() || sending || isOverLimit || !isLoggedIn) return;
+    
+    setSending(true);
+    try {
+      const success = await onSendMessage(message);
+      if (success) {
+        setMessage("");
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    } finally {
+      setSending(false);
+    }
+  };
+  
+  // Handle key press (send on Enter, new line on Shift+Enter)
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+  
+  // If not logged in, show login prompt
   if (!isLoggedIn) {
     return (
-      <div className="border-t p-3">
-        <div className="bg-muted/50 rounded-full p-2 text-center">
-          <p className="text-xs text-muted-foreground">
-            Login to join the conversation
-          </p>
+      <div className="px-4 py-3 border-t flex items-center justify-between bg-background/50 text-muted-foreground">
+        <div className="flex items-center justify-center w-full py-2">
+          <Lock className="h-3.5 w-3.5 mr-2" />
+          <span className="text-sm">Login to participate in the chat</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border-t p-3">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 rounded-full flex-shrink-0 hover:bg-accent"
-          disabled={disabled}
-        >
-          <Smile className="h-5 w-5 text-muted-foreground" />
-        </Button>
+    <div className="px-4 py-3 border-t flex flex-col bg-background/60">
+      <div className="relative">
+        <Textarea
+          value={message}
+          onChange={handleTextChange}
+          onKeyDown={handleKeyPress}
+          placeholder={placeholder}
+          className={cn(
+            "resize-none pr-12 py-3 h-[42px] max-h-32 min-h-[42px] text-sm rounded-md overflow-y-auto focus-visible:ring-1",
+            isOverLimit && "border-red-500 focus-visible:ring-red-500"
+          )}
+          disabled={disabled || sending}
+          rows={1}
+        />
         
-        <div className="relative flex-1">
-          <Input
-            placeholder={disabled ? "Disconnected from relays..." : "Send a message..."}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            maxLength={maxChars * 2} // Allow typing past limit but show warning
-            className="rounded-full pr-16 h-9 bg-muted/30"
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            disabled={disabled}
-          />
-          <div className="absolute right-1 top-1 flex items-center">
-            <span className={`text-[10px] mr-1 ${newMessage.length > maxChars ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-              {newMessage.length}/{maxChars}
-            </span>
-            <Button 
-              onClick={handleSend} 
-              disabled={!newMessage.trim() || newMessage.length > maxChars || disabled}
-              size="sm"
-              className="h-7 w-7 p-0 rounded-full"
-              variant={disabled ? "outline" : "default"}
-            >
-              <SendHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
+        <Button
+          size="icon"
+          className="absolute bottom-1.5 right-1.5 h-8 w-8"
+          onClick={handleSend}
+          disabled={!message.trim() || sending || isOverLimit || disabled}
+        >
+          <SendHorizontal className={cn(
+            "h-4 w-4",
+            sending && "animate-pulse"
+          )} />
+          <span className="sr-only">Send message</span>
+        </Button>
       </div>
-      {disabled && (
-        <p className="text-[10px] text-muted-foreground text-center mt-1">
-          Reconnect to relays to send messages
-        </p>
-      )}
+      
+      {/* Character counter */}
+      <div className="flex justify-end mt-1">
+        <span className={cn(
+          "text-xs",
+          isOverLimit ? "text-red-500" : "text-muted-foreground"
+        )}>
+          {charCount}/{maxChars}
+        </span>
+      </div>
     </div>
   );
 };

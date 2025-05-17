@@ -1,6 +1,6 @@
 
-import React, { useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,12 +15,19 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import DAOPageHeader from "@/components/dao/DAOPageHeader";
 import DAOGuidelines from "@/components/dao/DAOGuidelines";
+import DAOGroupChat from "@/components/dao/DAOGroupChat";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const SingleDAOPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>("proposals");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLeavingDAO, setIsLeavingDAO] = useState(false);
+  const [isDeletingDAO, setIsDeletingDAO] = useState(false);
   
   const {
     currentDao,
@@ -43,7 +50,9 @@ const SingleDAOPage: React.FC = () => {
     removeDAOModerator,
     createDAOInvite,
     createKickProposal,
-    voteOnKickProposal
+    voteOnKickProposal,
+    leaveDAO,
+    deleteDAO
   } = useDAO(id);
 
   // Set up real-time subscriptions for DAO updates
@@ -51,12 +60,14 @@ const SingleDAOPage: React.FC = () => {
     daoId: id,
     onNewProposal: (proposal) => {
       console.log("New proposal received:", proposal);
+      toast.info(`New proposal: ${proposal.title}`);
     },
     onNewVote: (vote) => {
       console.log("New vote received:", vote);
     },
     onDAOUpdate: (dao) => {
       console.log("DAO update received:", dao);
+      toast.info("DAO information updated");
     }
   });
 
@@ -79,6 +90,13 @@ const SingleDAOPage: React.FC = () => {
   const canCreateProposal = currentUserPubkey && isMemberOfCurrentDao;
   const canKickPropose = currentUserPubkey && isMemberOfCurrentDao && !isCreatorOfCurrentDao;
   const canCreateInvite = canModerate; // Only moderators and creators can create invites
+  const canLeaveDAO = isMemberOfCurrentDao && !isCreatorOfCurrentDao;
+  const canDeleteDAO = isCreatorOfCurrentDao && isCreatorOnlyMember;
+
+  // Add tabs state management
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   if (loading) {
     return (
@@ -122,6 +140,7 @@ const SingleDAOPage: React.FC = () => {
     
     try {
       await joinDAO(currentDao.id);
+      toast.success(`Successfully joined ${currentDao.name}`);
     } catch (error) {
       console.error("Error joining DAO:", error);
       toast.error("Failed to join the DAO");
@@ -136,21 +155,59 @@ const SingleDAOPage: React.FC = () => {
     
     try {
       const success = await createKickProposal(currentDao.id, memberToKick, reason);
+      if (success) {
+        toast.success("Kick proposal created successfully");
+      }
       return success;
     } catch (error) {
       console.error("Error creating kick proposal:", error);
+      toast.error("Failed to create kick proposal");
       return false;
     }
   };
   
   const handleLeaveDAO = async () => {
-    // This would be implemented in the useDAO hook
-    toast.error("Leave DAO functionality not yet implemented");
+    if (!id) return;
+    
+    setIsLeavingDAO(true);
+    try {
+      const success = await leaveDAO(id);
+      if (success) {
+        toast.success(`You have left the DAO: ${currentDao.name}`);
+        setIsLeaveDialogOpen(false);
+        // Navigate back to DAOs list
+        setTimeout(() => navigate("/dao"), 1000);
+      } else {
+        throw new Error("Failed to leave DAO");
+      }
+    } catch (error) {
+      console.error("Error leaving DAO:", error);
+      toast.error("Failed to leave the DAO");
+    } finally {
+      setIsLeavingDAO(false);
+    }
   };
   
   const handleDeleteDAO = async () => {
-    // This would be implemented in the useDAO hook
-    toast.error("Delete DAO functionality not yet implemented");
+    if (!id || !canDeleteDAO) return;
+    
+    setIsDeletingDAO(true);
+    try {
+      const success = await deleteDAO(id);
+      if (success) {
+        toast.success(`DAO deleted: ${currentDao.name}`);
+        setIsDeleteDialogOpen(false);
+        // Navigate back to DAOs list
+        setTimeout(() => navigate("/dao"), 1000);
+      } else {
+        throw new Error("Failed to delete DAO");
+      }
+    } catch (error) {
+      console.error("Error deleting DAO:", error);
+      toast.error("Failed to delete the DAO");
+    } finally {
+      setIsDeletingDAO(false);
+    }
   };
   
   const handleCreateInvite = async () => {
@@ -203,29 +260,31 @@ const SingleDAOPage: React.FC = () => {
           isCreatorOnlyMember={isCreatorOnlyMember}
           currentUserPubkey={currentUserPubkey}
           onJoinDAO={handleJoinDAO}
-          onLeaveDAO={handleLeaveDAO}
-          onDeleteDAO={isCreatorOnlyMember ? handleDeleteDAO : undefined}
+          onLeaveDAO={() => setIsLeaveDialogOpen(true)}
+          onDeleteDAO={canDeleteDAO ? () => setIsDeleteDialogOpen(true) : undefined}
           isPrivate={currentDao.isPrivate}
+          serialNumber={currentDao.serialNumber}
         />
         
-        <div className="container mx-auto px-4 py-6 max-w-3xl"> {/* Changed max-w-4xl to max-w-3xl for better centering */}
+        <div className="container mx-auto px-4 py-6 max-w-3xl"> 
           <div className="space-y-5">
             {/* DAO Info */}
             <DAOHeader 
               dao={currentDao}
               currentUserPubkey={currentUserPubkey}
               userRole={userRole}
-              onLeaveDAO={handleLeaveDAO}
-              onDeleteDAO={handleDeleteDAO}
+              onLeaveDAO={() => setIsLeaveDialogOpen(true)}
+              onDeleteDAO={canDeleteDAO ? () => setIsDeleteDialogOpen(true) : undefined}
               isCreatorOnlyMember={isCreatorOnlyMember}
             />
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main Content */}
               <div className="lg:col-span-2 space-y-5">
-                <Tabs defaultValue="proposals" className="w-full">
-                  <TabsList className="grid grid-cols-2 mb-4">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                  <TabsList className="grid grid-cols-3 mb-4">
                     <TabsTrigger value="proposals">Proposals</TabsTrigger>
+                    <TabsTrigger value="chat">Chat</TabsTrigger>
                     {canModerate && (
                       <TabsTrigger value="settings">Settings</TabsTrigger>
                     )}
@@ -242,6 +301,16 @@ const SingleDAOPage: React.FC = () => {
                       currentUserPubkey={currentUserPubkey}
                       onCreateProposal={createProposal}
                       onVoteProposal={handleVoteOnProposal}
+                    />
+                  </TabsContent>
+
+                  {/* Chat Tab */}
+                  <TabsContent value="chat">
+                    <DAOGroupChat
+                      daoId={currentDao.id}
+                      daoName={currentDao.name}
+                      currentUserPubkey={currentUserPubkey || ""}
+                      isMember={isMemberOfCurrentDao}
                     />
                   </TabsContent>
                   
@@ -275,7 +344,7 @@ const SingleDAOPage: React.FC = () => {
                   onKickProposal={handleCreateKickProposal}
                   kickProposals={kickProposals}
                   onVoteKick={handleVoteOnKickProposal}
-                  onLeaveDAO={handleLeaveDAO}
+                  onLeaveDAO={() => setIsLeaveDialogOpen(true)}
                   userRole={userRole}
                   canKickPropose={canKickPropose}
                   onCreateInvite={canModerate ? handleCreateInvite : undefined}
@@ -294,6 +363,56 @@ const SingleDAOPage: React.FC = () => {
         onOpenChange={setIsKickDialogOpen}
         onCreateKickProposal={handleCreateKickProposal}
       />
+
+      {/* Leave DAO Confirmation Dialog */}
+      <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave DAO</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to leave this DAO? You will need to be invited back to rejoin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLeavingDAO}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleLeaveDAO();
+              }}
+              disabled={isLeavingDAO}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isLeavingDAO ? "Leaving..." : "Leave DAO"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete DAO Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete DAO</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this DAO? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingDAO}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteDAO();
+              }}
+              disabled={isDeletingDAO}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingDAO ? "Deleting..." : "Delete DAO"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
