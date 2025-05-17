@@ -11,7 +11,7 @@ import { toast } from "sonner";
 interface DAOCreateProposalDialogProps {
   daoId: string;
   onCreateProposal: (daoId: string, title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
-  onSuccess: () => void;
+  onSuccess: (proposalId?: string) => void;
 }
 
 const DAOCreateProposalDialog: React.FC<DAOCreateProposalDialogProps> = ({
@@ -64,7 +64,7 @@ const DAOCreateProposalDialog: React.FC<DAOCreateProposalDialogProps> = ({
       
       if (proposalId) {
         toast.success("Proposal created successfully");
-        onSuccess();
+        onSuccess(proposalId);
         
         // Reset form
         setTitle("");

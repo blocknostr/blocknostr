@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Loader2, Plus, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ interface DAOProposalsListProps {
   currentUserPubkey: string | null;
   onCreateProposal: (daoId: string, title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
   onVoteProposal: (proposalId: string, optionIndex: number) => Promise<boolean>;
+  onRefreshProposals?: () => Promise<void>;
 }
 
 const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
@@ -28,11 +29,13 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
   isCreator,
   currentUserPubkey,
   onCreateProposal,
-  onVoteProposal
+  onVoteProposal,
+  onRefreshProposals
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "closed">("all");
+  const [highlightedProposalId, setHighlightedProposalId] = useState<string | null>(null);
   
   // Filter proposals based on status
   const filteredProposals = proposals.filter(proposal => {
@@ -43,6 +46,39 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
   });
   
   const canCreateProposal = currentUserPubkey && (isMember || isCreator);
+
+  // Effect to scroll to highlighted proposal if exists
+  useEffect(() => {
+    if (highlightedProposalId) {
+      setTimeout(() => {
+        const element = document.getElementById(`proposal-${highlightedProposalId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('bg-primary-100', 'dark:bg-primary-900/20');
+          setTimeout(() => {
+            element.classList.remove('bg-primary-100', 'dark:bg-primary-900/20');
+            // Clear the highlight after animation
+            setHighlightedProposalId(null);
+          }, 2000);
+        }
+      }, 200);
+    }
+  }, [highlightedProposalId, filteredProposals]);
+  
+  const handleProposalCreated = async (proposalId?: string) => {
+    setIsDialogOpen(false);
+    
+    // Refresh the proposals list
+    if (onRefreshProposals) {
+      await onRefreshProposals();
+    }
+    
+    // Highlight the newly created proposal
+    if (proposalId) {
+      setExpandedProposal(proposalId);
+      setHighlightedProposalId(proposalId);
+    }
+  };
   
   if (isLoading) {
     return (
@@ -93,7 +129,7 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
               <DAOCreateProposalDialog
                 daoId={daoId}
                 onCreateProposal={onCreateProposal}
-                onSuccess={() => setIsDialogOpen(false)}
+                onSuccess={handleProposalCreated}
               />
             </DialogContent>
           </Dialog>
@@ -127,6 +163,8 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
               onToggleExpanded={() => {
                 setExpandedProposal(expandedProposal === proposal.id ? null : proposal.id);
               }}
+              id={`proposal-${proposal.id}`}
+              className={highlightedProposalId === proposal.id ? "ring-2 ring-primary transition-all duration-500" : ""}
             />
           ))}
         </div>

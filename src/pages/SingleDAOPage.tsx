@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
 import { useDAOSubscription } from "@/hooks/useDAOSubscription";
@@ -42,7 +42,8 @@ const SingleDAOPage: React.FC = () => {
     removeDAOModerator,
     createDAOInvite,
     createKickProposal,
-    voteOnKickProposal
+    voteOnKickProposal,
+    refreshProposals
   } = useDAO(id);
 
   // Set up real-time subscriptions for DAO updates
@@ -50,14 +51,30 @@ const SingleDAOPage: React.FC = () => {
     daoId: id,
     onNewProposal: (proposal) => {
       console.log("New proposal received:", proposal);
+      // Refresh proposals when a new one is received
+      refreshProposals?.();
     },
     onNewVote: (vote) => {
       console.log("New vote received:", vote);
+      // Optionally refresh proposals when new votes come in
+      refreshProposals?.();
     },
     onDAOUpdate: (dao) => {
       console.log("DAO update received:", dao);
     }
   });
+
+  // Memoize the refresh function
+  const handleRefreshProposals = useCallback(async () => {
+    if (refreshProposals) {
+      try {
+        await refreshProposals();
+        console.log("Proposals refreshed successfully");
+      } catch (error) {
+        console.error("Error refreshing proposals:", error);
+      }
+    }
+  }, [refreshProposals]);
 
   // Fix type issues by properly checking if user is a member and creator
   const isMemberOfCurrentDao = currentDao ? isMember(currentDao) : false;
@@ -246,6 +263,7 @@ const SingleDAOPage: React.FC = () => {
                       currentUserPubkey={currentUserPubkey}
                       onCreateProposal={createProposal}
                       onVoteProposal={handleVoteOnProposal}
+                      onRefreshProposals={handleRefreshProposals}
                     />
                   </TabsContent>
                   

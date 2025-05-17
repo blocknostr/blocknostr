@@ -650,6 +650,21 @@ export function useDAO(daoId?: string) {
     return !!currentUserPubkey && dao.creator === currentUserPubkey;
   };
   
+  // Add refreshProposals function
+  const refreshProposals = useCallback(async () => {
+    if (!daoId) return;
+    
+    setLoadingProposals(true);
+    try {
+      const fetchedProposals = await daoService.getDAOProposals(daoId);
+      setProposals(fetchedProposals);
+    } catch (error) {
+      console.error("Error refreshing proposals:", error);
+    } finally {
+      setLoadingProposals(false);
+    }
+  }, [daoId]);
+  
   return {
     daos,
     myDaos,
@@ -683,6 +698,7 @@ export function useDAO(daoId?: string) {
     // Expose these methods for lazy loading
     fetchGeneralDAOs,
     fetchMyDAOs,
-    fetchTrendingDAOs
+    fetchTrendingDAOs,
+    refreshProposals
   };
 }

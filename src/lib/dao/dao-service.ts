@@ -102,7 +102,7 @@ export class DAOService {
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
-      // Update cache with fresh data
+      // Cache the results
       daoCache.cacheAllDAOs(daos);
     } catch (error) {
       console.error("Error refreshing DAOs:", error);
@@ -166,7 +166,7 @@ export class DAOService {
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
-      // Update cache with fresh data
+      // Cache the results
       daoCache.cacheUserDAOs(pubkey, daos);
     } catch (error) {
       console.error(`Error refreshing user DAOs for ${pubkey}:`, error);
@@ -510,6 +510,33 @@ export class DAOService {
       
       const eventId = await nostrService.publishEvent(eventData);
       console.log("Proposal created with ID:", eventId);
+      
+      // If successful, immediately invalidate the cache for proposals
+      if (eventId) {
+        // First invalidate the proposals cache for this DAO
+        daoCache.clearProposals(daoId);
+        
+        // Construct a basic proposal object to add to the cache temporarily 
+        // until a full refresh happens
+        const newProposal = {
+          id: eventId,
+          daoId: daoId,
+          title: title,
+          description: description,
+          options: options,
+          createdAt: now,
+          endsAt: endsAt,
+          creator: pubkey,
+          votes: {},
+          status: "active"
+        };
+        
+        // Get existing cached proposals or empty array
+        const existingProposals = daoCache.getProposals(daoId) || [];
+        
+        // Add the new proposal to the cache
+        daoCache.cacheProposals(daoId, [newProposal, ...existingProposals]);
+      }
       
       return eventId;
     } catch (error) {
