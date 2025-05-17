@@ -32,6 +32,9 @@ export const EventKinds = {
   ARTICLE: 30023
 };
 
+// Export EVENT_KINDS as an alias for EventKinds for backward compatibility
+export const EVENT_KINDS = EventKinds;
+
 // DAO/Community Event Kinds (NIP-72)
 export const DAO_KINDS = {
   COMMUNITY: 34550,       // Community definition

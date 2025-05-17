@@ -1,4 +1,3 @@
-
 import { nostrService } from "@/lib/nostr";
 import { daoCache } from "./dao-cache";
 import { DAO_KINDS } from "@/lib/nostr/constants";
@@ -309,11 +308,11 @@ async function createDAO(name: string, description: string, tags: string[] = [])
     
     console.log("Publishing create DAO event:", eventData);
     
-    const event = await nostrService.publishEvent(eventData);
+    const eventResult = await nostrService.publishEvent(eventData);
     
-    if (event && event.id) {
-      console.log(`Successfully created DAO ${name} with ID ${event.id}`);
-      return event.id;
+    if (eventResult && typeof eventResult === 'object' && eventResult.id) {
+      console.log(`Successfully created DAO ${name} with ID ${eventResult.id}`);
+      return eventResult.id;
     } else {
       console.error("Failed to create DAO");
       return null;
@@ -529,11 +528,11 @@ async function createProposal(
     
     console.log("Publishing create proposal event:", eventData);
     
-    const event = await nostrService.publishEvent(eventData);
+    const eventResult = await nostrService.publishEvent(eventData);
     
-    if (event && event.id) {
-      console.log(`Successfully created proposal ${title} with ID ${event.id}`);
-      return event.id;
+    if (eventResult && typeof eventResult === 'object' && eventResult.id) {
+      console.log(`Successfully created proposal ${title} with ID ${eventResult.id}`);
+      return eventResult.id;
     } else {
       console.error("Failed to create proposal");
       return null;
@@ -551,7 +550,7 @@ async function createKickProposal(
   daoId: string,
   memberToKick: string,
   reason: string
-): Promise<string | null> {
+): Promise<boolean> {
   try {
     const pubkey = nostrService.publicKey;
     if (!pubkey) {
@@ -587,18 +586,18 @@ async function createKickProposal(
     
     console.log("Publishing create kick proposal event:", eventData);
     
-    const event = await nostrService.publishEvent(eventData);
+    const eventResult = await nostrService.publishEvent(eventData);
     
-    if (event && event.id) {
-      console.log(`Successfully created kick proposal for ${memberToKick} with ID ${event.id}`);
-      return event.id;
+    if (eventResult && typeof eventResult === 'object' && eventResult.id) {
+      console.log(`Successfully created kick proposal for ${memberToKick} with ID ${eventResult.id}`);
+      return true;
     } else {
       console.error("Failed to create kick proposal");
-      return null;
+      return false;
     }
   } catch (error) {
     console.error("Error creating kick proposal:", error);
-    return null;
+    return false;
   }
 }
 
@@ -796,11 +795,11 @@ async function createDAOInvite(daoId: string): Promise<string | null> {
     
     console.log("Publishing DAO invite event:", eventData);
     
-    const event = await nostrService.publishEvent(eventData);
+    const eventResult = await nostrService.publishEvent(eventData);
     
-    if (event && event.id) {
-      console.log(`Successfully created invite for DAO ${daoId} with ID ${event.id}`);
-      return event.id;
+    if (eventResult && typeof eventResult === 'object' && eventResult.id) {
+      console.log(`Successfully created invite for DAO ${daoId} with ID ${eventResult.id}`);
+      return eventResult.id;
     } else {
       console.error("Failed to create invite");
       return null;

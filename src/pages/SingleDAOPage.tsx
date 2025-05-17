@@ -109,8 +109,8 @@ export default function SingleDAOPage() {
   const handleCreateKickProposal = async (memberPubkey: string, reason: string) => {
     if (!daoId) return false;
     
-    const proposalId = await createKickProposal(daoId, memberPubkey, reason);
-    if (proposalId) {
+    const success = await createKickProposal(daoId, memberPubkey, reason);
+    if (success) {
       setIsKickProposalDialogOpen(false);
       toast.success("Kick proposal created successfully!");
       // Refetch the data
@@ -121,7 +121,7 @@ export default function SingleDAOPage() {
   };
   
   const handleJoinDAO = async () => {
-    if (!daoId) return;
+    if (!daoId) return false;
     
     const success = await joinDAO(daoId);
     if (success) {
@@ -132,7 +132,7 @@ export default function SingleDAOPage() {
   };
   
   const handleLeaveDAO = async () => {
-    if (!daoId) return;
+    if (!daoId) return false;
     
     try {
       const success = await leaveDAO(daoId);
