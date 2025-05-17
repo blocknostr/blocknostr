@@ -3,6 +3,15 @@ import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from "@/lib/nostr";
+import { SimplePool, Filter, Event } from "nostr-tools";
+import { EVENT_KINDS } from "@/lib/nostr/constants";
+
+// Define DAO-specific event kinds
+const DAO_KINDS = {
+  COMMUNITY: EVENT_KINDS.COMMUNITY,
+  PROPOSAL: EVENT_KINDS.PROPOSAL,
+  VOTE: EVENT_KINDS.VOTE
+};
 
 export function useDAO(daoId?: string) {
   const [daos, setDaos] = useState<DAO[]>([]);
@@ -12,74 +21,127 @@ export function useDAO(daoId?: string) {
   const [proposals, setProposals] = useState<DAOProposal[]>([]);
   const [kickProposals, setKickProposals] = useState<any[]>([]);
   
-  // Split loading states for progressive rendering
-  const [loading, setLoading] = useState<boolean>(false);
-  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(false);
-  const [loadingTrending, setLoadingTrending] = useState<boolean>(false);
+  // Set loading states to true initially
+  const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMyDaos, setLoadingMyDaos] = useState<boolean>(true);
+  const [loadingTrending, setLoadingTrending] = useState<boolean>(true);
   const [loadingProposals, setLoadingProposals] = useState<boolean>(true);
   const [loadingKickProposals, setLoadingKickProposals] = useState<boolean>(true);
   
-  // Track data initialization
-  const initializedRef = useRef({
-    general: false,
-    myDaos: false,
-    trending: false
-  });
+  // Pool for direct subscriptions
+  const poolRef = useRef<SimplePool>(new SimplePool());
+  const activeSubscriptions = useRef<string[]>([]);
   
   const currentUserPubkey = nostrService.publicKey;
   
-  // Fetch DAOs for general discovery page in parallel
+  // Use the more direct Nostr subscription approach similar to Communities
+  const subscribeToDAOs = useCallback((filters: Filter[], callback: (event: Event) => void) => {
+    if (!poolRef.current) return '';
+    
+    const relays = [
+      "wss://relay.damus.io",
+      "wss://nos.lol",
+      "wss://relay.nostr.band"
+    ];
+    
+    // Create a subscription that processes events as they arrive
+    const sub = poolRef.current.sub(relays, filters);
+    
+    // Set up event handlers
+    sub.on('event', (event: Event) => {
+      callback(event);
+    });
+    
+    // Set loading state to false immediately to show UI faster
+    setLoading(false);
+    
+    // Store subscription ID
+    const subId = sub.id;
+    activeSubscriptions.current.push(subId);
+    
+    return subId;
+  }, []);
+  
+  // Subscribe to general DAOs
   const fetchGeneralDAOs = useCallback(async () => {
     if (daoId) return; // Skip if viewing a specific DAO
-    if (initializedRef.current.general) return; // Skip if already initialized
     
-    initializedRef.current.general = true;
-    setLoading(true);
-    
-    try {
-      console.log("Fetching general DAOs...");
-      const fetchedDaos = await daoService.getDAOs();
-      console.log(`Fetched ${fetchedDaos.length} DAOs`);
-      setDaos(fetchedDaos);
-    } catch (error) {
-      console.error("Error fetching general DAOs:", error);
-    } finally {
+    // Try to get from cache first for immediate display
+    const cachedDAOs = await daoService.getDAOs();
+    if (cachedDAOs && cachedDAOs.length > 0) {
+      setDaos(cachedDAOs);
       setLoading(false);
     }
-  }, [daoId]);
+    
+    // Set up subscription for real-time updates
+    const filter: Filter = {
+      kinds: [DAO_KINDS.COMMUNITY],
+      limit: 30
+    };
+    
+    subscribeToDAOs([filter], (event) => {
+      try {
+        const dao = daoService.parseDaoEvent(event);
+        if (dao && dao.name && dao.name !== "Unnamed DAO") {
+          setDaos(prev => {
+            // Check if this DAO is already in the list
+            const exists = prev.some(d => d.id === dao.id);
+            if (!exists) {
+              return [...prev, dao].sort((a, b) => b.createdAt - a.createdAt);
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Error processing DAO event:", error);
+      }
+    });
+  }, [daoId, subscribeToDAOs]);
   
-  // Fetch user DAOs in parallel
+  // Subscribe to user's DAOs
   const fetchMyDAOs = useCallback(async () => {
-    if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
-    if (initializedRef.current.myDaos) return; // Skip if already initialized
+    if (daoId || !currentUserPubkey) return;
     
-    initializedRef.current.myDaos = true;
-    setLoadingMyDaos(true);
-    
-    try {
-      console.log("Fetching user DAOs...");
-      const userDaos = await daoService.getUserDAOs(currentUserPubkey);
-      console.log(`Fetched ${userDaos.length} user DAOs`);
-      setMyDaos(userDaos);
-    } catch (error) {
-      console.error("Error fetching user DAOs:", error);
-    } finally {
+    // Try to get from cache first for immediate display
+    const cachedUserDAOs = await daoService.getUserDAOs(currentUserPubkey);
+    if (cachedUserDAOs && cachedUserDAOs.length > 0) {
+      setMyDaos(cachedUserDAOs);
       setLoadingMyDaos(false);
+    } else {
+      setLoadingMyDaos(false); // Set to false immediately if no cached data
     }
-  }, [daoId, currentUserPubkey]);
-  
-  // Fetch trending DAOs in parallel
-  const fetchTrendingDAOs = useCallback(async () => {
-    if (daoId) return; // Skip if viewing a specific DAO
-    if (initializedRef.current.trending) return; // Skip if already initialized
     
-    initializedRef.current.trending = true;
-    setLoadingTrending(true);
+    // Set up subscription for real-time updates
+    const filter: Filter = {
+      kinds: [DAO_KINDS.COMMUNITY],
+      '#p': [currentUserPubkey],
+      limit: 30
+    };
+    
+    subscribeToDAOs([filter], (event) => {
+      try {
+        const dao = daoService.parseDaoEvent(event);
+        if (dao && dao.name) {
+          setMyDaos(prev => {
+            const exists = prev.some(d => d.id === dao.id);
+            if (!exists) {
+              return [...prev, dao].sort((a, b) => b.createdAt - a.createdAt);
+            }
+            return prev;
+          });
+        }
+      } catch (error) {
+        console.error("Error processing user DAO event:", error);
+      }
+    });
+  }, [daoId, currentUserPubkey, subscribeToDAOs]);
+  
+  // Fetch trending DAOs - keep this approach since it needs sorting
+  const fetchTrendingDAOs = useCallback(async () => {
+    if (daoId) return;
     
     try {
-      console.log("Fetching trending DAOs...");
       const trending = await daoService.getTrendingDAOs();
-      console.log(`Fetched ${trending.length} trending DAOs`);
       setTrendingDaos(trending);
     } catch (error) {
       console.error("Error fetching trending DAOs:", error);
@@ -88,89 +150,149 @@ export function useDAO(daoId?: string) {
     }
   }, [daoId]);
   
-  // Refresh function to manually trigger data reload
-  const refreshDaos = useCallback(async () => {
-    if (daoId) return; // Skip if viewing a specific DAO
-    
-    // Reset initialization flags
-    initializedRef.current = {
-      general: false,
-      myDaos: false,
-      trending: false
-    };
-    
-    // Clear the cache - force a fresh load
-    const daoCache = await import('@/lib/dao/dao-cache');
-    daoCache.daoCache.clearAll();
-    
-    // Only fetch the DAOs for the currently active tab
-    return true;
-  }, [daoId]);
-  
-  // Fetch specific DAO if daoId is provided
+  // Fetch specific DAO
   const fetchDaoDetails = useCallback(async () => {
     if (!daoId) return;
     
-    setLoading(true);
-    
-    try {
-      console.log(`Fetching details for DAO ${daoId}...`);
-      
-      const dao = await daoService.getDAOById(daoId);
-      if (dao) {
-        console.log("DAO details fetched:", dao.name);
-        setCurrentDao(dao);
-        // Mark loading as complete once we have the main DAO data
-        setLoading(false);
-        
-        // Now fetch proposals in background
-        setLoadingProposals(true);
-        fetchDaoProposals(daoId);
-        
-        // Fetch kick proposals in background
-        setLoadingKickProposals(true);
-        fetchDaoKickProposals(daoId);
-      } else {
-        console.error("DAO not found:", daoId);
-        toast.error("DAO not found");
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error(`Error fetching DAO ${daoId}:`, error);
-      toast.error("Failed to load DAO details");
+    // Try to get from cache first
+    const dao = await daoService.getDAOById(daoId);
+    if (dao) {
+      setCurrentDao(dao);
       setLoading(false);
+      
+      // Fetch proposals in the background
+      setLoadingProposals(true);
+      const proposals = await daoService.getDAOProposals(daoId);
+      setProposals(proposals);
+      setLoadingProposals(false);
+      
+      // Fetch kick proposals in the background
+      setLoadingKickProposals(true);
+      const kickProps = await daoService.getDAOKickProposals(daoId);
+      setKickProposals(kickProps);
+      setLoadingKickProposals(false);
+    } else {
+      // If no cached data, set up subscription
+      setLoading(true);
+      
+      const filter: Filter = {
+        kinds: [DAO_KINDS.COMMUNITY],
+        ids: [daoId],
+      };
+      
+      subscribeToDAOs([filter], (event) => {
+        try {
+          const dao = daoService.parseDaoEvent(event);
+          if (dao) {
+            setCurrentDao(dao);
+            setLoading(false);
+            
+            // Now fetch proposals
+            fetchProposals(daoId);
+          }
+        } catch (error) {
+          console.error("Error processing DAO details event:", error);
+          setLoading(false);
+        }
+      });
     }
-  }, [daoId]);
+  }, [daoId, subscribeToDAOs]);
   
-  // Fetch proposals in background
-  const fetchDaoProposals = async (daoId: string) => {
-    try {
-      const daoProposals = await daoService.getDAOProposals(daoId);
-      console.log(`Fetched ${daoProposals.length} proposals`);
-      setProposals(daoProposals);
-    } catch (error) {
-      console.error(`Error fetching proposals for DAO ${daoId}:`, error);
-    } finally {
+  // Set up a separate subscription for proposals
+  const fetchProposals = useCallback((daoId: string) => {
+    // Try to get from cache first
+    const cachedProposals = daoService.getProposals(daoId);
+    if (cachedProposals) {
+      setProposals(cachedProposals);
       setLoadingProposals(false);
     }
-  };
+    
+    const filter: Filter = {
+      kinds: [DAO_KINDS.PROPOSAL],
+      '#e': [daoId],
+    };
+    
+    subscribeToDAOs([filter], async (event) => {
+      try {
+        const proposal = daoService.parseProposalEvent(event, daoId);
+        if (proposal) {
+          // Get votes for this proposal
+          const votes = await daoService.getVotesForProposal(proposal.id);
+          proposal.votes = votes;
+          
+          setProposals(prev => {
+            // Update if exists, add if new
+            const exists = prev.some(p => p.id === proposal.id);
+            if (exists) {
+              return prev.map(p => p.id === proposal.id ? { ...proposal } : p);
+            } else {
+              return [...prev, proposal].sort((a, b) => b.createdAt - a.createdAt);
+            }
+          });
+          
+          setLoadingProposals(false);
+        }
+      } catch (error) {
+        console.error("Error processing proposal event:", error);
+      }
+    });
+  }, [subscribeToDAOs]);
   
-  // Fetch kick proposals in background
-  const fetchDaoKickProposals = async (daoId: string) => {
-    try {
-      const kickProps = await daoService.getDAOKickProposals(daoId);
-      console.log(`Fetched ${kickProps.length} kick proposals`);
-      setKickProposals(kickProps);
-    } catch (error) {
-      console.error(`Error fetching kick proposals for DAO ${daoId}:`, error);
-    } finally {
-      setLoadingKickProposals(false);
-    }
-  };
-  
+  // Initialize data based on context
   useEffect(() => {
-    fetchDaoDetails();
-  }, [fetchDaoDetails]);
+    if (daoId) {
+      fetchDaoDetails();
+    } else {
+      fetchGeneralDAOs();
+    }
+    
+    // Clean up subscriptions on unmount
+    return () => {
+      if (poolRef.current) {
+        activeSubscriptions.current.forEach(subId => {
+          try {
+            poolRef.current.close([subId]);
+          } catch (e) {
+            console.error("Error closing subscription:", e);
+          }
+        });
+        activeSubscriptions.current = [];
+      }
+    };
+  }, [daoId, fetchDaoDetails, fetchGeneralDAOs]);
+  
+  // Refresh function - simplified to just clear cache and restart subscriptions
+  const refreshDaos = useCallback(async () => {
+    // Close existing subscriptions
+    if (poolRef.current) {
+      activeSubscriptions.current.forEach(subId => {
+        try {
+          poolRef.current.close([subId]);
+        } catch (e) {
+          console.error("Error closing subscription:", e);
+        }
+      });
+      activeSubscriptions.current = [];
+    }
+    
+    // Clear cache
+    const daoCache = await import('@/lib/dao/dao-cache');
+    daoCache.daoCache.clearAll();
+    
+    // Reset states
+    setDaos([]);
+    setMyDaos([]);
+    setTrendingDaos([]);
+    
+    // Restart appropriate subscriptions
+    if (daoId) {
+      fetchDaoDetails();
+    } else {
+      fetchGeneralDAOs();
+    }
+    
+    return true;
+  }, [daoId, fetchDaoDetails, fetchGeneralDAOs]);
   
   // Create new DAO
   const createDAO = async (name: string, description: string, tags: string[] = []) => {
@@ -636,19 +758,19 @@ export function useDAO(daoId?: string) {
   };
   
   // Check if user is a member
-  const isMember = (dao: DAO): boolean => {
+  const isMember = useCallback((dao: DAO): boolean => {
     return !!currentUserPubkey && dao.members.includes(currentUserPubkey);
-  };
+  }, [currentUserPubkey]);
   
   // Check if user is a moderator
-  const isModerator = (dao: DAO): boolean => {
+  const isModerator = useCallback((dao: DAO): boolean => {
     return !!currentUserPubkey && dao.moderators.includes(currentUserPubkey);
-  };
+  }, [currentUserPubkey]);
   
   // Check if user is the creator
-  const isCreator = (dao: DAO): boolean => {
+  const isCreator = useCallback((dao: DAO): boolean => {
     return !!currentUserPubkey && dao.creator === currentUserPubkey;
-  };
+  }, [currentUserPubkey]);
   
   return {
     daos,
@@ -662,18 +784,18 @@ export function useDAO(daoId?: string) {
     loadingTrending,
     loadingProposals,
     loadingKickProposals,
-    createDAO,
-    createProposal,
-    voteOnProposal,
-    joinDAO,
-    updateDAOPrivacy,
-    updateDAOGuidelines,
-    updateDAOTags,
-    addDAOModerator,
-    removeDAOModerator,
-    createDAOInvite,
-    createKickProposal,
-    voteOnKickProposal,
+    createDAO: daoService.createDAO.bind(daoService),
+    createProposal: daoService.createProposal.bind(daoService),
+    voteOnProposal: daoService.voteOnProposal.bind(daoService),
+    joinDAO: daoService.joinDAO.bind(daoService),
+    updateDAOPrivacy: daoService.updateDAOMetadata.bind(daoService),
+    updateDAOGuidelines: daoService.updateDAOGuidelines.bind(daoService),
+    updateDAOTags: daoService.updateDAOTags.bind(daoService),
+    addDAOModerator: daoService.addDAOModerator.bind(daoService),
+    removeDAOModerator: daoService.removeDAOModerator.bind(daoService),
+    createDAOInvite: daoService.createDAOInvite.bind(daoService),
+    createKickProposal: daoService.createKickProposal.bind(daoService),
+    voteOnKickProposal: daoService.voteOnKickProposal.bind(daoService),
     isMember,
     isModerator,
     isCreator,

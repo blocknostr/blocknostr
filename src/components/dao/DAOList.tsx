@@ -14,8 +14,6 @@ import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
 import { Users } from "lucide-react";
 
-const ITEMS_PER_PAGE = 6;
-
 const DAOList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -40,22 +38,18 @@ const DAOList = () => {
     fetchTrendingDAOs
   } = useDAO();
   
-  // Lazy load only the data for the current tab
+  // Initialize data loading based on active tab
   useEffect(() => {
-    const loadTabData = async () => {
-      switch (activeTab) {
-        case "my-daos":
-          if (currentUserPubkey) {
-            await fetchMyDAOs();
-          }
-          break;
-        case "trending":
-          await fetchTrendingDAOs();
-          break;
-      }
-    };
-    
-    loadTabData();
+    switch (activeTab) {
+      case "my-daos":
+        if (currentUserPubkey) {
+          fetchMyDAOs();
+        }
+        break;
+      case "trending":
+        fetchTrendingDAOs();
+        break;
+    }
   }, [activeTab, currentUserPubkey, fetchMyDAOs, fetchTrendingDAOs]);
   
   // Determine which list and loading state to use based on active tab
@@ -94,15 +88,15 @@ const DAOList = () => {
     : daoList;
   
   // Split the DAOs into carousel and remaining display portions
-  const carouselDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
-  const remainingDaos = filteredDaos.slice(ITEMS_PER_PAGE);
+  const carouselDaos = filteredDaos.slice(0, 6);
+  const remainingDaos = filteredDaos.slice(6);
   
-  // Connection check
+  // Connection check with shorter timeout
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        // Wait 5 seconds and check if we have any data
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Wait 3 seconds instead of 5 and check if we have any data
+        await new Promise(resolve => setTimeout(resolve, 3000));
         if (!isLoading && daoList.length === 0) {
           console.warn("No DAOs loaded after timeout, possible connection issue");
           setConnectionError(true);
@@ -152,7 +146,7 @@ const DAOList = () => {
   
   const handleLogin = () => {
     nostrService.login().then(() => {
-      window.location.reload(); // Refresh after login
+      window.location.reload();
     });
   };
 

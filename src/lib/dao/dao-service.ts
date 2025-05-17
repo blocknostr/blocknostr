@@ -1,13 +1,14 @@
-import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
+import { SimplePool, Event, nip19, Filter } from 'nostr-tools';
 import { DAO, DAOProposal } from '@/types/dao';
 import { nostrService } from '@/lib/nostr';
 import { daoCache } from './dao-cache';
+import { EVENT_KINDS } from '@/lib/nostr/constants';
 
 // NIP-72 kind numbers (ensure full compliance)
 const DAO_KINDS = {
-  COMMUNITY: 34550,       // Community definition
-  PROPOSAL: 34551,        // Community proposal
-  VOTE: 34552,           // Vote on a proposal
+  COMMUNITY: EVENT_KINDS.COMMUNITY,
+  PROPOSAL: EVENT_KINDS.PROPOSAL,
+  VOTE: EVENT_KINDS.VOTE,
   METADATA: 34553,       // Community metadata (guidelines, etc)
   MODERATION: 34554,      // Moderation events (kick, ban)
   INVITE: 34555,         // Invite to private community
@@ -64,7 +65,7 @@ export class DAOService {
       console.log("Using fast relays:", this.fastRelays);
       
       // Use fast relays for initial load
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.pool.list(this.fastRelays, [filter]);
       console.log("Received DAO events:", events.length);
       
       const daos = events
@@ -96,7 +97,7 @@ export class DAOService {
       };
       
       // Use all relays for complete refresh
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
@@ -132,7 +133,7 @@ export class DAOService {
       };
       
       console.log(`Fetching DAOs for user ${pubkey}`);
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.pool.list(this.fastRelays, [filter]);
       console.log(`Received ${events.length} user DAO events`);
       
       const daos = events
@@ -160,7 +161,7 @@ export class DAOService {
         limit: limit
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
@@ -217,7 +218,7 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.pool.list(this.fastRelays, [filter]);
       
       if (events.length === 0) {
         console.log(`No DAO found with ID: ${id}`);
@@ -249,7 +250,7 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       
       if (events.length > 0) {
         const dao = this.parseDaoEvent(events[0]);
@@ -283,7 +284,7 @@ export class DAOService {
       };
       
       console.log(`Fetching proposals for DAO: ${daoId}`);
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.pool.list(this.fastRelays, [filter]);
       console.log(`Found ${events.length} proposals for DAO ${daoId}`);
       
       const proposals = events
@@ -321,7 +322,7 @@ export class DAOService {
         limit: 50
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       
       const proposals = events
         .map(event => this.parseProposalEvent(event, daoId))
@@ -367,7 +368,7 @@ export class DAOService {
         limit: 200
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       console.log(`Found ${events.length} votes for proposal ${proposalId}`);
       
       const votes: Record<string, number> = {};
@@ -1146,7 +1147,7 @@ export class DAOService {
         kinds: [DAO_KINDS.COMMUNITY],
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.pool.list(this.relays, [filter]);
       return events.length > 0 ? events[0] : null;
     } catch (error) {
       console.error(`Error fetching DAO event ${id}:`, error);
