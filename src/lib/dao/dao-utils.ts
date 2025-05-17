@@ -2,6 +2,7 @@
 /**
  * Utility functions for the DAO module
  */
+import { Filter } from 'nostr-tools';
 
 /**
  * Generate a random ID for use in Nostr events
@@ -50,8 +51,43 @@ export async function settlePromises<T>(promises: Promise<T>[]): Promise<T> {
  * @param filter The filter object to convert
  * @returns A filter object compatible with nostr-tools
  */
-export function convertToFilter(filter: any): any {
+export function convertToFilter(filter: any): Filter {
   // SimplePool expects filters in a specific format
-  // This function converts our filters to that format
-  return filter;
+  return filter as Filter;
+}
+
+/**
+ * Flattens an array of promises into a single promise
+ * @param promiseArrays An array of promise arrays
+ * @returns A single promise with the combined results
+ */
+export function flattenPromises<T>(promiseArrays: Promise<T>[][]): Promise<T[]> {
+  // Flatten the array of promise arrays into a single array of promises
+  const flattenedPromises = promiseArrays.reduce((acc, arr) => [...acc, ...arr], []);
+  
+  // Return a promise that resolves when all promises are settled
+  return Promise.all(flattenedPromises);
+}
+
+/**
+ * Wait for any of the promises to resolve and return the first successful result
+ * This is a safe implementation of Promise.any for environments that don't support it
+ * @param promises Array of promises to wait for
+ * @returns Promise that resolves with the first successful result
+ */
+export async function promiseAny<T>(promises: Promise<T>[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let rejectedCount = 0;
+    
+    promises.forEach(promise => {
+      promise.then(result => {
+        resolve(result);
+      }).catch(() => {
+        rejectedCount++;
+        if (rejectedCount === promises.length) {
+          reject(new Error('All promises were rejected'));
+        }
+      });
+    });
+  });
 }

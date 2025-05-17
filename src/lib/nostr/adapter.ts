@@ -1,5 +1,5 @@
 
-import { SimplePool, Event, getEventHash, generatePrivateKey, getPublicKey } from 'nostr-tools';
+import { SimplePool, Event, getEventHash, generatePrivateKey, getPublicKey, Filter } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 
 /**
@@ -155,12 +155,12 @@ export class NostrAdapter {
     return this._relays;
   }
 
-  // Get relay URLs (renamed from getRelays to getRelayUrls)
+  // Get relay URLs
   getRelayUrls = (): string[] => {
     return this._relays.map(relay => relay.url);
   }
   
-  // Sign events
+  // Method needed for dao-service.ts
   signEvent = (event: Partial<Event>): Event => {
     // Generate a private key for testing purposes
     const sk = generatePrivateKey();
@@ -187,8 +187,8 @@ export class NostrAdapter {
     return completeEvent;
   }
   
-  // Subscribe to events
-  subscribeToEvents = (filters: any[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
+  // Subscribe to events - extending the method to support Filter or Filter[]
+  subscribeToEvents = (filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) => {
     const sub = 'subscription-' + Math.random().toString(36).substring(2, 10);
     console.log(`Subscribing to events with filters:`, filters);
     

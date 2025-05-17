@@ -75,12 +75,11 @@ export function useDAOKickProposals(daoId?: string) {
       
       const options = ["Yes, remove member", "No, keep member"];
       
+      // Fix: Use only three parameters as expected
       const proposalId = await daoService.createKickProposal(
         daoId,
         title,
-        description,
-        options,
-        memberToKick
+        description
       );
       
       if (proposalId) {

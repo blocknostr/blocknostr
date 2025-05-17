@@ -5,6 +5,7 @@ import { SocialAdapter } from './social-adapter';
 import { RelayAdapter } from './relay-adapter';
 import { DataAdapter } from './data-adapter';
 import { CommunityAdapter } from './community-adapter';
+import { Event, Filter } from 'nostr-tools';
 
 /**
  * Main NostrAdapter that implements all functionality through composition
@@ -134,12 +135,34 @@ export class NostrAdapter extends BaseAdapter {
     return this.communityAdapter.createCommunity(name, description);
   }
   
-  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
+  async createProposal(communityId: string, title: string, description: string, options: string[] = [], category: string = '') {
     return this.communityAdapter.createProposal(communityId, title, description, options, category);
   }
 
   async voteOnProposal(proposalId: string, optionIndex: number) {
     return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
+  }
+
+  // Add missing methods for DAO implementation
+  signEvent(event: Partial<Event>): Event {
+    return this._service.signEvent(event as any);
+  }
+  
+  subscribeToEvents(filters: Filter | Filter[], relays: string[], callbacks: { onevent: (event: any) => void; onclose: () => void }) {
+    const sub = this._service.pool.sub(relays, filters);
+    
+    sub.on('event', (event: any) => {
+      callbacks.onevent(event);
+    });
+    
+    sub.on('eose', () => {
+      // End of stored events
+    });
+    
+    return {
+      sub: sub.sub,
+      unsubscribe: () => sub.unsub()
+    };
   }
   
   // Manager getters

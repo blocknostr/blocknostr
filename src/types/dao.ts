@@ -29,8 +29,10 @@ export interface DAOProposal {
   createdAt: number;    // Timestamp of proposal creation
   endsAt: number;       // Timestamp when voting ends
   creator: string;      // Pubkey of the proposal creator
+  author?: string;      // Alias for creator (for compatibility)
   votes: Record<string, number>; // Mapping of pubkey to option index
   status: "active" | "passed" | "rejected" | "canceled";
+  closesAt?: number;    // Alias for endsAt (for compatibility)
 }
 
 export interface DAOMember {

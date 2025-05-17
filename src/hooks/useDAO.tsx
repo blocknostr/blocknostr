@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
@@ -455,8 +454,7 @@ export function useDAO(daoId?: string) {
     daoId: string, 
     title: string, 
     description: string, 
-    options: string[],
-    durationDays: number = 7
+    options: string[]
   ) => {
     try {
       console.log(`Creating proposal for DAO ${daoId}: ${title}`);
@@ -482,7 +480,8 @@ export function useDAO(daoId?: string) {
         return null;
       }
       
-      const proposalId = await daoService.createProposal(daoId, title, description, options, durationDays);
+      // Use the correct parameter count (removed durationDays)
+      const proposalId = await daoService.createProposal(daoId, title, description, options);
       
       if (proposalId) {
         toast.success("Successfully created proposal");
