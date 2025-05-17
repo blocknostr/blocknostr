@@ -1,7 +1,6 @@
-
 import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
 import { NostrEvent } from './types';
-import { EVENT_KINDS } from './constants';
+import { EventKinds } from './constants';
 
 export class EventManager {
   async publishEvent(
@@ -19,7 +18,7 @@ export class EventManager {
     const fullEvent: UnsignedEvent = {
       pubkey: publicKey,
       created_at: Math.floor(Date.now() / 1000),
-      kind: event.kind || EVENT_KINDS.TEXT_NOTE,
+      kind: event.kind || EventKinds.TEXT_NOTE,
       tags: event.tags || [],
       content: event.content || '',
     };
@@ -124,7 +123,7 @@ export class EventManager {
     try {
       // Create an event object that follows the NostrEvent structure
       const metadataEvent: Partial<NostrEvent> = {
-        kind: EVENT_KINDS.META,
+        kind: EventKinds.METADATA, // Use METADATA instead of META
         content: JSON.stringify(metadata),
         tags: []
       };
@@ -220,7 +219,7 @@ export class EventManager {
       const pool = new SimplePool();
       // Create a proper filter object
       const filter = { 
-        kinds: [EVENT_KINDS.META], 
+        kinds: [EventKinds.META], 
         authors: pubkeys 
       };
       

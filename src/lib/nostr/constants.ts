@@ -10,6 +10,7 @@ export const DEFAULT_RELAYS = [
 // NIP-01 Event Kinds
 export const EventKinds = {
   METADATA: 0,
+  META: 0, // Alias for METADATA 
   TEXT: 1,
   TEXT_NOTE: 1, // Alias for TEXT for compatibility
   RECOMMEND_RELAY: 2,
@@ -34,6 +35,10 @@ export const EventKinds = {
   COMMUNITY: 34550, // Community definition (NIP-72)
   COMMUNITY_DEFINITION: 34550, // Alias for COMMUNITY
   ARTICLE: 30023,
+  
+  // User lists
+  MUTE_LIST: 10000,
+  BLOCK_LIST: 16462,
   
   // Bookmark related kinds (for backward compatibility)
   BOOKMARK_COLLECTIONS: 30001,

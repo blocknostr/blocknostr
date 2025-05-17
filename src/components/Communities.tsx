@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { NostrEvent, nostrService, EventKinds } from "@/lib/nostr";
+import { NostrEvent, nostrService, EVENT_KINDS } from "@/lib/nostr";
 import { Community } from "./community/CommunityCard";
 import SearchBar from "./community/SearchBar";
 import CreateCommunityDialog from "./community/CreateCommunityDialog";
@@ -22,7 +22,7 @@ const Communities = () => {
       const communitySubId = nostrService.subscribe(
         [
           {
-            kinds: [EventKinds.COMMUNITY],
+            kinds: [EVENT_KINDS.COMMUNITY],
             limit: 30
           }
         ],

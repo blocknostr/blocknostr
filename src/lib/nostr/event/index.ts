@@ -1,6 +1,6 @@
 
 import { SimplePool, nip19, type Event, type Filter } from 'nostr-tools';
-import { EVENT_KINDS } from '../constants';
+import { EventKinds } from '../constants';
 
 // EventManager interface 
 export interface EventManager {
@@ -63,7 +63,7 @@ export class NostrEventManager implements EventManager {
     try {
       // Create a proper filter object
       const filter: Filter = { 
-        kinds: [EVENT_KINDS.META], 
+        kinds: [EventKinds.METADATA], 
         authors: pubkeys 
       };
       

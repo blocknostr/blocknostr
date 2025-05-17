@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent, Relay } from './types';
 import { EVENT_KINDS } from './constants';
@@ -45,3 +44,33 @@ export { contentFormatter };
 
 // Export NIP utilities
 export * from './utils/nip';
+
+// Export main services/components
+export { nostrService } from './service';
+export { communityService } from './services/community-service';
+export { profileService } from './services/profile-service';
+export { threadService } from './services/thread';
+export { messageService } from './social/messages';
+export { contactsService } from './social/contacts';
+export { reactionsService } from './social/interactions/reactions';
+export { feedService } from './feed';
+
+// Export constants
+export { 
+  DEFAULT_RELAYS, 
+  EventKinds, 
+  EVENT_KINDS, // Include EVENT_KINDS as an alias for EventKinds
+  DAO_KINDS, 
+  ContentTypes, 
+  MAIN_FEED_SUB_ID, 
+  FOLLOWING_FEED_SUB_ID, 
+  USER_PROFILE_SUB_ID, 
+  USER_POSTS_SUB_ID, 
+  TRENDING_TOPICS_SUB_ID, 
+  NOTIFICATIONS_SUB_ID, 
+  ARTICLE_FEED_SUB_ID, 
+  NOTE_THREAD_SUB_ID 
+} from './constants';
+
+// Export types
+export type { NostrEvent, NostrSubscription, NostrFilter } from './types';
