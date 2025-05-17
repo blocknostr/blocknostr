@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from "react";
 
 type UseInfiniteScrollOptions = {
@@ -32,10 +31,32 @@ export const useInfiniteScroll = (
   const lastScrollTime = useRef<number>(0);
   const scrollVelocity = useRef<number>(0);
   
+  // Store visible post elements to use as anchors
+  const visibleElementsRef = useRef<Element[]>([]);
+  
   // Store the document height before loading new content
   const prevDocumentHeightRef = useRef<number>(0);
   // Store the scroll position before loading new content
   const scrollPositionRef = useRef<number>(0);
+  // Store visual anchors position information
+  const anchorInfoRef = useRef<{
+    element: Element | null;
+    relativeY: number;
+    absoluteY: number;
+  }>({
+    element: null,
+    relativeY: 0,
+    absoluteY: 0
+  });
+
+  // Debounce function to limit how often a function can be called
+  const debounce = useCallback((fn: Function, ms = 150) => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    return function(...args: any[]) {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn.apply(null, args), ms);
+    };
+  }, []);
 
   // Get actual threshold based on aggressiveness setting
   const getActualThreshold = useCallback(() => {
@@ -46,6 +67,59 @@ export const useInfiniteScroll = (
       default: return threshold;
     }
   }, [aggressiveness, threshold]);
+  
+  // Find and save a reference to the most visible element for anchoring
+  const updateVisualAnchor = useCallback(() => {
+    if (!preservePosition) return;
+    
+    // Don't update anchors while loading to avoid position jumps
+    if (isFetchingRef.current) return;
+    
+    // Get all post elements
+    const postElements = document.querySelectorAll('[data-post-id]');
+    if (postElements.length === 0) return;
+    
+    const viewportHeight = window.innerHeight;
+    const scrollY = window.scrollY;
+    
+    let bestElement: Element | null = null;
+    let bestVisibility = 0;
+    
+    // Find the element most visible in the viewport
+    postElements.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      
+      // Skip elements that are not in the viewport
+      if (rect.bottom < 0 || rect.top > viewportHeight) return;
+      
+      // Calculate how much of the element is visible (0 to 1)
+      const visibleTop = Math.max(0, rect.top);
+      const visibleBottom = Math.min(viewportHeight, rect.bottom);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+      const visibility = visibleHeight / rect.height;
+      
+      if (visibility > bestVisibility) {
+        bestVisibility = visibility;
+        bestElement = element;
+      }
+    });
+    
+    // If we found a good anchor element (at least 30% visible)
+    if (bestElement && bestVisibility > 0.3) {
+      const rect = bestElement.getBoundingClientRect();
+      
+      anchorInfoRef.current = {
+        element: bestElement,
+        relativeY: rect.top, // Position relative to viewport
+        absoluteY: rect.top + scrollY // Absolute position in document
+      };
+      
+      console.log('[InfiniteScroll] Updated anchor:', 
+        bestElement.getAttribute('data-post-id'),
+        `at position ${rect.top}px relative, ${anchorInfoRef.current.absoluteY}px absolute`
+      );
+    }
+  }, [preservePosition]);
 
   // Update scroll velocity tracking
   useEffect(() => {
@@ -70,11 +144,22 @@ export const useInfiniteScroll = (
       }
     };
     
+    // Use debounced version to update visual anchors while scrolling
+    const debouncedAnchorUpdate = debounce(() => {
+      updateVisualAnchor();
+    }, 150);
+    
+    // Track scroll velocity with passive listener for performance
     window.addEventListener('scroll', trackScrollVelocity, { passive: true });
+    
+    // Update anchor points while scrolling (debounced)
+    window.addEventListener('scroll', debouncedAnchorUpdate, { passive: true });
+    
     return () => {
       window.removeEventListener('scroll', trackScrollVelocity);
+      window.removeEventListener('scroll', debouncedAnchorUpdate);
     };
-  }, [hasMore, disabled, getActualThreshold]);
+  }, [hasMore, disabled, getActualThreshold, updateVisualAnchor, debounce]);
 
   const handleObserver = useCallback(
     async (entries: IntersectionObserverEntry[]) => {
@@ -87,6 +172,9 @@ export const useInfiniteScroll = (
         if (preservePosition) {
           scrollPositionRef.current = window.scrollY;
           prevDocumentHeightRef.current = document.body.scrollHeight;
+          
+          // Update our anchor reference before loading
+          updateVisualAnchor();
         }
         
         try {
@@ -96,21 +184,46 @@ export const useInfiniteScroll = (
           if (preservePosition) {
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
-              // Calculate how much the document height has changed
-              const newDocumentHeight = document.body.scrollHeight;
-              const heightDifference = newDocumentHeight - prevDocumentHeightRef.current;
-              
-              // Only adjust if the height actually changed and we're not at the top
-              if (heightDifference > 0 && scrollPositionRef.current > 0) {
-                // Restore the scroll position plus the height difference
-                window.scrollTo(0, scrollPositionRef.current + heightDifference);
+              // First try to use the visual anchor if we have one
+              if (anchorInfoRef.current.element) {
+                const element = anchorInfoRef.current.element;
+                const oldRelativeY = anchorInfoRef.current.relativeY;
                 
-                // Debug log
-                console.log("[InfiniteScroll] Preserved scroll position:", {
-                  before: scrollPositionRef.current,
-                  after: scrollPositionRef.current + heightDifference,
-                  heightDiff: heightDifference
-                });
+                // Get the element's new position
+                const newRect = element.getBoundingClientRect();
+                const newRelativeY = newRect.top;
+                
+                // Calculate the difference in position
+                const yDiff = newRelativeY - oldRelativeY;
+                
+                // Only adjust if the difference is significant
+                if (Math.abs(yDiff) > 5) {
+                  // Adjust the scroll position to keep the anchor at the same relative position
+                  window.scrollTo({
+                    top: window.scrollY + yDiff,
+                    behavior: 'auto' // Use auto instead of smooth for immediate adjustment
+                  });
+                  
+                  console.log('[InfiniteScroll] Restored position using anchor element, adjusted by', yDiff, 'px');
+                }
+              } 
+              // Fall back to document height method if no anchor
+              else {
+                // Calculate how much the document height has changed
+                const newDocumentHeight = document.body.scrollHeight;
+                const heightDifference = newDocumentHeight - prevDocumentHeightRef.current;
+                
+                // Only adjust if the height actually changed and we're not at the top
+                if (heightDifference > 0 && scrollPositionRef.current > 0) {
+                  // Restore the scroll position plus the height difference
+                  window.scrollTo(0, scrollPositionRef.current + heightDifference);
+                  
+                  console.log('[InfiniteScroll] Preserved scroll position:', {
+                    before: scrollPositionRef.current,
+                    after: scrollPositionRef.current + heightDifference,
+                    heightDiff: heightDifference
+                  });
+                }
               }
             });
           }
@@ -123,7 +236,7 @@ export const useInfiniteScroll = (
         }
       }
     },
-    [onLoadMore, hasMore, disabled, preservePosition]
+    [onLoadMore, hasMore, disabled, preservePosition, updateVisualAnchor]
   );
 
   useEffect(() => {
