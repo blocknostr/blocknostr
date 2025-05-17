@@ -30,7 +30,7 @@ const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey }) =>
       >
         <CarouselContent className="-ml-4">
           {daos.map((dao) => (
-            <CarouselItem key={dao.id} className="pl-4 sm:basis-1/2 lg:basis-1/3">
+            <CarouselItem key={dao.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
               <DAOCard dao={dao} currentUserPubkey={currentUserPubkey} />
             </CarouselItem>
           ))}

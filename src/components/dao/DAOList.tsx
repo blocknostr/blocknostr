@@ -93,9 +93,9 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
       )
     : daoList;
   
-  // Split the DAOs into fixed display and carousel portions
-  const fixedDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
-  const carouselDaos = filteredDaos.slice(ITEMS_PER_PAGE);
+  // Split the DAOs into carousel and remaining display portions
+  const carouselDaos = filteredDaos.slice(0, ITEMS_PER_PAGE);
+  const remainingDaos = filteredDaos.slice(ITEMS_PER_PAGE);
   
   // Connection check
   useEffect(() => {
@@ -211,14 +211,14 @@ const DAOList: React.FC<DAOListProps> = ({ type }) => {
         </div>
       ) : filteredDaos.length > 0 ? (
         <div className="space-y-8">
-          {/* Show first 6 DAOs in grid layout */}
-          <DAOGrid daos={fixedDaos} currentUserPubkey={currentUserPubkey || ""} />
+          {/* Show first 6 DAOs in carousel layout */}
+          <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
           
-          {/* Show remaining DAOs in carousel */}
-          {carouselDaos.length > 0 && (
+          {/* Show remaining DAOs in grid if there are any */}
+          {remainingDaos.length > 0 && (
             <div className="pt-4 border-t">
-              <h3 className="text-lg font-medium mb-4">More DAOs</h3>
-              <DAOCarousel daos={carouselDaos} currentUserPubkey={currentUserPubkey || ""} />
+              <h3 className="text-lg font-medium mb-4">Additional DAOs</h3>
+              <DAOGrid daos={remainingDaos} currentUserPubkey={currentUserPubkey || ""} />
             </div>
           )}
         </div>
