@@ -1,22 +1,7 @@
 
-import React, { useState, useEffect, useRef, createContext, useContext } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// Create a context for theme state
-const ThemeContext = createContext<{
-  darkMode: boolean;
-  toggleDarkMode: (event?: React.MouseEvent) => void;
-}>({
-  darkMode: true,
-  toggleDarkMode: () => {},
-});
-
-// Custom hook to use theme context
 export const useTheme = () => {
-  return useContext(ThemeContext);
-};
-
-// ThemeProvider component
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [darkMode, setDarkMode] = useState(true);
   const buttonRef = useRef<HTMLElement | null>(null);
   
@@ -66,9 +51,5 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  return (
-    <ThemeContext.Provider value={{ darkMode, toggleDarkMode }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return { darkMode, toggleDarkMode, buttonRef };
 };

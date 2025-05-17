@@ -12,20 +12,30 @@ import {
 } from "@/components/ui/tooltip";
 import LoginDialog from "./auth/LoginDialog";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
 
 const LoginButton = () => {
-  const { isLoggedIn, npub } = useAuth();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [npub, setNpub] = useState<string>("");
   const [hasExtension, setHasExtension] = useState<boolean>(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
   
   useEffect(() => {
-    // Check for NIP-07 extension
-    const checkExtension = () => {
+    // Check if user is already logged in
+    const checkLogin = () => {
+      const pubkey = nostrService.publicKey;
+      if (pubkey) {
+        setIsLoggedIn(true);
+        setNpub(nostrService.formatPubkey(pubkey));
+      } else {
+        setIsLoggedIn(false);
+        setNpub("");
+      }
+      
+      // Check for NIP-07 extension
       setHasExtension(!!window.nostr);
     };
     
-    checkExtension();
+    checkLogin();
     
     // Re-check for extension periodically (it might be installed after page load)
     const intervalId = setInterval(() => {
@@ -42,7 +52,14 @@ const LoginButton = () => {
   
   const handleLogout = async () => {
     await nostrService.signOut();
+    setIsLoggedIn(false);
+    setNpub("");
     toast.success("Signed out successfully");
+    
+    // Reload the page to reset all states
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
   
   if (isLoggedIn) {

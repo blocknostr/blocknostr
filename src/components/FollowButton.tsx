@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { User, UserCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from '@/hooks/useAuth';
 
 interface FollowButtonProps {
   pubkey: string;
@@ -16,11 +15,11 @@ interface FollowButtonProps {
 const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: FollowButtonProps) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { isLoggedIn, publicKey } = useAuth();
+  const currentUserPubkey = nostrService.publicKey;
   
   useEffect(() => {
     // Check if user is already following this pubkey according to NIP-02
-    if (pubkey && isLoggedIn && publicKey) {
+    if (pubkey && currentUserPubkey) {
       // Fixed: Instead of directly using isFollowing, get the current boolean value
       const checkFollowing = async () => {
         try {
@@ -33,10 +32,10 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
       
       checkFollowing();
     }
-  }, [pubkey, isLoggedIn, publicKey]);
+  }, [pubkey, currentUserPubkey]);
   
   const handleFollowToggle = async () => {
-    if (!isLoggedIn || !publicKey) {
+    if (!currentUserPubkey) {
       toast.error("You need to be logged in to follow users");
       return;
     }
@@ -72,7 +71,7 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
   };
   
   // Don't show follow button for yourself
-  if (!isLoggedIn || publicKey === pubkey) {
+  if (!currentUserPubkey || currentUserPubkey === pubkey) {
     return null;
   }
   

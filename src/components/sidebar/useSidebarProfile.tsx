@@ -1,10 +1,9 @@
 
 import * as React from "react";
 import { nostrService } from "@/lib/nostr";
-import { useAuth } from "@/hooks/useAuth"; 
 
 export function useSidebarProfile() {
-  const { isLoggedIn, publicKey } = useAuth();
+  const isLoggedIn = !!nostrService.publicKey;
   const [userProfile, setUserProfile] = React.useState<{
     name?: string;
     display_name?: string;
@@ -18,14 +17,14 @@ export function useSidebarProfile() {
   // Force profile refresh when route changes, user logs in, or after 30 seconds
   React.useEffect(() => {
     const fetchUserProfile = async () => {
-      if (isLoggedIn && publicKey) {
+      if (isLoggedIn && nostrService.publicKey) {
         try {
           setIsLoading(true);
           
           // Make sure we're connected to relays
           await nostrService.connectToUserRelays();
           
-          const profile = await nostrService.getUserProfile(publicKey);
+          const profile = await nostrService.getUserProfile(nostrService.publicKey);
           
           if (profile) {
             // Get account creation date if not already in profile
@@ -33,7 +32,7 @@ export function useSidebarProfile() {
             if (!creationDate) {
               try {
                 // Direct call to the getAccountCreationDate method instead of using getProfileService()
-                const date = await nostrService.getAccountCreationDate(publicKey);
+                const date = await nostrService.getAccountCreationDate(nostrService.publicKey);
                 if (date) {
                   creationDate = date;
                 }
@@ -56,9 +55,6 @@ export function useSidebarProfile() {
         } finally {
           setIsLoading(false);
         }
-      } else {
-        // Reset profile when user is not logged in
-        setUserProfile({});
       }
     };
     
@@ -68,7 +64,7 @@ export function useSidebarProfile() {
     const intervalId = setInterval(fetchUserProfile, 30000);
     
     return () => clearInterval(intervalId);
-  }, [isLoggedIn, publicKey]);
+  }, [isLoggedIn]);
   
   return { isLoggedIn, userProfile, isLoading };
 }

@@ -3,13 +3,12 @@ import { nip19, getPublicKey } from 'nostr-tools';
 import { toast } from "sonner";
 import { EVENT_KINDS } from './constants';
 import { NostrProfileMetadata } from './types';
-import { AUTH_EVENTS } from '@/contexts/AuthContext';
 
 export class UserManager {
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private _following: Set<string> = new Set();
-  private _profileCache: Map<string, NostrProfileMetadata> = new Map(); 
+  private _profileCache: Map<string, NostrProfileMetadata> = new Map(); // Use the typings
   private _extensionDetected: boolean = false;
   
   get publicKey(): string | null {
@@ -28,8 +27,6 @@ export class UserManager {
     const savedPubkey = localStorage.getItem('nostr_pubkey');
     if (savedPubkey) {
       this._publicKey = savedPubkey;
-      // Emit login event if we have a saved pubkey
-      this.emitLoginEvent(savedPubkey);
     }
     
     const savedPrivkey = localStorage.getItem('nostr_privkey');
@@ -86,10 +83,6 @@ export class UserManager {
             }
             
             toast.success("Successfully connected with extension");
-            
-            // Emit login event
-            this.emitLoginEvent(pubkey);
-            
             return true;
           }
         } catch (err) {
@@ -112,9 +105,6 @@ export class UserManager {
     this._privateKey = null;
     localStorage.removeItem('nostr_pubkey');
     localStorage.removeItem('nostr_privkey');
-    
-    // Emit logout event
-    this.emitLogoutEvent();
   }
   
   formatPubkey(pubkey: string, format: 'hex' | 'npub' = 'npub'): string {
@@ -158,11 +148,6 @@ export class UserManager {
     this._publicKey = pubkey;
     if (pubkey) {
       localStorage.setItem('nostr_pubkey', pubkey);
-      // Emit login event
-      this.emitLoginEvent(pubkey);
-    } else {
-      // If setting to null, emit logout event
-      this.emitLogoutEvent();
     }
   }
   
@@ -192,16 +177,5 @@ export class UserManager {
     
     // For now, return null since the actual fetching will be handled by NostrService
     return null;
-  }
-
-  // Helper methods to emit auth events
-  private emitLoginEvent(pubkey: string): void {
-    window.dispatchEvent(new CustomEvent(AUTH_EVENTS.LOGIN, { detail: { pubkey } }));
-    console.info("[UserManager] Emitted login event for:", pubkey);
-  }
-
-  private emitLogoutEvent(): void {
-    window.dispatchEvent(new CustomEvent(AUTH_EVENTS.LOGOUT));
-    console.info("[UserManager] Emitted logout event");
   }
 }

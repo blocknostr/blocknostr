@@ -7,12 +7,10 @@ import SidebarNav from "./SidebarNav";
 import SidebarUserProfile from "./SidebarUserProfile";
 import { useSidebarProfile } from "./useSidebarProfile";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { useAuth } from "@/hooks/useAuth";
 
 const Sidebar = () => {
   const isMobile = useIsMobile();
-  const { isLoggedIn } = useAuth();
-  const { userProfile, isLoading } = useSidebarProfile();
+  const { isLoggedIn, userProfile, isLoading } = useSidebarProfile();
   
   return (
     <aside
@@ -41,7 +39,7 @@ const Sidebar = () => {
           </Link>
         </div>
         
-        <SidebarNav />
+        <SidebarNav isLoggedIn={isLoggedIn} />
         
         <div className="mt-auto pt-4 space-y-2">
           {isLoggedIn && (

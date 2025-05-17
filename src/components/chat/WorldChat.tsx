@@ -11,7 +11,6 @@ import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "../auth/LoginDialog";
 import { cn } from "@/lib/utils";
 import MessageList from "./MessageList";
-import { useAuth } from "@/hooks/useAuth";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -24,7 +23,7 @@ const WorldChat = () => {
   const [currentChatTag, setCurrentChatTag] = useState(DEFAULT_CHAT_TAG);
   // Add a state to track channel switches for UI feedback
   const [isChangingChannel, setIsChangingChannel] = useState(false);
-  const { isLoggedIn } = useAuth();
+  const isLoggedIn = !!chatNostrService.publicKey;
 
   const {
     messages,

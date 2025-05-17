@@ -74,6 +74,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
         // Short delay to show success state before closing
         setTimeout(() => {
           onOpenChange(false);
+          
+          // Reload the page to refresh content with logged in state
+          setTimeout(() => {
+            window.location.reload();
+          }, 300);
         }, 700);
       } else {
         setConnectStatus('error');

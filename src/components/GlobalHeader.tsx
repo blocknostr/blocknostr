@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import MobileMenu from "@/components/home/MobileMenu";
 import { useLocation } from "react-router-dom";
 import HeaderRelayStatus from "@/components/header/HeaderRelayStatus";
-import { useAuth } from "@/hooks/useAuth";
+import { nostrService } from "@/lib/nostr";
 
 interface GlobalHeaderProps {
   leftPanelOpen: boolean;
@@ -29,7 +30,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const { darkMode, toggleDarkMode } = useTheme();
   const isMobile = useIsMobile();
   const location = useLocation();
-  const { isLoggedIn } = useAuth();
+  const isLoggedIn = !!nostrService.publicKey;
   
   // Function to get the appropriate title based on the current route
   const getPageTitle = () => {
