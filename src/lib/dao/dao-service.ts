@@ -270,7 +270,7 @@ export class DAOService {
       // Check cache first
       const cachedProposals = daoCache.getProposals(daoId);
       if (cachedProposals) {
-        console.log(`Using cached proposals for DAO: ${daoId}`);
+        console.log(`Using cached proposals for DAO: ${daoId} (${cachedProposals.length} proposals)`);
         // Refresh in background
         this.refreshDAOProposals(daoId);
         return cachedProposals;
@@ -302,6 +302,7 @@ export class DAOService {
       
       // Cache the result
       daoCache.cacheProposals(daoId, proposalsWithVotes);
+      console.log(`Cached ${proposalsWithVotes.length} proposals for DAO ${daoId} from network fetch`);
       
       return proposalsWithVotes;
     } catch (error) {
@@ -528,7 +529,7 @@ export class DAOService {
           endsAt: endsAt,
           creator: pubkey,
           votes: {},
-          status: "active" as "active" | "passed" | "rejected" | "canceled"
+          status: "active"  // Explicitly set type to avoid string vs union type mismatch
         };
         
         // Get existing cached proposals or empty array
@@ -537,6 +538,9 @@ export class DAOService {
         // Add the new proposal to the beginning of the array
         // This ensures we preserve all existing proposals rather than replacing them
         daoCache.cacheProposals(daoId, [newProposal, ...existingProposals]);
+        
+        // Log the number of cached proposals after adding the new one
+        console.log(`Cached ${existingProposals.length + 1} proposals for DAO ${daoId} (${existingProposals.length} existing + 1 new)`);
       }
       
       return eventId;
@@ -1258,8 +1262,15 @@ export class DAOService {
       
       // Calculate status based on end time
       const now = Math.floor(Date.now() / 1000);
-      const status: "active" | "passed" | "rejected" | "canceled" = 
-        content.endsAt > now ? "active" : "passed"; // Simple logic for now
+      let status: "active" | "passed" | "rejected" | "canceled" = "active";
+      
+      // Determine status based on end time
+      if (content.endsAt > now) {
+        status = "active";
+      } else {
+        // Simple logic for now - could be enhanced based on votes
+        status = "passed";
+      }
       
       return {
         id: event.id,
