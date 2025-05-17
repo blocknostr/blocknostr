@@ -13,9 +13,10 @@ import DAOCard from "./DAOCard";
 interface DAOCarouselProps {
   daos: DAO[];
   currentUserPubkey: string;
+  onJoinDAO?: (daoId: string, daoName: string) => void;
 }
 
-const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey }) => {
+const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey, onJoinDAO }) => {
   // No carousel needed if there are no DAOs
   if (daos.length === 0) return null;
   
@@ -32,7 +33,11 @@ const DAOCarousel: React.FC<DAOCarouselProps> = ({ daos, currentUserPubkey }) =>
         <CarouselContent className="-ml-4">
           {daos.map((dao) => (
             <CarouselItem key={dao.id} className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-              <DAOCard dao={dao} currentUserPubkey={currentUserPubkey} />
+              <DAOCard 
+                dao={dao} 
+                currentUserPubkey={currentUserPubkey} 
+                onJoinDAO={onJoinDAO}
+              />
             </CarouselItem>
           ))}
         </CarouselContent>
