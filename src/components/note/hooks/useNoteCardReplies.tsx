@@ -64,5 +64,8 @@ export function useNoteCardReplies(eventId: string) {
     fetchReplies();
   }, [fetchReplies]);
   
-  return { replies, isLoading, fetchReplies };
+  // Get the reply count
+  const replyCount = replies.length;
+  
+  return { replies, isLoading, fetchReplies, replyCount };
 }

@@ -17,7 +17,7 @@ interface DAOProposalsListProps {
   isCreator: boolean;
   currentUserPubkey: string | null;
   onCreateProposal: (daoId: string, title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
-  onVoteProposal: (proposalId: string, optionIndex: number) => Promise<boolean>; // Changed parameter type from boolean to number
+  onVoteProposal: (proposalId: string, optionIndex: number) => Promise<boolean>;
 }
 
 const DAOProposalsList: React.FC<DAOProposalsListProps> = ({

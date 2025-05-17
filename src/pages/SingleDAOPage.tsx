@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useDAO } from "@/hooks/useDAO";
@@ -182,8 +183,8 @@ const SingleDAOPage: React.FC = () => {
   };
   
   // Fix for the voteOnKickProposal issue
-  const handleVoteOnKickProposal = async (proposalId: string, optionIndex: number) => {
-    return await voteOnKickProposal(proposalId, optionIndex);
+  const handleVoteOnKickProposal = async (proposalId: string, vote: boolean) => {
+    return await voteOnKickProposal(proposalId, vote);
   };
 
   return (

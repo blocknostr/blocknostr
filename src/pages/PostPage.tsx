@@ -1,13 +1,35 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { EVENT_KINDS } from '@/lib/nostr/constants';
 import NoteCard from '@/components/note/NoteCard';
 import Sidebar from '@/components/Sidebar';
-import { BackButton } from '@/components/navigation/BackButton';
-import { useProfile } from '@/hooks/useProfile';
+import BackButton from '@/components/navigation/BackButton';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
+
+// Create a minimal hook for profile fetching
+const useProfile = () => {
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  
+  const fetchProfile = useCallback(async (pubkey: string) => {
+    try {
+      // Create a basic profile object with the pubkey
+      setProfiles(prev => {
+        if (prev[pubkey]) return prev;
+        return {
+          ...prev,
+          [pubkey]: { pubkey }
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  }, []);
+  
+  return { profiles, fetchProfile };
+};
 
 const PostPage: React.FC = () => {
   const { eventId } = useParams<{ eventId: string }>();
@@ -81,8 +103,8 @@ const PostPage: React.FC = () => {
       <div className="flex-1 ml-0 md:ml-64 p-6">
         <BackButton onClick={() => navigate(-1)} />
         <NoteCard
-          note={event}
-          profile={profiles[event.pubkey]}
+          event={event}
+          profileData={profiles[event.pubkey]}
           isExpanded={true}
         />
         <Toaster position="bottom-right" />

@@ -26,7 +26,7 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Use custom hooks for handling reactions and replies
-  const { replyCount } = useNoteCardReplies({ eventId: event.id });
+  const { replyCount } = useNoteCardReplies(event.id);
   const { 
     likeCount, 
     repostCount,
@@ -36,7 +36,7 @@ const NewNoteCard: React.FC<NewNoteCardProps> = ({
     handleRepost,
     isLiking,
     isReposting
-  } = useNoteReactions({ eventId: event.id, pubkey: event.pubkey });
+  } = useNoteReactions(event.id);
   
   if (!event || !event.id || !event.pubkey) return null;
   

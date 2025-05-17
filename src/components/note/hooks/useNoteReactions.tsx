@@ -2,14 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
+import { toast } from "sonner";
 
 export function useNoteReactions(eventId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [reactions, setReactions] = useState<NostrEvent[]>([]);
-  const [repostsCount, setRepostsCount] = useState(0);
-  const [likesCount, setLikesCount] = useState(0);
-  const [userHasLiked, setUserHasLiked] = useState(false);
-  const [userHasReposted, setUserHasReposted] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
+  const [isReposting, setIsReposting] = useState(false);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   
   const fetchReactions = useCallback(async () => {
@@ -50,8 +49,55 @@ export function useNoteReactions(eventId: string) {
       setIsLoading(false);
     }
   }, [eventId]);
+
+  // Handle like action
+  const handleLike = async () => {
+    if (!nostrService.publicKey) {
+      toast.error("Please login to like posts");
+      return;
+    }
+    
+    setIsLiking(true);
+    try {
+      const success = await nostrService.reactToPost(eventId, "+");
+      if (success) {
+        toast.success("Post liked!");
+      }
+    } catch (error) {
+      console.error("Error liking post:", error);
+      toast.error("Failed to like post");
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
+  // Handle repost action
+  const handleRepost = async () => {
+    if (!nostrService.publicKey) {
+      toast.error("Please login to repost");
+      return;
+    }
+    
+    setIsReposting(true);
+    try {
+      const success = await nostrService.repostNote(eventId);
+      if (success) {
+        toast.success("Post reposted!");
+      }
+    } catch (error) {
+      console.error("Error reposting:", error);
+      toast.error("Failed to repost");
+    } finally {
+      setIsReposting(false);
+    }
+  };
   
   // Process reactions data
+  const [likesCount, setLikesCount] = useState(0);
+  const [repostsCount, setRepostsCount] = useState(0);
+  const [userHasLiked, setUserHasLiked] = useState(false);
+  const [userHasReposted, setUserHasReposted] = useState(false);
+  
   useEffect(() => {
     const likes = reactions.filter(event => event.kind === EVENT_KINDS.REACTION);
     const reposts = reactions.filter(event => event.kind === EVENT_KINDS.REPOST);
@@ -88,6 +134,13 @@ export function useNoteReactions(eventId: string) {
     userHasLiked,
     userHasReposted,
     isLoading,
-    fetchReactions
+    fetchReactions,
+    handleLike,
+    handleRepost,
+    isLiking,
+    isReposting,
+    // For compatibility with existing code
+    likeCount: likesCount,
+    repostCount: repostsCount
   };
 }
