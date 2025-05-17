@@ -25,11 +25,15 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
     const checkSigner = async () => {
       if (wallet.signer && wallet.connectionStatus === 'connected') {
         try {
-          // Instead of directly accessing publicKey property, check if the signer is usable
-          // by accessing a common method or property that should exist
+          // Check if wallet has an account, which should include the public key
           if (wallet.signer && wallet.account) {
             setSignerReady(true);
             console.log("Signer ready with address:", wallet.account.address);
+            if (wallet.account.publicKey) {
+              console.log("Public key available:", wallet.account.publicKey);
+            } else {
+              console.warn("Public key not available in account");
+            }
           } else {
             console.warn("Signer is connected but missing account info");
             setSignerReady(false);

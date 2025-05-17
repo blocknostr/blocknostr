@@ -281,9 +281,25 @@ export const sendTransaction = async (
     
     console.log("Building transaction for address:", fromAddress);
     
+    // Get the public key from the signer if possible
+    let fromPublicKey = '';
+    try {
+      if (signer.account && signer.account.publicKey) {
+        fromPublicKey = signer.account.publicKey;
+        console.log("Using wallet's public key:", fromPublicKey);
+      } else if (signer.publicKey) {
+        fromPublicKey = signer.publicKey;
+        console.log("Using signer's public key:", fromPublicKey);
+      } else {
+        console.warn("No public key available in signer, building transaction without it");
+      }
+    } catch (error) {
+      console.warn("Error accessing public key:", error);
+    }
+    
     // Build unsigned transaction - use the correct properties for the API
     const unsignedTx = await nodeProvider.transactions.postTransactionsBuild({
-      fromPublicKey: '', // We'll leave this blank since we're using fromAddress
+      fromPublicKey: fromPublicKey,
       destinations: [{
         address: toAddress,
         attoAlphAmount: amountInNanoAlph
