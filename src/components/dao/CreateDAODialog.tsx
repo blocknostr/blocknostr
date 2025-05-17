@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,12 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface CreateDAODialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateDAO: (name: string, description: string, tags: string[]) => void;
+  onCreateDAO: (name: string, description: string, tags: string[]) => Promise<string | null>;
 }
 
 const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
@@ -26,6 +26,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nameError, setNameError] = useState("");
+  const navigate = useNavigate();
   
   const resetForm = () => {
     setName("");
@@ -70,7 +71,17 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     
     setIsSubmitting(true);
     try {
-      await onCreateDAO(name.trim(), description, tags);
+      const daoId = await onCreateDAO(name.trim(), description, tags);
+      if (daoId) {
+        toast.success("DAO created successfully!", {
+          description: "Redirecting to your new DAO..."
+        });
+        
+        // Navigate to the newly created DAO after a short delay
+        setTimeout(() => {
+          navigate(`/dao/${daoId}`);
+        }, 500);
+      }
       handleClose();
     } catch (error) {
       console.error("Error creating DAO:", error);

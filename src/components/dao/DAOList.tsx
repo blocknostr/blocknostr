@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Loader2, Search, Plus, AlertCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -8,10 +7,11 @@ import DAOGrid from "./DAOGrid";
 import DAOEmptyState from "./DAOEmptyState";
 import CreateDAODialog from "./CreateDAODialog";
 import { useDAO } from "@/hooks/useDAO";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import DAOCarousel from "./DAOCarousel";
 import { nostrService } from "@/lib/nostr";
 import { Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -20,6 +20,7 @@ const DAOList = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const navigate = useNavigate();
   
   const isLoggedIn = !!nostrService.publicKey;
   
@@ -85,7 +86,9 @@ const DAOList = () => {
     const daoId = await createDAO(name, description, tags);
     if (daoId) {
       setCreateDialogOpen(false);
+      return daoId; // Return the DAO ID for navigation
     }
+    return null;
   };
   
   const handleRetryConnection = () => {
