@@ -47,6 +47,7 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@tanstack/react-query": "^5.76.1",
     "@tanstack/react-virtual": "^3.13.8",
+    "@trustwallet/wallet-core": "^3.3.3",
     "@types/jest": "^29.5.12",
     "@uiw/react-textarea-code-editor": "^2.1.9",
     "chart.js": "^4.4.9",
