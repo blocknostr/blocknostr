@@ -134,31 +134,17 @@ const GameManagerPage: React.FC = () => {
     // Use games from Nostr events or default
     const games: Game[] = useMemo(() => {
         if (!gameEvents || gameEvents.length === 0) return defaultGames;
-        return gameEvents.map(event => {
-            const thumbnail = event.tags.find((t: string[]) => t[0] === "thumbnail")?.[1] || "/default-game.png";
-            const description = event.content;
-
-            // Try to extract preview image from description if no thumbnail
-            let finalThumbnail = thumbnail;
-            if (thumbnail === "/default-game.png" && description) {
-                const img = getFirstImageUrlFromEvent({ content: description });
-                if (img) {
-                    finalThumbnail = img;
-                }
-            }
-
-            return {
-                id: event.tags.find((t: string[]) => t[0] === "d")?.[1] || event.id,
-                name: event.tags.find((t: string[]) => t[0] === "name")?.[1] || "Untitled",
-                genre: event.tags.find((t: string[]) => t[0] === "genre")?.[1]?.split(",") || [],
-                description,
-                creator: event.pubkey,
-                version: event.tags.find((t: string[]) => t[0] === "version")?.[1] || "1.0.0",
-                updated: new Date(event.created_at * 1000).toISOString().split("T")[0],
-                thumbnail: finalThumbnail,
-                componentId: event.tags.find((t: string[]) => t[0] === "component")?.[1] || "tetris",
-            };
-        });
+        return gameEvents.map(event => ({
+            id: event.tags.find((t: string[]) => t[0] === "d")?.[1] || event.id,
+            name: event.tags.find((t: string[]) => t[0] === "name")?.[1] || "Untitled",
+            genre: event.tags.find((t: string[]) => t[0] === "genre")?.[1]?.split(",") || [],
+            description: event.content,
+            creator: event.pubkey,
+            version: event.tags.find((t: string[]) => t[0] === "version")?.[1] || "1.0.0",
+            updated: new Date(event.created_at * 1000).toISOString().split("T")[0],
+            thumbnail: event.tags.find((t: string[]) => t[0] === "thumbnail")?.[1] || "/default-game.png",
+            componentId: event.tags.find((t: string[]) => t[0] === "component")?.[1] || "tetris",
+        }));
     }, [gameEvents]);
 
     // Fetch friends from Nostr contact list
@@ -210,6 +196,20 @@ const GameManagerPage: React.FC = () => {
     const [challenges, setChallenges] = useState<Challenge[]>([]);
     const [incomingChallenge, setIncomingChallenge] = useState<Challenge | null>(null);
 
+    // --- Fetch preview images for games from open source links ---
+    useEffect(() => {
+        (async () => {
+            for (const game of games) {
+                if (game.thumbnail === "/default-game.png" && game.description) {
+                    // Try to extract preview image from description (e.g., GitHub/itch.io links)
+                    const img = getFirstImageUrlFromEvent({ content: game.description });
+                    if (img) {
+                        game.thumbnail = img;
+                    }
+                }
+            }
+        })();
+    }, [games]);
     // --- Challenge Mode: Subscribe to Nostr challenge events ---
     const { events: challengeEvents } = useNostrEvents({
         filter: { kinds: [30079], "#t": ["challenge"], "#to": [currentUserPubkey] }
