@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -23,28 +22,37 @@ const ProfileViewPage = () => {
   const [hexPubkey, setHexPubkey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
-  const [notes, setNotes] = useState<any[]>([]);
+  interface Note {
+    id: string;
+    content: string;
+    created_at: number;
+    repliesCount?: number;
+    likesCount?: number;
+    // Add other fields as needed
+  }
+
+  const [notes, setNotes] = useState<Note[]>([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [showEditProfile, setShowEditProfile] = useState(false);
-  
+
   // Get current user's pubkey to check if this is the user's own profile
   const currentUserPubkey = nostrService.publicKey;
-  
+
   // Use the unified profile fetcher
-  const { 
-    profiles, 
-    fetchProfile, 
+  const {
+    profiles,
+    fetchProfile,
     isLoading: profileLoading,
     refreshProfile
   } = useUnifiedProfileFetcher();
-  
+
   // Convert npub to hex pubkey once
   useEffect(() => {
     if (!npub) {
       navigate('/');
       return;
     }
-    
+
     try {
       const hex = nostrService.getHexFromNpub(npub);
       setHexPubkey(hex);
@@ -56,11 +64,11 @@ const ProfileViewPage = () => {
       navigate('/');
     }
   }, [npub, navigate, fetchProfile]);
-  
+
   // Fetch user notes when the hexPubkey is available
   useEffect(() => {
     if (!hexPubkey) return;
-    
+
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
@@ -75,37 +83,37 @@ const ProfileViewPage = () => {
         setLoadingNotes(false);
       }
     };
-    
+
     fetchNotes();
   }, [hexPubkey]);
-  
+
   // Get profile data
   const profile = hexPubkey ? profiles[hexPubkey] : null;
-  
+
   // Handle copy to clipboard
   const copyPubkey = () => {
     if (!hexPubkey) return;
-    
+
     navigator.clipboard.writeText(hexPubkey);
     setCopied(true);
-    
+
     // Reset copy state after 2 seconds
     setTimeout(() => setCopied(false), 2000);
   };
-  
+
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
-  
+
   // Handle profile update
   const handleProfileUpdate = () => {
     if (hexPubkey) {
       refreshProfile(hexPubkey);
     }
   };
-  
+
   const isOwnProfile = currentUserPubkey && hexPubkey && currentUserPubkey === hexPubkey;
-  
+
   if (!npub) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -113,30 +121,30 @@ const ProfileViewPage = () => {
       </div>
     );
   }
-  
+
   return (
     <div className="container max-w-3xl mx-auto px-4 py-6">
       <div className="mb-6">
         <Card>
           <CardContent className="p-0">
             {/* Profile banner */}
-            <div 
-              className="h-32 bg-gradient-to-r from-primary/30 to-secondary/30" 
+            <div
+              className="h-32 bg-gradient-to-r from-primary/30 to-secondary/30"
               style={{
                 backgroundImage: profile?.banner ? `url(${profile.banner})` : undefined,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
             />
-            
+
             {/* Profile info */}
             <div className="px-6 py-4">
               <div className="flex flex-col md:flex-row md:items-end -mt-12 md:-mt-16">
                 <Avatar className="w-24 h-24 border-4 border-background">
                   {profile?.picture ? (
-                    <img 
-                      src={profile.picture} 
-                      alt={profile?.display_name || profile?.name || 'User'} 
+                    <img
+                      src={profile.picture}
+                      alt={profile?.display_name || profile?.name || 'User'}
                       className="object-cover"
                     />
                   ) : (
@@ -145,38 +153,38 @@ const ProfileViewPage = () => {
                     </div>
                   )}
                 </Avatar>
-                
+
                 <div className="mt-3 md:mt-0 md:ml-4 flex-1">
                   <h1 className="text-xl font-bold">
                     {profile?.display_name || profile?.name || 'Anonymous User'}
                   </h1>
-                  
+
                   {profile?.nip05 && (
                     <p className="text-sm font-medium text-muted-foreground">
                       {profile.nip05}
                     </p>
                   )}
-                  
+
                   <div className="flex items-center mt-1">
                     <span className="text-sm text-muted-foreground mr-2">
                       {npub.slice(0, 8)}...{npub.slice(-4)}
                     </span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 w-6 p-0" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
                       onClick={copyPubkey}
                     >
                       {copied ? <Check size={14} /> : <Clipboard size={14} />}
                     </Button>
                   </div>
                 </div>
-                
+
                 {/* Action buttons */}
                 <div className="mt-3 md:mt-0 space-x-2 flex">
                   {isOwnProfile ? (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowEditProfile(true)}
                     >
@@ -194,20 +202,20 @@ const ProfileViewPage = () => {
                   )}
                 </div>
               </div>
-              
+
               {/* About/bio */}
               {profile?.about && (
                 <div className="mt-4">
                   <p className="text-sm">{profile.about}</p>
                 </div>
               )}
-              
+
               {/* Website */}
               {profile?.website && (
                 <div className="mt-2">
-                  <a 
+                  <a
                     href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
-                    target="_blank" 
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm flex items-center text-primary hover:underline"
                   >
@@ -220,9 +228,9 @@ const ProfileViewPage = () => {
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Content tabs */}
-      <Tabs 
+      <Tabs
         value={activeTab}
         onValueChange={handleTabChange}
         className="w-full"
@@ -232,7 +240,7 @@ const ProfileViewPage = () => {
           <TabsTrigger value="replies">Replies</TabsTrigger>
           <TabsTrigger value="media">Media</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="posts" className="space-y-4">
           {loadingNotes ? (
             <div className="flex justify-center py-10">
@@ -268,29 +276,27 @@ const ProfileViewPage = () => {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="replies">
           <div className="text-center py-10 text-muted-foreground">
             Replies will be implemented in a future update
           </div>
         </TabsContent>
-        
+
         <TabsContent value="media">
           <div className="text-center py-10 text-muted-foreground">
             Media view will be implemented in a future update
           </div>
         </TabsContent>
       </Tabs>
-      
+
       {/* Edit Profile Dialog */}
-      {profile && (
-        <EditProfileDialog
-          open={showEditProfile}
-          onOpenChange={setShowEditProfile}
-          profile={profile}
-          onProfileUpdate={handleProfileUpdate}
-        />
-      )}
+      <EditProfileDialog
+        open={showEditProfile}
+        onOpenChange={setShowEditProfile}
+        profile={profile || {}}
+        onProfileUpdate={handleProfileUpdate}
+      />
     </div>
   );
 };
