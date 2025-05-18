@@ -398,118 +398,50 @@ const GameManagerPage: React.FC = () => {
     // --- Multiplayer Presence & Chat via Nostr ---
     useEffect(() => {
         if (!selectedGame) return;
-
-        console.log("Setting up chat and presence for game:", selectedGame);
-
+        // Subscribe to presence and chat events for the selected game
         const presenceKind = 30090;
         const chatKind = 30091;
-
-        // Clear previous state
-        setMultiplayerUsers({});
-        setChatLog([]);
-
-        try {
-            // Fetch recent chat history first
-            nostrService.subscribe(
-                [{
-                    kinds: [chatKind],
-                    since: Math.floor(Date.now() / 1000) - 24 * 60 * 60, // Last 24 hours
-                    limit: 50
-                }],
-                (event: NostrEvent) => {
-                    // Only process events for this game
-                    if (!event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) return;
-
-                    setChatLog(prev => {
-                        // Avoid duplicates
-                        if (prev.some(m => m.created_at === event.created_at)) return prev;
-                        const newLog = [...prev, {
-                            pubkey: event.pubkey,
-                            content: event.content,
-                            created_at: event.created_at
-                        }];
-                        // Sort by timestamp
-                        return newLog.sort((a, b) => a.created_at - b.created_at);
-                    });
-
-                    // Fetch profiles for chat participants
-                    fetchProfiles([event.pubkey]);
-                }
-            );
-
-            // Subscribe to new messages
-            const chatSubId = nostrService.subscribe(
-                [{ kinds: [chatKind] }],
-                (event: NostrEvent) => {
-                    if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
-                        setChatLog(prev => {
-                            // Avoid duplicates
-                            if (prev.some(m => m.created_at === event.created_at)) return prev;
-                            return [...prev, {
-                                pubkey: event.pubkey,
-                                content: event.content,
-                                created_at: event.created_at
-                            }].sort((a, b) => a.created_at - b.created_at);
-                        });
-                        // Fetch profile for new chat participant
-                        fetchProfiles([event.pubkey]);
-                    }
-                }
-            );
-
-            // Presence system
-            const presSubId = nostrService.subscribe(
-                [{ kinds: [presenceKind] }],
-                (event: NostrEvent) => {
-                    if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
-                        setMultiplayerUsers(prev => ({
-                            ...prev,
-                            [event.pubkey]: { pubkey: event.pubkey, lastSeen: event.created_at }
-                        }));
-                        // Clean up users who haven't been seen in 2 minutes
-                        const twoMinutesAgo = (Date.now() / 1000) - 120;
-                        setMultiplayerUsers(prev => {
-                            const newUsers = { ...prev };
-                            Object.entries(newUsers).forEach(([key, user]) => {
-                                if (user.lastSeen < twoMinutesAgo) {
-                                    delete newUsers[key];
-                                }
-                            });
-                            return newUsers;
-                        });
-                        // Fetch profile for online user
-                        fetchProfiles([event.pubkey]);
-                    }
-                }
-            );
-
-            // Announce presence every 20s
-            const presenceInterval = setInterval(() => {
-                nostrService.publishEvent({
-                    kind: presenceKind,
-                    tags: [['t', selectedGame]],
-                    content: 'online',
-                    created_at: Math.floor(Date.now() / 1000),
-                });
-            }, 20000);
-
-            // Initial presence announcement
+        // Use supported tag filter keys: '#p', '#e', etc. We'll use '#p' for pubkey, but for game, fallback to using content or kind only.
+        // If custom tag filtering is not supported, fallback to kind only and filter in callback.
+        const presenceSubId = nostrService.subscribe([
+            { kinds: [presenceKind] }
+        ], (event: NostrEvent) => {
+            // Only accept events for this game (tagged with ['t', selectedGame])
+            if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
+                setMultiplayerUsers(prev => ({ ...prev, [event.pubkey]: { pubkey: event.pubkey, lastSeen: event.created_at } }));
+            }
+        });
+        const chatSubId = nostrService.subscribe([
+            { kinds: [chatKind] }
+        ], (event: NostrEvent) => {
+            if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
+                setChatLog(prev => [...prev, { pubkey: event.pubkey, content: event.content, created_at: event.created_at }]);
+            }
+        });
+        // Announce presence every 20s
+        const presenceInterval = setInterval(() => {
             nostrService.publishEvent({
                 kind: presenceKind,
                 tags: [['t', selectedGame]],
                 content: 'online',
                 created_at: Math.floor(Date.now() / 1000),
             });
-
-            return () => {
-                clearInterval(presenceInterval);
-                if (presSubId) nostrService.unsubscribe(presSubId);
-                if (chatSubId) nostrService.unsubscribe(chatSubId);
-            };
-        } catch (error) {
-            console.error("Error setting up Nostr subscriptions:", error);
-        }
-    }, [selectedGame, fetchProfiles]);
+        }, 20000);
+        // Initial announce
+        nostrService.publishEvent({
+            kind: presenceKind,
+            tags: [['t', selectedGame]],
+            content: 'online',
+            created_at: Math.floor(Date.now() / 1000),
+        });
+        return () => {
+            clearInterval(presenceInterval);
+            setMultiplayerUsers({});
+            setChatLog([]);
+            if (presenceSubId) nostrService.unsubscribe(presenceSubId);
+            if (chatSubId) nostrService.unsubscribe(chatSubId);
+        };
+    }, [selectedGame]);
     // --- Send Chat Message ---
     const sendChat = () => {
         if (!chatInput.trim() || !selectedGame) return;
@@ -755,99 +687,59 @@ const GameManagerPage: React.FC = () => {
                 {/* Game Console Modal */}
                 {selectedGame && GameComponent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl game-modal">
-                        <div className="relative w-full max-w-[90vw] h-[90vh] flex gap-4">
-                            {/* Game Window */}
-                            <div className="relative flex-1">
-                                <button
-                                    className="absolute top-2 right-2 z-50 px-3 py-1.5 text-sm bg-black text-white rounded-md shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
-                                    onClick={() => setSelectedGame(null)}
-                                    aria-label="Close game"
-                                >
-                                    ✕
-                                </button>
-                                <div className="w-full h-full bg-black/90 backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/10 flex flex-col items-center justify-center overflow-hidden">
-                                    <React.Suspense fallback={<div className="text-white text-sm">Loading…</div>}>
-                                        <GameComponent />
-                                    </React.Suspense>
-                                </div>
-                            </div>
-
-                            {/* Chat Panel - Now outside game window */}
-                            <div className="w-80 bg-black/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl flex flex-col">
-                                {/* Chat Header */}
-                                <div className="px-4 py-3 border-b border-white/10">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-white">Game Chat</span>
+                        <div className="relative w-full max-w-3xl">
+                            <button
+                                className="absolute top-2 right-2 z-50 px-3 py-1 bg-black text-white rounded-lg shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
+                                onClick={() => setSelectedGame(null)}
+                                aria-label="Close game"
+                            >
+                                ✕
+                            </button>
+                            <div className="relative w-full h-[80vh] bg-black/90 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/10 flex flex-col items-center justify-center overflow-hidden mt-8">
+                                <React.Suspense fallback={<div className="text-white">Loading…</div>}>
+                                    <GameComponent />
+                                </React.Suspense>
+                                {/* --- Multiplayer & Chat Panel --- */}
+                                <div className="absolute top-4 right-4 w-80 max-w-full bg-gray-900 bg-opacity-95 rounded-xl border border-cyan-400 shadow-lg flex flex-col z-40">
+                                    <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700">
+                                        <span className="text-cyan-300 font-bold">Multiplayer & Chat</span>
                                         <span className="text-xs text-gray-400">{Object.keys(multiplayerUsers).length} online</span>
                                     </div>
-                                </div>
-
-                                {/* Players Online */}
-                                <div className="px-4 py-2 border-b border-white/10 bg-white/5">
-                                    <div className="flex flex-wrap gap-1">
+                                    <div className="px-4 py-2 flex flex-col gap-1 max-h-32 overflow-y-auto border-b border-cyan-700">
                                         {Object.values(multiplayerUsers).length === 0 ? (
-                                            <span className="text-gray-500 text-xs">No other players online</span>
+                                            <span className="text-gray-500 text-xs">No other players online.</span>
                                         ) : (
                                             Object.values(multiplayerUsers).map(u => (
-                                                <span key={u.pubkey}
-                                                    className="inline-flex items-center px-2 py-1 rounded-full bg-white/10 text-xs text-cyan-200">
+                                                <span key={u.pubkey} className="text-cyan-200 text-xs">
                                                     {profiles[u.pubkey]?.name || u.pubkey.slice(0, 8)}
                                                 </span>
                                             ))
                                         )}
                                     </div>
-                                </div>
-
-                                {/* Chat Messages */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                                    {chatLog.length === 0 ? (
-                                        <div className="flex flex-col gap-1 text-center py-4">
-                                            <span className="text-gray-500 text-xs">No messages yet</span>
-                                            <span className="text-gray-500 text-xs">Be the first to chat!</span>
-                                        </div>
-                                    ) : (
-                                        chatLog.map((m, i) => (
-                                            <div key={i} className="group flex items-start gap-2 animate-fade-in">
-                                                <div className="w-6 h-6 rounded-full bg-white/10 flex-shrink-0 overflow-hidden">
-                                                    <img
-                                                        src={profiles[m.pubkey]?.picture || "/public/placeholder.svg"}
-                                                        alt=""
-                                                        className="w-full h-full object-cover"
-                                                    />
+                                    <div className="px-4 py-2 flex-1 flex flex-col gap-1 max-h-40 overflow-y-auto">
+                                        {chatLog.length === 0 ? (
+                                            <span className="text-gray-500 text-xs">No messages yet.</span>
+                                        ) : (
+                                            chatLog.slice(-30).map((m, i) => (
+                                                <div key={i} className="text-gray-200 text-xs">
+                                                    <span className="font-bold text-cyan-400">{profiles[m.pubkey]?.name || m.pubkey.slice(0, 8)}:</span> {m.content}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-baseline gap-2">
-                                                        <span className="text-xs font-medium text-cyan-300">
-                                                            {profiles[m.pubkey]?.name || m.pubkey.slice(0, 8)}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-500">
-                                                            {new Date(m.created_at * 1000).toLocaleTimeString()}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-200 break-words">{m.content}</p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-
-                                {/* Chat Input */}
-                                <div className="p-3 border-t border-white/10 bg-black/60">
-                                    <div className="flex gap-2">
+                                            ))
+                                        )}
+                                    </div>
+                                    <div className="px-4 py-2 border-t border-cyan-700 flex gap-2">
                                         <input
                                             type="text"
-                                            className="flex-1 px-3 py-1.5 text-sm bg-white/10 text-white rounded-md border border-white/10 focus:outline-none focus:border-white/20 placeholder:text-gray-500"
-                                            placeholder="Type your message..."
+                                            className="flex-1 p-1 rounded text-black text-xs"
+                                            placeholder="Type to chat…"
                                             value={chatInput}
                                             onChange={e => setChatInput(e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                                            onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
                                         />
                                         <button
-                                            className="px-3 py-1.5 text-sm bg-white/10 text-white rounded-md border border-white/10 hover:bg-white/20 transition"
+                                            className="px-3 py-1 bg-cyan-600 text-white rounded text-xs"
                                             onClick={sendChat}
-                                        >
-                                            Send
-                                        </button>
+                                        >Send</button>
                                     </div>
                                 </div>
                             </div>
