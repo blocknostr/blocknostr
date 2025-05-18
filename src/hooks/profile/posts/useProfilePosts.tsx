@@ -152,27 +152,38 @@ export function useProfilePosts({
         
         // Store unsubscribe function
         unsubscribeRef.current = unsubscribe;
+        
+        return unsubscribe;
       } catch (error) {
         console.error("Error subscribing to events:", error);
         if (isMounted.current) {
           setLoading(false);
           setError("Failed to subscribe to events");
         }
+        return () => {}; // Return empty cleanup function
       }
     };
     
-    // Start subscription without awaiting - fix the Promise return type issue
-    startSubscription().catch(err => {
-      console.error("Error starting subscription:", err);
+    // Start subscription without awaiting
+    let unsubscribe: (() => void) | undefined;
+    startSubscription().then(cleanupFn => {
+      if (isMounted.current) {
+        unsubscribe = cleanupFn;
+      } else if (cleanupFn) {
+        // If component was unmounted before promise resolved, cleanup immediately
+        cleanupFn();
+      }
     });
     
     // Return cleanup function
     return () => {
+      if (unsubscribe) unsubscribe();
+      cleanup();
+      
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
-      cleanup();
     };
   }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 

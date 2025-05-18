@@ -128,8 +128,7 @@ export function useSidebarProfile() {
         
         // Clear cache
         if (nostrService.publicKey) {
-          // Updated to pass true as a single argument instead of two arguments
-          const profile = await nostrService.getUserProfile(nostrService.publicKey, true);
+          const profile = await nostrService.getUserProfile(nostrService.publicKey, true); // Force refresh
           
           if (isMounted.current && profile) {
             setUserProfile({
