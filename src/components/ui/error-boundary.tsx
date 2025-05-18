@@ -1,77 +1,47 @@
 
-import React, { Component, ErrorInfo, ReactNode } from "react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import * as React from 'react';
+import { AlertCircle } from 'lucide-react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-    };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error("Error caught by ErrorBoundary:", error, errorInfo);
-    
-    if (this.props.onError) {
-      this.props.onError(error, errorInfo);
-    }
-  }
-  
-  resetError = () => {
-    this.setState({
-      hasError: false,
-      error: null
-    });
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Error caught by boundary:", error, errorInfo);
   }
 
-  render(): ReactNode {
+  render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-      
-      return (
-        <Alert variant="destructive" className="my-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Something went wrong</AlertTitle>
-          <AlertDescription>
-            <p className="mb-2">
-              {this.state.error?.message || "An unexpected error occurred"}
-            </p>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={this.resetError}
-            >
-              Try again
-            </Button>
-          </AlertDescription>
-        </Alert>
+      // You can render any custom fallback UI
+      return this.props.fallback || (
+        <div className="p-4 rounded-md bg-destructive/10 border border-destructive text-destructive">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <h3 className="font-medium">Something went wrong</h3>
+          </div>
+          <p className="text-sm mt-2 text-muted-foreground">
+            {this.state.error?.message || "An error occurred while rendering this component"}
+          </p>
+        </div>
       );
     }
-    
+
     return this.props.children;
   }
 }

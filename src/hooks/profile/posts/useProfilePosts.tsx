@@ -19,7 +19,6 @@ export function useProfilePosts({
   const isMounted = useRef(true);
   const eventCountRef = useRef<number>(0);
   const processedRef = useRef<boolean>(false); // Track if we've already processed
-  const unsubscribeRef = useRef<(() => void) | null>(null); // Store unsubscribe function
   
   const { checkCache } = useCacheCheck();
   const { subscribe, cleanup, subscriptionRef } = usePostsSubscription();
@@ -30,12 +29,6 @@ export function useProfilePosts({
     return () => {
       isMounted.current = false;
       cleanup(); // Make sure we clean up subscription on unmount
-      
-      // Also call any stored unsubscribe function
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
     };
   }, [cleanup]);
   
@@ -49,19 +42,11 @@ export function useProfilePosts({
       setHasEvents(false);
       eventCountRef.current = 0;
       processedRef.current = false; // Reset processed flag
-      
-      // Clean up existing subscriptions
-      cleanup();
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
     }
     
     // Guard clause - skip if no pubkey
     if (!hexPubkey) {
       setLoading(false);
-      setError("No public key provided");
       return;
     }
     
@@ -73,7 +58,7 @@ export function useProfilePosts({
     if (foundInCache) {
       setEvents(postsEvents);
       setMedia(mediaEvents);
-      setHasEvents(postsEvents.length > 0);
+      setHasEvents(true);
       eventCountRef.current = postsEvents.length;
       
       // We can shorten loading time if we have cached events
@@ -83,13 +68,6 @@ export function useProfilePosts({
     // Create a function to start subscription
     const startSubscription = async () => {
       try {
-        // First ensure we're connected to relays
-        try {
-          await nostrService.connectToUserRelays();
-        } catch (error) {
-          console.warn("Error connecting to relays, but continuing with available connections:", error);
-        }
-        
         // Subscribe to posts and set up event handling
         const unsubscribe = subscribe(hexPubkey, {
           limit,
@@ -99,9 +77,6 @@ export function useProfilePosts({
             eventCountRef.current += 1;
             
             setEvents(prev => {
-              // Skip if component unmounted during async operation
-              if (!isMounted.current) return prev;
-              
               // Check if we already have this event
               if (prev.some(e => e.id === event.id)) {
                 return prev;
@@ -113,9 +88,6 @@ export function useProfilePosts({
             
             if (isMediaEvent) {
               setMedia(prev => {
-                // Skip if component unmounted during async operation
-                if (!isMounted.current) return prev;
-                
                 if (prev.some(e => e.id === event.id)) return prev;
                 return [...prev, event].sort((a, b) => b.created_at - a.created_at);
               });
@@ -140,26 +112,14 @@ export function useProfilePosts({
             
             // Mark as processed to prevent duplicate error messages
             processedRef.current = true;
-          },
-          onError: (err) => {
-            if (!isMounted.current) return;
-            
-            console.error("Error in posts subscription:", err);
-            setError(`Error loading posts: ${err.message}`);
-            setLoading(false);
           }
         });
-        
-        // Store unsubscribe function
-        unsubscribeRef.current = unsubscribe;
         
         return unsubscribe;
       } catch (error) {
         console.error("Error subscribing to events:", error);
-        if (isMounted.current) {
-          setLoading(false);
-          setError("Failed to subscribe to events");
-        }
+        setLoading(false);
+        setError("Failed to subscribe to events");
         return () => {}; // Return empty cleanup function
       }
     };
@@ -179,11 +139,6 @@ export function useProfilePosts({
     return () => {
       if (unsubscribe) unsubscribe();
       cleanup();
-      
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
     };
   }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 
@@ -201,12 +156,6 @@ export function useProfilePosts({
       // Unsubscribe from current subscription
       cleanup();
       
-      // Clean up existing unsubscribe function
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-      
       // Force reconnect to relays and retry
       nostrService.connectToUserRelays()
         .then(() => {
@@ -216,11 +165,9 @@ export function useProfilePosts({
         })
         .catch(err => {
           console.error("Failed to reconnect to relays:", err);
-          if (isMounted.current) {
-            setLoading(false);
-            setError("Failed to connect to relays");
-            toast.error("Failed to connect to relays");
-          }
+          setLoading(false);
+          setError("Failed to connect to relays");
+          toast.error("Failed to connect to relays");
         });
     }
   };
