@@ -18,7 +18,8 @@ export function useProfilePosts({
   
   const isMounted = useRef(true);
   const eventCountRef = useRef<number>(0);
-  const processedRef = useRef<boolean>(false); // Track if we've already processed
+  const processedRef = useRef<boolean>(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   
   const { checkCache } = useCacheCheck();
   const { subscribe, cleanup, subscriptionRef } = usePostsSubscription();
@@ -28,7 +29,11 @@ export function useProfilePosts({
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      cleanup(); // Make sure we clean up subscription on unmount
+      cleanup();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
     };
   }, [cleanup]);
   
@@ -41,7 +46,13 @@ export function useProfilePosts({
       setLoading(true);
       setHasEvents(false);
       eventCountRef.current = 0;
-      processedRef.current = false; // Reset processed flag
+      processedRef.current = false;
+      
+      // Clean up previous subscription if it exists
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
     }
     
     // Guard clause - skip if no pubkey
@@ -69,7 +80,7 @@ export function useProfilePosts({
     const startSubscription = async () => {
       try {
         // Subscribe to posts and set up event handling
-        const unsubscribe = subscribe(hexPubkey, {
+        const unsub = await subscribe(hexPubkey, {
           limit,
           onEvent: (event, isMediaEvent) => {
             if (!isMounted.current) return;
@@ -115,30 +126,27 @@ export function useProfilePosts({
           }
         });
         
-        return unsubscribe;
+        // Store the unsubscribe function
+        unsubscribeRef.current = unsub;
+        return unsub;
       } catch (error) {
         console.error("Error subscribing to events:", error);
         setLoading(false);
         setError("Failed to subscribe to events");
-        return () => {}; // Return empty cleanup function
+        return () => {};
       }
     };
     
     // Start subscription without awaiting
-    let unsubscribe: (() => void) | undefined;
-    startSubscription().then(cleanupFn => {
-      if (isMounted.current) {
-        unsubscribe = cleanupFn;
-      } else if (cleanupFn) {
-        // If component was unmounted before promise resolved, cleanup immediately
-        cleanupFn();
-      }
-    });
+    startSubscription();
     
     // Return cleanup function
     return () => {
-      if (unsubscribe) unsubscribe();
       cleanup();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
     };
   }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 
@@ -151,10 +159,14 @@ export function useProfilePosts({
       setLoading(true);
       setHasEvents(false);
       eventCountRef.current = 0;
-      processedRef.current = false; // Reset processed flag
+      processedRef.current = false;
       
       // Unsubscribe from current subscription
       cleanup();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
       
       // Force reconnect to relays and retry
       nostrService.connectToUserRelays()

@@ -1,6 +1,6 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -8,45 +8,37 @@ interface SidebarNavItemProps {
   name: string;
   icon: LucideIcon;
   href: string;
-  isActive: boolean;
-  onClick?: () => void;
+  isActive?: boolean;
   special?: boolean;
+  onClick?: () => void;
 }
 
-const SidebarNavItem = ({
-  name,
-  icon: Icon,
-  href,
-  isActive,
-  onClick,
-  special
+const SidebarNavItem = ({ 
+  name, 
+  icon: Icon, 
+  href, 
+  isActive = false,
+  special = false,
+  onClick
 }: SidebarNavItemProps) => {
-  const content = (
-    <Button
-      variant="ghost"
-      className={cn(
-        "w-full justify-start text-left font-medium",
-        isActive ? "bg-accent text-accent-foreground" : "",
-        special ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
-      )}
-      onClick={onClick}
-    >
-      <Icon className="mr-2 h-5 w-5" />
-      {name}
-    </Button>
-  );
-
-  // If there's an onClick handler or it's a special button, don't wrap in Link
-  if (onClick || href === "#") {
-    return <li key={name}>{content}</li>;
-  }
-
-  // Otherwise wrap in Link for normal navigation
+  const Component = onClick ? 'button' : Link;
+  const componentProps = onClick ? { onClick } : { to: href };
+  
   return (
-    <li key={name}>
-      <Link to={href}>
-        {content}
-      </Link>
+    <li>
+      <Component
+        {...componentProps}
+        className={cn(
+          "flex items-center px-3 py-2 rounded-md transition-colors w-full",
+          isActive 
+            ? "bg-primary text-primary-foreground font-medium" 
+            : "text-foreground hover:bg-muted hover:text-foreground",
+          special && "bg-primary text-primary-foreground hover:bg-primary/90"
+        )}
+      >
+        <Icon className="h-5 w-5 mr-2" />
+        <span>{name}</span>
+      </Component>
     </li>
   );
 };
