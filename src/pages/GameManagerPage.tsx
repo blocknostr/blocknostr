@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import MobileSidebar from "@/components/MobileSidebar";
 import TetrisGame from "@/components/games/TetrisGame";
@@ -75,8 +76,7 @@ const defaultGames: Game[] = [
         creator: "npub1example",
         version: "1.0.0",
         updated: "2025-05-17",
-        // Using official Tetris logo from Wikimedia Commons (CC BY-SA 4.0)
-        thumbnail: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Tetris_logo.svg/512px-Tetris_logo.svg.png",
+        thumbnail: "https://static.wikia.nocookie.net/logopedia/images/d/d3/Tetris_Logo_2019.png/revision/latest?cb=20190418133811",
         componentId: "tetris",
     },
     {
@@ -87,8 +87,7 @@ const defaultGames: Game[] = [
         creator: "npub1example",
         version: "1.0.0",
         updated: "2025-05-17",
-        // Using pixel art tank asset from OpenGameArt (CC0)
-        thumbnail: "https://opengameart.org/sites/default/files/tank-preview.png",
+        thumbnail: "https://cdn.akamai.steamstatic.com/steam/apps/219640/header.jpg?t=1701225152",
         componentId: "ikari",
     },
     {
@@ -99,7 +98,7 @@ const defaultGames: Game[] = [
         creator: "npub1example",
         version: "1.0.0",
         updated: "2025-05-17",
-        thumbnail: "https://kaboomjs.com/sprites/bean.png",
+        thumbnail: "https://tamagotchi.com/wp-content/uploads/2018/11/tamagotchi-logo-header.png",
         componentId: "tamagotchi",
     },
 ];
@@ -107,7 +106,8 @@ const defaultGames: Game[] = [
 const nostrService = new NostrService();
 
 const GameManagerPage: React.FC = () => {
-    const [selectedGame, setSelectedGame] = useState<string | null>(null);
+    const { gameId } = useParams<{ gameId?: string }>();
+    const [selectedGame, setSelectedGame] = useState<string | null>(gameId || null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -116,12 +116,13 @@ const GameManagerPage: React.FC = () => {
     const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
     const [previewGame, setPreviewGame] = useState<Game | null>(null);
     const [page, setPage] = useState(1);
-    const gamesPerPage = 10;
+    const gamesPerPage = 50; // Increased to show more games
     // TODO: Replace with actual user pubkey from wallet
     const [currentUserPubkey] = useState("npub1user");
 
     const { relays, connectionStatus } = useRelays();
     const { profiles, fetchProfiles } = useProfileCache();
+    const navigate = useNavigate();
 
     // Load game data from Nostr
     const { events: gameEvents } = useNostrEvents({
@@ -171,7 +172,7 @@ const GameManagerPage: React.FC = () => {
     );
 
     // Paginate games
-    const paginatedGames: Game[] = filteredGames.slice((page - 1) * gamesPerPage, page * gamesPerPage);
+    const paginatedGames: Game[] = filteredGames; // Show all games without pagination
 
     // Fetch leaderboard data from Nostr
     useEffect(() => {
@@ -394,68 +395,158 @@ const GameManagerPage: React.FC = () => {
     const [multiplayerUsers, setMultiplayerUsers] = useState<Record<string, { pubkey: string; lastSeen: number }>>({});
     const [chatLog, setChatLog] = useState<{ pubkey: string; content: string; created_at: number }[]>([]);
     const [chatInput, setChatInput] = useState("");
+    const [presenceSubId, setPresenceSubId] = useState<string | null>(null);
+    const [chatSubId, setChatSubId] = useState<string | null>(null);
 
     // --- Multiplayer Presence & Chat via Nostr ---
     useEffect(() => {
         if (!selectedGame) return;
+
+        console.log("Setting up chat and presence for game:", selectedGame);
+
+        // Clear previous state
+        setMultiplayerUsers({});
+        setChatLog([]);
+
         // Subscribe to presence and chat events for the selected game
         const presenceKind = 30090;
         const chatKind = 30091;
-        // Use supported tag filter keys: '#p', '#e', etc. We'll use '#p' for pubkey, but for game, fallback to using content or kind only.
-        // If custom tag filtering is not supported, fallback to kind only and filter in callback.
-        const presenceSubId = nostrService.subscribe([
-            { kinds: [presenceKind] }
-        ], (event: NostrEvent) => {
-            // Only accept events for this game (tagged with ['t', selectedGame])
-            if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
-                setMultiplayerUsers(prev => ({ ...prev, [event.pubkey]: { pubkey: event.pubkey, lastSeen: event.created_at } }));
-            }
-        });
-        const chatSubId = nostrService.subscribe([
-            { kinds: [chatKind] }
-        ], (event: NostrEvent) => {
-            if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
-                setChatLog(prev => [...prev, { pubkey: event.pubkey, content: event.content, created_at: event.created_at }]);
-            }
-        });
-        // Announce presence every 20s
-        const presenceInterval = setInterval(() => {
-            nostrService.publishEvent({
-                kind: presenceKind,
-                tags: [['t', selectedGame]],
-                content: 'online',
-                created_at: Math.floor(Date.now() / 1000),
+
+        try {
+            // Presence subscription
+            const presSubId = nostrService.subscribe([
+                { kinds: [presenceKind] }
+            ], (event: NostrEvent) => {
+                // Only accept events for this game (tagged with ['t', selectedGame])
+                if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
+                    console.log("Received presence event:", event);
+                    setMultiplayerUsers(prev => ({ ...prev, [event.pubkey]: { pubkey: event.pubkey, lastSeen: event.created_at } }));
+                }
             });
-        }, 20000);
-        // Initial announce
-        nostrService.publishEvent({
-            kind: presenceKind,
-            tags: [['t', selectedGame]],
-            content: 'online',
-            created_at: Math.floor(Date.now() / 1000),
-        });
-        return () => {
-            clearInterval(presenceInterval);
-            setMultiplayerUsers({});
-            setChatLog([]);
-            if (presenceSubId) nostrService.unsubscribe(presenceSubId);
-            if (chatSubId) nostrService.unsubscribe(chatSubId);
-        };
+            setPresenceSubId(presSubId);
+
+            // Chat subscription
+            const chSubId = nostrService.subscribe([
+                { kinds: [chatKind] }
+            ], (event: NostrEvent) => {
+                if (event.tags?.some(tag => tag[0] === 't' && tag[1] === selectedGame)) {
+                    console.log("Received chat event:", event);
+                    setChatLog(prev => [...prev, { pubkey: event.pubkey, content: event.content, created_at: event.created_at }]);
+                }
+            });
+            setChatSubId(chSubId);
+
+            // Announce presence every 20s
+            const presenceInterval = setInterval(() => {
+                try {
+                    nostrService.publishEvent({
+                        kind: presenceKind,
+                        tags: [['t', selectedGame]],
+                        content: 'online',
+                        created_at: Math.floor(Date.now() / 1000),
+                    });
+                } catch (error) {
+                    console.error("Failed to publish presence update:", error);
+                }
+            }, 20000);
+
+            // Initial announce
+            try {
+                nostrService.publishEvent({
+                    kind: presenceKind,
+                    tags: [['t', selectedGame]],
+                    content: 'online',
+                    created_at: Math.floor(Date.now() / 1000),
+                });
+                console.log("Announced initial presence for game:", selectedGame);
+            } catch (error) {
+                console.error("Failed to publish initial presence:", error);
+            }
+
+            return () => {
+                console.log("Cleaning up chat and presence subscriptions");
+                clearInterval(presenceInterval);
+
+                // Clear subscriptions
+                if (presSubId) {
+                    try {
+                        nostrService.unsubscribe(presSubId);
+                    } catch (e) {
+                        console.error("Error unsubscribing from presence:", e);
+                    }
+                }
+                setPresenceSubId(null);
+
+                if (chSubId) {
+                    try {
+                        nostrService.unsubscribe(chSubId);
+                    } catch (e) {
+                        console.error("Error unsubscribing from chat:", e);
+                    }
+                }
+                setChatSubId(null);
+
+                // Clear state
+                setMultiplayerUsers({});
+                setChatLog([]);
+            };
+        } catch (error) {
+            console.error("Error setting up Nostr subscriptions:", error);
+            return () => { }; // Return empty cleanup function
+        }
     }, [selectedGame]);
     // --- Send Chat Message ---
     const sendChat = () => {
         if (!chatInput.trim() || !selectedGame) return;
-        nostrService.publishEvent({
+
+        console.log("Sending chat message:", {
             kind: 30091,
             tags: [['t', selectedGame]],
             content: chatInput,
             created_at: Math.floor(Date.now() / 1000),
         });
-        setChatInput("");
+
+        try {
+            // Add to local chat log immediately for better UX
+            setChatLog(prev => [...prev, {
+                pubkey: nostrService.publicKey || "unknown",
+                content: chatInput,
+                created_at: Math.floor(Date.now() / 1000)
+            }]);
+
+            // Then send via Nostr
+            nostrService.publishEvent({
+                kind: 30091,
+                tags: [['t', selectedGame]],
+                content: chatInput,
+                created_at: Math.floor(Date.now() / 1000),
+            });
+
+            setChatInput("");
+        } catch (error) {
+            console.error("Failed to send chat message:", error);
+            // Could add error UI feedback here
+        }
     };
 
+    // Watch for changes in the gameId URL parameter
+    useEffect(() => {
+        if (gameId && gameId !== selectedGame) {
+            setSelectedGame(gameId);
+        }
+    }, [gameId, selectedGame]);
+
+    // Effect to update URL when selectedGame changes - prevent potential loops
+    useEffect(() => {
+        if (selectedGame && (!gameId || gameId !== selectedGame)) {
+            navigate(`/games/${selectedGame}`, { replace: true });
+        } else if (!selectedGame && gameId) {
+            navigate('/games', { replace: true });
+        }
+    }, [selectedGame, navigate, gameId]);
+
     return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center">
+        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-black">
             {/* Desktop Sidebar */}
             <div className="hidden md:block w-64 h-full bg-transparent z-20">
                 <Sidebar />
@@ -467,38 +558,43 @@ const GameManagerPage: React.FC = () => {
             {/* Main Area */}
             <main className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl px-4 py-12">
                 {/* --- Enhanced Stats Dashboard --- */}
-                <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-white/5 backdrop-blur rounded-lg shadow-lg border border-white/10 p-4 flex flex-col items-start">
-                        <span className="text-gray-400 text-xs font-medium mb-1">Total Games</span>
-                        <span className="text-xl font-bold text-white" aria-live="polite">{games.length}</span>
-                        <canvas ref={sparklineRef} width={120} height={32} className="mt-2 w-24 h-6 opacity-70" aria-label="Games played trend" />
+                <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 p-6 flex flex-col items-start animate-fade-in">
+                        <span className="text-gray-400 font-bold text-sm mb-1">Total Games</span>
+                        <span className="text-3xl font-extrabold text-white animate-countup" aria-live="polite">{games.length}</span>
+                        <canvas ref={sparklineRef} width={120} height={32} className="mt-2 w-28 h-8 opacity-70" aria-label="Games played trend" />
                     </div>
-                    <div className="bg-white/5 backdrop-blur rounded-lg shadow-lg border border-white/10 p-4 flex flex-col items-start">
-                        <span className="text-gray-400 text-xs font-medium mb-1">Achievements</span>
-                        <span className="text-xl font-bold text-white" aria-live="polite">7</span>
-                        <span className="text-xs text-gray-400 mt-1">+1 this week</span>
+                    <div className="bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 p-6 flex flex-col items-start animate-fade-in">
+                        <span className="text-gray-400 font-bold text-sm mb-1">Achievements</span>
+                        <span className="text-3xl font-extrabold text-white animate-countup" aria-live="polite">7</span>
+                        <span className="text-xs text-gray-400 mt-2">+1 this week</span>
                     </div>
-                    <div className="bg-white/5 backdrop-blur rounded-lg shadow-lg border border-white/10 p-4 flex flex-col items-start">
-                        <span className="text-gray-400 text-xs font-medium mb-1">Games Today</span>
-                        <span className="text-xl font-bold text-white" aria-live="polite">{gamesPlayedToday}</span>
-                        <span className="text-xs text-gray-400 mt-1">Keep your streak!</span>
+                    <div className="bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 p-6 flex flex-col items-start animate-fade-in">
+                        <span className="text-gray-400 font-bold text-sm mb-1">Games Today</span>
+                        <span className="text-3xl font-extrabold text-white animate-countup" aria-live="polite">{gamesPlayedToday}</span>
+                        <span className="text-xs text-gray-400 mt-2">Keep your streak!</span>
                     </div>
-                    <div className="bg-white/5 backdrop-blur rounded-lg shadow-lg border border-white/10 p-4 flex flex-col items-start">
-                        <span className="text-gray-400 text-xs font-medium mb-1">Global Rank</span>
-                        <span className="text-xl font-bold text-white" aria-live="polite">#{globalRank}</span>
-                        <span className="text-[11px] text-yellow-400 mt-1">Top 1%</span>
+                    <div className="bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 p-6 flex flex-col items-start animate-fade-in">
+                        <span className="text-gray-400 font-bold text-sm mb-1">Global Rank</span>
+                        <span className="text-3xl font-extrabold text-white animate-countup" aria-live="polite">#{globalRank}</span>
+                        <span className="text-xs text-yellow-400 mt-2">Top 1%</span>
                     </div>
                 </div>
                 {/* --- Featured Game Banner --- */}
                 {featuredGame && (
-                    <div className="w-full flex flex-col md:flex-row items-center bg-white/10 rounded-lg shadow-lg border border-white/10 mb-6 p-4 gap-4">
-                        <img src={featuredGame.thumbnail} alt={featuredGame.name} className="w-24 h-24 rounded-lg grayscale hover:grayscale-0 border border-white/20 shadow-lg transition-all duration-300" />
-                        <div className="flex-1 flex flex-col gap-1">
-                            <span className="uppercase text-[10px] text-gray-400 tracking-wider font-medium">Featured Game</span>
-                            <h2 className="text-lg font-bold text-white">{featuredGame.name}</h2>
-                            <p className="text-sm text-gray-300 mb-2">{featuredGame.description}</p>
+                    <div className="w-full flex flex-col md:flex-row items-center bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 mb-10 p-6 gap-6 animate-fade-in">
+                        <img src={featuredGame.thumbnail} alt={featuredGame.name} className="w-32 h-32 rounded-xl border border-white/10 shadow-lg transition-all duration-300" />
+                        <div className="flex-1 flex flex-col gap-2">
+                            <span className="uppercase text-xs text-gray-400 tracking-widest">Featured Game</span>
+                            <h2 className="text-2xl font-extrabold text-white">{featuredGame.name}</h2>
+                            <p className="text-gray-200 mb-2">{featuredGame.description}</p>
                             <div className="flex gap-2 items-center">
-                                <button className="px-3 py-1.5 text-sm rounded-md bg-black text-white font-medium shadow hover:bg-gray-800 border border-white/10">Play Now</button>
+                                <button
+                                    className="px-4 py-2 rounded-lg bg-black text-white font-semibold shadow hover:bg-gray-800 border border-white/10"
+                                    onClick={() => setSelectedGame(featuredGame.id)}
+                                >
+                                    Play Now
+                                </button>
                                 <span className="text-xs text-gray-400">by {profiles[featuredGame.creator]?.name || featuredGame.creator.slice(0, 8)}</span>
                             </div>
                         </div>
@@ -506,51 +602,51 @@ const GameManagerPage: React.FC = () => {
                 )}
                 {/* --- Friends Online Bar --- */}
                 {friends.length > 0 && (
-                    <div className="w-full flex items-center gap-2 mb-6">
-                        <span className="text-xs text-gray-400">Friends Online:</span>
-                        <div className="flex gap-1.5">
+                    <div className="w-full flex items-center gap-2 mb-8">
+                        <span className="text-xs text-gray-400 mr-2">Friends Online:</span>
+                        <div className="flex gap-2">
                             {friends.slice(0, 8).map((f, i) => (
-                                <div key={f} className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden grayscale hover:grayscale-0 transition-all duration-300">
+                                <div key={f} className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden grayscale hover:grayscale-0 transition-all duration-300">
                                     <img src={profiles[f]?.picture || "/public/placeholder.svg"} alt={profiles[f]?.name || f.slice(0, 8)} className="w-full h-full object-cover" />
                                 </div>
                             ))}
                         </div>
-                        {friends.length > 8 && <span className="text-xs text-gray-400">+{friends.length - 8} more</span>}
+                        {friends.length > 8 && <span className="text-xs text-gray-400 ml-2">+{friends.length - 8} more</span>}
                     </div>
                 )}
                 {/* --- Recent Activity Feed --- */}
-                <div className="w-full mb-6">
-                    <h3 className="text-sm font-medium text-white mb-2">Recent Activity</h3>
-                    <ul className="space-y-1.5">
+                <div className="w-full mb-8">
+                    <h3 className="text-lg font-bold text-white mb-2">Recent Activity</h3>
+                    <ul className="space-y-2">
                         {recentActivity.map((a, i) => (
-                            <li key={i} className="flex items-center gap-2 text-gray-200 text-xs bg-white/5 rounded-md px-3 py-2">
-                                {a.type === "score" && <span className="text-green-400">🏆</span>}
-                                {a.type === "achievement" && <span className="text-yellow-400">★</span>}
-                                {a.type === "friend" && <span className="text-blue-400">👥</span>}
+                            <li key={i} className="flex items-center gap-2 text-gray-200 text-sm bg-white/5 rounded-lg px-4 py-2">
+                                {a.type === "score" && <span className="text-green-400 font-bold">🏆</span>}
+                                {a.type === "achievement" && <span className="text-yellow-400 font-bold">★</span>}
+                                {a.type === "friend" && <span className="text-blue-400 font-bold">👥</span>}
                                 <span>
                                     {a.type === "score" && <>You scored <b>{a.value}</b> in <b>{a.game}</b></>}
                                     {a.type === "achievement" && <>Achievement unlocked in <b>{a.game}</b>: <b>{a.value}</b></>}
                                     {a.type === "friend" && <>{a.user} {a.action}</>}
                                 </span>
-                                <span className="ml-auto text-[11px] text-gray-400">{a.date}</span>
+                                <span className="ml-auto text-xs text-gray-400">{a.date}</span>
                             </li>
                         ))}
                     </ul>
                 </div>
                 {/* Search and Filter */}
-                <div className="w-full flex gap-3 mb-6">
+                <div className="w-full flex gap-4 mb-6">
                     <input
                         type="text"
                         placeholder="Search games..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="px-3 py-1.5 text-sm rounded-md bg-black text-white border border-white/10 focus:outline-none focus:ring-1 focus:ring-white/20"
+                        className="px-4 py-2 rounded-lg bg-zinc-950 text-white border border-white/5 focus:outline-none focus:border-white/20"
                         aria-label="Search games"
                     />
                     <select
                         value={selectedGenre || ""}
                         onChange={(e) => setSelectedGenre(e.target.value || null)}
-                        className="px-3 py-1.5 text-sm rounded-md bg-black text-white border border-white/10 focus:outline-none focus:ring-1 focus:ring-white/20"
+                        className="px-4 py-2 rounded-lg bg-zinc-950 text-white border border-white/5 focus:outline-none focus:border-white/20"
                         aria-label="Filter by genre"
                     >
                         <option value="">All Genres</option>
@@ -561,7 +657,7 @@ const GameManagerPage: React.FC = () => {
                         ))}
                     </select>
                     <button
-                        className="px-3 py-1.5 text-sm bg-white text-black rounded-md font-medium shadow-lg border border-white/20 hover:bg-gray-200 transition ml-auto"
+                        className="px-4 py-2 bg-white text-black rounded-lg font-bold shadow-xl border border-white/20 hover:bg-gray-200 transition ml-auto"
                         onClick={() => setShowUploadModal(true)}
                         aria-label="Upload new game"
                     >＋ Upload Game</button>
@@ -575,114 +671,124 @@ const GameManagerPage: React.FC = () => {
                     </div>
                 )}
                 {/* Game Cards Table */}
-                <div className="w-full bg-white/5 backdrop-blur rounded-2xl shadow-xl border border-white/10 overflow-hidden">
-                    <table className="min-w-full text-left text-sm game-table">
-                        <thead className="bg-black/60">
-                            <tr>
-                                <th className="px-6 py-4 text-white font-bold">Game</th>
-                                <th className="px-6 py-4 text-white font-bold">Genre</th>
-                                <th className="px-6 py-4 text-white font-bold">High Score</th>
-                                <th className="px-6 py-4 text-white font-bold">Achievements</th>
-                                <th className="px-6 py-4 text-white font-bold">Last Played</th>
-                                <th className="px-6 py-4 text-white font-bold">Favorite</th>
-                                <th className="px-6 py-4 text-white font-bold">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paginatedGames.length === 0 && (
+                <div className="w-full bg-zinc-950/50 rounded-2xl shadow-xl border border-white/5 overflow-hidden flex flex-col">
+                    {/* Fixed table header */}
+                    <div className="w-full sticky top-0 z-10 bg-zinc-900/80 backdrop-blur-md border-b border-white/10">
+                        <table className="min-w-full text-left text-sm table-fixed game-table">
+                            <thead className="bg-black/60">
                                 <tr>
-                                    <td colSpan={7} className="text-center text-gray-400 py-8">No games found. Try a different search or filter.</td>
+                                    <th className="px-6 py-4 text-white font-bold w-1/4">Game</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/6">Genre</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/8">High Score</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/8">Achievements</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/8">Last Played</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/12">Favorite</th>
+                                    <th className="px-6 py-4 text-white font-bold w-1/4">Actions</th>
                                 </tr>
-                            )}
-                            {paginatedGames.map((game) => {
-                                const stats = gameStats[game.id] || { highScore: 0, playCount: 0, achievements: [] };
-                                return (
-                                    <tr
-                                        key={game.id}
-                                        className="border-b border-white/10 hover:bg-white/5 transition animate-fade-in"
-                                    >
-                                        <td className="px-6 py-4 flex items-center gap-3">
-                                            <img
-                                                src={game.thumbnail}
-                                                alt={game.name}
-                                                className="w-12 h-12 rounded-lg border border-white/20 shadow cursor-pointer grayscale hover:grayscale-0 hover:border-white transition-all duration-300 focus:outline-white"
-                                                onClick={() => setPreviewGame(game)}
-                                                aria-label={`Preview ${game.name}`}
-                                                tabIndex={0}
-                                            />
-                                            <div>
-                                                <span className="text-white font-bold text-base">{game.name}</span>
-                                                <div className="text-xs text-gray-400 font-mono">v{game.version}</div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-200">{game.genre.join(", ")}</td>
-                                        <td className="px-6 py-4 text-white font-mono font-bold">{stats.highScore}</td>
-                                        <td className="px-6 py-4 text-gray-200">
-                                            <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                                <div className="h-2 bg-gradient-to-r from-white to-gray-400" style={{ width: `${(stats.achievements.filter(a => a.unlocked).length / (stats.achievements.length || 1)) * 100}%` }} />
-                                            </div>
-                                            <span className="text-xs text-gray-400">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length || 1}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-400">{game.updated}</td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                className={`text-2xl focus:outline-white ${favorites.includes(game.id) ? "text-yellow-400" : "text-gray-400 hover:text-white"}`}
-                                                onClick={() => setFavorites(favs => favs.includes(game.id) ? favs.filter(id => id !== game.id) : [...favs, game.id])}
-                                                aria-label={favorites.includes(game.id) ? "Unfavorite" : "Favorite"}
-                                            >
-                                                ★
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4 flex gap-2">
-                                            <button
-                                                className="px-3 py-1 rounded bg-black text-white font-semibold shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
-                                                onClick={() => setSelectedGame(game.id)}
-                                                aria-label={`Play ${game.name}`}
-                                            >
-                                                Play
-                                            </button>
-                                            <button
-                                                className="px-3 py-1 rounded bg-gray-900 text-white font-semibold shadow hover:bg-gray-700 transition border border-white/10 focus:outline-white"
-                                                onClick={() => {
-                                                    setSelectedLeaderboardGame(game.id);
-                                                    setShowLeaderboard(true);
-                                                }}
-                                                aria-label={`View leaderboard for ${game.name}`}
-                                            >
-                                                Leaderboard
-                                            </button>
-                                            <button
-                                                className="px-3 py-1 rounded bg-gray-900 text-white font-semibold shadow hover:bg-gray-700 border border-white/10 focus:outline-white"
-                                                onClick={() => setShowAnalytics(game.id)}
-                                                aria-label={`View analytics for ${game.name}`}
-                                            >
-                                                Analytics
-                                            </button>
-                                        </td>
+                            </thead>
+                        </table>
+                    </div>
+                    {/* Scrollable table body */}
+                    <div className="overflow-y-auto max-h-[50vh]" style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(255, 255, 255, 0.15) rgba(0, 0, 0, 0.2)',
+                    }}>
+                        <table className="min-w-full text-left text-sm table-fixed game-table">
+                            <tbody>
+                                {paginatedGames.length === 0 && (
+                                    <tr>
+                                        <td colSpan={7} className="text-center text-gray-400 py-8">No games found. Try a different search or filter.</td>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-                {/* Pagination */}
-                <div className="flex gap-4 mt-4">
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
-                        className="px-4 py-2 bg-black text-white rounded-lg border border-white/10 disabled:opacity-50 focus:outline-white"
-                        aria-label="Previous page"
-                    >
-                        Previous
-                    </button>
-                    <button
-                        disabled={page * gamesPerPage >= filteredGames.length}
-                        onClick={() => setPage(p => p + 1)}
-                        className="px-4 py-2 bg-black text-white rounded-lg border border-white/10 disabled:opacity-50 focus:outline-white"
-                        aria-label="Next page"
-                    >
-                        Next
-                    </button>
+                                )}
+                                {paginatedGames.map((game) => {
+                                    const stats = gameStats[game.id] || { highScore: 0, playCount: 0, achievements: [] };
+                                    return (
+                                        <tr
+                                            key={game.id}
+                                            className="border-b border-white/5 hover:bg-zinc-900/50 transition animate-fade-in"
+                                        >
+                                            <td className="px-6 py-4 flex items-center gap-3">
+                                                <img
+                                                    src={game.thumbnail}
+                                                    alt={game.name}
+                                                    className="w-12 h-12 rounded-lg border border-white/10 shadow cursor-pointer hover:border-white/30 transition-all duration-300 focus:outline-white"
+                                                    onClick={() => setPreviewGame(game)}
+                                                    aria-label={`Preview ${game.name}`}
+                                                    tabIndex={0}
+                                                />
+                                                <div>
+                                                    <span className="text-white font-bold text-base">{game.name}</span>
+                                                    <div className="text-xs text-gray-400 font-mono">v{game.version}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-200">{game.genre.join(", ")}</td>
+                                            <td className="px-6 py-4 text-white font-mono font-bold">{stats.highScore}</td>
+                                            <td className="px-6 py-4 text-gray-200">
+                                                <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                                    <div className="h-2 bg-gradient-to-r from-white to-gray-400" style={{ width: `${(stats.achievements.filter(a => a.unlocked).length / (stats.achievements.length || 1)) * 100}%` }} />
+                                                </div>
+                                                <span className="text-xs text-gray-400">{stats.achievements.filter(a => a.unlocked).length}/{stats.achievements.length || 1}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-400">{game.updated}</td>
+                                            <td className="px-6 py-4">
+                                                <button
+                                                    className={`text-2xl focus:outline-white ${favorites.includes(game.id) ? "text-yellow-400" : "text-gray-400 hover:text-white"}`}
+                                                    onClick={() => setFavorites(favs => favs.includes(game.id) ? favs.filter(id => id !== game.id) : [...favs, game.id])}
+                                                    aria-label={favorites.includes(game.id) ? "Unfavorite" : "Favorite"}
+                                                >
+                                                    ★
+                                                </button>
+                                            </td>
+                                            <td className="px-6 py-4 flex gap-2">
+                                                <button
+                                                    className="px-3 py-1 rounded bg-black text-white font-semibold shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
+                                                    onClick={() => setSelectedGame(game.id)}
+                                                    aria-label={`Play ${game.name}`}
+                                                >
+                                                    Play
+                                                </button>
+                                                <button
+                                                    className="px-3 py-1 rounded bg-gray-800 text-white font-semibold shadow hover:bg-gray-700 transition border border-white/10 focus:outline-white"
+                                                    onClick={() => {
+                                                        setSelectedLeaderboardGame(game.id);
+                                                        setShowLeaderboard(true);
+                                                    }}
+                                                    aria-label={`View leaderboard for ${game.name}`}
+                                                >
+                                                    Leaderboard
+                                                </button>
+                                                <button
+                                                    className="px-3 py-1 rounded bg-gray-800 text-white font-semibold shadow hover:bg-gray-700 border border-white/10 focus:outline-white"
+                                                    onClick={() => setShowAnalytics(game.id)}
+                                                    aria-label={`View analytics for ${game.name}`}
+                                                >
+                                                    Analytics
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>                {/* Pagination - Hidden as we're showing all games now */}
+                    <div className="flex gap-4 mt-4 hidden">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(p => p - 1)}
+                            className="px-4 py-2 bg-black text-white rounded-lg border border-white/10 disabled:opacity-50 focus:outline-white"
+                            aria-label="Previous page"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            disabled={page * gamesPerPage >= filteredGames.length}
+                            onClick={() => setPage(p => p + 1)}
+                            className="px-4 py-2 bg-black text-white rounded-lg border border-white/10 disabled:opacity-50 focus:outline-white"
+                            aria-label="Next page"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
                 {/* Game Console Modal */}
                 {selectedGame && GameComponent && (
@@ -690,7 +796,18 @@ const GameManagerPage: React.FC = () => {
                         <div className="relative w-full max-w-3xl">
                             <button
                                 className="absolute top-2 right-2 z-50 px-3 py-1 bg-black text-white rounded-lg shadow hover:bg-gray-800 transition border border-white/10 focus:outline-white"
-                                onClick={() => setSelectedGame(null)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    // First stop all subscriptions
+                                    if (presenceSubId) nostrService.unsubscribe(presenceSubId);
+                                    if (chatSubId) nostrService.unsubscribe(chatSubId);
+                                    // Clear state
+                                    setMultiplayerUsers({});
+                                    setChatLog([]);
+                                    // Then navigate and close
+                                    navigate('/games', { replace: true });
+                                    setSelectedGame(null);
+                                }}
                                 aria-label="Close game"
                             >
                                 ✕
@@ -700,7 +817,7 @@ const GameManagerPage: React.FC = () => {
                                     <GameComponent />
                                 </React.Suspense>
                                 {/* --- Multiplayer & Chat Panel --- */}
-                                <div className="absolute top-4 right-4 w-80 max-w-full bg-gray-900 bg-opacity-95 rounded-xl border border-cyan-400 shadow-lg flex flex-col z-40">
+                                <div className="absolute top-4 right-4 w-80 max-w-full bg-gray-800 bg-opacity-95 rounded-xl border border-cyan-400 shadow-lg flex flex-col z-40">
                                     <div className="flex items-center justify-between px-4 py-2 border-b border-cyan-700">
                                         <span className="text-cyan-300 font-bold">Multiplayer & Chat</span>
                                         <span className="text-xs text-gray-400">{Object.keys(multiplayerUsers).length} online</span>
@@ -718,7 +835,11 @@ const GameManagerPage: React.FC = () => {
                                     </div>
                                     <div className="px-4 py-2 flex-1 flex flex-col gap-1 max-h-40 overflow-y-auto">
                                         {chatLog.length === 0 ? (
-                                            <span className="text-gray-500 text-xs">No messages yet.</span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-gray-500 text-xs">No messages yet.</span>
+                                                <span className="text-gray-500 text-xs">Login status: {nostrService.publicKey ? "Logged in" : "Not logged in"}</span>
+                                                <span className="text-gray-500 text-xs">Relay status: {connectionStatus}</span>
+                                            </div>
                                         ) : (
                                             chatLog.slice(-30).map((m, i) => (
                                                 <div key={i} className="text-gray-200 text-xs">
