@@ -1,4 +1,3 @@
-
 export interface SavedWallet {
   address: string;
   label: string;
@@ -35,12 +34,22 @@ export interface BTCTransaction {
   time: number;
   amount: number;
   type: 'sent' | 'received';
+  fee?: number;
+  block_height?: number;
+  inputs?: Array<{address: string; value: number}>;
+  outputs?: Array<{address: string; value: number}>;
 }
 
 export interface BTCBalance {
   confirmedBalance: number;
   unconfirmedBalance: number;
   totalBalance: number;
+}
+
+export interface BTCAddressValidation {
+  isValid: boolean;
+  network: 'mainnet' | 'testnet' | null;
+  type: 'p2pkh' | 'p2sh' | 'bech32' | null;
 }
 
 // Ethereum specific interfaces
@@ -80,4 +89,12 @@ export interface SOLTransaction {
   fee: number;
   amount: number;
   type: 'sent' | 'received';
+}
+
+// Address format validation helpers
+export interface AddressValidator {
+  isValidAddress: (address: string) => boolean;
+  formatAddress: (address: string) => string;
+  generateDemoAddress: () => string;
+  network: string;
 }

@@ -18,6 +18,7 @@ import EthereumWalletLayout from "@/components/wallet/layouts/EthereumWalletLayo
 import SolanaWalletLayout from "@/components/wallet/layouts/SolanaWalletLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTokenData } from "@/hooks/useTokenData";
+import { generateBitcoinAddressFromBase } from "@/lib/bitcoin/bitcoinUtils";
 
 // Interface for wallet stats
 interface WalletStats {
@@ -232,12 +233,17 @@ const WalletsPage = () => {
 
   // Generate demo addresses for other chains based on current address
   const generateDemoAddresses = () => {
-    const hash = walletAddress.split('').reduce((acc, char) => {
-      return acc + char.charCodeAt(0);
-    }, 0);
+    if (!walletAddress) return {
+      bitcoin: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", // Satoshi's address
+      ethereum: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", // Vitalik's address
+      solana: "JUP6LpbGmQwi6umT72QkXsEqvXwNYqEqYrGhc6FMHDQ"  // Jupiter address
+    };
+    
+    // For Bitcoin, use the TrustWallet compatible generator
+    const bitcoin = generateBitcoinAddressFromBase(walletAddress);
     
     return {
-      bitcoin: `bc1q${walletAddress.substring(5, 39)}`,
+      bitcoin,
       ethereum: `0x${walletAddress.substring(2, 42)}`,
       solana: walletAddress.substring(0, 40)
     };
