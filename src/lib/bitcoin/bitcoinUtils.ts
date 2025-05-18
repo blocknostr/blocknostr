@@ -1,5 +1,4 @@
 
-import * as cryptoWallet from '@trustwallet/wallet-core';
 import { BTCAddressValidation } from '@/types/wallet';
 
 /**
@@ -9,44 +8,53 @@ import { BTCAddressValidation } from '@/types/wallet';
  */
 export const validateBitcoinAddress = async (address: string): Promise<BTCAddressValidation> => {
   try {
-    // First try with TrustWallet validation if available
-    if (typeof cryptoWallet === 'object' && cryptoWallet.CoinType) {
-      const isValid = cryptoWallet.BitcoinAddress.isValid(address);
-      
-      if (isValid) {
-        // Determine address type
-        let type = null;
-        
-        if (address.startsWith('1')) type = 'p2pkh';
-        else if (address.startsWith('3')) type = 'p2sh';
-        else if (address.startsWith('bc1')) type = 'bech32';
-        
-        return {
-          isValid: true,
-          network: 'mainnet',
-          type
-        };
-      }
+    // Implement our own validation logic since TrustWallet's BitcoinAddress.isValid is unavailable
+    
+    // Check for empty address
+    if (!address || address.trim() === '') {
+      return {
+        isValid: false,
+        network: null,
+        type: null
+      };
     }
     
-    // Fallback to basic validation
-    // Very basic check - not a real validation
-    const isBasicValid = (
-      (address.startsWith('1') && address.length === 34) || // P2PKH
-      (address.startsWith('3') && address.length === 34) || // P2SH
-      (address.startsWith('bc1') && address.length >= 42)   // Bech32
-    );
+    // P2PKH addresses (Legacy)
+    const p2pkhRegex = /^[1][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
     
-    let type = null;
-    if (address.startsWith('1')) type = 'p2pkh';
-    else if (address.startsWith('3')) type = 'p2sh';
-    else if (address.startsWith('bc1')) type = 'bech32';
+    // P2SH addresses
+    const p2shRegex = /^[3][a-km-zA-HJ-NP-Z1-9]{25,34}$/;
+    
+    // Bech32 addresses (SegWit)
+    const bech32Regex = /^bc1[ac-hj-np-z02-9]{39,59}$/;
+    
+    // Taproot addresses (newer SegWit)
+    const taprootRegex = /^bc1p[ac-hj-np-z02-9]{58,103}$/;
+    
+    // Test for various address formats
+    let type: 'p2pkh' | 'p2sh' | 'bech32' | null = null;
+    let isValid = false;
+    
+    if (p2pkhRegex.test(address)) {
+      type = 'p2pkh';
+      isValid = true;
+    } else if (p2shRegex.test(address)) {
+      type = 'p2sh';
+      isValid = true;
+    } else if (bech32Regex.test(address) || taprootRegex.test(address)) {
+      type = 'bech32';
+      isValid = true;
+    }
+    
+    // Determine network (we only support mainnet in this implementation)
+    const network = isValid ? 'mainnet' : null;
     
     return {
-      isValid: isBasicValid,
-      network: isBasicValid ? 'mainnet' : null,
+      isValid,
+      network,
       type
     };
+    
   } catch (error) {
     console.error('Bitcoin address validation error:', error);
     return {
