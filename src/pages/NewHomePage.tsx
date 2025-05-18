@@ -6,6 +6,7 @@ import { Settings2 } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
 import NewGlobalFeed from "@/components/feed/NewGlobalFeed";
 import NewFollowingFeed from "@/components/feed/NewFollowingFeed";
+import NewCreateNote from "@/components/note/NewCreateNote";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import CustomizeGlobalFeedDialog from "@/components/feed/CustomizeGlobalFeedDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -56,6 +57,9 @@ const NewHomePage: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Create Note component (only shown when logged in) */}
+      {isLoggedIn && <NewCreateNote className="mb-8 w-full" />}
 
       {/* Tabs for switching between feeds */}
       <div className="mb-6 w-full">
