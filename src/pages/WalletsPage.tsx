@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine, PieChart, BarChart } from "lucide-react";
+import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine, PieChart, BarChart, RefreshCw } from "lucide-react";
 import WalletConnectButton from "@/components/wallet/WalletConnectButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
