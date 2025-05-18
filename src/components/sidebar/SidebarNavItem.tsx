@@ -1,14 +1,12 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { LucideProps } from "lucide-react";
-import { ForwardRefExoticComponent, RefAttributes } from "react";
+import { LucideIcon } from "lucide-react";
 
 interface SidebarNavItemProps {
   name: string;
-  icon: ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
+  icon: LucideIcon;
   href: string;
   isActive: boolean;
   onClick?: () => void;

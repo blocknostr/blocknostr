@@ -152,20 +152,19 @@ export function useProfilePosts({
         
         // Store unsubscribe function
         unsubscribeRef.current = unsubscribe;
-        
-        return unsubscribe;
       } catch (error) {
         console.error("Error subscribing to events:", error);
         if (isMounted.current) {
           setLoading(false);
           setError("Failed to subscribe to events");
         }
-        return () => {}; // Return empty cleanup function
       }
     };
     
-    // Start subscription without awaiting
-    startSubscription();
+    // Start subscription without awaiting - fix the Promise return type issue
+    startSubscription().catch(err => {
+      console.error("Error starting subscription:", err);
+    });
     
     // Return cleanup function
     return () => {
