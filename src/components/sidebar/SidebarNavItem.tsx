@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 
 interface SidebarNavItemProps {
   name: string;
@@ -13,13 +13,13 @@ interface SidebarNavItemProps {
   special?: boolean;
 }
 
-const SidebarNavItem = ({
-  name,
-  icon: Icon,
-  href,
-  isActive,
+const SidebarNavItem = ({ 
+  name, 
+  icon: Icon, 
+  href, 
+  isActive, 
   onClick,
-  special
+  special 
 }: SidebarNavItemProps) => {
   const content = (
     <Button
@@ -35,12 +35,12 @@ const SidebarNavItem = ({
       {name}
     </Button>
   );
-
+  
   // If there's an onClick handler or it's a special button, don't wrap in Link
   if (onClick || href === "#") {
     return <li key={name}>{content}</li>;
   }
-
+  
   // Otherwise wrap in Link for normal navigation
   return (
     <li key={name}>

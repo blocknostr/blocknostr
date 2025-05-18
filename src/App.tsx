@@ -17,7 +17,6 @@ import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
 import DAOPage from './pages/DAOPage'; // Main DAO listing page
 import SingleDAOPage from './pages/SingleDAOPage'; // Single DAO page
-import GameManagerPage from './pages/GameManagerPage'; // Game manager page
 import ArticlesPage from './pages/articles/ArticlesPage';
 import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
@@ -52,11 +51,7 @@ function App() {
                   <Route path="/notebin" element={<NotebinPage />} />
                   <Route path="/wallets" element={<WalletsPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
-
-                  {/* Games Routes */}
-                  <Route path="/games" element={<GameManagerPage />} />
-                  <Route path="/games/:gameId" element={<GameManagerPage />} />
-
+                  
                   {/* Update routes to make ProfileViewPage primary */}
                   <Route path="/profile/:npub" element={<ProfileViewPage />} />
                   {/* Keep old profile page route but mark as deprecated */}
@@ -64,7 +59,7 @@ function App() {
                   {/* Keep existing ProfileViewPage routes for compatibility */}
                   <Route path="/profile-view" element={<ProfileViewPage />} />
                   <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
-
+                  
                   {/* Articles Routes */}
                   <Route path="/articles" element={<ArticlesPage />} />
                   <Route path="/articles/create" element={<ArticleEditorPage />} />
@@ -72,7 +67,7 @@ function App() {
                   <Route path="/articles/view/:id" element={<ArticleViewPage />} />
                   <Route path="/articles/me" element={<MyArticlesPage />} />
                   <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
-
+                  
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
