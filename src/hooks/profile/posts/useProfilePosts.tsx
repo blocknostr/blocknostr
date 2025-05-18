@@ -165,25 +165,15 @@ export function useProfilePosts({
     };
     
     // Start subscription without awaiting
-    let unsubscribe: (() => void) | undefined;
-    startSubscription().then(cleanupFn => {
-      if (isMounted.current) {
-        unsubscribe = cleanupFn;
-      } else if (cleanupFn) {
-        // If component was unmounted before promise resolved, cleanup immediately
-        cleanupFn();
-      }
-    });
+    startSubscription();
     
     // Return cleanup function
     return () => {
-      if (unsubscribe) unsubscribe();
-      cleanup();
-      
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
+      cleanup();
     };
   }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 
