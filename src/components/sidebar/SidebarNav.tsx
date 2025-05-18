@@ -1,20 +1,22 @@
-
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { 
-  Home, 
-  Bell, 
-  Mail, 
-  Users, 
-  Settings, 
-  FileText, 
-  Wallet, 
+import {
+  Home,
+  Bell,
+  Mail,
+  Users,
+  Settings,
+  FileText,
+  Wallet,
   Crown,
   BookOpen,
-  UserRound
+  UserRound,
+  MessageSquarePlus,
+  GamepadIcon
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 import { nostrService } from "@/lib/nostr";
+import CreateNoteModal from "@/components/note/CreateNoteModal";
 
 interface SidebarNavProps {
   isLoggedIn: boolean;
@@ -23,7 +25,8 @@ interface SidebarNavProps {
 const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const location = useLocation();
   const [profileUrl, setProfileUrl] = useState("/profile");
-  
+  const [showCreateNoteModal, setShowCreateNoteModal] = useState(false);
+
   // Update profile URL when auth state changes
   useEffect(() => {
     if (isLoggedIn && nostrService.publicKey) {
@@ -37,7 +40,7 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       setProfileUrl("/profile");
     }
   }, [isLoggedIn]);
-  
+
   const navItems = [
     {
       name: "Home",
@@ -98,8 +101,31 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
       icon: Settings,
       href: "/settings",
       requiresAuth: false
+    },
+    {
+      name: "Games",
+      icon: GamepadIcon,
+      href: "/games",
+      requiresAuth: false
     }
   ];
+
+  // Create a separate component for the CreateNote button
+  const CreateNoteButton = () => {
+    if (!isLoggedIn) return null;
+
+    return (
+      <SidebarNavItem
+        key="create-note"
+        name="Create Note"
+        icon={MessageSquarePlus}
+        href="#"
+        isActive={false}
+        onClick={() => setShowCreateNoteModal(true)}
+        special={true}
+      />
+    );
+  };
 
   return (
     <nav className="flex-1">
@@ -108,12 +134,12 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
           if (item.requiresAuth && !isLoggedIn) {
             return null;
           }
-          
+
           // Check if current path starts with the nav item's href
-          const isActive = item.href !== "/" ? 
-            location.pathname.startsWith(item.href) : 
+          const isActive = item.href !== "/" ?
+            location.pathname.startsWith(item.href) :
             location.pathname === "/";
-          
+
           return (
             <SidebarNavItem
               key={item.name}
@@ -124,7 +150,18 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
             />
           );
         })}
+
+        {/* Add the Create Note button below Settings */}
+        <CreateNoteButton />
       </ul>
+
+      {/* Create Note Modal */}
+      {showCreateNoteModal && (
+        <CreateNoteModal
+          open={showCreateNoteModal}
+          onOpenChange={setShowCreateNoteModal}
+        />
+      )}
     </nav>
   );
 };
