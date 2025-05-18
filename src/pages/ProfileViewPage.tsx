@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { Loader2, Clipboard, Check, ExternalLink } from 'lucide-react';
@@ -12,6 +13,8 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import EditProfileDialog from '@/components/profile/edit-profile/EditProfileDialog';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 /**
  * A lightweight, NIP-compliant profile viewer page
@@ -22,13 +25,15 @@ const ProfileViewPage = () => {
   const [hexPubkey, setHexPubkey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  
   interface Note {
     id: string;
     content: string;
     created_at: number;
     repliesCount?: number;
     likesCount?: number;
-    // Add other fields as needed
   }
 
   const [notes, setNotes] = useState<Note[]>([]);
@@ -46,7 +51,14 @@ const ProfileViewPage = () => {
     refreshProfile
   } = useUnifiedProfileFetcher();
 
-  // Convert npub to hex pubkey once
+  // Clean up effect
+  useEffect(() => {
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // Convert npub to hex pubkey with improved error handling
   useEffect(() => {
     if (!npub) {
       navigate('/');
@@ -54,37 +66,80 @@ const ProfileViewPage = () => {
     }
 
     try {
+      // Validate npub format before conversion
+      if (!npub.startsWith('npub1') || npub.length < 60) {
+        throw new Error('Invalid npub format');
+      }
+      
       const hex = nostrService.getHexFromNpub(npub);
+      
+      // Check if we got a valid hex pubkey back
+      if (!hex || hex.length !== 64) {
+        throw new Error('Invalid hex pubkey returned from conversion');
+      }
+      
       setHexPubkey(hex);
+      setError(null);
+      
       // Fetch profile data
-      fetchProfile(hex);
+      fetchProfile(hex).catch(err => {
+        console.error('Error fetching profile:', err);
+        if (mounted.current) {
+          setError('Failed to load profile data');
+        }
+      });
     } catch (error) {
       console.error('Invalid npub:', error);
       toast.error('Invalid profile identifier');
-      navigate('/');
+      setError('Invalid profile identifier');
+      
+      // Only navigate if still mounted to prevent navigation after unmount
+      if (mounted.current) {
+        setTimeout(() => navigate('/'), 100);
+      }
     }
   }, [npub, navigate, fetchProfile]);
 
-  // Fetch user notes when the hexPubkey is available
+  // Fetch user notes when the hexPubkey is available with improved error handling
   useEffect(() => {
     if (!hexPubkey) return;
 
+    let notesSubscription: (() => void) | null = null;
+    
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Fix: Use getEventsByUser which is available in the adapter
-        // The method in data-adapter.ts expects only 1 parameter (pubkey)
-        // The limit is handled within the method implementation
+        // Connect to relays first to ensure availability
+        await nostrService.connectToUserRelays();
+        
+        // Use getEventsByUser with proper error handling
         const events = await nostrService.getEventsByUser(hexPubkey);
-        setNotes(events);
+        
+        if (mounted.current) {
+          setNotes(events);
+          setError(null);
+        }
       } catch (error) {
         console.error('Error fetching notes:', error);
+        if (mounted.current) {
+          setError('Failed to load posts');
+          toast.error('Failed to load posts');
+        }
       } finally {
-        setLoadingNotes(false);
+        if (mounted.current) {
+          setLoadingNotes(false);
+        }
       }
     };
 
     fetchNotes();
+    
+    // Cleanup function
+    return () => {
+      if (notesSubscription) {
+        notesSubscription();
+      }
+    };
   }, [hexPubkey]);
 
   // Get profile data
@@ -98,7 +153,11 @@ const ProfileViewPage = () => {
     setCopied(true);
 
     // Reset copy state after 2 seconds
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => {
+      if (mounted.current) {
+        setCopied(false);
+      }
+    }, 2000);
   };
 
   const handleTabChange = (value: string) => {
@@ -113,6 +172,22 @@ const ProfileViewPage = () => {
   };
 
   const isOwnProfile = currentUserPubkey && hexPubkey && currentUserPubkey === hexPubkey;
+
+  // Handle error states
+  if (error) {
+    return (
+      <div className="container max-w-3xl mx-auto px-4 py-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <div className="flex justify-center mt-4">
+          <Button onClick={() => navigate("/")}>Return to Home</Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!npub) {
     return (
@@ -146,6 +221,12 @@ const ProfileViewPage = () => {
                       src={profile.picture}
                       alt={profile?.display_name || profile?.name || 'User'}
                       className="object-cover"
+                      onError={(e) => {
+                        // Handle image loading errors
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null; // Prevent infinite error loop
+                        target.src = ''; // Clear src
+                      }}
                     />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full bg-muted text-2xl font-bold">
@@ -291,12 +372,14 @@ const ProfileViewPage = () => {
       </Tabs>
 
       {/* Edit Profile Dialog */}
-      <EditProfileDialog
-        open={showEditProfile}
-        onOpenChange={setShowEditProfile}
-        profile={profile || {}}
-        onProfileUpdate={handleProfileUpdate}
-      />
+      {showEditProfile && (
+        <EditProfileDialog
+          open={showEditProfile}
+          onOpenChange={setShowEditProfile}
+          profile={profile || {}}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
     </div>
   );
 };

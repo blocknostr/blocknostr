@@ -1,4 +1,3 @@
-
 import { useRef, useCallback } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { getMediaUrlsFromEvent, isValidMediaUrl } from '@/lib/nostr/utils/media-extraction';
@@ -7,6 +6,7 @@ import { contentCache } from '@/lib/nostr';
 interface UsePostsSubscriptionProps {
   onEvent: (event: NostrEvent, isMediaEvent: boolean) => void;
   onComplete: () => void;
+  onError?: (error: Error) => void;
   limit: number;
 }
 
@@ -16,24 +16,32 @@ export function usePostsSubscription() {
   const eventCountRef = useRef<number>(0);
   const processedEventIds = useRef<Set<string>>(new Set());
   
-  const subscribe = useCallback(async (
-    hexPubkey: string | undefined, 
-    { onEvent, onComplete, limit }: UsePostsSubscriptionProps
-  ) => {
-    if (!hexPubkey) {
-      onComplete();
-      return () => {};
-    }
-    
-    // Cleanup previous subscription and timeout
+  const cleanup = useCallback(() => {
     if (subscriptionRef.current) {
-      nostrService.unsubscribe(subscriptionRef.current);
+      try {
+        nostrService.unsubscribe(subscriptionRef.current);
+      } catch (error) {
+        console.warn("Error unsubscribing:", error);
+      }
       subscriptionRef.current = null;
     }
     
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+  }, []);
+  
+  const subscribe = useCallback(async (
+    hexPubkey: string | undefined, 
+    { onEvent, onComplete, onError, limit }: UsePostsSubscriptionProps
+  ) => {
+    // Clean up any existing subscription
+    cleanup();
+    
+    if (!hexPubkey) {
+      onComplete();
+      return () => {};
     }
     
     // Reset event tracking
@@ -42,7 +50,11 @@ export function usePostsSubscription() {
     
     try {
       // First make sure we're connected to relays
-      await nostrService.connectToUserRelays();
+      try {
+        await nostrService.connectToUserRelays();
+      } catch (connectError) {
+        console.warn("Error connecting to relays, but continuing with available connections:", connectError);
+      }
       
       // Check cache first for immediate rendering
       const cachedEvents = contentCache.getEventsByAuthors([hexPubkey]) || [];
@@ -59,13 +71,17 @@ export function usePostsSubscription() {
           // Skip if we've already processed this event
           if (processedEventIds.current.has(event.id)) return;
           
-          const mediaUrls = getMediaUrlsFromEvent(event);
-          const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
-          const isMediaEvent = validMediaUrls.length > 0;
-          
-          eventCountRef.current++;
-          processedEventIds.current.add(event.id);
-          onEvent(event, isMediaEvent);
+          try {
+            const mediaUrls = getMediaUrlsFromEvent(event);
+            const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
+            const isMediaEvent = validMediaUrls.length > 0;
+            
+            eventCountRef.current++;
+            processedEventIds.current.add(event.id);
+            onEvent(event, isMediaEvent);
+          } catch (error) {
+            console.warn("Error processing cached event:", error);
+          }
         });
         
         // If we have enough cached events, complete early
@@ -84,43 +100,54 @@ export function usePostsSubscription() {
       console.log("[usePostsSubscription] Subscribing to posts");
       
       // Subscribe to user's notes (kind 1)
-      const notesSubId = nostrService.subscribe(
-        [
-          {
-            kinds: [1],
-            authors: [hexPubkey],
-            limit: Math.min(limit * 2, 100) // Double the limit for more aggressive loading, but cap at 100
-          }
-        ],
-        (event) => {
-          try {
-            // Skip if we already have this event
-            if (processedEventIds.current.has(event.id)) {
-              return;
+      let notesSubId: string;
+      
+      try {
+        notesSubId = nostrService.subscribe(
+          [
+            {
+              kinds: [1],
+              authors: [hexPubkey],
+              limit: Math.min(limit * 2, 100) // Double the limit for more aggressive loading, but cap at 100
             }
-            
-            console.log("[usePostsSubscription] Received new post:", event.id.substring(0, 8));
-            
-            // Cache the event
+          ],
+          (event) => {
             try {
-              contentCache.cacheEvent(event);
-            } catch (cacheError) {
-              console.warn("Failed to cache event:", cacheError);
-            }
+              // Skip if we already have this event
+              if (processedEventIds.current.has(event.id)) {
+                return;
+              }
+              
+              console.log("[usePostsSubscription] Received new post:", event.id.substring(0, 8));
+              
+              // Cache the event
+              try {
+                contentCache.cacheEvent(event);
+              } catch (cacheError) {
+                console.warn("Failed to cache event:", cacheError);
+              }
 
-            // Check if note contains media
-            const mediaUrls = getMediaUrlsFromEvent(event);
-            const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
-            const isMediaEvent = validMediaUrls.length > 0;
-            
-            eventCountRef.current++;
-            processedEventIds.current.add(event.id);
-            onEvent(event, isMediaEvent);
-          } catch (err) {
-            console.error("Error processing event:", err);
+              // Check if note contains media
+              const mediaUrls = getMediaUrlsFromEvent(event);
+              const validMediaUrls = mediaUrls.filter(url => isValidMediaUrl(url));
+              const isMediaEvent = validMediaUrls.length > 0;
+              
+              eventCountRef.current++;
+              processedEventIds.current.add(event.id);
+              onEvent(event, isMediaEvent);
+            } catch (err) {
+              console.error("Error processing event:", err);
+            }
           }
+        );
+      } catch (subscribeError) {
+        console.error("Error creating subscription:", subscribeError);
+        if (onError) {
+          onError(subscribeError instanceof Error ? subscribeError : new Error('Subscription failed'));
         }
-      );
+        onComplete();
+        return () => {};
+      }
       
       // Store the subscription ID for cleanup
       subscriptionRef.current = notesSubId;
@@ -130,38 +157,22 @@ export function usePostsSubscription() {
       timeoutRef.current = window.setTimeout(() => {
         console.log(`[usePostsSubscription] Timeout reached, processed ${eventCountRef.current} events total`);
         onComplete();
+        // Don't unsubscribe here - keep listening for events
       }, 3000);
       
       // Return a cleanup function
       return () => {
-        if (subscriptionRef.current) {
-          nostrService.unsubscribe(subscriptionRef.current);
-          subscriptionRef.current = null;
-        }
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
+        cleanup();
       };
     } catch (err) {
       console.error("Error in usePostsSubscription:", err);
+      if (onError) {
+        onError(err instanceof Error ? err : new Error('Unknown subscription error'));
+      }
       onComplete();
       return () => {};
     }
-  }, []);
+  }, [cleanup]);
   
-  const cleanup = useCallback(() => {
-    if (subscriptionRef.current) {
-      nostrService.unsubscribe(subscriptionRef.current);
-      subscriptionRef.current = null;
-    }
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, []);
-
   return { subscribe, cleanup, subscriptionRef };
 }

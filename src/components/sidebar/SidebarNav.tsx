@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -17,6 +18,7 @@ import {
 import SidebarNavItem from "./SidebarNavItem";
 import { nostrService } from "@/lib/nostr";
 import CreateNoteModal from "@/components/note/CreateNoteModal";
+import { toast } from "sonner";
 
 interface SidebarNavProps {
   isLoggedIn: boolean;
@@ -27,14 +29,24 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
   const [profileUrl, setProfileUrl] = useState("/profile");
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false);
 
-  // Update profile URL when auth state changes
+  // Update profile URL when auth state changes with improved error handling
   useEffect(() => {
     if (isLoggedIn && nostrService.publicKey) {
       try {
         const npub = nostrService.getNpubFromHex(nostrService.publicKey);
-        setProfileUrl(`/profile/${npub}`);
+        
+        // Validate that we have a proper npub
+        if (npub && npub.startsWith('npub')) {
+          setProfileUrl(`/profile/${npub}`);
+        } else {
+          console.error("Generated invalid npub:", npub);
+          setProfileUrl("/profile"); // Fallback to base profile path
+          toast.error("Error loading profile. Please try again.");
+        }
       } catch (error) {
         console.error("Failed to convert pubkey to npub:", error);
+        setProfileUrl("/profile"); // Fallback to base profile path
+        toast.error("Error loading profile. Please try again.");
       }
     } else {
       setProfileUrl("/profile");
