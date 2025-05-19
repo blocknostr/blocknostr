@@ -151,6 +151,7 @@ export class EventManager {
       } 
       // In the future, implement manual encryption with senderPrivateKey
       else {
+        console.log("NIP-04 encryption not available in extension");
         console.error("No encryption method available");
         return null;
       }
@@ -173,6 +174,7 @@ export class EventManager {
       } 
       // In the future, implement manual decryption with recipientPrivateKey
       else {
+        console.log("NIP-04 decryption not available in extension");
         console.error("No decryption method available");
         return null;
       }

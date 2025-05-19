@@ -39,7 +39,7 @@ export const useMessaging = () => {
         // Try to decrypt received message with NIP-04
         let decryptionSuccessful = false;
         
-        if (window.nostr?.nip04) {
+        if (window.nostr && window.nostr.nip04) {
           try {
             content = await window.nostr.nip04.decrypt(otherPubkey, content);
             decryptionSuccessful = true;
@@ -47,6 +47,8 @@ export const useMessaging = () => {
           } catch (e) {
             console.error("Failed to decrypt with NIP-04:", e);
           }
+        } else {
+          console.log("NIP-04 encryption not available in extension");
         }
         
         if (!decryptionSuccessful) {
@@ -167,13 +169,15 @@ export const useMessaging = () => {
             let decryptionSuccessful = false;
             
             // Try NIP-04
-            if (window.nostr?.nip04) {
+            if (window.nostr && window.nostr.nip04) {
               try {
                 content = await window.nostr.nip04.decrypt(event.pubkey || '', content);
                 decryptionSuccessful = true;
               } catch (e) {
                 console.error("Failed to decrypt with NIP-04:", e);
               }
+            } else {
+              console.log("NIP-04 decryption not available");
             }
             
             if (!decryptionSuccessful) {
