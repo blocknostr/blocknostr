@@ -14,7 +14,7 @@ declare module 'lucide-react' {
   // Export all icons from lucide-react
   export type LucideIcon = React.FC<LucideProps>;
   
-  // Sample exports
+  // Base icons used in the profile page and edit dialog
   export const Home: LucideIcon;
   export const Bell: LucideIcon;
   export const Mail: LucideIcon;
@@ -34,7 +34,7 @@ declare module 'lucide-react' {
   export const AlertCircle: LucideIcon;
   export const RefreshCw: LucideIcon;
   
-  // Additional icons needed for the profile page
+  // Profile page & editor icons
   export const User: LucideIcon;
   export const Edit: LucideIcon;
   export const Link: LucideIcon;
@@ -43,7 +43,7 @@ declare module 'lucide-react' {
   export const CheckCircle: LucideIcon;
   export const CheckCircle2: LucideIcon;
   
-  // Icons needed for other components
+  // Additional icons needed for other components
   export const SmilePlus: LucideIcon;
   export const SendHorizontal: LucideIcon;
   export const MessageSquare: LucideIcon;
@@ -82,4 +82,48 @@ declare module 'lucide-react' {
   export const FileQuestion: LucideIcon;
   export const Smile: LucideIcon;
   export const Fingerprint: LucideIcon;
+  
+  // Additional icons that were causing errors in other components
+  export const ChevronLeft: LucideIcon;
+  export const ChevronRight: LucideIcon;
+  export const ChevronUp: LucideIcon;
+  export const AlertTriangle: LucideIcon;
+  export const MessageCircle: LucideIcon;
+  export const Reply: LucideIcon;
+  export const Repeat: LucideIcon;
+  export const Share: LucideIcon;
+  export const Share2: LucideIcon;
+  export const Twitter: LucideIcon;
+  export const Flag: LucideIcon;
+  export const BellOff: LucideIcon;
+  export const UserX: LucideIcon;
+  export const Grid2X2: LucideIcon;
+  export const List: LucideIcon;
+  export const Eye: LucideIcon;
+  export const FileCode: LucideIcon;
+  export const Unlock: LucideIcon;
+  export const Bold: LucideIcon;
+  export const Italic: LucideIcon;
+  export const Quote: LucideIcon;
+  export const Image: LucideIcon;
+  export const Clock: LucideIcon;
+  export const Hash: LucideIcon;
+  export const Zap: LucideIcon;
+  export const Upload: LucideIcon;
+  export const BadgePercent: LucideIcon;
+  export const Network: LucideIcon;
+  export const XCircle: LucideIcon;
+  export const Info: LucideIcon;
+  export const Github: LucideIcon;
+  export const Hourglass: LucideIcon;
+  export const Globe: LucideIcon;
+  export const ArrowRight: LucideIcon;
+  export const FileVideo: LucideIcon;
+  export const Paperclip: LucideIcon;
+  export const ArrowUpDown: LucideIcon;
+  export const ArrowDownNarrowWide: LucideIcon;
+  export const ArrowUpNarrowWide: LucideIcon;
+  export const SortAsc: LucideIcon;
+  export const SortDesc: LucideIcon;
+  export const Tags: LucideIcon;
 }

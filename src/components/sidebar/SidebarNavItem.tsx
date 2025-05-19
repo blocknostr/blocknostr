@@ -1,46 +1,64 @@
 
-import React from "react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 
 interface SidebarNavItemProps {
-  name: string;
-  icon: LucideIcon;
-  href: string;
-  isActive?: boolean;
-  special?: boolean;
+  icon?: LucideIcon;
+  text: string;
+  to?: string;
   onClick?: () => void;
+  active?: boolean;
+  badge?: React.ReactNode;
 }
 
-const SidebarNavItem = ({ 
-  name, 
-  icon: Icon, 
-  href, 
-  isActive = false,
-  special = false,
-  onClick
-}: SidebarNavItemProps) => {
-  const Component = onClick ? 'button' : Link;
-  const componentProps = onClick ? { onClick } : { to: href };
-  
-  return (
-    <li>
-      <Component
-        {...componentProps}
-        className={cn(
-          "flex items-center px-3 py-2 rounded-md transition-colors w-full",
-          isActive 
-            ? "bg-primary text-primary-foreground font-medium" 
-            : "text-foreground hover:bg-muted hover:text-foreground",
-          special && "bg-primary text-primary-foreground hover:bg-primary/90"
-        )}
-      >
-        <Icon className="h-5 w-5 mr-2" />
-        <span>{name}</span>
-      </Component>
-    </li>
+export function SidebarNavItem({
+  icon: Icon,
+  text,
+  to,
+  onClick,
+  active,
+  badge
+}: SidebarNavItemProps) {
+  const commonClasses = cn(
+    "flex w-full items-center gap-2 justify-start rounded-lg px-3 py-2 hover:bg-accent transition-colors",
+    active && "bg-primary/10 text-primary"
   );
-};
-
-export default SidebarNavItem;
+  
+  const content = (
+    <>
+      {Icon && <Icon className="h-5 w-5 shrink-0" />}
+      <span className="grow text-sm font-medium">{text}</span>
+      {badge}
+    </>
+  );
+  
+  if (onClick) {
+    return (
+      <Button 
+        variant="ghost" 
+        className={commonClasses} 
+        onClick={onClick}
+        asChild={false}
+      >
+        {content}
+      </Button>
+    );
+  }
+  
+  if (to) {
+    return (
+      <Button 
+        variant="ghost" 
+        asChild 
+        className={commonClasses}
+      >
+        <Link to={to}>{content}</Link>
+      </Button>
+    );
+  }
+  
+  return null;
+}

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
 import { toast } from 'sonner';
 import { useCacheCheck } from './useCacheCheck';
@@ -79,8 +79,8 @@ export function useProfilePosts({
     // Create a function to start subscription
     const startSubscription = async () => {
       try {
-        // Subscribe to posts and set up event handling
-        const unsub = await subscribe(hexPubkey, {
+        // Fixed promise handling to properly await the subscription
+        const unsubFunction = await subscribe(hexPubkey, {
           limit,
           onEvent: (event, isMediaEvent) => {
             if (!isMounted.current) return;
@@ -127,7 +127,7 @@ export function useProfilePosts({
         });
         
         // Store the unsubscribe function
-        unsubscribeRef.current = unsub;
+        unsubscribeRef.current = unsubFunction;
       } catch (error) {
         console.error("Error subscribing to events:", error);
         setLoading(false);
@@ -154,7 +154,7 @@ export function useProfilePosts({
     };
   }, [hexPubkey, limit, subscribe, checkCache, cleanup, hasEvents, events.length]);
 
-  const refetch = () => {
+  const refetch = useCallback(() => {
     if (hexPubkey) {
       // Reset state
       setEvents([]);
@@ -186,7 +186,7 @@ export function useProfilePosts({
           toast.error("Failed to connect to relays");
         });
     }
-  };
+  }, [hexPubkey, cleanup]);
 
   return { 
     events, 
