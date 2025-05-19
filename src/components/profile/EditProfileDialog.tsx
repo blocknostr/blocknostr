@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,53 +29,63 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  profile?: any; // Add the profile prop
+  onProfileUpdate?: () => void; // Make this optional
 }
 
-const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChange }) => {
-  const { profile, updateProfile, isAuthenticated } = useNostr();
+const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ 
+  open, 
+  onOpenChange, 
+  profile: externalProfile, 
+  onProfileUpdate 
+}) => {
+  const { profile: contextProfile, updateProfile, isAuthenticated } = useNostr();
+  
+  // Use either the external profile passed as a prop or fall back to the context profile
+  const profileData = externalProfile || contextProfile;
   
   // Initialize the form with current profile values
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      name: profile?.name || "",
-      displayName: profile?.displayName || "",
-      picture: profile?.picture || "",
-      banner: profile?.banner || "",
-      about: profile?.about || "",
-      website: profile?.website || "",
-      nip05: profile?.nip05 || "",
-      lud16: profile?.lud16 || "",
+      name: profileData?.name || "",
+      displayName: profileData?.displayName || "",
+      picture: profileData?.picture || "",
+      banner: profileData?.banner || "",
+      about: profileData?.about || "",
+      website: profileData?.website || "",
+      nip05: profileData?.nip05 || "",
+      lud16: profileData?.lud16 || "",
     },
   });
 
   // Reset form values when profile changes or dialog opens
   useEffect(() => {
-    if (profile && open) {
+    if (profileData && open) {
       form.reset({
-        name: profile.name || "",
-        displayName: profile.displayName || "",
-        picture: profile.picture || "",
-        banner: profile.banner || "",
-        about: profile.about || "",
-        website: profile.website || "",
-        nip05: profile.nip05 || "",
-        lud16: profile.lud16 || "",
+        name: profileData.name || "",
+        displayName: profileData.displayName || "",
+        picture: profileData.picture || "",
+        banner: profileData.banner || "",
+        about: profileData.about || "",
+        website: profileData.website || "",
+        nip05: profileData.nip05 || "",
+        lud16: profileData.lud16 || "",
       });
     }
-  }, [profile, form, open]);
+  }, [profileData, form, open]);
 
   const onSubmit = async (values: ProfileFormValues) => {
-    if (!profile) return;
+    if (!profileData) return;
     
     if (!isAuthenticated) {
-      toast("Authentication required. You must be logged in to update your profile");
+      toast.error("Authentication required. You must be logged in to update your profile");
       return;
     }
     
     // Create updated profile object
     const updatedProfile: NostrProfile = {
-      ...profile,
+      ...profileData,
       ...values,
     };
     
@@ -83,6 +94,10 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChang
     
     if (success) {
       onOpenChange(false);
+      // Call the external onProfileUpdate if provided
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
     }
   };
 
