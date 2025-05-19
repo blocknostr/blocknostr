@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AlephiumWalletProvider } from '@alephium/web3-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { NostrProvider } from '@/contexts/NostrContext';
 
 import Index from './pages/Index';
 import NewHomePage from './pages/NewHomePage';
@@ -11,7 +12,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
-import ProfilePage from './pages/ProfilePage'; // Kept but deprecated
+import ProfilePage from './pages/ProfilePage'; // Updated ProfilePage
 import ProfileViewPage from './pages/ProfileViewPage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
@@ -34,52 +35,53 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AlephiumWalletProvider network="mainnet">
-        <BrowserRouter>
-          <div className="flex flex-col min-h-screen">
-            <main className="flex-1">
-              <Routes>
-                <Route element={<MainLayout />}>
-                  {/* Set NewHomePage as default route */}
-                  <Route path="/" element={<NewHomePage />} />
-                  {/* Keep old Index page accessible via /feed */}
-                  <Route path="/feed" element={<Index />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
-                  <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
-                  <Route path="/messages" element={<MessagesPage />} />
-                  <Route path="/notifications" element={<NotificationsPage />} />
-                  <Route path="/post/:id" element={<PostPage />} />
-                  <Route path="/notebin" element={<NotebinPage />} />
-                  <Route path="/wallets" element={<WalletsPage />} />
-                  <Route path="/premium" element={<PremiumPage />} />
+        <NostrProvider>
+          <BrowserRouter>
+            <div className="flex flex-col min-h-screen">
+              <main className="flex-1">
+                <Routes>
+                  <Route element={<MainLayout />}>
+                    {/* Set NewHomePage as default route */}
+                    <Route path="/" element={<NewHomePage />} />
+                    {/* Keep old Index page accessible via /feed */}
+                    <Route path="/feed" element={<Index />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
+                    <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
+                    <Route path="/messages" element={<MessagesPage />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/post/:id" element={<PostPage />} />
+                    <Route path="/notebin" element={<NotebinPage />} />
+                    <Route path="/wallets" element={<WalletsPage />} />
+                    <Route path="/premium" element={<PremiumPage />} />
+                    <Route path="/profile" element={<ProfilePage />} /> {/* Updated ProfilePage */}
 
-                  {/* Games Routes */}
-                  <Route path="/games" element={<GameManagerPage />} />
-                  <Route path="/games/:gameId" element={<GameManagerPage />} />
+                    {/* Games Routes */}
+                    <Route path="/games" element={<GameManagerPage />} />
+                    <Route path="/games/:gameId" element={<GameManagerPage />} />
 
-                  {/* Update routes to make ProfileViewPage primary */}
-                  <Route path="/profile/:npub" element={<ProfileViewPage />} />
-                  {/* Keep old profile page route but mark as deprecated */}
-                  <Route path="/profile-deprecated/:npub" element={<ProfilePage />} />
-                  {/* Keep existing ProfileViewPage routes for compatibility */}
-                  <Route path="/profile-view" element={<ProfileViewPage />} />
-                  <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
+                    {/* Keep existing profile routes */}
+                    <Route path="/profile/:npub" element={<ProfileViewPage />} />
+                    <Route path="/profile-deprecated/:npub" element={<ProfilePage />} />
+                    <Route path="/profile-view" element={<ProfileViewPage />} />
+                    <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
 
-                  {/* Articles Routes */}
-                  <Route path="/articles" element={<ArticlesPage />} />
-                  <Route path="/articles/create" element={<ArticleEditorPage />} />
-                  <Route path="/articles/edit/:id" element={<ArticleEditorPage />} />
-                  <Route path="/articles/view/:id" element={<ArticleViewPage />} />
-                  <Route path="/articles/me" element={<MyArticlesPage />} />
-                  <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
+                    {/* Articles Routes */}
+                    <Route path="/articles" element={<ArticlesPage />} />
+                    <Route path="/articles/create" element={<ArticleEditorPage />} />
+                    <Route path="/articles/edit/:id" element={<ArticleEditorPage />} />
+                    <Route path="/articles/view/:id" element={<ArticleViewPage />} />
+                    <Route path="/articles/me" element={<MyArticlesPage />} />
+                    <Route path="/articles/drafts" element={<ArticleDraftsPage />} />
 
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-            </main>
-            <Toaster position="bottom-right" />
-          </div>
-        </BrowserRouter>
+                    <Route path="*" element={<NotFound />} />
+                  </Route>
+                </Routes>
+              </main>
+              <Toaster position="bottom-right" />
+            </div>
+          </BrowserRouter>
+        </NostrProvider>
       </AlephiumWalletProvider>
     </QueryClientProvider>
   );
