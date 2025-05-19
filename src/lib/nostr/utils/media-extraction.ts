@@ -1,119 +1,134 @@
+import { NostrEvent } from '@/lib/nostr';
+import { mediaRegex, extractUrlsFromContent } from './media/media-detection';
+import { isValidMediaUrl } from './media/media-validation';
 
-import { NostrEvent } from "@/lib/nostr/types";
-
-/**
- * Checks if a URL is a valid media URL
- * @param url URL to check
- * @returns boolean indicating if the URL is valid
- */
-export const isValidMediaUrl = (url: string): boolean => {
-  if (!url) return false;
-  try {
-    new URL(url);
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
+// Define MediaItem interface here instead of importing it
+interface MediaItem {
+  url: string;
+  type: 'image' | 'video' | 'audio' | 'unknown';
+  alt?: string;
+}
 
 /**
- * Checks if a URL is an image URL
- * @param url URL to check
- * @returns boolean indicating if the URL is an image
+ * Extract media URLs from a Nostr event
+ * Following NIP-94 recommendations for media content
  */
-export const isImageUrl = (url: string): boolean => {
-  if (!isValidMediaUrl(url)) return false;
+export const getMediaUrlsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string[] => {
+  const content = event?.content || '';
+  const tags = Array.isArray(event?.tags) ? event.tags : [];
   
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
-  return imageExtensions.some(ext => url.toLowerCase().endsWith(ext));
-};
-
-/**
- * Checks if a URL is a video URL
- * @param url URL to check
- * @returns boolean indicating if the URL is a video
- */
-export const isVideoUrl = (url: string): boolean => {
-  if (!isValidMediaUrl(url)) return false;
+  // Store unique URLs to avoid duplicates
+  const uniqueUrls = new Set<string>();
   
-  const videoExtensions = ['.mp4', '.webm', '.ogv', '.mov', '.avi'];
-  return videoExtensions.some(ext => url.toLowerCase().endsWith(ext));
-};
-
-/**
- * Extract media URLs from content string
- * @param content Content string to extract from
- * @returns Array of media URLs found in the content
- */
-export const extractMediaUrls = (content: string): string[] => {
-  if (!content) return [];
-  
-  const urlRegex = /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|mp4|webm|mov))/gi;
-  const matches = content.match(urlRegex);
-  
-  return matches ? matches.filter(isValidMediaUrl) : [];
-};
-
-/**
- * Get the first image URL from content
- * @param content Content string to extract from
- * @returns First image URL or null if none found
- */
-export const extractFirstImageUrl = (content: string): string | null => {
-  const allUrls = extractMediaUrls(content);
-  const imageUrl = allUrls.find(url => isImageUrl(url));
-  return imageUrl || null;
-};
-
-/**
- * Extract media URLs from Nostr event
- * @param event Nostr event
- * @returns Array of media URLs
- */
-export const getMediaUrlsFromEvent = (event: NostrEvent): string[] => {
-  if (!event) return [];
-  
-  const urls: string[] = [];
-  
-  // Extract URLs from content
-  if (event.content) {
-    const contentUrls = extractMediaUrls(event.content);
-    urls.push(...contentUrls);
-  }
-  
-  // Extract URLs from image and img tags
-  if (event.tags) {
-    event.tags.forEach(tag => {
-      if ((tag[0] === 'image' || tag[0] === 'img') && tag[1] && isValidMediaUrl(tag[1])) {
-        urls.push(tag[1]);
+  // First check for NIP-94 image tags
+  if (Array.isArray(tags)) {
+    tags.forEach(tag => {
+      if (Array.isArray(tag) && 
+          tag.length >= 2 && 
+          (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta') && 
+          isValidMediaUrl(tag[1])) {
+        uniqueUrls.add(tag[1]);
       }
     });
   }
   
-  // Remove duplicates
-  return [...new Set(urls)];
-};
-
-/**
- * Get media items from Nostr event with metadata
- */
-export const getMediaItemsFromEvent = (event: NostrEvent) => {
-  const urls = getMediaUrlsFromEvent(event);
+  // Then extract URLs from content
+  const contentUrls = extractUrlsFromContent(content);
+  contentUrls.forEach(url => uniqueUrls.add(url));
   
-  return urls.map(url => ({
-    url,
-    type: isImageUrl(url) ? 'image' : isVideoUrl(url) ? 'video' : 'unknown',
-    eventId: event.id
-  }));
+  return Array.from(uniqueUrls);
 };
 
 /**
- * Get first image URL from event
- * @param event Nostr event
- * @returns First image URL or null if none found
+ * Extract the first image URL from a Nostr event
  */
-export const getFirstImageUrlFromEvent = (event: NostrEvent): string | null => {
-  const urls = getMediaUrlsFromEvent(event);
-  const imageUrl = urls.find(url => isImageUrl(url));
-  return imageUrl || null;
+export const getFirstImageUrlFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string | null => {
+  // Check for NIP-94 image tags first
+  const tags = Array.isArray(event?.tags) ? event.tags : [];
+  
+  for (const tag of tags) {
+    if (Array.isArray(tag) && 
+        tag.length >= 2 && 
+        (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta') && 
+        isValidMediaUrl(tag[1])) {
+      return tag[1];
+    }
+  }
+  
+  // Then check content
+  const content = event?.content || '';
+  if (!content) return null;
+  
+  // Simple regex to extract the first image URL from content
+  const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/i;
+  const match = content.match(imgRegex);
+  
+  return match ? match[0] : null;
 };
+
+/**
+ * Extract image URLs from a Nostr event
+ */
+export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): string[] => {
+  const mediaUrls = getMediaUrlsFromEvent(event);
+  return mediaUrls.filter(url => {
+    return url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i);
+  });
+};
+
+/**
+ * Get media items with metadata from event
+ */
+export const getMediaItemsFromEvent = (event: NostrEvent | {content?: string, tags?: string[][]}): MediaItem[] => {
+  const urls = getMediaUrlsFromEvent(event);
+  const tags = Array.isArray(event?.tags) ? event.tags : [];
+  
+  // Map URLs to media items
+  return urls.map(url => {
+    // Determine media type based on URL extension
+    let type: MediaItem['type'] = 'unknown';
+    if (url.match(/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
+      type = 'image';
+    } else if (url.match(/\.(mp4|webm|mov)(\?.*)?$/i)) {
+      type = 'video';
+    } else if (url.match(/\.(mp3|wav|ogg)(\?.*)?$/i)) {
+      type = 'audio';
+    }
+    
+    // Check for alt text in image tags
+    let alt: string | undefined;
+    const imgTag = tags.find(tag => 
+      Array.isArray(tag) && 
+      tag.length >= 3 && 
+      (tag[0] === 'image' || tag[0] === 'img' || tag[0] === 'imeta') && 
+      tag[1] === url
+    );
+    
+    if (imgTag && imgTag.length >= 3) {
+      alt = imgTag[2];
+    }
+    
+    return { url, type, alt };
+  });
+};
+
+/**
+ * Extract the first media URL from an event
+ */
+export const extractFirstImageUrl = (content: string): string | null => {
+  if (!content) return null;
+  
+  const imgRegex = /(https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?[^\s]*)?)/i;
+  const match = content.match(imgRegex);
+  
+  return match ? match[0] : null;
+};
+
+/**
+ * Extract all media URLs from content
+ */
+export const extractMediaUrls = (content: string): string[] => {
+  return extractUrlsFromContent(content);
+};
+
+export { isValidMediaUrl, isImageUrl, isVideoUrl } from './media/media-validation';

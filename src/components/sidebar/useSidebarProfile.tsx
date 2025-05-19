@@ -31,7 +31,7 @@ export function useSidebarProfile() {
             let creationDate = profile._event?.created_at || profile.created_at;
             if (!creationDate) {
               try {
-                // Fixed to use only one argument as required
+                // Direct call to the getAccountCreationDate method instead of using getProfileService()
                 const date = await nostrService.getAccountCreationDate(nostrService.publicKey);
                 if (date) {
                   creationDate = date;

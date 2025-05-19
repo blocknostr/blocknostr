@@ -1,67 +1,153 @@
 
-import { relayPerformanceTracker } from "../performance/relay-performance-tracker";
-import { circuitBreaker, CircuitState } from "../circuit/circuit-breaker";
+import { relayPerformanceTracker } from '../performance/relay-performance-tracker';
 
-interface RelaySelectionOptions {
+/**
+ * Parameters for relay selection
+ */
+export interface RelaySelectionParams {
   operation: 'read' | 'write' | 'both';
-  count: number;
-  minScore?: number;
+  count?: number;
   requireWriteSupport?: boolean;
+  preferredNips?: number[];
+  requireNips?: number[];
+  minScore?: number;
 }
 
-class RelaySelector {
+/**
+ * Smart relay selection service
+ */
+export class RelaySelector {
   /**
-   * Select the best relays for a given operation
-   * @param relayUrls List of relay URLs to choose from
-   * @param options Selection options
+   * Select the best relays based on performance and requirements
+   * 
+   * @param relays Array of relay URLs to choose from
+   * @param params Selection parameters
    * @returns Array of selected relay URLs
    */
-  public selectBestRelays(relayUrls: string[], options: RelaySelectionOptions): string[] {
-    if (!relayUrls.length) return [];
+  selectBestRelays(relays: string[], params: RelaySelectionParams): string[] {
+    if (!relays.length) return [];
     
-    // Create scoring function based on operation type
-    const getRelayScore = (url: string): number => {
-      // Check circuit breaker first - don't use broken relays
-      if (circuitBreaker.getState(url) === CircuitState.OPEN) {
-        return -1; // Negative score means "don't use"
+    const {
+      operation = 'both',
+      count = 3,
+      requireWriteSupport = false,
+      preferredNips = [],
+      requireNips = [],
+      minScore = 0
+    } = params;
+    
+    // Create a scoring function based on the parameters
+    const scoreRelay = (relayUrl: string): number => {
+      // Get base performance score (0-100)
+      let score = relayPerformanceTracker.getRelayScore(relayUrl);
+      
+      // Get detailed performance data if available
+      const perfData = relayPerformanceTracker.getRelayPerformance(relayUrl);
+      
+      // If we have supported NIPs data
+      if (perfData?.supportedNips) {
+        // Check required NIPs - if any are missing, score is 0
+        if (requireNips.length) {
+          for (const nip of requireNips) {
+            if (!perfData.supportedNips.includes(nip)) {
+              return 0; // Missing required NIP
+            }
+          }
+        }
+        
+        // Bonus for preferred NIPs
+        if (preferredNips.length) {
+          const supportedPreferredNips = preferredNips.filter(nip => 
+            perfData.supportedNips?.includes(nip)
+          );
+          
+          // Add up to 20% bonus for preferred NIPs
+          const nipBonus = (supportedPreferredNips.length / preferredNips.length) * 20;
+          score += nipBonus;
+        }
       }
       
-      // Get performance metrics
-      const perfData = relayPerformanceTracker.getRelayPerformance(url);
-      if (!perfData) {
-        return 50; // Default score for relays without data
+      // Penalty for very high latency
+      if (perfData?.avgResponseTime && perfData.avgResponseTime > 2000) {
+        score -= 20; // 20% penalty for very slow relays
       }
       
-      return perfData.score;
+      return score;
     };
     
     // Score and filter relays
-    const scoredRelays = relayUrls
+    const scoredRelays = relays
       .map(url => ({
         url,
-        score: getRelayScore(url)
+        score: scoreRelay(url)
       }))
-      .filter(relay => {
-        // Skip relays with negative scores (circuit open)
-        if (relay.score < 0) return false;
-        
-        // Apply minimum score filter if specified
-        if (options.minScore !== undefined && relay.score < options.minScore) {
-          return false;
-        }
-        
-        return true;
-      });
+      .filter(item => item.score >= minScore)
+      .sort((a, b) => b.score - a.score); // Sort by score descending
     
-    // Sort by score (highest first)
-    scoredRelays.sort((a, b) => b.score - a.score);
-    
-    // Return the requested number of relays
+    // Return top N relays
     return scoredRelays
-      .slice(0, options.count)
-      .map(relay => relay.url);
+      .slice(0, count)
+      .map(item => item.url);
+  }
+  
+  /**
+   * Select different relay sets for read and write operations
+   * 
+   * @param relays Array of relay URLs to choose from
+   * @param readCount Number of read relays to select
+   * @param writeCount Number of write relays to select
+   * @returns Object with read and write relay arrays
+   */
+  selectRelaysByOperationType(
+    relays: string[],
+    readCount: number = 3,
+    writeCount: number = 2
+  ): { read: string[], write: string[] } {
+    // Select write relays first (more stringent requirements)
+    const writeRelays = this.selectBestRelays(relays, {
+      operation: 'write',
+      count: writeCount,
+      requireWriteSupport: true,
+      minScore: 40
+    });
+    
+    // Then select read relays, excluding those already chosen for write
+    const remainingRelays = relays.filter(url => !writeRelays.includes(url));
+    const readRelays = this.selectBestRelays(remainingRelays, {
+      operation: 'read',
+      count: readCount,
+      minScore: 30
+    });
+    
+    return {
+      read: readRelays,
+      write: writeRelays
+    };
+  }
+  
+  /**
+   * Find the fastest relay for a critical operation
+   * @param relays Array of relay URLs to choose from
+   * @returns The URL of the fastest relay or undefined
+   */
+  findFastestRelay(relays: string[]): string | undefined {
+    if (!relays.length) return undefined;
+    
+    let fastestRelay: string | undefined;
+    let fastestTime = Infinity;
+    
+    relays.forEach(url => {
+      const perfData = relayPerformanceTracker.getRelayPerformance(url);
+      if (perfData?.avgResponseTime && perfData.avgResponseTime < fastestTime) {
+        fastestTime = perfData.avgResponseTime;
+        fastestRelay = url;
+      }
+    });
+    
+    // If we don't have performance data, return the first relay
+    return fastestRelay || relays[0];
   }
 }
 
-// Export singleton instance for app-wide use
+// Singleton instance
 export const relaySelector = new RelaySelector();

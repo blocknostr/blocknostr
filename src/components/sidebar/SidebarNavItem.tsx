@@ -1,64 +1,54 @@
-
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import type { LucideIcon } from 'lucide-react';
+import React from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 
 interface SidebarNavItemProps {
-  icon?: LucideIcon;
-  text: string;
-  to?: string;
+  name: string;
+  icon: LucideIcon;
+  href: string;
+  isActive: boolean;
   onClick?: () => void;
-  active?: boolean;
-  badge?: React.ReactNode;
+  special?: boolean;
 }
 
-export function SidebarNavItem({
+const SidebarNavItem = ({
+  name,
   icon: Icon,
-  text,
-  to,
+  href,
+  isActive,
   onClick,
-  active,
-  badge
-}: SidebarNavItemProps) {
-  const commonClasses = cn(
-    "flex w-full items-center gap-2 justify-start rounded-lg px-3 py-2 hover:bg-accent transition-colors",
-    active && "bg-primary/10 text-primary"
-  );
-  
+  special
+}: SidebarNavItemProps) => {
   const content = (
-    <>
-      {Icon && <Icon className="h-5 w-5 shrink-0" />}
-      <span className="grow text-sm font-medium">{text}</span>
-      {badge}
-    </>
+    <Button
+      variant="ghost"
+      className={cn(
+        "w-full justify-start text-left font-medium",
+        isActive ? "bg-accent text-accent-foreground" : "",
+        special ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""
+      )}
+      onClick={onClick}
+    >
+      <Icon className="mr-2 h-5 w-5" />
+      {name}
+    </Button>
   );
-  
-  if (onClick) {
-    return (
-      <Button 
-        variant="ghost" 
-        className={commonClasses} 
-        onClick={onClick}
-        asChild={false}
-      >
+
+  // If there's an onClick handler or it's a special button, don't wrap in Link
+  if (onClick || href === "#") {
+    return <li key={name}>{content}</li>;
+  }
+
+  // Otherwise wrap in Link for normal navigation
+  return (
+    <li key={name}>
+      <Link to={href}>
         {content}
-      </Button>
-    );
-  }
-  
-  if (to) {
-    return (
-      <Button 
-        variant="ghost" 
-        asChild 
-        className={commonClasses}
-      >
-        <Link to={to}>{content}</Link>
-      </Button>
-    );
-  }
-  
-  return null;
-}
+      </Link>
+    </li>
+  );
+};
+
+export default SidebarNavItem;

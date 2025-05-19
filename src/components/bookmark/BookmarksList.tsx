@@ -1,6 +1,7 @@
 
 import React from "react";
 import { NostrEvent } from "@/lib/nostr";
+import { AlertTriangle } from "lucide-react";
 
 // Note: This file is no longer used - kept for backward compatibility
 interface BookmarksListProps {
@@ -26,7 +27,7 @@ export function BookmarksList() {
   // This component is deprecated and no longer functional
   return (
     <div className="py-8 text-center">
-      <div className="h-8 w-8 mx-auto mb-2 text-destructive" />
+      <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-destructive" />
       <p className="text-sm text-muted-foreground mb-3">
         Bookmark functionality has been removed
       </p>
