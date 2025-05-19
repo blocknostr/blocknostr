@@ -1,10 +1,12 @@
-
-import React, { useCallback, useState, useEffect } from "react";
-import FeedLoading from "./FeedLoading";
-import FeedList from "./FeedList";
-import { useGlobalFeed } from "./hooks/use-global-feed";
+import React, { useEffect, useCallback, useState, useRef } from "react";
+import { nostrService } from "@/lib/nostr";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import NewNoteCard from "../note/NewNoteCard";
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import FeedList from "./FeedList";
+import FeedLoading from "./FeedLoading";
 
 interface GlobalFeedProps {
   activeHashtag?: string;
@@ -13,22 +15,155 @@ interface GlobalFeedProps {
 
 const GlobalFeed: React.FC<GlobalFeedProps> = ({ 
   activeHashtag,
-  onLoadingChange
+  onLoadingChange 
 }) => {
-  const {
-    events,
-    profiles,
-    repostData,
-    loadMoreRef,
-    loading,
-    hasMore,
-    loadMoreEvents,
-    loadingMore
-  } = useGlobalFeed({ activeHashtag });
-  
+  const [events, setEvents] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, any>>({});  
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [extendedLoading, setExtendedLoading] = useState(true);
   const [showRetry, setShowRetry] = useState(false);
+  const [repostData, setRepostData] = useState<Record<string, any>>({});
+  const { preferences } = useUserPreferences();
+  const initialLoadDone = useRef(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   
+  // Default hashtags if none set
+  const defaultGlobalTags = ["bitcoin", "alephium", "ergo"];
+
+  // Get the hashtags to filter by - either the active hashtag, user preferences, or default ones
+  const hashtags = activeHashtag 
+    ? [activeHashtag] 
+    : (preferences.feedFilters?.globalFeedTags?.length 
+        ? preferences.feedFilters.globalFeedTags 
+        : defaultGlobalTags);
+        
+  // Function to fetch profiles for events
+  const fetchProfiles = useCallback(async (pubkeys: string[]) => {
+    if (pubkeys.length === 0) return;
+    
+    try {
+      const profiles = await nostrService.getProfilesByPubkeys(pubkeys);
+      setProfiles(prev => ({ ...prev, ...profiles }));
+    } catch (error) {
+      console.error('Error fetching profiles:', error);
+    }
+  }, []);
+
+  // Fetch events for global feed using the properly implemented method
+  const fetchEvents = useCallback(async (since?: number, until?: number) => {
+    try {
+      // For hashtag filtering, we need to use specific filters
+      const filter: any = { 
+        kinds: [1], // Note kind
+        limit: 20
+      };
+      
+      // Add timestamp filters for pagination if provided
+      if (since) filter.since = since;
+      if (until) filter.until = until;
+      
+      // Add hashtag filtering if needed
+      if (hashtags && hashtags.length > 0) {
+        // For every hashtag, we need to search for '#hashtag' in the content
+        // or look for 't' tag with the hashtag value
+        filter.t = hashtags;
+      }
+        // Get notes from relays
+      const notes = await new Promise<any[]>((resolve) => {
+        const timeoutId = setTimeout(() => {
+          console.log('Fetch timed out, returning empty result');
+          resolve([]);
+        }, 10000);
+        
+        nostrService.queryEvents([filter])
+          .then(events => {
+            clearTimeout(timeoutId);
+            resolve(events || []);
+          })
+          .catch(err => {
+            console.error('Error fetching events:', err);
+            clearTimeout(timeoutId);
+            resolve([]);
+          });
+      });
+      
+      if (notes && notes.length > 0) {
+        // Extract unique authors for profile fetching
+        const authors = [...new Set(notes.map(note => note.pubkey))];
+        await fetchProfiles(authors);
+      }
+      
+      return notes;
+    } catch (error) {
+      console.error('Error in fetchEvents:', error);
+      return [];
+    }
+  }, [hashtags, fetchProfiles]);
+
+  // Initial load
+  useEffect(() => {
+    const loadInitialEvents = async () => {
+      setLoading(true);
+      setError(null);
+      setEvents([]);
+      
+      try {
+        const newEvents = await fetchEvents();
+        setEvents(newEvents);
+        setHasMore(newEvents.length >= 20);
+      } catch (error) {
+        console.error('Error loading initial events:', error);
+        setError('Failed to load posts. Please try again.');
+      } finally {
+        setLoading(false);
+        initialLoadDone.current = true;
+      }
+    };
+    
+    loadInitialEvents();
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      loadInitialEvents();
+    };
+    
+    window.addEventListener('refetch-global-feed', handleRefresh);
+    
+    return () => {
+      window.removeEventListener('refetch-global-feed', handleRefresh);
+    };
+  }, [fetchEvents]);
+  
+  // Function to load more events for infinite scrolling
+  const loadMoreEvents = async () => {
+    if (loadingMore || !hasMore || events.length === 0) return;
+    
+    setLoadingMore(true);
+    
+    try {
+      // Get the oldest event timestamp for pagination
+      const oldestEvent = events[events.length - 1];
+      const until = oldestEvent.created_at;
+      
+      // Fetch older events
+      const olderEvents = await fetchEvents(undefined, until - 1);
+      
+      if (olderEvents.length > 0) {
+        setEvents(prev => [...prev, ...olderEvents]);
+        setHasMore(olderEvents.length >= 20);
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more events:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   // Notify parent component of loading state changes
   useEffect(() => {
     // Update loading state via callback if provided

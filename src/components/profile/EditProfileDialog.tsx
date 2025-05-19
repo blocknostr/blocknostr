@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useUnifiedProfileFetcher } from "@/hooks/useUnifiedProfileFetcher";
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -39,7 +40,8 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
   profile: externalProfile, 
   onProfileUpdate 
 }) => {
-  const { profile: contextProfile, updateProfile, isAuthenticated } = useNostr();
+  const { profile: contextProfile, updateProfile, isAuthenticated, publicKey } = useNostr();
+  const { refreshProfile } = useUnifiedProfileFetcher();
   
   // Use either the external profile passed as a prop or fall back to the context profile
   const profileData = externalProfile || contextProfile;
@@ -74,7 +76,6 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
       });
     }
   }, [profileData, form, open]);
-
   const onSubmit = async (values: ProfileFormValues) => {
     if (!profileData) return;
     
@@ -93,6 +94,18 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
     const success = await updateProfile(updatedProfile);
     
     if (success) {
+      // Refresh profile data in the unified profile service
+      if (publicKey) {
+        try {
+          console.log('EditProfileDialog: Refreshing profile data after update');
+          await refreshProfile(publicKey);
+          toast.success("Profile updated successfully");
+        } catch (err) {
+          console.error('EditProfileDialog: Error refreshing profile data', err);
+          // Don't block the UI flow on refresh errors
+        }
+      }
+      
       onOpenChange(false);
       // Call the external onProfileUpdate if provided
       if (onProfileUpdate) {

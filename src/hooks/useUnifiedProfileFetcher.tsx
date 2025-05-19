@@ -150,11 +150,20 @@ export function useUnifiedProfileFetcher() {
       setLoading(prev => ({ ...prev, ...loadingUpdates }));
     }
   }, [fetchErrors]);
-  
-  /**
+    /**
    * Refresh a profile (force fetch)
    */
-  const refreshProfile = React.useCallback((pubkey: string) => {
+  const refreshProfile = React.useCallback(async (pubkey: string) => {
+    console.log(`[useUnifiedProfileFetcher] Force refreshing profile for ${pubkey.substring(0, 8)}`);
+    
+    // Clear any cached data from all caching layers
+    setProfiles(prev => {
+      const updated = { ...prev };
+      delete updated[pubkey];
+      return updated;
+    });
+    
+    // Force a fresh fetch
     return fetchProfile(pubkey, { force: true });
   }, [fetchProfile]);
   

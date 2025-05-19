@@ -4,16 +4,13 @@ import { AlephiumWalletProvider } from '@alephium/web3-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NostrProvider } from '@/contexts/NostrContext';
 
-import Index from './pages/Index';
-import NewHomePage from './pages/NewHomePage';
+import HomePage from './pages/HomePage';
 import SettingsPage from './pages/SettingsPage';
 import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
 import NotFound from './pages/NotFound';
-import ProfilePage from './pages/ProfilePage'; // Updated ProfilePage
-import ProfileViewPage from './pages/ProfileViewPage';
 import WalletsPage from './pages/WalletsPage';
 import PremiumPage from './pages/PremiumPage';
 import DAOPage from './pages/DAOPage'; // Main DAO listing page
@@ -24,6 +21,7 @@ import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
 import MyArticlesPage from './pages/articles/MyArticlesPage';
 import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
+import UnifiedProfilePage from './pages/UnifiedProfilePage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -39,12 +37,11 @@ function App() {
           <BrowserRouter>
             <div className="flex flex-col min-h-screen">
               <main className="flex-1">
-                <Routes>
-                  <Route element={<MainLayout />}>
-                    {/* Set NewHomePage as default route */}
-                    <Route path="/" element={<NewHomePage />} />
-                    {/* Keep old Index page accessible via /feed */}
-                    <Route path="/feed" element={<Index />} />
+                <Routes>                  <Route element={<MainLayout />}>
+                    {/* Home route */}
+                    <Route path="/" element={<HomePage />} />
+                    {/* Redirect /feed to home for backward compatibility */}
+                    <Route path="/feed" element={<HomePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
                     <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
@@ -54,17 +51,12 @@ function App() {
                     <Route path="/notebin" element={<NotebinPage />} />
                     <Route path="/wallets" element={<WalletsPage />} />
                     <Route path="/premium" element={<PremiumPage />} />
-                    <Route path="/profile" element={<ProfilePage />} /> {/* Updated ProfilePage */}
+                    <Route path="/profile" element={<UnifiedProfilePage />} />
+                    <Route path="/profile/:pubkey" element={<UnifiedProfilePage />} />
 
                     {/* Games Routes */}
                     <Route path="/games" element={<GameManagerPage />} />
                     <Route path="/games/:gameId" element={<GameManagerPage />} />
-
-                    {/* Keep existing profile routes */}
-                    <Route path="/profile/:npub" element={<ProfileViewPage />} />
-                    <Route path="/profile-deprecated/:npub" element={<ProfilePage />} />
-                    <Route path="/profile-view" element={<ProfileViewPage />} />
-                    <Route path="/profile-view/:npub" element={<ProfileViewPage />} />
 
                     {/* Articles Routes */}
                     <Route path="/articles" element={<ArticlesPage />} />

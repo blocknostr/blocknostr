@@ -97,9 +97,8 @@ export class NostrService {
     // Just call connectToUserRelays for now
     await this.connectToUserRelays();
   }
-  
-  public async connectToUserRelays(): Promise<string[]> {
-    await this.relayManager.connectToUserRelays();
+    public async connectToUserRelays(): Promise<string[]> {
+    await this.relayManager.connectToUserRelaysWithPriority();
     return this.getRelayUrls();
   }
 

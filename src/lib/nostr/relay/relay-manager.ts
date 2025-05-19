@@ -3,6 +3,8 @@ import { Relay } from '../types';
 import { ConnectionManager } from './connection-manager';
 import { HealthManager } from './health-manager';
 import { RelayInfoService } from './relay-info-service';
+import { relayPerformanceTracker } from './performance/relay-performance-tracker';
+import { relaySelector } from './selection/relay-selector';
 
 /**
  * Main relay manager that coordinates all relay functionality
@@ -247,6 +249,71 @@ export class RelayManager {
    */
   async getRelayLimitations(relayUrl: string): Promise<any | null> {
     return this.relayInfoService.getRelayLimitations(relayUrl);
+  }
+  
+  /**
+   * Get trusted relays sorted by performance score
+   * @param count Maximum number of relays to return (default 20)
+   * @returns Array of relay URLs sorted by trust score
+   */
+  getTrustedRelays(count: number = 20): string[] {
+    // Get all user relays
+    const userRelayUrls = Array.from(this._userRelays.keys());
+    
+    // Get performance data for each relay
+    const relaysWithScores = userRelayUrls.map(url => ({
+      url,
+      score: relayPerformanceTracker.getRelayScore(url)
+    }));
+    
+    // Sort by score descending (higher is better)
+    relaysWithScores.sort((a, b) => b.score - a.score);
+    
+    // Take the top N relays
+    return relaysWithScores.slice(0, count).map(relay => relay.url);
+  }
+  
+  /**
+   * Connect to user relays with prioritization strategy:
+   * 1. First connect to top 5 trusted relays
+   * 2. Then connect to the rest in batches
+   * @returns Promise resolving when initial connections complete
+   */
+  async connectToUserRelaysWithPriority(): Promise<void> {
+    // Get all user relays
+    const allUserRelays = Array.from(this._userRelays.keys());
+    
+    // If we have fewer than 5 relays, just connect to all
+    if (allUserRelays.length <= 5) {
+      return this.connectToUserRelays();
+    }
+    
+    try {
+      // Get top trusted relays (max 20)
+      const trustedRelays = this.getTrustedRelays(20);
+      
+      // First connect to top 5 relays immediately
+      const priorityRelays = trustedRelays.slice(0, 5);
+      console.log(`Prioritizing connection to top 5 trusted relays: ${priorityRelays.join(', ')}`);
+      await this.connectionManager.connectToRelays(priorityRelays);
+      
+      // Then connect to the rest of the trusted relays (6-20) in the background
+      const remainingTrustedRelays = trustedRelays.slice(5);
+      if (remainingTrustedRelays.length > 0) {
+        console.log(`Connecting to ${remainingTrustedRelays.length} additional trusted relays in the background`);
+        setTimeout(() => {
+          this.connectionManager.connectToRelays(remainingTrustedRelays);
+        }, 3000); // Connect after 3 seconds
+      }
+      
+      // Any remaining user relays will be connected on-demand
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error connecting to trusted relays:", error);
+      // Fallback to regular connection method
+      return this.connectToUserRelays();
+    }
   }
   
   /**
