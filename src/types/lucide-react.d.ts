@@ -33,4 +33,53 @@ declare module 'lucide-react' {
   export const ExternalLink: LucideIcon;
   export const AlertCircle: LucideIcon;
   export const RefreshCw: LucideIcon;
+  
+  // Additional icons needed for the profile page
+  export const User: LucideIcon;
+  export const Edit: LucideIcon;
+  export const Link: LucideIcon;
+  export const Calendar: LucideIcon;
+  export const MapPin: LucideIcon;
+  export const CheckCircle: LucideIcon;
+  export const CheckCircle2: LucideIcon;
+  
+  // Icons needed for other components
+  export const SmilePlus: LucideIcon;
+  export const SendHorizontal: LucideIcon;
+  export const MessageSquare: LucideIcon;
+  export const UserCheck: LucideIcon;
+  export const HistoryIcon: LucideIcon;
+  export const RefreshCcwIcon: LucideIcon;
+  export const Lightbulb: LucideIcon;
+  export const Search: LucideIcon;
+  export const Menu: LucideIcon;
+  export const LogOut: LucideIcon;
+  export const Shield: LucideIcon;
+  export const MoreHorizontal: LucideIcon;
+  export const Pencil: LucideIcon;
+  export const Trash: LucideIcon;
+  export const Save: LucideIcon;
+  export const Send: LucideIcon;
+  export const X: LucideIcon;
+  export const LockOpen: LucideIcon;
+  export const KeyRound: LucideIcon;
+  export const QrCode: LucideIcon;
+  export const Wifi: LucideIcon;
+  export const WifiOff: LucideIcon;
+  export const LogIn: LucideIcon;
+  export const ChevronDown: LucideIcon;
+  export const UserPlus: LucideIcon;
+  export const UserMinus: LucideIcon;
+  export const CalendarIcon: LucideIcon;
+  export const Lock: LucideIcon;
+  export const Trash2: LucideIcon;
+  export const Copy: LucideIcon;
+  export const ArrowLeft: LucideIcon;
+  export const Plus: LucideIcon;
+  export const ListOrdered: LucideIcon;
+  export const Compass: LucideIcon;
+  export const Heart: LucideIcon;
+  export const FileQuestion: LucideIcon;
+  export const Smile: LucideIcon;
+  export const Fingerprint: LucideIcon;
 }

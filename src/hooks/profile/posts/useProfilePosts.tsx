@@ -128,17 +128,21 @@ export function useProfilePosts({
         
         // Store the unsubscribe function
         unsubscribeRef.current = unsub;
-        return unsub;
       } catch (error) {
         console.error("Error subscribing to events:", error);
         setLoading(false);
         setError("Failed to subscribe to events");
-        return () => {};
       }
     };
     
-    // Start subscription without awaiting
-    startSubscription();
+    // Start subscription and handle the Promise correctly
+    startSubscription().catch(err => {
+      console.error("Failed to start subscription:", err);
+      if (isMounted.current) {
+        setLoading(false);
+        setError("Failed to connect to relays");
+      }
+    });
     
     // Return cleanup function
     return () => {
