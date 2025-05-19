@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +9,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, For
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -69,11 +68,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChang
     if (!profile) return;
     
     if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "You must be logged in to update your profile",
-        variant: "destructive"
-      });
+      toast("Authentication required. You must be logged in to update your profile");
       return;
     }
     

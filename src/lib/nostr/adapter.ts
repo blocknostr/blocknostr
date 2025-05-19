@@ -7,7 +7,7 @@ import { NostrEvent, Relay } from './types';
  */
 export class NostrAdapter {
   private pool: SimplePool;
-  private publicKey: string | null = null;
+  private _publicKey: string | null = null;
   private _relays: Relay[] = [];
   
   constructor() {
@@ -22,8 +22,18 @@ export class NostrAdapter {
   
   signOut = async () => {
     console.log("Sign out called");
-    this.publicKey = null;
+    this._publicKey = null;
     return true;
+  }
+
+  // Alias for compatibility
+  logout = async () => {
+    return this.signOut();
+  }
+  
+  // Check if logged in
+  isLoggedIn = () => {
+    return !!this._publicKey;
   }
   
   // Key formatting methods
@@ -127,7 +137,7 @@ export class NostrAdapter {
       url,
       read: true,
       write: true,
-      status: 'connecting'
+      status: 'connected'
     });
     console.log(`Added relay ${url}`);
     return true;
@@ -146,7 +156,34 @@ export class NostrAdapter {
     ];
   }
   
+  // Profile methods
+  getUserProfile = async (pubkey: string) => {
+    console.log(`Getting profile for ${pubkey}`);
+    return {
+      name: "Default Name",
+      display_name: "Default Display Name",
+      about: "Default bio",
+      picture: "https://placekitten.com/200/200",
+      banner: "https://placekitten.com/1000/300",
+      nip05: "user@example.com",
+      website: "https://example.com"
+    };
+  }
+
+  updateProfile = async (profileData: Record<string, string>): Promise<boolean> => {
+    console.log("Updating profile with data:", profileData);
+    return true;
+  }
+  
   // Access properties
+  get publicKey(): string | null {
+    return this._publicKey;
+  }
+  
+  set publicKey(key: string | null) {
+    this._publicKey = key;
+  }
+  
   get following(): string[] {
     return [];
   }

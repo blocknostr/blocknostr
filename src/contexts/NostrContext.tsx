@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { NostrProfile } from '@/lib/nostr/types';
 import { nostrService } from '@/lib/nostr';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 
 interface NostrContextType {
   isAuthenticated: boolean;
@@ -34,7 +34,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (nostrService.isLoggedIn()) {
+        // Check if logged in by verifying if publicKey is available
+        if (nostrService.publicKey) {
           const pubkey = nostrService.publicKey;
           setPublicKey(pubkey);
           setIsAuthenticated(true);
@@ -111,7 +112,8 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = () => {
     try {
-      nostrService.logout();
+      // Use signOut method from adapter
+      nostrService.signOut();
       setIsAuthenticated(false);
       setPublicKey(null);
       setProfile(null);
@@ -142,26 +144,15 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (success) {
         // Update local state
         setProfile(updatedProfile);
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been updated successfully"
-        });
+        toast("Profile updated successfully");
         return true;
       } else {
-        toast({
-          title: "Update failed",
-          description: "Failed to update profile. Please try again.",
-          variant: "destructive"
-        });
+        toast("Failed to update profile. Please try again.");
         return false;
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast({
-        title: "Update error",
-        description: "An error occurred while updating your profile",
-        variant: "destructive"
-      });
+      toast("An error occurred while updating your profile");
       return false;
     }
   };
