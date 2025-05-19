@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, Link as LinkIcon, MapPin, Users, User, Network, Loader2 } from 'lucide-react';
@@ -10,7 +9,7 @@ import FollowButton from '@/components/FollowButton';
 import ProfileRelaysDialog from './ProfileRelaysDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Relay } from "@/lib/nostr";
-import EditProfileDialog from './edit-profile/EditProfileDialog';
+import EditProfileDialog from './EditProfileDialog';
 
 interface ProfileHeaderProps {
   profile: any;

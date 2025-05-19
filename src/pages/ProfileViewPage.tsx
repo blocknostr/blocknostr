@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -12,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
-import EditProfileDialog from '@/components/profile/edit-profile/EditProfileDialog';
+import EditProfileDialog from '@/components/profile/EditProfileDialog';
 
 /**
  * A lightweight, NIP-compliant profile viewer page

@@ -3,11 +3,11 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LucideProps } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 
 interface SidebarNavItemProps {
   name: string;
-  icon: React.ComponentType<LucideProps>;
+  icon: React.ComponentType<React.ComponentProps<typeof LucideIcon>>;
   href: string;
   isActive: boolean;
   onClick?: () => void;
