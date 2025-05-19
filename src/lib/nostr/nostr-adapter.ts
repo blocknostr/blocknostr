@@ -10,6 +10,7 @@ import { relayPerformanceTracker } from './relay/performance/relay-performance-t
 import { relaySelector } from './relay/selection/relay-selector';
 import { circuitBreaker, CircuitState } from './relay/circuit/circuit-breaker';
 import { ArticleAdapter } from './adapters/article-adapter';
+import { eventBus, EVENTS } from '@/lib/services/EventBus';
 
 /**
  * Main NostrAdapter that implements all functionality through domain-specific adapters
@@ -164,6 +165,15 @@ export class NostrAdapter extends BaseAdapter {
       
       if (eventId) {
         console.log(`Profile updated successfully with event ID: ${eventId}`);
+        
+        // Emit event to notify other components about the profile update
+        eventBus.emit(EVENTS.PROFILE_UPDATED, this.service.publicKey, profileData);
+        
+        // Clear any cached profile data to ensure we get fresh data on next fetch
+        if (this.dataAdapter.clearProfileCache) {
+          this.dataAdapter.clearProfileCache(this.service.publicKey);
+        }
+        
         return true;
       } else {
         console.warn("Failed to publish profile update event");

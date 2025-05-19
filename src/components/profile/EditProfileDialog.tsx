@@ -29,8 +29,8 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  profile?: any; // Add the profile prop
-  onProfileUpdate?: () => void; // Make this optional
+  profile?: any; // External profile data
+  onProfileUpdate?: () => void; // Callback when profile is updated
 }
 
 const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ 
@@ -83,21 +83,28 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
       return;
     }
     
-    // Create updated profile object
+    // Create updated profile object according to NIP-01
     const updatedProfile: NostrProfile = {
       ...profileData,
       ...values,
     };
     
+    console.log("Submitting updated profile:", updatedProfile);
+    
     // Update profile
     const success = await updateProfile(updatedProfile);
     
     if (success) {
+      toast.success("Profile updated successfully");
       onOpenChange(false);
+      
       // Call the external onProfileUpdate if provided
       if (onProfileUpdate) {
+        console.log("Calling onProfileUpdate callback");
         onProfileUpdate();
       }
+    } else {
+      toast.error("Failed to update profile");
     }
   };
 

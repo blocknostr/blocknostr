@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
@@ -63,9 +64,7 @@ const ProfileViewPage = () => {
     const fetchNotes = async () => {
       setLoadingNotes(true);
       try {
-        // Fix: Use getEventsByUser which is available in the adapter
-        // The method in data-adapter.ts expects only 1 parameter (pubkey)
-        // The limit is handled within the method implementation
+        // Fetch notes for this user
         const events = await nostrService.getEventsByUser(hexPubkey);
         setNotes(events);
       } catch (error) {
@@ -96,10 +95,25 @@ const ProfileViewPage = () => {
     setActiveTab(value);
   };
   
-  // Handle profile update
+  // Handle profile update with proper refresh
   const handleProfileUpdate = () => {
     if (hexPubkey) {
+      console.log("Profile updated, refreshing data for:", hexPubkey);
+      // Force refresh the profile data to get latest changes
       refreshProfile(hexPubkey);
+      // Also refresh notes as they might contain profile info
+      const fetchNotes = async () => {
+        setLoadingNotes(true);
+        try {
+          const events = await nostrService.getEventsByUser(hexPubkey);
+          setNotes(events);
+        } catch (error) {
+          console.error('Error refreshing notes:', error);
+        } finally {
+          setLoadingNotes(false);
+        }
+      };
+      fetchNotes();
     }
   };
   
