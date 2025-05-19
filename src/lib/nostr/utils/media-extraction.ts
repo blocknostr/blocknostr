@@ -1,5 +1,5 @@
 
-import { NostrEvent } from "@/lib/nostr";
+import { NostrEvent } from "@/lib/nostr/types";
 
 /**
  * Checks if a URL is a valid media URL

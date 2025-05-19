@@ -1,4 +1,20 @@
 
+export interface NostrProfile {
+  pubkey?: string;
+  name?: string;
+  displayName?: string;
+  display_name?: string;
+  picture?: string;
+  banner?: string;
+  about?: string;
+  website?: string;
+  nip05?: string;
+  lud16?: string;
+  created_at?: number;
+  _event?: any;
+  [key: string]: any;
+}
+
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -9,52 +25,21 @@ export interface NostrEvent {
   sig: string;
 }
 
-/**
- * Extended Relay interface with performance metrics
- */
 export interface Relay {
   url: string;
-  status: 'connected' | 'connecting' | 'disconnected' | 'failed';
   read: boolean;
   write: boolean;
-  score?: number;
-  avgResponse?: number;
-  supportedNips?: number[];
-  load?: number;
+  status: 'connected' | 'connecting' | 'disconnected' | 'error';
 }
 
 export interface NostrProfileMetadata {
   name?: string;
   display_name?: string;
-  about?: string;
   picture?: string;
   banner?: string;
+  about?: string;
+  website?: string;
   nip05?: string;
   lud16?: string;
-  website?: string;
   [key: string]: any;
-}
-
-export type NostrFilter = {
-  ids?: string[];
-  authors?: string[];
-  kinds?: number[];
-  '#e'?: string[];
-  '#p'?: string[];
-  '#t'?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-  [key: string]: any;
-};
-
-export interface NostrSubscription {
-  sub: string;
-  filters: NostrFilter[];
-  relays: string[];
-  callbacks: {
-    onevent: (event: NostrEvent) => void;
-    onclose: () => void;
-  };
-  unsub?: () => void;
 }
