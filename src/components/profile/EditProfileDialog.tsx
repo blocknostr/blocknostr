@@ -3,14 +3,14 @@ import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { NostrProfile } from "@/lib/nostr";
 import { useNostr } from "@/contexts/NostrContext";
+import { NostrProfile } from "@/types/nostr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -29,17 +29,27 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  profile?: NostrProfile;
+  onProfileUpdate?: () => void;
 }
 
-const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChange }) => {
-  const { profile, updateProfile, isAuthenticated } = useNostr();
+const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ 
+  open, 
+  onOpenChange,
+  profile: externalProfile,
+  onProfileUpdate
+}) => {
+  const { profile: contextProfile, updateProfile, isAuthenticated } = useNostr();
+  
+  // Use external profile if provided, otherwise use profile from context
+  const profile = externalProfile || contextProfile;
   
   // Initialize the form with current profile values
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: profile?.name || "",
-      displayName: profile?.displayName || "",
+      displayName: profile?.displayName || profile?.display_name || "",
       picture: profile?.picture || "",
       banner: profile?.banner || "",
       about: profile?.about || "",
@@ -54,7 +64,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChang
     if (profile && open) {
       form.reset({
         name: profile.name || "",
-        displayName: profile.displayName || "",
+        displayName: profile.displayName || profile.display_name || "",
         picture: profile.picture || "",
         banner: profile.banner || "",
         about: profile.about || "",
@@ -69,10 +79,8 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChang
     if (!profile) return;
     
     if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "You must be logged in to update your profile",
-        variant: "destructive"
+      toast.error("Authentication required", {
+        description: "You must be logged in to update your profile"
       });
       return;
     }
@@ -87,7 +95,13 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChang
     const success = await updateProfile(updatedProfile);
     
     if (success) {
+      toast.success("Profile updated successfully");
       onOpenChange(false);
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
+    } else {
+      toast.error("Failed to update profile");
     }
   };
 

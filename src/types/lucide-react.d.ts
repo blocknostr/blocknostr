@@ -14,6 +14,37 @@ declare module 'lucide-react' {
   // Export all icons from lucide-react
   export type LucideIcon = React.FC<LucideProps>;
   
+  // Add missing icons
+  export const SlidersHorizontal: LucideIcon;
+  export const TrendingUp: LucideIcon;
+  export const TrendingDown: LucideIcon;
+  export const XCircle: LucideIcon;
+  export const Dot: LucideIcon;
+  export const GripVertical: LucideIcon;
+  export const PanelLeft: LucideIcon;
+  export const CheckCheck: LucideIcon;
+  export const Star: LucideIcon;
+  export const Activity: LucideIcon;
+  export const Database: LucideIcon;
+  export const ArrowUpDown: LucideIcon;
+  export const DollarSign: LucideIcon;
+  export const PlusCircle: LucideIcon;
+  export const Bitcoin: LucideIcon;
+  export const Gavel: LucideIcon;
+  export const HardDrive: LucideIcon;
+  export const InfoIcon: LucideIcon;
+  export const Bookmark: LucideIcon;
+  export const LayoutGrid: LucideIcon;
+  export const ChartLine: LucideIcon;
+  export const Lock: LucideIcon;
+  export const Server: LucideIcon;
+  export const Circle: LucideIcon;
+  export const Blocks: LucideIcon;
+  export const ArrowUpRight: LucideIcon;
+  export const ArrowDownLeft: LucideIcon;
+  export const ArrowDownUp: LucideIcon;
+  export const Settings2: LucideIcon;
+  
   // Base icons used in the profile page and edit dialog
   export const Home: LucideIcon;
   export const Bell: LucideIcon;

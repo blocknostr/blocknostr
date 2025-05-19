@@ -14,7 +14,7 @@ import {
   MessageSquarePlus,
   GamepadIcon
 } from "lucide-react";
-import SidebarNavItem from "./SidebarNavItem";
+import { SidebarNavItem } from "./SidebarNavItem"; // Fix the import to use named export
 import { nostrService } from "@/lib/nostr";
 import CreateNoteModal from "@/components/note/CreateNoteModal";
 
@@ -110,23 +110,6 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
     }
   ];
 
-  // Create a separate component for the CreateNote button
-  const CreateNoteButton = () => {
-    if (!isLoggedIn) return null;
-
-    return (
-      <SidebarNavItem
-        key="create-note"
-        name="Create Note"
-        icon={MessageSquarePlus}
-        href="#"
-        isActive={false}
-        onClick={() => setShowCreateNoteModal(true)}
-        special={true}
-      />
-    );
-  };
-
   return (
     <nav className="flex-1">
       <ul className="space-y-2">
@@ -143,16 +126,23 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
           return (
             <SidebarNavItem
               key={item.name}
-              name={item.name}
               icon={item.icon}
-              href={item.href}
-              isActive={isActive}
+              text={item.name}
+              to={item.href}
+              active={isActive}
             />
           );
         })}
 
         {/* Add the Create Note button below Settings */}
-        <CreateNoteButton />
+        {isLoggedIn && (
+          <SidebarNavItem
+            key="create-note"
+            icon={MessageSquarePlus}
+            text="Create Note"
+            onClick={() => setShowCreateNoteModal(true)}
+          />
+        )}
       </ul>
 
       {/* Create Note Modal */}

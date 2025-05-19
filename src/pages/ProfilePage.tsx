@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nostrService } from '@/lib/nostr';
 import { useBasicProfile } from '@/hooks/useBasicProfile';
@@ -13,12 +13,14 @@ import {
   Link as LinkIcon, 
   Calendar, 
   MapPin, 
-  CheckCircle2 
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
-import EditProfileDialog from '@/components/profile/edit-profile/EditProfileDialog';
+import EditProfileDialog from '@/components/profile/EditProfileDialog';
 import useProfilePosts from '@/hooks/profile/posts/useProfilePosts';
 import UnifiedFeedTab from '@/components/profile/tabs/UnifiedFeedTab';
 import { useInfiniteScroll } from '@/hooks/use-infinite-scroll';
+import { getMediaUrlsFromEvent } from '@/lib/nostr/utils/media-extraction';
 
 const ProfilePage = () => {
   const { npub } = useParams<{ npub: string }>();
