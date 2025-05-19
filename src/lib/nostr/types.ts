@@ -25,11 +25,27 @@ export interface NostrEvent {
   sig: string;
 }
 
+export interface NostrFilter {
+  ids?: string[];
+  authors?: string[];
+  kinds?: number[];
+  '#e'?: string[];
+  '#p'?: string[];
+  '#t'?: string[];
+  since?: number;
+  until?: number;
+  limit?: number;
+  [key: string]: any;
+}
+
 export interface Relay {
   url: string;
   read: boolean;
   write: boolean;
-  status: 'connected' | 'connecting' | 'disconnected' | 'error';
+  status: 'connected' | 'connecting' | 'disconnected' | 'error' | 'failed';
+  score?: number;
+  avgResponse?: number;
+  circuitStatus?: string;
 }
 
 export interface NostrProfileMetadata {

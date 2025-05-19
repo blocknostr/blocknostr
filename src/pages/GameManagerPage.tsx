@@ -127,6 +127,7 @@ const GameManagerPage: React.FC = () => {
       };
       
       // Publish game to Nostr network
+      // Fix: Use only one argument instead of two
       const eventId = await nostrService.publishEvent(fullEvent);
       
       if (eventId) {

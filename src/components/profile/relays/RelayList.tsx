@@ -28,8 +28,10 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
       // For status: connected > disconnected > failed
       const statusOrder: Record<string, number> = {
         connected: 3,
-        disconnected: 2,
-        failed: 1
+        connecting: 2,
+        disconnected: 1,
+        error: 0,
+        failed: 0
       };
       
       const aValue = statusOrder[a.status] || 0;
@@ -81,7 +83,7 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
           </Tooltip>
         </TooltipProvider>
       );
-    } else if (relay.status === 'failed' || circuitState === CircuitState.OPEN) {
+    } else if (relay.status === 'error' || relay.status === 'failed' || circuitState === CircuitState.OPEN) {
       return (
         <TooltipProvider>
           <Tooltip>
@@ -161,7 +163,7 @@ export function RelayList({ relays, isCurrentUser, onRemoveRelay, renderRelaySco
                 flex items-center justify-between p-3 rounded-md border
                 ${relay.status === 'connected' 
                   ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900/50' 
-                  : relay.status === 'failed' || circuitBreaker.getState(relay.url) === CircuitState.OPEN
+                  : (relay.status === 'error' || relay.status === 'failed' || circuitBreaker.getState(relay.url) === CircuitState.OPEN)
                     ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/50'
                     : 'bg-background border-muted'}
               `}
