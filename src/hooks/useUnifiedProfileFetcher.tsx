@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
 import { nostrService } from "@/lib/nostr";
@@ -12,17 +13,9 @@ export function useUnifiedProfileFetcher() {
   const [loading, setLoading] = React.useState<Record<string, boolean>>({});
   const activeSubscriptions = React.useRef<Record<string, () => void>>({});
   
-  // Listen for profile updates from event bus
+  // Clean up subscriptions on unmount
   React.useEffect(() => {
-    const handleProfileUpdate = (pubkey: string, profileData: any) => {
-      console.log("Received profile update event for", pubkey.slice(0, 8));
-      setProfiles(prev => ({ ...prev, [pubkey]: { ...prev[pubkey], ...profileData } }));
-    };
-    
-    eventBus.on(EVENTS.PROFILE_UPDATED, handleProfileUpdate);
-    
     return () => {
-      eventBus.off(EVENTS.PROFILE_UPDATED, handleProfileUpdate);
       Object.values(activeSubscriptions.current).forEach(unsubscribe => {
         if (unsubscribe) unsubscribe();
       });
@@ -162,7 +155,6 @@ export function useUnifiedProfileFetcher() {
    * Refresh a profile (force fetch)
    */
   const refreshProfile = React.useCallback((pubkey: string) => {
-    console.log(`[useUnifiedProfileFetcher] Force refreshing profile for ${pubkey.slice(0, 8)}`);
     return fetchProfile(pubkey, { force: true });
   }, [fetchProfile]);
   
