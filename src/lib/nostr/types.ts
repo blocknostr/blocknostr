@@ -1,4 +1,3 @@
-
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -44,6 +43,7 @@ export interface NostrProfile {
   picture?: string;
   banner?: string;
   nip05?: string;
+  nip05Verified?: boolean; // Added for NIP-05 verification status
   lud16?: string;
   website?: string;
   [key: string]: any;

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { NostrProfile } from '@/lib/nostr/types';
 import { nostrService } from '@/lib/nostr';
@@ -41,20 +40,25 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsAuthenticated(true);
           
           // Fetch profile data
-          const userProfile = await nostrService.getUserProfile(pubkey);
+          const userProfileData = await nostrService.getUserProfile(pubkey);
           
-          if (userProfile) {
+          if (userProfileData) {
+            let nip05Verified = false;
+            if (userProfileData.nip05 && pubkey) {
+              nip05Verified = await nostrService.verifyNip05(userProfileData.nip05, pubkey);
+            }
             setProfile({
               pubkey,
               npub: nostrService.getNpubFromHex(pubkey),
-              name: userProfile.name,
-              displayName: userProfile.display_name,
-              about: userProfile.about,
-              picture: userProfile.picture,
-              banner: userProfile.banner,
-              nip05: userProfile.nip05,
-              lud16: userProfile.lud16,
-              website: userProfile.website
+              name: userProfileData.name,
+              displayName: userProfileData.display_name,
+              about: userProfileData.about,
+              picture: userProfileData.picture,
+              banner: userProfileData.banner,
+              nip05: userProfileData.nip05,
+              nip05Verified: nip05Verified, // Set nip05Verified status
+              lud16: userProfileData.lud16,
+              website: userProfileData.website
             });
           }
         }
@@ -81,20 +85,25 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsAuthenticated(true);
         
         // Fetch profile data
-        const userProfile = await nostrService.getUserProfile(pubkey);
+        const userProfileData = await nostrService.getUserProfile(pubkey);
         
-        if (userProfile) {
+        if (userProfileData) {
+          let nip05Verified = false;
+          if (userProfileData.nip05 && pubkey) {
+            nip05Verified = await nostrService.verifyNip05(userProfileData.nip05, pubkey);
+          }
           setProfile({
             pubkey,
             npub: nostrService.getNpubFromHex(pubkey),
-            name: userProfile.name,
-            displayName: userProfile.display_name,
-            about: userProfile.about,
-            picture: userProfile.picture,
-            banner: userProfile.banner,
-            nip05: userProfile.nip05,
-            lud16: userProfile.lud16,
-            website: userProfile.website
+            name: userProfileData.name,
+            displayName: userProfileData.display_name,
+            about: userProfileData.about,
+            picture: userProfileData.picture,
+            banner: userProfileData.banner,
+            nip05: userProfileData.nip05,
+            nip05Verified: nip05Verified, // Set nip05Verified status
+            lud16: userProfileData.lud16,
+            website: userProfileData.website
           });
         }
         
@@ -127,7 +136,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     try {
       // Convert profile fields to format expected by nostrService
-      const profileUpdate = {
+      const profileUpdateData = {
         name: updatedProfile.name,
         display_name: updatedProfile.displayName,
         about: updatedProfile.about,
@@ -139,11 +148,15 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       
       // Update profile through nostrService
-      const success = await nostrService.updateProfile(profileUpdate);
+      const success = await nostrService.updateProfile(profileUpdateData);
       
       if (success) {
+        let nip05Verified = false;
+        if (updatedProfile.nip05 && publicKey) {
+          nip05Verified = await nostrService.verifyNip05(updatedProfile.nip05, publicKey);
+        }
         // Update local state
-        setProfile(updatedProfile);
+        setProfile({...updatedProfile, nip05Verified}); // Update nip05Verified status
         toast("Profile updated successfully");
         return true;
       } else {

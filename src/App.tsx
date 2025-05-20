@@ -4,9 +4,9 @@ import { AlephiumWalletProvider } from '@alephium/web3-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NostrProvider } from '@/contexts/NostrContext';
 
-import HomePage from './pages/HomePage';
+// import HomePage from './pages/HomePage';
 import SettingsPage from './pages/SettingsPage';
-import MessagesPage from './pages/MessagesPage';
+// import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PostPage from './pages/PostPage';
 import NotebinPage from './pages/NotebinPage';
@@ -21,7 +21,7 @@ import ArticleEditorPage from './pages/articles/ArticleEditorPage';
 import ArticleViewPage from './pages/articles/ArticleViewPage';
 import MyArticlesPage from './pages/articles/MyArticlesPage';
 import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
-import UnifiedProfilePage from './pages/UnifiedProfilePage';
+// import UnifiedProfilePage from './pages/UnifiedProfilePage';
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -39,20 +39,20 @@ function App() {
               <main className="flex-1">
                 <Routes>                  <Route element={<MainLayout />}>
                     {/* Home route */}
-                    <Route path="/" element={<HomePage />} />
+                    {/* <Route path="/" element={<HomePage />} /> */}
                     {/* Redirect /feed to home for backward compatibility */}
-                    <Route path="/feed" element={<HomePage />} />
+                    {/* <Route path="/feed" element={<HomePage />} /> */}
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
                     <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
-                    <Route path="/messages" element={<MessagesPage />} />
+                    {/* <Route path="/messages" element={<MessagesPage />} /> */}
                     <Route path="/notifications" element={<NotificationsPage />} />
                     <Route path="/post/:id" element={<PostPage />} />
                     <Route path="/notebin" element={<NotebinPage />} />
                     <Route path="/wallets" element={<WalletsPage />} />
                     <Route path="/premium" element={<PremiumPage />} />
-                    <Route path="/profile" element={<UnifiedProfilePage />} />
-                    <Route path="/profile/:pubkey" element={<UnifiedProfilePage />} />
+                    {/* <Route path="/profile" element={<UnifiedProfilePage />} /> */}
+                    {/* <Route path="/profile/:pubkey" element={<UnifiedProfilePage />} /> */}
 
                     {/* Games Routes */}
                     <Route path="/games" element={<GameManagerPage />} />

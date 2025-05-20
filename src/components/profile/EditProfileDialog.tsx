@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useUnifiedProfileFetcher } from "@/hooks/useUnifiedProfileFetcher";
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
@@ -30,21 +28,18 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  profile?: any; // Add the profile prop
-  onProfileUpdate?: () => void; // Make this optional
+  onProfileUpdate?: () => void;
 }
 
 const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ 
   open, 
   onOpenChange, 
-  profile: externalProfile, 
   onProfileUpdate 
 }) => {
   const { profile: contextProfile, updateProfile, isAuthenticated, publicKey } = useNostr();
-  const { refreshProfile } = useUnifiedProfileFetcher();
   
-  // Use either the external profile passed as a prop or fall back to the context profile
-  const profileData = externalProfile || contextProfile;
+  // Use context profile directly
+  const profileData = contextProfile;
   
   // Initialize the form with current profile values
   const form = useForm<ProfileFormValues>({
@@ -77,9 +72,7 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
     }
   }, [profileData, form, open]);
   const onSubmit = async (values: ProfileFormValues) => {
-    if (!profileData) return;
-    
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !profileData) {
       toast.error("Authentication required. You must be logged in to update your profile");
       return;
     }
@@ -87,30 +80,28 @@ const EditProfileDialog: React.FC<EditProfileDialogProps> = ({
     // Create updated profile object
     const updatedProfile: NostrProfile = {
       ...profileData,
-      ...values,
+      name: values.name || undefined,
+      displayName: values.displayName || undefined,
+      picture: values.picture || undefined,
+      banner: values.banner || undefined,
+      about: values.about || undefined,
+      website: values.website || undefined,
+      nip05: values.nip05 || undefined,
+      lud16: values.lud16 || undefined,
     };
     
     // Update profile
     const success = await updateProfile(updatedProfile);
     
     if (success) {
-      // Refresh profile data in the unified profile service
-      if (publicKey) {
-        try {
-          console.log('EditProfileDialog: Refreshing profile data after update');
-          await refreshProfile(publicKey);
-          toast.success("Profile updated successfully");
-        } catch (err) {
-          console.error('EditProfileDialog: Error refreshing profile data', err);
-          // Don't block the UI flow on refresh errors
-        }
-      }
+      toast.success("Profile updated successfully. NIP-05 will be re-verified if changed.");
       
       onOpenChange(false);
-      // Call the external onProfileUpdate if provided
       if (onProfileUpdate) {
         onProfileUpdate();
       }
+    } else {
+      toast.error("Failed to update profile. Please try again.");
     }
   };
 
