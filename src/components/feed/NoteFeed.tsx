@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { nostrService } from '@/lib/nostr';
@@ -7,6 +6,7 @@ import { useUnifiedProfileFetcher } from '@/hooks/useUnifiedProfileFetcher';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { User, MessageSquare, Repeat, Heart } from 'lucide-react';
+import { Link as RouterLink } from 'react-router-dom'; // Import Link
 
 interface NoteFeedProps {
   pubkey: string;
@@ -99,28 +99,34 @@ const NoteFeed: React.FC<NoteFeedProps> = ({ pubkey }) => {
     <div className="space-y-4">
       {notes.map(note => (
         <Card key={note.id} className="border rounded-lg">
-          <CardHeader className="p-4 pb-2">            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                {profiles[note.pubkey]?.picture ? (
-                  <img 
-                    src={profiles[note.pubkey].picture} 
-                    alt={profiles[note.pubkey]?.name || "User"} 
-                    className="object-cover"                    onError={(e) => {
-                      console.warn("Author image failed to load, replacing with default");
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none"; // Hide the img element
-                      target.onerror = null;
-                      // Parent Avatar component will show the User icon as fallback
-                    }}
-                  />
-                ) : (
-                  <User className="h-6 w-6 m-auto text-muted-foreground" />
-                )}
-              </Avatar>
+          <CardHeader className="p-4 pb-2">            
+            <div className="flex items-center gap-3">
+              <RouterLink to={`/profile/${note.pubkey}`}> {/* Wrap Avatar with Link */}
+                <Avatar className="h-10 w-10 cursor-pointer">
+                  {profiles[note.pubkey]?.picture ? (
+                    <img 
+                      src={profiles[note.pubkey].picture} 
+                      alt={profiles[note.pubkey]?.name || "User"} 
+                      className="object-cover"                    
+                      onError={(e) => {
+                        console.warn("Author image failed to load, replacing with default");
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none"; // Hide the img element
+                        target.onerror = null;
+                        // Parent Avatar component will show the User icon as fallback
+                      }}
+                    />
+                  ) : (
+                    <User className="h-6 w-6 m-auto text-muted-foreground" />
+                  )}
+                </Avatar>
+              </RouterLink>
               <div>
-                <div className="font-medium">
-                  {profiles[note.pubkey]?.display_name || profiles[note.pubkey]?.name || "Anonymous"}
-                </div>
+                <RouterLink to={`/profile/${note.pubkey}`} className="hover:underline"> {/* Wrap name with Link */}
+                  <div className="font-medium">
+                    {profiles[note.pubkey]?.display_name || profiles[note.pubkey]?.name || "Anonymous"}
+                  </div>
+                </RouterLink>
                 <div className="text-xs text-muted-foreground">
                   {note.created_at && formatDistanceToNow(new Date(note.created_at * 1000), { addSuffix: true })}
                 </div>
