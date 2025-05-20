@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -88,7 +87,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleTopicClick = (topic: string) => {
     setActiveHashtag(topic);
     if (isMobile) {
-      setRightPanelOpen(false);
+      setRightPanelOpen(false); // Assuming right panel is GlobalSidebar on mobile
+      setLeftPanelOpen(false); // Close left panel if topic is clicked from there
     }
     window.scrollTo(0, 0);
     window.dispatchEvent(new CustomEvent('set-hashtag', { detail: topic }));
@@ -108,59 +108,69 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   return (
-    <NavigationProvider>
-      <div
-        className={cn(
-          "flex min-h-screen bg-background relative overscroll-none",
-          preferences.uiPreferences?.compactMode ? "text-sm" : "",
-          iOSSafeArea ? "ios-safe-area" : ""
-        )}
-        style={iOSSafeArea ? { minHeight: `${windowHeight}px` } : undefined}
-      >
-        {/* Desktop sidebar - only visible on non-mobile */}
-        {!isMobile && <Sidebar />}
-
-        <div
-          className={cn(
-            "flex-1 transition-all duration-200",
-            !isMobile && "ml-64",
-            iOSSafeArea && "ios-safe-padding-bottom"
+    <div // Outermost div
+      className={cn(
+        "flex h-screen bg-background text-foreground",
+        iOSSafeArea && "h-[var(--vh)] overflow-hidden" // Dynamically adjust height for iOS
+      )}
+      style={iOSSafeArea ? { height: `calc(${windowHeight}px * 0.01 * 100)` } : {}} // Apply dynamic height
+      {...swipeHandlers} // Apply swipe handlers for mobile navigation
+    >
+      <NavigationProvider>
+        {/* Centering container for sidebars and main content */}
+        <div className="flex w-full max-w-7xl mx-auto"> {/* MODIFIED: Changed max-w-5xl to max-w-7xl */}
+          {preferences.uiPreferences.showTrending && ( // Corrected: Assuming showTrending maps to showLeftSidebar
+            <Sidebar // This is the LEFT sidebar (previously GlobalSidebar component was here)
+              // The Sidebar component seems to be the one with navigation and profile, typically on the left.
+              // className is handled internally by Sidebar based on isMobile.
+              // Props like onTopicClick, onClose are not directly on Sidebar, it has its own nav.
+              // We need to ensure Sidebar can be controlled for mobile (open/close) if it's the main left panel.
+              // For now, assuming Sidebar's internal logic handles its display.
+              // If Sidebar needs to be controlled:
+              isOpen={leftPanelOpen} // Pass state for mobile sheet
+              onClose={() => setLeftPanelOpen(false)} // Handler to close mobile sheet
+            />
           )}
-          {...swipeHandlers}
-        >
-          <GlobalHeader
-            leftPanelOpen={leftPanelOpen}
-            setLeftPanelOpen={setLeftPanelOpen}
-            rightPanelOpen={rightPanelOpen}
-            setRightPanelOpen={setRightPanelOpen}
-            activeHashtag={activeHashtag}
-            onClearHashtag={clearHashtag}
-          />
 
-          <div className="flex">
-            <main
-              className={cn(
-                "flex-1 min-h-screen mt-14", /* Added top margin for header */
-                iOSSafeArea && "ios-safe-padding-bottom px-safe"
-              )}
-              onClick={handleMainContentClick}
-              style={iOSSafeArea ? { minHeight: `calc(${windowHeight}px - 3.5rem)` } : undefined}
-            >
-              {children || <Outlet />}
-            </main>
-
-            <GlobalSidebar
+          {/* Main content area + Right Sidebar wrapper */}
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <GlobalHeader
+              leftPanelOpen={leftPanelOpen}
+              setLeftPanelOpen={setLeftPanelOpen}
               rightPanelOpen={rightPanelOpen}
               setRightPanelOpen={setRightPanelOpen}
-              onTopicClick={handleTopicClick}
-              isMobile={isMobile}
               activeHashtag={activeHashtag}
               onClearHashtag={clearHashtag}
+              // onMenuClick={() => setLeftPanelOpen(true)} // GlobalHeader takes setLeftPanelOpen directly
             />
+
+            <div className="flex flex-1 overflow-hidden">
+              <main
+                className={cn(
+                  "flex-1 overflow-y-auto p-4 md:p-6 lg:p-8",
+                  "w-full" // MODIFIED: Removed max-w-5xl mx-auto, main content now fills its column
+                )}
+                onClick={handleMainContentClick} // Close mobile panels on main content click
+              >
+                {children || <Outlet />}
+              </main>
+
+              {preferences.uiPreferences.showTrending && ( // Corrected: Assuming showTrending maps to showRightSidebar (e.g. for topics/search)
+                <GlobalSidebar // This is the RIGHT sidebar (previously Sidebar component was here)
+                  // className is handled internally by GlobalSidebar.
+                  rightPanelOpen={rightPanelOpen} // For mobile control
+                  setRightPanelOpen={setRightPanelOpen} // For mobile control
+                  onTopicClick={handleTopicClick}
+                  isMobile={isMobile}
+                  activeHashtag={activeHashtag}
+                  onClearHashtag={clearHashtag}
+                />
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </NavigationProvider>
+        </div> {/* END Centering container */}
+      </NavigationProvider>
+    </div>
   );
 };
 

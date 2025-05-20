@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -111,27 +110,26 @@
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html {
+    @apply bg-background text-foreground; /* Moved from body to html for consistency */
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
-  }
-  
-  /* Smooth scrolling for whole page */
-  html {
     scroll-behavior: smooth;
     height: -webkit-fill-available;
     height: 100%;
+    /* Hide scrollbar for Firefox */
+    scrollbar-width: none;
   }
-  
-  /* Support for iOS height */
+
   body {
+    /* Removed bg-background and text-foreground as they are on html now */
     min-height: 100vh;
     min-height: -webkit-fill-available;
     overflow-x: hidden;
     overscroll-behavior-y: none;
-    /* Use custom viewport height variable */
     min-height: calc(var(--vh, 1vh) * 100);
+    /* Hide scrollbar for IE and Edge */
+    -ms-overflow-style: none;
   }
   
   /* Fix iOS text size adjustment issues */
@@ -471,4 +469,10 @@ html.color-theme-in-transition {
 
 .touch-target {
   @apply min-h-[44px] min-w-[44px];
+}
+
+/* Hide scrollbar for Chrome, Safari, Opera, and new Edge */
+/* Placed at the end to ensure it overrides other scrollbar styles if any */
+::-webkit-scrollbar {
+  display: none;
 }
