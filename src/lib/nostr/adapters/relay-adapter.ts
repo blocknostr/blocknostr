@@ -1,6 +1,7 @@
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
 import { toast } from 'sonner';
+import { defaultRelays } from '../relays';
 
 /**
  * Adapter for relay operations
@@ -69,14 +70,8 @@ export class RelayAdapter extends BaseAdapter {
             this.service.unsubscribe(subId);
             
             // Fallback to default relays if no NIP-65 event found
-            const defaultRelays = [
-              'wss://relay.damus.io',
-              'wss://nostr.bitcoiner.social',
-              'wss://relay.nostr.band',
-              'wss://nos.lol'
-            ];
             console.log(`No relay list found for ${pubkey}, using fallback relays`);
-            resolve(defaultRelays);
+            resolve([...defaultRelays]);
           }
         }, 5000); // 5 second timeout for relay response
       });
@@ -84,12 +79,7 @@ export class RelayAdapter extends BaseAdapter {
       console.error("Error fetching user relays:", error);
       
       // Fallback to default relays in case of error
-      return [
-        'wss://relay.damus.io',
-        'wss://nostr.bitcoiner.social',
-        'wss://relay.nostr.band',
-        'wss://nos.lol'
-      ];
+      return [...defaultRelays];
     }
   }
   
