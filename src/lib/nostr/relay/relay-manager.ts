@@ -5,7 +5,6 @@ import { HealthManager } from './health-manager';
 import { RelayInfoService } from './relay-info-service';
 import { relayPerformanceTracker } from './performance/relay-performance-tracker';
 import { relaySelector } from './selection/relay-selector';
-import { defaultRelays } from '../relays';
 
 /**
  * Main relay manager that coordinates all relay functionality
@@ -15,6 +14,12 @@ export class RelayManager {
   private connectionManager: ConnectionManager;
   private healthManager: HealthManager;
   private _userRelays: Map<string, boolean> = new Map(); // Map<relayURL, readWrite>
+  private defaultRelays: string[] = [
+    'wss://relay.damus.io',
+    'wss://nos.lol',
+    'wss://nostr.bitcoiner.social',
+    'wss://relay.nostr.band'
+  ];
   private relayInfoService: RelayInfoService;
   
   constructor(pool: SimplePool) {
@@ -44,7 +49,7 @@ export class RelayManager {
       }
     } else {
       // Default to the app's default relays
-      defaultRelays.forEach(relay => {
+      this.defaultRelays.forEach(relay => {
         this._userRelays.set(relay, true); // Read/write by default
       });
     }
