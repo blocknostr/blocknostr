@@ -2,25 +2,25 @@ import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { NostrProfile } from "@/lib/nostr/types"; // Adjusted import path
+import { NostrProfile } from "@/lib/nostr/types";
 import { useNostr } from "@/contexts/NostrContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner"; // Adjusted to use sonner for consistency
+import { toast } from "sonner";
 
 // Form schema based on NIP-01 metadata fields
 const profileFormSchema = z.object({
   name: z.string().max(50, "Name must be 50 characters or less").optional(),
-displayName: z.string().max(50, "Display name must be 50 characters or less").optional(),
-picture: z.string().url("Picture must be a valid URL").optional().or(z.literal('')),
-banner: z.string().url("Banner must be a valid URL").optional().or(z.literal('')),
-about: z.string().max(500, "About must be 500 characters or less").optional(),
-website: z.string().url("Website must be a valid URL").optional().or(z.literal('')),
-nip05: z.string().regex(/^[^@]+@[^@]+\.[^@]+$/, "NIP-05 must be in format user@domain.com").optional().or(z.literal('')),
-lud16: z.string().optional(),
+  displayName: z.string().max(50, "Display name must be 50 characters or less").optional(),
+  picture: z.string().url("Picture must be a valid URL").optional().or(z.literal('')),
+  banner: z.string().url("Banner must be a valid URL").optional().or(z.literal('')),
+  about: z.string().max(500, "About must be 500 characters or less").optional(),
+  website: z.string().url("Website must be a valid URL").optional().or(z.literal('')),
+  nip05: z.string().regex(/^[^@]+@[^@]+\.[^@]+$/, "NIP-05 must be in format user@domain.com").optional().or(z.literal('')),
+  lud16: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -28,78 +28,80 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onProfileUpdate?: () => void;
 }
 
-const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ open, onOpenChange }) => {
-  const { profile, updateProfile, isAuthenticated } = useNostr();
+const EditProfileDialog: React.FC<EditProfileDialogProps> = ({ 
+  open, 
+  onOpenChange, 
+  onProfileUpdate 
+}) => {
+  const { profile: contextProfile, updateProfile, isAuthenticated, publicKey } = useNostr();
+  
+  // Use context profile directly
+  const profileData = contextProfile;
   
   // Initialize the form with current profile values
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-name: profile?.name || "",
-displayName: profile?.displayName || "",
-picture: profile?.picture || "",
-banner: profile?.banner || "",
-about: profile?.about || "",
-website: profile?.website || "",
-nip05: profile?.nip05 || "",
-lud16: profile?.lud16 || "",
+      name: profileData?.name || "",
+      displayName: profileData?.displayName || "",
+      picture: profileData?.picture || "",
+      banner: profileData?.banner || "",
+      about: profileData?.about || "",
+      website: profileData?.website || "",
+      nip05: profileData?.nip05 || "",
+      lud16: profileData?.lud16 || "",
     },
   });
 
   // Reset form values when profile changes or dialog opens
   useEffect(() => {
-    if (profile && open) {
-form.reset({
-name: profile.name || "",
-displayName: profile.displayName || "",
-picture: profile.picture || "",
-banner: profile.banner || "",
-about: profile.about || "",
-website: profile.website || "",
-nip05: profile.nip05 || "",
-lud16: profile.lud16 || "",
+    if (profileData && open) {
+      form.reset({
+        name: profileData.name || "",
+        displayName: profileData.displayName || "",
+        picture: profileData.picture || "",
+        banner: profileData.banner || "",
+        about: profileData.about || "",
+        website: profileData.website || "",
+        nip05: profileData.nip05 || "",
+        lud16: profileData.lud16 || "",
       });
     }
-  }, [profile, form, open]);
-
+  }, [profileData, form, open]);
   const onSubmit = async (values: ProfileFormValues) => {
-    if (!profile) return;
-    
-    if (!isAuthenticated) {
-      toast.error("Authentication required", {
-        description: "You must be logged in to update your profile",
-      });
+    if (!isAuthenticated || !profileData) {
+      toast.error("Authentication required. You must be logged in to update your profile");
       return;
     }
     
     // Create updated profile object
-    // Ensure all fields from NostrProfile are considered, even if not in the form
-    const updatedProfileData: Partial<NostrProfile> = {};
-    for (const key in values) {
-      if (Object.prototype.hasOwnProperty.call(values, key)) {
-        const formKey = key as keyof ProfileFormValues;
-        // Only include the value if it's not undefined (empty strings are allowed by schema)
-        if (values[formKey] !== undefined) {
-          (updatedProfileData as any)[formKey] = values[formKey];
-        }
-      }
-    }
-
-    const finalProfile: NostrProfile = {
-      ...profile, // Spread existing profile to keep fields like pubkey, npub, nip05Verified
-      ...updatedProfileData, // Spread new values from the form
+    const updatedProfile: NostrProfile = {
+      ...profileData,
+      name: values.name || undefined,
+      displayName: values.displayName || undefined,
+      picture: values.picture || undefined,
+      banner: values.banner || undefined,
+      about: values.about || undefined,
+      website: values.website || undefined,
+      nip05: values.nip05 || undefined,
+      lud16: values.lud16 || undefined,
     };
     
     // Update profile
-    const success = await updateProfile(finalProfile);
+    const success = await updateProfile(updatedProfile);
     
     if (success) {
-      toast.success("Profile updated successfully!");
-onOpenChange(false);
+      toast.success("Profile updated successfully. NIP-05 will be re-verified if changed.");
+      
+      onOpenChange(false);
+      if (onProfileUpdate) {
+        onProfileUpdate();
+      }
     } else {
-      // Error toast is handled by updateProfile in NostrContext
+      toast.error("Failed to update profile. Please try again.");
     }
   };
 
@@ -122,7 +124,7 @@ onOpenChange(false);
                     <FormControl>
                       <Input placeholder="username" {...field} />
                     </FormControl>
-                    <FormDescription>Your NIP-01 name (often a username)</FormDescription>
+                    <FormDescription>Your username on NOSTR</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -136,7 +138,7 @@ onOpenChange(false);
                     <FormControl>
                       <Input placeholder="Display Name" {...field} />
                     </FormControl>
-                    <FormDescription>Name displayed to others (NIP-24)</FormDescription>
+                    <FormDescription>Name displayed to others</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -219,7 +221,7 @@ onOpenChange(false);
                     <FormControl>
                       <Input placeholder="you@example.com" {...field} />
                     </FormControl>
-                    <FormDescription>Format: user@domain.com</FormDescription>
+                    <FormDescription>Your NIP-05 verification</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -229,11 +231,11 @@ onOpenChange(false);
                 name="lud16"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Lightning Address (LUD-16)</FormLabel>
+                    <FormLabel>Lightning Address</FormLabel>
                     <FormControl>
                       <Input placeholder="you@wallet.com" {...field} />
                     </FormControl>
-                    <FormDescription>Your Lightning address for zaps</FormDescription>
+                    <FormDescription>Your Lightning address</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -244,18 +246,18 @@ onOpenChange(false);
               <Button 
                 type="submit" 
                 className="mr-2"
-                disabled={!isAuthenticated || form.formState.isSubmitting}
+                disabled={!isAuthenticated}
               >
-                {form.formState.isSubmitting ? "Saving..." : "Save Changes"}
+                Save Changes
               </Button>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={form.formState.isSubmitting}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
             </DialogFooter>
             
             {!isAuthenticated && (
               <div className="text-center text-destructive text-sm mt-2">
-                You must be logged in to update your profile.
+                You must be logged in to update your profile
               </div>
             )}
           </form>

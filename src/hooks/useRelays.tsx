@@ -3,40 +3,6 @@ import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
 import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
 
-// List of 30 popular relays
-const popularRelays = [
-  "wss://relay.damus.io",
-  "wss://nos.lol",
-  "wss://relay.nostr.band",
-  "wss://relay.snort.social",
-  "wss://nostr.wine",
-  "wss://purplepag.es",
-  "wss://nostr.fmt.wiz.biz",
-  "wss://relay.nostr.bg",
-  "wss://nostr-pub.wellorder.net",
-  "wss://nostr.oxtr.dev",
-  "wss://nostr.mom",
-  "wss://relay.nostr.com.au",
-  "wss://eden.nostr.land",
-  "wss://nostr.milou.lol",
-  "wss://brb.io",
-  "wss://nostr.rocks",
-  "wss://relay.nostr.info",
-  "wss://nostr.zebedee.cloud",
-  "wss://nostr.string2.software",
-  "wss://relay.nostr.ch",
-  "wss://nostr.slothy.win",
-  "wss://nostr.massmux.com",
-  "wss://nostr.onsats.org",
-  "wss://relay.nostr.vision",
-  "wss://nostr.lu.ke",
-  "wss://relay.nostrati.com",
-  "wss://nostr.data.haus",
-  "wss://relay.plebstr.com",
-  "wss://nostr.inosta.cc",
-  "wss://atlas.nostr.land"
-];
-
 export function useRelays() {
   const [relays, setRelays] = useState<any[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -74,16 +40,21 @@ export function useRelays() {
       if (customRelays && customRelays.length > 0) {
         await nostrService.addMultipleRelays(customRelays);
       } else {
-        // If no custom relays are provided, and potentially if connectToUserRelays didn't connect to enough,
-        // use a selection from the popular relays list.
-        // Let's try to connect to a subset of these, e.g., the best 10, to avoid too many connections.
-        const bestPopularRelays = relaySelector.selectBestRelays(popularRelays, {
-          operation: 'read', // or 'write' or 'general' depending on primary use case
-          count: 10 // Connect to the best 10 from the popular list
+        // Otherwise use our default set of reliable relays
+        const defaultRelays = [
+          "wss://relay.damus.io",
+          "wss://nos.lol",
+          "wss://relay.nostr.band",
+          "wss://relay.snort.social"
+        ];
+        
+        // Use relay selector to pick most reliable ones
+        const bestRelays = relaySelector.selectBestRelays(defaultRelays, {
+          operation: 'read',
+          count: 3
         });
         
-        console.log("Attempting to connect to best 10 popular relays:", bestPopularRelays);
-        await nostrService.addMultipleRelays(bestPopularRelays);
+        await nostrService.addMultipleRelays(bestRelays);
       }
       
       // Update relay status

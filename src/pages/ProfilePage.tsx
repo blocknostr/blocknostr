@@ -1,12 +1,11 @@
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import PrimalProfileDisplay from '@/components/profile/PrimalProfileDisplay';
+import ProfileDisplay from "@/components/profile/ProfileDisplay";
+import MainLayout from "@/layouts/MainLayout";
 
-const ProfilePage: React.FC = () => {
-  const { pubkey } = useParams<{ pubkey?: string }>();
-
+const ProfilePage = () => {
   return (
-    <PrimalProfileDisplay routePubkey={pubkey} />
+    <MainLayout>
+      <ProfileDisplay />
+    </MainLayout>
   );
 };
 

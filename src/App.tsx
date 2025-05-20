@@ -22,7 +22,6 @@ import ArticleViewPage from './pages/articles/ArticleViewPage';
 import MyArticlesPage from './pages/articles/MyArticlesPage';
 import ArticleDraftsPage from './pages/articles/ArticleDraftsPage';
 // import UnifiedProfilePage from './pages/UnifiedProfilePage';
-import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
 
 import MainLayout from './layouts/MainLayout';
 import { Toaster } from '@/components/ui/sonner';
@@ -52,8 +51,8 @@ function App() {
                     <Route path="/notebin" element={<NotebinPage />} />
                     <Route path="/wallets" element={<WalletsPage />} />
                     <Route path="/premium" element={<PremiumPage />} />
-                    <Route path="/profile" element={<ProfilePage />} /> {/* Uncommented ProfilePage route */}
-                    <Route path="/profile/:pubkey" element={<ProfilePage />} /> {/* Uncommented ProfilePage route with pubkey */}
+                    {/* <Route path="/profile" element={<UnifiedProfilePage />} /> */}
+                    {/* <Route path="/profile/:pubkey" element={<UnifiedProfilePage />} /> */}
 
                     {/* Games Routes */}
                     <Route path="/games" element={<GameManagerPage />} />

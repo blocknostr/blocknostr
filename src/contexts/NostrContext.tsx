@@ -11,7 +11,6 @@ interface NostrContextType {
   login: () => Promise<boolean>;
   logout: () => void;
   updateProfile: (updatedProfile: NostrProfile) => Promise<boolean>;
-  fetchProfile: (pubkey: string) => Promise<NostrProfile | null>; // Add fetchProfile to type
 }
 
 const NostrContext = createContext<NostrContextType>({
@@ -22,7 +21,6 @@ const NostrContext = createContext<NostrContextType>({
   login: async () => false,
   logout: () => {},
   updateProfile: async () => false,
-  fetchProfile: async () => null, // Add fetchProfile to default context
 });
 
 export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -172,38 +170,6 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const fetchProfile = async (pubkey: string): Promise<NostrProfile | null> => {
-    if (!pubkey) return null;
-    try {
-      const userProfileData = await nostrService.getUserProfile(pubkey);
-
-      if (userProfileData) {
-        let nip05Verified = false;
-        if (userProfileData.nip05) { // No need to check pubkey here, as it's the one we are fetching for
-          nip05Verified = await nostrService.verifyNip05(userProfileData.nip05, pubkey);
-        }
-        return {
-          pubkey,
-          npub: nostrService.getNpubFromHex(pubkey),
-          name: userProfileData.name,
-          displayName: userProfileData.display_name,
-          about: userProfileData.about,
-          picture: userProfileData.picture,
-          banner: userProfileData.banner,
-          nip05: userProfileData.nip05,
-          nip05Verified: nip05Verified,
-          lud16: userProfileData.lud16,
-          website: userProfileData.website,
-        };
-      }
-      return null;
-    } catch (error) {
-      console.error(`Error fetching profile for ${pubkey}:`, error);
-      toast.error(`Failed to fetch profile for ${pubkey.substring(0,8)}...`);
-      return null;
-    }
-  };
-
   const value = {
     isAuthenticated,
     isLoading,
@@ -211,8 +177,7 @@ export const NostrProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     publicKey,
     login,
     logout,
-    updateProfile,
-    fetchProfile, // Add fetchProfile to context value
+    updateProfile
   };
 
   return (
