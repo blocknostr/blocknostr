@@ -4,7 +4,7 @@ import { AlephiumWalletProvider } from '@alephium/web3-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NostrProvider } from '@/contexts/NostrContext';
 
-// import HomePage from './pages/HomePage';
+import HomePage from './pages/HomePage';
 import SettingsPage from './pages/SettingsPage';
 // import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -40,9 +40,9 @@ function App() {
               <main className="flex-1">
                 <Routes>                  <Route element={<MainLayout />}>
                     {/* Home route */}
-                    {/* <Route path="/" element={<HomePage />} /> */}
+                    <Route path="/" element={<HomePage />} />
                     {/* Redirect /feed to home for backward compatibility */}
-                    {/* <Route path="/feed" element={<HomePage />} /> */}
+                    <Route path="/feed" element={<HomePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/dao" element={<DAOPage />} /> {/* Main DAO listing page */}
                     <Route path="/dao/:id" element={<SingleDAOPage />} /> {/* Add individual DAO route */}
