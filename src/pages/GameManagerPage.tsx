@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import Sidebar from "@/components/Sidebar";
-import MobileSidebar from "@/components/MobileSidebar";
 import TetrisGame from "@/components/games/TetrisGame";
 import BlockWarriorsGame from "@/components/games/BlockWarriorsGame";
 import Leaderboard from "@/components/games/Leaderboard";
@@ -108,7 +106,6 @@ const nostrService = new NostrService();
 
 const GameManagerPage: React.FC = () => {
     const [selectedGame, setSelectedGame] = useState<string | null>(null);
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [leaderboardEntries, setLeaderboardEntries] = useState<LeaderboardEntry[]>([]);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [selectedLeaderboardGame, setSelectedLeaderboardGame] = useState<string | null>(null);
@@ -523,17 +520,9 @@ const GameManagerPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center">
-            {/* Desktop Sidebar */}
-            <div className="hidden md:block w-64 h-full bg-transparent z-20">
-                <Sidebar />
-            </div>
-            {/* Mobile Sidebar */}
-            <div className="md:hidden fixed top-0 left-0 z-30">
-                <MobileSidebar isOpen={sidebarOpen} onOpenChange={setSidebarOpen} />
-            </div>
-            {/* Main Area */}
-            <main className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl px-4 py-12">
+        <div className="flex h-screen bg-background text-foreground">
+            {/* Main Content */}
+            <main className="flex-1 p-4 md:p-6 overflow-y-auto">
                 {/* --- Enhanced Stats Dashboard --- */}
                 <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-white/5 backdrop-blur rounded-lg shadow-lg border border-white/10 p-4 flex flex-col items-start">
