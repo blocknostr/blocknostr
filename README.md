@@ -2,7 +2,7 @@
 
 ## Merging Nostr’s Censorship-Resistant Protocol with Alephium’s Scalable Blockchain
 
-[![Deploy to Azure](https://azuredeploy.net/deploybutton.svg)](https://portal.azure.com/#create/Microsoft.Template/uri/https://…/azuredeploy.json)
+[![Deploy to Azure](https://azuredeploy.net/deploybutton.svg)](https://portal.azure.com/#create/Microsoft.Template/uri/https://raw.githubusercontent.com/blocknostr/blocknostr/main/azuredeploy.json)
 
 ### Introduction
 
