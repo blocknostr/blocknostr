@@ -2,6 +2,8 @@
 
 ## Merging Nostr’s Censorship-Resistant Protocol with Alephium’s Scalable Blockchain
 
+[![Deploy to Azure](https://azuredeploy.net/deploybutton.svg)](https://portal.azure.com/#create/Microsoft.Template/uri/https://…/azuredeploy.json)
+
 ### Introduction
 
 **BlockNostr** is a pioneering platform that fuses **Nostr’s open, censorship-resistant communication protocol** with **Alephium’s scalable layer-1 blockchain** to empower user sovereignty. By combining Nostr’s decentralized messaging with Alephium’s robust financial infrastructure, BlockNostr unlocks groundbreaking possibilities:
