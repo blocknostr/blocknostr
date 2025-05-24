@@ -7,7 +7,7 @@ import { ArrowUpRight, ArrowDownLeft, ExternalLink, Search, ArrowDownUp } from "
 import { getAddressTransactions } from "@/lib/api/alephiumApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { truncateAddress } from "@/lib/utils/formatters";
 
 interface TransactionsListProps {

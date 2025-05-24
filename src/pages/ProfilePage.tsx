@@ -1,185 +1,180 @@
-import React from "react";
-import { useParams } from "react-router-dom";
-import { useProfile } from "@/hooks/useUnifiedProfile";
-import { useAuth } from "@/hooks/useAuth";
-import { nostrService } from "@/lib/nostr";
-import { profileAdapter } from "@/lib/adapters/ProfileAdapter";
-import UnifiedPageHeader from "@/components/navigation/UnifiedPageHeader";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import EditProfileModal from "@/components/profile/EditProfileModal";
-import { Card } from "@/components/ui/card";
-import { StatsDisplay } from "@/components/note/actions";
-import FollowButton from "@/components/FollowButton";
 
-interface ProfileStats {
-  likeCount: number;
-  repostCount: number;
-  replyCount: number;
-  zapCount: number;
-  zapAmount: number;
-  followerCount: number;
-  followingCount: number;
-  postCount: number;
-}
+import { useState, useEffect } from "react";
+import { useNostr } from "@/contexts/NostrContext";
+import MainLayout from "@/components/layout/MainLayout";
+import NoteFeed from "@/components/feed/NoteFeed";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Link, Calendar, MapPin, User, Edit, CheckCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import EditProfileDialog from "@/components/profile/EditProfileDialog";
 
-export default function ProfilePage() {
-  const { npub } = useParams();
-  const { publicKey: myPublicKey } = useAuth();
+const Profile = () => {
+  const { isAuthenticated, profile, publicKey } = useNostr();
+  const [isLoading, setIsLoading] = useState(true);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
-  // Convert myPublicKey to npub
-  const myNpub = React.useMemo(() => {
-    try {
-      return myPublicKey ? profileAdapter.convertHexToNpub(myPublicKey) : undefined;
-    } catch (error) {
-      console.error("[ProfilePage] Error converting pubkey to npub:", error);
-      return undefined;
-    }
-  }, [myPublicKey]);
+  useEffect(() => {
+    // Simulate profile loading
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
 
-  // Convert current profile's npub to hex pubkey
-  const publicKey = React.useMemo(() => {
-    try {
-      return profileAdapter.convertNpubToHex(npub || myNpub);
-    } catch (error) {
-      console.error("[ProfilePage] Error converting pubkey to npub:", error);
-      return undefined;
-    }
-  }, [npub, myNpub]);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const effectiveNpub = npub || myNpub;
-
-  // Load profile and related data
-  const [profileState, profileActions] = useProfile(effectiveNpub, { 
-    autoLoad: !!effectiveNpub,
-    mode: 'single'
-  });
-
-  const [editOpen, setEditOpen] = React.useState(false);
-  
-  // Stats state
-  const [stats, setStats] = React.useState<ProfileStats>({
-    likeCount: 0,
-    repostCount: 0,
-    replyCount: 0,
-    zapCount: 0,
-    zapAmount: 0,
-    followerCount: 0,
-    followingCount: 0,
-    postCount: 0
-  });
-
-  // Load stats when profile changes
-  React.useEffect(() => {
-    const fetchStats = async () => {
-      if (!publicKey) return;
-      
-      try {
-        // Get reaction counts from the social manager
-        const reactionCounts = await nostrService.socialManager.getReactionCounts(publicKey);
-        
-        // Get follower/following counts
-        const [following, followers] = await Promise.all([
-          nostrService.data.getFollowing(publicKey),
-          nostrService.getFollowers(publicKey)
-        ]);
-        
-        // Get post count by querying user's posts
-        const posts = await nostrService.queryEvents([{
-          kinds: [1],
-          authors: [publicKey],
-          limit: 100
-        }]);
-
-        setStats({
-          ...reactionCounts,
-          followerCount: followers?.length || 0,
-          followingCount: following?.length || 0,
-          postCount: posts?.length || 0
-        });
-      } catch (error) {
-        console.error("Error loading profile stats:", error);
-      }
-    };
-    
-    fetchStats();
-  }, [publicKey]);
-
-  // Get profile data from the profile state
-  const profile = 'profile' in profileState ? profileState.profile : null;
-  const loading = 'loading' in profileState ? profileState.loading : false;
-  const isOwnProfile = 'isOwnProfile' in profileState ? profileState.isOwnProfile : false;
-
-  const getDisplayName = () => {
-    if (!profile) return "User";
-    return profile.display_name || profile.name || "User";
-  };
-
-  const getAvatarFallback = () => {
-    const name = getDisplayName();
-    return name.charAt(0).toUpperCase();
-  };
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please login to view your profile</h1>
+          <Button asChild>
+            <a href="/">Go to Login</a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <UnifiedPageHeader title="Profile" variant="page" />
-      <div className="flex flex-col items-center gap-4 mt-8">
-        <Avatar className="w-24 h-24">
-          {loading ? (
-            <AvatarFallback className="animate-pulse text-3xl">{getAvatarFallback()}</AvatarFallback>
-          ) : (
-            <>
-              <AvatarImage src={profile?.picture} alt={getDisplayName()} />
-              <AvatarFallback className="text-3xl">{getAvatarFallback()}</AvatarFallback>
-            </>
-          )}
-        </Avatar>
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold">{getDisplayName()}</h2>
-          {!isOwnProfile && effectiveNpub && publicKey && (
-            <FollowButton 
-              pubkey={publicKey}
-              variant="default"
-              size="default"
+    <MainLayout>
+      <div className="space-y-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-32 w-full" />
+            <div className="flex items-start justify-between">
+              <div className="flex space-x-4">
+                <Skeleton className="h-24 w-24 rounded-full -mt-12 border-4 border-background" />
+                <div className="space-y-2 pt-2">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </div>
+              <Skeleton className="h-10 w-24" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Banner */}
+            <div 
+              className="h-32 rounded-lg bg-cover bg-center" 
+              style={{ 
+                backgroundImage: profile?.banner ? `url(${profile.banner})` : 'linear-gradient(90deg, var(--nostr-primary) 0%, var(--nostr-secondary) 100%)' 
+              }} 
             />
-          )}
-        </div>
-        {profile?.nip05 && (
-          <div className="text-sm text-muted-foreground">{profile.nip05}</div>
-        )}
-        {profile?.about && (
-          <p className="text-center text-base text-muted-foreground max-w-md">{profile.about}</p>
-        )}
-        {profile?.website && (
-          <a
-            href={profile.website}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline mt-2"
-          >
-            {profile.website}
-          </a>
-        )}
-        {isOwnProfile && (
-          <button
-            onClick={() => setEditOpen(true)}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            Edit Profile
-          </button>
-        )}
 
-        <Card className="w-full mt-4">
-          <StatsDisplay {...stats} />
-        </Card>
+            {/* Profile info */}
+            <div className="flex items-start justify-between">
+              <div className="flex space-x-4">
+                <div className="h-24 w-24 rounded-full -mt-12 border-4 border-background overflow-hidden bg-muted">
+                  {profile?.picture ? (
+                    <img 
+                      src={profile.picture} 
+                      alt={profile.displayName || "Profile"} 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-full w-full p-4 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="pt-2">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold">{profile?.displayName || "Anonymous"}</h1>
+                    {profile?.nip05 && (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" />
+                        <span>{profile.nip05}</span>
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{profile?.npub || ""}</p>
+                </div>
+              </div>
+              <Button onClick={() => setEditProfileOpen(true)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Profile
+              </Button>
+            </div>
+
+            {/* Bio */}
+            <p className="text-sm">{profile?.about || "No bio yet"}</p>
+
+            {/* Profile metadata */}
+            <div className="flex flex-wrap gap-y-2 gap-x-4 text-sm text-muted-foreground">
+              {profile?.website && (
+                <div className="flex items-center">
+                  <Link className="h-4 w-4 mr-1" />
+                  <a href={profile.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    {profile.website.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              )}
+              {/* Placeholder data for demo */}
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>Joined May 2023</span>
+              </div>
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span>Earth</span>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="flex gap-x-4 text-sm">
+              <div>
+                <span className="font-bold">120</span>
+                <span className="text-muted-foreground ml-1">Following</span>
+              </div>
+              <div>
+                <span className="font-bold">35</span>
+                <span className="text-muted-foreground ml-1">Followers</span>
+              </div>
+            </div>
+
+            {/* Posts/Likes tabs */}
+            <Tabs defaultValue="posts" className="w-full mt-6">
+              <TabsList className="w-full">
+                <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
+                <TabsTrigger value="replies" className="flex-1">Replies</TabsTrigger>
+                <TabsTrigger value="media" className="flex-1">Media</TabsTrigger>
+                <TabsTrigger value="likes" className="flex-1">Likes</TabsTrigger>
+              </TabsList>
+              <TabsContent value="posts" className="mt-4">
+                {publicKey && <NoteFeed pubkey={publicKey} />}
+              </TabsContent>
+              <TabsContent value="replies" className="mt-4">
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No replies yet</p>
+                </div>
+              </TabsContent>
+              <TabsContent value="media" className="mt-4">
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No media posts yet</p>
+                </div>
+              </TabsContent>
+              <TabsContent value="likes" className="mt-4">
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>No liked posts yet</p>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
       </div>
-
-      {isOwnProfile && profile && (
-        <EditProfileModal
-          profile={profile}
-          open={editOpen}
-          onOpenChange={setEditOpen}
-        />
-      )}
-    </div>
+      
+      {/* Edit Profile Dialog */}
+      <EditProfileDialog
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+      />
+    </MainLayout>
   );
-}
+};
+
+export default Profile;

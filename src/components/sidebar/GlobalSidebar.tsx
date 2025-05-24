@@ -1,14 +1,14 @@
-import React, { Suspense } from "react";
+
+import React, { Suspense, useState } from "react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import GlobalSearch from "@/components/GlobalSearch";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useLocation } from "react-router-dom";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "@/components/auth/LoginDialog";
 import WorldChat from "@/components/chat/WorldChat";
-import { useAuth } from "@/hooks/useAuth";
-import { useGlobalLoginDialog } from "@/hooks/useGlobalLoginDialog";
 
 // Lazy load CryptoTracker for better performance
 const CryptoTracker = React.lazy(() => import("@/components/crypto/CryptoTracker"));
@@ -32,14 +32,18 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
 }) => {
   const { preferences } = useUserPreferences();
   const location = useLocation();
-  const { isLoggedIn } = useAuth();
-  const { isOpen: loginDialogOpen, openLoginDialog, setLoginDialogOpen } = useGlobalLoginDialog();
+  const isLoggedIn = !!chatNostrService.publicKey;
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   
   const cryptoTrackerFallback = (
     <div className="h-[160px] flex items-center justify-center">
       <Loader2 className="h-4 w-4 text-primary/50 animate-spin" />
     </div>
   );
+  
+  const handleLoginClick = () => {
+    setLoginDialogOpen(true);
+  };
   
   const renderChatSection = () => {
     if (!isLoggedIn) {
@@ -53,7 +57,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={openLoginDialog}
+              onClick={handleLoginClick}
               className="gap-1.5 border-primary/20 hover:border-primary/30 bg-transparent hover:bg-primary/5"
             >
               <Wallet className="h-3.5 w-3.5 text-primary" />
@@ -63,8 +67,7 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
         </div>
       );
     }
-
-    // User is logged in - show WorldChat directly
+    
     return (
       <div className="chat-container flex-grow mt-3 overflow-hidden relative">
         <WorldChat />
@@ -92,7 +95,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
           {renderChatSection()}
         </div>
         
-        {/* Login Dialog is now managed globally in MainLayout */}
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
       </aside>
     );
   }
@@ -118,7 +124,10 @@ const GlobalSidebar: React.FC<GlobalSidebarProps> = ({
             {renderChatSection()}
           </div>
           
-          {/* Login Dialog is now managed globally in MainLayout */}
+          <LoginDialog 
+            open={loginDialogOpen}
+            onOpenChange={setLoginDialogOpen}
+          />
         </SheetContent>
       </Sheet>
     );

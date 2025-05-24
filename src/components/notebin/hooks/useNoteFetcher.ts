@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Note } from "./types";
 import { nostrService } from "@/lib/nostr";
 import { encryption } from "@/lib/encryption";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 export const useNoteFetcher = () => {
   const [note, setNote] = useState<Note | null>(null);

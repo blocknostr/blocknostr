@@ -31,7 +31,7 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
   return (
     <Card className="relative">
       <CardContent className="pt-6 space-y-4">
-        {/* Leave Community button - placed in the absolute top right corner */}
+        {/* Leave DAO button - placed in the absolute top right corner */}
         {userRole === 'member' && (
           <div className="absolute top-2 right-2">
             <TooltipProvider>
@@ -40,13 +40,13 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
                   <ToolbarButton
                     onClick={onLeaveDAO}
                     className="hover:bg-destructive/10 hover:text-destructive" 
-                    aria-label="Leave Community"
+                    aria-label="Leave DAO"
                   >
                     <UserMinus className="h-4 w-4" />
                   </ToolbarButton>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Leave Community</p>
+                  <p>Leave DAO</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

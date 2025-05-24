@@ -1,14 +1,13 @@
-import { BaseAdapter } from './base-adapter';
-
 /**
  * SocialAdapter for handling social interactions like following, DMs, etc.
  */
-export class SocialAdapter extends BaseAdapter {
+export class SocialAdapter {
+  private service: any;
   private _following: string[] = [];
   public socialManager: any; // Add socialManager property
   
   constructor(service: any) {
-    super(service);
+    this.service = service;
     // Initialize socialManager with basic implementation
     this.socialManager = {
       likeEvent: async (event: any): Promise<string | null> => {
@@ -207,35 +206,5 @@ export class SocialAdapter extends BaseAdapter {
   
   set following(pubkeys: string[]) {
     this._following = pubkeys;
-  }
-
-  // ===== COMMUNITY METHODS (merged from CommunityAdapter) =====
-  
-  /**
-   * Create a new community
-   */
-  async createCommunity(name: string, description: string) {
-    return this.service.createCommunity(name, description);
-  }
-  
-  /**
-   * Create a proposal within a community
-   */
-  async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
-    return this.service.createProposal(communityId, title, description, options, category as any);
-  }
-
-  /**
-   * Vote on a community proposal
-   */
-  async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.service.voteOnProposal(proposalId, optionIndex);
-  }
-  
-  /**
-   * Get community manager for advanced community operations
-   */
-  get communityManager() {
-    return this.service.communityManager;
   }
 }

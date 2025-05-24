@@ -1,3 +1,4 @@
+
 import { SimplePool } from 'nostr-tools';
 
 /**
@@ -25,14 +26,7 @@ export class RelayInfoService {
     
     try {
       // Remove trailing slash if present
-      let normalizedUrl = relayUrl.endsWith('/') ? relayUrl.slice(0, -1) : relayUrl;
-      
-      // Convert WebSocket URLs to HTTP URLs for NIP-11 requests
-      if (normalizedUrl.startsWith('wss://')) {
-        normalizedUrl = normalizedUrl.replace('wss://', 'https://');
-      } else if (normalizedUrl.startsWith('ws://')) {
-        normalizedUrl = normalizedUrl.replace('ws://', 'http://');
-      }
+      const normalizedUrl = relayUrl.endsWith('/') ? relayUrl.slice(0, -1) : relayUrl;
       
       // Prepare the HTTP request to the relay's info endpoint
       const headers = new Headers({

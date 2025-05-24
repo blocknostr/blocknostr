@@ -1,17 +1,16 @@
+
 import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import WorldChatHeader, { WORLD_CHAT_CHANNELS, ChatChannel } from "./WorldChatHeader";
 import ChatInput from "./ChatInput";
 import { useWorldChat } from "./hooks";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet, Shield, Eye, MessageSquare } from "lucide-react";
+import { Wifi, WifiOff, AlertCircle, RefreshCw, LogIn, Wallet, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import LoginDialog from "../auth/LoginDialog";
 import { cn } from "@/lib/utils";
 import MessageList from "./MessageList";
-import { useAuth } from "@/hooks/useAuth";
-import { useGlobalLoginDialog } from "@/hooks/useGlobalLoginDialog";
 
 // Maximum characters allowed per message
 const MAX_CHARS = 140;
@@ -20,13 +19,11 @@ const MAX_CHARS = 140;
 const DEFAULT_CHAT_TAG = "world-chat";
 
 const WorldChat = () => {
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [currentChatTag, setCurrentChatTag] = useState(DEFAULT_CHAT_TAG);
   // Add a state to track channel switches for UI feedback
   const [isChangingChannel, setIsChangingChannel] = useState(false);
-  
-  // Use the proper authentication hook instead of directly checking chatNostrService
-  const { isLoggedIn } = useAuth();
-  const { isOpen: loginDialogOpen, openLoginDialog, setLoginDialogOpen } = useGlobalLoginDialog();
+  const isLoggedIn = !!chatNostrService.publicKey;
 
   const {
     messages,
@@ -57,44 +54,49 @@ const WorldChat = () => {
     }
   }, [loading, isChangingChannel]);
 
-  // Show read-only interface if not logged in
+  const handleLoginClick = () => {
+    setLoginDialogOpen(true);
+  };
+
+  // Show login prompt if not logged in
   if (!isLoggedIn) {
     return (
       <Card className="chat-card flex flex-col h-full shadow-md overflow-hidden rounded-lg relative bg-background/90 backdrop-blur-sm border-border/50">
         <WorldChatHeader 
-          connectionStatus={connectionStatus} 
+          connectionStatus="disconnected" 
           currentChatTag={currentChatTag} 
           onChannelSelect={handleChannelSelect}
         />
-        
-        {/* Read-only indicator */}
-        <Alert className="mx-2 mt-1 mb-2 py-2 rounded-md border-primary/20 bg-primary/5">
-          <Eye className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            Viewing chat in read-only mode. <a href="#" onClick={openLoginDialog} className="text-primary hover:underline">Sign in</a> to participate.
-          </AlertDescription>
-        </Alert>
-        
-        <div className="flex-grow overflow-y-auto relative">
-          <MessageList
-            messages={messages}
-            profiles={profiles}
-            emojiReactions={emojiReactions}
-            loading={isChangingChannel}
-            isLoggedIn={isLoggedIn}
-            onAddReaction={addReaction}
-          />
-        </div>
-        
-        {/* Read-only chat input area */}
-        <div className="p-3 border-t bg-muted/30">
-          <div className="flex items-center justify-center text-sm text-muted-foreground">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            <span>Sign in to join the conversation</span>
+        <div className="flex-grow flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-background to-muted/10">
+          <div className="p-3 bg-primary/10 rounded-full mb-3 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/20 animate-pulse"></div>
+            <Shield className="h-10 w-10 text-primary relative z-10" />
           </div>
+          <h3 className="text-lg font-light tracking-tight mb-2">Join the conversation</h3>
+          <p className="text-muted-foreground mb-4 max-w-xs">
+            Connect your Nostr wallet to view messages and participate in the global chat.
+          </p>
+          <Button 
+            onClick={handleLoginClick}
+            className={cn(
+              "gap-2 bg-gradient-to-r from-primary/90 to-primary/80",
+              "hover:from-primary/80 hover:to-primary/70 group relative overflow-hidden"
+            )}
+          >
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+            <Wallet className="h-4 w-4" />
+            Connect Wallet
+          </Button>
+          <p className="text-xs text-muted-foreground mt-4">
+            New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Learn more</a>
+          </p>
         </div>
         
-        {/* Global Login Dialog is rendered at app level */}
+        {/* Login Dialog */}
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
       </Card>
     );
   }

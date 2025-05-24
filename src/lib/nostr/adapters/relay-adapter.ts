@@ -1,6 +1,6 @@
 import { BaseAdapter } from './base-adapter';
 import { parseRelayList } from '../utils/nip';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 
 /**
  * Adapter for relay operations

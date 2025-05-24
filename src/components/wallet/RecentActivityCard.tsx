@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownLeft, ExternalLink, Loader2 } from "lucide-react";
 import { getAddressTransactions } from "@/lib/api/alephiumApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface RecentActivityCardProps {
   address: string;

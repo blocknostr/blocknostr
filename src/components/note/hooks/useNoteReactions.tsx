@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 export function useNoteReactions(eventId: string) {
   const [isLoading, setIsLoading] = useState(false);

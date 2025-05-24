@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Edit, Save, FileQuestion } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import ReactMarkdown from 'react-markdown';
 
 interface CommunityGuidelinesProps {

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { Copy, CheckCircle2, User } from "lucide-react";
 import { cn } from "@/lib/utils";

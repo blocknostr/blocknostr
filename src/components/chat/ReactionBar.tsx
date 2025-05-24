@@ -1,16 +1,12 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Heart, MessageSquare, Repeat2, Zap, SmilePlus } from 'lucide-react';
-import { nostrService } from '@/lib/nostr';
-import { useAuth } from '@/hooks/useAuth';
-import { Event } from 'nostr-tools';
-import { toast } from '@/lib/utils/toast-replacement';
+
+import React from "react";
+import { SmilePlus } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ReactionBarProps {
@@ -36,10 +32,7 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
         <TooltipTrigger asChild>
           <Popover>
             <PopoverTrigger asChild>
-              <button 
-                className="rounded-full bg-background/90 border shadow-sm hover:bg-accent/30 p-1.5"
-                aria-label="Add reaction"
-              >
+              <button className="rounded-full bg-background/90 border shadow-sm hover:bg-accent/30 p-1.5">
                 <SmilePlus className="h-3 w-3 text-muted-foreground" />
               </button>
             </PopoverTrigger>
@@ -50,7 +43,6 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
                     key={emoji} 
                     className="hover:bg-accent/50 rounded p-1 transition-colors"
                     onClick={() => handleReaction(emoji)}
-                    aria-label={`React with ${emoji}`}
                   >
                     {emoji}
                   </button>

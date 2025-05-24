@@ -27,7 +27,7 @@ export class MessagingAdapter extends BaseAdapter {
       
       console.log(`Sending message to ${recipientPubkey}`);
       
-      if (window.nostr?.nip04) {
+      if (window.nostr && window.nostr.nip04) {
         try {
           // Use NIP-04 (legacy/external)
           encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
@@ -63,7 +63,7 @@ export class MessagingAdapter extends BaseAdapter {
   async decryptDirectMessage(senderPubkey: string, encryptedContent: string, kind: number = 4) {
     try {
       // For now, we only support NIP-04 through extensions
-      if (window.nostr?.nip04) {
+      if (window.nostr && window.nostr.nip04) {
         try {
           return window.nostr.nip04.decrypt(senderPubkey, encryptedContent);
         } catch (err) {
@@ -72,6 +72,7 @@ export class MessagingAdapter extends BaseAdapter {
         }
       } else {
         // No encryption available through extension
+        console.log("NIP-04 decryption not available in extension");
         throw new Error("Decryption not supported by your Nostr extension");
       }
     } catch (error) {

@@ -35,6 +35,20 @@ export interface NostrProfileMetadata {
   [key: string]: any;
 }
 
+export interface NostrProfile {
+  pubkey?: string;
+  npub?: string;
+  name?: string;
+  displayName?: string;
+  about?: string;
+  picture?: string;
+  banner?: string;
+  nip05?: string;
+  lud16?: string;
+  website?: string;
+  [key: string]: any;
+}
+
 export type NostrFilter = {
   ids?: string[];
   authors?: string[];

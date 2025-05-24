@@ -1,16 +1,16 @@
 import { NostrEvent } from '../types';
 import { ArticleDraft, ArticleMetadata, ArticleSearchParams, ArticleVersion } from '../types/article';
 import { getTagValue } from '../utils/nip/nip10';
-import { BaseAdapter } from './base-adapter';
 
 /**
  * Adapter for handling NIP-23 long-form content (Articles)
  */
-export class ArticleAdapter extends BaseAdapter {
+export class ArticleAdapter {
+  private service: any;
   private storagePrefix = 'blocknoster_article_draft_';
   
   constructor(service: any) {
-    super(service);
+    this.service = service;
   }
   
   /**

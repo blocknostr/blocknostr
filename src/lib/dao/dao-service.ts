@@ -1,5 +1,5 @@
 import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
-import { DAO, DAOProposal, CommunityPost, PostApproval, PendingPost, PostRejection, RejectedPost, ModerationAction, MemberBan, ContentReport, ModerationLogEntry } from '@/types/dao';
+import { DAO, DAOProposal } from '@/types/dao';
 import { nostrService } from '@/lib/nostr';
 import { daoCache } from './dao-cache';
 
@@ -11,11 +11,6 @@ const DAO_KINDS = {
   METADATA: 34553,       // Community metadata (guidelines, etc)
   MODERATION: 34554,      // Moderation events (kick, ban)
   INVITE: 34555,         // Invite to private community
-  POST_APPROVAL: 4550,   // Post approval by moderators (NIP-72)
-  POST_REJECTION: 4551,  // Post rejection by moderators (enhanced)
-  MODERATION_LOG: 4552,  // Moderation action logging
-  CONTENT_REPORT: 4553,  // Content reporting by users
-  MEMBER_BAN: 4554,      // Member ban/unban actions
 };
 
 /**
@@ -74,10 +69,14 @@ export class DAOService {
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
-        .filter((dao): dao is DAO => dao !== null);
+        .filter((dao): dao is DAO => 
+          dao !== null && 
+          dao.name !== "Unnamed DAO" && 
+          dao.name.trim() !== ""
+        );
       
-      // Cache the results with timestamp tracking
-      daoCache.cacheAllDAOsWithTimestamp(daos);
+      // Cache the results
+      daoCache.cacheAllDAOs(daos);
       
       return daos;
     } catch (error) {
@@ -103,8 +102,8 @@ export class DAOService {
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
-      // Cache the results with timestamp tracking
-      daoCache.cacheAllDAOsWithTimestamp(daos);
+      // Cache the results
+      daoCache.cacheAllDAOs(daos);
     } catch (error) {
       console.error("Error refreshing DAOs:", error);
     }
@@ -113,27 +112,16 @@ export class DAOService {
   /**
    * Get DAOs that a user is a member of
    */
-  async getUserDAOs(pubkey: string, limit: number = 20, forceRefresh: boolean = false): Promise<DAO[]> {
+  async getUserDAOs(pubkey: string, limit: number = 20): Promise<DAO[]> {
     if (!pubkey) return [];
     
     try {
-      // Check for force refresh
-      if (forceRefresh) {
-        daoCache.forceRefreshUserDAOs(pubkey);
-      }
-      
-      // Try to get from cache first (now with indefinite TTL)
+      // Try to get from cache first
       const cachedUserDAOs = daoCache.getUserDAOs(pubkey);
-      if (cachedUserDAOs && !forceRefresh) {
-        const cachedAt = daoCache.getUserDAOsCachedAt(pubkey);
-        const cacheAge = cachedAt ? Date.now() - cachedAt : 0;
-        console.log(`Using cached DAOs for user ${pubkey} (cached ${Math.round(cacheAge / 1000 / 60)} minutes ago)`);
-        
-        // Fetch fresh data in the background if cache is getting old (but still serve cached)
-        if (cacheAge > 10 * 60 * 1000) { // 10 minutes
-          this.refreshUserDAOs(pubkey, limit);
-        }
-        
+      if (cachedUserDAOs) {
+        console.log(`Using cached DAOs for user ${pubkey}`);
+        // Fetch fresh data in the background
+        this.refreshUserDAOs(pubkey, limit);
         return cachedUserDAOs;
       }
       
@@ -151,8 +139,8 @@ export class DAOService {
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
-      // Cache with indefinite TTL for instant loading next time
-      daoCache.cacheUserDAOsIndefinite(pubkey, daos);
+      // Cache the results
+      daoCache.cacheUserDAOs(pubkey, daos);
       
       return daos;
     } catch (error) {
@@ -172,16 +160,14 @@ export class DAOService {
         limit: limit
       };
       
-      console.log(`Background refreshing user DAOs for ${pubkey}`);
       const events = await this.pool.querySync(this.relays, filter);
       
       const daos = events
         .map(event => this.parseDaoEvent(event))
         .filter((dao): dao is DAO => dao !== null);
       
-      // Update cache with fresh data using indefinite TTL
-      daoCache.cacheUserDAOsIndefinite(pubkey, daos);
-      console.log(`Background refresh completed: ${daos.length} user DAOs updated`);
+      // Cache the results
+      daoCache.cacheUserDAOs(pubkey, daos);
     } catch (error) {
       console.error(`Error refreshing user DAOs for ${pubkey}:`, error);
     }
@@ -215,7 +201,7 @@ export class DAOService {
   async getDAOById(id: string): Promise<DAO | null> {
     try {
       // Check cache first
-      const cachedDAO = daoCache.getDAO(id);
+      const cachedDAO = daoCache.getDAODetails(id);
       if (cachedDAO) {
         console.log(`Using cached DAO with ID: ${id}`);
         // Refresh in background
@@ -242,7 +228,7 @@ export class DAOService {
       
       // Cache the result
       if (dao) {
-        daoCache.cacheDAO(id, dao);
+        daoCache.cacheDAODetails(id, dao);
       }
       
       return dao;
@@ -268,7 +254,7 @@ export class DAOService {
       if (events.length > 0) {
         const dao = this.parseDaoEvent(events[0]);
         if (dao) {
-          daoCache.cacheDAO(id, dao);
+          daoCache.cacheDAODetails(id, dao);
         }
       }
     } catch (error) {
@@ -281,10 +267,12 @@ export class DAOService {
    */
   async getDAOProposals(daoId: string): Promise<DAOProposal[]> {
     try {
-      // Try to get from cache first
-      const cachedProposals = daoCache.getDAOProposals(daoId);
+      // Check cache first
+      const cachedProposals = daoCache.getProposals(daoId);
       if (cachedProposals) {
         console.log(`Using cached proposals for DAO: ${daoId}`);
+        // Refresh in background
+        this.refreshDAOProposals(daoId);
         return cachedProposals;
       }
       
@@ -312,8 +300,8 @@ export class DAOService {
         votes: votesResults[index]
       }));
       
-      // Cache results with updated proposals that include votes
-      daoCache.cacheDAOProposals(daoId, proposalsWithVotes);
+      // Cache the result
+      daoCache.cacheProposals(daoId, proposalsWithVotes);
       
       return proposalsWithVotes;
     } catch (error) {
@@ -352,7 +340,7 @@ export class DAOService {
       // For non-active proposals, keep existing votes or use empty object
       const allProposalsWithVotes = proposals.map(proposal => {
         if (proposal.status !== "active") {
-          const existingProposal = daoCache.getDAOProposals(daoId)?.find(p => p.id === proposal.id);
+          const existingProposal = daoCache.getProposals(daoId)?.find(p => p.id === proposal.id);
           return {
             ...proposal,
             votes: existingProposal?.votes || {}
@@ -362,7 +350,7 @@ export class DAOService {
       });
       
       // Cache the updated result
-      daoCache.cacheDAOProposals(daoId, allProposalsWithVotes);
+      daoCache.cacheProposals(daoId, allProposalsWithVotes);
     } catch (error) {
       console.error(`Error refreshing proposals for DAO ${daoId}:`, error);
     }
@@ -468,7 +456,7 @@ export class DAOService {
       
       if (eventId && pubkey) {
         daoCache.invalidateUserDAOs(pubkey);
-        setTimeout(() => daoCache.invalidateAll(), 1000); // Clear all DAO caches after a delay
+        setTimeout(() => daoCache.clearAll(), 1000); // Clear all DAO caches after a delay
       }
       
       return eventId;
@@ -525,8 +513,8 @@ export class DAOService {
       
       // If successful, immediately invalidate the cache for proposals
       if (eventId) {
-        // First invalidate the DAO for this proposal since we're creating new content
-        daoCache.invalidateDAO(daoId);
+        // First invalidate the proposals cache for this DAO
+        daoCache.invalidateProposals(daoId);
         
         // Construct a basic proposal object to add to the cache temporarily 
         // until a full refresh happens
@@ -544,11 +532,11 @@ export class DAOService {
         };
         
         // Get existing cached proposals or empty array
-        const existingProposals = daoCache.getDAOProposals(daoId) || [];
+        const existingProposals = daoCache.getProposals(daoId) || [];
         
         // Add the new proposal to the beginning of the array
         // This ensures we preserve all existing proposals rather than replacing them
-        daoCache.cacheDAOProposals(daoId, [newProposal, ...existingProposals]);
+        daoCache.cacheProposals(daoId, [newProposal, ...existingProposals]);
       }
       
       return eventId;
@@ -1287,32 +1275,26 @@ export class DAOService {
    */
   private parseDaoEvent(event: Event): DAO | null {
     try {
-      // Parse content with improved error handling
+      console.log("Parsing DAO event:", event.id);
+      
+      // Parse the content with error handling
       let content: any = {};
       try {
         content = event.content ? JSON.parse(event.content) : {};
       } catch (e) {
-        // If JSON parsing fails, treat as plain text description
-        if (event.content && event.content.trim() && event.content !== "not defined") {
-          // Create a basic DAO structure from plain text content
-          content = {
-            name: this.extractNameFromContent(event.content),
-            description: event.content.substring(0, 500), // Limit description length
-            tags: []
-          };
-          console.log(`Converted plain text DAO event ${event.id} to structured format`);
-        } else {
-          console.warn(`Skipping DAO event ${event.id} with invalid/empty content`);
-          return null;
-        }
+        console.error("Error parsing DAO content JSON for event", event.id, e);
+        content = {};
       }
       
-      // Validate name - require a valid name for DAOs
-      const name = content.name?.trim() || this.extractNameFromContent(event.content) || "Community";
+      // Validate name - log issues with missing names
+      const name = content.name?.trim();
+      if (!name) {
+        console.warn(`DAO event ${event.id} has no name or empty name. Content:`, content);
+      }
       
       // Extract members from p tags
       const members = event.tags
-        .filter(tag => tag.length >= 2 && tag[0] === 'p' && (!tag[2] || tag[2] === ''))
+        .filter(tag => tag.length >= 2 && tag[0] === 'p')
         .map(tag => tag[1]);
       
       // Extract moderators from p tags with role=moderator
@@ -1320,26 +1302,17 @@ export class DAOService {
         .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'moderator')
         .map(tag => tag[1]);
       
-      // Extract banned members from p tags with role=banned
-      const bannedMembers = event.tags
-        .filter(tag => tag.length >= 3 && tag[0] === 'p' && tag[2] === 'banned')
-        .map(tag => tag[1]);
-      
-      // Be more lenient with validation - allow DAOs with minimal content
-      const description = content.description || event.content?.substring(0, 500) || "";
-      
-      // Construct DAO object with better defaults
+      // Construct DAO object
       const dao: DAO = {
         id: event.id,
-        name: name,
-        description: description,
+        name: name || "Unnamed DAO",
+        description: content.description || "",
         image: content.image || "",
         creator: event.pubkey,
         createdAt: event.created_at,
         members,
         moderators,
-        bannedMembers: bannedMembers || content.bannedMembers || [],
-        guidelines: content.guidelines || "",
+        guidelines: content.guidelines,
         isPrivate: content.isPrivate || false,
         treasury: content.treasury || {
           balance: 0,
@@ -1352,27 +1325,9 @@ export class DAOService {
       
       return dao;
     } catch (e) {
-      console.warn(`Error parsing DAO event ${event.id}:`, e.message);
+      console.error("Error parsing DAO event:", e);
       return null;
     }
-  }
-  
-  /**
-   * Helper function to extract a reasonable name from content
-   */
-  private extractNameFromContent(content: string): string {
-    if (!content) return "Community";
-    
-    // Try to extract first sentence or line as name
-    const firstLine = content.split('\n')[0].trim();
-    const firstSentence = firstLine.split('.')[0].trim();
-    
-    // Use first 50 characters as name if it's reasonable
-    const candidateName = firstSentence.length > 0 && firstSentence.length <= 100 
-      ? firstSentence 
-      : firstLine.substring(0, 50);
-    
-    return candidateName || "Community";
   }
   
   /**
@@ -1385,17 +1340,8 @@ export class DAOService {
       try {
         content = event.content ? JSON.parse(event.content) : {};
       } catch (e) {
-        // Skip events with invalid JSON
-        if (event.content === "not defined" || !event.content.trim()) {
-          return null;
-        }
-        console.warn(`Skipping proposal event ${event.id} with invalid JSON`);
-        return null;
-      }
-      
-      // Validate required fields
-      if (!content.title?.trim()) {
-        return null;
+        console.error("Error parsing proposal content JSON:", e);
+        content = {};
       }
       
       // Calculate status based on end time
@@ -1406,7 +1352,7 @@ export class DAOService {
       return {
         id: event.id,
         daoId: daoId,
-        title: content.title,
+        title: content.title || "Unnamed Proposal",
         description: content.description || "",
         options: content.options || ["Yes", "No"],
         createdAt: event.created_at,
@@ -1416,817 +1362,8 @@ export class DAOService {
         status
       };
     } catch (e) {
-      console.warn(`Error parsing proposal event ${event.id}:`, e.message);
+      console.error("Error parsing proposal event:", e);
       return null;
-    }
-  }
-
-  /**
-   * Submit a post to a community for moderator approval (NIP-72)
-   */
-  async submitCommunityPost(
-    communityId: string, 
-    content: string, 
-    title?: string
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Submitting post to community ${communityId}`);
-
-      // Create a text note with community 'a' tag (NIP-72)
-      const eventData = {
-        kind: 1, // Text note
-        content: content,
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Reference to community
-        ]
-      };
-
-      // Add title as subject tag if provided
-      if (title) {
-        eventData.tags.push(["subject", title]);
-      }
-
-      console.log("Publishing community post:", eventData);
-      
-      const eventId = await nostrService.publishEvent(eventData);
-      console.log("Community post submitted with ID:", eventId);
-      
-      return eventId;
-    } catch (error) {
-      console.error("Error submitting community post:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Approve a community post (NIP-72 kind 4550)
-   */
-  async approveCommunityPost(
-    postId: string, 
-    communityId: string, 
-    originalPost: Event
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Approving post ${postId} for community ${communityId}`);
-
-      // Create NIP-72 post approval event (kind 4550)
-      const eventData = {
-        kind: DAO_KINDS.POST_APPROVAL,
-        content: JSON.stringify(originalPost), // NIP-18 style
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["e", postId, ""], // Post reference
-          ["p", originalPost.pubkey, ""], // Post author
-          ["k", originalPost.kind.toString()], // Original post kind
-        ]
-      };
-
-      console.log("Publishing post approval:", eventData);
-      
-      const approvalId = await nostrService.publishEvent(eventData);
-      console.log("Post approval published with ID:", approvalId);
-      
-      return approvalId;
-    } catch (error) {
-      console.error("Error approving community post:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get pending posts for a community (posts not yet approved)
-   */
-  async getPendingCommunityPosts(communityId: string): Promise<PendingPost[]> {
-    try {
-      console.log(`Fetching pending posts for community ${communityId}`);
-
-      // Get all posts tagged with this community
-      const postFilter: Filter = {
-        kinds: [1], // Text notes
-        "#a": [`34550:${communityId}`],
-        limit: 50
-      };
-
-      // Get all approvals for this community
-      const approvalFilter: Filter = {
-        kinds: [DAO_KINDS.POST_APPROVAL],
-        "#a": [`34550:${communityId}`],
-        limit: 100
-      };
-
-      const [postEvents, approvalEvents] = await Promise.all([
-        this.pool.querySync(this.relays, postFilter),
-        this.pool.querySync(this.relays, approvalFilter)
-      ]);
-
-      console.log(`Found ${postEvents.length} posts and ${approvalEvents.length} approvals`);
-
-      // Create set of approved post IDs
-      const approvedPostIds = new Set(
-        approvalEvents.map(approval => {
-          const eTag = approval.tags.find(tag => tag[0] === 'e');
-          return eTag ? eTag[1] : null;
-        }).filter(Boolean)
-      );
-
-      // Filter to only pending posts
-      const pendingPosts = postEvents
-        .filter(post => !approvedPostIds.has(post.id))
-        .map(post => this.parsePostEvent(post, communityId))
-        .filter((post): post is PendingPost => post !== null);
-
-      console.log(`Found ${pendingPosts.length} pending posts`);
-      return pendingPosts;
-    } catch (error) {
-      console.error("Error fetching pending community posts:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Get approved posts for a community
-   */
-  async getApprovedCommunityPosts(communityId: string): Promise<CommunityPost[]> {
-    try {
-      console.log(`Fetching approved posts for community ${communityId}`);
-
-      // Get all approvals for this community
-      const approvalFilter: Filter = {
-        kinds: [DAO_KINDS.POST_APPROVAL],
-        "#a": [`34550:${communityId}`],
-        limit: 50
-      };
-
-      const approvalEvents = await this.pool.querySync(this.relays, approvalFilter);
-      console.log(`Found ${approvalEvents.length} approvals`);
-
-      const approvedPosts: CommunityPost[] = [];
-
-      for (const approval of approvalEvents) {
-        try {
-          // Parse the original post from approval content
-          const originalPost = JSON.parse(approval.content);
-          const eTag = approval.tags.find(tag => tag[0] === 'e');
-          
-          if (eTag && originalPost) {
-            const communityPost: CommunityPost = {
-              id: originalPost.id,
-              communityId,
-              content: originalPost.content,
-              title: this.extractTitle(originalPost.tags),
-              author: originalPost.pubkey,
-              createdAt: originalPost.created_at,
-              kind: originalPost.kind,
-              tags: originalPost.tags,
-              approvals: [{
-                id: approval.id,
-                postId: originalPost.id,
-                communityId,
-                moderator: approval.pubkey,
-                approvedAt: approval.created_at,
-                originalPost: approval.content
-              }],
-              isApproved: true,
-              approvedBy: approval.pubkey,
-              approvedAt: approval.created_at
-            };
-
-            approvedPosts.push(communityPost);
-          }
-        } catch (parseError) {
-          console.error("Error parsing approval event:", parseError);
-        }
-      }
-
-      // Sort by approval time (newest first)
-      approvedPosts.sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0));
-
-      console.log(`Found ${approvedPosts.length} approved posts`);
-      return approvedPosts;
-    } catch (error) {
-      console.error("Error fetching approved community posts:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Parse a post event into PendingPost
-   */
-  private parsePostEvent(event: Event, communityId: string): PendingPost | null {
-    try {
-      return {
-        id: event.id,
-        communityId,
-        content: event.content,
-        title: this.extractTitle(event.tags),
-        author: event.pubkey,
-        createdAt: event.created_at,
-        kind: event.kind,
-        tags: event.tags
-      };
-    } catch (error) {
-      console.error("Error parsing post event:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Extract title from event tags (subject tag)
-   */
-  private extractTitle(tags: string[][]): string | undefined {
-    const subjectTag = tags.find(tag => tag[0] === 'subject');
-    return subjectTag ? subjectTag[1] : undefined;
-  }
-
-  /**
-   * Reject a community post with reason (Enhanced moderation)
-   */
-  async rejectCommunityPost(
-    postId: string, 
-    communityId: string, 
-    originalPost: Event,
-    reason: string
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Rejecting post ${postId} for community ${communityId} with reason: ${reason}`);
-
-      // Create NIP-72 extended post rejection event (kind 4551)
-      const eventData = {
-        kind: DAO_KINDS.POST_REJECTION,
-        content: JSON.stringify({
-          originalPost: JSON.stringify(originalPost),
-          reason: reason,
-          rejectedAt: Math.floor(Date.now() / 1000)
-        }),
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["e", postId, ""], // Post reference
-          ["p", originalPost.pubkey, ""], // Post author
-          ["k", originalPost.kind.toString()], // Original post kind
-        ]
-      };
-
-      console.log("Publishing post rejection:", eventData);
-      
-      const rejectionId = await nostrService.publishEvent(eventData);
-      
-      if (rejectionId) {
-        // Log the moderation action
-        await this.logModerationAction(communityId, 'reject_post', postId, reason);
-        console.log("Post rejection published with ID:", rejectionId);
-      }
-      
-      return rejectionId;
-    } catch (error) {
-      console.error("Error rejecting community post:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Ban a member from the community
-   */
-  async banMember(
-    communityId: string, 
-    memberToBan: string, 
-    reason: string, 
-    durationHours?: number
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Banning member ${memberToBan} from community ${communityId}`);
-
-      const now = Math.floor(Date.now() / 1000);
-      const expiresAt = durationHours ? now + (durationHours * 3600) : undefined;
-
-      // Create member ban event
-      const banData = {
-        bannedUser: memberToBan,
-        moderator: pubkey,
-        reason: reason,
-        bannedAt: now,
-        expiresAt: expiresAt,
-        isActive: true
-      };
-
-      const eventData = {
-        kind: DAO_KINDS.MEMBER_BAN,
-        content: JSON.stringify(banData),
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["p", memberToBan, "banned"], // Banned member
-          ["moderator", pubkey], // Moderator who issued ban
-        ]
-      };
-
-      console.log("Publishing member ban:", eventData);
-      
-      const banId = await nostrService.publishEvent(eventData);
-      
-      if (banId) {
-        // Log the moderation action
-        await this.logModerationAction(communityId, 'ban', memberToBan, reason, { durationHours });
-        
-        // Update the community definition to remove banned member
-        await this.removeMemberFromCommunity(communityId, memberToBan);
-        
-        console.log("Member ban published with ID:", banId);
-      }
-      
-      return banId;
-    } catch (error) {
-      console.error("Error banning member:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Unban a member from the community
-   */
-  async unbanMember(communityId: string, memberToUnban: string, reason?: string): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Unbanning member ${memberToUnban} from community ${communityId}`);
-
-      const now = Math.floor(Date.now() / 1000);
-
-      // Create member unban event
-      const unbanData = {
-        unbannedUser: memberToUnban,
-        moderator: pubkey,
-        reason: reason || "Ban lifted",
-        unbannedAt: now
-      };
-
-      const eventData = {
-        kind: DAO_KINDS.MEMBER_BAN,
-        content: JSON.stringify(unbanData),
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["p", memberToUnban, "unbanned"], // Unbanned member
-          ["moderator", pubkey], // Moderator who lifted ban
-        ]
-      };
-
-      console.log("Publishing member unban:", eventData);
-      
-      const unbanId = await nostrService.publishEvent(eventData);
-      
-      if (unbanId) {
-        // Log the moderation action
-        await this.logModerationAction(communityId, 'unban', memberToUnban, reason);
-        console.log("Member unban published with ID:", unbanId);
-      }
-      
-      return unbanId;
-    } catch (error) {
-      console.error("Error unbanning member:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Report content for moderation review
-   */
-  async reportContent(
-    communityId: string,
-    targetId: string,
-    targetType: 'post' | 'comment' | 'user',
-    category: 'spam' | 'harassment' | 'inappropriate' | 'misinformation' | 'other',
-    reason: string
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Reporting ${targetType} ${targetId} in community ${communityId}`);
-
-      const reportData = {
-        targetId,
-        targetType,
-        category,
-        reason,
-        reportedAt: Math.floor(Date.now() / 1000),
-        status: 'pending'
-      };
-
-      const eventData = {
-        kind: DAO_KINDS.CONTENT_REPORT,
-        content: JSON.stringify(reportData),
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["e", targetId, targetType], // Target content
-          ["report", category], // Report category
-        ]
-      };
-
-      console.log("Publishing content report:", eventData);
-      
-      const reportId = await nostrService.publishEvent(eventData);
-      console.log("Content report published with ID:", reportId);
-      
-      return reportId;
-    } catch (error) {
-      console.error("Error reporting content:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Log moderation action for transparency
-   */
-  async logModerationAction(
-    communityId: string,
-    action: string,
-    target: string,
-    reason?: string,
-    metadata?: any
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      const logData = {
-        action,
-        target,
-        reason,
-        metadata,
-        timestamp: Math.floor(Date.now() / 1000)
-      };
-
-      const eventData = {
-        kind: DAO_KINDS.MODERATION_LOG,
-        content: JSON.stringify(logData),
-        tags: [
-          ["a", `34550:${communityId}`, ""], // Community reference
-          ["action", action], // Action type
-          ["target", target], // Target of action
-        ]
-      };
-
-      const logId = await nostrService.publishEvent(eventData);
-      return logId;
-    } catch (error) {
-      console.error("Error logging moderation action:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get rejected posts for a community
-   */
-  async getRejectedCommunityPosts(communityId: string): Promise<RejectedPost[]> {
-    try {
-      console.log(`Fetching rejected posts for community ${communityId}`);
-
-      // Get all rejections for this community
-      const rejectionFilter: Filter = {
-        kinds: [DAO_KINDS.POST_REJECTION],
-        "#a": [`34550:${communityId}`],
-        limit: 50
-      };
-
-      const rejectionEvents = await this.pool.querySync(this.relays, rejectionFilter);
-      console.log(`Found ${rejectionEvents.length} rejections`);
-
-      const rejectedPosts: RejectedPost[] = [];
-
-      for (const rejection of rejectionEvents) {
-        try {
-          const rejectionData = JSON.parse(rejection.content);
-          const originalPost = JSON.parse(rejectionData.originalPost);
-          const eTag = rejection.tags.find(tag => tag[0] === 'e');
-          
-          if (eTag && originalPost) {
-            const rejectedPost: RejectedPost = {
-              id: originalPost.id,
-              communityId,
-              content: originalPost.content,
-              title: this.extractTitle(originalPost.tags),
-              author: originalPost.pubkey,
-              createdAt: originalPost.created_at,
-              kind: originalPost.kind,
-              tags: originalPost.tags,
-              rejection: {
-                id: rejection.id,
-                postId: originalPost.id,
-                communityId,
-                moderator: rejection.pubkey,
-                rejectedAt: rejection.created_at,
-                reason: rejectionData.reason,
-                originalPost: rejectionData.originalPost
-              },
-              isRejected: true
-            };
-
-            rejectedPosts.push(rejectedPost);
-          }
-        } catch (parseError) {
-          console.error("Error parsing rejection event:", parseError);
-        }
-      }
-
-      // Sort by rejection time (newest first)
-      rejectedPosts.sort((a, b) => b.rejection.rejectedAt - a.rejection.rejectedAt);
-
-      console.log(`Found ${rejectedPosts.length} rejected posts`);
-      return rejectedPosts;
-    } catch (error) {
-      console.error("Error fetching rejected community posts:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Get banned members for a community
-   */
-  async getBannedMembers(communityId: string): Promise<MemberBan[]> {
-    try {
-      console.log(`Fetching banned members for community ${communityId}`);
-
-      const banFilter: Filter = {
-        kinds: [DAO_KINDS.MEMBER_BAN],
-        "#a": [`34550:${communityId}`],
-        limit: 100
-      };
-
-      const banEvents = await this.pool.querySync(this.relays, banFilter);
-      console.log(`Found ${banEvents.length} ban events`);
-
-      const bans: MemberBan[] = [];
-
-      for (const banEvent of banEvents) {
-        try {
-          const banData = JSON.parse(banEvent.content);
-          
-          if (banData.bannedUser) { // This is a ban event
-            const ban: MemberBan = {
-              id: banEvent.id,
-              communityId,
-              bannedUser: banData.bannedUser,
-              moderator: banData.moderator,
-              reason: banData.reason,
-              bannedAt: banData.bannedAt,
-              expiresAt: banData.expiresAt,
-              isActive: this.isBanActive(banData)
-            };
-            bans.push(ban);
-          }
-        } catch (parseError) {
-          console.error("Error parsing ban event:", parseError);
-        }
-      }
-
-      // Sort by ban time (newest first)
-      bans.sort((a, b) => b.bannedAt - a.bannedAt);
-
-      return bans;
-    } catch (error) {
-      console.error("Error fetching banned members:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Get content reports for a community
-   */
-  async getContentReports(communityId: string): Promise<ContentReport[]> {
-    try {
-      console.log(`Fetching content reports for community ${communityId}`);
-
-      const reportFilter: Filter = {
-        kinds: [DAO_KINDS.CONTENT_REPORT],
-        "#a": [`34550:${communityId}`],
-        limit: 100
-      };
-
-      const reportEvents = await this.pool.querySync(this.relays, reportFilter);
-      console.log(`Found ${reportEvents.length} reports`);
-
-      const reports: ContentReport[] = [];
-
-      for (const reportEvent of reportEvents) {
-        try {
-          const reportData = JSON.parse(reportEvent.content);
-          
-          const report: ContentReport = {
-            id: reportEvent.id,
-            communityId,
-            reporter: reportEvent.pubkey,
-            targetId: reportData.targetId,
-            targetType: reportData.targetType,
-            category: reportData.category,
-            reason: reportData.reason,
-            reportedAt: reportData.reportedAt,
-            status: reportData.status || 'pending',
-            reviewedBy: reportData.reviewedBy,
-            reviewedAt: reportData.reviewedAt,
-            resolution: reportData.resolution
-          };
-
-          reports.push(report);
-        } catch (parseError) {
-          console.error("Error parsing report event:", parseError);
-        }
-      }
-
-      // Sort by report time (newest first)
-      reports.sort((a, b) => b.reportedAt - a.reportedAt);
-
-      return reports;
-    } catch (error) {
-      console.error("Error fetching content reports:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Get moderation logs for a community
-   */
-  async getModerationLogs(communityId: string): Promise<ModerationLogEntry[]> {
-    try {
-      console.log(`Fetching moderation logs for community ${communityId}`);
-
-      const logFilter: Filter = {
-        kinds: [DAO_KINDS.MODERATION_LOG],
-        "#a": [`34550:${communityId}`],
-        limit: 200
-      };
-
-      const logEvents = await this.pool.querySync(this.relays, logFilter);
-      console.log(`Found ${logEvents.length} moderation log entries`);
-
-      const logs: ModerationLogEntry[] = [];
-
-      for (const logEvent of logEvents) {
-        try {
-          const logData = JSON.parse(logEvent.content);
-          
-          const log: ModerationLogEntry = {
-            id: logEvent.id,
-            communityId,
-            moderator: logEvent.pubkey,
-            action: logData.action,
-            target: logData.target,
-            reason: logData.reason,
-            timestamp: logData.timestamp,
-            metadata: logData.metadata
-          };
-
-          logs.push(log);
-        } catch (parseError) {
-          console.error("Error parsing log event:", parseError);
-        }
-      }
-
-      // Sort by timestamp (newest first)
-      logs.sort((a, b) => b.timestamp - a.timestamp);
-
-      return logs;
-    } catch (error) {
-      console.error("Error fetching moderation logs:", error);
-      return [];
-    }
-  }
-
-  /**
-   * Review and resolve a content report
-   */
-  async reviewContentReport(
-    reportId: string,
-    communityId: string,
-    resolution: string,
-    status: 'reviewed' | 'resolved' | 'dismissed'
-  ): Promise<string | null> {
-    try {
-      const pubkey = nostrService.publicKey;
-      if (!pubkey) {
-        throw new Error("User not authenticated");
-      }
-
-      console.log(`Reviewing content report ${reportId}`);
-
-      const reviewData = {
-        reportId,
-        reviewedBy: pubkey,
-        reviewedAt: Math.floor(Date.now() / 1000),
-        resolution,
-        status
-      };
-
-      const eventData = {
-        kind: DAO_KINDS.CONTENT_REPORT,
-        content: JSON.stringify(reviewData),
-        tags: [
-          ["a", `34550:${communityId}`, ""],
-          ["e", reportId, "review"],
-          ["status", status],
-        ]
-      };
-
-      const reviewId = await nostrService.publishEvent(eventData);
-      
-      if (reviewId) {
-        // Log the moderation action
-        await this.logModerationAction(communityId, 'review_report', reportId, resolution);
-      }
-      
-      return reviewId;
-    } catch (error) {
-      console.error("Error reviewing content report:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Helper to check if a ban is still active
-   */
-  private isBanActive(banData: any): boolean {
-    const now = Math.floor(Date.now() / 1000);
-    if (banData.expiresAt && now > banData.expiresAt) {
-      return false; // Ban has expired
-    }
-    return true;
-  }
-
-  /**
-   * Helper to remove member from community definition
-   */
-  private async removeMemberFromCommunity(communityId: string, memberToRemove: string): Promise<void> {
-    try {
-      const dao = await this.getDAOById(communityId);
-      if (!dao) return;
-
-      // Get the unique identifier
-      let uniqueId = communityId;
-      const event = await this.getDAOEventById(communityId);
-      if (event) {
-        const dTag = event.tags.find(tag => tag[0] === 'd');
-        if (dTag && dTag[1]) {
-          uniqueId = dTag[1];
-        }
-      }
-
-      // Create updated member list without the banned member
-      const updatedMembers = dao.members.filter(member => member !== memberToRemove);
-      const updatedModerators = dao.moderators.filter(mod => mod !== memberToRemove);
-      const bannedMembers = [...(dao.bannedMembers || []), memberToRemove];
-
-      // Update community definition
-      const eventData = {
-        kind: DAO_KINDS.COMMUNITY,
-        content: JSON.stringify({
-          name: dao.name,
-          description: dao.description,
-          creator: dao.creator,
-          createdAt: dao.createdAt,
-          image: dao.image,
-          guidelines: dao.guidelines,
-          isPrivate: dao.isPrivate,
-          treasury: dao.treasury,
-          proposals: dao.proposals,
-          activeProposals: dao.activeProposals,
-          tags: dao.tags,
-          bannedMembers
-        }),
-        tags: [
-          ["d", uniqueId],
-          ...updatedMembers.map(member => ["p", member]),
-          ...updatedModerators.map(mod => ["p", mod, "moderator"]),
-          ...bannedMembers.map(banned => ["p", banned, "banned"])
-        ]
-      };
-
-      await nostrService.publishEvent(eventData);
-    } catch (error) {
-      console.error("Error removing member from community:", error);
     }
   }
 }

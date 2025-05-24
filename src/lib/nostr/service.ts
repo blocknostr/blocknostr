@@ -7,9 +7,10 @@ import { SubscriptionManager } from './subscription';
 import { EventManager } from './event';
 import { SocialManager } from './social';
 import { CommunityManager } from './community';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 import type { ProposalCategory } from '@/types/community';
 import { formatPubkey, getHexFromNpub, getNpubFromHex } from './utils/keys';
+import { NostrServiceAdapter } from './service-adapter';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
 
 /**
@@ -24,6 +25,7 @@ export class NostrService {
   private socialManagerInstance: SocialManager;
   public communityManager: CommunityManager;
   private pool: SimplePool;
+  private adapter: NostrServiceAdapter;
   
   constructor() {
     // Initialize SimplePool first
@@ -42,6 +44,9 @@ export class NostrService {
     });
     
     this.communityManager = new CommunityManager(this.eventManager);
+    
+    // Initialize adapter
+    this.adapter = new NostrServiceAdapter(this);
     
     // Load user data
     this.userManager.loadUserKeys();
@@ -76,30 +81,15 @@ export class NostrService {
 
   // Authentication methods
   public async login(): Promise<boolean> {
-    console.log('[NostrService] Starting login process...');
     const success = await this.userManager.login();
     if (success) {
-      console.log('[NostrService] UserManager login successful, publicKey:', this.publicKey);
       await this.fetchFollowingList();
-      
-      // Emit auth change event with a slight delay to ensure all state is settled
-      setTimeout(() => {
-        console.log('[NostrService] Emitting AUTH_CHANGED event with:', { 
-          isLoggedIn: true, 
-          publicKey: this.publicKey 
-        });
-        eventBus.emit(EVENTS.AUTH_CHANGED, { isLoggedIn: true, publicKey: this.publicKey });
-      }, 100);
-    } else {
-      console.log('[NostrService] UserManager login failed');
     }
     return success;
   }
   
   public signOut(): void {
     this.userManager.signOut();
-    // Emit auth change event so components can reactively update
-    eventBus.emit(EVENTS.AUTH_CHANGED, { isLoggedIn: false, publicKey: null });
   }
 
   // Relay management

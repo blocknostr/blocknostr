@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, CheckCheck } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface AddressDisplayProps {
   address: string;

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -6,8 +7,6 @@ import { NostrEvent } from "@/lib/nostr/types";
 import { formatPubkey } from "@/lib/nostr/utils/keys";
 import MarkdownRenderer from "@/components/articles/MarkdownRenderer";
 import { getImageUrlsFromEvent, getMediaItemsFromEvent, MediaItem } from "@/lib/nostr/utils/media/media-extraction";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { formatDistanceToNow } from "date-fns";
 
 interface ArticleReaderProps {
   article: NostrEvent;
@@ -15,11 +14,6 @@ interface ArticleReaderProps {
   image?: string;
   publishedAt: number;
   hashtags?: string[];
-  authorProfile?: {
-    name?: string;
-    display_name?: string;
-    picture?: string;
-  };
 }
 
 const ArticleReader: React.FC<ArticleReaderProps> = ({
@@ -27,8 +21,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
   title,
   image,
   publishedAt,
-  hashtags = [],
-  authorProfile
+  hashtags = []
 }) => {
   const formattedDate = new Date(publishedAt).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -52,22 +45,16 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
       </h1>
       
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={authorProfile?.picture} />
-            <AvatarFallback>
-              {authorProfile?.name?.charAt(0) || article.pubkey.slice(0, 2)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <span className="font-medium text-sm text-foreground">
-              {authorProfile?.display_name || authorProfile?.name || 'Anonymous'}
-            </span>
-            <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(article.created_at * 1000), { addSuffix: true })}
-            </p>
-          </div>
-        </div>
+        <Link 
+          to={`/profile/${article.pubkey}`}
+          className="font-medium no-underline hover:underline"
+        >
+          {formatPubkey(article.pubkey)}
+        </Link>
+        <span>•</span>
+        <time dateTime={new Date(publishedAt).toISOString()}>
+          {formattedDate}
+        </time>
       </div>
       
       {/* Main featured image */}

@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { UserPlus, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -27,7 +28,7 @@ const DAOPageHeader = ({
 
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur h-16 flex items-center px-4 sm:px-6 border-b">
-      <div className="max-w-5xl mx-auto w-full flex items-center">
+      <div className="container max-w-6xl mx-auto flex items-center">
         <BackButton fallbackPath="/dao" className="mr-2" />
         
         <div className="flex-1">
@@ -48,7 +49,7 @@ const DAOPageHeader = ({
               className="flex items-center gap-2"
             >
               <UserPlus className="h-4 w-4" />
-              Join Community
+              Join DAO
             </Button>
           )}
         </div>

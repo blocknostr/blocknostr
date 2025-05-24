@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWallet } from "@alephium/web3-react";
 import { sendTransaction } from "@/lib/api/alephiumApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { ArrowRight } from "lucide-react";
 
 interface SendTransactionProps {

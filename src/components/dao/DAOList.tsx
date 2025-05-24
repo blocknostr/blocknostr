@@ -114,7 +114,9 @@ const DAOList = () => {
   };
   
   const handleLogin = () => {
-    nostrService.login();
+    nostrService.login().then(() => {
+      window.location.reload(); // Refresh after login
+    });
   };
 
   return (

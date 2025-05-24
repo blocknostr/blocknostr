@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import SettingsTabs from "@/components/settings/SettingsTabs";

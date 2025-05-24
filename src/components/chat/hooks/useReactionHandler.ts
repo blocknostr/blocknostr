@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 import { NostrEvent, NostrFilter } from "@/lib/nostr/types";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 /**
  * Hook to manage emoji reactions to messages

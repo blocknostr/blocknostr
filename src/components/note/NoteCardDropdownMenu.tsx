@@ -4,7 +4,7 @@ import { MoreHorizontal, Twitter, Flag, UserPlus, Mail, BellOff, UserX } from 'l
 import { Button } from "../ui/button";
 import { nostrService } from '@/lib/nostr';
 import { useNavigate } from 'react-router-dom';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,

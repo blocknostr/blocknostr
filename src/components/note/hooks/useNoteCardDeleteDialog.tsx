@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 
 interface UseNoteCardDeleteDialogProps {
   event: NostrEvent;

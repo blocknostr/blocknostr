@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { Proposal } from "@/types/community";
 

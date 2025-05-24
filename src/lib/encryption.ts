@@ -17,11 +17,12 @@ export const encryption = {
       }
       
       // Use the NIP-04 method from the Nostr extension
-      if (window.nostr?.nip04) {
+      if (window.nostr && window.nostr.nip04) {
         // Self-encrypt: use our own pubkey as the recipient
         const encrypted = await window.nostr.nip04.encrypt(publicKey, content);
         return encrypted;
       } else {
+        console.log("NIP-04 encryption not available in extension");
         throw new Error("NIP-04 encryption not available");
       }
     } catch (error) {
@@ -36,10 +37,11 @@ export const encryption = {
   async decryptContent(encryptedContent: string, senderPubkey: string): Promise<string | null> {
     try {
       // Use the NIP-04 method from the Nostr extension
-      if (window.nostr?.nip04) {
+      if (window.nostr && window.nostr.nip04) {
         const decrypted = await window.nostr.nip04.decrypt(senderPubkey, encryptedContent);
         return decrypted;
       } else {
+        console.log("NIP-04 decryption not available in extension");
         throw new Error("NIP-04 decryption not available");
       }
     } catch (error) {

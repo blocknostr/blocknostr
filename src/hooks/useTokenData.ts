@@ -5,7 +5,7 @@ import { fetchTokenTransactions, getAddressTokens, EnrichedToken } from "@/lib/a
 import { EnrichedTokenWithWallets, TokenWallet } from "@/types/wallet";
 import { getAlephiumPrice, getMultipleCoinsPrice } from "@/lib/api/coingeckoApi";
 import { getCoinGeckoId, getAllCoinGeckoIds, isTokenMapped } from "@/lib/api/tokenMappings";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 export interface TokenTransaction {
   hash: string;

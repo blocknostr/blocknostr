@@ -6,14 +6,13 @@ import { Button } from "@/components/ui/button";
 import LoginButton from '../LoginButton';
 import GlobalSearch from '../GlobalSearch';
 import { nostrService } from '@/lib/nostr';
-import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   toggleSidebar: () => void;
 }
 
 const Header = ({ toggleSidebar }: HeaderProps) => {
-  const { isLoggedIn } = useAuth();
+  const isLoggedIn = !!nostrService.publicKey;
   
   return (
     <header className="sticky top-0 z-40 bg-transparent backdrop-blur-sm h-14 flex items-center px-4">

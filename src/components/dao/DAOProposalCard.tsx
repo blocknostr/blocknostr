@@ -7,7 +7,7 @@ import { DAOProposal } from '@/types/dao';
 import { ChevronDown, ChevronUp, Clock, Check, X, Users, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface DAOProposalCardProps {

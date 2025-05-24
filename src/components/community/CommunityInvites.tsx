@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link, Copy, Check } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { InviteLink } from "@/types/community";
 import { format } from "date-fns";
 

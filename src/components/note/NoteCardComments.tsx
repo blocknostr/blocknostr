@@ -3,7 +3,7 @@ import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { Trash2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -291,21 +291,29 @@ const NoteCardComments = ({
               
               return (
                 <div key={comment.id} className="flex items-start gap-1.5 group">
-                  <div className="shrink-0">
+                  <Link 
+                    to={`/profile/${comment.author}`} 
+                    className="shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Avatar className="h-5 w-5">
                       <AvatarImage src={picture} />
                       <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
                         {name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                  </div>
+                  </Link>
                   
                   <div className="flex-1">
                     <div className="bg-muted/30 p-1.5 rounded-lg">
                       <div className="flex items-baseline gap-1 mb-0.5">
-                        <span className="font-medium text-[10px]">
+                        <Link 
+                          to={`/profile/${comment.author}`} 
+                          className="font-medium text-[10px] hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {name}
-                        </span>
+                        </Link>
                         <span className="text-[9px] text-muted-foreground">@{shortNpub}</span>
                         <span className="text-[9px] text-muted-foreground">·</span>
                         <span className="text-[9px] text-muted-foreground">{timeAgo}</span>

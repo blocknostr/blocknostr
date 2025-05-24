@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { Note } from "./types";
 

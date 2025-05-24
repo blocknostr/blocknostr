@@ -9,7 +9,7 @@ import { ArticleDraft } from "@/lib/nostr/types/article";
 import TagInput from "@/components/articles/TagInput";
 import MarkdownRenderer from "@/components/articles/MarkdownRenderer";
 import { Save, Send } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface ArticleEditorProps {
   draft: ArticleDraft;

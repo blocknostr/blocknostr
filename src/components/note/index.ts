@@ -1,20 +1,16 @@
-// Main note card components
-export { default as NoteCard } from './NoteCard';
-export { default as NewNoteCard } from './NewNoteCard';
-export { default as MemoizedNoteCard } from './MemoizedNoteCard';
 
-// Remaining specialized components
+export { default as NoteCard } from './NoteCard';
+export { default as NoteCardContainer } from './NoteCardContainer';
+export { default as NoteCardHeader } from './NoteCardHeader';
+export { default as NoteCardContent } from './NoteCardContent';
+export { default as NoteCardActions } from './NoteCardActions';
 export { default as NoteCardComments } from './NoteCardComments';
+export { default as NoteCardRepostHeader } from './NoteCardRepostHeader';
 export { default as NoteCardDeleteDialog } from './NoteCardDeleteDialog';
 export { default as NoteCardDropdownMenu } from './NoteCardDropdownMenu';
-
-// Note creation components (unified)
-export { default as UnifiedCreateNote, NewCreateNote, CreateNote, SimpleCreateNote, AdvancedCreateNote, ModalCreateNote } from './NewCreateNote';
-export { default as CreateNoteModal } from './CreateNoteModal';
-
-// Other note components
-export { default as HashtagButton } from './HashtagButton';
-export { default as PollComponent } from './PollComponent';
+export { default as NoteCardMainContent } from './NoteCardMainContent';
+export { default as NoteCardFooter } from './NoteCardFooter';
+export { default as NoteCardCommentsSection } from './NoteCardCommentsSection';
 
 // Export hooks
 export * from './hooks/useNoteCardDeleteDialog';

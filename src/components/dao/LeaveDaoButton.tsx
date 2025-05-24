@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +29,7 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
   const handleLeave = () => {
     onLeave();
     setShowConfirmation(false);
-    // Navigate back to the Communities page with the My Communities tab active
+    // Navigate back to the DAOs page with the MyDAOs tab active
     navigate('/dao', { state: { activeTab: 'myDaos' } });
   };
 
@@ -40,7 +41,7 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
         onClick={() => setShowConfirmation(true)}
       >
         <LogOut className="h-4 w-4 mr-2" />
-        Leave Community
+        Leave DAO
       </Button>
 
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
@@ -48,7 +49,7 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to leave?</AlertDialogTitle>
             <AlertDialogDescription>
-              You are about to leave the community "{daoName}". You will no longer have access to member-only features unless you join again.
+              You are about to leave the DAO "{daoName}". You will no longer have access to member-only features unless you join again.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -57,7 +58,7 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
               onClick={handleLeave}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Leave Community
+              Leave DAO
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

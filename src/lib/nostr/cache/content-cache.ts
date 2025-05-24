@@ -1,7 +1,8 @@
+
 import { NostrEvent } from "../types";
 import { CACHE_EXPIRY, OFFLINE_CACHE_EXPIRY, STORAGE_KEYS } from "./config";
 import { EventCache } from "./event-cache";
-import { unifiedCacheManager } from "@/lib/utils/UnifiedCacheManager";
+import { ProfileCache } from "./profile-cache";
 import { ThreadCache } from "./thread-cache";
 import { FeedCache } from "./feed-cache";
 import { ListCache } from "./list-cache";
@@ -16,6 +17,7 @@ import { storageQuota } from "../utils/storage-quota";
  */
 export class ContentCache {
   private eventCache: EventCache;
+  private profileCache: ProfileCache;
   private threadCache: ThreadCache;
   private _feedCache: FeedCache;
   private muteListCache: ListCache;
@@ -30,7 +32,7 @@ export class ContentCache {
     
     // Initialize cache modules
     this.eventCache = new EventCache(config);
-
+    this.profileCache = new ProfileCache(config);
     this.threadCache = new ThreadCache(config);
     this._feedCache = new FeedCache(config);
     this.muteListCache = new ListCache(STORAGE_KEYS.MUTE_LIST);
@@ -62,7 +64,7 @@ export class ContentCache {
   // Update offline mode status across all caches
   private updateOfflineMode(): void {
     this.eventCache.setOfflineMode(this.offlineMode);
-    unifiedCacheManager.setOfflineMode(this.offlineMode);
+    this.profileCache.setOfflineMode(this.offlineMode);
     this.threadCache.setOfflineMode(this.offlineMode);
     this._feedCache.setOfflineMode(this.offlineMode);
   }
@@ -130,7 +132,7 @@ export class ContentCache {
         profileData._createdAt = profileData.created_at;
       }
       
-      unifiedCacheManager.cacheItem(pubkey, profileData, important);
+      this.profileCache.cacheItem(pubkey, profileData, important);
     } catch (error) {
       console.error(`Error caching profile for ${pubkey}:`, error);
       
@@ -146,7 +148,7 @@ export class ContentCache {
             nip05: profileData.nip05,
             _createdAt: profileData._createdAt || profileData.created_at
           };
-          unifiedCacheManager.cacheItem(pubkey, essentialData, important);
+          this.profileCache.cacheItem(pubkey, essentialData, important);
         } catch (retryError) {
           console.error(`Failed to cache profile even with reduced data:`, retryError);
         }
@@ -155,7 +157,7 @@ export class ContentCache {
   }
   
   getProfile(pubkey: string): any | null {
-    return unifiedCacheManager.getItem(pubkey);
+    return this.profileCache.getItem(pubkey);
   }
   
   // Thread cache methods
@@ -272,7 +274,7 @@ export class ContentCache {
   cleanupExpiredEntries(): void {
     console.log("Cleaning up expired cache entries...");
     this.eventCache.cleanupExpiredEntries();
-    unifiedCacheManager.cleanupExpiredEntries();
+    this.profileCache.cleanupExpiredEntries();
     this.threadCache.cleanupExpiredEntries();
     this._feedCache.cleanupExpiredEntries();
     
@@ -282,7 +284,7 @@ export class ContentCache {
   
   clearAll(): void {
     this.eventCache.clear();
-    unifiedCacheManager.clear('profile');
+    this.profileCache.clear();
     this.threadCache.clear();
     this._feedCache.clear();
     this.muteListCache.clear();

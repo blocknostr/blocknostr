@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface NoteContent {
   content: string;

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Lock, Globe, Copy, Check } from "lucide-react";
 import { DAO } from "@/types/dao";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService } from "@/lib/nostr";
 

@@ -6,7 +6,7 @@ import { Wallet, RefreshCw, TrendingUp, TrendingDown, DollarSign } from "lucide-
 import { Button } from "@/components/ui/button";
 import { getAddressBalance } from "@/lib/api/alephiumApi"; 
 import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { formatCurrency, formatPercentage } from "@/lib/utils/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 

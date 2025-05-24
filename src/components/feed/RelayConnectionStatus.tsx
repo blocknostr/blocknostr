@@ -4,7 +4,7 @@ import { nostrService } from '@/lib/nostr';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 
 export function RelayConnectionStatus() {
   const [connectedCount, setConnectedCount] = useState(0);

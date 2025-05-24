@@ -1,48 +1,38 @@
-// Event kinds based on NIPs
+
 export const EVENT_KINDS = {
-  METADATA: 0,           // User metadata (NIP-01)
-  TEXT_NOTE: 1,          // Short text note (NIP-01)
-  RECOMMEND_RELAY: 2,    // Recommend relay (NIP-01)
-  CONTACT_LIST: 3,       // Contact list (NIP-02)
-  DM: 4,                 // Direct/private message (NIP-04)
-  DELETE: 5,             // Deletion (NIP-09)
-  REPOST: 6,             // Repost/quote (NIP-18)
-  REACTION: 7,           // Reaction (NIP-25)
-  POLL: 6001,            // Poll (Custom)
-  ARTICLE: 30023,        // Long-form content (NIP-23)
-  PROFILE_BADGES: 30008, // Profile badges (NIP-58)
-  COMMUNITY_DEFINITION: 34550, // Community definition (NIP-72)
-  COMMUNITY_POST: 1,     // Community post (same as text note)
-  BADGE_AWARD: 8,        // Badge award (NIP-58)
-  PUBLIC_CHAT_MESSAGE: 9 // Public chat message (Custom)
-};
-
-// Relay categories
-export const RELAY_CATEGORIES = {
-  READ: 'read',
-  WRITE: 'write',
-  BOTH: 'both'
-};
-
-// Default relay list
-export const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.snort.social',
-  'wss://nostr.wine',
-  'wss://relay.nostr.info'
-];
-
-// Time constants
-export const TIME_CONSTANTS = {
-  HOUR: 60 * 60 * 1000,
-  DAY: 24 * 60 * 60 * 1000,
-  WEEK: 7 * 24 * 60 * 60 * 1000
-};
-
-// Rate limiting
-export const RATE_LIMITS = {
-  FOLLOW_REQUESTS_PER_MINUTE: 5,
-  POSTS_PER_MINUTE: 10,
-  REACTIONS_PER_MINUTE: 30
-};
+  META: 0, // Profile metadata (NIP-01)
+  METADATA: 0, // Alias for META for compatibility
+  TEXT_NOTE: 1, // Text note (NIP-01)
+  RECOMMEND_RELAY: 2, // Recommend relay (NIP-01)
+  CONTACTS: 3, // Contacts/Following list (NIP-02)
+  ENCRYPTED_DM: 4, // Encrypted direct message (NIP-04)
+  DELETE: 5, // Delete event (NIP-09)
+  REPOST: 6, // Repost event (NIP-18)
+  REACTION: 7, // Reaction event (NIP-25)
+  BADGE_AWARD: 8, // Badge award (NIP-58)
+  ENCRYPTED_DM_V2: 14, // Encrypted direct message v2 (NIP-44)
+  
+  // Parameterized replaceable events (NIP-33)
+  EVENT_APP: 30000, // Generic application-specific event
+  BOOKMARKS: 30001, // Bookmarks list (per NIP-51)
+  COMMUNITIES: 30002, // User communities
+  BOOKMARK_COLLECTIONS: 30003, // Collections of bookmarks (custom)
+  BOOKMARK_METADATA: 30004, // Metadata for bookmarks (custom)
+  
+  // Community-specific events (custom)
+  COMMUNITY: 34550, // Community definition event
+  PROPOSAL: 34551, // Community proposal event
+  VOTE: 34552, // Vote on a community proposal
+  BLOCK_LIST: 10000, // User block list
+  MUTE_LIST: 10001, // User mute list
+  
+  // Specialized events (NIP-22, NIP-40)
+  CHANNEL_CREATION: 40, // Channel creation
+  CHANNEL_METADATA: 41, // Channel metadata
+  CHANNEL_MESSAGE: 42, // Channel message
+  
+  LONG_FORM: 30023, // Long-form content (NIP-23)
+  
+  ZAP_REQUEST: 9734, // Zap request (NIP-57)
+  ZAP_RECEIPT: 9735, // Zap receipt (NIP-57)
+}

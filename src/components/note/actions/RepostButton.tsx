@@ -2,7 +2,7 @@
 import React from 'react';
 import { Repeat } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 import { useAction } from '../hooks/use-action';
 

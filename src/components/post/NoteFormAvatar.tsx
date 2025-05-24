@@ -1,53 +1,71 @@
-import { useMemo } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useProfile } from '@/hooks/useUnifiedProfile';
-import { profileAdapter } from '@/lib/adapters/ProfileAdapter';
 
-/**
- * NoteFormAvatar Component - Now uses unified profile hook
- */
-export function NoteFormAvatar() {
-  const { publicKey } = useAuth();
+import React from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { unifiedProfileService } from "@/lib/services/UnifiedProfileService";
+
+interface NoteFormAvatarProps {
+  pubkey: string | null;
+}
+
+const NoteFormAvatar: React.FC<NoteFormAvatarProps> = ({ pubkey }) => {
+  const [profile, setProfile] = React.useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = React.useState(!!pubkey);
   
-  // Convert publicKey to npub for the unified profile hook
-  const npub = useMemo(() => {
-    if (!publicKey) return undefined;
-    try {
-      return profileAdapter.convertHexToNpub(publicKey);
-    } catch (error) {
-      console.error("[NoteFormAvatar] Error converting pubkey to npub:", error);
-      return undefined;
-    }
-  }, [publicKey]);
+  React.useEffect(() => {
+    if (!pubkey) return;
+    
+    // Fetch profile without delay
+    const fetchProfile = async () => {
+      try {
+        const profileData = await unifiedProfileService.getProfile(pubkey);
+        if (profileData) {
+          setProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Error fetching profile for avatar:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProfile();
+    
+    // Subscribe to profile updates
+    const unsubscribe = unifiedProfileService.subscribeToUpdates(pubkey, (updatedProfile) => {
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+        setLoading(false);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [pubkey]);
   
-  // Use unified profile hook
-  const [profileState] = useProfile(npub, { 
-    enableDebug: false,
-    autoLoad: !!npub
-  });
+  if (!pubkey) return null;
   
-  const profile = (profileState as any).profile;
-
-  const getDisplayName = () => {
-    if (!profile) return 'User';
-    return profile.display_name || profile.name || 'User';
-  };
-
-  const getAvatarFallback = () => {
-    const name = getDisplayName();
-    return name.charAt(0).toUpperCase();
-  };
-
+  // Get avatar information
+  const avatarFallback = pubkey.substring(0, 2).toUpperCase();
+  const picture = profile?.picture || '';
+  
   return (
-    <Avatar className="h-10 w-10">
-      <AvatarImage 
-        src={profile?.picture} 
-        alt={getDisplayName()}
-      />
-      <AvatarFallback className="bg-primary text-primary-foreground">
-        {getAvatarFallback()}
+    <Avatar className={cn(
+      "h-10 w-10 ring-2 ring-background/50 ring-offset-1 transition-all duration-300",
+      "hover:ring-primary/20 hover:scale-105",
+      loading ? "opacity-90" : "opacity-100"
+    )}>
+      {picture ? (
+        <AvatarImage 
+          src={picture} 
+          alt="Your avatar" 
+          className="transition-opacity duration-300"
+        />
+      ) : null}
+      <AvatarFallback className="font-medium bg-primary/5 text-primary/80">
+        {avatarFallback}
       </AvatarFallback>
     </Avatar>
   );
-}
+};
+
+export default NoteFormAvatar;

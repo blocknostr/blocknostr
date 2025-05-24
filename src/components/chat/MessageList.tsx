@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface MessageListProps {
   messages: NostrEvent[];
-  profiles?: Record<string, any>;
+  profiles: Record<string, any>;
   emojiReactions: Record<string, string[]>;
   loading: boolean;
   isLoggedIn: boolean;
@@ -16,7 +16,7 @@ interface MessageListProps {
 
 const MessageList: React.FC<MessageListProps> = ({
   messages,
-  profiles = {},
+  profiles,
   emojiReactions,
   loading,
   isLoggedIn,

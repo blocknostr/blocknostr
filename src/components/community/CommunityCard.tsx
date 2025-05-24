@@ -7,7 +7,7 @@ import CommunityCardActions from "./CommunityCardActions";
 import { formatSerialNumber } from "@/lib/community-utils";
 import LeaveCommunityButton from "./LeaveCommunityButton";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 export interface Community {
   id: string;

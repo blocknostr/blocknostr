@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { daoService } from "@/lib/dao/dao-service";
-import { daoCache } from "@/lib/dao/dao-cache";
 import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from "@/lib/nostr";
 
@@ -27,28 +26,7 @@ export function useDAO(daoId?: string) {
     trending: false
   });
   
-  // Cache freshness tracking
-  const [myDaosCachedAt, setMyDaosCachedAt] = useState<number | null>(null);
-  const [isMyDaosCacheFresh, setIsMyDaosCacheFresh] = useState<boolean>(true);
-  const [allDaosCachedAt, setAllDaosCachedAt] = useState<number | null>(null);
-  
   const currentUserPubkey = nostrService.publicKey;
-  
-  // Community posts state
-  const [approvedPosts, setApprovedPosts] = useState<any[]>([]);
-  const [pendingPosts, setPendingPosts] = useState<any[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(false);
-  const [loadingPendingPosts, setLoadingPendingPosts] = useState(false);
-  
-  // Enhanced moderation state
-  const [rejectedPosts, setRejectedPosts] = useState<any[]>([]);
-  const [bannedMembers, setBannedMembers] = useState<any[]>([]);
-  const [contentReports, setContentReports] = useState<any[]>([]);
-  const [moderationLogs, setModerationLogs] = useState<any[]>([]);
-  const [loadingRejectedPosts, setLoadingRejectedPosts] = useState(false);
-  const [loadingBannedMembers, setLoadingBannedMembers] = useState(false);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [loadingModerationLogs, setLoadingModerationLogs] = useState(false);
   
   // Fetch DAOs for general discovery page in parallel
   const fetchGeneralDAOs = useCallback(async () => {
@@ -61,76 +39,34 @@ export function useDAO(daoId?: string) {
     try {
       console.log("Fetching general DAOs...");
       const fetchedDaos = await daoService.getDAOs();
-      console.log(`Fetched ${fetchedDaos.length} DAOs successfully`);
+      console.log(`Fetched ${fetchedDaos.length} DAOs`);
       setDaos(fetchedDaos);
-      
-      // Update cache timestamp tracking
-      const cachedAt = daoCache.getAllDAOsCachedAt();
-      setAllDaosCachedAt(cachedAt);
-      
-      // If no DAOs were fetched, log additional info for debugging
-      if (fetchedDaos.length === 0) {
-        console.warn("No DAOs were returned from service - this might indicate parsing issues or network problems");
-      }
     } catch (error) {
       console.error("Error fetching general DAOs:", error);
-      // Reset loading state to ensure UI doesn't get stuck
-      setDaos([]); // Set empty array to trigger proper empty state in UI
-      toast.error("Failed to load communities. Please try refreshing the page.");
     } finally {
       setLoading(false);
     }
   }, [daoId]);
   
   // Fetch user DAOs in parallel
-  const fetchMyDAOs = useCallback(async (forceRefresh: boolean = false) => {
-    console.log(`[useDAO] fetchMyDAOs called: daoId=${!!daoId}, currentUserPubkey=${!!currentUserPubkey}, initialized=${initializedRef.current.myDaos}, forceRefresh=${forceRefresh}`);
+  const fetchMyDAOs = useCallback(async () => {
+    if (daoId || !currentUserPubkey) return; // Skip if viewing a specific DAO or not logged in
+    if (initializedRef.current.myDaos) return; // Skip if already initialized
     
-    if (daoId || !currentUserPubkey) {
-      console.log("[useDAO] Skipping fetchMyDAOs: viewing specific DAO or not logged in");
-      return; // Skip if viewing a specific DAO or not logged in
-    }
-    
-    // Only skip if already initialized AND we have data AND not forcing refresh
-    if (initializedRef.current.myDaos && !forceRefresh && myDaos.length > 0) {
-      console.log("[useDAO] Skipping fetchMyDAOs: already initialized with data and not forcing refresh");
-      return;
-    }
-    
-    if (!forceRefresh) {
-      initializedRef.current.myDaos = true;
-    }
+    initializedRef.current.myDaos = true;
     setLoadingMyDaos(true);
     
     try {
-      console.log(`Fetching user DAOs... ${forceRefresh ? '(force refresh)' : ''}`);
-      const userDaos = await daoService.getUserDAOs(currentUserPubkey, 20, forceRefresh);
-      console.log(`Fetched ${userDaos.length} user DAOs successfully`, userDaos);
+      console.log("Fetching user DAOs...");
+      const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+      console.log(`Fetched ${userDaos.length} user DAOs`);
       setMyDaos(userDaos);
-      
-      // Update cache freshness tracking
-      const cachedAt = daoCache.getUserDAOsCachedAt(currentUserPubkey);
-      const isFresh = daoCache.isUserDAOsCacheFresh(currentUserPubkey);
-      setMyDaosCachedAt(cachedAt);
-      setIsMyDaosCacheFresh(isFresh);
-      
-      if (userDaos.length === 0) {
-        console.log("User has not joined any communities yet");
-      }
-      
-      if (forceRefresh) {
-        toast.success("My Communities refreshed!", {
-          description: `Updated ${userDaos.length} communities`
-        });
-      }
     } catch (error) {
       console.error("Error fetching user DAOs:", error);
-      setMyDaos([]); // Set empty array to trigger proper empty state
-      toast.error("Failed to load your communities. Please try refreshing.");
     } finally {
       setLoadingMyDaos(false);
     }
-  }, [daoId, currentUserPubkey, myDaos.length]);
+  }, [daoId, currentUserPubkey]);
   
   // Fetch trending DAOs in parallel
   const fetchTrendingDAOs = useCallback(async () => {
@@ -143,16 +79,10 @@ export function useDAO(daoId?: string) {
     try {
       console.log("Fetching trending DAOs...");
       const trending = await daoService.getTrendingDAOs();
-      console.log(`Fetched ${trending.length} trending DAOs successfully`);
+      console.log(`Fetched ${trending.length} trending DAOs`);
       setTrendingDaos(trending);
-      
-      if (trending.length === 0) {
-        console.log("No trending communities available");
-      }
     } catch (error) {
       console.error("Error fetching trending DAOs:", error);
-      setTrendingDaos([]); // Set empty array to trigger proper empty state
-      // Don't show toast for trending as it's less critical
     } finally {
       setLoadingTrending(false);
     }
@@ -170,11 +100,8 @@ export function useDAO(daoId?: string) {
     };
     
     // Clear the cache - force a fresh load
-    daoCache.invalidateAll();
-    
-    // Update cache timestamps to null since cache was cleared
-    setAllDaosCachedAt(null);
-    setMyDaosCachedAt(null);
+    const daoCache = await import('@/lib/dao/dao-cache');
+    daoCache.daoCache.clearAll();
     
     // Only fetch the DAOs for the currently active tab
     return true;
@@ -204,12 +131,13 @@ export function useDAO(daoId?: string) {
         setLoadingKickProposals(true);
         fetchDaoKickProposals(daoId);
       } else {
-        console.error("Community not found");
+        console.error("DAO not found:", daoId);
+        toast.error("DAO not found");
         setLoading(false);
       }
     } catch (error) {
       console.error(`Error fetching DAO ${daoId}:`, error);
-      toast.error("Failed to load community details");
+      toast.error("Failed to load DAO details");
       setLoading(false);
     }
   }, [daoId]);
@@ -250,34 +178,35 @@ export function useDAO(daoId?: string) {
       console.log(`Creating new DAO: ${name}`);
       
       if (!name.trim()) {
-        toast.error("Community name is required");
+        toast.error("DAO name is required");
         return null;
       }
       
       if (!currentUserPubkey) {
-        toast.error("You must be logged in to create a community");
+        toast.error("You must be logged in to create a DAO");
         return null;
       }
       
       const daoId = await daoService.createDAO(name, description, tags);
       
       if (daoId) {
-        toast.success("Successfully created community");
+        toast.success("Successfully created DAO");
         // Refetch DAOs
         const updatedDaos = await daoService.getDAOs();
         setDaos(updatedDaos);
         
         if (currentUserPubkey) {
-          await fetchMyDAOs(true); // Force refresh to get updated list
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
         }
         return daoId;
       } else {
-        toast.error("Failed to create community");
+        toast.error("Failed to create DAO");
         return null;
       }
     } catch (error) {
       console.error("Error creating DAO:", error);
-      toast.error("Failed to create community");
+      toast.error("Failed to create DAO");
       return null;
     }
   };
@@ -416,52 +345,14 @@ export function useDAO(daoId?: string) {
       console.log(`Joining DAO ${daoId}`);
       
       if (!currentUserPubkey) {
-        toast.error("You must be logged in to join a community");
+        toast.error("You must be logged in to join a DAO");
         return false;
       }
       
       const success = await daoService.joinDAO(daoId);
       
       if (success) {
-        toast.success("Successfully joined community");
-        
-        // If we're currently viewing this DAO, update it
-        if (currentDao?.id === daoId) {
-          const updatedDao = await daoService.getDAOById(daoId);
-          setCurrentDao(updatedDao);
-        }
-        
-        // Force refresh myDaos with new indefinite caching
-        if (currentUserPubkey) {
-          await fetchMyDAOs(true); // Force refresh to get updated list
-        }
-        
-        return true;
-      } else {
-        toast.error("Failed to join community");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error joining DAO:", error);
-      toast.error("Failed to join community");
-      return false;
-    }
-  };
-  
-  // Leave a DAO
-  const leaveDAO = async (daoId: string): Promise<boolean> => {
-    try {
-      if (!currentUserPubkey) {
-        toast.error("You must be logged in to leave a community");
-        return false;
-      }
-      
-      console.log(`Leaving DAO ${daoId}`);
-      
-      const success = await daoService.leaveDAO(daoId);
-      
-      if (success) {
-        toast.success("Successfully left the community");
+        toast.success("Successfully joined DAO");
         
         // If we're currently viewing this DAO, update it
         if (currentDao?.id === daoId) {
@@ -471,17 +362,57 @@ export function useDAO(daoId?: string) {
         
         // Update myDaos list
         if (currentUserPubkey) {
-          await fetchMyDAOs(true); // Force refresh to get updated list
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
         }
         
         return true;
       } else {
-        toast.error("Failed to leave the community");
+        toast.error("Failed to join DAO");
+        return false;
+      }
+    } catch (error) {
+      console.error("Error joining DAO:", error);
+      toast.error("Failed to join DAO");
+      return false;
+    }
+  };
+  
+  // Leave a DAO
+  const leaveDAO = async (daoId: string): Promise<boolean> => {
+    try {
+      if (!currentUserPubkey) {
+        toast.error("You must be logged in to leave a DAO");
+        return false;
+      }
+      
+      console.log(`Leaving DAO ${daoId}`);
+      
+      const success = await daoService.leaveDAO(daoId);
+      
+      if (success) {
+        toast.success("Successfully left the DAO");
+        
+        // If we're currently viewing this DAO, update it
+        if (currentDao?.id === daoId) {
+          const updatedDao = await daoService.getDAOById(daoId);
+          setCurrentDao(updatedDao);
+        }
+        
+        // Update myDaos list
+        if (currentUserPubkey) {
+          const userDaos = await daoService.getUserDAOs(currentUserPubkey);
+          setMyDaos(userDaos);
+        }
+        
+        return true;
+      } else {
+        toast.error("Failed to leave the DAO");
         return false;
       }
     } catch (error: any) {
       console.error("Error leaving DAO:", error);
-      toast.error(error?.message || "Failed to leave the community");
+      toast.error(error?.message || "Failed to leave the DAO");
       return false;
     }
   };
@@ -493,7 +424,7 @@ export function useDAO(daoId?: string) {
       
       // Only creator can update privacy
       if (currentDao.creator !== currentUserPubkey) {
-        toast.error("Only the community creator can update privacy settings");
+        toast.error("Only the DAO creator can update privacy settings");
         return false;
       }
       
@@ -529,7 +460,7 @@ export function useDAO(daoId?: string) {
       
       // Only creator can update guidelines
       if (currentDao.creator !== currentUserPubkey) {
-        toast.error("Only the community creator can update guidelines");
+        toast.error("Only the DAO creator can update guidelines");
         return false;
       }
       
@@ -565,7 +496,7 @@ export function useDAO(daoId?: string) {
       
       // Only creator can update tags
       if (currentDao.creator !== currentUserPubkey) {
-        toast.error("Only the community creator can update tags");
+        toast.error("Only the DAO creator can update tags");
         return false;
       }
       
@@ -601,7 +532,7 @@ export function useDAO(daoId?: string) {
       
       // Only creator can add moderators
       if (currentDao.creator !== currentUserPubkey) {
-        toast.error("Only the community creator can add moderators");
+        toast.error("Only the DAO creator can add moderators");
         return false;
       }
       
@@ -650,7 +581,7 @@ export function useDAO(daoId?: string) {
       
       // Only creator can remove moderators
       if (currentDao.creator !== currentUserPubkey) {
-        toast.error("Only the community creator can remove moderators");
+        toast.error("Only the DAO creator can remove moderators");
         return false;
       }
       
@@ -772,340 +703,6 @@ export function useDAO(daoId?: string) {
       setLoadingProposals(false);
     }
   }, [daoId]);
-
-  // Force refresh My Communities with user feedback
-  const forceRefreshMyDAOs = useCallback(async () => {
-    if (!currentUserPubkey) return;
-    
-    console.log("Force refreshing My Communities...");
-    await fetchMyDAOs(true);
-  }, [currentUserPubkey, fetchMyDAOs]);
-
-  // Community post functions
-  const submitCommunityPost = async (content: string, title?: string) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Submitting post to community ${daoId}`);
-      
-      const postId = await daoService.submitCommunityPost(daoId, content, title);
-      
-      if (postId) {
-        toast.success("Post submitted for moderation");
-        // Refresh pending posts
-        await fetchPendingPosts();
-        return true;
-      } else {
-        toast.error("Failed to submit post");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error submitting community post:", error);
-      toast.error("Failed to submit post");
-      return false;
-    }
-  };
-
-  const approveCommunityPost = async (postId: string, originalPost: any) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Approving post ${postId} for community ${daoId}`);
-      
-      // Optimistically update the UI immediately
-      const approvedPost = pendingPosts.find(post => post.id === postId);
-      if (approvedPost) {
-        // Remove from pending posts immediately
-        setPendingPosts(prev => prev.filter(post => post.id !== postId));
-        
-        // Add to approved posts immediately with proper structure
-        const newApprovedPost = {
-          id: postId,
-          content: approvedPost.content,
-          title: approvedPost.title,
-          author: approvedPost.author,
-          createdAt: approvedPost.createdAt,
-          tags: approvedPost.tags || []
-        };
-        setApprovedPosts(prev => [newApprovedPost, ...prev]);
-      }
-      
-      const approvalId = await daoService.approveCommunityPost(daoId, postId, originalPost);
-      
-      if (approvalId) {
-        toast.success("Post approved successfully");
-        // Background refresh to ensure data consistency
-        setTimeout(() => {
-          Promise.all([fetchPendingPosts(), fetchApprovedPosts()]);
-        }, 1000);
-        return true;
-      } else {
-        toast.error("Failed to approve post");
-        // Revert optimistic update on failure
-        if (approvedPost) {
-          setPendingPosts(prev => [approvedPost, ...prev]);
-          setApprovedPosts(prev => prev.filter(post => post.id !== postId));
-        }
-        return false;
-      }
-    } catch (error) {
-      console.error("Error approving community post:", error);
-      toast.error("Failed to approve post");
-      // Revert optimistic update on error
-      const approvedPost = pendingPosts.find(post => post.id === postId);
-      if (approvedPost) {
-        setPendingPosts(prev => [approvedPost, ...prev]);
-        setApprovedPosts(prev => prev.filter(post => post.id !== postId));
-      }
-      return false;
-    }
-  };
-
-  const fetchApprovedPosts = async () => {
-    if (!daoId) return;
-    
-    setLoadingPosts(true);
-    try {
-      const posts = await daoService.getApprovedCommunityPosts(daoId);
-      setApprovedPosts(posts);
-    } catch (error) {
-      console.error("Error fetching approved posts:", error);
-    } finally {
-      setLoadingPosts(false);
-    }
-  };
-
-  const fetchPendingPosts = async () => {
-    if (!daoId) return;
-    
-    setLoadingPendingPosts(true);
-    try {
-      const posts = await daoService.getPendingCommunityPosts(daoId);
-      setPendingPosts(posts);
-    } catch (error) {
-      console.error("Error fetching pending posts:", error);
-    } finally {
-      setLoadingPendingPosts(false);
-    }
-  };
-
-  // Load posts when DAO changes
-  useEffect(() => {
-    if (daoId) {
-      fetchApprovedPosts();
-      fetchPendingPosts();
-      // Load moderation data for moderators
-      if (currentDao && (isCreator(currentDao) || isModerator(currentDao))) {
-        fetchRejectedPosts();
-        fetchBannedMembers();
-        fetchContentReports();
-        fetchModerationLogs();
-      }
-    }
-  }, [daoId, currentDao]);
-  
-  // Enhanced moderation functions
-  const rejectCommunityPost = async (postId: string, originalPost: any, reason: string) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Rejecting post ${postId} for community ${daoId} with reason: ${reason}`);
-      
-      // Optimistically update the UI immediately
-      const rejectedPost = pendingPosts.find(post => post.id === postId);
-      if (rejectedPost) {
-        // Remove from pending posts immediately
-        setPendingPosts(prev => prev.filter(post => post.id !== postId));
-      }
-      
-      const rejectionId = await daoService.rejectCommunityPost(daoId, postId, originalPost, reason);
-      
-      if (rejectionId) {
-        toast.success("Post rejected successfully");
-        // Background refresh to ensure data consistency
-        setTimeout(() => {
-          Promise.all([fetchPendingPosts(), fetchRejectedPosts()]);
-        }, 1000);
-        return true;
-      } else {
-        toast.error("Failed to reject post");
-        // Revert optimistic update on failure
-        if (rejectedPost) {
-          setPendingPosts(prev => [rejectedPost, ...prev]);
-        }
-        return false;
-      }
-    } catch (error) {
-      console.error("Error rejecting community post:", error);
-      toast.error("Failed to reject post");
-      // Revert optimistic update on error
-      const rejectedPost = pendingPosts.find(post => post.id === postId);
-      if (rejectedPost) {
-        setPendingPosts(prev => [rejectedPost, ...prev]);
-      }
-      return false;
-    }
-  };
-
-  const banMember = async (memberToBan: string, reason: string, durationHours?: number) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Banning member ${memberToBan} from community ${daoId}`);
-      
-      const banId = await daoService.banMember(daoId, memberToBan, reason, durationHours);
-      
-      if (banId) {
-        toast.success(`Member banned successfully${durationHours ? ` for ${durationHours} hours` : ''}`);
-        // Refresh DAO and banned members list
-        await Promise.all([fetchDaoDetails(), fetchBannedMembers()]);
-        return true;
-      } else {
-        toast.error("Failed to ban member");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error banning member:", error);
-      toast.error("Failed to ban member");
-      return false;
-    }
-  };
-
-  const unbanMember = async (memberToUnban: string, reason?: string) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Unbanning member ${memberToUnban} from community ${daoId}`);
-      
-      const unbanId = await daoService.unbanMember(daoId, memberToUnban, reason);
-      
-      if (unbanId) {
-        toast.success("Member unbanned successfully");
-        // Refresh DAO and banned members list
-        await Promise.all([fetchDaoDetails(), fetchBannedMembers()]);
-        return true;
-      } else {
-        toast.error("Failed to unban member");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error unbanning member:", error);
-      toast.error("Failed to unban member");
-      return false;
-    }
-  };
-
-  const reportContent = async (
-    targetId: string,
-    targetType: 'post' | 'comment' | 'user',
-    category: 'spam' | 'harassment' | 'inappropriate' | 'misinformation' | 'other',
-    reason: string
-  ) => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Reporting ${targetType} ${targetId} in community ${daoId}`);
-      
-      const reportId = await daoService.reportContent(daoId, targetId, targetType, category, reason);
-      
-      if (reportId) {
-        toast.success("Content reported successfully");
-        // Refresh reports for moderators
-        if (currentDao && (isCreator(currentDao) || isModerator(currentDao))) {
-          await fetchContentReports();
-        }
-        return true;
-      } else {
-        toast.error("Failed to report content");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error reporting content:", error);
-      toast.error("Failed to report content");
-      return false;
-    }
-  };
-
-  const reviewContentReport = async (reportId: string, resolution: string, status: 'reviewed' | 'resolved' | 'dismissed') => {
-    try {
-      if (!daoId || !currentUserPubkey) return false;
-      
-      console.log(`Reviewing content report ${reportId}`);
-      
-      const reviewId = await daoService.reviewContentReport(reportId, daoId, resolution, status);
-      
-      if (reviewId) {
-        toast.success("Report reviewed successfully");
-        // Refresh reports and logs
-        await Promise.all([fetchContentReports(), fetchModerationLogs()]);
-        return true;
-      } else {
-        toast.error("Failed to review report");
-        return false;
-      }
-    } catch (error) {
-      console.error("Error reviewing content report:", error);
-      toast.error("Failed to review report");
-      return false;
-    }
-  };
-
-  // Fetch functions for moderation data
-  const fetchRejectedPosts = async () => {
-    if (!daoId) return;
-    
-    setLoadingRejectedPosts(true);
-    try {
-      const posts = await daoService.getRejectedCommunityPosts(daoId);
-      setRejectedPosts(posts);
-    } catch (error) {
-      console.error("Error fetching rejected posts:", error);
-    } finally {
-      setLoadingRejectedPosts(false);
-    }
-  };
-
-  const fetchBannedMembers = async () => {
-    if (!daoId) return;
-    
-    setLoadingBannedMembers(true);
-    try {
-      const bans = await daoService.getBannedMembers(daoId);
-      setBannedMembers(bans);
-    } catch (error) {
-      console.error("Error fetching banned members:", error);
-    } finally {
-      setLoadingBannedMembers(false);
-    }
-  };
-
-  const fetchContentReports = async () => {
-    if (!daoId) return;
-    
-    setLoadingReports(true);
-    try {
-      const reports = await daoService.getContentReports(daoId);
-      setContentReports(reports);
-    } catch (error) {
-      console.error("Error fetching content reports:", error);
-    } finally {
-      setLoadingReports(false);
-    }
-  };
-
-  const fetchModerationLogs = async () => {
-    if (!daoId) return;
-    
-    setLoadingModerationLogs(true);
-    try {
-      const logs = await daoService.getModerationLogs(daoId);
-      setModerationLogs(logs);
-    } catch (error) {
-      console.error("Error fetching moderation logs:", error);
-    } finally {
-      setLoadingModerationLogs(false);
-    }
-  };
   
   return {
     daos,
@@ -1114,27 +711,11 @@ export function useDAO(daoId?: string) {
     currentDao,
     proposals,
     kickProposals,
-    approvedPosts,
-    pendingPosts,
-    rejectedPosts,
-    bannedMembers,
-    contentReports,
-    moderationLogs,
     loading,
     loadingMyDaos,
     loadingTrending,
     loadingProposals,
     loadingKickProposals,
-    loadingPosts,
-    loadingPendingPosts,
-    loadingRejectedPosts,
-    loadingBannedMembers,
-    loadingReports,
-    loadingModerationLogs,
-    // Cache freshness info
-    myDaosCachedAt,
-    isMyDaosCacheFresh,
-    allDaosCachedAt,
     createDAO,
     createProposal,
     voteOnProposal,
@@ -1148,10 +729,6 @@ export function useDAO(daoId?: string) {
     createDAOInvite,
     createKickProposal,
     voteOnKickProposal,
-    submitCommunityPost,
-    approveCommunityPost,
-    fetchApprovedPosts,
-    fetchPendingPosts,
     isMember,
     isModerator,
     isCreator,
@@ -1162,16 +739,6 @@ export function useDAO(daoId?: string) {
     fetchGeneralDAOs,
     fetchMyDAOs,
     fetchTrendingDAOs,
-    refreshProposals,
-    rejectCommunityPost,
-    banMember,
-    unbanMember,
-    reportContent,
-    reviewContentReport,
-    fetchRejectedPosts,
-    fetchBannedMembers,
-    fetchContentReports,
-    fetchModerationLogs,
-    forceRefreshMyDAOs
+    refreshProposals
   };
 }

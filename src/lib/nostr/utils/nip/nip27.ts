@@ -1,3 +1,4 @@
+
 /**
  * NIP-27: Mentions - Implementation of the Nostr protocol for formatting mentions
  * https://github.com/nostr-protocol/nips/blob/master/27.md
@@ -5,7 +6,7 @@
 
 import { nip19 } from 'nostr-tools';
 import { nostrService } from '@/lib/nostr';
-import { profileDataService } from '@/lib/services/ProfileDataService';
+import { simpleProfileService } from '@/lib/services/profile/simpleProfileService';
 
 // Regex to match nostr: URLs as defined in NIP-21
 const NOSTR_URI_REGEX = /nostr:(npub1[a-z0-9]{6,}|nprofile1[a-z0-9]{6,}|nevent1[a-z0-9]{6,}|note1[a-z0-9]{6,})/gi;
@@ -42,7 +43,7 @@ export function extractMentions(content: string): string[] {
 export async function getDisplayNameFromNpub(npub: string): Promise<string> {
   try {
     // Try to get profile data for this npub
-    const profile = await profileDataService.getProfileMetadata(npub);
+    const profile = await simpleProfileService.getProfileMetadata(npub);
     
     if (profile && (profile.name || profile.display_name)) {
       return profile.display_name || profile.name;
@@ -109,16 +110,20 @@ export function getHexFromNostrUrl(url: string): string | null {
 }
 
 /**
- * Get profile URL from pubkey or npub
+ * Get the profile URL for a given npub or hex pubkey
  */
 export function getProfileUrl(pubkeyOrNpub: string): string {
-  if (pubkeyOrNpub.startsWith('npub1')) {
-    // Since profile pages are removed, return home instead
-    return `/`;
+  try {
+    // Ensure we have an npub format
+    const npub = pubkeyOrNpub.startsWith('npub1') 
+      ? pubkeyOrNpub 
+      : nostrService.getNpubFromHex(pubkeyOrNpub);
+      
+    return `/profile/${npub}`;
+  } catch (error) {
+    console.error("Error generating profile URL:", error);
+    return `/profile/${pubkeyOrNpub}`;
   }
-  
-  // Since profile pages are removed, return home instead
-  return `/`;
 }
 
 /**

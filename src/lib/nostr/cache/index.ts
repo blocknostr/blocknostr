@@ -1,6 +1,7 @@
+
 export { contentCache } from './content-cache';
 export { EventCache } from './event-cache';
-export { unifiedCacheManager as ProfileCache } from '@/lib/utils/UnifiedCacheManager';
+export { ProfileCache } from './profile-cache';
 export { FeedCache } from './feed-cache';
 export { ThreadCache } from './thread-cache';
 export { ListCache } from './list-cache';

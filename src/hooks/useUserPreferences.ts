@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 
 export type FeedType = 'global' | 'following' | 'media';
 

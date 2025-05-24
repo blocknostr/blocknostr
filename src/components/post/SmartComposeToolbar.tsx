@@ -22,7 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface SmartComposeToolbarProps {

@@ -1,7 +1,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { chatNostrService } from "@/lib/nostr/chat-service";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { retry } from "@/lib/utils/retry";
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';

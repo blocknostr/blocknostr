@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
@@ -10,7 +11,7 @@ import clsx from "clsx";
 interface MessageItemProps {
   message: NostrEvent;
   emojiReactions: string[];
-  profiles?: Record<string, any>;
+  profiles: Record<string, any>;
   isLoggedIn: boolean;
   onAddReaction: (emoji: string) => void;
   previousMessage?: NostrEvent;
@@ -19,7 +20,7 @@ interface MessageItemProps {
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
   emojiReactions,
-  profiles = {},
+  profiles,
   isLoggedIn,
   onAddReaction,
   previousMessage
@@ -32,17 +33,11 @@ const MessageItem: React.FC<MessageItemProps> = ({
   const shouldGroupWithPrevious = isPreviousSameSender && timeDifference < 60; // Group messages within 1 minute
 
   const getDisplayName = (pubkey: string) => {
-    if (!profiles || !profiles[pubkey]) {
-      return `${pubkey.substring(0, 6)}...`;
-    }
     const profile = profiles[pubkey];
     return profile?.name || profile?.display_name || `${pubkey.substring(0, 6)}...`;
   };
   
   const getProfilePicture = (pubkey: string) => {
-    if (!profiles || !profiles[pubkey]) {
-      return '';
-    }
     const profile = profiles[pubkey];
     return profile?.picture || '';
   };

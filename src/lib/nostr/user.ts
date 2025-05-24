@@ -1,6 +1,6 @@
 
 import { nip19, getPublicKey } from 'nostr-tools';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { EVENT_KINDS } from './constants';
 import { NostrProfileMetadata } from './types';
 

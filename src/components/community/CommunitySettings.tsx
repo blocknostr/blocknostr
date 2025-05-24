@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,58 +6,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Lock, X, Plus, Trash2, Wallet, ExternalLink } from "lucide-react";
+import { Shield, Lock, X, Plus } from "lucide-react";
 import { Community } from "@/types/community";
 import { nostrService } from "@/lib/nostr";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 interface CommunitySettingsProps {
   community: Community;
   isCreator: boolean;
   isModerator: boolean;
-  isCreatorOnlyMember: boolean;
   onSetPrivate: (isPrivate: boolean) => Promise<void>;
   onUpdateTags: (tags: string[]) => Promise<void>;
   onAddModerator: (pubkey: string) => Promise<void>;
   onRemoveModerator: (pubkey: string) => Promise<void>;
-  onDeleteCommunity?: () => Promise<void>;
-  onSetAlphaWallet?: (walletAddress: string) => Promise<void>;
 }
 
 const CommunitySettings = ({
   community,
   isCreator,
   isModerator,
-  isCreatorOnlyMember,
   onSetPrivate,
   onUpdateTags,
   onAddModerator,
-  onRemoveModerator,
-  onDeleteCommunity,
-  onSetAlphaWallet
+  onRemoveModerator
 }: CommunitySettingsProps) => {
   const [isPrivate, setIsPrivate] = useState(community.isPrivate || false);
   const [tags, setTags] = useState<string[]>(community.tags || []);
   const [newTag, setNewTag] = useState("");
   const [newModeratorPubkey, setNewModeratorPubkey] = useState("");
-  const [alphaWallet, setAlphaWallet] = useState((community as any).alphaWallet || "");
-  const [newAlphaWallet, setNewAlphaWallet] = useState("");
   const [isSubmitting, setIsSubmitting] = useState({
     privacy: false,
     tags: false,
-    moderator: false,
-    alphaWallet: false,
-    delete: false
+    moderator: false
   });
   
   const handlePrivacyToggle = async () => {
@@ -112,33 +92,8 @@ const CommunitySettings = ({
       setIsSubmitting(prev => ({ ...prev, moderator: false }));
     }
   };
-
-  const handleSetAlphaWallet = async () => {
-    if (!newAlphaWallet.trim() || !onSetAlphaWallet) return;
-    
-    setIsSubmitting(prev => ({ ...prev, alphaWallet: true }));
-    try {
-      await onSetAlphaWallet(newAlphaWallet.trim());
-      setAlphaWallet(newAlphaWallet.trim());
-      setNewAlphaWallet("");
-    } finally {
-      setIsSubmitting(prev => ({ ...prev, alphaWallet: false }));
-    }
-  };
-
-  const handleDeleteCommunity = async () => {
-    if (!onDeleteCommunity) return;
-    
-    setIsSubmitting(prev => ({ ...prev, delete: true }));
-    try {
-      await onDeleteCommunity();
-    } finally {
-      setIsSubmitting(prev => ({ ...prev, delete: false }));
-    }
-  };
   
   const showModeratorSettings = isCreator;
-  const canDelete = isCreator && isCreatorOnlyMember && !!onDeleteCommunity;
   
   return (
     <div className="space-y-6">
@@ -172,83 +127,6 @@ const CommunitySettings = ({
           </div>
         </CardContent>
       </Card>
-
-      {/* Alpha Wallet Settings - Only for Creator */}
-      {isCreator && onSetAlphaWallet && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Wallet className="h-5 w-5 mr-2" />
-              Community Alpha Wallet
-            </CardTitle>
-            <CardDescription>
-              Set a wallet address for the community to track funds and transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {alphaWallet ? (
-                <div className="rounded-md border p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label className="font-medium">Current Alpha Wallet</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {alphaWallet.length > 20 ? `${alphaWallet.substring(0, 10)}...${alphaWallet.substring(alphaWallet.length - 10)}` : alphaWallet}
-                        </code>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(`https://explorer.alephium.org/addresses/${alphaWallet}`, '_blank')}
-                          title="View wallet on Alephium Explorer"
-                          aria-label="View wallet on Alephium Explorer"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setAlphaWallet("");
-                        if (onSetAlphaWallet) onSetAlphaWallet("");
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <Wallet className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No alpha wallet set for this community</p>
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter wallet address (Alephium format)"
-                  value={newAlphaWallet}
-                  onChange={(e) => setNewAlphaWallet(e.target.value)}
-                  className="flex-grow"
-                />
-                <Button
-                  onClick={handleSetAlphaWallet}
-                  disabled={isSubmitting.alphaWallet || !newAlphaWallet.trim()}
-                >
-                  {alphaWallet ? "Update" : "Set"} Wallet
-                </Button>
-              </div>
-              
-              <p className="text-xs text-muted-foreground">
-                The alpha wallet will be publicly visible to all community members for transparency.
-                Members can track community funds and transactions using this address.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
       
       {/* Tags Settings */}
       <Card>
@@ -271,8 +149,6 @@ const CommunitySettings = ({
                       <button
                         onClick={() => handleRemoveTag(tag)}
                         className="ml-1 h-4 w-4 rounded-full"
-                        title={`Remove ${tag} tag`}
-                        aria-label={`Remove ${tag} tag`}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -368,65 +244,6 @@ const CommunitySettings = ({
                 >
                   Add Moderator
                 </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Danger Zone - Delete Community */}
-      {canDelete && (
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="flex items-center text-destructive">
-              <Trash2 className="h-5 w-5 mr-2" />
-              Danger Zone
-            </CardTitle>
-            <CardDescription>
-              Permanently delete this community. This action cannot be undone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="rounded-md border border-destructive/20 bg-destructive/5 p-4">
-                <h4 className="font-medium text-destructive mb-2">Delete Community</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  You can only delete this community because you are the creator and the only member. 
-                  Once deleted, all proposals, discussions, and community data will be permanently lost.
-                </p>
-                
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive" 
-                      disabled={isSubmitting.delete}
-                      className="w-full"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Community
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the community "{community.name}".
-                        All proposals, discussions, and community data will be lost forever.
-                        This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={handleDeleteCommunity} 
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        disabled={isSubmitting.delete}
-                      >
-                        {isSubmitting.delete ? "Deleting..." : "Delete Community"}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
             </div>
           </CardContent>

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useIsMobile } from "@/hooks/use-mobile";
 import MobileMenu from "@/components/home/MobileMenu";
 import { useLocation } from "react-router-dom";
-import HeaderRelayStatus from "@/components/Header/HeaderRelayStatus";
+import HeaderRelayStatus from "@/components/header/HeaderRelayStatus";
 import { nostrService } from "@/lib/nostr";
 import PageBreadcrumbs, { BreadcrumbItem } from "@/components/navigation/PageBreadcrumbs";
 import { useMemo } from "react";
@@ -38,6 +39,8 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
     const path = location.pathname;
     
     if (path === '/') return 'Home';
+    if (path === '/profile') return 'Profile';
+    if (path.startsWith('/profile/')) return 'Profile';
     if (path === '/settings') return 'Settings';
     if (path === '/dao') return 'DAOs';
     if (path.startsWith('/dao/')) return 'DAO';
@@ -136,7 +139,7 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
             >
               <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
             </Button>
-            <LoginButton size="sm" />
+            <LoginButton />
           </div>
         </div>
         

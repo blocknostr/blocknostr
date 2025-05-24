@@ -1,6 +1,7 @@
+
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { Community, MemberRole } from "@/types/community";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 export const useCommunityActions = (
   community: Community | null,
@@ -68,12 +69,6 @@ export const useCommunityActions = (
     }
     
     try {
-      // Prevent creator from leaving their own community
-      if (community.creator === currentUserPubkey) {
-        toast.error("As the creator, you cannot leave your community. You can only delete it if you're the sole member.");
-        return;
-      }
-      
       // Check if user is the creator and also a moderator
       if (community.creator === currentUserPubkey && 
           community.moderators && 
@@ -705,84 +700,6 @@ export const useCommunityActions = (
     }
   };
 
-  // Function to set community alpha wallet
-  const handleSetAlphaWallet = async (walletAddress: string) => {
-    if (!currentUserPubkey || !community) {
-      toast.error("You must be logged in to set the alpha wallet");
-      return;
-    }
-    
-    if (community.creator !== currentUserPubkey) {
-      toast.error("Only the creator can set the alpha wallet");
-      return;
-    }
-    
-    try {
-      // Basic validation for wallet address format
-      if (walletAddress && !walletAddress.match(/^[1-9A-HJ-NP-Za-km-z]{25,40}$/)) {
-        toast.error("Invalid wallet address format");
-        return;
-      }
-      
-      // Publish community metadata event for alpha wallet
-      const event = {
-        kind: 34556, // Community metadata
-        content: JSON.stringify({
-          type: 'alphaWallet',
-          content: walletAddress,
-          createdAt: Math.floor(Date.now() / 1000)
-        }),
-        tags: [
-          ['e', community.id],
-          ['d', community.uniqueId],
-          ['p', currentUserPubkey]
-        ]
-      };
-      
-      const metadataId = await nostrService.publishEvent(event);
-      
-      if (metadataId) {
-        // Also update the main community event with the alpha wallet
-        const communityData = {
-          name: community.name,
-          description: community.description,
-          image: community.image,
-          creator: community.creator,
-          createdAt: community.createdAt,
-          isPrivate: community.isPrivate,
-          guidelines: community.guidelines,
-          tags: community.tags,
-          alphaWallet: walletAddress
-        };
-        
-        const communityEvent = {
-          kind: 34550,
-          content: JSON.stringify(communityData),
-          tags: [
-            ['d', community.uniqueId],
-            ...community.members.map(member => ['p', member]),
-            ...(community.tags || []).map(tag => ['t', tag])
-          ]
-        };
-        
-        await nostrService.publishEvent(communityEvent);
-        
-        // Update local state
-        setCommunity({
-          ...community,
-          alphaWallet: walletAddress
-        } as Community);
-        
-        toast.success(walletAddress ? "Community alpha wallet updated" : "Community alpha wallet removed");
-      } else {
-        toast.error("Failed to update alpha wallet");
-      }
-    } catch (error) {
-      console.error("Error updating alpha wallet:", error);
-      toast.error("Failed to update alpha wallet");
-    }
-  };
-
   return {
     handleJoinCommunity,
     handleLeaveCommunity,
@@ -795,7 +712,6 @@ export const useCommunityActions = (
     handleSetGuidelines,
     handleAddModerator,
     handleRemoveModerator,
-    handleSetCommunityTags,
-    handleSetAlphaWallet
+    handleSetCommunityTags
   };
 };

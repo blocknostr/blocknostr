@@ -1,70 +1,167 @@
-import React from "react";
+
 import { Button } from "@/components/ui/button";
-import { Wallet, LogOut, Check } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { useGlobalLoginDialog } from "@/hooks/useGlobalLoginDialog";
+import { useState, useEffect } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { LogOut, User, AlertCircle, Shield } from "lucide-react";
+import { toast } from "sonner";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
+import LoginDialog from "./auth/LoginDialog";
+import { cn } from "@/lib/utils";
 
-interface LoginButtonProps {
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
-  className?: string;
-  showText?: boolean;
-}
-
-const LoginButton: React.FC<LoginButtonProps> = ({
-  variant = "default",
-  size = "default", 
-  className = "",
-  showText = true
-}) => {
-  const { isLoggedIn, shortPubkey } = useAuth();
-  const { openLoginDialog } = useGlobalLoginDialog();
-
-  // Add debugging
-  console.log('[LoginButton] Render - isLoggedIn:', isLoggedIn, 'shortPubkey:', shortPubkey);
-
-  const handleClick = () => {
-    if (isLoggedIn) {
-      // Sign out if already logged in
-      console.log('[LoginButton] Signing out...');
-      nostrService.signOut();
-      toast.success("Signed out successfully", { 
-        description: "You have been disconnected from your Nostr account" 
-      });
-    } else {
-      // Open login dialog if not logged in
-      console.log('[LoginButton] Opening login dialog...');
-      openLoginDialog();
-    }
+const LoginButton = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [npub, setNpub] = useState<string>("");
+  const [hasExtension, setHasExtension] = useState<boolean>(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState<boolean>(false);
+  
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkLogin = () => {
+      const pubkey = nostrService.publicKey;
+      if (pubkey) {
+        setIsLoggedIn(true);
+        setNpub(nostrService.formatPubkey(pubkey));
+      } else {
+        setIsLoggedIn(false);
+        setNpub("");
+      }
+      
+      // Check for NIP-07 extension
+      setHasExtension(!!window.nostr);
+    };
+    
+    checkLogin();
+    
+    // Re-check for extension periodically (it might be installed after page load)
+    const intervalId = setInterval(() => {
+      setHasExtension(!!window.nostr);
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  const handleLogin = async () => {
+    // Open login dialog instead of direct login
+    setLoginDialogOpen(true);
   };
-
+  
+  const handleLogout = async () => {
+    await nostrService.signOut();
+    setIsLoggedIn(false);
+    setNpub("");
+    toast.success("Signed out successfully");
+    
+    // Reload the page to reset all states
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+  
   if (isLoggedIn) {
+    const shortNpub = npub.length > 14 
+      ? `${npub.substring(0, 7)}...${npub.substring(npub.length - 7)}`
+      : npub;
+      
     return (
-      <Button 
-        variant={variant === "default" ? "default" : variant}
-        size={size} 
-        className={`${className} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0`}
-        onClick={handleClick}
-      >
-        <Check className="h-4 w-4 mr-1" />
-        {showText && "Connected"}
-        <LogOut className="h-3 w-3 ml-2 opacity-70" />
-      </Button>
+      <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2 border-primary/20 hover:border-primary/30 hover:bg-primary/5 transition-colors"
+                onClick={() => { window.location.href = "/profile"; }}
+              >
+                <User className="h-4 w-4 text-primary" />
+                <span className="font-normal">{shortNpub}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View your profile</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="text-red-500 hover:bg-red-500/10 transition-colors" 
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Sign out</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {/* Login Dialog component */}
+        <LoginDialog 
+          open={loginDialogOpen}
+          onOpenChange={setLoginDialogOpen}
+        />
+      </div>
     );
   }
-
+  
   return (
-    <Button 
-      variant={variant} 
-      size={size} 
-      className={className}
-      onClick={handleClick}
-    >
-      <Wallet className="h-4 w-4 mr-1" />
-      {showText && "Connect Wallet"}
-    </Button>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              onClick={handleLogin} 
+              className={cn(
+                "flex items-center gap-2 shadow-sm relative overflow-hidden",
+                "transition-all duration-300",
+                hasExtension ? 
+                  "bg-gradient-to-r from-primary/90 via-primary/80 to-primary/70 hover:bg-primary hover:shadow" : 
+                  "bg-transparent border border-primary/20 hover:border-primary/30 hover:bg-primary/5"
+              )}
+              variant={hasExtension ? "default" : "outline"}
+            >
+              {/* Subtle inner shine effect */}
+              <span className="absolute inset-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100"></span>
+              
+              {hasExtension ? (
+                <>
+                  <Shield className="h-4 w-4" />
+                  <span>Connect Wallet</span>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <span>Install Extension</span>
+                </>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {hasExtension ? 
+              "Connect with your Nostr wallet" : 
+              "Install Alby, Alephium or nos2x extension"
+            }
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      
+      {/* Login Dialog component */}
+      <LoginDialog 
+        open={loginDialogOpen}
+        onOpenChange={setLoginDialogOpen}
+      />
+    </>
   );
 };
 

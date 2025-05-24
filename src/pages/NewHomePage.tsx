@@ -1,14 +1,14 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Settings2, Bitcoin } from "lucide-react";
+import { Settings2 } from "lucide-react";
 import { nostrService } from "@/lib/nostr";
 import NewGlobalFeed from "@/components/feed/NewGlobalFeed";
 import NewFollowingFeed from "@/components/feed/NewFollowingFeed";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
 import CustomizeGlobalFeedDialog from "@/components/feed/CustomizeGlobalFeedDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/hooks/useAuth";
 
 const NewHomePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("global");
@@ -16,13 +16,13 @@ const NewHomePage: React.FC = () => {
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { preferences, updateNestedPreference } = useUserPreferences();
-  const { isLoggedIn } = useAuth();
+  const isLoggedIn = !!nostrService.publicKey;
   const isMobile = useIsMobile();
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     // Detect iOS device
-    const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
+    const detectIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(detectIOS);
   }, []);
 
@@ -44,141 +44,29 @@ const NewHomePage: React.FC = () => {
 
   return (
     <div 
-      className={`max-w-3xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`} 
+      className={`max-w-2xl mx-auto px-4 py-4 ${isIOS ? 'px-safe' : ''}`} 
       style={{ overscrollBehavior: 'contain' }}
     >
       {/* Login message for users not logged in */}
       {!isLoggedIn && (
-        <div className="mb-0 p-6 rounded-xl bg-gradient-to-br from-primary/5 via-background to-secondary/5 border border-primary/10 shadow-lg relative overflow-hidden h-[140px] sticky top-0 z-40">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/10 to-transparent rounded-full -translate-y-16 translate-x-16" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-secondary/10 to-transparent rounded-full translate-y-12 -translate-x-12" />
-          
-          <div className="relative flex flex-col md:flex-row items-center gap-4 h-full">
-            {/* Icon section */}
-            <div className="flex-shrink-0">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500/20 to-orange-400/10 rounded-2xl flex items-center justify-center border border-orange-500/20 shadow-lg">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                    <Bitcoin className="text-white w-5 h-5" />
-                  </div>
-                </div>
-                {/* Subtle glow effect */}
-                <div className="absolute -inset-2 bg-gradient-to-r from-orange-500/20 via-transparent to-orange-400/20 rounded-3xl blur-xl opacity-50" />
-              </div>
-            </div>
-            
-            {/* Content section */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="space-y-3">
-                <h2 className="text-xl font-bold bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
-                  Welcome to BlockNostr
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Connect your Nostr extension to join the decentralized social network. 
-                  Experience censorship-resistant communication powered by relays.
-                </p>
-                
-                {/* Feature highlights */}
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                    <span>Decentralized</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                    <span>Censorship-resistant</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" />
-                    <span>Web3 powered</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* CTA section */}
-            <div className="flex-shrink-0 text-center md:text-right">
-              <div className="bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 rounded-lg p-2">
-                <p className="text-xs text-muted-foreground mb-1">Get started</p>
-                <div className="flex items-center gap-1 text-xs font-medium text-primary">
-                  <span>Connect Wallet</span>
-                  <div className="w-1 h-1 bg-primary rounded-full animate-ping" />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Click Connect in header ↗</p>
-              </div>
-            </div>
-          </div>
+        <div className="mb-8 p-4 rounded-lg border border-border bg-card">
+          <h2 className="text-xl font-medium mb-2">Welcome to BlockNoster</h2>
+          <p className="text-muted-foreground mb-4">
+            Connect your Nostr wallet using the Connect button in the header to access all features.
+          </p>
         </div>
       )}
 
-      {/* Fun promotional banner for logged-in users */}
-      {isLoggedIn && (
-        <div className="mb-0 p-6 rounded-xl bg-gradient-to-r from-violet-500/10 via-orange-500/10 to-emerald-500/10 border border-violet-500/20 shadow-lg relative overflow-hidden group hover:shadow-xl transition-all duration-300 h-[140px] sticky top-0 z-40">
-          {/* Animated background pattern */}
-          <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 via-orange-500/5 to-emerald-500/5 animate-pulse" />
-          <div className="absolute top-0 left-0 w-20 h-20 bg-gradient-to-br from-violet-500/20 to-transparent rounded-full animate-bounce bounce-delay-0" />
-          <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-orange-500/20 to-transparent rounded-full animate-bounce bounce-delay-1" />
-          <div className="absolute top-1/2 left-1/3 w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-transparent rounded-full animate-bounce bounce-delay-2" />
-          
-          <div className="relative flex items-center justify-between h-full">
-            {/* Left side - rotating icons */}
-            <div className="flex items-center gap-3">
-              <div className="flex gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-violet-600 rounded-lg flex items-center justify-center animate-pulse">
-                  <span className="text-white font-bold text-sm">N</span>
-                </div>
-                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                  <Bitcoin className="text-white w-4 h-4" />
-                </div>
-                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center animate-pulse overflow-hidden">
-                  <img 
-                    src="https://raw.githubusercontent.com/alephium/alephium-brand-guide/master/logos/svgs/Alephium-Logo-W.svg" 
-                    alt="Alephium" 
-                    className="w-6 h-6"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Center - rotating messages */}
-            <div className="flex-1 text-center px-4">
-              <div className="space-y-1">
-                <h3 className="text-xl font-bold bg-gradient-to-r from-violet-500 via-orange-500 to-emerald-500 bg-clip-text text-transparent animate-pulse">
-                  🚀 The Future is Decentralized!
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  <span className="inline-block animate-bounce">⚡</span>
-                  <span className="mx-1">Nost. Bitcoin. Altcoins.</span>
-                  <span className="inline-block animate-bounce bounce-delay-05">⚡</span>
-                </p>
-              </div>
-            </div>
-            
-            {/* Right side - call to action */}
-            <div className="flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">You're part of</p>
-                <p className="text-sm font-semibold bg-gradient-to-r from-violet-500 to-emerald-500 bg-clip-text text-transparent">
-                  Web5 Revolution
-                </p>
-              </div>
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Feed content with sticky tab bar inside Tabs */}
-      <div className="w-full">
-        <div className="mb-6 w-full">
+      {/* Tabs for switching between feeds */}
+      <div className="mb-6 w-full">
+        <div className="flex items-center justify-between mb-4">
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
             className="w-full"
           >
-            {/* Sticky TabsList directly inside Tabs, outside of feed content */}
-            <div className="sticky top-[140px] z-30 bg-background w-full h-12 flex items-center">
-              <TabsList className="w-full h-12 flex items-center">
+            <div className="flex items-center justify-between">
+              <TabsList className="w-full">
                 <Button 
                   variant="ghost" 
                   size="icon"
@@ -193,65 +81,65 @@ const NewHomePage: React.FC = () => {
               </TabsList>
             </div>
 
-            {/* Scrollable feed content below sticky bar */}
-            <div className={`w-full scrollable-feed ${isLoggedIn ? 'pt-[188px]' : 'pt-[48px]'}`}>
-              {activeHashtag && (
-                <div className="mt-3 flex items-center">
-                  <div className="text-sm text-muted-foreground">
-                    Showing posts with <span className="font-medium">#{activeHashtag}</span>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={clearHashtag}
-                    className="text-xs h-6 ml-2"
-                  >
-                    Clear filter
-                  </Button>
+            {activeHashtag && (
+              <div className="mt-3 flex items-center">
+                <div className="text-sm text-muted-foreground">
+                  Showing posts with <span className="font-medium">#{activeHashtag}</span>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={clearHashtag}
+                  className="text-xs h-6 ml-2"
+                >
+                  Clear filter
+                </Button>
+              </div>
+            )}
+
+            {/* Feed content */}
+            <TabsContent 
+              value="global" 
+              className="mt-4 p-0 border-none w-full" 
+              style={{ overscrollBehavior: 'contain' }}
+            >
+              <NewGlobalFeed 
+                activeHashtag={activeHashtag} 
+                onLoadingChange={handleLoadingChange} 
+              />
+            </TabsContent>
+            
+            <TabsContent 
+              value="following" 
+              className="mt-4 p-0 border-none w-full"
+              style={{ overscrollBehavior: 'contain' }}
+            >
+              {isLoggedIn ? (
+                <NewFollowingFeed 
+                  activeHashtag={activeHashtag}
+                  onLoadingChange={handleLoadingChange}
+                />
+              ) : (
+                <div className="py-12 text-center">
+                  <p className="text-muted-foreground">
+                    Connect your wallet to see posts from people you follow
+                  </p>
                 </div>
               )}
-
-              <TabsContent 
-                value="global" 
-                className="p-0 border-none w-full mt-0" 
-                style={{ overscrollBehavior: 'contain' }}
-              >
-                <NewGlobalFeed 
-                  activeHashtag={activeHashtag} 
-                  onLoadingChange={handleLoadingChange} 
-                />
-              </TabsContent>
-              <TabsContent 
-                value="following" 
-                className="p-0 border-none w-full mt-0"
-                style={{ overscrollBehavior: 'contain' }}
-              >
-                {isLoggedIn ? (
-                  <NewFollowingFeed 
-                    activeHashtag={activeHashtag}
-                    onLoadingChange={handleLoadingChange}
-                  />
-                ) : (
-                  <div className="py-12 text-center">
-                    <p className="text-muted-foreground">
-                      Connect your wallet to see posts from people you follow
-                    </p>
-                  </div>
-                )}
-              </TabsContent>
-            </div>
+            </TabsContent>
           </Tabs>
         </div>
-        {/* Customize Global Feed Dialog */}
-        <CustomizeGlobalFeedDialog 
-          open={isCustomizeOpen}
-          onOpenChange={setIsCustomizeOpen}
-          defaultHashtags={preferences.feedFilters?.globalFeedTags || []}
-          onSave={(hashtags) => {
-            updateNestedPreference('feedFilters', 'globalFeedTags', hashtags);
-          }}
-        />
       </div>
+
+      {/* Customize Global Feed Dialog */}
+      <CustomizeGlobalFeedDialog 
+        open={isCustomizeOpen}
+        onOpenChange={setIsCustomizeOpen}
+        defaultHashtags={preferences.feedFilters?.globalFeedTags || []}
+        onSave={(hashtags) => {
+          updateNestedPreference('feedFilters', 'globalFeedTags', hashtags);
+        }}
+      />
     </div>
   );
 };

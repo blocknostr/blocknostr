@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback, useState } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
@@ -303,15 +304,13 @@ const NewFollowingFeed: React.FC<NewFollowingFeedProps> = ({
 
   // Show events list
   return (
-    <div className="divide-y divide-border/50">
+    <div className="space-y-4">
       {events.map((event) => (
-        <div key={event.id} className="px-4 py-1">
-          <NewNoteCard 
-            event={event}
-            profileData={profiles[event.pubkey]}
-            className="border-0 shadow-none bg-transparent hover:bg-muted/30"
-          />
-        </div>
+        <NewNoteCard 
+          key={event.id} 
+          event={event}
+          profileData={profiles[event.pubkey]}
+        />
       ))}
       
       {/* Load more trigger */}

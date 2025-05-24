@@ -3,6 +3,8 @@ import { BaseAdapter } from './adapters/base-adapter';
 import { SocialAdapter } from './adapters/social-adapter';
 import { RelayAdapter } from './adapters/relay-adapter';
 import { DataAdapter } from './adapters/data-adapter';
+import { CommunityAdapter } from './adapters/community-adapter';
+import { BookmarkAdapter } from './adapters/bookmark-adapter';
 import { MessagingAdapter } from './adapters/messaging-adapter';
 import { relayPerformanceTracker } from './relay/performance/relay-performance-tracker';
 import { relaySelector } from './relay/selection/relay-selector';
@@ -18,6 +20,8 @@ export class NostrAdapter extends BaseAdapter {
   private socialAdapter: SocialAdapter;
   private relayAdapter: RelayAdapter;
   private dataAdapter: DataAdapter;
+  private communityAdapter: CommunityAdapter;
+  private bookmarkAdapter: BookmarkAdapter;
   private messagingAdapter: MessagingAdapter;
   private articleAdapter: ArticleAdapter;
   
@@ -28,6 +32,7 @@ export class NostrAdapter extends BaseAdapter {
     this.socialAdapter = new SocialAdapter(service);
     this.relayAdapter = new RelayAdapter(service);
     this.dataAdapter = new DataAdapter(service);
+    this.communityAdapter = new CommunityAdapter(service);
     this.articleAdapter = new ArticleAdapter(service);
     this.messagingAdapter = new MessagingAdapter(service);
   }
@@ -46,10 +51,12 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   get community() {
-    return this.socialAdapter;  // Community methods now in SocialAdapter
+    return this.communityAdapter;
   }
   
-
+  get bookmark() {
+    return this.bookmarkAdapter;
+  }
   
   get messaging() {
     return this.messagingAdapter;
@@ -129,19 +136,6 @@ export class NostrAdapter extends BaseAdapter {
     try {
       console.log("Updating profile metadata with:", profileData);
       
-      // Validate NIP-05 identifier if provided
-      if (profileData.nip05) {
-        const isValidFormat = await this.isValidNip05Format(profileData.nip05);
-        if (!isValidFormat) {
-          console.error("Invalid NIP-05 identifier format:", profileData.nip05);
-          return false;
-        }
-        
-        // Optionally verify the NIP-05 identifier resolves to this pubkey
-        // Note: This requires the domain to already have the nostr.json set up
-        console.log("NIP-05 identifier provided:", profileData.nip05);
-      }
-      
       // Create and publish a metadata (kind 0) event according to NIP-01
       const event = {
         kind: 0,  // Metadata event according to NIP-01
@@ -170,13 +164,6 @@ export class NostrAdapter extends BaseAdapter {
       
       if (eventId) {
         console.log(`Profile updated successfully with event ID: ${eventId}`);
-        
-        // If NIP-05 was updated, provide helpful info
-        if (profileData.nip05) {
-          console.log(`NIP-05 identifier set to: ${profileData.nip05}`);
-          console.log(`To complete NIP-05 verification, ensure your domain serves .well-known/nostr.json`);
-        }
-        
         return true;
       } else {
         console.warn("Failed to publish profile update event");
@@ -184,54 +171,6 @@ export class NostrAdapter extends BaseAdapter {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Validate NIP-05 identifier format
-   * @param nip05Id - NIP-05 identifier to validate
-   * @returns Promise<boolean> - True if format is valid
-   */
-  async isValidNip05Format(nip05Id: string): Promise<boolean> {
-    // Simple NIP-05 format validation
-    return /^[a-z0-9_.-]+@[a-z0-9.-]+$/.test(nip05Id);
-  }
-
-  /**
-   * Update profile with NIP-05 verification
-   * This method provides enhanced NIP-05 support for profile updates
-   * @param profileData - Profile metadata to update
-   * @param verifyNip05 - Whether to verify NIP-05 before updating (default: false)
-   * @returns Promise<boolean> - True if update successful
-   */
-  async updateProfileWithNip05(
-    profileData: Record<string, string>, 
-    verifyNip05: boolean = false
-  ): Promise<boolean> {
-    if (!this.service.publicKey) {
-      console.error("Cannot update profile: not logged in");
-      return false;
-    }
-
-    try {
-      // If NIP-05 verification is requested and identifier is provided
-      if (verifyNip05 && profileData.nip05) {
-        console.log("Verifying NIP-05 identifier before update...");
-        
-        const isVerified = await this.verifyNip05(profileData.nip05, this.service.publicKey);
-        if (!isVerified) {
-          console.error(`NIP-05 verification failed for ${profileData.nip05}`);
-          console.log("Profile update cancelled. Please ensure your domain's .well-known/nostr.json is properly configured.");
-          return false;
-        }
-        
-        console.log(`NIP-05 identifier ${profileData.nip05} verified successfully!`);
-      }
-
-      return this.updateProfile(profileData);
-    } catch (error) {
-      console.error("Error updating profile with NIP-05:", error);
       return false;
     }
   }
@@ -386,15 +325,15 @@ export class NostrAdapter extends BaseAdapter {
   
   // Data retrieval methods
   async getEventById(id: string) {
-    return this.dataAdapter.getEvent(id);
+    return this.dataAdapter.getEventById(id);
   }
   
   async getEvents(ids: string[]) {
-    return this.dataAdapter.getEventsByIds(ids);
+    return this.dataAdapter.getEvents(ids);
   }
   
   async getProfilesByPubkeys(pubkeys: string[]) {
-    return this.service.getProfilesByPubkeys(pubkeys);
+    return this.dataAdapter.getProfilesByPubkeys(pubkeys);
   }
   
   async getUserProfile(pubkey: string) {
@@ -402,27 +341,60 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   async verifyNip05(identifier: string, pubkey: string) {
-    return this.service.verifyNip05(identifier, pubkey);
+    return this.dataAdapter.verifyNip05(identifier, pubkey);
   }
   
   /**
    * Get events authored by a specific user
    */
   async getEventsByUser(pubkey: string) {
-    return this.dataAdapter.getEventsByAuthor(pubkey);
+    return this.dataAdapter.getEventsByUser(pubkey);
   }
 
-  // Community methods (now in SocialAdapter)
+  // Community methods
   async createCommunity(name: string, description: string) {
-    return this.socialAdapter.createCommunity(name, description);
+    return this.communityAdapter.createCommunity(name, description);
   }
   
   async createProposal(communityId: string, title: string, description: string, options: string[], category: string) {
-    return this.socialAdapter.createProposal(communityId, title, description, options, category);
+    return this.communityAdapter.createProposal(communityId, title, description, options, category);
   }
 
   async voteOnProposal(proposalId: string, optionIndex: number) {
-    return this.socialAdapter.voteOnProposal(proposalId, optionIndex);
+    return this.communityAdapter.voteOnProposal(proposalId, optionIndex);
+  }
+  
+  // Bookmark methods
+  async isBookmarked(eventId: string) {
+    return this.bookmarkAdapter.isBookmarked(eventId);
+  }
+  
+  async addBookmark(eventId: string, collectionId?: string, tags?: string[], note?: string) {
+    return this.bookmarkAdapter.addBookmark(eventId, collectionId, tags, note);
+  }
+  
+  async removeBookmark(eventId: string) {
+    return this.bookmarkAdapter.removeBookmark(eventId);
+  }
+  
+  async getBookmarks() {
+    return this.bookmarkAdapter.getBookmarks();
+  }
+  
+  async getBookmarkCollections() {
+    return this.bookmarkAdapter.getBookmarkCollections();
+  }
+  
+  async getBookmarkMetadata() {
+    return this.bookmarkAdapter.getBookmarkMetadata();
+  }
+  
+  async createBookmarkCollection(name: string, color?: string, description?: string) {
+    return this.bookmarkAdapter.createBookmarkCollection(name, color, description);
+  }
+  
+  async processPendingOperations() {
+    return this.bookmarkAdapter.processPendingOperations();
   }
   
   // Article methods (New)
@@ -478,10 +450,12 @@ export class NostrAdapter extends BaseAdapter {
   }
   
   get communityManager() {
-    return this.socialAdapter.communityManager;
+    return this.communityAdapter.communityManager;
   }
   
-
+  get bookmarkManager() {
+    return this.bookmarkAdapter.bookmarkManager;
+  }
 }
 
 // Create and export a singleton instance

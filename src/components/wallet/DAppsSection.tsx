@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExternalLink, Loader2, Star, ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 
 // Hardcoded dApps that we always want to show
 const staticDapps = [

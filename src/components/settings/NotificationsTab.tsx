@@ -4,7 +4,7 @@ import { Bell, Clock, Hourglass, MessageSquare, Heart, Repeat } from "lucide-rea
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 
 const NotificationsTab = () => {
   const [preferences, setPreferences] = useState({

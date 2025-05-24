@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus, Link as LinkIcon } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/components/ui/sonner";
 import { nostrService } from "@/lib/nostr";
 import { useNavigate } from "react-router-dom";
 import LeaveCommunityButton from "./LeaveCommunityButton";

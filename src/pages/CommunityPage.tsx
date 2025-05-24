@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
-import { Toaster } from "@/lib/toast";
+import { Toaster } from "@/components/ui/sonner";
 import { useCommunity } from "@/hooks/useCommunity";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -14,7 +14,6 @@ import CommunityPageHeader from "@/components/community/CommunityPageHeader";
 import CommunityGuidelines from "@/components/community/CommunityGuidelines";
 import CommunitySettings from "@/components/community/CommunitySettings";
 import CommunityInvites from "@/components/community/CommunityInvites";
-import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 
 const CommunityPage = () => {
   const { id } = useParams();
@@ -49,8 +48,7 @@ const CommunityPage = () => {
     handleSetGuidelines,
     handleAddModerator,
     handleRemoveModerator,
-    handleSetCommunityTags,
-    handleSetAlphaWallet
+    handleSetCommunityTags
   } = useCommunity(id);
   
   if (loading) {
@@ -93,12 +91,9 @@ const CommunityPage = () => {
               />
               
               <Tabs defaultValue="proposals" className="w-full">
-                <TabsList className={`grid ${(isCreator || isModerator) ? 'grid-cols-4' : 'grid-cols-2'} mb-4`}>
+                <TabsList className="grid grid-cols-3 mb-4">
                   <TabsTrigger value="proposals">Proposals</TabsTrigger>
                   <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
-                  {(isCreator || isModerator) && (
-                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                  )}
                   {(isCreator || isModerator) && (
                     <TabsTrigger value="settings">Settings</TabsTrigger>
                   )}
@@ -125,17 +120,6 @@ const CommunityPage = () => {
                   />
                 </TabsContent>
                 
-                {/* Analytics Tab - Only for Creator/Moderators */}
-                {(isCreator || isModerator) && (
-                  <TabsContent value="analytics">
-                    <AnalyticsDashboard
-                      communityId={community.id}
-                      isOwner={isCreator}
-                      isModerator={isModerator}
-                    />
-                  </TabsContent>
-                )}
-                
                 {/* Settings Tab - Only for Creator/Moderators */}
                 {(isCreator || isModerator) && (
                   <TabsContent value="settings">
@@ -143,13 +127,10 @@ const CommunityPage = () => {
                       community={community}
                       isCreator={isCreator}
                       isModerator={isModerator}
-                      isCreatorOnlyMember={isCreatorOnlyMember}
                       onSetPrivate={handleSetPrivate}
                       onUpdateTags={handleSetCommunityTags}
                       onAddModerator={handleAddModerator}
                       onRemoveModerator={handleRemoveModerator}
-                      onDeleteCommunity={handleDeleteCommunity}
-                      onSetAlphaWallet={handleSetAlphaWallet}
                     />
                   </TabsContent>
                 )}

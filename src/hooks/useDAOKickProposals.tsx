@@ -1,10 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { daoService } from "@/lib/dao/dao-service";
 import { DAO, DAOProposal } from "@/types/dao";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
-import { useAuth } from "./useAuth";
-import { Event } from "nostr-tools";
+import { toast } from "sonner";
 
 interface KickProposal extends DAOProposal {
   targetPubkey: string;

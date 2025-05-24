@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SendHorizontal, Smile } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface ChatInputProps {
   isLoggedIn: boolean;

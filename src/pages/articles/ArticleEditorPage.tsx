@@ -1,15 +1,12 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react"; 
 import ArticleEditor from "@/components/articles/ArticleEditor";
 import { ArticleDraft } from "@/lib/nostr/types/article";
 import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
-import { customToast } from '@/lib/toast';
+import { toast } from "sonner";
 
 const ArticleEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +56,7 @@ const ArticleEditorPage: React.FC = () => {
                 publishedId: article.id
               });
             } else {
-              customToast.error("Could not find the article to edit.");
+              toast.error("Could not find the article to edit.");
               navigate("/articles");
             }
           })
@@ -73,7 +70,7 @@ const ArticleEditorPage: React.FC = () => {
   const handleSaveDraft = (updatedDraft: ArticleDraft) => {
     try {
       const savedId = nostrAdapter.saveDraft(updatedDraft);
-      customToast.success("Draft saved successfully");
+      toast.success("Draft saved successfully");
       
       if (!updatedDraft.id) {
         setDraft(prev => ({ ...prev, id: savedId }));
@@ -82,7 +79,7 @@ const ArticleEditorPage: React.FC = () => {
       return true;
     } catch (error) {
       console.error("Failed to save draft:", error);
-      customToast.error("Failed to save draft");
+      toast.error("Failed to save draft");
       return false;
     }
   };
@@ -127,7 +124,7 @@ const ArticleEditorPage: React.FC = () => {
         // Save the updated draft
         nostrAdapter.saveDraft(updatedDraft);
         
-        customToast.success("Article published successfully!");
+        toast.success("Article published successfully!");
         
         // Navigate to the published article
         navigate(`/articles/view/${eventId}`);
@@ -137,7 +134,7 @@ const ArticleEditorPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Error publishing article:", error);
-      customToast.error("Failed to publish article");
+      toast.error("Failed to publish article");
       return false;
     } finally {
       setLoading(false);

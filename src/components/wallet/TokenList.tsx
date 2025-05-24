@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -104,15 +105,15 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Token Balances</CardTitle>
-        <CardDescription className="text-sm">
+    <Card>
+      <CardHeader>
+        <CardTitle>Token Balances</CardTitle>
+        <CardDescription>
           {allTokens ? "Tokens across all tracked wallets" : `Tokens in this wallet`}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0 flex-grow overflow-hidden">
-        <div className="divide-y max-h-80 overflow-y-auto">
+      <CardContent className="p-0">
+        <div className="divide-y">
           {tokens.map((token) => {
             // Cast token to EnrichedTokenWithWallets to access wallets safely
             const tokenWithWallets = token as EnrichedTokenWithWallets;
@@ -122,110 +123,108 @@ const TokenList: React.FC<TokenListProps> = ({ address, allTokens }) => {
             const isTokenTracked = isTokenMapped(token.id);
             
             return (
-              <div key={token.id} className="p-3 hover:bg-muted/30 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center min-w-0 flex-1">
-                    <div className="relative">
-                      {token.logoURI ? (
-                        <img 
-                          src={token.logoURI} 
-                          alt={token.symbol} 
-                          className="h-8 w-8 rounded-full"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
-                          }}
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                          <span className="text-xs font-medium">
-                            {token.symbol?.substring(0, 2) || '??'}
-                          </span>
-                        </div>
+              <div key={token.id} className="flex items-center justify-between p-4">
+                <div className="flex items-center">
+                  {token.logoURI ? (
+                    <img 
+                      src={token.logoURI} 
+                      alt={token.symbol} 
+                      className="h-8 w-8 rounded-full"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/alephium/token-list/master/logos/unknown.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                      <span className="text-xs font-medium">
+                        {token.symbol ? token.symbol.substring(0, 2) : '??'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="ml-3">
+                    <div className="font-medium flex items-center gap-1">
+                      {token.name || token.symbol}
+                      {isTokenTracked && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="ml-1 px-1.5 py-0 h-4 text-[10px] bg-green-500/10 text-green-700 border-green-200">
+                                tracked
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">This token's price is tracked in real-time via CoinGecko</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
-                  
-                    <div className="ml-3 flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="font-medium truncate">{token.name || token.symbol}</div>
-                        {isTokenTracked && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="px-1 py-0 h-4 text-[10px] bg-green-500/10 text-green-700 border-green-200">
-                                  tracked
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="text-xs">This token's price is tracked in real-time via CoinGecko</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs text-muted-foreground">{token.symbol}</div>
-                        {walletCount > 0 && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-[10px] h-4 px-1">
-                                  {walletCount} wallet{walletCount > 1 ? 's' : ''}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Found in {walletCount} tracked wallet{walletCount > 1 ? 's' : ''}</p>
-                                {walletCount > 1 && tokenWithWallets.wallets && (
-                                  <div className="mt-2 text-xs">
-                                    <div className="font-medium">Distribution:</div>
-                                    <div className="max-h-32 overflow-y-auto">
-                                      {tokenWithWallets.wallets.map((wallet, idx) => (
-                                        <div key={idx} className="flex justify-between mt-1">
-                                          <div className="truncate max-w-32 mr-4">
-                                            {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
-                                          </div>
-                                          <div>
-                                            {(Number(wallet.amount) / 10**token.decimals).toLocaleString(
-                                              undefined, 
-                                              { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
-                                            )}
-                                          </div>
+                    <div className="text-xs text-muted-foreground">{token.symbol}</div>
+                    
+                    {walletCount > 0 && (
+                      <div className="mt-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-xs">
+                                {walletCount} wallet{walletCount > 1 ? 's' : ''}
+                                <Info className="h-3 w-3 ml-1" />
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Found in {walletCount} tracked wallet{walletCount > 1 ? 's' : ''}</p>
+                              {walletCount > 1 && tokenWithWallets.wallets && (
+                                <div className="mt-2 text-xs">
+                                  <div className="font-medium">Distribution:</div>
+                                  <div className="max-h-32 overflow-y-auto">
+                                    {tokenWithWallets.wallets.map((wallet, idx) => (
+                                      <div key={idx} className="flex justify-between mt-1">
+                                        <div className="truncate max-w-32 mr-4">
+                                          {wallet.address.substring(0, 6)}...{wallet.address.substring(wallet.address.length - 4)}
                                         </div>
-                                      ))}
-                                    </div>
+                                        <div>
+                                          {(Number(wallet.amount) / 10**token.decimals).toLocaleString(
+                                            undefined, 
+                                            { minimumFractionDigits: 0, maximumFractionDigits: token.decimals }
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                )}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
+                                </div>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="font-medium text-sm">{token.formattedAmount}</div>
-                    {hasUsdValue && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className={`text-xs flex items-center justify-end ${
-                              isPriceFromMarket ? 'text-green-600' : 'text-muted-foreground'
-                            }`}>
-                              {formatCurrency(tokenWithWallets.usdValue)}
-                              {!isPriceFromMarket && <Info className="h-3 w-3 ml-1 opacity-70" />}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="left">
-                            {isPriceFromMarket ? (
-                              <p className="text-xs">Price from CoinGecko market data</p>
-                            ) : (
-                              <p className="text-xs">Estimated value (not based on market data)</p>
-                            )}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
                     )}
                   </div>
+                </div>
+                
+                <div className="text-right">
+                  <div className="font-medium">{token.formattedAmount}</div>
+                  {hasUsdValue && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className={`text-xs flex items-center justify-end ${
+                            isPriceFromMarket ? 'text-green-600' : 'text-muted-foreground'
+                          }`}>
+                            {formatCurrency(tokenWithWallets.usdValue)}
+                            {!isPriceFromMarket && <Info className="h-3 w-3 ml-1 opacity-70" />}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          {isPriceFromMarket ? (
+                            <p className="text-xs">Price from CoinGecko market data</p>
+                          ) : (
+                            <p className="text-xs">Estimated value (not based on market data)</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </div>
             );

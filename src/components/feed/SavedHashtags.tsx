@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface SavedHashtagsProps {
   onTopicClick: (topic: string) => void;

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -39,9 +40,6 @@ const GlobalSearch: React.FC = () => {
   const handleSelect = (type: string, value: string) => {
     if (type === 'people') {
       navigate(`/profile/${value}`);
-    } else if (value.startsWith('npub') || value.startsWith('nprofile')) {
-      // Navigate to home since profile pages are removed
-      navigate(`/`);
     } else {
       // Handle topic selection
       setSearchTerm(value);

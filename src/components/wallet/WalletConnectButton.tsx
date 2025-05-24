@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AlephiumLogo } from "@/components/icons/wallets";
 import { useWallet } from "@alephium/web3-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface WalletConnectButtonProps {
   className?: string;

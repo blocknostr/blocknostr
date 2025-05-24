@@ -4,7 +4,7 @@ import { NostrEvent } from "@/lib/nostr/types";
 import { chatNostrService } from "@/lib/nostr/chat-service";
 import { contentFormatter } from "@/lib/nostr";
 import { extractMentions } from "@/lib/nostr/utils/nip/nip27";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 const MAX_MESSAGES = 15;
 

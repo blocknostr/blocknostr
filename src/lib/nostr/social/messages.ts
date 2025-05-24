@@ -28,7 +28,7 @@ export class MessagesManager {
       let encryptedContent = content;
       
       // Encrypt message using NIP-04 if browser extension is available
-      if (window.nostr?.nip04) {
+      if (window.nostr && window.nostr.nip04) {
         try {
           encryptedContent = await window.nostr.nip04.encrypt(recipientPubkey, content);
         } catch (e) {
@@ -36,6 +36,7 @@ export class MessagesManager {
           return null;
         }
       } else {
+        console.log("NIP-04 encryption not available in extension");
         console.warn("No encryption available, sending plaintext message");
       }
       

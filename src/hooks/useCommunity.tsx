@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { nostrService } from "@/lib/nostr";
 import { useCommunityEventHandlers } from "./community/useCommunityEventHandlers";
@@ -45,8 +46,7 @@ export const useCommunity = (communityId: string | undefined) => {
     handleSetGuidelines,
     handleAddModerator,
     handleRemoveModerator,
-    handleSetCommunityTags,
-    handleSetAlphaWallet
+    handleSetCommunityTags
   } = useCommunityActions(community, setCommunity, currentUserPubkey, userRole);
   
   // Create event handlers
@@ -167,7 +167,6 @@ export const useCommunity = (communityId: string | undefined) => {
     handleSetGuidelines,
     handleAddModerator,
     handleRemoveModerator,
-    handleSetCommunityTags,
-    handleSetAlphaWallet
+    handleSetCommunityTags
   };
 };

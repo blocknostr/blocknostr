@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getMultipleCoinsPrice } from "@/lib/api/coingeckoApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface CryptoData {
   id: string;

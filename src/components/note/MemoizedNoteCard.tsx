@@ -1,7 +1,7 @@
 
 import React, { memo } from 'react';
 import { NostrEvent } from '@/lib/nostr';
-import NewNoteCard from './NewNoteCard';
+import NoteCard from './NoteCard';
 
 export interface NoteCardProps {
   event: NostrEvent;
@@ -14,7 +14,7 @@ export interface NoteCardProps {
 }
 
 const MemoizedNoteCard = memo(function MemoizedNoteCard(props: NoteCardProps) {
-  return <NewNoteCard {...props} />;
+  return <NoteCard {...props} />;
 });
 
 export default MemoizedNoteCard;

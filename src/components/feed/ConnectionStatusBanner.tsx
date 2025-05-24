@@ -5,7 +5,7 @@ import { contentCache } from '@/lib/nostr/cache/content-cache';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 
 export function ConnectionStatusBanner() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);

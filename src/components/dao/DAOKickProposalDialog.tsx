@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { DAO } from "@/types/dao";
 import { UserX } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface DAOKickProposalDialogProps {
   dao: DAO;

@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 
 interface DiscordStyleChatProps {
   proposalId: string;

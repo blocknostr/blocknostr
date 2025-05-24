@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
@@ -31,7 +32,7 @@ const NotificationItem = ({
   
   return (
     <Link 
-      to={eventId ? `/post/${eventId}` : `/`} 
+      to={eventId ? `/post/${eventId}` : `/profile/${npub}`} 
       className="block no-underline text-foreground"
     >
       <Card className="p-4 hover:bg-accent/10 transition-colors">

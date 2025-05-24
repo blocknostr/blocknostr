@@ -1,3 +1,4 @@
+
 import { NostrEvent } from "@/lib/nostr";
 
 export interface Community {
@@ -14,7 +15,6 @@ export interface Community {
   guidelines?: string; // Community guidelines
   tags?: string[]; // Tags for better discovery
   minJoinTime?: number; // Minimum time required for new members before they can propose/vote
-  alphaWallet?: string; // Community wallet for fund tracking
 }
 
 export interface Proposal {

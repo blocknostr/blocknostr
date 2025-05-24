@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useRelayConnection } from "./useRelayConnection";
-import { useChatProfile } from "@/hooks/useUnifiedProfile";
+import { useProfileFetcher } from "./useProfileFetcher";
 import { useMessageSubscription } from "./useMessageSubscription";
 import { useReactionHandler } from "./useReactionHandler";
 import { useMessageSender } from "./useMessageSender";
@@ -24,7 +24,7 @@ export const useWorldChat = (chatTag: string = "world-chat") => {
   } = useRelayConnection();
   
   // Profile management
-  const [, { fetchProfile, getProfile, profiles }] = useChatProfile();
+  const { profiles, fetchProfile } = useProfileFetcher();
   
   // Message subscription management
   const { 

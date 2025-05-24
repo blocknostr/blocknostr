@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/sidebar/Sidebar";
@@ -6,34 +7,21 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSwipeable } from "@/hooks/use-swipeable";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
+import GlobalHeader from "@/components/GlobalHeader";
 import { NavigationProvider } from '@/contexts/NavigationContext';
-import { useBackgroundRelayConnection } from '@/hooks/useBackgroundRelayConnection';
-import { useGlobalLoginDialog } from '@/hooks/useGlobalLoginDialog';
-import LoginDialog from '@/components/auth/LoginDialog';
-import { Button } from "@/components/ui/button";
-import { Lightbulb } from "lucide-react";
-import { useTheme } from "@/hooks/use-theme";
-import HeaderRelayStatus from "@/components/Header/HeaderRelayStatus";
-import LoginButton from "@/components/LoginButton";
-import { nostrService } from "@/lib/nostr";
 
 export interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { preferences, isLoading } = useUserPreferences();
+  const { preferences } = useUserPreferences();
   const [activeHashtag, setActiveHashtag] = useState<string | undefined>(undefined);
   const isMobile = useIsMobile();
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [leftPanelOpen, setLeftPanelOpen] = useState(false);
   const [iOSSafeArea, setIOSSafeArea] = useState(false);
   const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-  const { darkMode, toggleDarkMode } = useTheme();
-  const isLoggedIn = !!nostrService.publicKey;
-  
-  // Initialize background relay connections
-  const relayState = useBackgroundRelayConnection();
   
   // Check for iOS device and set up dynamic viewport height
   useEffect(() => {
@@ -119,23 +107,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const { isOpen: loginDialogOpen, setLoginDialogOpen } = useGlobalLoginDialog();
-
-  useEffect(() => {
-    console.log('[MainLayout] Background relay connection state:', relayState);
-  }, [relayState]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  const sidebarWidth = isMobile ? 0 : (preferences?.sidebarCollapsed ? 60 : 240);
-  const rightSidebarWidth = isMobile ? 0 : 320;
-
   return (
     <NavigationProvider>
       <div
@@ -157,33 +128,23 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           )}
           {...swipeHandlers}
         >
-          {/* Simple header with essential controls */}
-          <header className="fixed top-0 right-0 z-50 p-4">
-            <div className="flex items-center space-x-2">
-              {/* Add relay status indicator when logged in */}
-              {isLoggedIn && <HeaderRelayStatus />}
-              <Button 
-                variant="ghost"
-                size="icon"
-                className="rounded-full theme-toggle-button"
-                onClick={(e) => toggleDarkMode(e)}
-                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
-              </Button>
-              <LoginButton size="sm" />
-            </div>
-          </header>
+          <GlobalHeader
+            leftPanelOpen={leftPanelOpen}
+            setLeftPanelOpen={setLeftPanelOpen}
+            rightPanelOpen={rightPanelOpen}
+            setRightPanelOpen={setRightPanelOpen}
+            activeHashtag={activeHashtag}
+            onClearHashtag={clearHashtag}
+          />
 
           <div className="flex">
             <main
               className={cn(
-                "flex-1 min-h-screen", /* Removed top margin since header is now floating */
+                "flex-1 min-h-screen mt-14", /* Added top margin for header */
                 iOSSafeArea && "ios-safe-padding-bottom px-safe"
               )}
               onClick={handleMainContentClick}
-              style={iOSSafeArea ? { minHeight: `calc(${windowHeight}px)` } : undefined}
+              style={iOSSafeArea ? { minHeight: `calc(${windowHeight}px - 3.5rem)` } : undefined}
             >
               {children || <Outlet />}
             </main>
@@ -198,12 +159,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             />
           </div>
         </div>
-
-        {/* Global Login Dialog */}
-        <LoginDialog 
-          open={loginDialogOpen}
-          onOpenChange={setLoginDialogOpen}
-        />
       </div>
     </NavigationProvider>
   );

@@ -1,3 +1,4 @@
+
 /**
  * Simple event bus for application-wide events
  */
@@ -6,8 +7,7 @@ export const EVENTS = {
   POST_CREATED: 'post:created',
   POST_DELETED: 'post:deleted',
   RELAY_CONNECTED: 'relay:connected',
-  RELAY_DISCONNECTED: 'relay:disconnected',
-  AUTH_CHANGED: 'auth:changed'
+  RELAY_DISCONNECTED: 'relay:disconnected'
 };
 
 class EventBus {

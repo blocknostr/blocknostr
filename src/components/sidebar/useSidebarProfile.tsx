@@ -1,40 +1,70 @@
+
 import * as React from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useBasicProfile } from "@/hooks/useUnifiedProfile";
 import { nostrService } from "@/lib/nostr";
 
-/**
- * useSidebarProfile Hook - Now uses unified profile hook
- */
 export function useSidebarProfile() {
-  const { isLoggedIn, publicKey } = useAuth();
+  const isLoggedIn = !!nostrService.publicKey;
+  const [userProfile, setUserProfile] = React.useState<{
+    name?: string;
+    display_name?: string;
+    picture?: string;
+    nip05?: string;
+    about?: string;
+    created_at?: number;
+  }>({});
+  const [isLoading, setIsLoading] = React.useState(false);
   
-  // Convert publicKey to npub for the unified profile hook
-  const npub = React.useMemo(() => {
-    if (!publicKey) return undefined;
-    try {
-      // Use nostrService directly instead of profileAdapter
-      return nostrService.getNpubFromHex(publicKey);
-    } catch (error) {
-      console.error("[useSidebarProfile] Error converting pubkey to npub:", error);
-      return undefined;
-    }
-  }, [publicKey]);
+  // Force profile refresh when route changes, user logs in, or after 30 seconds
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (isLoggedIn && nostrService.publicKey) {
+        try {
+          setIsLoading(true);
+          
+          // Make sure we're connected to relays
+          await nostrService.connectToUserRelays();
+          
+          const profile = await nostrService.getUserProfile(nostrService.publicKey);
+          
+          if (profile) {
+            // Get account creation date if not already in profile
+            let creationDate = profile._event?.created_at || profile.created_at;
+            if (!creationDate) {
+              try {
+                // Direct call to the getAccountCreationDate method instead of using getProfileService()
+                const date = await nostrService.getAccountCreationDate(nostrService.publicKey);
+                if (date) {
+                  creationDate = date;
+                }
+              } catch (e) {
+                console.warn("Could not fetch account creation date:", e);
+              }
+            }
+            
+            setUserProfile({
+              name: profile.name,
+              display_name: profile.display_name,
+              picture: profile.picture,
+              nip05: profile.nip05,
+              about: profile.about,
+              created_at: creationDate
+            });
+          }
+        } catch (error) {
+          console.error("Failed to fetch user profile:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+    
+    // Set up an interval to periodically refresh the profile
+    const intervalId = setInterval(fetchUserProfile, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [isLoggedIn]);
   
-  // Use basic profile hook for sidebar
-  const [profileState] = useBasicProfile(npub, { 
-    enableDebug: false,
-    enableRetry: false,
-    autoLoad: !!npub
-  });
-
-  // Extract profile and loading flag safely, initialize as null
-  const userProfileData = 'profile' in profileState ? profileState.profile : null;
-  const isLoadingProfile = 'loading' in profileState ? profileState.loading : true;
-
-  return { 
-    isLoggedIn, 
-    userProfile: userProfileData, 
-    isLoading: isLoadingProfile 
-  };
+  return { isLoggedIn, userProfile, isLoading };
 }

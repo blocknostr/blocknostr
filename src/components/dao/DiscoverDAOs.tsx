@@ -7,7 +7,7 @@ import DAOCarousel from "./DAOCarousel";
 import { useDAO } from "@/hooks/useDAO";
 import { fetchAlephiumDApps } from "@/lib/api/linxlabsApi";
 import { DAO } from "@/types/dao";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 const DiscoverDAOs = () => {

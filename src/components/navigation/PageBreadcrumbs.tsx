@@ -40,19 +40,21 @@ const PageBreadcrumbs: React.FC<PageBreadcrumbsProps> = ({
         
         <BreadcrumbSeparator />
         
-        {items.map((item, index) => [
-          <BreadcrumbItem key={`item-${item.path}`}>
-            {item.isCurrentPage ? (
-              <BreadcrumbPage>{item.label}</BreadcrumbPage>
-            ) : (
-              <BreadcrumbLink asChild>
-                <Link to={item.path} className="hover:text-primary transition-colors">{item.label}</Link>
-              </BreadcrumbLink>
-            )}
-          </BreadcrumbItem>,
-          
-          index < items.length - 1 && <BreadcrumbSeparator key={`sep-${item.path}`} />
-        ].filter(Boolean))}
+        {items.map((item, index) => (
+          <React.Fragment key={item.path}>
+            <BreadcrumbItem>
+              {item.isCurrentPage ? (
+                <BreadcrumbPage>{item.label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Link to={item.path} className="hover:text-primary transition-colors">{item.label}</Link>
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+            
+            {index < items.length - 1 && <BreadcrumbSeparator />}
+          </React.Fragment>
+        ))}
       </BreadcrumbList>
     </Breadcrumb>
   );

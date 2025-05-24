@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { NostrEvent, nostrService, contentCache } from "@/lib/nostr";
-import { useFeedProfile } from "@/hooks/useUnifiedProfile";
+import { useProfileFetcher } from "./use-profile-fetcher";
 import { useEventSubscription } from "./use-event-subscription";
 import { useRepostHandler } from "./use-repost-handler";
 
@@ -32,7 +32,7 @@ export function useFeedEvents({
   const [loadingFromCache, setLoadingFromCache] = useState<boolean>(false);
   const [isLoadingLiveData, setIsLoadingLiveData] = useState<boolean>(false);
   
-  const [, { fetchProfile: fetchProfileData, getProfile, profiles }] = useFeedProfile();
+  const { profiles, fetchProfileData } = useProfileFetcher();
   const { repostData, handleRepost, initSetEvents } = useRepostHandler({ fetchProfileData });
   
   // Callback to merge new events with existing ones without duplicates

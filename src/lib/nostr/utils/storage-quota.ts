@@ -1,4 +1,4 @@
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from 'sonner';
 
 interface StorageQuotaEstimate {
   quota: number;

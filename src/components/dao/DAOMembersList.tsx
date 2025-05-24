@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { nostrService } from "@/lib/nostr";
 
 interface DAOMembersListProps {

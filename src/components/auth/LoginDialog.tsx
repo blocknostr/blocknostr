@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // Import our components
@@ -10,6 +11,7 @@ import DialogHeader from "./login/DialogHeader";
 import DialogFooter from "./login/DialogFooter";
 import ExtensionTab from "./login/ExtensionTab";
 import ManualTab from "./login/ManualTab";
+import ConnectionStatus from "./login/ConnectionStatus";
 
 interface LoginDialogProps {
   open: boolean;
@@ -61,34 +63,35 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
     setConnectStatus('connecting');
     
     try {
-      console.log('[LoginDialog] Starting login process...');
       const success = await nostrService.login();
       
       if (success) {
-        console.log('[LoginDialog] Login successful, publicKey:', nostrService.publicKey);
         setConnectStatus('success');
-        toast.success("Connected successfully", { description: "Welcome to BlockNoster" });
+        toast.success("Connected successfully", {
+          description: "Welcome to BlockNoster"
+        });
         
-        // Close dialog immediately on success
-        console.log('[LoginDialog] Closing dialog after successful login');
-        onOpenChange(false);
-        
-        // Force a page refresh if auth state didn't update properly
+        // Short delay to show success state before closing
         setTimeout(() => {
-          if (!nostrService.publicKey) {
-            console.warn('[LoginDialog] Auth state not updated, forcing refresh');
+          onOpenChange(false);
+          
+          // Reload the page to refresh content with logged in state
+          setTimeout(() => {
             window.location.reload();
-          }
-        }, 1000);
+          }, 300);
+        }, 700);
       } else {
-        console.error('[LoginDialog] Login failed');
         setConnectStatus('error');
-        toast.error("Connection failed", { description: "Please try again or check your extension" });
+        toast.error("Connection failed", {
+          description: "Please try again or check your extension"
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
       setConnectStatus('error');
-      toast.error("Connection error", { description: "Please check your extension settings" });
+      toast.error("Connection error", {
+        description: "Please check your extension settings"
+      });
     } finally {
       if (connectStatus !== 'success') {
         setIsLoggingIn(false);
@@ -118,26 +121,66 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
           "mt-2 transition-all duration-500 ease-out", 
           animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
         )}>
+          {/* Success Connection Status */}
+          <ConnectionStatus connectStatus={connectStatus} />
+          
           {/* Tabs */}
-          <Tabs defaultValue="extension" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="extension">Extension</TabsTrigger>
-              <TabsTrigger value="manual">Manual</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="extension" className="space-y-4">
-              <ExtensionTab 
-                hasExtension={hasExtension} 
-                connectStatus={connectStatus} 
-                onConnect={handleConnect}
-                isLoggingIn={isLoggingIn}
-              />
-            </TabsContent>
-            
-            <TabsContent value="manual" className="space-y-4">
-              <ManualTab />
-            </TabsContent>
-          </Tabs>
+          {connectStatus !== 'success' && (
+            <Tabs 
+              defaultValue="extension" 
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as "extension" | "manual")}
+              className="w-full"
+            >
+              <TabsList className="grid grid-cols-2 mb-3 w-full">
+                <TabsTrigger 
+                  value="extension" 
+                  className={cn(
+                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
+                    "transition-all"
+                  )}
+                >
+                  Extension
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="manual" 
+                  className={cn(
+                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:font-medium",
+                    "transition-all"
+                  )}
+                >
+                  Manual
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Extension Tab */}
+              <TabsContent 
+                value="extension" 
+                className={cn(
+                  "transition-all duration-300",
+                  activeTab === "extension" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                )}
+              >
+                <ExtensionTab 
+                  hasExtension={hasExtension} 
+                  connectStatus={connectStatus} 
+                  onConnect={handleConnect}
+                  isLoggingIn={isLoggingIn}
+                />
+              </TabsContent>
+              
+              {/* Manual Tab */}
+              <TabsContent 
+                value="manual" 
+                className={cn(
+                  "transition-all duration-300",
+                  activeTab === "manual" ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                )}
+              >
+                <ManualTab />
+              </TabsContent>
+            </Tabs>
+          )}
           
           <div className="pt-2 border-t border-border/20 mt-3">
             <p className="text-xs text-muted-foreground text-center">
