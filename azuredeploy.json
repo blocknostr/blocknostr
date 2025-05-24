@@ -1,0 +1,122 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "functionAppName": {
+      "type": "string",
+      "metadata": { "description": "Name for your Function App" }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": { "description": "Azure region" }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": { "description": "Globally unique Storage Account name" }
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "defaultValue": "[concat(parameters('functionAppName'), '-plan')]",
+      "metadata": { "description": "Name for the App Service Plan" }
+    },
+    "clientId": {
+      "type": "string",
+      "metadata": { "description": "Azure AD App (Service Principal) Client ID" }
+    },
+    "clientSecret": {
+      "type": "secureString",
+      "metadata": { "description": "Azure AD App (Service Principal) Client Secret" }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": { "description": "Azure Tenant ID" }
+    },
+    "cloudflareApiToken": {
+      "type": "secureString",
+      "metadata": { "description": "Cloudflare API Token" }
+    },
+    "cloudflareZone": {
+      "type": "string",
+      "metadata": { "description": "Cloudflare Zone name (e.g. example.com)" }
+    },
+    "cloudflareSubdomain": {
+      "type": "string",
+      "defaultValue": "relay",
+      "metadata": { "description": "Subdomain label (e.g. 'relay')" }
+    },
+    "imageRepo": {
+      "type": "string",
+      "defaultValue": "relayacr.azurecr.io/nostr-rs-relay:latest",
+      "metadata": { "description": "Container image for the nostr relay" }
+    },
+    "caddyImage": {
+      "type": "string",
+      "defaultValue": "relayacr.azurecr.io/nostr-caddy:latest",
+      "metadata": { "description": "Container image for Caddy" }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2021-08-01",
+      "name": "[parameters('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "sku": { "name": "Standard_LRS" },
+      "kind": "StorageV2",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2022-03-01",
+      "name": "[parameters('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": { "name": "Y1", "tier": "Dynamic" },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2022-03-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+        "siteConfig": {
+          "appSettings": [
+            { "name": "AzureWebJobsStorage", "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2021-08-01').keys[0].value, ';EndpointSuffix=core.windows.net')]" },
+            { "name": "FUNCTIONS_EXTENSION_VERSION", "value": "~4" },
+            { "name": "FUNCTIONS_WORKER_RUNTIME", "value": "node" },
+            { "name": "WEBSITE_RUN_FROM_PACKAGE", "value": "1" },
+
+            // Your custom settings:
+            { "name": "AZURE_TENANT_ID",       "value": "[parameters('tenantId')]" },
+            { "name": "AZURE_CLIENT_ID",       "value": "[parameters('clientId')]" },
+            { "name": "AZURE_CLIENT_SECRET",   "value": "[parameters('clientSecret')]" },
+            { "name": "AZURE_SUBSCRIPTION_ID", "value": "[subscription().subscriptionId]" },
+            { "name": "RESOURCE_GROUP",        "value": "[resourceGroup().name]" },
+
+            { "name": "STORAGE_ACCOUNT_NAME",  "value": "[parameters('storageAccountName')]" },
+            // storage account key fetched above
+
+            { "name": "CLOUDFLARE_API_TOKEN",  "value": "[parameters('cloudflareApiToken')]" },
+            { "name": "CLOUDFLARE_ZONE",       "value": "[parameters('cloudflareZone')]" },
+            { "name": "CLOUDFLARE_SUBDOMAIN",  "value": "[parameters('cloudflareSubdomain')]" },
+            { "name": "IMAGE_REPO",            "value": "[parameters('imageRepo')]" },
+            { "name": "CADDY_IMAGE",           "value": "[parameters('caddyImage')]" }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "functionAppEndpoint": {
+      "type": "string",
+      "value": "[concat('https://portal.azure.com/#@', subscription().tenantId, '/resource/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Web/sites/', parameters('functionAppName'), '/overview')]"
+    }
+  }
+}
