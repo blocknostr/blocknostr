@@ -43,3 +43,4 @@ export const safeLocalStorageRemove = (key: string): boolean => {
     return false;
   }
 };
+

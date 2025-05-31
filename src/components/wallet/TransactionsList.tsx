@@ -1,17 +1,24 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowUpRight, ArrowDownLeft, ExternalLink, Search, ArrowDownUp } from "lucide-react";
-import { getAddressTransactions } from "@/lib/api/alephiumApi";
+import { ArrowUpRight, ArrowDownLeft, ExternalLink, Search, ArrowDownUp, ArrowRightLeft, RefreshCw } from "lucide-react";
+import { getAddressTransactions } from "@/api/external/cachedAlephiumApi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { truncateAddress } from "@/lib/utils/formatters";
+import { 
+  getTransactionType,
+  getTransactionAmountForDisplay,
+  getCounterpartyAddress,
+  debugTransactionWithOfficialLogic
+} from "@/lib/utils/officialTransactionParser";
 
 interface TransactionsListProps {
   address: string;
+  updateApiStatus?: (isLive: boolean, healthUpdate?: any, errorUpdate?: any) => void;
+  apiHealth?: any;
 }
 
 interface Transaction {
@@ -19,16 +26,32 @@ interface Transaction {
   blockHash: string;
   timestamp: number;
   inputs: Array<{
-    address: string;
-    amount: string;
+    address?: string;
+    outputRef?: {
+      hint: number;
+      key: string;
+    };
+    unlockScript?: string;
+    txHashRef?: string;
+    attoAlphAmount?: string;
+    amount?: string;
   }>;
   outputs: Array<{
     address: string;
-    amount: string;
+    attoAlphAmount?: string;
+    amount?: string;
+    hint?: number;
+    key?: string;
+    tokens?: Array<{
+      id: string;
+      amount: string;
+    }>;
   }>;
+  gasAmount?: number;
+  gasPrice?: string;
 }
 
-const TransactionsList = ({ address }: TransactionsListProps) => {
+const TransactionsList = ({ address, updateApiStatus, apiHealth }: TransactionsListProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,9 +65,21 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
       
       try {
         const result = await getAddressTransactions(address, 100);
-        setTransactions(result);
+        console.log("[TransactionsList] Fetched transactions:", result?.length, "transactions");
+        
+        setTransactions(result || []);
+        
+        // Update API status if callback provided
+        if (updateApiStatus) {
+          updateApiStatus(true, { source: 'explorer' }, {});
+        }
       } catch (error) {
         console.error('Error fetching transactions:', error);
+        
+        // Update API status with error if callback provided
+        if (updateApiStatus) {
+          updateApiStatus(false, { source: 'error' }, { network: error instanceof Error ? error.message : 'Failed to fetch transactions' });
+        }
         
         toast.error("Could not fetch transaction history", {
           description: "Using sample data instead"
@@ -71,64 +106,28 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
     return date.toLocaleDateString() + " " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
-  // Helper to determine if transaction is incoming or outgoing
-  const getTransactionType = (tx: Transaction) => {
-    // If any output is to this address, it's incoming
-    const isIncoming = tx.outputs.some(output => output.address === address);
-    // If any input is from this address, it's outgoing
-    const isOutgoing = tx.inputs.some(input => input.address === address);
-    
-    if (isIncoming && !isOutgoing) return 'received';
-    if (isOutgoing) return 'sent';
-    return 'unknown';
-  };
-  
-  // Calculate amount transferred to/from this address
-  const getTransactionAmount = (tx: Transaction) => {
-    const type = getTransactionType(tx);
-    
-    if (type === 'received') {
-      // Sum all outputs to this address
-      const amount = tx.outputs
-        .filter(output => output.address === address)
-        .reduce((sum, output) => sum + Number(output.amount), 0);
-      return amount / 10**18; // Convert from nanoALPH to ALPH
-    } else if (type === 'sent') {
-      // This is a simplification - for accurate accounting we'd need to track change outputs
-      const amount = tx.outputs
-        .filter(output => output.address !== address)
-        .reduce((sum, output) => sum + Number(output.amount), 0);
-      return amount / 10**18; // Convert from nanoALPH to ALPH
+  // Use official Alephium Explorer transaction parsing logic
+  const parseTransactionForAddress = (tx: Transaction) => {
+    // Debug specific transactions
+    if (tx.hash && (tx.hash.includes('f45c80') || process.env.NODE_ENV === 'development')) {
+      debugTransactionWithOfficialLogic(address, tx);
     }
     
-    return 0;
-  };
-  
-  // Get the counterparty address
-  const getCounterpartyAddress = (tx: Transaction) => {
-    const type = getTransactionType(tx);
-    
-    if (type === 'received') {
-      // The first input address is usually the sender
-      return tx.inputs[0]?.address || 'Unknown';
-    } else if (type === 'sent') {
-      // The first non-self output is usually the recipient
-      const recipient = tx.outputs.find(output => output.address !== address);
-      return recipient?.address || 'Unknown';
-    }
-    
-    return 'Unknown';
+    return {
+      type: getTransactionType(address, tx),
+      amount: getTransactionAmountForDisplay(address, tx),
+      counterparty: getCounterpartyAddress(address, tx)
+    };
   };
 
   // Filter and sort transactions
   const filteredTransactions = transactions.filter(tx => {
-    const counterparty = getCounterpartyAddress(tx);
-    const txType = getTransactionType(tx);
+    const parsed = parseTransactionForAddress(tx);
     
     return (
       tx.hash.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      counterparty.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      txType.toLowerCase().includes(searchTerm.toLowerCase())
+      parsed.counterparty.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parsed.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
@@ -141,6 +140,34 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === "desc" ? "asc" : "desc");
   };
+
+  // Debug helper function for testing specific transactions with official parser
+  const debugTransactionClassification = (hash: string) => {
+    const tx = transactions.find(t => t.hash === hash);
+    if (tx) {
+      console.log(`\n=== DEBUGGING TRANSACTION ${hash} (OFFICIAL PARSER) ===`);
+      const parsed = parseTransactionForAddress(tx);
+      
+      console.log(`Final Classification: ${parsed.type.toUpperCase()}`);
+      console.log(`Amount: ${parsed.amount.toFixed(4)} ALPH`);
+      console.log(`Counterparty: ${parsed.counterparty}`);
+      console.log(`Raw Transaction:`, tx);
+      console.log(`=== END DEBUG ===\n`);
+      
+      return parsed;
+    } else {
+      console.log(`Transaction ${hash} not found in current list`);
+      return null;
+    }
+  };
+
+  // Expose debug function to window for testing (development only)
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      (window as any).debugTransaction = debugTransactionClassification;
+      (window as any).allTransactions = transactions;
+    }
+  }, [transactions]);
 
   return (
     <Card>
@@ -197,9 +224,8 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
               </TableHeader>
               <TableBody>
                 {sortedTransactions.map((tx) => {
-                  const type = getTransactionType(tx);
-                  const amount = getTransactionAmount(tx);
-                  const counterparty = getCounterpartyAddress(tx);
+                  const parsed = parseTransactionForAddress(tx);
+                  const { type, amount, counterparty } = parsed;
                   
                   return (
                     <TableRow key={tx.hash} className="hover:bg-muted/40">
@@ -209,6 +235,14 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
                             <div className="p-1 rounded-full bg-green-100 dark:bg-green-900/20">
                               <ArrowDownLeft className="h-3.5 w-3.5 text-green-500" />
                             </div>
+                          ) : type === 'swap' ? (
+                            <div className="p-1 rounded-full bg-purple-100 dark:bg-purple-900/20">
+                              <ArrowRightLeft className="h-3.5 w-3.5 text-purple-500" />
+                            </div>
+                          ) : type === 'internal' ? (
+                            <div className="p-1 rounded-full bg-orange-100 dark:bg-orange-900/20">
+                              <RefreshCw className="h-3.5 w-3.5 text-orange-500" />
+                            </div>
                           ) : (
                             <div className="p-1 rounded-full bg-blue-100 dark:bg-blue-900/20">
                               <ArrowUpRight className="h-3.5 w-3.5 text-blue-500" />
@@ -217,8 +251,16 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
                           <span className="capitalize">{type}</span>
                         </div>
                       </TableCell>
-                      <TableCell className={`font-medium ${type === 'received' ? 'text-green-500' : 'text-blue-500'}`}>
-                        {type === 'received' ? '+' : '-'} {amount.toFixed(4)} ALPH
+                      <TableCell className={`font-medium ${
+                        type === 'received' ? 'text-green-500' : 
+                        type === 'swap' ? 'text-purple-500' : 
+                        type === 'internal' ? 'text-orange-500' : 
+                        'text-blue-500'
+                      }`}>
+                        {type === 'received' ? '+' : 
+                         type === 'swap' ? '±' : 
+                         type === 'internal' ? '↻' : 
+                         '-'} {amount.toFixed(4)} ALPH
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{truncateAddress(counterparty)}</TableCell>
                       <TableCell className="hidden md:table-cell">{formatDate(tx.timestamp)}</TableCell>
@@ -245,3 +287,4 @@ const TransactionsList = ({ address }: TransactionsListProps) => {
 };
 
 export default TransactionsList;
+

@@ -28,3 +28,4 @@ export interface CategoryTabProps {
   onSelect: (text: string) => void;
   onDelete?: (id: string) => void;
 }
+

@@ -3,7 +3,6 @@
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
   private metrics: Map<string, any> = new Map();
-  private observers: Map<string, PerformanceObserver> = new Map();
 
   static getInstance(): PerformanceMonitor {
     if (!PerformanceMonitor.instance) {
@@ -12,7 +11,7 @@ export class PerformanceMonitor {
     return PerformanceMonitor.instance;
   }
 
-  // Track DOM node count (key metric for virtual scrolling)
+  // Track DOM node count
   trackDOMNodes(context: string = 'global-feed'): number {
     const nodeCount = document.querySelectorAll('*').length;
     this.metrics.set(`dom-nodes-${context}`, {
@@ -146,8 +145,6 @@ export class PerformanceMonitor {
   // Reset all metrics
   reset(): void {
     this.metrics.clear();
-    this.observers.forEach(observer => observer.disconnect());
-    this.observers.clear();
   }
 }
 
@@ -161,9 +158,7 @@ export const usePerformanceMonitor = (componentName: string) => {
   return {
     trackDOMNodes: () => monitor.trackDOMNodes(),
     trackMemory: () => monitor.trackMemory(),
-    trackImageLoading: () => monitor.trackImageLoading(),
-    logPerformance: () => monitor.logPerformance(),
-    getSummary: () => monitor.getSummary()
+    reset: () => monitor.reset()
   };
 };
 
@@ -203,3 +198,4 @@ export const createPerformanceComparison = () => {
     }
   };
 }; 
+

@@ -43,3 +43,4 @@ const DeleteDialog = ({ isOpen, isDeleting, onClose, onConfirm }: DeleteDialogPr
 };
 
 export default DeleteDialog;
+

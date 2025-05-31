@@ -104,3 +104,4 @@ export const isSecureUrl = (url: string): boolean => {
   if (!isValidMediaUrl(url)) return false;
   return url.startsWith('https://');
 };
+

@@ -33,3 +33,4 @@ describe('NIP Validator', () => {
     expect(results['NIP-10'].valid).toBe(true);
   });
 });
+

@@ -62,3 +62,4 @@ const VotersList = ({ voters, maxDisplay = 5 }: VotersListProps) => {
 };
 
 export default VotersList;
+

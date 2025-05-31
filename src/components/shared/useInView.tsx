@@ -102,3 +102,4 @@ export function useInView({
 
   return { ref, inView, entry };
 }
+

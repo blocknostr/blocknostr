@@ -50,3 +50,4 @@ export function formatRelativeTime(timestamp: number): string {
     return `${years}y ago`;
   }
 }
+

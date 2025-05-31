@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface SavedHashtagsProps {
   onTopicClick: (topic: string) => void;
@@ -148,3 +148,4 @@ const SavedHashtags: React.FC<SavedHashtagsProps> = ({ onTopicClick }) => {
 };
 
 export default SavedHashtags;
+

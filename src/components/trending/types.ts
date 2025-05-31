@@ -20,3 +20,4 @@ export type Topic = {
   posts: string;
   isHashtag?: boolean;
 };
+

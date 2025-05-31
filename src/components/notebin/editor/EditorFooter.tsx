@@ -27,3 +27,4 @@ const EditorFooter: React.FC<EditorFooterProps> = ({ isLoggedIn }) => {
 };
 
 export default EditorFooter;
+

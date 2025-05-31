@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { nostrService } from "@/lib/nostr";
 import { useHotkeys } from "../useHotkeys";
 import { Note } from "../hooks/types";
-import { encryption } from "@/lib/encryption";
+import { encryption } from "@/utils/encryption";
 
 export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
   const [title, setTitle] = useState("");
@@ -292,3 +291,4 @@ export function useNoteEditorState(onNoteSaved: (note: Note) => void) {
     isLoggedIn: !!nostrService.publicKey
   };
 }
+

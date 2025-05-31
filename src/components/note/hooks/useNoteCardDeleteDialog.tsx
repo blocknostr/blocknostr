@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NostrEvent, nostrService } from '@/lib/nostr';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface UseNoteCardDeleteDialogProps {
   event: NostrEvent;
@@ -58,3 +58,4 @@ export function useNoteCardDeleteDialog({ event, onDelete }: UseNoteCardDeleteDi
     handleConfirmDelete
   };
 }
+

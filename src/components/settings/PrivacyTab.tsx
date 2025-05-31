@@ -1,15 +1,16 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Lock, AlertTriangle, Shield } from "lucide-react";
+import { Lock, AlertTriangle, Shield, User } from "lucide-react";
 import { useState } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
+import { useLocalStorage } from "@/hooks/ui/use-local-storage";
 
 const PrivacyTab = () => {
   const [dmEncryption, setDmEncryption] = useState(true);
+  const [showWalletInProfile, setShowWalletInProfile] = useLocalStorage("privacy_show_wallet_in_profile", true);
   
-  const handleToggle = () => {
+  const handleDmToggle = () => {
     setDmEncryption(!dmEncryption);
     toast.info(
       dmEncryption 
@@ -17,6 +18,18 @@ const PrivacyTab = () => {
         : "Using recommended encryption (NIP-44)",
       { 
         description: "Your preference has been saved" 
+      }
+    );
+  };
+
+  const handleWalletDisplayToggle = () => {
+    setShowWalletInProfile(!showWalletInProfile);
+    toast.success(
+      showWalletInProfile 
+        ? "Wallet address hidden from profile" 
+        : "Wallet address will show in profile",
+      { 
+        description: "Your privacy preference has been updated" 
       }
     );
   };
@@ -46,6 +59,28 @@ const PrivacyTab = () => {
             </p>
           </div>
         </div>
+
+        {/* Profile Privacy Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-medium">Profile Privacy</h3>
+          </div>
+          
+          <div className="flex items-center justify-between border rounded-md p-3">
+            <Label htmlFor="wallet-display" className="flex flex-col gap-1 cursor-pointer">
+              <span>Show Alephium wallet address in profile</span>
+              <span className="text-xs text-muted-foreground">
+                Display your connected wallet address for transparency
+              </span>
+            </Label>
+            <Switch 
+              id="wallet-display" 
+              checked={showWalletInProfile}
+              onCheckedChange={handleWalletDisplayToggle}
+            />
+          </div>
+        </div>
         
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -63,7 +98,7 @@ const PrivacyTab = () => {
             <Switch 
               id="dm-encryption" 
               checked={dmEncryption}
-              onCheckedChange={handleToggle}
+              onCheckedChange={handleDmToggle}
             />
           </div>
         </div>
@@ -82,3 +117,4 @@ const PrivacyTab = () => {
 };
 
 export default PrivacyTab;
+

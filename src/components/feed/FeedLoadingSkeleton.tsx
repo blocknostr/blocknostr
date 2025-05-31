@@ -44,3 +44,4 @@ const FeedLoadingSkeleton: React.FC<FeedLoadingSkeletonProps> = ({ count = 3 }) 
 };
 
 export default FeedLoadingSkeleton;
+

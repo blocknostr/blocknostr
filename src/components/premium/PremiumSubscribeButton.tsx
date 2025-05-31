@@ -3,7 +3,7 @@ import React from "react";
 import { BadgePercent, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface PremiumSubscribeButtonProps {
   className?: string;
@@ -53,3 +53,4 @@ const PremiumSubscribeButton = ({ className }: PremiumSubscribeButtonProps) => {
 };
 
 export default PremiumSubscribeButton;
+

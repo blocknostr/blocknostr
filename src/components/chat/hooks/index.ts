@@ -1,6 +1,6 @@
+// ✅ MIGRATED: Now using Redux-based World Chat hook
+export { useWorldChatRedux as useWorldChat, useWorldChatRedux, type ConnectionStatus } from "./useWorldChatRedux";
 
-export { useWorldChat, type ConnectionStatus } from "./useWorldChat";
-export { useRelayConnection } from "./useRelayConnection";
-export { useMessageSubscription } from "./useMessageSubscription";
-export { useReactionHandler } from "./useReactionHandler";
-export { useMessageSender } from "./useMessageSender";
+// ❌ DEPRECATED: Legacy hook with race conditions - DO NOT USE
+// export { useWorldChat, type ConnectionStatus } from "./useWorldChat";
+

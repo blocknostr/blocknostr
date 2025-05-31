@@ -57,3 +57,4 @@ function updateGlobalLoginDialogState(open: boolean) {
   globalLoginDialogOpen = open;
   setGlobalLoginDialogOpenCallbacks.forEach(callback => callback(open));
 } 
+

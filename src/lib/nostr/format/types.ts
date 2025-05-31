@@ -14,3 +14,4 @@ export interface ContentFormatterInterface {
   // Add a new method to process content and return a string
   processContent(content: string): string;
 }
+

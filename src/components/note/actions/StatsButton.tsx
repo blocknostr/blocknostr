@@ -20,3 +20,4 @@ const StatsButton = ({ showStats, onClick }: StatsButtonProps) => {
 };
 
 export default StatsButton;
+

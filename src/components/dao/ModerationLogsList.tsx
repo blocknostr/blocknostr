@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { Activity, Clock, Shield, Ban, CheckCircle, X, Flag, UserMinus } from "lucide-react";
-import { ModerationLogEntry } from "@/types/dao";
+import { ModerationLogEntry } from "@/api/types/dao";
 
 interface ModerationLogsListProps {
   logs: ModerationLogEntry[];
@@ -173,3 +173,4 @@ const ModerationLogsList: React.FC<ModerationLogsListProps> = ({
 };
 
 export default ModerationLogsList; 
+

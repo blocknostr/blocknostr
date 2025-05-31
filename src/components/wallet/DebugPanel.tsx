@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,8 +20,8 @@ import {
   EyeOff,
   Settings
 } from 'lucide-react';
-import { SavedWallet } from '@/types/wallet';
-import { clearRateLimitState } from '@/lib/api/rateLimitedApi';
+import { SavedWallet } from '@/api/types/wallet';
+import { clearRateLimitState } from '@/api/external/rateLimitedApi';
 
 interface DebugLog {
   id: string;
@@ -91,7 +91,7 @@ const FloatingDebugPanel: React.FC<DebugPanelProps> = ({
   }, [position]);
 
   // Add debug log entry
-  const addLog = (level: DebugLog['level'], category: DebugLog['category'], message: string, details?: any) => {
+  const addLog = useCallback((level: DebugLog['level'], category: DebugLog['category'], message: string, details?: any) => {
     if (!isLogging) return;
     
     const log: DebugLog = {
@@ -103,8 +103,11 @@ const FloatingDebugPanel: React.FC<DebugPanelProps> = ({
       details
     };
     
-    setDebugLogs(prev => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
-  };
+    // Use setTimeout to avoid setState during render
+    setTimeout(() => {
+      setDebugLogs(prev => [log, ...prev.slice(0, 49)]); // Keep last 50 logs
+    }, 0);
+  }, [isLogging]);
 
   // Monitor console for all logs
   useEffect(() => {
@@ -166,7 +169,7 @@ const FloatingDebugPanel: React.FC<DebugPanelProps> = ({
       console.info = originalConsole.info;
       console.debug = originalConsole.debug;
     };
-  }, [isLogging]);
+  }, [isLogging, addLog]);
 
   // Handle dragging
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -458,3 +461,4 @@ const FloatingDebugPanel: React.FC<DebugPanelProps> = ({
 };
 
 export default FloatingDebugPanel; 
+

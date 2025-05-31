@@ -5,7 +5,7 @@ import { Heart, MessageSquare, Repeat2, Zap, SmilePlus } from 'lucide-react';
 import { nostrService } from '@/lib/nostr';
 import { useAuth } from '@/hooks/useAuth';
 import { Event } from 'nostr-tools';
-import { toast } from '@/lib/utils/toast-replacement';
+import { toast } from '@/lib/toast';
 import {
   Popover,
   PopoverContent,
@@ -32,9 +32,9 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
 
   return (
     <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Popover>
+      <Popover>
+        <Tooltip>
+          <TooltipTrigger asChild>
             <PopoverTrigger asChild>
               <button 
                 className="rounded-full bg-background/90 border shadow-sm hover:bg-accent/30 p-1.5"
@@ -43,28 +43,29 @@ const ReactionBar: React.FC<ReactionBarProps> = ({ isLoggedIn, onAddReaction }) 
                 <SmilePlus className="h-3 w-3 text-muted-foreground" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-1" side="top">
-              <div className="flex gap-1">
-                {COMMON_EMOJIS.map(emoji => (
-                  <button 
-                    key={emoji} 
-                    className="hover:bg-accent/50 rounded p-1 transition-colors"
-                    onClick={() => handleReaction(emoji)}
-                    aria-label={`React with ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          Add reaction
-        </TooltipContent>
-      </Tooltip>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Add reaction
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent className="w-auto p-1" side="top">
+          <div className="flex gap-1">
+            {COMMON_EMOJIS.map(emoji => (
+              <button 
+                key={emoji} 
+                className="hover:bg-accent/50 rounded p-1 transition-colors"
+                onClick={() => handleReaction(emoji)}
+                aria-label={`React with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
     </TooltipProvider>
   );
 };
 
 export default ReactionBar;
+

@@ -1,22 +1,21 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, Share2, Heart, MessageCircle } from "lucide-react";
+import { ArrowLeft, Pencil, Share2, Heart, MessageCircle, Eye } from "lucide-react";
 import NoteCard from "@/components/note/NoteCard";
 import ArticleReader from "@/components/articles/ArticleReader";
 import ArticleAuthorCard from "@/components/articles/ArticleAuthorCard";
 import RelatedArticles from "@/components/articles/RelatedArticles";
-import Sidebar from "@/components/Sidebar";
 import BackButton from "@/components/navigation/BackButton";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
-import { nostrService } from "@/lib/nostr";
+import { coreNostrService } from "@/lib/nostr/core-service";
 import { NostrEvent } from "@/lib/nostr/types";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 // Toaster now imported globally
 import { getTagValue } from "@/lib/nostr/utils/nip/nip10";
 import { Separator } from "@/components/ui/separator";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
-import { useFeedProfile } from "@/hooks/useUnifiedProfile";
+import { useArticles } from "@/hooks/useArticles";
+import { useProfilesBatch } from "@/hooks/api/useProfileMigrated";
 
 export interface UnifiedContentViewerProps {
   contentType?: 'post' | 'article';
@@ -38,6 +37,7 @@ export interface UnifiedContentViewerProps {
  * - Consistent interaction buttons (like, share, comment)
  * - Author information display
  * - Edit capabilities for authors
+ * Profile dependency removed to eliminate race conditions
  */
 const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
   contentType,
@@ -48,6 +48,7 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
 }) => {
   const { id, eventId } = useParams<{ id?: string; eventId?: string }>();
   const navigate = useNavigate();
+  const { allArticles } = useArticles();
   
   // State management
   const [content, setContent] = useState<NostrEvent | null>(null);
@@ -55,13 +56,28 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [liked, setLiked] = useState(false);
   
-  // Profile management
-  const [, { fetchProfile, getProfile, profiles }] = useFeedProfile();
+  // ✅ FIXED: Add profile fetching for ArticleReader
+  const { 
+    profilesMap, 
+    isLoading: profileLoading 
+  } = useProfilesBatch(content?.pubkey && content.pubkey.length === 64 ? [content.pubkey] : []);
+  
+  // Profile management removed to eliminate race conditions
+  // Content viewing can work without profile data being managed here
+  const profiles = {};
+  
+  // ✅ EXTRACT PROFILE DATA: Same approach as ProfilePageRedux and ArticleAuthorCard
+  const authorProfile = content?.pubkey ? profilesMap[content.pubkey] : null;
+  const authorData = authorProfile ? {
+    name: authorProfile.metadata?.name || '',
+    display_name: authorProfile.metadata?.display_name || authorProfile.metadata?.name || '',
+    picture: authorProfile.metadata?.picture || ''
+  } : undefined;
   
   // Computed values
   const contentId = id || eventId;
-  const isLoggedIn = !!nostrAdapter.publicKey;
-  const isAuthor = content ? content.pubkey === nostrAdapter.publicKey : false;
+  const isLoggedIn = !!coreNostrService.getPublicKey();
+  const isAuthor = content ? content.pubkey === coreNostrService.getPublicKey() : false;
   
   // Content type detection
   const isArticle = content?.kind === EVENT_KINDS.ARTICLE || contentType === 'article';
@@ -96,57 +112,125 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
     setError(null);
 
     try {
-      let result: NostrEvent | null = null;
-
-      // Try article first if contentType is specified as article
-      if (contentType === 'article' || !contentType) {
-        try {
-          result = await nostrAdapter.getArticleById(contentId);
-        } catch (err) {
-          console.log("Not an article, trying as post...");
-        }
-      }
-
-      // Try as regular post if article fetch failed or contentType is post
-      if (!result && (contentType === 'post' || !contentType)) {
-        try {
-          const filters = [{ ids: [contentId] }];
-          
-          await new Promise<void>((resolve) => {
-            const subId = nostrService.subscribe(
-              filters,
-              (event: NostrEvent) => {
-                if (event && event.id === contentId) {
-                  result = event;
-                  nostrService.unsubscribe(subId);
-                  resolve();
-                }
-              }
-            );
-            
-            // Timeout after 5 seconds
-            setTimeout(() => {
-              nostrService.unsubscribe(subId);
-              resolve();
-            }, 5000);
-          });
-        } catch (err) {
-          console.error("Error fetching post:", err);
-        }
-      }
-
-      if (result) {
-        setContent(result);
+      console.log(`🔍 [UnifiedContentViewer] Fetching content with ID: ${contentId}, contentType: ${contentType}`);
+      
+      // ✅ FIXED: Handle articles differently - look up by localId first, then by Nostr event ID
+      if (contentType === 'article') {
+        console.log(`📖 [UnifiedContentViewer] Looking for article with ID: ${contentId}`);
         
-        // Fetch author profile
-        if (result.pubkey) {
-          await fetchProfile(result.pubkey);
+        // First, try to find article in Redux state by localId (for locally managed articles)
+        let article = allArticles.find(a => a.localId === contentId);
+        
+        if (article) {
+          console.log(`✅ [UnifiedContentViewer] Found article in Redux by localId:`, article);
+          
+          // If it's published, fetch the actual Nostr event
+          if (article.status === 'published' && article.publishedEventId) {
+            console.log(`🌐 [UnifiedContentViewer] Fetching Nostr event: ${article.publishedEventId}`);
+            
+            try {
+              const nostrEvent = await coreNostrService.getEventById(article.publishedEventId);
+              if (nostrEvent) {
+                console.log(`✅ [UnifiedContentViewer] Found Nostr event`);
+                setContent(nostrEvent);
+              } else {
+                console.warn(`⚠️ [UnifiedContentViewer] Nostr event not found: ${article.publishedEventId}`);
+                // Fallback: use article data to create a mock event for display
+                const mockEvent: NostrEvent = {
+                  id: article.publishedEventId,
+                  pubkey: article.authorPubkey,
+                  created_at: Math.floor((article.publishedAt || article.createdAt) / 1000),
+                  kind: EVENT_KINDS.ARTICLE,
+                  tags: [
+                    ['title', article.title],
+                    ...(article.summary ? [['summary', article.summary]] : []),
+                    ...(article.subtitle ? [['subtitle', article.subtitle]] : []),
+                    ...(article.image ? [['image', article.image]] : []),
+                    ...article.hashtags.map(tag => ['t', tag])
+                  ],
+                  content: article.content,
+                  sig: ''
+                };
+                setContent(mockEvent);
+              }
+            } catch (nostrError) {
+              console.error(`❌ [UnifiedContentViewer] Error fetching Nostr event:`, nostrError);
+              // Fallback: create mock event from article data
+              const mockEvent: NostrEvent = {
+                id: article.publishedEventId,
+                pubkey: article.authorPubkey,
+                created_at: Math.floor((article.publishedAt || article.createdAt) / 1000),
+                kind: EVENT_KINDS.ARTICLE,
+                tags: [
+                  ['title', article.title],
+                  ...(article.summary ? [['summary', article.summary]] : []),
+                  ...(article.subtitle ? [['subtitle', article.subtitle]] : []),
+                  ...(article.image ? [['image', article.image]] : []),
+                  ...article.hashtags.map(tag => ['t', tag])
+                ],
+                content: article.content,
+                sig: ''
+              };
+              setContent(mockEvent);
+            }
+          } else if (article.status === 'draft') {
+            // For drafts, create a mock event for display
+            const mockEvent: NostrEvent = {
+              id: article.localId,
+              pubkey: article.authorPubkey,
+              created_at: Math.floor(article.createdAt / 1000),
+              kind: EVENT_KINDS.ARTICLE,
+              tags: [
+                ['title', article.title],
+                ...(article.summary ? [['summary', article.summary]] : []),
+                ...(article.subtitle ? [['subtitle', article.subtitle]] : []),
+                ...(article.image ? [['image', article.image]] : []),
+                ...article.hashtags.map(tag => ['t', tag])
+              ],
+              content: article.content,
+              sig: ''
+            };
+            setContent(mockEvent);
+          } else {
+            console.error(`❌ [UnifiedContentViewer] Article has no publishedEventId:`, article);
+            setError("Article not properly published");
+          }
+        } else {
+          // ✅ NEW: If not found by localId, try direct Nostr lookup (for articles from global feed)
+          console.log(`🌐 [UnifiedContentViewer] Article not found in Redux, trying direct Nostr lookup: ${contentId}`);
+          
+          try {
+            const nostrEvent = await coreNostrService.getEventById(contentId);
+            
+            if (nostrEvent && nostrEvent.kind === EVENT_KINDS.ARTICLE) {
+              console.log(`✅ [UnifiedContentViewer] Found article via Nostr lookup`);
+              setContent(nostrEvent);
+            } else {
+              console.error(`❌ [UnifiedContentViewer] Article not found via Nostr lookup: ${contentId}`);
+              setError("Article not found");
+            }
+          } catch (nostrError) {
+            console.error(`❌ [UnifiedContentViewer] Error in Nostr lookup:`, nostrError);
+            setError("Failed to load article");
+          }
         }
       } else {
-        setError(isArticle ? "Article not found" : "Post not found");
+        // ✅ For posts, use direct Nostr lookup (existing behavior)
+        console.log(`📝 [UnifiedContentViewer] Fetching post from Nostr: ${contentId}`);
+        
+        const result = await coreNostrService.getEventById(contentId);
+
+        if (result) {
+          console.log(`✅ [UnifiedContentViewer] Found post event`);
+          setContent(result);
+        } else {
+          console.error(`❌ [UnifiedContentViewer] Post not found: ${contentId}`);
+          setError("Post not found");
+        }
       }
+      
     } catch (err) {
-      console.error("Error fetching content:", err);
+      console.error("❌ [UnifiedContentViewer] Error fetching content:", err);
       setError(isArticle ? "Failed to load article" : "Failed to load post");
       if (isPost) {
         toast.error("Failed to load post.");
@@ -154,7 +238,7 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [contentId, contentType, fetchProfile, isArticle, isPost]);
+  }, [contentId, contentType, allArticles]);
 
   // Load content on mount or ID change
   useEffect(() => {
@@ -171,7 +255,15 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
     if (!content) return;
     
     try {
-      await nostrAdapter.social.reactToEvent(content.id, "+");
+      // Create a reaction event using CoreNostrService
+      await coreNostrService.publishEvent({
+        kind: 7, // Reaction event kind
+        content: "+",
+        tags: [
+          ["e", content.id],
+          ["p", content.pubkey]
+        ]
+      });
       setLiked(true);
       toast.success(`${isArticle ? 'Article' : 'Post'} liked!`);
     } catch (error) {
@@ -206,12 +298,9 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
 
     if (shouldUseSidebar) {
       return (
-        <div className="flex min-h-screen bg-background">
-          <Sidebar />
-          <div className="flex-1 ml-0 md:ml-64 p-6">
-            <BackButton fallbackPath={getBackPath()} />
-            <div className="text-center mt-10">Loading {isArticle ? 'article' : 'post'}...</div>
-          </div>
+        <div className="px-4 py-6 max-w-7xl mx-auto">
+          <BackButton fallbackPath={getBackPath()} />
+          <div className="text-center mt-10">Loading {isArticle ? 'article' : 'post'}...</div>
         </div>
       );
     } else {
@@ -228,7 +317,7 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
     const ErrorContent = () => (
       <div className="text-center">
         <h1 className="text-2xl font-bold text-red-500">Error</h1>
-        <p className="mt-4">{error || `Failed to load ${isArticle ? 'article' : 'post'}`}</p>
+                    <p className="mt-4">{typeof error === 'string' ? error : `Failed to load ${isArticle ? 'article' : 'post'}`}</p>
         <Button asChild className="mt-4">
           <Link to={getBackPath()}>{getBackLabel()}</Link>
         </Button>
@@ -237,13 +326,10 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
 
     if (shouldUseSidebar) {
       return (
-        <div className="flex min-h-screen bg-background">
-          <Sidebar />
-          <div className="flex-1 ml-0 md:ml-64 p-6">
-            <BackButton fallbackPath={getBackPath()} />
-            <div className="mt-10">
-              <ErrorContent />
-            </div>
+        <div className="px-4 py-6 max-w-7xl mx-auto">
+          <BackButton fallbackPath={getBackPath()} />
+          <div className="mt-10">
+            <ErrorContent />
           </div>
         </div>
       );
@@ -265,60 +351,82 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
     .filter(tag => tag[0] === 't')
     .map(tag => tag[1]);
 
+  // ✅ DEBUG: Log render data to understand blank page issue
+  console.log('🎨 [UnifiedContentViewer] Rendering with data:', {
+    hasContent: !!content,
+    contentId: content?.id,
+    title,
+    isArticle,
+    isPost,
+    shouldUseSidebar,
+    shouldUseContainer,
+    contentKind: content?.kind,
+    contentLength: content?.content?.length
+  });
+
   // Render content based on layout type
   if (shouldUseSidebar) {
     // Post layout with sidebar
+    console.log('🎨 [UnifiedContentViewer] Rendering sidebar layout');
     return (
-      <div className="flex min-h-screen bg-background">
-        <Sidebar />
-        <div className="flex-1 ml-0 md:ml-64 p-6">
-          <BackButton fallbackPath={getBackPath()} />
-          <NoteCard
-            event={content}
-            profileData={getProfile(content.pubkey)}
-          />
-          <Toaster position="bottom-right" />
-        </div>
+      <div className="px-4 py-6 max-w-7xl mx-auto">
+        <BackButton fallbackPath={getBackPath()} />
+        <NoteCard
+          event={content}
+          profileData={profiles[content.pubkey]}
+        />
       </div>
     );
   } else {
     // Article layout with container
+    console.log('🎨 [UnifiedContentViewer] Rendering container layout for article');
     return (
-      <div className="container max-w-5xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="px-4 py-6 max-w-5xl mx-auto">
+        <div className="flex items-center mb-6">
           <Button variant="ghost" size="sm" asChild>
             <Link to={getBackPath()}>
               <ArrowLeft size={16} /> {getBackLabel()}
             </Link>
           </Button>
-          {isAuthor && (
-            <Button variant="outline" asChild>
-              <Link to={`/articles/edit/${content.id}`} className="flex items-center gap-2">
-                <Pencil size={16} />
-                Edit
-              </Link>
-            </Button>
-          )}
         </div>
         
         <div className="max-w-4xl mx-auto mt-8">
           {isArticle ? (
-            <ArticleReader 
-              article={content}
-              title={title}
-              image={image}
-              publishedAt={publishedAt}
-              hashtags={hashtags}
-            />
+            <>
+              {console.log('🎨 [UnifiedContentViewer] Rendering ArticleReader with:', { title, image, publishedAt, hashtags })}
+              <ArticleReader 
+                article={content}
+                title={title}
+                image={image}
+                publishedAt={publishedAt}
+                hashtags={hashtags}
+                authorProfile={authorData}
+              />
+            </>
           ) : (
-            <NoteCard
-              event={content}
-              profileData={getProfile(content.pubkey)}
-            />
+            <>
+              {console.log('🎨 [UnifiedContentViewer] Rendering NoteCard')}
+              <NoteCard
+                event={content}
+                profileData={profiles[content.pubkey]}
+              />
+            </>
           )}
           
           <div className="flex justify-between items-center mt-8 border-t border-b py-4">
             <div className="flex gap-6">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-2"
+                asChild
+              >
+                <Link to={`/post/${content.id}`}>
+                  <MessageCircle size={18} />
+                  Comments
+                </Link>
+              </Button>
+              
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -338,19 +446,31 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
                 <Share2 size={18} />
                 Share
               </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-2"
+                disabled
+              >
+                <Eye size={18} />
+                Views
+              </Button>
+              
+              {isAuthor && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-2"
+                  asChild
+                >
+                  <Link to={`/articles/edit/${content.id}`}>
+                    <Pencil size={16} />
+                    Edit
+                  </Link>
+                </Button>
+              )}
             </div>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="flex items-center gap-2"
-              asChild
-            >
-              <Link to={`/post/${content.id}`}>
-                <MessageCircle size={18} />
-                Comments
-              </Link>
-            </Button>
           </div>
           
           <div className="my-8">
@@ -373,3 +493,4 @@ const UnifiedContentViewer: React.FC<UnifiedContentViewerProps> = ({
 };
 
 export default UnifiedContentViewer; 
+

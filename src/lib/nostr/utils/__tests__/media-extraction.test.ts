@@ -89,3 +89,4 @@ describe('Media URL Validation', () => {
     expect(isValidMediaUrl('not a url')).toBe(false);
   });
 });
+

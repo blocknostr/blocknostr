@@ -6,24 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/lib/toast";
 import { useNavigate } from "react-router-dom";
 
 interface CreateDAODialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateDAO: (name: string, description: string, tags: string[]) => Promise<string | null>;
+  onCreateDAO: (name: string, description: string, tags: string[], avatar?: string, banner?: string) => Promise<string | null>;
+  routePrefix?: 'dao' | 'communities'; // Add route prefix option
 }
 
 const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
   open,
   onOpenChange,
-  onCreateDAO
+  onCreateDAO,
+  routePrefix = 'dao' // Default to 'dao' for backward compatibility
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [banner, setBanner] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nameError, setNameError] = useState("");
   const navigate = useNavigate();
@@ -33,6 +37,8 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     setDescription("");
     setTags([]);
     setTagInput("");
+    setAvatar("");
+    setBanner("");
     setIsSubmitting(false);
     setNameError("");
   };
@@ -71,7 +77,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
     
     setIsSubmitting(true);
     try {
-      const daoId = await onCreateDAO(name.trim(), description, tags);
+      const daoId = await onCreateDAO(name.trim(), description, tags, avatar.trim() || undefined, banner.trim() || undefined);
       if (daoId) {
         toast.success("DAO created successfully!", {
           description: "Redirecting to your new DAO..."
@@ -79,7 +85,7 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
         
         // Navigate to the newly created DAO after a short delay
         setTimeout(() => {
-          navigate(`/dao/${daoId}`);
+          navigate(`/${routePrefix}/${daoId}`);
         }, 500);
       }
       handleClose();
@@ -144,6 +150,34 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
               rows={3}
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="avatar">Avatar Image URL</Label>
+            <Input
+              id="avatar"
+              value={avatar}
+              onChange={(e) => setAvatar(e.target.value)}
+              placeholder="https://example.com/avatar.jpg"
+              type="url"
+            />
+            <p className="text-xs text-muted-foreground">
+              Recommended: 200x200px, max 500KB. Square format works best for avatars.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="banner">Banner Image URL</Label>
+            <Input
+              id="banner"
+              value={banner}
+              onChange={(e) => setBanner(e.target.value)}
+              placeholder="https://example.com/banner.jpg"
+              type="url"
+            />
+            <p className="text-xs text-muted-foreground">
+              Recommended: 1200x400px, max 1MB. Wide format (3:1 ratio) works best for banners.
+            </p>
+          </div>
           
           <div className="space-y-2">
             <Label htmlFor="tags">Tags</Label>
@@ -155,6 +189,8 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
                     type="button" 
                     onClick={() => removeTag(tag)}
                     className="ml-1 text-muted-foreground hover:text-foreground"
+                    title={`Remove ${tag} tag`}
+                    aria-label={`Remove ${tag} tag`}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -197,3 +233,4 @@ const CreateDAODialog: React.FC<CreateDAODialogProps> = ({
 };
 
 export default CreateDAODialog;
+

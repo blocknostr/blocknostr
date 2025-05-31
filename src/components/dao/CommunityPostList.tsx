@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CommunityPost } from "@/types/dao";
+import { CommunityPost } from "@/api/types/dao";
 
 interface CommunityPostListProps {
   posts: CommunityPost[];
@@ -155,7 +155,13 @@ const CommunityPostList: React.FC<CommunityPostListProps> = ({
                 {currentUserPubkey && currentUserPubkey !== post.author && onReportContent && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        title="Post options"
+                        aria-label="Open post options menu"
+                      >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -282,3 +288,4 @@ const CommunityPostList: React.FC<CommunityPostListProps> = ({
 };
 
 export default CommunityPostList; 
+

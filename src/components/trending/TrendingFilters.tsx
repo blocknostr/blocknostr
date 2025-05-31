@@ -29,3 +29,4 @@ const TrendingFilters: React.FC<TrendingFiltersProps> = ({ currentFilter, curren
 };
 
 export default TrendingFilters;
+

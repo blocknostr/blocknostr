@@ -2,9 +2,14 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, ExternalLink, Loader2 } from "lucide-react";
-import { getAddressTransactions } from "@/lib/api/alephiumApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { ArrowUpRight, ArrowDownLeft, ExternalLink, Loader2, ArrowRightLeft, RefreshCw } from "lucide-react";
+import { getAddressTransactions } from "@/api/external/cachedAlephiumApi";
+import { toast } from "@/lib/toast";
+import { 
+  getTransactionType,
+  getTransactionAmountForDisplay,
+  getCounterpartyAddress
+} from "@/lib/utils/officialTransactionParser";
 
 interface RecentActivityCardProps {
   address: string;
@@ -46,53 +51,13 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ address }) => {
     return `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
   };
   
-  // Helper to determine if transaction is incoming or outgoing
-  const getTransactionType = (tx: any) => {
-    // If any output is to this address, it's incoming
-    const isIncoming = tx.outputs.some((output: any) => output.address === address);
-    // If any input is from this address, it's outgoing
-    const isOutgoing = tx.inputs.some((input: any) => input.address === address);
-    
-    if (isIncoming && !isOutgoing) return 'received';
-    if (isOutgoing) return 'sent';
-    return 'unknown';
-  };
-  
-  // Calculate amount transferred to/from this address
-  const getTransactionAmount = (tx: any) => {
-    const type = getTransactionType(tx);
-    
-    if (type === 'received') {
-      // Sum all outputs to this address
-      const amount = tx.outputs
-        .filter((output: any) => output.address === address)
-        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
-      return amount / 10**18; // Convert from nanoALPH to ALPH
-    } else if (type === 'sent') {
-      // This is a simplification - for accurate accounting we'd need to track change outputs
-      const amount = tx.outputs
-        .filter((output: any) => output.address !== address)
-        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
-      return amount / 10**18; // Convert from nanoALPH to ALPH
-    }
-    
-    return 0;
-  };
-  
-  // Get the counterparty address
-  const getCounterpartyAddress = (tx: any) => {
-    const type = getTransactionType(tx);
-    
-    if (type === 'received') {
-      // The first input address is usually the sender
-      return tx.inputs[0]?.address || 'Unknown';
-    } else if (type === 'sent') {
-      // The first non-self output is usually the recipient
-      const recipient = tx.outputs.find((output: any) => output.address !== address);
-      return recipient?.address || 'Unknown';
-    }
-    
-    return 'Unknown';
+  // Use official Alephium Explorer transaction parsing logic
+  const parseTransaction = (tx: any) => {
+    return {
+      type: getTransactionType(address, tx),
+      amount: getTransactionAmountForDisplay(address, tx),
+      counterparty: getCounterpartyAddress(address, tx)
+    };
   };
 
   return (
@@ -113,23 +78,34 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ address }) => {
         ) : (
           <div className="space-y-4">
             {transactions.slice(0, 10).map((tx) => {
-              const type = getTransactionType(tx);
-              const amount = getTransactionAmount(tx);
-              const counterparty = getCounterpartyAddress(tx);
+              const parsed = parseTransaction(tx);
+              const { type, amount, counterparty } = parsed;
               
               return (
                 <div key={tx.hash} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${type === 'received' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-blue-100 dark:bg-blue-900/20'}`}>
+                    <div className={`p-2 rounded-full ${
+                      type === 'received' ? 'bg-green-100 dark:bg-green-900/20' : 
+                      type === 'swap' ? 'bg-purple-100 dark:bg-purple-900/20' : 
+                      type === 'internal' ? 'bg-orange-100 dark:bg-orange-900/20' : 
+                      'bg-blue-100 dark:bg-blue-900/20'
+                    }`}>
                       {type === 'received' ? (
                         <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                      ) : type === 'swap' ? (
+                        <ArrowRightLeft className="h-4 w-4 text-purple-500" />
+                      ) : type === 'internal' ? (
+                        <RefreshCw className="h-4 w-4 text-orange-500" />
                       ) : (
                         <ArrowUpRight className="h-4 w-4 text-blue-500" />
                       )}
                     </div>
                     <div>
                       <p className="font-medium">
-                        {type === 'received' ? 'Received from' : 'Sent to'} {truncateAddress(counterparty)}
+                        {type === 'received' ? 'Received from' : 
+                         type === 'swap' ? 'Swapped with' : 
+                         type === 'internal' ? 'Internal transaction' : 
+                         'Sent to'} {type !== 'internal' ? truncateAddress(counterparty) : ''}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatDate(tx.timestamp)}
@@ -137,8 +113,16 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ address }) => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-medium ${type === 'received' ? 'text-green-500' : 'text-blue-500'}`}>
-                      {type === 'received' ? '+' : '-'}{amount.toFixed(4)} ALPH
+                    <p className={`font-medium ${
+                      type === 'received' ? 'text-green-500' : 
+                      type === 'swap' ? 'text-purple-500' : 
+                      type === 'internal' ? 'text-orange-500' : 
+                      'text-blue-500'
+                    }`}>
+                      {type === 'received' ? '+' : 
+                       type === 'swap' ? '±' : 
+                       type === 'internal' ? '↻' : 
+                       '-'}{amount.toFixed(4)} ALPH
                     </p>
                     <a
                       href={`https://explorer.alephium.org/transactions/${tx.hash}`}
@@ -173,3 +157,4 @@ const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ address }) => {
 };
 
 export default RecentActivityCard;
+

@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { NostrEvent, nostrService } from "@/lib/nostr";
 import { EVENT_KINDS } from "@/lib/nostr/constants";
 
@@ -8,9 +7,14 @@ export function useNoteCardReplies(eventId: string) {
   const [replies, setReplies] = useState<NostrEvent[]>([]);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   
+  // Prevent multiple concurrent fetches
+  const fetchingRef = useRef(false);
+  const mountedRef = useRef(true);
+  
   const fetchReplies = useCallback(async () => {
-    if (!eventId) return;
+    if (!eventId || fetchingRef.current || !mountedRef.current) return;
     
+    fetchingRef.current = true;
     setIsLoading(true);
     
     try {
@@ -25,7 +29,7 @@ export function useNoteCardReplies(eventId: string) {
       const subId = nostrService.subscribe(
         [filter],
         (event) => {
-          if (event) {
+          if (event && mountedRef.current) {
             setReplies(prev => {
               // Avoid duplicates
               if (prev.some(e => e.id === event.id)) {
@@ -40,13 +44,18 @@ export function useNoteCardReplies(eventId: string) {
         }
       );
       
-      if (subId) {
+      if (subId && mountedRef.current) {
         setSubscriptionId(subId);
       }
     } catch (error) {
-      console.error("Error fetching note replies:", error);
+      if (mountedRef.current) {
+        console.error("Error fetching note replies:", error);
+      }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      fetchingRef.current = false;
     }
   }, [eventId]);
   
@@ -59,13 +68,24 @@ export function useNoteCardReplies(eventId: string) {
     };
   }, [subscriptionId]);
   
-  // Initial fetch
+  // CRITICAL FIX: Remove fetchReplies from dependencies to prevent infinite loop
   useEffect(() => {
-    fetchReplies();
-  }, [fetchReplies]);
+    if (eventId && !fetchingRef.current) {
+      fetchReplies();
+    }
+  }, [eventId]); // Only re-run when eventId changes
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   
   // Get the reply count
   const replyCount = replies.length;
   
   return { replies, isLoading, fetchReplies, replyCount };
 }
+

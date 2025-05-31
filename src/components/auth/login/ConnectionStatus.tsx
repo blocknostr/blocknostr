@@ -46,3 +46,4 @@ const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ connectStatus, anim
 };
 
 export default ConnectionStatus;
+

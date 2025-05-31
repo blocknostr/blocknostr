@@ -21,3 +21,4 @@ const NotesEmptyState = ({ onCreateNote }: NotesEmptyStateProps) => {
 };
 
 export default NotesEmptyState;
+

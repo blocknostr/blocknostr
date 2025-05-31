@@ -38,3 +38,4 @@ const ErgoWalletLayout: React.FC<ErgoWalletLayoutProps> = ({ address }) => {
 };
 
 export default ErgoWalletLayout;
+

@@ -51,3 +51,4 @@ export interface ZapInfo {
   recipient: string;
   relayUrl?: string;
 }
+

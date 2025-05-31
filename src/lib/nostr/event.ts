@@ -1,115 +1,316 @@
-
-import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19 } from 'nostr-tools';
+import { getEventHash, validateEvent, SimplePool, finalizeEvent, type Event as NostrToolsEvent, type UnsignedEvent, getPublicKey, nip19, Filter, nip04 } from 'nostr-tools';
 import { NostrEvent } from './types';
 import { EVENT_KINDS } from './constants';
 
 export class EventManager {
   async publishEvent(
-    pool: SimplePool, 
-    publicKey: string | null, 
-    privateKey: string | null, 
-    event: Partial<NostrEvent>,
-    relays: string[]
-  ): Promise<string | null> {
-    if (!publicKey) {
-      console.error("Public key not available");
-      return null;
-    }
-    
-    const fullEvent: UnsignedEvent = {
-      pubkey: publicKey,
-      created_at: Math.floor(Date.now() / 1000),
-      kind: event.kind || EVENT_KINDS.TEXT_NOTE,
-      tags: event.tags || [],
-      content: event.content || '',
-    };
-    
-    const eventId = getEventHash(fullEvent);
-    let signedEvent: NostrToolsEvent;
-    
+    pool: SimplePool,
+    event: any,
+    relays: string[],
+    privateKey?: string
+  ): Promise<{ success: boolean; event?: any; error?: string }> {
     try {
-      if (window.nostr) {
-        // Use NIP-07 browser extension for signing
-        try {
-          signedEvent = await window.nostr.signEvent({
-            kind: fullEvent.kind,
-            created_at: fullEvent.created_at,
-            content: fullEvent.content,
-            tags: fullEvent.tags,
-            pubkey: publicKey
-          });
-          
-          // Validate the signature from the extension
-          if (!validateEvent(signedEvent)) {
-            console.error("Invalid signature from extension");
-            return null;
-          }
-        } catch (err) {
-          console.error("Extension signing failed:", err);
-          return null;
-        }
-      } else if (privateKey) {
-        // Convert privateKey string to Uint8Array if needed
-        let privateKeyBytes: Uint8Array;
-        
-        try {
-          // Handle hex private key
-          if (privateKey.match(/^[0-9a-fA-F]{64}$/)) {
-            privateKeyBytes = new Uint8Array(
-              privateKey.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
-            );
-          } 
-          // Handle nsec private key
-          else if (privateKey.startsWith('nsec')) {
-            const { data } = nip19.decode(privateKey);
-            privateKeyBytes = data as Uint8Array;
-          } 
-          // Default fallback
-          else {
-            privateKeyBytes = new TextEncoder().encode(privateKey);
-          }
-          
-          // Verify keypair before using
-          const derivedPubkey = getPublicKey(privateKeyBytes);
-          if (derivedPubkey !== publicKey) {
-            console.error("Private key doesn't match public key");
-            return null;
-          }
-          
-          // Use private key for signing
-          signedEvent = finalizeEvent(fullEvent, privateKeyBytes);
-          
-        } catch (keyError) {
-          console.error("Invalid private key format:", keyError);
-          return null;
-        }
+      // Check if we have wallet extension available
+      const hasWalletExtension = typeof window !== 'undefined' && 
+                                (window as any).nostr && 
+                                typeof (window as any).nostr.signEvent === 'function';
+      
+      if (!privateKey && !hasWalletExtension) {
+        return { 
+          success: false, 
+          error: 'Private key or Nostr wallet extension is required for publishing. Please install a Nostr extension like Alby, nos2x, or Flamingo.' 
+        };
+      }
+
+      if (!event.pubkey) {
+        return { success: false, error: 'Public key is required in event' };
+      }
+
+      if (!relays || relays.length === 0) {
+        return { success: false, error: 'At least one relay is required for publishing' };
+      }
+
+      // Set created_at if not provided
+      if (!event.created_at) {
+        event.created_at = Math.floor(Date.now() / 1000);
+      }
+
+      console.log('[EventManager] Publishing event to relays:', relays);
+      console.log('[EventManager] Event details:', {
+        kind: event.kind,
+        content: event.content?.slice(0, 100),
+        tags: event.tags,
+        pubkey: event.pubkey?.slice(0, 8) + '...'
+      });
+
+      let signedEvent;
+      
+      if (privateKey) {
+        // Use private key signing (for server-side or testing)
+        console.log('[EventManager] Using private key signing');
+        signedEvent = finalizeEvent(event, privateKey);
       } else {
-        console.error("No signing method available");
-        return null;
+        // Use wallet extension signing
+        console.log('[EventManager] Using wallet extension signing');
+        try {
+          signedEvent = await (window as any).nostr.signEvent(event);
+          console.log('[EventManager] Event signed by wallet extension');
+        } catch (walletError) {
+          console.error('[EventManager] Wallet signing failed:', walletError);
+          return { 
+            success: false, 
+            error: `Wallet signing failed: ${walletError.message || 'User rejected or wallet error'}` 
+          };
+        }
       }
       
-      // Validate the signed event
-      if (!validateEvent(signedEvent)) {
-        console.error("Invalid event signature");
-        return null;
+      if (!signedEvent || !signedEvent.sig) {
+        return { success: false, error: 'Failed to sign event' };
       }
       
-      // Publish to relays
-      if (relays.length === 0) {
-        console.error("No relays available");
-        return null;
+      console.log('[EventManager] Event signed successfully, publishing to', relays.length, 'relays');
+      
+      // Publish to all relays with error handling
+      const publishResults = await Promise.allSettled(
+        relays.map(async (relay) => {
+          try {
+            console.log(`[EventManager] Publishing to relay: ${relay}`);
+            await pool.publish([relay], signedEvent);
+            console.log(`[EventManager] Successfully published to: ${relay}`);
+            return { relay, success: true };
+          } catch (error) {
+            console.error(`[EventManager] Failed to publish to ${relay}:`, error);
+            return { relay, success: false, error };
+          }
+        })
+      );
+      
+      // Check results
+      const successful = publishResults.filter(result => 
+        result.status === 'fulfilled' && result.value.success
+      ).length;
+      
+      const failed = publishResults.length - successful;
+      
+      console.log(`[EventManager] Publish results: ${successful}/${relays.length} relays successful`);
+      
+      if (successful === 0) {
+        return { 
+          success: false, 
+          error: `Failed to publish to any relays (${failed}/${relays.length} failed)` 
+        };
       }
       
-      pool.publish(relays, signedEvent);
-      return eventId;
+      if (failed > 0) {
+        console.warn(`[EventManager] Published to ${successful}/${relays.length} relays (${failed} failed)`);
+      }
       
+      return { 
+        success: true, 
+        event: signedEvent,
+        publishStats: { successful, failed, total: relays.length }
+      };
     } catch (error) {
-      console.error("Error publishing event:", error);
+      console.error('[EventManager] Error publishing event:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred while publishing' 
+      };
+    }
+  }
+
+  async queryEvents(
+    pool: SimplePool,
+    filters: Filter[],
+    relays: string[],
+    timeout: number = 5000
+  ): Promise<any[]> {
+    return new Promise((resolve) => {
+      const events: any[] = [];
+      
+      try {
+        const subscription = pool.subscribeMany(relays, filters, {
+          onevent: (event) => {
+            events.push(event);
+          },
+          onclose: () => {
+            resolve(events);
+          }
+        });
+
+        // Close subscription after timeout
+        setTimeout(() => {
+          subscription.close();
+          resolve(events);
+        }, timeout);
+      } catch (error) {
+        console.error('Error querying events:', error);
+        resolve([]);
+      }
+    });
+  }
+
+  async getEventById(
+    pool: SimplePool,
+    eventId: string,
+    relays: string[]
+  ): Promise<any | null> {
+    try {
+      const filter = { ids: [eventId] };
+      const events = await this.queryEvents(pool, [filter], relays);
+      return events.length > 0 ? events[0] : null;
+    } catch (error) {
+      console.error(`Error getting event ${eventId}:`, error);
       return null;
     }
   }
-  
-  // Helper method to create profile metadata event
+
+  async getEventsByAuthor(
+    pool: SimplePool,
+    pubkey: string,
+    relays: string[],
+    kinds: number[] = [1],
+    limit: number = 50
+  ): Promise<any[]> {
+    try {
+      const filter = { 
+        authors: [pubkey], 
+        kinds, 
+        limit 
+      };
+      return await this.queryEvents(pool, [filter], relays);
+    } catch (error) {
+      console.error(`Error getting events for author ${pubkey}:`, error);
+      return [];
+    }
+  }
+
+  async getEventsByHashtag(
+    pool: SimplePool,
+    hashtag: string,
+    relays: string[],
+    limit: number = 50
+  ): Promise<any[]> {
+    try {
+      const filter = { 
+        kinds: [1], 
+        '#t': [hashtag], 
+        limit 
+      };
+      return await this.queryEvents(pool, [filter], relays);
+    } catch (error) {
+      console.error(`Error getting events for hashtag ${hashtag}:`, error);
+      return [];
+    }
+  }
+
+  async getContactList(
+    pool: SimplePool,
+    pubkey: string,
+    relays: string[]
+  ): Promise<string[]> {
+    try {
+      const filter = { 
+        authors: [pubkey], 
+        kinds: [EVENT_KINDS.CONTACT_LIST], 
+        limit: 1 
+      };
+      const events = await this.queryEvents(pool, [filter], relays);
+      
+      if (events.length === 0) return [];
+      
+      const contactEvent = events[0];
+      return contactEvent.tags
+        .filter((tag: string[]) => tag[0] === 'p')
+        .map((tag: string[]) => tag[1]);
+    } catch (error) {
+      console.error(`Error getting contact list for ${pubkey}:`, error);
+      return [];
+    }
+  }
+
+  async publishContactList(
+    pool: SimplePool,
+    contacts: string[],
+    relays: string[],
+    privateKey: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const tags = contacts.map(pubkey => ['p', pubkey]);
+      
+      const event = {
+        kind: EVENT_KINDS.CONTACT_LIST,
+        tags,
+        content: '',
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: nip19.decode(privateKey).data as string
+      };
+
+      return await this.publishEvent(pool, event, relays, privateKey);
+    } catch (error) {
+      console.error('Error publishing contact list:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async reactToEvent(
+    pool: SimplePool,
+    eventId: string,
+    authorPubkey: string,
+    reaction: string,
+    relays: string[],
+    privateKey: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const event = {
+        kind: EVENT_KINDS.REACTION,
+        tags: [
+          ['e', eventId],
+          ['p', authorPubkey]
+        ],
+        content: reaction,
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: nip19.decode(privateKey).data as string
+      };
+
+      return await this.publishEvent(pool, event, relays, privateKey);
+    } catch (error) {
+      console.error('Error reacting to event:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async repostEvent(
+    pool: SimplePool,
+    eventId: string,
+    authorPubkey: string,
+    comment: string,
+    relays: string[],
+    privateKey: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const event = {
+        kind: EVENT_KINDS.REPOST,
+        tags: [
+          ['e', eventId],
+          ['p', authorPubkey]
+        ],
+        content: comment,
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: nip19.decode(privateKey).data as string
+      };
+
+      return await this.publishEvent(pool, event, relays, privateKey);
+    } catch (error) {
+      console.error('Error reposting event:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Publish profile metadata according to NIP-01
+   * Creates a kind 0 event with user metadata
+   */
   async publishProfileMetadata(
     pool: SimplePool,
     publicKey: string | null,
@@ -117,157 +318,103 @@ export class EventManager {
     metadata: Record<string, any>,
     relays: string[]
   ): Promise<boolean> {
-    if (!publicKey) {
-      return false;
-    }
-    
     try {
-      // Create an event object that follows the NostrEvent structure
-      const metadataEvent: Partial<NostrEvent> = {
-        kind: EVENT_KINDS.META,
+      if (!publicKey) {
+        console.error('[EventManager] Cannot publish profile metadata: No public key');
+        return false;
+      }
+
+      if (!relays || relays.length === 0) {
+        console.error('[EventManager] Cannot publish profile metadata: No relays provided');
+        return false;
+      }
+
+      console.log('[EventManager] Publishing profile metadata:', metadata);
+
+      // Create NIP-01 compliant metadata event (kind 0)
+      const event = {
+        kind: EVENT_KINDS.METADATA, // 0 - User metadata according to NIP-01
         content: JSON.stringify(metadata),
-        tags: []
+        tags: [], // No tags needed for metadata events according to NIP-01
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: publicKey
       };
+
+      console.log('[EventManager] Profile metadata event created:', {
+        kind: event.kind,
+        contentLength: event.content.length,
+        pubkey: event.pubkey.slice(0, 8) + '...',
+        relayCount: relays.length
+      });
+
+      // Publish the event
+      const result = await this.publishEvent(pool, event, relays, privateKey);
       
-      // Use the existing publishEvent method which handles proper event creation and signing
-      const eventId = await this.publishEvent(pool, publicKey, privateKey, metadataEvent, relays);
-      return !!eventId;
+      if (result.success) {
+        console.log('[EventManager] Profile metadata published successfully');
+        return true;
+      } else {
+        console.error('[EventManager] Failed to publish profile metadata:', result.error);
+        return false;
+      }
     } catch (error) {
-      console.error("Error publishing profile metadata:", error);
+      console.error('[EventManager] Error publishing profile metadata:', error);
       return false;
     }
   }
-  
-  // Method to encrypt a message using NIP-04 (can use extension or manual)
-  async encryptMessage(
-    recipientPubkey: string,
-    message: string,
-    senderPrivateKey?: string | null
-  ): Promise<string | null> {
+
+  /**
+   * Get user's followers
+   */
+  async getFollowers(pubkey: string): Promise<string[]> {
     try {
-      // Try to use NIP-07 extension first
-      if (window.nostr && window.nostr.nip04) {
-        return await window.nostr.nip04.encrypt(recipientPubkey, message);
-      } 
-      // In the future, implement manual encryption with senderPrivateKey
-      else {
-        console.error("No encryption method available");
-        return null;
-      }
+      const events = await this.pool.querySync(this.relayUrls, {
+        kinds: [3],
+        '#p': [pubkey],
+        limit: 1000
+      });
+
+      const followers = new Set<string>();
+      events.forEach(event => {
+        followers.add(event.pubkey);
+      });
+
+      return Array.from(followers);
     } catch (error) {
-      console.error("Encryption error:", error);
-      return null;
-    }
-  }
-  
-  // Method to decrypt a message using NIP-04
-  async decryptMessage(
-    senderPubkey: string,
-    encryptedMessage: string,
-    recipientPrivateKey?: string | null
-  ): Promise<string | null> {
-    try {
-      // Try to use NIP-07 extension first
-      if (window.nostr && window.nostr.nip04) {
-        return await window.nostr.nip04.decrypt(senderPubkey, encryptedMessage);
-      } 
-      // In the future, implement manual decryption with recipientPrivateKey
-      else {
-        console.error("No decryption method available");
-        return null;
-      }
-    } catch (error) {
-      console.error("Decryption error:", error);
-      return null;
-    }
-  }
-  
-  // Implement the methods required by the EventManager interface
-  
-  async getEvents(filters: any[], relays: string[]): Promise<any[]> {
-    try {
-      const pool = new SimplePool();
-      if (filters.length === 0) {
-        return [];
-      }
-      
-      // Use the first filter
-      const filter = filters[0];
-      
-      return await pool.querySync(relays, filter);
-    } catch (error) {
-      console.error("Error getting events:", error);
+      console.error('Error getting followers:', error);
       return [];
     }
   }
-  
-  async getEventById(id: string, relays: string[]): Promise<any | null> {
-    try {
-      const pool = new SimplePool();
-      // Create a proper filter object
-      const filter = { ids: [id] };
-      
-      const events = await pool.querySync(relays, filter);
-      return events.length > 0 ? events[0] : null;
-    } catch (error) {
-      console.error(`Error fetching event ${id}:`, error);
-      return null;
-    }
-  }
-  
-  async getProfilesByPubkeys(pubkeys: string[], relays: string[]): Promise<Record<string, any>> {
-    try {
-      const pool = new SimplePool();
-      // Create a proper filter object
-      const filter = { 
-        kinds: [EVENT_KINDS.META], 
-        authors: pubkeys 
-      };
-      
-      const events = await pool.querySync(relays, filter);
-      const profiles: Record<string, any> = {};
 
-      for (const event of events) {
-        try {
-          const contentJson = JSON.parse(event.content);
-          profiles[event.pubkey] = contentJson;
-        } catch (e) {
-          console.error("Error parsing profile content:", e);
+  /**
+   * Get user's following list
+   */
+  async getFollowing(pubkey: string): Promise<string[]> {
+    try {
+      const events = await this.pool.querySync(this.relayUrls, {
+        kinds: [3],
+        authors: [pubkey],
+        limit: 1
+      });
+
+      if (events.length === 0) return [];
+
+      const latestEvent = events.sort((a, b) => b.created_at - a.created_at)[0];
+      const following: string[] = [];
+
+      latestEvent.tags.forEach(tag => {
+        if (tag[0] === 'p' && tag[1]) {
+          following.push(tag[1]);
         }
-      }
+      });
 
-      return profiles;
+      return following;
     } catch (error) {
-      console.error("Error getting profiles:", error);
-      return {};
-    }
-  }
-  
-  async getUserProfile(pubkey: string, relays: string[] = []): Promise<Record<string, any> | null> {
-    try {
-      const profiles = await this.getProfilesByPubkeys([pubkey], relays);
-      return profiles[pubkey] || null;
-    } catch (error) {
-      console.error(`Error getting profile for ${pubkey}:`, error);
-      return null;
-    }
-  }
-  
-  async verifyNip05(pubkey: string, nip05Identifier: string): Promise<boolean> {
-    try {
-      if (!nip05Identifier || !nip05Identifier.includes('@')) return false;
-      
-      const [name, domain] = nip05Identifier.split('@');
-      if (!name || !domain) return false;
-
-      const response = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`);
-      if (!response.ok) return false;
-
-      const data = await response.json();
-      return data.names?.[name] === pubkey;
-    } catch (error) {
-      console.error("Error verifying NIP-05:", error);
-      return false;
+      console.error('Error getting following:', error);
+      return [];
     }
   }
 }
+
+export const localEventManager = new EventManager();
+

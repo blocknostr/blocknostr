@@ -8,7 +8,7 @@ import {
   CommunityRecommendation,
   PopularTag,
   DAOWithMetrics 
-} from '@/types/dao';
+} from '@/api/types/dao';
 import { daoService } from './dao-service';
 
 // Predefined community categories
@@ -493,3 +493,4 @@ export class DiscoveryService {
 }
 
 export const discoveryService = new DiscoveryService(); 
+

@@ -22,3 +22,4 @@ const TrendingTopicItem: React.FC<TrendingTopicItemProps> = ({ name, posts, onCl
 };
 
 export default TrendingTopicItem;
+

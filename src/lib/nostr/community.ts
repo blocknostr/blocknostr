@@ -2,7 +2,7 @@
 import { SimplePool } from 'nostr-tools';
 import { EventManager } from './event';
 import { EVENT_KINDS } from './constants';
-import type { ProposalCategory } from '@/types/community';
+import type { ProposalCategory } from '@/api/types/community';
 
 export class CommunityManager {
   private eventManager: EventManager;
@@ -122,3 +122,4 @@ export class CommunityManager {
     return this.eventManager.publishEvent(pool, publicKey, privateKey, event, relays);
   }
 }
+

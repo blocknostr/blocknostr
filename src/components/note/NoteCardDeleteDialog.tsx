@@ -43,3 +43,4 @@ const NoteCardDeleteDialog = ({ open, onOpenChange, onConfirm, isDeleting }: Not
 };
 
 export default NoteCardDeleteDialog;
+

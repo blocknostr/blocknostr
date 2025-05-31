@@ -1,4 +1,4 @@
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface StorageQuotaEstimate {
   quota: number;
@@ -199,3 +199,4 @@ export function safeStorage(key: string, value: string): boolean {
 export async function checkCacheAvailability(): Promise<boolean> {
   return !(await storageQuota.isApproachingQuota(90));
 }
+

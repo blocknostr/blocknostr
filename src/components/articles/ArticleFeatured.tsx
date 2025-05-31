@@ -1,13 +1,14 @@
-
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NostrEvent } from "@/lib/nostr/types";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
+import { coreNostrService } from "@/lib/nostr/core-service";
 import { getTagValue } from "@/lib/nostr/utils/nip/nip10";
 import { formatPubkey } from "@/lib/nostr/utils/keys";
+import { Sparkles, ExternalLink } from "lucide-react";
+import SafeImage from "@/components/ui/safe-image";
 
 const ArticleFeatured: React.FC = () => {
   const [featuredArticle, setFeaturedArticle] = useState<NostrEvent | null>(null);
@@ -17,7 +18,7 @@ const ArticleFeatured: React.FC = () => {
     const fetchFeaturedArticle = async () => {
       try {
         // For now, just get the most recent article as featured
-        const articles = await nostrAdapter.searchArticles({
+        const articles = await coreNostrService.searchArticles({
           limit: 1,
           since: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 7 // Last week
         });
@@ -108,10 +109,12 @@ const ArticleFeatured: React.FC = () => {
             <div className="w-full md:w-1/2">
               <Link to={`/articles/view/${featuredArticle.id}`} className="block">
                 <div className="aspect-[4/3] overflow-hidden rounded-md">
-                  <img 
+                  <SafeImage
                     src={image} 
                     alt={title}
                     className="w-full h-full object-cover transition-transform hover:scale-105"
+                    errorText="Featured article image unavailable"
+                    retryAttempts={1}
                   />
                 </div>
               </Link>
@@ -124,3 +127,4 @@ const ArticleFeatured: React.FC = () => {
 };
 
 export default ArticleFeatured;
+

@@ -56,3 +56,4 @@ export class MuteListService extends UserListBase {
     return this.isUserInList(pubkey);
   }
 }
+

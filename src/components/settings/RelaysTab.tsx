@@ -1,20 +1,18 @@
-
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/lib/utils/toast-replacement";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/lib/toast";
 import { nostrService, Relay } from "@/lib/nostr";
 import { Plus, Trash2, Check, AlertCircle, Loader2, Network } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const RelaysTab = () => {
   const [relays, setRelays] = useState<Relay[]>([]);
   const [newRelayUrl, setNewRelayUrl] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Load relays on component mount and set up refresh interval
   useEffect(() => {
     const loadRelays = () => {
       const relayStatus = nostrService.getRelayStatus();
@@ -22,9 +20,7 @@ const RelaysTab = () => {
     };
     
     loadRelays();
-    
-    // Refresh relay status every 5 seconds
-    const interval = setInterval(loadRelays, 5000);
+    const interval = setInterval(loadRelays, 3000);
     return () => clearInterval(interval);
   }, []);
   
@@ -66,6 +62,7 @@ const RelaysTab = () => {
   const handleRemoveRelay = (relayUrl: string) => {
     nostrService.removeRelay(relayUrl);
     setRelays(nostrService.getRelayStatus());
+    
     toast.success("Relay removed", {
       description: `Removed relay: ${relayUrl}`
     });
@@ -82,17 +79,6 @@ const RelaysTab = () => {
     }
   };
   
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'connected':
-        return "bg-green-500/5 border-green-500/20";
-      case 'connecting':
-        return "bg-yellow-500/5 border-yellow-500/20";
-      default:
-        return "bg-red-500/5 border-red-500/20";
-    }
-  };
-  
   return (
     <Card className="border shadow-sm transition-all duration-200 hover:shadow-md">
       <CardHeader>
@@ -106,6 +92,7 @@ const RelaysTab = () => {
           </div>
         </div>
       </CardHeader>
+      
       <CardContent>
         <div className="space-y-5">
           <div className="space-y-2">
@@ -144,7 +131,7 @@ const RelaysTab = () => {
           <div className="space-y-3">
             <Label className="font-medium flex items-center gap-2">
               <Network className="h-4 w-4" />
-              Connected Relays
+              Connected Relays {relays.length > 0 && `(${relays.length})`}
             </Label>
             
             {relays.length === 0 ? (
@@ -152,31 +139,28 @@ const RelaysTab = () => {
                 <p>No relays connected yet. Add a relay above.</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar rounded-md border p-2">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {relays.map((relay) => (
                   <div 
                     key={relay.url} 
-                    className={cn(
-                      "flex items-center justify-between p-3 rounded-md transition-all",
-                      getStatusClass(relay.status),
-                      "hover:shadow-sm animate-fade-in"
-                    )}
+                    className="flex items-center justify-between p-3 rounded-lg border transition-all hover:shadow-sm"
                   >
-                    <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="flex items-center gap-3 overflow-hidden flex-1">
                       {getStatusIcon(relay.status)}
-                      <span className="text-sm truncate">{relay.url}</span>
+                      <span className="text-sm font-medium truncate">{relay.url}</span>
+                      <Badge variant={relay.status === 'connected' ? 'default' : 'secondary'} className="text-xs">
+                        {relay.status === 'connected' ? 'Connected' : 'Disconnected'}
+                      </Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-7 w-7 p-0 hover:bg-red-500/10 hover:text-red-500"
-                        onClick={() => handleRemoveRelay(relay.url)}
-                        title="Remove relay"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 hover:bg-red-500/10 hover:text-red-500 shrink-0"
+                      onClick={() => handleRemoveRelay(relay.url)}
+                      title="Remove relay"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -189,3 +173,4 @@ const RelaysTab = () => {
 };
 
 export default RelaysTab;
+

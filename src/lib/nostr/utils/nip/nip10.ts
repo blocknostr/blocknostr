@@ -174,3 +174,4 @@ export const validateNip10Tags = (tags: string[][]): { valid: boolean; errors: s
   
   return { valid: errors.length === 0, errors };
 };
+

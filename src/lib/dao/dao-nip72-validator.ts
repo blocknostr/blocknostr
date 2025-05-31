@@ -173,3 +173,4 @@ export function createCommunityEvent(name: string, description: string, creator:
     sig: "" // To be computed by nostr library
   };
 }
+

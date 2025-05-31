@@ -87,3 +87,4 @@ const NoteEditor = ({ onNoteSaved }: NoteEditorProps) => {
 };
 
 export default NoteEditor;
+

@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, Trash2, Clock, Lock } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { Note } from "./hooks/types";
@@ -141,3 +141,4 @@ const NoteCard = ({ note, onNoteClick, onDeleteClick, view }: NoteCardProps) => 
 };
 
 export default NoteCard;
+

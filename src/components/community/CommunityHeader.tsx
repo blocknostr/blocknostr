@@ -6,7 +6,7 @@ import { Wallet, ExternalLink, Copy } from "lucide-react";
 import CommunityHeaderImage from "./CommunityHeaderImage";
 import CommunityDescription from "./CommunityDescription";
 import LeaveCommunityButton from "./LeaveCommunityButton";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface Community {
   id: string;
@@ -20,6 +20,7 @@ interface Community {
   isPrivate?: boolean;
   tags?: string[];
   alphaWallet?: string;
+  avatar?: string;
 }
 
 interface CommunityHeaderProps {
@@ -29,6 +30,7 @@ interface CommunityHeaderProps {
   onLeaveCommunity: () => void;
   onDeleteCommunity?: () => Promise<void>;
   isCreatorOnlyMember?: boolean;
+  onMembersClick?: () => void;
 }
 
 const CommunityHeader = ({ 
@@ -37,7 +39,8 @@ const CommunityHeader = ({
   userRole,
   onLeaveCommunity,
   onDeleteCommunity,
-  isCreatorOnlyMember = false
+  isCreatorOnlyMember = false,
+  onMembersClick
 }: CommunityHeaderProps) => {
   // Determine if the user can delete the community (creator and only member)
   const canDelete = userRole === 'creator' && isCreatorOnlyMember && !!onDeleteCommunity;
@@ -59,6 +62,7 @@ const CommunityHeader = ({
         id={community.id}
         name={community.name}
         image={community.image}
+        avatar={community.avatar}
         showDeleteButton={canDelete}
         onDelete={onDeleteCommunity}
       />
@@ -69,6 +73,7 @@ const CommunityHeader = ({
           membersCount={community.members.length}
           createdAt={community.createdAt}
           isPrivate={community.isPrivate}
+          onMembersClick={onMembersClick}
         />
         
         {/* Alpha Wallet */}
@@ -135,3 +140,4 @@ const CommunityHeader = ({
 };
 
 export default CommunityHeader;
+

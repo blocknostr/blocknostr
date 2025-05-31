@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWallet } from "@alephium/web3-react";
-import { sendTransaction } from "@/lib/api/alephiumApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { sendTransaction } from "@/api/external/alephiumApi";
+import { toast } from "@/lib/toast";
 import { ArrowRight } from "lucide-react";
 
 interface SendTransactionProps {
@@ -133,3 +133,4 @@ const SendTransaction = ({ fromAddress }: SendTransactionProps) => {
 };
 
 export default SendTransaction;
+

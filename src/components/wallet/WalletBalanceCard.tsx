@@ -4,9 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Wallet, RefreshCw, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getAddressBalance } from "@/lib/api/alephiumApi"; 
-import { getAlephiumPrice } from "@/lib/api/coingeckoApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { getAddressBalance } from "@/api/external/alephiumApi"; 
+import { useGetTokenPricesQuery } from "@/api/rtk/walletApi";
+import { toast } from "@/lib/toast";
 import { formatCurrency, formatPercentage } from "@/lib/utils/formatters";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -31,8 +31,21 @@ const WalletBalanceCard = ({
     price: number;
     priceChange24h: number;
     lastUpdated: Date;
-  }>({ price: 0, priceChange24h: 0, lastUpdated: new Date() });
-  const [isPriceLoading, setIsPriceLoading] = useState(true);
+  }>({ price: 3.80, priceChange24h: 0, lastUpdated: new Date() }); // Updated fallback price
+  
+  // Use Redux pricing query instead of direct API calls - 100% Redux utilization
+  const {
+    data: tokenPricesData,
+    isLoading: isPriceLoading,
+    error: pricingError
+  } = useGetTokenPricesQuery(
+    { tokenIds: ['ALPH'] },
+    { 
+      pollingInterval: 300000, // 5 minutes
+      refetchOnFocus: false,
+      refetchOnReconnect: false
+    }
+  );
   
   const fetchBalance = async () => {
     if (!address) return;
@@ -54,38 +67,39 @@ const WalletBalanceCard = ({
     }
   };
 
-  const fetchPrice = async () => {
-    setIsPriceLoading(true);
-    try {
-      const data = await getAlephiumPrice();
-      setPriceData(data);
-    } catch (error) {
-      console.error('Error fetching ALPH price:', error);
-      // Don't show toast for price errors to avoid UI clutter
-    } finally {
-      setIsPriceLoading(false);
+  // Update price data when Redux provides new data
+  useEffect(() => {
+    if (tokenPricesData && tokenPricesData['ALPH']) {
+      const reduxPrice = tokenPricesData['ALPH'].price;
+      if (reduxPrice > 0 && reduxPrice !== priceData.price) {
+        setPriceData(prev => ({
+          ...prev,
+          price: reduxPrice,
+          lastUpdated: new Date(tokenPricesData['ALPH'].lastUpdated)
+        }));
+        console.log("[WalletBalanceCard] ✅ Updated ALPH price from Redux:", reduxPrice);
+      }
+    } else if (!isPriceLoading && priceData.price === 3.80) {
+      console.log("[WalletBalanceCard] ⏳ Redux pricing data not yet available, keeping fallback:", priceData.price);
     }
-  };
+  }, [tokenPricesData, isPriceLoading, priceData.price]);
   
   // Fetch data when address changes
   useEffect(() => {
     fetchBalance();
-    fetchPrice();
   }, [address]);
   
   // Refresh data when refreshFlag changes (triggered by parent)
   useEffect(() => {
     if (refreshFlag > 0) {
       fetchBalance();
-      fetchPrice();
     }
   }, [refreshFlag]);
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh balance every 5 minutes (pricing handled by Redux)
   useEffect(() => {
     const refreshInterval = setInterval(() => {
       fetchBalance();
-      fetchPrice();
       console.log("Auto-refreshing balance data");
     }, 5 * 60 * 1000); // 5 minutes in milliseconds
 
@@ -94,7 +108,6 @@ const WalletBalanceCard = ({
 
   const handleRefresh = () => {
     fetchBalance();
-    fetchPrice();
     if (onRefresh) onRefresh();
   };
 
@@ -201,3 +214,4 @@ const WalletBalanceCard = ({
 
 import { formatRelativeTime } from "@/lib/utils/formatters";
 export default WalletBalanceCard;
+

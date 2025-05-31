@@ -36,3 +36,4 @@ const FilterOptionItem: React.FC<FilterOptionItemProps> = ({
 };
 
 export default FilterOptionItem;
+

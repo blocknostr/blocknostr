@@ -1,6 +1,5 @@
-
 import { nip19, getPublicKey } from 'nostr-tools';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { EVENT_KINDS } from './constants';
 import { NostrProfileMetadata } from './types';
 
@@ -8,7 +7,6 @@ export class UserManager {
   private _publicKey: string | null = null;
   private _privateKey: string | null = null;
   private _following: Set<string> = new Set();
-  private _profileCache: Map<string, NostrProfileMetadata> = new Map(); // Use the typings
   private _extensionDetected: boolean = false;
   
   get publicKey(): string | null {
@@ -165,17 +163,5 @@ export class UserManager {
     this._following = new Set(following);
     this.saveFollowing();
   }
-  
-  // Method to get user profile data - implements caching for performance
-  async getUserProfile(pubkey: string): Promise<NostrProfileMetadata | null> {
-    if (!pubkey) return null;
-    
-    // Check cache first
-    if (this._profileCache.has(pubkey)) {
-      return this._profileCache.get(pubkey) || null;
-    }
-    
-    // For now, return null since the actual fetching will be handled by NostrService
-    return null;
-  }
 }
+

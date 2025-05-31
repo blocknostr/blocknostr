@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, Search, Bell, MessageSquare } from 'lucide-react';
+import { Menu, Search, Bell } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import LoginButton from '../LoginButton';
 import GlobalSearch from '../GlobalSearch';
 import { nostrService } from '@/lib/nostr';
 import { useAuth } from '@/hooks/useAuth';
@@ -46,15 +44,9 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   <Bell className="h-5 w-5" />
                 </Link>
               </Button>
-              
-              <Button variant="ghost" size="icon" asChild>
-                <Link to="/messages">
-                  <MessageSquare className="h-5 w-5" />
-                </Link>
-              </Button>
             </>
           ) : (
-            <LoginButton />
+            {/* Removed login button - now only in sidebar */}
           )}
         </div>
       </div>
@@ -63,3 +55,4 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 };
 
 export default Header;
+

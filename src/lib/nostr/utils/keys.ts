@@ -151,3 +151,4 @@ export const getHexFromNpub = (npub: string): string => {
     return '';
   }
 };
+

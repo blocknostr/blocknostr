@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchLatestTokenTransactions } from "@/lib/api/alephiumApi";
+import { fetchLatestTokenTransactions } from "@/api/external/alephiumApi";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTokenData } from "@/hooks/useTokenData";
 
@@ -165,3 +165,4 @@ const TokenActivity: React.FC<TokenActivityProps> = ({
 };
 
 export default TokenActivity;
+

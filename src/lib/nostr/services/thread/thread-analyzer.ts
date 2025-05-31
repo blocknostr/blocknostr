@@ -62,3 +62,4 @@ export class ThreadAnalyzer {
     return { rootEvent: rootEvent || null, parentEvent: parentEvent || null, replies };
   }
 }
+

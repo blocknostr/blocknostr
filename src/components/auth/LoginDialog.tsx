@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 // Import our components
@@ -99,9 +99,10 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "sm:max-w-md bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl p-4",
-        "animate-in fade-in-0 zoom-in-95 duration-300 max-h-[90vh]",
-        "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70"
+        "sm:max-w-lg w-full h-auto max-h-[95vh] bg-background/95 backdrop-blur-xl border-muted/30 shadow-xl",
+        "animate-in fade-in-0 zoom-in-95 duration-300",
+        "before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-primary/5 before:to-primary/10 before:rounded-lg before:opacity-70",
+        "flex flex-col p-6 pt-8"
       )}>
         <div className={cn(
           "absolute inset-0 -z-10 rounded-lg opacity-80",
@@ -111,35 +112,41 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
           animateIn ? "opacity-80" : "opacity-0"
         )}/>
         
-        {/* Dialog Header */}
-        <DialogHeader animateIn={animateIn} />
+        {/* Dialog Header - Fixed with extra top space */}
+        <div className="flex-shrink-0 mb-6 mt-2">
+          <DialogHeader animateIn={animateIn} />
+        </div>
 
+        {/* Main content area - No scroll, fixed height */}
         <div className={cn(
-          "mt-2 transition-all duration-500 ease-out", 
+          "transition-all duration-500 ease-out flex-1", 
           animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
         )}>
           {/* Tabs */}
-          <Tabs defaultValue="extension" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs defaultValue="extension" className="w-full h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-2 flex-shrink-0 mb-4">
               <TabsTrigger value="extension">Extension</TabsTrigger>
               <TabsTrigger value="manual">Manual</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="extension" className="space-y-4">
-              <ExtensionTab 
-                hasExtension={hasExtension} 
-                connectStatus={connectStatus} 
-                onConnect={handleConnect}
-                isLoggingIn={isLoggingIn}
-              />
-            </TabsContent>
-            
-            <TabsContent value="manual" className="space-y-4">
-              <ManualTab />
-            </TabsContent>
+            <div className="flex-1">
+              <TabsContent value="extension" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+                <ExtensionTab 
+                  hasExtension={hasExtension} 
+                  connectStatus={connectStatus} 
+                  onConnect={handleConnect}
+                  isLoggingIn={isLoggingIn}
+                />
+              </TabsContent>
+              
+              <TabsContent value="manual" className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col">
+                <ManualTab />
+              </TabsContent>
+            </div>
           </Tabs>
           
-          <div className="pt-2 border-t border-border/20 mt-3">
+          {/* Footer info - Compact and fixed */}
+          <div className="pt-4 border-t border-border/20 mt-6 flex-shrink-0">
             <p className="text-xs text-muted-foreground text-center">
               New to Nostr? <a href="https://nostr.how" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Learn more
@@ -147,19 +154,10 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ open, onOpenChange }) => {
             </p>
           </div>
         </div>
-
-        {/* Dialog Footer */}
-        <DialogFooter 
-          onConnect={handleConnect}
-          activeTab={activeTab}
-          isLoggingIn={isLoggingIn}
-          hasExtension={hasExtension}
-          connectStatus={connectStatus}
-          animateIn={animateIn}
-        />
       </DialogContent>
     </Dialog>
   );
 };
 
 export default LoginDialog;
+

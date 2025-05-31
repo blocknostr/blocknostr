@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DAO } from "@/types/dao";
+import { DAO } from "@/api/types/dao";
 import { formatDistanceToNow } from "date-fns";
 import { Users, Calendar, Lock, UserMinus } from "lucide-react";
 import LeaveDaoButton from "./LeaveDaoButton";
@@ -101,3 +101,4 @@ const DAOHeader: React.FC<DAOHeaderProps> = ({
 };
 
 export default DAOHeader;
+

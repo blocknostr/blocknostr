@@ -50,3 +50,4 @@ const DAOGuidelines: React.FC<DAOGuidelinesProps> = ({ guidelines }) => {
 };
 
 export default DAOGuidelines;
+

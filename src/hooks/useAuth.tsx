@@ -30,22 +30,31 @@ export function useAuth() {
     };
   }, []);
 
-  // Also check for state changes on every render
+  // Check for state changes periodically (not on every render)
   useEffect(() => {
-    const currentLoggedIn = !!nostrService.publicKey;
-    const currentPublicKey = nostrService.publicKey;
+    const checkAuthState = () => {
+      const currentLoggedIn = !!nostrService.publicKey;
+      const currentPublicKey = nostrService.publicKey;
+      
+      if (currentLoggedIn !== isLoggedIn || currentPublicKey !== publicKey) {
+        console.log('[useAuth] Detected state mismatch, updating:', {
+          wasLoggedIn: isLoggedIn,
+          nowLoggedIn: currentLoggedIn,
+          wasPublicKey: publicKey,
+          nowPublicKey: currentPublicKey
+        });
+        setIsLoggedIn(currentLoggedIn);
+        setPublicKey(currentPublicKey);
+      }
+    };
+
+    // Check immediately
+    checkAuthState();
     
-    if (currentLoggedIn !== isLoggedIn || currentPublicKey !== publicKey) {
-      console.log('[useAuth] Detected state mismatch, updating:', {
-        wasLoggedIn: isLoggedIn,
-        nowLoggedIn: currentLoggedIn,
-        wasPublicKey: publicKey,
-        nowPublicKey: currentPublicKey
-      });
-      setIsLoggedIn(currentLoggedIn);
-      setPublicKey(currentPublicKey);
-    }
-  });
+    // Then check periodically (reduced interval since we now have event emissions)
+    const interval = setInterval(checkAuthState, 1000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn, publicKey]);
 
   return {
     isLoggedIn,
@@ -55,3 +64,4 @@ export function useAuth() {
     shortPubkey: publicKey ? nostrService.formatPubkey(publicKey) : null
   };
 } 
+

@@ -137,3 +137,4 @@ export const isNip94Audio = (event: NostrEvent): boolean => {
   const metadata = extractFileMetadata(event);
   return !!metadata && metadata.mimeType.startsWith('audio/');
 };
+

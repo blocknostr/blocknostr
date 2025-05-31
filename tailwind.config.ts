@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -15,8 +14,25 @@ export default {
 			center: true,
 			padding: '2rem',
 			screens: {
-				'2xl': '1400px'
+				'sm': '768px',    // Tablet
+				'md': '1024px',   // Laptop  
+				'lg': '1400px',   // Large Desktop
+				'xl': '1920px',   // Full HD (primary target)
+				'2xl': '1920px'   // Keep existing 2xl for compatibility
 			}
+		},
+		screens: {
+			'mobile': '375px',   // Mobile (375×667) - Condensed experience
+			'tablet': '768px',   // Tablet (768×1024) - Touch-optimized layout
+			'laptop': '1024px',  // Laptop (1366×768) - Secondary optimization  
+			'desktop': '1400px', // Desktop - Large displays
+			'fullhd': '1920px',  // Full HD (1920×1080) - Primary target
+			// Standard Tailwind breakpoints for compatibility
+			'sm': '640px',
+			'md': '768px',
+			'lg': '1024px',
+			'xl': '1280px',
+			'2xl': '1536px',
 		},
 		extend: {
 			colors: {
@@ -97,6 +113,25 @@ export default {
 				'safe-left': 'env(safe-area-inset-left)',
 				'safe-right': 'env(safe-area-inset-right)',
 			},
+			// Responsive spacing system
+			spacing: {
+				'mobile': '0.75rem',   // 12px for mobile
+				'tablet': '1rem',      // 16px for tablet
+				'laptop': '1.5rem',    // 24px for laptop
+				'desktop': '2rem',     // 32px for desktop
+			},
+			// Responsive font sizes optimized for each breakpoint
+			fontSize: {
+				'mobile-xs': ['0.75rem', { lineHeight: '1rem' }],
+				'mobile-sm': ['0.875rem', { lineHeight: '1.25rem' }],
+				'mobile-base': ['1rem', { lineHeight: '1.5rem' }],
+				'laptop-sm': ['0.875rem', { lineHeight: '1.25rem' }],
+				'laptop-base': ['1rem', { lineHeight: '1.5rem' }],
+				'laptop-lg': ['1.125rem', { lineHeight: '1.75rem' }],
+				'desktop-base': ['1.125rem', { lineHeight: '1.75rem' }],
+				'desktop-lg': ['1.25rem', { lineHeight: '1.75rem' }],
+				'desktop-xl': ['1.5rem', { lineHeight: '2rem' }],
+			},
 		}
 	},
 	plugins: [
@@ -118,9 +153,42 @@ export default {
 				'.px-safe': {
 					paddingLeft: 'env(safe-area-inset-left, 0px)',
 					paddingRight: 'env(safe-area-inset-right, 0px)'
-				}
+				},
+				// Responsive layout utilities
+				'.layout-mobile': {
+					padding: '0.75rem',
+					fontSize: '0.875rem',
+				},
+				'.layout-tablet': {
+					padding: '1rem',
+					fontSize: '1rem',
+				},
+				'.layout-laptop': {
+					padding: '1.5rem',
+					fontSize: '1rem',
+				},
+				'.layout-desktop': {
+					padding: '2rem',
+					fontSize: '1.125rem',
+					maxWidth: '1920px',
+					margin: '0 auto',
+				},
+				// Overflow prevention utilities
+				'.overflow-safe': {
+					overflowX: 'hidden',
+					overflowY: 'auto',
+				},
+				'.content-center': {
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					width: '100%',
+					maxWidth: '1200px',
+					margin: '0 auto',
+				},
 			};
 			addUtilities(newUtilities);
 		}
 	],
 } satisfies Config;
+

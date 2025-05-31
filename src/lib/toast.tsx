@@ -15,6 +15,11 @@ export type NostrToastType =
   | 'auth'
   | 'zap';
 
+// Options interface for backward compatibility
+export interface ToastOptions {
+  description?: string;
+}
+
 // Icon mapping for different toast types
 const getToastIcon = (type: NostrToastType) => {
   switch (type) {
@@ -175,7 +180,8 @@ const CustomToast = ({
 
 // Enhanced toast functions with custom styling
 export const customToast = {
-  success: (message: string, description?: string) => {
+  success: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -188,7 +194,8 @@ export const customToast = {
     });
   },
 
-  error: (message: string, description?: string) => {
+  error: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -201,7 +208,8 @@ export const customToast = {
     });
   },
 
-  warning: (message: string, description?: string) => {
+  warning: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -214,7 +222,8 @@ export const customToast = {
     });
   },
 
-  info: (message: string, description?: string) => {
+  info: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -227,7 +236,8 @@ export const customToast = {
     });
   },
 
-  loading: (message: string, description?: string) => {
+  loading: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -241,7 +251,8 @@ export const customToast = {
   },
 
   // Specialized Nostr/crypto toasts
-  nostr: (message: string, description?: string) => {
+  nostr: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -254,7 +265,8 @@ export const customToast = {
     });
   },
 
-  crypto: (message: string, description?: string) => {
+  crypto: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -267,7 +279,8 @@ export const customToast = {
     });
   },
 
-  relay: (message: string, description?: string) => {
+  relay: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -280,7 +293,8 @@ export const customToast = {
     });
   },
 
-  auth: (message: string, description?: string) => {
+  auth: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -293,7 +307,8 @@ export const customToast = {
     });
   },
 
-  zap: (message: string, description?: string) => {
+  zap: (message: string, options?: ToastOptions | string) => {
+    const description = typeof options === 'string' ? options : options?.description;
     return toast.custom((t) => (
       <CustomToast
         message={message}
@@ -342,3 +357,4 @@ export { Toaster };
 
 // Default export for convenience
 export default customToast; 
+

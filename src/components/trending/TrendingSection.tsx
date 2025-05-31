@@ -89,3 +89,4 @@ const TrendingSection: FC<TrendingSectionProps> = ({
 };
 
 export default TrendingSection;
+

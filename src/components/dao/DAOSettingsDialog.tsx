@@ -1,17 +1,21 @@
-import React, { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Settings, Users, Shield, AlertTriangle, Save, X, Lock, Globe, Plus, Copy, Check } from 'lucide-react';
+import { toast } from '@/lib/toast';
+import { nostrService } from '@/lib/nostr';
+import { DAOCommunity } from '@/lib/services/dao/types';
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { X, Plus, Lock, Globe, Copy, Check } from "lucide-react";
-import { DAO } from "@/types/dao";
-import { toast } from "@/lib/utils/toast-replacement";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nostrService } from "@/lib/nostr";
+import { DAO } from "@/api/types/dao";
+import { useAppSelector, useAppDispatch } from '@/hooks/redux';
+import { useProfileMigrated } from '@/hooks/api/useProfileMigrated';
 
 interface DAOSettingsDialogProps {
   dao: DAO;
@@ -246,6 +250,7 @@ const DAOSettingsDialog: React.FC<DAOSettingsDialogProps> = ({
                 <button 
                   onClick={() => handleRemoveTag(tag)}
                   className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  title={`Remove ${tag} tag`}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -408,28 +413,14 @@ const ModeratorItem = ({
   onRemove: () => void;
   isRemoving: boolean;
 }) => {
-  const [profile, setProfile] = useState<any>(null);
-  
-  React.useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const userProfile = await nostrService.getUserProfile(pubkey);
-        setProfile(userProfile);
-      } catch (error) {
-        console.error("Error fetching moderator profile:", error);
-      }
-    };
-    
-    fetchProfile();
-  }, [pubkey]);
-  
-  const displayName = profile?.name || profile?.displayName || pubkey.substring(0, 8);
+  // ✅ MIGRATED: Use race-condition-free profile hook
+  const { displayName, picture } = useProfileMigrated(pubkey);
   
   return (
     <div className="flex items-center justify-between p-2 rounded-md bg-muted/50">
       <div className="flex items-center gap-2">
         <Avatar className="h-8 w-8">
-          <AvatarImage src={profile?.picture} alt={displayName} />
+          <AvatarImage src={picture} alt={displayName} />
           <AvatarFallback>{displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div>
@@ -450,3 +441,4 @@ const ModeratorItem = ({
 };
 
 export default DAOSettingsDialog;
+

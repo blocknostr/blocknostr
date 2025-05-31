@@ -71,3 +71,4 @@ describe('NIP-10: Thread Tags Parsing', () => {
     expect(emptyResult.mentions).toHaveLength(0);
   });
 });
+

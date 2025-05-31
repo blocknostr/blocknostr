@@ -71,3 +71,4 @@ const ManualTab: React.FC = () => {
 };
 
 export default ManualTab;
+

@@ -1,4 +1,3 @@
-
 import { SimplePool } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { ReactionCounts, SocialManagerOptions } from './types';
@@ -94,18 +93,6 @@ export class SocialManager {
     }
   }
 
-  async sendDirectMessage(
-    pool: SimplePool,
-    recipientPubkey: string,
-    content: string,
-    senderPubkey: string | null,
-    privateKey: string | null,
-    relays: string[]
-  ): Promise<string | null> {
-    console.log(`Sending direct message to: ${recipientPubkey}`);
-    return "message-id"; // Placeholder implementation
-  }
-
   async reactToEvent(
     pool: SimplePool,
     eventId: string,
@@ -118,17 +105,36 @@ export class SocialManager {
     return "reaction-id"; // Placeholder implementation
   }
 
+  /**
+   * Repost an event (NIP-18)
+   */
   async repostEvent(
     pool: SimplePool,
     eventId: string,
     authorPubkey: string,
     relayHint: string | null,
-    pubkey: string | null,
+    senderPubkey: string | null,
     privateKey: string | null,
-    relays: string[]
+    relayUrls: string[]
   ): Promise<string | null> {
-    console.log(`Reposting event ${eventId}`);
-    return "repost-id"; // Placeholder implementation
+    if (!senderPubkey) return null;
+    
+    try {
+      // Create repost event (kind 6)
+      const event = {
+        kind: EVENT_KINDS.REPOST,
+        content: '',
+        tags: [
+          ['e', eventId, relayHint || ''],
+          ['p', authorPubkey]
+        ]
+      };
+      
+      return this.eventManager.publishEvent(pool, senderPubkey, privateKey, event, relayUrls);
+    } catch (error) {
+      console.error("Error reposting event:", error);
+      return null;
+    }
   }
 
   // Method to get reaction counts
@@ -143,3 +149,4 @@ export class SocialManager {
     };
   }
 }
+

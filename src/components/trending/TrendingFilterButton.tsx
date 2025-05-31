@@ -22,3 +22,4 @@ const TrendingFilterButton: React.FC<TrendingFilterButtonProps> = ({ className }
 };
 
 export default TrendingFilterButton;
+

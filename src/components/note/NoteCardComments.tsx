@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { nostrService, NostrEvent } from '@/lib/nostr';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { Trash2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useProfilesBatch } from '@/hooks/api/useProfileMigrated';
 
 interface Comment {
   id?: string;
@@ -34,6 +35,10 @@ interface NoteCardCommentsProps {
   onReplyAdded: () => void;
 }
 
+/**
+ * 🚀 OPTIMIZED NoteCardComments - Race Conditions Eliminated
+ * Now uses useProfilesBatch instead of direct profile API calls
+ */
 const NoteCardComments = ({ 
   eventId, 
   pubkey, 
@@ -47,8 +52,18 @@ const NoteCardComments = ({
   const [replyToDelete, setReplyToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+
+  // ✅ RACE CONDITION FIX: Use unified profile batch hook instead of direct API calls
+  const allPubkeys = useMemo(() => {
+    const pubkeys = [...new Set([
+      ...comments.map(c => c.author),
+      ...(nostrService.publicKey ? [nostrService.publicKey] : [])
+    ])];
+    return pubkeys.filter(Boolean);
+  }, [comments]);
+
+  const { profilesMap } = useProfilesBatch(allPubkeys);
   
   // Update comment when initialCommentText changes
   useEffect(() => {
@@ -90,10 +105,7 @@ const NoteCardComments = ({
                 created_at: event.created_at
               };
               
-              // Fetch profile data for the comment author
-              if (event.pubkey) {
-                fetchProfileData(event.pubkey);
-              }
+              // ✅ REMOVED: No more direct profile fetching - useProfilesBatch handles this
               
               // Add new comment and sort by creation time (newest first)
               return [...prev, newComment].sort((a, b) => b.created_at - a.created_at);
@@ -109,36 +121,7 @@ const NoteCardComments = ({
         nostrService.unsubscribe(subId);
       };
     };
-    
-    const fetchProfileData = (authorPubkey: string) => {
-      // Only fetch if we don't already have it
-      if (profiles[authorPubkey]) return;
-      
-      const metadataSubId = nostrService.subscribe(
-        [{
-          kinds: [0],
-          authors: [authorPubkey],
-          limit: 1
-        }],
-        (event) => {
-          try {
-            const metadata = JSON.parse(event.content);
-            setProfiles(prev => ({
-              ...prev,
-              [authorPubkey]: metadata
-            }));
-          } catch (e) {
-            console.error('Failed to parse profile metadata:', e);
-          }
-        }
-      );
-      
-      // Cleanup subscription after a short time
-      setTimeout(() => {
-        nostrService.unsubscribe(metadataSubId);
-      }, 5000);
-    };
-    
+
     fetchReplies();
   }, [eventId]);
   
@@ -226,13 +209,13 @@ const NoteCardComments = ({
 
   // Get a user's display name from their profile data
   const getUserDisplayInfo = (pubkey: string) => {
-    const profile = profiles[pubkey];
+    const profile = profilesMap[pubkey];
     const npub = nostrService.getNpubFromHex(pubkey);
     const shortNpub = `${npub.substring(0, 6)}...${npub.substring(npub.length - 4)}`;
     
     return {
-      name: profile?.name || profile?.display_name || shortNpub,
-      picture: profile?.picture || '',
+      name: profile?.metadata?.display_name || profile?.metadata?.name || profile?.name || profile?.display_name || shortNpub,
+      picture: profile?.metadata?.picture || profile?.picture || '',
       shortNpub
     };
   };
@@ -359,3 +342,4 @@ const NoteCardComments = ({
 };
 
 export default NoteCardComments;
+

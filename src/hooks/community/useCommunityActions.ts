@@ -1,6 +1,6 @@
 import { NostrEvent, nostrService } from "@/lib/nostr";
-import { Community, MemberRole } from "@/types/community";
-import { toast } from "@/lib/utils/toast-replacement";
+import { Community, MemberRole } from "@/api/types/community";
+import { toast } from "@/lib/toast";
 
 export const useCommunityActions = (
   community: Community | null,
@@ -799,3 +799,4 @@ export const useCommunityActions = (
     handleSetAlphaWallet
   };
 };
+

@@ -6,3 +6,4 @@ import { toast, Toaster as SonnerToaster } from "sonner";
 export { toast, SonnerToaster as Toaster };
 
 // No longer using the custom toast hook since we're standardizing on Sonner
+

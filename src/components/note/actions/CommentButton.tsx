@@ -25,3 +25,4 @@ const CommentButton = ({ replyCount, onClick }: CommentButtonProps) => {
 };
 
 export default CommentButton;
+

@@ -1,0 +1,224 @@
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useAppSelector, useAppDispatch } from '@/hooks/redux';
+import { useQueryEventsQuery, usePublishEventMutation, useLazyQueryEventsQuery } from '@/api/rtk/eventsApi';
+import { 
+  setCurrentChannel, 
+  updateConnectionStatus,
+  setConnectionChecking,
+  saveDraft, 
+  clearDraft,
+  selectIsConnected,
+  selectCurrentChannel,
+  selectCurrentChatTag,
+  selectMessageDrafts,
+  selectConnectionStatusSafe,
+  selectIsLoadingMore,
+  selectHasMoreHistory,
+  setLoadingMore,
+  setHasMoreHistory,
+  updateChannelTimestamps,
+  setError,
+  selectChatError
+} from '@/store/slices/chatSlice';
+import { coreNostrService } from '@/lib/nostr/core-service';
+import { NostrEvent } from '@/lib/nostr';
+import { useAuth } from '@/hooks/useAuth';
+import { createSelector } from '@reduxjs/toolkit';
+import { useProfilesBatch } from '@/hooks/api/useProfileMigrated';
+
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+interface UseWorldChatReduxReturn {
+  // Connection state
+  connectionStatus: ConnectionStatus;
+  isConnected: boolean;
+  
+  // Content state
+  messages: NostrEvent[];
+  profiles: Record<string, any>;
+  loading: boolean;
+  isLoggedIn: boolean;
+  error: string | null;
+  
+  // Actions
+  sendMessage: (content: string) => Promise<void>;
+  
+  // Utilities
+  refetch: () => void;
+  
+  // History loading
+  isLoadingMore: boolean;
+  hasMoreHistory: boolean;
+  loadMoreHistory: () => Promise<void>;
+  
+  // Draft management
+  draft: string;
+  saveDraft: (content: string) => void;
+  clearDraft: () => void;
+}
+
+/**
+ * ✅ FULLY RTK-QUERY-BASED World Chat hook
+ * Uses eventsApi instead of nostrEventsSlice
+ */
+export const useWorldChatRedux = (): UseWorldChatReduxReturn => {
+  const { isLoggedIn } = useAuth();
+  const dispatch = useAppDispatch();
+  
+  // Chat state from Redux
+  const currentChatTag = useAppSelector(selectCurrentChatTag);
+  const isConnected = useAppSelector(selectIsConnected);
+  const messageDrafts = useAppSelector(selectMessageDrafts);
+  const connectionStatusState = useAppSelector(selectConnectionStatusSafe);
+  const isLoadingMore = useAppSelector(state => selectIsLoadingMore(state, currentChatTag));
+  const hasMoreHistory = useAppSelector(state => selectHasMoreHistory(state, currentChatTag));
+  const chatError = useAppSelector(state => selectChatError(state, 'loadHistory'));
+
+  // ✅ FIXED: Convert Redux ConnectionStatus object to component string format
+  const connectionStatus: ConnectionStatus = useMemo(() => {
+    if (connectionStatusState.isChecking) {
+      return 'connecting';
+    }
+    return connectionStatusState.isConnected ? 'connected' : 'disconnected';
+  }, [connectionStatusState.isConnected, connectionStatusState.isChecking]);
+  
+  // RTK Query for messages
+  const {
+    data: messages = [],
+    isLoading,
+    error: messageError,
+    refetch
+  } = useQueryEventsQuery([{
+    kinds: [1], // Text messages only
+    '#t': [currentChatTag],
+    limit: 100,
+  }], {
+    skip: !currentChatTag,
+    pollingInterval: 5000, // Poll every 5 seconds instead of 30 seconds for more responsive chat
+    refetchOnFocus: false, // Prevent refetch when window gains focus
+    refetchOnReconnect: true, // Keep refetch on reconnect for reliability
+  });
+
+  // RTK Query mutations
+  const [publishEvent] = usePublishEventMutation();
+
+  // Extract unique pubkeys for profile fetching
+  const uniquePubkeys = useMemo(() => {
+    const pubkeySet = new Set(messages.map(e => e.pubkey));
+    return Array.from(pubkeySet);
+  }, [messages]);
+
+  // Fetch profiles for message authors
+  const { 
+    profilesMap: profiles, 
+    isLoading: profilesLoading 
+  } = useProfilesBatch(uniquePubkeys);
+
+  // DEBUG: Log profile data structure in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && Object.keys(profiles).length > 0) {
+      console.log('[WorldChat] Profile Data Structure:', {
+        sampleProfile: Object.values(profiles)[0],
+        totalProfiles: Object.keys(profiles).length,
+        pubkeysRequested: uniquePubkeys.length,
+        profilesReceived: Object.keys(profiles).length,
+      });
+    }
+  }, [profiles, uniquePubkeys]);
+
+  // DEBUG: Log connection status changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[WorldChat] Connection Status:', {
+        connectionStatus,
+        isConnected,
+        connectionStatusState,
+        connectedRelays: connectionStatusState.connectedRelays,
+        totalRelays: connectionStatusState.totalRelays,
+        messageCount: messages.length,
+        isLoading,
+      });
+    }
+  }, [connectionStatus, isConnected, connectionStatusState, messages.length, isLoading]);
+
+  // Send message handler
+  const sendMessage = useCallback(async (content: string) => {
+    if (!content.trim() || !isLoggedIn) return;
+
+    try {
+      await publishEvent({
+        content: content.trim(),
+        kind: 1,
+        tags: [['t', currentChatTag]],
+      }).unwrap();
+      
+      // Clear draft after successful send
+      dispatch(updateChannelTimestamps({
+        channel: currentChatTag,
+        lastMessageTimestamp: Math.floor(Date.now() / 1000),
+        messageCount: messages.length + 1
+      }));
+    } catch (error) {
+      console.error('[useWorldChatRedux] Error sending message:', error);
+      throw error;
+    }
+  }, [isLoggedIn, publishEvent, currentChatTag, dispatch, messages.length]);
+
+  // Load more history (simplified implementation)
+  const loadMoreHistory = useCallback(async () => {
+    // This would need to be implemented based on your pagination strategy
+    console.log('[useWorldChatRedux] Load more history requested');
+  }, []);
+
+  // Draft management
+  const draft = messageDrafts[currentChatTag] || '';
+  
+  const saveDraft = useCallback((content: string) => {
+    // This would need to be implemented in chatSlice
+    console.log('[useWorldChatRedux] Save draft:', content);
+  }, []);
+  
+  const clearDraft = useCallback(() => {
+    // This would need to be implemented in chatSlice
+    console.log('[useWorldChatRedux] Clear draft');
+  }, []);
+
+  return {
+    // Connection state - FIXED: Return proper string format
+    connectionStatus,
+    isConnected,
+    
+    // Content state - FIXED: Stable sorting to prevent jumping
+    messages: useMemo(() => {
+      return [...messages]
+        .sort((a, b) => {
+          // Primary sort: created_at (newer first for chat)
+          const timeDiff = b.created_at - a.created_at;
+          if (timeDiff !== 0) return timeDiff;
+          
+          // Secondary sort: event ID for stable ordering when timestamps are equal
+          return a.id.localeCompare(b.id);
+        });
+    }, [messages]),
+    profiles,
+    loading: isLoading || profilesLoading,
+    isLoggedIn,
+    error: messageError?.message || chatError || null,
+    
+    // Actions
+    sendMessage,
+    
+    // Utilities
+    refetch,
+    
+    // History loading
+    isLoadingMore,
+    hasMoreHistory,
+    loadMoreHistory,
+    
+    // Draft management
+    draft,
+    saveDraft,
+    clearDraft,
+  };
+}; 

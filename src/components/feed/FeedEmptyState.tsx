@@ -42,3 +42,4 @@ const FeedEmptyState: React.FC<FeedEmptyStateProps> = ({
 };
 
 export default FeedEmptyState;
+

@@ -70,3 +70,4 @@ const FormattingToolbar: React.FC<FormattingToolbarProps> = ({ onFormatClick }) 
 };
 
 export default FormattingToolbar;
+

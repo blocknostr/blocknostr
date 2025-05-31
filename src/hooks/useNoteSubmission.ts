@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { nostrService } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface NoteContent {
   content: string;
@@ -50,3 +50,4 @@ export const useNoteSubmission = () => {
     submitNote
   };
 };
+

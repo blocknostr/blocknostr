@@ -99,3 +99,4 @@ export function validateNip65RelayList(event: NostrEvent): { valid: boolean; err
   
   return { valid: errors.length === 0, errors };
 }
+

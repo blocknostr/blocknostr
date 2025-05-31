@@ -125,3 +125,4 @@ export class EventCache extends BaseCache<NostrEvent> {
     return EventFilter.applyFilters(allEvents, options);
   }
 }
+

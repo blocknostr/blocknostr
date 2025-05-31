@@ -69,3 +69,4 @@ export const getImageUrlsFromEvent = (event: NostrEvent | {content?: string}): s
 // Export the functions needed by other files
 export { getMediaUrlsFromEvent, isValidMediaUrl } from './media-extraction';
 
+

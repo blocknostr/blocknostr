@@ -7,3 +7,4 @@
 declare interface NostrService {
   updateProfile(profileData: Record<string, string>): Promise<boolean>;
 }
+

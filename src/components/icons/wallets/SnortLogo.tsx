@@ -19,3 +19,4 @@ const SnortLogo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
 };
 
 export default SnortLogo;
+

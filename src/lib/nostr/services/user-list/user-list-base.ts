@@ -1,6 +1,6 @@
 
 import { SimplePool, type Filter, type Event } from 'nostr-tools';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { NostrEvent } from '../../types';
 import { contentCache } from '../../cache/content-cache';
 
@@ -221,3 +221,4 @@ export class UserListBase {
     }
   }
 }
+

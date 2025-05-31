@@ -51,3 +51,4 @@ export function TagFilter({ availableTags, selectedTags, onTagToggle, className 
     </div>
   );
 }
+

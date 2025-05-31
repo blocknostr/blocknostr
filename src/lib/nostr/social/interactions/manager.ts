@@ -108,3 +108,4 @@ export class InteractionsManager {
     return getReactionCounts(pool, eventId, relayUrls, currentPubkey);
   }
 }
+

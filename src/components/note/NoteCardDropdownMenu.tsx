@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { MoreHorizontal, Twitter, Flag, UserPlus, Mail, BellOff, UserX } from 'lucide-react';
 import { Button } from "../ui/button";
 import { nostrService } from '@/lib/nostr';
 import { useNavigate } from 'react-router-dom';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,10 +125,8 @@ const NoteCardDropdownMenu = ({
   };
 
   const handleShareViaDM = () => {
-    // For now, navigate to messages with the event pre-filled
-    if (pubkey) {
-      navigate(`/messages?recipient=${pubkey}&reference=${eventId}`);
-    }
+    // Functionality removed as part of BlockMail cleanup
+    toast.info('Direct messaging feature has been removed');
   };
 
   const handleMuteAuthor = async () => {
@@ -301,3 +298,4 @@ const NoteCardDropdownMenu = ({
 };
 
 export default NoteCardDropdownMenu;
+

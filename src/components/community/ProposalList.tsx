@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ProposalCard from "./ProposalCard";
 import CreateProposalForm from "./CreateProposalForm";
-import { Proposal, ProposalCategory } from "@/types/community";
+import { Proposal, ProposalCategory } from "@/api/types/community";
 
 interface ProposalListProps {
   communityId: string;
@@ -15,6 +15,7 @@ interface ProposalListProps {
   isCreator: boolean;
   currentUserPubkey: string | null;
   canCreateProposal: boolean;
+  onCreateProposal: (title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
 }
 
 const ProposalList = ({ 
@@ -23,7 +24,8 @@ const ProposalList = ({
   isMember, 
   isCreator, 
   currentUserPubkey,
-  canCreateProposal
+  canCreateProposal,
+  onCreateProposal
 }: ProposalListProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProposal, setExpandedProposal] = useState<string | null>(null);
@@ -85,7 +87,8 @@ const ProposalList = ({
               </DialogHeader>
               <CreateProposalForm 
                 communityId={communityId} 
-                onProposalCreated={() => setIsDialogOpen(false)} 
+                onProposalCreated={() => setIsDialogOpen(false)}
+                onCreateProposal={onCreateProposal}
               />
             </DialogContent>
           </Dialog>
@@ -140,3 +143,4 @@ const ProposalList = ({
 };
 
 export default ProposalList;
+

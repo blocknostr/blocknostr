@@ -41,3 +41,4 @@ const ScheduledIndicator: React.FC<ScheduledIndicatorProps> = ({
 };
 
 export default ScheduledIndicator;
+

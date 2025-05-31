@@ -18,3 +18,4 @@ export function validateEvent(event: NostrEvent): Record<string, { valid: boolea
     'NIP-65': event.kind === 10002 ? validateNip65RelayList(event) : { valid: true, errors: ['Not a relay list event'] }
   };
 }
+

@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Check, AlertCircle } from 'lucide-react';
 import { nostrService } from '@/lib/nostr';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface PollOption {
   id: string;
@@ -174,3 +174,4 @@ export const PollComponent: React.FC<PollProps> = ({
 };
 
 export default PollComponent;
+

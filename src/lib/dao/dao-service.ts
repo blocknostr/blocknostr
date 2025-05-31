@@ -1,7 +1,37 @@
 import { SimplePool, Filter, Event, nip19 } from 'nostr-tools';
-import { DAO, DAOProposal, CommunityPost, PostApproval, PendingPost, PostRejection, RejectedPost, ModerationAction, MemberBan, ContentReport, ModerationLogEntry } from '@/types/dao';
+import { DAO, DAOProposal, CommunityPost, PostApproval, PendingPost, PostRejection, RejectedPost, ModerationAction, MemberBan, ContentReport, ModerationLogEntry } from '@/api/types/dao';
 import { nostrService } from '@/lib/nostr';
-import { daoCache } from './dao-cache';
+import { 
+  cacheAllDAOsLongTerm, 
+  getCachedAllDAOs, 
+  cacheUserDAOsLongTerm, 
+  getCachedUserDAOs,
+  cacheTrendingDAOs,
+  getCachedTrendingDAOs,
+  cacheDAO,
+  getCachedDAO,
+  cacheDAOProposals,
+  getCachedDAOProposals,
+  getUserDAOsCacheAge,
+  invalidateUserDAOsCache,
+  cacheKickProposals,
+  getCachedKickProposals,
+  clearAllDAOCache
+} from './dao-cache';
+
+// Type declaration for window.nostr
+declare global {
+  interface Window {
+    nostr?: {
+      getPublicKey(): Promise<string>;
+      signEvent(event: any): Promise<any>;
+      nip04?: {
+        encrypt(pubkey: string, plaintext: string): Promise<string>;
+        decrypt(pubkey: string, ciphertext: string): Promise<string>;
+      };
+    };
+  }
+}
 
 // NIP-72 kind numbers (ensure full compliance)
 const DAO_KINDS = {
@@ -28,22 +58,88 @@ export class DAOService {
   
   constructor() {
     this.pool = new SimplePool();
-    // Add NIP-72 compatible relays
+    // Add NIP-72 compatible relays that support community events
     this.relays = [
-      "wss://relay.damus.io",
-      "wss://nos.lol",
-      "wss://relay.nostr.band",
-      "wss://nostr.bitcoiner.social",
-      "wss://relay.nostr.bg",
-      "wss://relay.snort.social"
+      "wss://relay.damus.io",      // General purpose but reliable and free
+      "wss://relay.nostr.band",    // Known to support communities, free
+      "wss://nos.lol",             // Community-friendly, free
+      "wss://offchain.pub",        // Alternative relay, free
+      "wss://nostr.wine",          // European relay, free
+      "wss://relay.snort.social",  // Social features, free
+      "wss://purplepag.es",        // Community-focused relay, free
+      "wss://relay.blocknostr.com" // BlockNostr relay
     ];
     
-    // Faster subset for initial loads
+    // Community-specific relays for publishing (these are known to accept community events)
+    // Fast and reliable free relays prioritized
     this.fastRelays = [
-      "wss://relay.damus.io",
-      "wss://nos.lol",
-      "wss://relay.nostr.band"
+      "wss://relay.damus.io",      // Most reliable free relay
+      "wss://relay.nostr.band",    // Best for communities, free
+      "wss://nos.lol",             // Community-friendly, free
+      "wss://offchain.pub",        // Alternative for communities, free
+      "wss://relay.blocknostr.com" // BlockNostr relay
     ];
+  }
+
+  /**
+   * Safe query method that properly handles subscription cleanup
+   */
+  private async safeQuery(relays: string[], filter: Filter, timeout: number = 3000): Promise<Event[]> {
+    return new Promise((resolve) => {
+      const events: Event[] = [];
+      let isResolved = false;
+      let hasReceivedEvents = false;
+      
+      try {
+        const sub = this.pool.subscribeMany(relays, [filter], {
+          onevent: (event) => {
+            if (!isResolved) {
+              events.push(event);
+              hasReceivedEvents = true;
+              
+              // For single event queries (like getDAOById), resolve immediately after first event
+              if (filter.limit === 1 && events.length === 1) {
+                isResolved = true;
+                sub.close();
+                resolve(events);
+              }
+            }
+          },
+          oneose: () => {
+            if (!isResolved) {
+              isResolved = true;
+              sub.close();
+              resolve(events);
+            }
+          },
+          onclose: () => {
+            if (!isResolved) {
+              isResolved = true;
+              resolve(events);
+            }
+          }
+        });
+
+        // Adaptive timeout: shorter for single events, longer for multiple
+        const adaptiveTimeout = filter.limit === 1 ? Math.min(timeout, 2000) : timeout;
+        
+        // Fallback timeout to prevent hanging
+        setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            try {
+              sub.close();
+            } catch (error) {
+              console.warn('Error closing subscription:', error);
+            }
+            resolve(events);
+          }
+        }, adaptiveTimeout);
+      } catch (error) {
+        console.error('Error in safeQuery:', error);
+        resolve([]);
+      }
+    });
   }
   
   /**
@@ -52,7 +148,7 @@ export class DAOService {
   async getDAOs(limit: number = 20): Promise<DAO[]> {
     try {
       // Try to get from cache first
-      const cachedDAOs = daoCache.getAllDAOs();
+      const cachedDAOs = getCachedAllDAOs();
       if (cachedDAOs) {
         console.log("Using cached DAOs");
         // Fetch fresh data in the background to update cache
@@ -69,7 +165,7 @@ export class DAOService {
       console.log("Using fast relays:", this.fastRelays);
       
       // Use fast relays for initial load
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.safeQuery(this.fastRelays, filter);
       console.log("Received DAO events:", events.length);
       
       const daos = events
@@ -77,7 +173,7 @@ export class DAOService {
         .filter((dao): dao is DAO => dao !== null);
       
       // Cache the results with timestamp tracking
-      daoCache.cacheAllDAOsWithTimestamp(daos);
+      cacheAllDAOsLongTerm(daos);
       
       return daos;
     } catch (error) {
@@ -104,7 +200,7 @@ export class DAOService {
         .filter((dao): dao is DAO => dao !== null);
       
       // Cache the results with timestamp tracking
-      daoCache.cacheAllDAOsWithTimestamp(daos);
+      cacheAllDAOsLongTerm(daos);
     } catch (error) {
       console.error("Error refreshing DAOs:", error);
     }
@@ -119,14 +215,13 @@ export class DAOService {
     try {
       // Check for force refresh
       if (forceRefresh) {
-        daoCache.forceRefreshUserDAOs(pubkey);
+        invalidateUserDAOsCache(pubkey);
       }
       
       // Try to get from cache first (now with indefinite TTL)
-      const cachedUserDAOs = daoCache.getUserDAOs(pubkey);
+      const cachedUserDAOs = getCachedUserDAOs(pubkey);
       if (cachedUserDAOs && !forceRefresh) {
-        const cachedAt = daoCache.getUserDAOsCachedAt(pubkey);
-        const cacheAge = cachedAt ? Date.now() - cachedAt : 0;
+        const cacheAge = getUserDAOsCacheAge(pubkey) || 0;
         console.log(`Using cached DAOs for user ${pubkey} (cached ${Math.round(cacheAge / 1000 / 60)} minutes ago)`);
         
         // Fetch fresh data in the background if cache is getting old (but still serve cached)
@@ -152,7 +247,7 @@ export class DAOService {
         .filter((dao): dao is DAO => dao !== null);
       
       // Cache with indefinite TTL for instant loading next time
-      daoCache.cacheUserDAOsIndefinite(pubkey, daos);
+      cacheUserDAOsLongTerm(pubkey, daos);
       
       return daos;
     } catch (error) {
@@ -180,7 +275,7 @@ export class DAOService {
         .filter((dao): dao is DAO => dao !== null);
       
       // Update cache with fresh data using indefinite TTL
-      daoCache.cacheUserDAOsIndefinite(pubkey, daos);
+      cacheUserDAOsLongTerm(pubkey, daos);
       console.log(`Background refresh completed: ${daos.length} user DAOs updated`);
     } catch (error) {
       console.error(`Error refreshing user DAOs for ${pubkey}:`, error);
@@ -192,7 +287,7 @@ export class DAOService {
    */
   async getTrendingDAOs(limit: number = 20): Promise<DAO[]> {
     // Try to get from cache first
-    const cachedTrending = daoCache.getTrendingDAOs();
+    const cachedTrending = getCachedTrendingDAOs();
     if (cachedTrending) {
       console.log("Using cached trending DAOs");
       return cachedTrending;
@@ -204,7 +299,7 @@ export class DAOService {
       .slice(0, limit);
       
     // Cache trending results
-    daoCache.cacheTrendingDAOs(trending);
+    cacheTrendingDAOs(trending);
     
     return trending;
   }
@@ -215,10 +310,10 @@ export class DAOService {
   async getDAOById(id: string): Promise<DAO | null> {
     try {
       // Check cache first
-      const cachedDAO = daoCache.getDAO(id);
+      const cachedDAO = getCachedDAO(id);
       if (cachedDAO) {
         console.log(`Using cached DAO with ID: ${id}`);
-        // Refresh in background
+        // Refresh in background (non-blocking)
         this.refreshDAOById(id);
         return cachedDAO;
       }
@@ -231,18 +326,29 @@ export class DAOService {
         limit: 1
       };
       
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      // Use faster timeout for individual DAO fetch (2 seconds instead of 5)
+      const events = await this.safeQuery(this.fastRelays, filter, 2000);
       
       if (events.length === 0) {
-        console.log(`No DAO found with ID: ${id}`);
-        return null;
+        console.log(`No DAO found with ID: ${id}, trying all relays`);
+        // Fallback to all relays with slightly longer timeout
+        const fallbackEvents = await this.safeQuery(this.relays, filter, 3000);
+        if (fallbackEvents.length === 0) {
+          console.log(`DAO not found on any relay: ${id}`);
+          return null;
+        }
+        const dao = this.parseDaoEvent(fallbackEvents[0]);
+        if (dao) {
+          cacheDAO(id, dao);
+        }
+        return dao;
       }
       
       const dao = this.parseDaoEvent(events[0]);
       
       // Cache the result
       if (dao) {
-        daoCache.cacheDAO(id, dao);
+        cacheDAO(id, dao);
       }
       
       return dao;
@@ -268,7 +374,7 @@ export class DAOService {
       if (events.length > 0) {
         const dao = this.parseDaoEvent(events[0]);
         if (dao) {
-          daoCache.cacheDAO(id, dao);
+          cacheDAO(id, dao);
         }
       }
     } catch (error) {
@@ -282,7 +388,7 @@ export class DAOService {
   async getDAOProposals(daoId: string): Promise<DAOProposal[]> {
     try {
       // Try to get from cache first
-      const cachedProposals = daoCache.getDAOProposals(daoId);
+      const cachedProposals = getCachedDAOProposals(daoId);
       if (cachedProposals) {
         console.log(`Using cached proposals for DAO: ${daoId}`);
         return cachedProposals;
@@ -295,7 +401,7 @@ export class DAOService {
       };
       
       console.log(`Fetching proposals for DAO: ${daoId}`);
-      const events = await this.pool.querySync(this.fastRelays, filter);
+      const events = await this.safeQuery(this.fastRelays, filter);
       console.log(`Found ${events.length} proposals for DAO ${daoId}`);
       
       const proposals = events
@@ -313,7 +419,7 @@ export class DAOService {
       }));
       
       // Cache results with updated proposals that include votes
-      daoCache.cacheDAOProposals(daoId, proposalsWithVotes);
+      cacheDAOProposals(daoId, proposalsWithVotes);
       
       return proposalsWithVotes;
     } catch (error) {
@@ -352,7 +458,7 @@ export class DAOService {
       // For non-active proposals, keep existing votes or use empty object
       const allProposalsWithVotes = proposals.map(proposal => {
         if (proposal.status !== "active") {
-          const existingProposal = daoCache.getDAOProposals(daoId)?.find(p => p.id === proposal.id);
+          const existingProposal = getCachedDAOProposals(daoId)?.find(p => p.id === proposal.id);
           return {
             ...proposal,
             votes: existingProposal?.votes || {}
@@ -362,7 +468,7 @@ export class DAOService {
       });
       
       // Cache the updated result
-      daoCache.cacheDAOProposals(daoId, allProposalsWithVotes);
+      cacheDAOProposals(daoId, allProposalsWithVotes);
     } catch (error) {
       console.error(`Error refreshing proposals for DAO ${daoId}:`, error);
     }
@@ -379,7 +485,7 @@ export class DAOService {
         limit: 200
       };
       
-      const events = await this.pool.querySync(this.relays, filter);
+      const events = await this.safeQuery(this.relays, filter);
       console.log(`Found ${events.length} votes for proposal ${proposalId}`);
       
       const votes: Record<string, number> = {};
@@ -415,7 +521,7 @@ export class DAOService {
   /**
    * Create a new DAO/community
    */
-  async createDAO(name: string, description: string, tags: string[] = []): Promise<string | null> {
+  async createDAO(name: string, description: string, tags: string[] = [], avatar?: string, banner?: string): Promise<string | null> {
     try {
       // Get the user's pubkey from the Nostr service
       const pubkey = nostrService.publicKey;
@@ -440,7 +546,9 @@ export class DAOService {
         description,
         creator: pubkey,
         createdAt: Math.floor(Date.now() / 1000),
-        image: "", // Optional image URL
+        image: avatar || "", // Use avatar as primary image (legacy field)
+        avatar: avatar || "", // Community avatar/logo URL
+        banner: banner || "", // Community banner image URL
         treasury: {
           balance: 0,
           tokenSymbol: "ALPH"
@@ -462,13 +570,13 @@ export class DAOService {
       
       console.log("Publishing DAO event:", eventData);
       
-      // Publish the event using nostrService
-      const eventId = await nostrService.publishEvent(eventData);
+      // Use dedicated community relays for publishing
+      const eventId = await this.publishCommunityEvent(eventData);
       console.log("DAO created with ID:", eventId);
       
       if (eventId && pubkey) {
-        daoCache.invalidateUserDAOs(pubkey);
-        setTimeout(() => daoCache.invalidateAll(), 1000); // Clear all DAO caches after a delay
+              invalidateUserDAOsCache(pubkey);
+      setTimeout(() => clearAllDAOCache(), 1000); // Clear all DAO caches after a delay
       }
       
       return eventId;
@@ -525,9 +633,6 @@ export class DAOService {
       
       // If successful, immediately invalidate the cache for proposals
       if (eventId) {
-        // First invalidate the DAO for this proposal since we're creating new content
-        daoCache.invalidateDAO(daoId);
-        
         // Construct a basic proposal object to add to the cache temporarily 
         // until a full refresh happens
         const newProposal: DAOProposal = {
@@ -544,11 +649,11 @@ export class DAOService {
         };
         
         // Get existing cached proposals or empty array
-        const existingProposals = daoCache.getDAOProposals(daoId) || [];
+        const existingProposals = getCachedDAOProposals(daoId) || [];
         
         // Add the new proposal to the beginning of the array
         // This ensures we preserve all existing proposals rather than replacing them
-        daoCache.cacheDAOProposals(daoId, [newProposal, ...existingProposals]);
+        cacheDAOProposals(daoId, [newProposal, ...existingProposals]);
       }
       
       return eventId;
@@ -568,16 +673,33 @@ export class DAOService {
         throw new Error("User not authenticated");
       }
       
-      // NIP-72 compliant vote event - keep content simple
+      // Validate inputs
+      if (!proposalId || typeof proposalId !== 'string' || proposalId.trim() === '') {
+        throw new Error(`Invalid proposal ID: ${proposalId}`);
+      }
+      
+      if (typeof optionIndex !== 'number' || optionIndex < 0 || !Number.isInteger(optionIndex)) {
+        throw new Error(`Invalid option index: ${optionIndex}`);
+      }
+      
+      // NIP-72 compliant vote event with all required properties
       const eventData = {
         kind: DAO_KINDS.VOTE,
-        content: JSON.stringify({ optionIndex }),
+        content: String(optionIndex), // Simple string content instead of JSON
         tags: [
-          ["e", proposalId] // Reference to proposal event
-        ]
+          ["e", proposalId], // Reference to proposal event
+          ["p", pubkey] // Include voter's pubkey in tags for better indexing
+        ],
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: pubkey
       };
       
-      console.log("Publishing vote event:", eventData);
+      console.log("Publishing vote event:", {
+        kind: eventData.kind,
+        content: eventData.content,
+        tags: eventData.tags,
+        proposalId
+      });
       
       const eventId = await nostrService.publishEvent(eventData);
       console.log("Vote recorded with ID:", eventId);
@@ -1139,7 +1261,7 @@ export class DAOService {
   async getDAOKickProposals(daoId: string): Promise<any[]> {
     try {
       // Check cache first
-      const cachedKickProposals = daoCache.getKickProposals(daoId);
+      const cachedKickProposals = getCachedKickProposals(daoId);
       if (cachedKickProposals) {
         console.log(`Using cached kick proposals for DAO: ${daoId}`);
         return cachedKickProposals;
@@ -1167,7 +1289,7 @@ export class DAOService {
       }).filter(p => p !== null);
       
       // Cache the result
-      daoCache.cacheKickProposals(daoId, kickProps);
+      cacheKickProposals(daoId, kickProps);
       
       return kickProps;
     } catch (error) {
@@ -1255,7 +1377,7 @@ export class DAOService {
       console.log(`Successfully left DAO ${daoId}`);
       
       // Invalidate user DAOs cache
-      daoCache.invalidateUserDAOs(pubkey);
+      invalidateUserDAOsCache(pubkey);
       
       return true;
     } catch (error) {
@@ -1333,7 +1455,9 @@ export class DAOService {
         id: event.id,
         name: name,
         description: description,
-        image: content.image || "",
+        image: content.image || content.avatar || "", // Legacy field - use avatar as fallback
+        avatar: content.avatar || content.image || "", // Community avatar/logo URL
+        banner: content.banner || "", // Community banner image URL
         creator: event.pubkey,
         createdAt: event.created_at,
         members,
@@ -2229,6 +2353,121 @@ export class DAOService {
       console.error("Error removing member from community:", error);
     }
   }
+
+  /**
+   * Cleanup method to properly close connections
+   */
+  public cleanup(): void {
+    try {
+      this.pool.close();
+      console.log('[DAO Service] Pool connections closed');
+    } catch (error) {
+      console.warn('[DAO Service] Error closing pool:', error);
+    }
+  }
+
+  /**
+   * Publish community events to dedicated relays with better error handling
+   */
+  private async publishCommunityEvent(eventData: any): Promise<string | null> {
+    try {
+      // Get user's private key for signing (if available)
+      const pubkey = nostrService.publicKey;
+      if (!pubkey) {
+        throw new Error("User not authenticated");
+      }
+
+      console.log('[DAO Service] Publishing to community-friendly relays:', this.fastRelays);
+
+      // Try to use window.nostr for signing if available
+      if (typeof window !== 'undefined' && window.nostr) {
+        try {
+          console.log('[DAO Service] Using browser extension for signing');
+          
+          // Prepare event for signing
+          const unsignedEvent = {
+            ...eventData,
+            pubkey,
+            created_at: eventData.created_at || Math.floor(Date.now() / 1000)
+          };
+
+          // Sign the event using browser extension
+          const signedEvent = await window.nostr.signEvent(unsignedEvent);
+          console.log('[DAO Service] Event signed successfully:', signedEvent.id);
+
+          // Publish to community-friendly relays with retry logic
+          const publishPromises = this.fastRelays.map(async (relay) => {
+            try {
+              console.log(`[DAO Service] Publishing to ${relay}`);
+              const pub = this.pool.publish([relay], signedEvent);
+              
+              return new Promise<{ relay: string; success: boolean; error?: string }>((resolve) => {
+                const timeout = setTimeout(() => {
+                  resolve({ relay, success: false, error: 'timeout' });
+                }, 10000); // 10 second timeout
+
+                pub.on('ok', () => {
+                  clearTimeout(timeout);
+                  console.log(`[DAO Service] Successfully published to ${relay}`);
+                  resolve({ relay, success: true });
+                });
+
+                pub.on('failed', (reason: string) => {
+                  clearTimeout(timeout);
+                  console.warn(`[DAO Service] Failed to publish to ${relay}:`, reason);
+                  resolve({ relay, success: false, error: reason });
+                });
+              });
+            } catch (error) {
+              console.error(`[DAO Service] Error publishing to ${relay}:`, error);
+              return { relay, success: false, error: error.message };
+            }
+          });
+
+          // Wait for all publish attempts
+          const results = await Promise.all(publishPromises);
+          
+          // Check if at least one relay accepted the event
+          const successfulPublishes = results.filter(r => r.success);
+          const failedPublishes = results.filter(r => !r.success);
+
+          console.log('[DAO Service] Publish results:', {
+            successful: successfulPublishes.length,
+            failed: failedPublishes.length,
+            failures: failedPublishes.map(f => ({ relay: f.relay, error: f.error }))
+          });
+
+          if (successfulPublishes.length > 0) {
+            console.log(`[DAO Service] Event published successfully to ${successfulPublishes.length} relays`);
+            return signedEvent.id;
+          } else {
+            // All relays failed - provide helpful error message
+            const errorMessages = failedPublishes.map(f => f.error).filter(Boolean);
+            const uniqueErrors = [...new Set(errorMessages)];
+            
+            if (uniqueErrors.some(err => err.includes('blocked') || err.includes('moderated'))) {
+              throw new Error('Community events are not supported by the connected relays. Please try again or contact support.');
+            } else if (uniqueErrors.some(err => err.includes('subscription'))) {
+              throw new Error('Relay connection issue. Please check your internet connection and try again.');
+            } else {
+              throw new Error(`Failed to publish to any relay. Errors: ${uniqueErrors.join(', ')}`);
+            }
+          }
+
+        } catch (signingError) {
+          console.error('[DAO Service] Error during signing:', signingError);
+          throw new Error(`Failed to sign event: ${signingError.message}`);
+        }
+      } else {
+        throw new Error('Nostr browser extension not available. Please install a Nostr extension like Alby or nos2x.');
+      }
+
+    } catch (error) {
+      console.error('[DAO Service] Error in publishCommunityEvent:', error);
+      throw error;
+    }
+  }
 }
 
 export const daoService = new DAOService();
+

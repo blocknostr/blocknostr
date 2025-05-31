@@ -17,3 +17,4 @@ export interface EventSubscription {
   filters: any[];
   onEvent: (event: NostrEvent) => void;
 }
+

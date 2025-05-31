@@ -21,7 +21,7 @@ import {
   Shield,
   Timer
 } from 'lucide-react';
-import { CacheStatus, WalletCacheConfig } from '@/types/wallet';
+import { CacheStatus, WalletCacheConfig } from '@/api/types/wallet';
 import { formatDistanceToNow } from 'date-fns';
 
 interface CacheStatusWidgetProps {
@@ -397,3 +397,4 @@ const CacheStatusWidget: React.FC<CacheStatusWidgetProps> = ({
 };
 
 export default CacheStatusWidget; 
+

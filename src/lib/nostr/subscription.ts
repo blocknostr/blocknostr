@@ -1,29 +1,39 @@
-
 import { SimplePool, type Filter } from 'nostr-tools';
 import { NostrEvent, NostrFilter } from './types';
 
+/**
+ * Simplified Subscription Manager
+ * Focuses on core functionality without over-engineering
+ */
 export class SubscriptionManager {
   private pool: SimplePool;
-  private subscriptions: Map<string, { relays: string[], filters: NostrFilter[], subClosers: any[], timeoutId?: number }> = new Map();
+  private subscriptions: Map<string, () => void> = new Map();
   private nextId = 0;
-  private maxSubscriptions = 100; // Limit total number of subscriptions
+  private debugMode = false;
   
   constructor(pool: SimplePool) {
     this.pool = pool;
   }
   
+  /**
+   * Create a subscription
+   */
   subscribe(
     relays: string[],
     filters: NostrFilter[],
     onEvent: (event: NostrEvent) => void,
     options: {
       timeoutMs?: number;
-      autoClose?: boolean;
     } = {}
   ): string {
+    // Provide default relays if none are provided
     if (relays.length === 0) {
-      console.error("No relays provided for subscription");
-      return "";
+      relays = [
+        'wss://relay.damus.io',
+        'wss://nos.lol',
+        'wss://relay.nostr.band',
+        'wss://nostr.bitcoiner.social'
+      ];
     }
     
     if (filters.length === 0) {
@@ -31,48 +41,40 @@ export class SubscriptionManager {
       return "";
     }
     
-    // Check if we're at the subscription limit
-    if (this.subscriptions.size >= this.maxSubscriptions) {
-      console.warn("Maximum subscription limit reached, closing oldest subscription");
-      this.closeOldestSubscription();
-    }
-    
     const id = `sub_${this.nextId++}`;
     
+    if (this.debugMode) {
+      console.log(`[SubscriptionManager] Creating subscription ${id}`);
+    }
+    
     try {
-      // SimplePool.subscribe expects a single filter
-      // We'll create multiple subscriptions, one for each filter
-      const subClosers = filters.map(filter => {
-        try {
-          return this.pool.subscribe(relays, filter, {
-            onevent: (event) => {
-              onEvent(event as NostrEvent);
-            }
-          });
-        } catch (error) {
-          console.error("Error creating individual subscription:", error);
-          return null;
+      // Create subscription using SimplePool
+      const sub = this.pool.subscribeMany(relays, filters, {
+        onevent: (event) => {
+          onEvent(event as NostrEvent);
+        },
+        oneose: () => {
+          if (this.debugMode) {
+            console.log(`[SubscriptionManager] Subscription ${id} reached end of stored events`);
+          }
         }
-      }).filter(Boolean); // Filter out any nulls from failed subscriptions
+      });
       
-      if (subClosers.length === 0) {
-        console.error("All subscriptions failed to create");
-        return "";
-      }
-      
-      // Store subscription details
-      const subDetails: any = { relays, filters, subClosers };
+      // Store cleanup function
+      this.subscriptions.set(id, () => {
+        try {
+          sub.close();
+        } catch (error) {
+          console.warn(`Error closing subscription ${id}:`, error);
+        }
+      });
       
       // Set up auto-close timeout if requested
-      if (options.autoClose !== false && options.timeoutMs) {
-        subDetails.timeoutId = window.setTimeout(() => {
-          console.log(`Auto-closing subscription ${id} after timeout`);
+      if (options.timeoutMs) {
+        setTimeout(() => {
           this.unsubscribe(id);
         }, options.timeoutMs);
       }
-      
-      // Store subscription details for later unsubscribe
-      this.subscriptions.set(id, subDetails);
       
       return id;
     } catch (error) {
@@ -81,58 +83,85 @@ export class SubscriptionManager {
     }
   }
   
+  /**
+   * Unsubscribe from a subscription
+   */
   unsubscribe(subId: string): void {
-    const subscription = this.subscriptions.get(subId);
-    if (subscription) {
-      try {
-        // Clear any timeout
-        if (subscription.timeoutId) {
-          clearTimeout(subscription.timeoutId);
-        }
-        
-        // Close all subscriptions
-        subscription.subClosers.forEach(closer => {
-          if (closer && typeof closer.close === 'function') {
-            try {
-              closer.close();
-            } catch (error) {
-              console.error(`Error closing subscription:`, error);
-            }
-          }
-        });
-        
-        this.subscriptions.delete(subId);
-      } catch (error) {
-        console.error(`Error unsubscribing from ${subId}:`, error);
+    const cleanup = this.subscriptions.get(subId);
+    if (cleanup) {
+      cleanup();
+      this.subscriptions.delete(subId);
+      
+      if (this.debugMode) {
+        console.log(`[SubscriptionManager] Unsubscribed from ${subId}`);
       }
     }
   }
   
-  // Close the oldest subscription to prevent resource exhaustion
-  private closeOldestSubscription(): void {
-    if (this.subscriptions.size === 0) return;
+  /**
+   * Unsubscribe from all subscriptions
+   */
+  unsubscribeAll(): void {
+    this.subscriptions.forEach((cleanup, id) => {
+      try {
+        cleanup();
+      } catch (error) {
+        console.warn(`Error cleaning up subscription ${id}:`, error);
+      }
+    });
+    this.subscriptions.clear();
     
-    const oldestId = Array.from(this.subscriptions.keys())[0];
-    this.unsubscribe(oldestId);
+    if (this.debugMode) {
+      console.log(`[SubscriptionManager] All subscriptions cleared`);
+    }
   }
   
-  // New method to check if a subscription exists
+  /**
+   * Get active subscription count
+   */
+  getActiveSubscriptionCount(): number {
+    return this.subscriptions.size;
+  }
+  
+  /**
+   * Get subscription statistics
+   */
+  getSubscriptionStats(): { 
+    active: number; 
+    oldestId?: string;
+  } {
+    const stats = {
+      active: this.subscriptions.size,
+      oldestId: undefined as string | undefined
+    };
+    
+    if (this.subscriptions.size > 0) {
+      stats.oldestId = Array.from(this.subscriptions.keys())[0];
+    }
+    
+    return stats;
+  }
+  
+  /**
+   * Enable/disable debug mode
+   */
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+    console.log(`[SubscriptionManager] Debug mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+  
+  /**
+   * Check if subscription exists
+   */
   hasSubscription(subId: string): boolean {
     return this.subscriptions.has(subId);
   }
   
-  // New method to get all active subscription IDs
+  /**
+   * Get all active subscription IDs
+   */
   getActiveSubscriptionIds(): string[] {
     return Array.from(this.subscriptions.keys());
   }
-  
-  // New method to unsubscribe from all subscriptions
-  unsubscribeAll(): void {
-    this.getActiveSubscriptionIds().forEach(id => this.unsubscribe(id));
-  }
-  
-  // New method to get count of active subscriptions
-  getActiveSubscriptionCount(): number {
-    return this.subscriptions.size;
-  }
 }
+

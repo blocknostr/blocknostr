@@ -52,3 +52,4 @@ describe('NIP-44 Versioned Encryption', () => {
   
   // Add more tests as needed
 });
+

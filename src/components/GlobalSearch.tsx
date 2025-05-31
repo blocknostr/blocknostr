@@ -13,18 +13,19 @@ import {
 } from "@/components/ui/command";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
+import { DEMO_PROFILES, DEV_CONFIG } from "@/constants";
 
 const GlobalSearch: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Mock data - in a real app this would come from Nostr
-  const searchPeople = [
-    { name: "Jack", npub: "npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m", picture: "https://avatars.githubusercontent.com/u/1247608?v=4" },
-    { name: "Fiatjaf", npub: "npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6", picture: "https://avatars.githubusercontent.com/u/1653275?v=4" },
-    { name: "Nostr Project", npub: "npub1nstrcu63lzpjkz94djajuz2evrgu6qezckvmhrfhqdk5urlu9u5sn2v5sz", picture: "" },
-  ];
+  // ✅ FIXED: Use configurable demo profiles instead of hardcoded values
+  const demoProfiles = DEV_CONFIG.SHOW_DEMO_PROFILES ? DEMO_PROFILES.map(profile => ({
+    name: profile.name,
+    npub: profile.npub,
+    picture: profile.picture
+  })) : [];
 
   const searchTopics = [
     { name: "Bitcoin" },
@@ -70,7 +71,7 @@ const GlobalSearch: React.FC = () => {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="People">
-            {searchPeople
+            {demoProfiles
               .filter(person => 
                 person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 person.npub.toLowerCase().includes(searchTerm.toLowerCase())
@@ -111,3 +112,4 @@ const GlobalSearch: React.FC = () => {
 };
 
 export default GlobalSearch;
+

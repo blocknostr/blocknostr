@@ -37,3 +37,4 @@ const NotesGrid = ({ notes, onNoteClick, onDeleteClick, view }: NotesGridProps) 
 };
 
 export default NotesGrid;
+

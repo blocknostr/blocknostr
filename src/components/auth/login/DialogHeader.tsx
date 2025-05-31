@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Shield } from "lucide-react";
 import { DialogTitle } from "@/components/ui/dialog";
@@ -10,9 +9,9 @@ interface DialogHeaderProps {
 
 const DialogHeader: React.FC<DialogHeaderProps> = ({ animateIn }) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Logo container with premium gradient effect */}
-      <div className="mx-auto relative w-16 h-16">
+      <div className="mx-auto relative w-12 h-12">
         {/* Animated gradient background */}
         <div className={cn(
           "absolute inset-0 rounded-full bg-gradient-to-r from-primary/60 to-primary/40 blur-sm",
@@ -28,7 +27,7 @@ const DialogHeader: React.FC<DialogHeaderProps> = ({ animateIn }) => {
           animateIn ? "scale-100 opacity-100" : "scale-95 opacity-0"
         )}>
           <Shield className={cn(
-            "h-7 w-7 text-primary",
+            "h-5 w-5 text-primary",
             "transition-all duration-500 ease-out delay-200",
             animateIn ? "opacity-100 scale-100" : "opacity-0 scale-90"
           )} />
@@ -41,12 +40,12 @@ const DialogHeader: React.FC<DialogHeaderProps> = ({ animateIn }) => {
         "transition-all duration-500 ease-out delay-300",
         animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
       )}>
-        Connect to BlockNoster
+        Connect to BlockNostr
       </DialogTitle>
       
       {/* Subtitle */}
       <p className={cn(
-        "text-center text-sm text-muted-foreground",
+        "text-center text-xs text-muted-foreground leading-tight",
         "transition-all duration-500 ease-out delay-400",
         animateIn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
       )}>
@@ -57,3 +56,4 @@ const DialogHeader: React.FC<DialogHeaderProps> = ({ animateIn }) => {
 };
 
 export default DialogHeader;
+

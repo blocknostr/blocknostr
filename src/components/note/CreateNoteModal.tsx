@@ -34,3 +34,4 @@ const CreateNoteModal: React.FC<CreateNoteModalProps> = ({
 };
 
 export default CreateNoteModal;
+

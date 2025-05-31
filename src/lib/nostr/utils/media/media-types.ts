@@ -14,3 +14,4 @@ export interface MediaItem {
   blurhash?: string;
   metadata?: Record<string, any>;
 }
+

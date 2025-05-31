@@ -6,3 +6,4 @@ export { RelayManager };
 
 // Re-export types
 export type { RelayInfo } from './relay/relay-info-service';
+

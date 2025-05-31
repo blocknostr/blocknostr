@@ -84,3 +84,4 @@ export function useIntersectionObserver({
   // If a target is provided, use that. Otherwise, return the ref setter
   return target ? { isIntersecting: false } : { observedRef: setObservedRef };
 }
+

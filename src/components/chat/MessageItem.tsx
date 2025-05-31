@@ -1,42 +1,65 @@
-import React from "react";
+import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDistanceToNow } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 import { NostrEvent } from "@/lib/nostr/types";
-import ReactionBar from "./ReactionBar";
 import { contentFormatter } from "@/lib/nostr";
 import { nostrService } from "@/lib/nostr";
+import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 
 interface MessageItemProps {
   message: NostrEvent;
-  emojiReactions: string[];
   profiles?: Record<string, any>;
   isLoggedIn: boolean;
-  onAddReaction: (emoji: string) => void;
   previousMessage?: NostrEvent;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
-  emojiReactions,
   profiles = {},
   isLoggedIn,
-  onAddReaction,
   previousMessage
 }) => {
+  const navigate = useNavigate();
+  
   const isCurrentUser = message.pubkey === nostrService.publicKey;
   const isPreviousSameSender = previousMessage && previousMessage.pubkey === message.pubkey;
   const timeDifference = previousMessage 
     ? message.created_at - previousMessage.created_at 
-    : 100000; // Large number to ensure showing avatar for first message
-  const shouldGroupWithPrevious = isPreviousSameSender && timeDifference < 60; // Group messages within 1 minute
+    : 100000;
+  const shouldGroupWithPrevious = isPreviousSameSender && timeDifference < 60;
 
+  // Compact date formatting function
+  const getCompactDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor(diffInHours * 60);
+      return diffInMinutes < 1 ? "now" : `${diffInMinutes}m`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h`;
+    } else if (diffInHours < 24 * 7) {
+      return `${Math.floor(diffInHours / 24)}d`;
+    } else {
+      return format(date, "MMM d");
+    }
+  };
+
+  // Enhanced NOSTR display name handling
   const getDisplayName = (pubkey: string) => {
     if (!profiles || !profiles[pubkey]) {
-      return `${pubkey.substring(0, 6)}...`;
+      return "Anon";
     }
     const profile = profiles[pubkey];
-    return profile?.name || profile?.display_name || `${pubkey.substring(0, 6)}...`;
+    return profile?.metadata?.display_name || 
+           profile?.metadata?.name || 
+           profile?.display_name || 
+           profile?.name || 
+           profile?.metadata?.nip05?.split('@')[0] || 
+           "Anon";
   };
   
   const getProfilePicture = (pubkey: string) => {
@@ -44,7 +67,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
       return '';
     }
     const profile = profiles[pubkey];
-    return profile?.picture || '';
+    const picture = profile?.metadata?.picture || 
+                   profile?.metadata?.image || 
+                   profile?.picture || 
+                   profile?.image || 
+                   '';
+    
+    return picture;
   };
   
   const getAvatarFallback = (pubkey: string) => {
@@ -52,87 +81,116 @@ const MessageItem: React.FC<MessageItemProps> = ({
     return displayName.charAt(0).toUpperCase();
   };
 
+  const handleProfileClick = (pubkey: string) => {
+    navigate(`/profile/${pubkey}`);
+  };
+
+  // Process message content for @mentions
+  const processMessageContent = (content: string) => {
+    const mentionRegex = /@(npub[a-zA-Z0-9]+|[a-zA-Z0-9_]+)/g;
+    const parts = content.split(mentionRegex);
+    
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return (
+          <span 
+            key={`mention-${index}-${part}`}
+            className="text-primary cursor-pointer hover:underline font-medium bg-primary/10 px-1 rounded"
+            onClick={() => handleProfileClick(part)}
+          >
+            @{part.startsWith('npub') ? getDisplayName(part) : part}
+          </span>
+        );
+      }
+      return (
+        <span key={`text-${index}`}>
+          {contentFormatter.formatContent(part)}
+        </span>
+      );
+    });
+  };
+
   return (
     <div 
+      id={`message-${message.id}`}
       className={clsx(
-        "animate-fade-in my-0.5 w-full", 
+        "animate-fade-in w-full transition-all duration-200 group", 
         {
-          "mt-2": !shouldGroupWithPrevious,
-          "mt-0.5": shouldGroupWithPrevious
+          "mt-3": !shouldGroupWithPrevious,
+          "mt-1": shouldGroupWithPrevious,
         }
       )}
     >
       <div className={clsx(
-        "flex items-start gap-1.5",
-        isCurrentUser 
-          ? "flex-row-reverse justify-start" 
-          : ""
+        "flex items-start gap-3 w-full",
+        isCurrentUser ? "flex-row-reverse" : "flex-row"
       )}>
-        {/* Avatar - only show for first message in a group */}
-        {!shouldGroupWithPrevious && !isCurrentUser && (
-          <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
-            <AvatarImage src={getProfilePicture(message.pubkey)} />
-            <AvatarFallback className="text-xs bg-primary/10">{getAvatarFallback(message.pubkey)}</AvatarFallback>
-          </Avatar>
+        {/* Avatar - always show for current user, conditionally for others */}
+        {(!shouldGroupWithPrevious || isCurrentUser) && (
+          <div 
+            className="cursor-pointer hover:scale-105 transition-transform flex-shrink-0"
+            onClick={() => handleProfileClick(message.pubkey)}
+          >
+            <Avatar className="h-8 w-8 ring-2 ring-transparent hover:ring-primary/20 transition-all">
+              <AvatarImage src={getProfilePicture(message.pubkey)} />
+              <AvatarFallback className="text-xs bg-primary/10 font-semibold">
+                {getAvatarFallback(message.pubkey)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         )}
         
-        {/* Spacer when avatar is hidden but alignment needs to be maintained */}
-        {shouldGroupWithPrevious && !isCurrentUser && <div className="w-7 flex-shrink-0" />}
+        {/* Spacer when avatar is hidden for non-current users */}
+        {shouldGroupWithPrevious && !isCurrentUser && <div className="w-8 flex-shrink-0" />}
         
-        <div className={clsx("relative", 
-          isCurrentUser ? "ml-auto" : "",
-          "max-w-[75%]" // Limit message width
+        <div className={clsx(
+          "relative flex flex-col", 
+          isCurrentUser ? "items-end max-w-[75%]" : "items-start max-w-[75%]"
         )}>
-          {/* Name - only show for first message in a group */}
-          {!shouldGroupWithPrevious && !isCurrentUser && (
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-medium text-xs text-muted-foreground truncate">
+          {/* Name and timestamp */}
+          {(!shouldGroupWithPrevious || isCurrentUser) && (
+            <div className={clsx(
+              "flex items-center gap-2 mb-1",
+              isCurrentUser ? "flex-row-reverse" : "flex-row"
+            )}>
+              <button
+                className="font-semibold text-sm text-foreground hover:text-primary transition-colors cursor-pointer"
+                onClick={() => handleProfileClick(message.pubkey)}
+              >
                 {getDisplayName(message.pubkey)}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {getCompactDate(message.created_at)}
               </span>
             </div>
           )}
           
-          <div className="group relative">
+          <div className="relative">
+            {/* Message bubble with hover reactions */}
             <div
               className={clsx(
-                "inline-block text-sm break-words whitespace-pre-wrap px-3 py-1.5 rounded-2xl shadow-sm w-full",
+                "inline-block text-sm break-words whitespace-pre-wrap px-4 py-2 rounded-2xl shadow-sm border max-w-full relative",
                 isCurrentUser 
-                  ? "bg-primary text-primary-foreground message-bubble-sent-no-point"
-                  : "bg-muted/80 message-bubble-received-no-point",
+                  ? "bg-primary text-primary-foreground border-primary/20"
+                  : "bg-background border-border/50 hover:border-border transition-colors",
                 {
-                  "rounded-tr-2xl": isCurrentUser && shouldGroupWithPrevious,
-                  "rounded-tl-2xl": !isCurrentUser && shouldGroupWithPrevious
+                  "rounded-tr-lg": isCurrentUser && shouldGroupWithPrevious,
+                  "rounded-tl-lg": !isCurrentUser && shouldGroupWithPrevious
                 }
               )}
             >
-              {contentFormatter.formatContent(message.content)}
-              <div className={clsx(
-                "text-[10px] opacity-70 mt-0.5 text-right",
-                isCurrentUser ? "" : "text-muted-foreground"
-              )}>
-                {formatDistanceToNow(new Date(message.created_at * 1000), { addSuffix: true })}
+              <div className="leading-relaxed">
+                {processMessageContent(message.content)}
               </div>
-            </div>
-
-            {/* Reactions below the message */}
-            {emojiReactions && emojiReactions.length > 0 && (
-              <div className="flex flex-wrap gap-0.5 mt-0.5 ml-1">
-                {emojiReactions.map((emoji, idx) => (
-                  <span key={idx} className="inline-flex items-center bg-accent/70 px-1.5 py-0.5 rounded-full text-xs shadow-sm">
-                    {emoji}
-                  </span>
-                ))}
-              </div>
-            )}
-            
-            {/* Reaction bar - repositioned to sides */}
-            <div className={clsx(
-              "absolute opacity-0 group-hover:opacity-100 transition-opacity",
-              isCurrentUser 
-                ? "left-0 top-1/2 -translate-x-full -translate-y-1/2 pr-1" // Left side for current user's messages
-                : "right-0 top-1/2 translate-x-full -translate-y-1/2 pl-1" // Right side for others' messages
-            )}>
-              <ReactionBar isLoggedIn={isLoggedIn} onAddReaction={onAddReaction} />
+              
+              {shouldGroupWithPrevious && (
+                <div className={clsx(
+                  "text-xs opacity-70 mt-1",
+                  isCurrentUser ? "text-left" : "text-right"
+                )}>
+                  {getCompactDate(message.created_at)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -142,3 +200,4 @@ const MessageItem: React.FC<MessageItemProps> = ({
 };
 
 export default MessageItem;
+

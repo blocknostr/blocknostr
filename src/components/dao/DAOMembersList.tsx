@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,13 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { DAO } from "@/types/dao";
+import { DAO } from "@/api/types/dao";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/lib/utils/toast-replacement";
-import { nostrService } from "@/lib/nostr";
+import { toast } from "@/lib/toast";
+import { getNpubFromHex } from "@/lib/nostr/utils/keys";
 
 interface DAOMembersListProps {
   dao: DAO;
@@ -130,7 +129,7 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
   const formatDisplayName = (pubkey: string): string => {
     // Try to convert to npub if possible
     try {
-      const npub = nostrService.getNpubFromHex ? nostrService.getNpubFromHex(pubkey) : null;
+      const npub = getNpubFromHex(pubkey);
       if (npub) {
         return npub.substring(0, 8) + "...";
       }
@@ -290,3 +289,4 @@ const DAOMembersList: React.FC<DAOMembersListProps> = ({
 };
 
 export default DAOMembersList;
+

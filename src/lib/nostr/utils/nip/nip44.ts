@@ -98,3 +98,4 @@ export function decrypt({ ciphertext, privateKey, publicKey }: DecryptArgs): str
     throw new Error('Failed to decrypt message');
   }
 }
+

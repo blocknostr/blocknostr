@@ -17,3 +17,4 @@ export interface CacheConfig {
 export interface StorageKeys {
   [key: string]: string;
 }
+

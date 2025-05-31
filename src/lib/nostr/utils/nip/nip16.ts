@@ -95,3 +95,4 @@ export function getNewerReplaceableEvent(event1: NostrEvent, event2: NostrEvent)
   
   return event1.created_at > event2.created_at ? event1 : event2;
 }
+

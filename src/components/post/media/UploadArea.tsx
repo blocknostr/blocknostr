@@ -49,3 +49,4 @@ const UploadArea = ({
 };
 
 export default UploadArea;
+

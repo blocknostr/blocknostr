@@ -54,3 +54,4 @@ export class ListCache {
     localStorage.removeItem(this.storageKey);
   }
 }
+

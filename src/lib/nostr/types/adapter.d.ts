@@ -1,4 +1,3 @@
-
 /**
  * Type definitions for the NostrAdapter interfaces
  */
@@ -18,15 +17,16 @@ export interface SocialAdapterInterface extends BaseAdapterInterface {
   isFollowing(pubkey: string): boolean;
   followUser(pubkey: string): Promise<boolean>;
   unfollowUser(pubkey: string): Promise<boolean>;
-  sendDirectMessage(recipientPubkey: string, content: string): Promise<string | null>;
-  
-  // Moderation
-  muteUser(pubkey: string): Promise<boolean>;
-  unmuteUser(pubkey: string): Promise<boolean>;
-  isUserMuted(pubkey: string): Promise<boolean>;
+  reactToEvent(eventId: string, reaction: string): Promise<string | null>;
+  hasReactedToEvent(eventId: string, reaction?: string): Promise<boolean>;
+  getReactionsToEvent(eventId: string): Promise<any[]>;
   blockUser(pubkey: string): Promise<boolean>;
   unblockUser(pubkey: string): Promise<boolean>;
+  muteUser(pubkey: string): Promise<boolean>;
+  unmuteUser(pubkey: string): Promise<boolean>;
   isUserBlocked(pubkey: string): Promise<boolean>;
+  isUserMuted(pubkey: string): Promise<boolean>;
+  following: string[];
   
   // Social manager
   socialManager: {
@@ -51,13 +51,7 @@ export interface RelayAdapterInterface extends BaseAdapterInterface {
   relayManager: any; // Define specific relay manager interface if needed
 }
 
-export interface DataAdapterInterface extends BaseAdapterInterface {
-  getEventById(id: string): Promise<NostrEvent | null>;
-  getEvents(ids: string[]): Promise<NostrEvent[]>;
-  getProfilesByPubkeys(pubkeys: string[]): Promise<Record<string, any>>;
-  getUserProfile(pubkey: string): Promise<Record<string, any> | null>;
-  verifyNip05(identifier: string, pubkey: string): Promise<boolean>;
-}
+// DataAdapterInterface removed - data operations now handled directly by service
 
 export interface CommunityAdapterInterface extends BaseAdapterInterface {
   createCommunity(name: string, description: string): Promise<string | null>;
@@ -70,17 +64,26 @@ export interface CommunityAdapterInterface extends BaseAdapterInterface {
 export interface NostrAdapterInterface extends BaseAdapterInterface,
   SocialAdapterInterface,
   RelayAdapterInterface,
-  DataAdapterInterface,
   CommunityAdapterInterface {
   
   // Domain-specific property accessors
   readonly social: SocialAdapterInterface;
   readonly relay: RelayAdapterInterface;
-  readonly data: DataAdapterInterface;
+  readonly data: any; // Direct service access for data operations
   readonly community: CommunityAdapterInterface;
   
   // Event management methods (from EventAdapter)
   publishEvent(event: any): Promise<string | null>;
   subscribe(filters: any[], onEvent: (event: any) => void, relays?: string[]): string;
   unsubscribe(subId: string): void;
+  
+  subscribeToProfileUpdates(callback: (profile: Profile) => void): () => void;
+  subscribeToConnectionState(callback: (state: ConnectionState) => void): () => void;
+  
+  // Enhanced methods
+  getRelayInformation(url: string): Promise<RelayInformation | null>;
+  searchProfiles(query: string, limit?: number): Promise<Profile[]>;
+  discoverRelays(pubkey: string): Promise<string[]>;
+  cacheEvent(event: NostrEvent): void;
 }
+

@@ -1,164 +1,190 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { useArticles } from "@/hooks/useArticles";
+import { Article, ArticleFormData } from "@/lib/nostr/types/article";
 import ArticleEditor from "@/components/articles/ArticleEditor";
-import { ArticleDraft } from "@/lib/nostr/types/article";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
-import { customToast } from '@/lib/toast';
+import { toast } from "@/lib/toast";
 
 const ArticleEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [draft, setDraft] = useState<ArticleDraft>({
-    title: "",
-    content: "",
-    hashtags: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    published: false
-  });
-  
+  const {
+    allArticles,
+    createArticle,
+    saveDraft,
+    publishArticle,
+    updateExistingArticle,
+    isPublishing
+  } = useArticles();
+
+  const [currentArticle, setCurrentArticle] = useState<Article | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Load article by ID when component mounts
   useEffect(() => {
-    // If we have an ID, try to load the draft or published article
     if (id) {
-      const existingDraft = nostrAdapter.getDraft(id);
+      // Find article in Redux state
+      const article = allArticles.find(a => a.localId === id);
       
-      if (existingDraft) {
-        setDraft(existingDraft);
+      if (article) {
+        console.log(`📝 [ArticleEditorPage] Loading article for editing: ${article.title} [${id}]`);
+        setCurrentArticle(article);
       } else {
-        // It might be a published article we're editing
-        setLoading(true);
-        
-        nostrAdapter.getArticleById(id)
-          .then(article => {
-            if (article) {
-              // Convert the article to a draft format
-              const title = article.tags.find(tag => tag[0] === 'title')?.[1] || '';
-              const hashtags = article.tags
-                .filter(tag => tag[0] === 't')
-                .map(tag => tag[1]);
-              const summary = article.tags.find(tag => tag[0] === 'summary')?.[1] || '';
-              const image = article.tags.find(tag => tag[0] === 'image')?.[1] || '';
-              
-              setDraft({
-                id: `edit_${article.id}`,
-                title,
-                content: article.content,
-                hashtags,
-                summary,
-                image,
-                createdAt: article.created_at * 1000,
-                updatedAt: Date.now(),
-                published: true,
-                publishedId: article.id
-              });
-            } else {
-              customToast.error("Could not find the article to edit.");
-              navigate("/articles");
-            }
-          })
-          .finally(() => {
-            setLoading(false);
-          });
+        console.warn(`❌ [ArticleEditorPage] Article with ID ${id} not found`);
+        toast.error("Article not found");
+        navigate("/articles");
       }
+    } else {
+      // Create new article
+      console.log("📝 [ArticleEditorPage] Creating new article");
+      const formData: ArticleFormData = {
+        title: "",
+        content: "",
+        hashtags: [],
+        summary: ""
+      };
+      
+      const newArticle = createArticle(formData, true);
+      setCurrentArticle(newArticle);
     }
-  }, [id, navigate]);
-  
-  const handleSaveDraft = (updatedDraft: ArticleDraft) => {
+  }, [id, allArticles, createArticle, navigate]);
+
+  // ✅ Handle saving draft
+  const handleSaveDraft = (updatedData: Partial<Article>): boolean => {
+    if (!currentArticle) return false;
+
     try {
-      const savedId = nostrAdapter.saveDraft(updatedDraft);
-      customToast.success("Draft saved successfully");
+      const updatedArticle: Article = {
+        ...currentArticle,
+        ...updatedData,
+        updatedAt: Date.now()
+      };
+
+      // Update in Redux
+      updateExistingArticle(currentArticle.localId, updatedData);
       
-      if (!updatedDraft.id) {
-        setDraft(prev => ({ ...prev, id: savedId }));
-      }
+      // Update local state
+      setCurrentArticle(updatedArticle);
       
+      toast.success("Draft saved successfully");
       return true;
     } catch (error) {
       console.error("Failed to save draft:", error);
-      customToast.error("Failed to save draft");
+      toast.error("Failed to save draft");
       return false;
     }
   };
-  
-  const handlePublish = async (articleDraft: ArticleDraft) => {
+
+  // ✅ Handle publishing
+  const handlePublish = async (updatedData: Partial<Article>): Promise<boolean> => {
+    if (!currentArticle) return false;
+
     try {
-      setLoading(true);
-      
-      // Prepare metadata from the draft
-      const metadata = {
-        summary: articleDraft.summary,
-        image: articleDraft.image,
-        hashtags: articleDraft.hashtags,
-        published_at: Math.floor(Date.now() / 1000)
+      // First save the current changes
+      const updatedArticle: Article = {
+        ...currentArticle,
+        ...updatedData,
+        updatedAt: Date.now()
       };
-      
-      // Prepare tags array for the event
-      const tags: string[][] = [];
-      
-      // If this is an update to a published article, add a reference
-      if (articleDraft.publishedId) {
-        tags.push(['e', articleDraft.publishedId, '', 'root']);
-      }
+
+      // Update in Redux
+      updateExistingArticle(currentArticle.localId, updatedData);
       
       // Publish the article
-      const eventId = await nostrAdapter.publishArticle(
-        articleDraft.title,
-        articleDraft.content,
-        metadata,
-        tags
-      );
+      const success = await publishArticle(updatedArticle);
       
-      if (eventId) {
-        // Update the draft to mark as published
-        const updatedDraft = {
-          ...articleDraft,
-          published: true,
-          publishedId: eventId,
-          updatedAt: Date.now()
-        };
-        
-        // Save the updated draft
-        nostrAdapter.saveDraft(updatedDraft);
-        
-        customToast.success("Article published successfully!");
-        
-        // Navigate to the published article
-        navigate(`/articles/view/${eventId}`);
+      if (success) {
+        toast.success("Article published successfully!");
+        navigate("/articles");
         return true;
       } else {
-        throw new Error("Failed to publish article");
+        toast.error("Failed to publish article");
+        return false;
       }
     } catch (error) {
-      console.error("Error publishing article:", error);
-      customToast.error("Failed to publish article");
+      console.error("Failed to publish article:", error);
+      toast.error("Failed to publish article");
       return false;
-    } finally {
-      setLoading(false);
     }
   };
-  
+
+  // ✅ Convert Article to legacy ArticleDraft format for existing ArticleEditor component
+  const articleToLegacyDraft = (article: Article) => {
+    return {
+      id: article.localId,
+      title: article.title,
+      subtitle: article.subtitle,
+      content: article.content,
+      summary: article.summary,
+      image: article.image,
+      hashtags: article.hashtags,
+      published: article.status === 'published',
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      publishedId: article.publishedEventId
+    };
+  };
+
+  // ✅ Handle changes from ArticleEditor
+  const handleDraftChange = (draft: any) => {
+    if (!currentArticle) return false;
+
+    return handleSaveDraft({
+      title: draft.title,
+      subtitle: draft.subtitle,
+      content: draft.content,
+      summary: draft.summary,
+      image: draft.image,
+      hashtags: draft.hashtags || []
+    });
+  };
+
+  // ✅ Handle publish from ArticleEditor
+  const handlePublishDraft = async (draft: any): Promise<boolean> => {
+    if (!currentArticle) return false;
+
+    return handlePublish({
+      title: draft.title,
+      subtitle: draft.subtitle,
+      content: draft.content,
+      summary: draft.summary,
+      image: draft.image,
+      hashtags: draft.hashtags || []
+    });
+  };
+
+  if (!currentArticle) {
+    return (
+      <div className="px-4 py-6 max-w-5xl mx-auto">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-gray-500">Loading article...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container max-w-5xl mx-auto px-4 py-6">
+    <div className="px-4 py-6 max-w-5xl mx-auto">
       <div className="flex items-center mb-6">
         <Button variant="ghost" size="sm" asChild className="mr-4">
-          <Link to="/articles"><ArrowLeft size={16} /> Back</Link>
+          <Link to="/articles">
+            <ArrowLeft size={16} className="mr-2" />
+            Back to Articles
+          </Link>
         </Button>
-        <h1 className="text-2xl font-bold">{id ? "Edit Article" : "Create Article"}</h1>
+        <h1 className="text-2xl font-bold">
+          {currentArticle.status === 'published' ? "Edit Article" : "Edit Draft"}
+        </h1>
       </div>
-      
+
       <div className="mt-6">
         <ArticleEditor 
-          draft={draft}
-          loading={loading}
-          onSaveDraft={handleSaveDraft}
-          onPublish={handlePublish}
+          draft={articleToLegacyDraft(currentArticle)}
+          loading={loading || isPublishing}
+          onSaveDraft={handleDraftChange}
+          onPublish={handlePublishDraft}
         />
       </div>
     </div>
@@ -166,3 +192,4 @@ const ArticleEditorPage: React.FC = () => {
 };
 
 export default ArticleEditorPage;
+

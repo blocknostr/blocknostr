@@ -1,36 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { nostrService } from '@/lib/nostr';
 import { eventBus, EVENTS } from '@/lib/services/EventBus';
-import { relaySelector } from '@/lib/nostr/relay/selection/relay-selector';
+import { useAppSelector } from './redux';
+import { selectConnectionStatusSafe } from '@/store/slices/chatSlice';
 
 export function useRelays() {
   const [relays, setRelays] = useState<any[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  
+  // ✅ FIXED: Use centralized Redux connection status instead of local state
+  const connectionStatusState = useAppSelector(selectConnectionStatusSafe);
+  const connectionStatus = connectionStatusState.isConnected ? 'connected' : 'disconnected';
 
   // Function to refresh relay status
   const refreshRelays = useCallback(() => {
     const relayStatus = nostrService.getRelayStatus();
     setRelays(relayStatus);
-    
-    // Update connection status based on relay connections
-    const connectedCount = relayStatus.filter(r => r.status === 'connected').length;
-    
-    if (connectedCount > 0) {
-      setConnectionStatus('connected');
-    } else if (isConnecting) {
-      setConnectionStatus('connecting');
-    } else {
-      setConnectionStatus('disconnected');
-    }
-  }, [isConnecting]);
+  }, []);
 
-  // Optimize connection to relays
+  // ✅ SIMPLIFIED: Remove independent connection logic to prevent race conditions
   const connectToRelays = useCallback(async (customRelays?: string[]) => {
     if (isConnecting) return;
     
     setIsConnecting(true);
-    setConnectionStatus('connecting');
     
     try {
       // First connect to user's relays
@@ -40,21 +32,16 @@ export function useRelays() {
       if (customRelays && customRelays.length > 0) {
         await nostrService.addMultipleRelays(customRelays);
       } else {
-        // Otherwise use our default set of reliable relays
+        // Otherwise use our default set of reliable FREE relays
         const defaultRelays = [
-          "wss://relay.damus.io",
-          "wss://nos.lol",
-          "wss://relay.nostr.band",
-          "wss://relay.snort.social"
+          "wss://relay.damus.io",      // Most reliable free relay
+          "wss://nos.lol",             // High availability free relay
+          "wss://relay.nostr.band",    // Comprehensive free relay
+          "wss://offchain.pub",        // Fast European free relay
+          "wss://relay.blocknostr.com" // BlockNostr relay
         ];
         
-        // Use relay selector to pick most reliable ones
-        const bestRelays = relaySelector.selectBestRelays(defaultRelays, {
-          operation: 'read',
-          count: 3
-        });
-        
-        await nostrService.addMultipleRelays(bestRelays);
+        await nostrService.addMultipleRelays(defaultRelays);
       }
       
       // Update relay status
@@ -66,7 +53,7 @@ export function useRelays() {
     }
   }, [isConnecting, refreshRelays]);
 
-  // Listen for relay connection changes
+  // ✅ FIXED: Reduced frequency and removed independent status checking
   useEffect(() => {
     const handleRelayConnected = () => refreshRelays();
     const handleRelayDisconnected = () => refreshRelays();
@@ -77,8 +64,8 @@ export function useRelays() {
     // Initial relay status
     refreshRelays();
     
-    // Set up periodic refresh
-    const intervalId = setInterval(refreshRelays, 10000);
+    // ✅ REDUCED: Much less frequent refresh to prevent spam (since we have events now)
+    const intervalId = setInterval(refreshRelays, 120000); // Every 2 minutes instead of 1 minute
     
     return () => {
       eventBus.off(EVENTS.RELAY_CONNECTED, handleRelayConnected);
@@ -95,3 +82,4 @@ export function useRelays() {
     refreshRelays
   };
 }
+

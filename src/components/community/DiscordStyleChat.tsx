@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface DiscordStyleChatProps {
   proposalId: string;
@@ -305,3 +305,4 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
 };
 
 export default DiscordStyleChat;
+

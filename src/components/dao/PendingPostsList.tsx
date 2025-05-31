@@ -15,7 +15,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
 import { Clock, CheckCircle, X, Eye, AlertTriangle } from "lucide-react";
-import { PendingPost } from "@/types/dao";
+import { PendingPost } from "@/api/types/dao";
 
 interface PendingPostsListProps {
   posts: PendingPost[];
@@ -265,3 +265,4 @@ const PendingPostsList: React.FC<PendingPostsListProps> = ({
 };
 
 export default PendingPostsList; 
+

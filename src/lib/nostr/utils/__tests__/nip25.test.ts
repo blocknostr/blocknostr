@@ -78,3 +78,4 @@ describe('NIP-25 Reaction Validation', () => {
     expect(result.errors).toContain('Reaction must have at least one e tag referencing the event being reacted to');
   });
 });
+

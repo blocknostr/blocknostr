@@ -45,3 +45,4 @@ export function getParentId(event: NostrEvent): string | null {
   
   return null;
 }
+

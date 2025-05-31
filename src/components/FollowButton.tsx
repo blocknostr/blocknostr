@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { nostrService } from "@/lib/nostr";
 import { User, UserCheck, Loader2 } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface FollowButtonProps {
   pubkey: string;
@@ -101,3 +101,4 @@ const FollowButton = ({ pubkey, className, variant = "default", size = "sm" }: F
 };
 
 export default FollowButton;
+

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { nostrService } from "@/lib/nostr";
 import { Note } from "./types";
 
@@ -62,3 +62,4 @@ export function useNoteOperations() {
     isLoggedIn: !!nostrService.publicKey
   };
 }
+

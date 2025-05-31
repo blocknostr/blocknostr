@@ -3,7 +3,7 @@ import { useNoteFetcher } from "./useNoteFetcher";
 import { useNoteOperations } from "./useNoteOperations";
 import { Note } from "./types";
 import { SortOption } from "../SortOptions";
-import useLocalStorage from "@/hooks/use-local-storage";
+import useLocalStorage from "@/hooks/ui/use-local-storage";
 
 export function useNotebin() {
   const [title, setTitle] = useState("");
@@ -113,8 +113,12 @@ export function useNotebin() {
       }, 1500);
     }
 
-    // Show the note list view after saving
-    document.getElementById('notesListSection')?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll to notes list more gently 
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('notesListSection')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      });
+    }, 100);
   }, [setSavedNotes, isLoggedIn, noteFetcher]);
 
   // View a note (load into editor)
@@ -124,8 +128,12 @@ export function useNotebin() {
     setLanguage(note.language || "text");
     setTags(note.tags || []);
     
-    // Scroll to editor when viewing a note
-    document.getElementById('noteEditor')?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll to editor more gently
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('noteEditor')?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      });
+    }, 100);
   }, []);
 
   // Refresh notes on login status change
@@ -160,3 +168,4 @@ export function useNotebin() {
     refreshNotes: noteFetcher.refreshNotes
   };
 }
+

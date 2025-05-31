@@ -4,10 +4,8 @@ import { Lightbulb, Lock, Menu, UserPlus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/navigation/BackButton";
-import { useTheme } from "@/hooks/use-theme";
-import { useIsMobile } from "@/hooks/use-mobile";
-import LoginButton from "@/components/LoginButton";
-import HeaderRelayStatus from "@/components/Header/HeaderRelayStatus";
+import { useTheme } from "@/hooks/ui/use-theme";
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 
 export interface UnifiedPageHeaderProps {
@@ -31,8 +29,6 @@ export interface UnifiedPageHeaderProps {
   
   // Theme and display
   showThemeToggle?: boolean;
-  showLogin?: boolean;
-  showRelayStatus?: boolean;
   darkMode?: boolean;
   
   // Content and actions
@@ -101,8 +97,7 @@ const UnifiedPageHeader: React.FC<UnifiedPageHeaderProps> = ({
   transparent = false,
   
   showThemeToggle = true,
-  showLogin = false,
-  showRelayStatus = false,
+  darkMode,
   
   leftContent,
   rightContent,
@@ -123,7 +118,7 @@ const UnifiedPageHeader: React.FC<UnifiedPageHeaderProps> = ({
   activeTag,
   onClearTag
 }) => {
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode: themeDarkMode, toggleDarkMode } = useTheme();
   const isMobile = useIsMobile();
   const { isLoggedIn } = useAuth();
 
@@ -189,10 +184,10 @@ const UnifiedPageHeader: React.FC<UnifiedPageHeaderProps> = ({
         size="icon"
         className="rounded-full"
         onClick={(e) => toggleDarkMode(e)}
-        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-        title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        aria-label={themeDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+        title={themeDarkMode ? "Switch to light mode" : "Switch to dark mode"}
       >
-        <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
+        <Lightbulb className={themeDarkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
       </Button>
     );
   };
@@ -262,10 +257,8 @@ const UnifiedPageHeader: React.FC<UnifiedPageHeaderProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              {showRelayStatus && isLoggedIn && <HeaderRelayStatus />}
               {leftContent}
               {renderThemeToggle()}
-              {showLogin && <LoginButton />}
               {rightContent}
             </div>
           </div>
@@ -396,4 +389,5 @@ const UnifiedPageHeader: React.FC<UnifiedPageHeaderProps> = ({
   );
 };
 
-export default UnifiedPageHeader;
+export default UnifiedPageHeader; 
+

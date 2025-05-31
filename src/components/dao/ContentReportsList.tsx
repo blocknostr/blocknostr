@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
 import { Flag, Clock, CheckCircle, X, AlertTriangle, Eye } from "lucide-react";
-import { ContentReport } from "@/types/dao";
+import { ContentReport } from "@/api/types/dao";
 
 interface ContentReportsListProps {
   reports: ContentReport[];
@@ -304,3 +304,4 @@ const ContentReportsList: React.FC<ContentReportsListProps> = ({
 };
 
 export default ContentReportsList; 
+

@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
+import { coreNostrService } from "@/lib/nostr/core-service";
 import { NostrEvent } from "@/lib/nostr/types";
 import ArticleList from "@/components/articles/ArticleList";
 import LoginPrompt from "@/components/articles/LoginPrompt";
@@ -12,34 +11,34 @@ const MyArticlesPage: React.FC = () => {
   const navigate = useNavigate();
   const [articles, setArticles] = useState<NostrEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const isLoggedIn = !!nostrAdapter.publicKey;
+  const isLoggedIn = !!coreNostrService.getPublicKey();
   
   useEffect(() => {
-    if (!isLoggedIn) {
-      setLoading(false);
-      return;
-    }
-    
-    setLoading(true);
-    
-    nostrAdapter.getArticlesByAuthor(nostrAdapter.publicKey!)
-      .then(result => {
+    const loadMyArticles = async () => {
+      const userPubkey = coreNostrService.getPublicKey();
+      if (!userPubkey) return;
+      
+      setLoading(true);
+      
+      try {
+        const result = await coreNostrService.getArticlesByAuthor(userPubkey);
         setArticles(result);
-      })
-      .catch(err => {
-        console.error("Error fetching articles:", err);
-      })
-      .finally(() => {
+      } catch (error) {
+        console.error("Failed to load articles:", error);
+      } finally {
         setLoading(false);
-      });
-  }, [isLoggedIn]);
+      }
+    };
+    
+    loadMyArticles();
+  }, []);
   
   if (!isLoggedIn) {
     return <LoginPrompt message="Login to view your articles" />;
   }
   
   return (
-    <div className="container max-w-7xl mx-auto px-4 py-6">
+    <div className="px-4 py-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <Button variant="ghost" size="sm" asChild className="mr-4">
@@ -76,3 +75,4 @@ const MyArticlesPage: React.FC = () => {
 };
 
 export default MyArticlesPage;
+

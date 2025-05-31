@@ -33,3 +33,4 @@ const CharacterCounter: React.FC<CharacterCounterProps> = ({
 };
 
 export default CharacterCounter;
+

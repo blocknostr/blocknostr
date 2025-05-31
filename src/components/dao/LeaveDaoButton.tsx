@@ -67,3 +67,4 @@ const LeaveDaoButton: React.FC<LeaveDaoButtonProps> = ({
 };
 
 export default LeaveDaoButton;
+

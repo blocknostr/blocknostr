@@ -123,3 +123,4 @@ describe('NIP-36: Content Warning Tests', () => {
     expect(invalidResult.errors.length).toBeGreaterThan(0);
   });
 });
+

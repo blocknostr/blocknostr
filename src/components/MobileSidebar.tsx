@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import Sidebar from "@/components/sidebar/Sidebar";
-import { useSwipeable } from "@/hooks/use-swipeable";
+import { useSwipeable } from "@/hooks/ui/use-swipeable";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -37,3 +37,4 @@ const MobileSidebar = ({ isOpen, onOpenChange }: MobileSidebarProps) => {
 };
 
 export default MobileSidebar;
+

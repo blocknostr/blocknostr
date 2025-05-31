@@ -76,3 +76,4 @@ const ProposalHeader = ({
 };
 
 export default ProposalHeader;
+

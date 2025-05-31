@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { NostrEvent } from "@/lib/nostr";
 import { nostrService } from "@/lib/nostr";
 
@@ -127,3 +127,4 @@ export function usePostAction(event: NostrEvent, actionType: "like" | "repost" |
     performAction,
   };
 }
+

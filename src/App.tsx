@@ -5,20 +5,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import NewHomePage from '@/pages/NewHomePage';
 import SettingsPage from '@/pages/SettingsPage';
-import NotificationsPage from '@/pages/NotificationsPage';
 import NotebinPage from '@/pages/NotebinPage';
 import WalletsPage from '@/pages/WalletsPage';
-import DAOPage from '@/pages/DAOPage';
-import SingleDAOPage from '@/pages/SingleDAOPage';
+import CommunityPage from '@/pages/CommunityPage';
+import { MyCommunitiesPage } from '@/components/my-communities';
 import ArticlesPage from '@/pages/articles/ArticlesPage';
 import ArticleEditorPage from '@/pages/articles/ArticleEditorPage';
+import ArticleViewPage from '@/pages/articles/ArticleViewPage';
 import MyArticlesPage from '@/pages/articles/MyArticlesPage';
 import ArticleDraftsPage from '@/pages/articles/ArticleDraftsPage';
 import UnifiedContentViewer from '@/pages/UnifiedContentViewer';
-import ProfilePage from '@/pages/ProfilePage'; // Import the new ProfilePage component
+import ProfilePageRedux from '@/pages/ProfilePageRedux';
+import GamesPage from '@/pages/GamesPage';
+import PremiumPage from '@/pages/PremiumPage';
 
 import MainLayout from '@/layouts/MainLayout';
 import { Toaster } from '@/lib/toast';
+import { setupImageErrorFiltering } from '@/lib/utils/image-utils';
 
 // Create a new QueryClient instance
 const queryClient = new QueryClient();
@@ -26,45 +29,43 @@ const queryClient = new QueryClient();
 const App: React.FC = () => {
   useEffect(() => {
     console.log('🚀 BlockNostr App initialized');
+    
+    // Setup image error filtering to reduce console noise
+    setupImageErrorFiltering();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AlephiumWalletProvider network="mainnet">
+      <AlephiumWalletProvider theme="retro" network="mainnet" addressGroup={0}>
         <Router>
-          <div className="min-h-screen bg-background text-foreground">
+          <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route path="/" element={<MainLayout />}>
-                {/* Home Routes */}
                 <Route index element={<NewHomePage />} />
-                
-                {/* Article Routes */}
-                <Route path="articles" element={<ArticlesPage />} />
-                <Route path="articles/new" element={<ArticleEditorPage />} />
-                <Route path="articles/drafts" element={<ArticleDraftsPage />} />
-                <Route path="articles/my-articles" element={<MyArticlesPage />} />
-                
-                {/* Content Viewer (handles both posts and articles) */}
-                <Route path="post/:id" element={<UnifiedContentViewer />} />
-                <Route path="article/:id" element={<UnifiedContentViewer />} />
-                <Route path="event/:id" element={<UnifiedContentViewer />} />
-                
-                {/* Notebin Routes */}
-                <Route path="notebin" element={<NotebinPage />} />
-                
-                {/* User Routes */}
                 <Route path="settings" element={<SettingsPage />} />
-                <Route path="notifications" element={<NotificationsPage />} />
+                <Route path="notebin" element={<NotebinPage />} />
                 <Route path="wallets" element={<WalletsPage />} />
+                <Route path="communities" element={<MyCommunitiesPage />} />
+                <Route path="communities/:id" element={<CommunityPage />} />
+                <Route path="my-communities" element={<MyCommunitiesPage />} />
+                <Route path="games" element={<GamesPage />} />
+                <Route path="premium" element={<PremiumPage />} />
                 
-                {/* DAO Routes */}
-                <Route path="dao" element={<DAOPage />} />
-                <Route path="dao/:id" element={<SingleDAOPage />} />
+                {/* Profile routes */}
+                <Route path="profile" element={<ProfilePageRedux />} />
+                <Route path="profile/:pubkey" element={<ProfilePageRedux />} />
                 
-                {/* Profile Route */}
-                <Route path="profile/:npub" element={<ProfilePage />} />
+                {/* Articles routes */}
+                <Route path="articles" element={<ArticlesPage />} />
+                <Route path="articles/editor" element={<ArticleEditorPage />} />
+                <Route path="articles/edit/:id" element={<ArticleEditorPage />} />
+                <Route path="articles/view/:id" element={<ArticleViewPage />} />
+                <Route path="articles/my" element={<MyArticlesPage />} />
+                <Route path="articles/drafts" element={<ArticleDraftsPage />} />
                 
-                {/* Catch-all redirect */}
+                {/* Content viewer route - should be near the end */}
+                <Route path="content/:contentId" element={<UnifiedContentViewer />} />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
             </Routes>
@@ -96,3 +97,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

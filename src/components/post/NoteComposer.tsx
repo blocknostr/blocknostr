@@ -71,3 +71,4 @@ const NoteComposer: React.FC<NoteComposerProps> = ({
 };
 
 export default NoteComposer;
+

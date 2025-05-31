@@ -101,3 +101,4 @@ export function validateNip36ContentWarning(event: NostrEvent): { valid: boolean
   
   return { valid: errors.length === 0, errors };
 }
+

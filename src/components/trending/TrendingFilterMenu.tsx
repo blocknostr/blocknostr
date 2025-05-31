@@ -58,3 +58,4 @@ const TrendingFilterMenu: React.FC<TrendingFilterMenuProps> = ({
 };
 
 export default TrendingFilterMenu;
+

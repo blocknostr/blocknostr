@@ -1,16 +1,20 @@
-
 import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
-import { useRelays } from '@/hooks/useRelays';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { cn } from '@/lib/utils';
+import { useAppSelector } from '@/hooks/redux';
+import { selectConnectionStatusSafe } from '@/store/slices/chatSlice';
+import { coreNostrService } from '@/lib/nostr/core-service';
 
 export function HeaderRelayStatus() {
-  const { relays, isConnecting, connectionStatus, connectToRelays } = useRelays();
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // ✅ FIXED: Use centralized Redux connection status
+  const connectionStatus = useAppSelector(selectConnectionStatusSafe);
+  const { isConnected, connectedRelays, totalRelays } = connectionStatus;
   
   // Track browser online status
   useEffect(() => {
@@ -24,10 +28,6 @@ export function HeaderRelayStatus() {
       window.removeEventListener('offline', handleOnlineStatus);
     };
   }, []);
-  
-  // Count connected relays
-  const connectedCount = relays.filter(r => r.status === 'connected').length;
-  const totalCount = relays.length;
 
   // Handle reconnection attempt
   const handleReconnect = async () => {
@@ -36,7 +36,10 @@ export function HeaderRelayStatus() {
     try {
       setIsReconnecting(true);
       toast.loading("Reconnecting to relays...");
-      await connectToRelays();
+      
+      // Use the centralized core service for reconnection
+      await coreNostrService.connectToDefaultRelays();
+      
       toast.success("Reconnection complete");
     } catch (error) {
       console.error("Failed to reconnect:", error);
@@ -49,26 +52,26 @@ export function HeaderRelayStatus() {
   // Get status classes - Match WorldChat indicator
   const getStatusClasses = () => {
     if (!isOnline) return "text-red-500 bg-red-500/10";
-    if (connectionStatus === 'connecting' || isReconnecting) return "text-yellow-500 bg-yellow-500/10";
-    if (connectedCount === 0) return "text-red-500 bg-red-500/10";
+    if (isReconnecting) return "text-yellow-500 bg-yellow-500/10";
+    if (!isConnected || connectedRelays === 0) return "text-red-500 bg-red-500/10";
     return "text-green-500 bg-green-500/10";
   };
 
   // Get status text - Make "connecting" more prominent
   const getStatusText = () => {
     if (!isOnline) return "Offline";
-    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting...";
-    if (connectedCount === 0) return "Disconnected";
+    if (isReconnecting) return "Connecting...";
+    if (!isConnected || connectedRelays === 0) return "Disconnected";
     return "Connected";
   };
 
   // Get status message for tooltip
   const getStatusMessage = () => {
     if (!isOnline) return "Browser offline";
-    if (connectionStatus === 'connecting' || isReconnecting) return "Connecting to relays...";
-    if (connectedCount === 0) return "No relays connected. Click to reconnect";
-    if (connectedCount === totalCount) return "All relays connected";
-    return `${connectedCount}/${totalCount} relays connected`;
+    if (isReconnecting) return "Connecting to relays...";
+    if (!isConnected || connectedRelays === 0) return "No relays connected. Click to reconnect";
+    if (connectedRelays === totalRelays) return "All relays connected";
+    return `${connectedRelays}/${totalRelays} relays connected`;
   };
 
   return (
@@ -79,24 +82,24 @@ export function HeaderRelayStatus() {
             className={cn(
               "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full cursor-pointer",
               getStatusClasses(),
-              connectedCount === 0 && isOnline && !isReconnecting ? "hover:bg-opacity-20" : ""
+              (!isConnected || connectedRelays === 0) && isOnline && !isReconnecting ? "hover:bg-opacity-20" : ""
             )}
-            onClick={connectedCount === 0 && isOnline ? handleReconnect : undefined}
+            onClick={(!isConnected || connectedRelays === 0) && isOnline ? handleReconnect : undefined}
           >
-            {isReconnecting || connectionStatus === 'connecting' ? (
+            {isReconnecting ? (
               <RefreshCw className="h-3 w-3 animate-spin" />
-            ) : isOnline && connectedCount > 0 ? (
+            ) : isOnline && isConnected && connectedRelays > 0 ? (
               <Wifi className="h-3 w-3" />
             ) : (
               <WifiOff className="h-3 w-3" />
             )}
             <span className="font-medium">{getStatusText()}</span>
-            <span className="font-medium text-xs opacity-80">({connectedCount}/{totalCount})</span>
+            <span className="font-medium text-xs opacity-80">({connectedRelays}/{totalRelays})</span>
           </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>{getStatusMessage()}</p>
-          {connectedCount === 0 && isOnline && !isReconnecting && (
+          {(!isConnected || connectedRelays === 0) && isOnline && !isReconnecting && (
             <p className="text-xs mt-1">Click to reconnect</p>
           )}
           {isReconnecting && (
@@ -109,3 +112,4 @@ export function HeaderRelayStatus() {
 }
 
 export default HeaderRelayStatus;
+

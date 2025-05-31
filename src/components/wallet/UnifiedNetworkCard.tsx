@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Activity, Network, WifiOff, Hash, Database, Clock, Blocks, Server, Wifi } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { fetchNetworkStats } from "@/lib/api/alephiumApi";
+import { fetchNetworkStats } from "@/api/external/alephiumApi";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -364,3 +364,4 @@ const UnifiedNetworkCard: React.FC<UnifiedNetworkCardProps> = ({ className = "",
 };
 
 export default UnifiedNetworkCard; 
+

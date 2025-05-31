@@ -153,3 +153,4 @@ export const formatUsdPrice = (value: number): string => {
 export const calculateUsdValue = (amount: number, price: number): number => {
   return amount * price;
 };
+

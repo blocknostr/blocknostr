@@ -1,7 +1,7 @@
 
 import React from "react";
 import WalletDashboard from "../WalletDashboard";
-import { SavedWallet } from "@/types/wallet";
+import { SavedWallet } from "@/api/types/wallet";
 
 interface AlephiumWalletLayoutProps {
   address: string;
@@ -17,6 +17,7 @@ interface AlephiumWalletLayoutProps {
   refreshFlag: number;
   setRefreshFlag: (flag: number) => void;
   activeTab: string;
+  walletManagerProps?: any; // Props for the wallet manager popup
 }
 
 const AlephiumWalletLayout: React.FC<AlephiumWalletLayoutProps> = ({
@@ -28,6 +29,7 @@ const AlephiumWalletLayout: React.FC<AlephiumWalletLayoutProps> = ({
   refreshFlag,
   setRefreshFlag,
   activeTab,
+  walletManagerProps,
 }) => {
   return (
     <WalletDashboard
@@ -39,8 +41,10 @@ const AlephiumWalletLayout: React.FC<AlephiumWalletLayoutProps> = ({
       refreshFlag={refreshFlag}
       setRefreshFlag={setRefreshFlag}
       activeTab={activeTab}
+      walletManagerProps={walletManagerProps}
     />
   );
 };
 
 export default AlephiumWalletLayout;
+

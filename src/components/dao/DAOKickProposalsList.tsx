@@ -212,3 +212,4 @@ const DAOKickProposalsList: React.FC<DAOKickProposalsListProps> = ({
 };
 
 export default DAOKickProposalsList;
+

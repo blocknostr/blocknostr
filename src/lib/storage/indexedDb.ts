@@ -187,3 +187,4 @@ export async function clearStore(storeName: string): Promise<void> {
     console.error(`IndexedDB error clearing ${storeName}:`, error);
   }
 }
+

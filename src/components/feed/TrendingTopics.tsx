@@ -23,3 +23,4 @@ const TrendingTopics: React.FC<TrendingTopicsProps> = ({
 };
 
 export default TrendingTopics;
+

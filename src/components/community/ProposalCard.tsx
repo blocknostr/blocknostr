@@ -1,8 +1,8 @@
 
 import React, { useState } from "react";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
-import { useProposal } from "@/hooks/useProposal";
-import { Proposal } from "@/types/community";
+import { useProposal } from "@/hooks/business/useProposal";
+import { Proposal } from "@/api/types/community";
 
 // Components
 import ProposalHeader from "./proposal/ProposalHeader";
@@ -102,3 +102,4 @@ const ProposalCard = ({
 };
 
 export default ProposalCard;
+

@@ -29,7 +29,7 @@ import {
   TrendingUp,
   Hash
 } from "lucide-react";
-import { CommunitySearchFilters, CommunityCategory } from "@/types/dao";
+import { CommunitySearchFilters, CommunityCategory } from "@/api/types/dao";
 
 interface CommunitySearchBarProps {
   onSearch: (filters: CommunitySearchFilters) => void;
@@ -429,3 +429,4 @@ const CommunitySearchBar: React.FC<CommunitySearchBarProps> = ({
 };
 
 export default CommunitySearchBar; 
+

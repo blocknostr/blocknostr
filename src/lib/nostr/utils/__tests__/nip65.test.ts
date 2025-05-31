@@ -125,3 +125,4 @@ describe('NIP-65: Relay List Parsing', () => {
     expect(result.get('wss://valid.com')).toEqual({ read: true, write: true });
   });
 });
+

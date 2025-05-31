@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { DAO } from "@/types/dao";
+import { DAO } from "@/api/types/dao";
 import { UserX } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface DAOKickProposalDialogProps {
   dao: DAO;
@@ -132,3 +132,4 @@ const DAOKickProposalDialog: React.FC<DAOKickProposalDialogProps> = ({
 };
 
 export default DAOKickProposalDialog;
+

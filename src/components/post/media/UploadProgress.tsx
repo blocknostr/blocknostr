@@ -35,3 +35,4 @@ const UploadProgress = ({ uploadProgress, uploadStatus }: UploadProgressProps) =
 };
 
 export default UploadProgress;
+

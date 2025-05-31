@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Lock, X, Plus, Trash2, Wallet, ExternalLink } from "lucide-react";
-import { Community } from "@/types/community";
+import { Community } from "@/api/types/community";
 import { nostrService } from "@/lib/nostr";
 import {
   AlertDialog,
@@ -437,3 +437,4 @@ const CommunitySettings = ({
 };
 
 export default CommunitySettings;
+

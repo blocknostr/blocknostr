@@ -20,3 +20,4 @@ export const useHashtagDetector = (content: string) => {
   
   return detectedHashtags;
 };
+

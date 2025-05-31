@@ -22,7 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useState, useEffect } from 'react';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 interface SmartComposeToolbarProps {
@@ -252,3 +252,4 @@ const SmartComposeToolbar: React.FC<SmartComposeToolbarProps> = ({
 };
 
 export default SmartComposeToolbar;
+

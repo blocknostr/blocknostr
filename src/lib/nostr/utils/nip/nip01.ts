@@ -81,3 +81,4 @@ export function getAccountCreationDate(events: NostrEvent[]): Date | null {
   // Return the earliest timestamp
   return sortedEvents[0] ? new Date(sortedEvents[0].created_at * 1000) : null;
 }
+

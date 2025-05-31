@@ -53,3 +53,4 @@ export class SocialInteractionService {
     return this.blockListService.isUserBlocked(pubkey);
   }
 }
+

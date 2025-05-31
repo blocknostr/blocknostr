@@ -44,3 +44,4 @@ export function useHotkeys(
     };
   }, [keyCombo, callback, ...deps]);
 }
+

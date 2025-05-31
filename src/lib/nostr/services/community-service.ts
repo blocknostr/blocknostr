@@ -1,7 +1,7 @@
 import { SimplePool, Filter } from 'nostr-tools';
 import { NostrEvent } from '../types';
 import { EVENT_KINDS } from '../constants';
-import type { ProposalCategory } from '@/types/community';
+import type { ProposalCategory } from '@/api/types/community';
 
 /**
  * Community service to handle community-related operations 
@@ -228,3 +228,4 @@ export class CommunityService {
     }
   }
 }
+

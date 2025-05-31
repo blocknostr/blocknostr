@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import {
   Dialog,
@@ -15,10 +14,12 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FeedType, useUserPreferences } from "@/hooks/useUserPreferences";
+import { FeedType, useUserPreferences } from "@/hooks/business/useUserPreferences";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAppDispatch } from "@/hooks/redux";
+import { nostrApi } from "@/api/rtk/nostrApi";
 
 interface FeedCustomizationDialogProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function FeedCustomizationDialog({
   const { mediaPrefs, updateMediaPreference } = useMediaPreferences();
   const [activeTab, setActiveTab] = useState("general");
   const [newTag, setNewTag] = useState("");
+  const dispatch = useAppDispatch();
   
   const handleDefaultFeedChange = (value: string) => {
     // Type guard to ensure value is a valid FeedType
@@ -48,8 +50,8 @@ export function FeedCustomizationDialog({
       updateNestedPreference('feedFilters', 'globalFeedTags', updatedTags);
       setNewTag("");
       
-      // Trigger a refresh of the global feed
-      window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+      // Invalidate RTK Query cache to refresh feeds with new hashtags
+      dispatch(nostrApi.util.invalidateTags(['Feed']));
     }
   };
   
@@ -57,16 +59,17 @@ export function FeedCustomizationDialog({
     const updatedTags = preferences.feedFilters.globalFeedTags.filter(tag => tag !== tagToRemove);
     updateNestedPreference('feedFilters', 'globalFeedTags', updatedTags);
     
-    // Trigger a refresh of the global feed
-    window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+    // Invalidate RTK Query cache to refresh feeds with updated hashtags
+    dispatch(nostrApi.util.invalidateTags(['Feed']));
   };
   
   const handleResetTags = () => {
     // Reset to default tags: bitcoin, nostr, alephium
-    updateNestedPreference('feedFilters', 'globalFeedTags', ['bitcoin', 'nostr', 'alephium']);
+    const defaultTags = ['bitcoin', 'nostr', 'alephium'];
+    updateNestedPreference('feedFilters', 'globalFeedTags', defaultTags);
     
-    // Trigger a refresh of the global feed
-    window.dispatchEvent(new CustomEvent('refetch-global-feed'));
+    // Invalidate RTK Query cache to refresh feeds with default hashtags
+    dispatch(nostrApi.util.invalidateTags(['Feed']));
   };
   
   return (
@@ -89,202 +92,199 @@ export function FeedCustomizationDialog({
           
           {/* General Settings Tab */}
           <TabsContent value="general" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="defaultFeed">Default Feed</Label>
-                <Select
-                  value={preferences.defaultFeed}
-                  onValueChange={handleDefaultFeedChange}
-                >
-                  <SelectTrigger id="defaultFeed" className="w-full">
-                    <SelectValue placeholder="Choose default feed" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="global">Global</SelectItem>
-                    <SelectItem value="following">Following</SelectItem>
-                    <SelectItem value="media">Media</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="fontSize">Text Size</Label>
-                <Select
-                  value={preferences.uiPreferences.fontSize}
-                  onValueChange={(value) => updateNestedPreference('uiPreferences', 'fontSize', value as any)}
-                >
-                  <SelectTrigger id="fontSize" className="w-full">
-                    <SelectValue placeholder="Choose text size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="small">Small</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="large">Large</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="compactMode">Compact Mode</Label>
-                <Switch
-                  id="compactMode"
-                  checked={preferences.uiPreferences.compactMode}
-                  onCheckedChange={(checked) => updateNestedPreference('uiPreferences', 'compactMode', checked)}
-                />
-              </div>
+            <div>
+              <Label htmlFor="defaultFeed" className="text-sm font-medium">
+                Default Feed
+              </Label>
+              <Select value={preferences.defaultFeed} onValueChange={handleDefaultFeedChange}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Choose default feed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">Global Feed</SelectItem>
+                  <SelectItem value="following">Following</SelectItem>
+                  <SelectItem value="media">Media Feed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showReplies" className="text-sm font-medium">
+                Show Replies
+              </Label>
+              <Switch
+                id="showReplies"
+                checked={preferences.feedFilters.showReplies}
+                onCheckedChange={(checked) => 
+                  updateNestedPreference('feedFilters', 'showReplies', checked)
+                }
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showReposted" className="text-sm font-medium">
+                Show Reposts
+              </Label>
+              <Switch
+                id="showReposted"
+                checked={preferences.feedFilters.showReposted}
+                onCheckedChange={(checked) => 
+                  updateNestedPreference('feedFilters', 'showReposted', checked)
+                }
+              />
             </div>
           </TabsContent>
           
-          {/* Hashtags Settings Tab - New! */}
+          {/* Hashtags Tab */}
           <TabsContent value="hashtags" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="globalFeedTags" className="mb-2 block">Global Feed Hashtags</Label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  The global feed will only show posts with these hashtags
-                </p>
-                
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {preferences.feedFilters.globalFeedTags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                      #{tag}
-                      <button 
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 rounded-full hover:bg-destructive/20 p-0.5"
-                        aria-label={`Remove ${tag} hashtag`}
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                  
-                  {preferences.feedFilters.globalFeedTags.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No hashtags added yet. The feed will show all posts.</p>
-                  )}
-                </div>
-                
-                <form onSubmit={handleAddTag} className="flex gap-2">
-                  <Input
-                    id="addHashtag"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    placeholder="Add hashtag (without #)"
-                    className="flex-grow"
-                  />
-                  <Button type="submit" variant="outline" size="sm">Add</Button>
-                </form>
-                
-                <div className="mt-2 text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={handleResetTags}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Global Feed Hashtags
+              </Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Posts with these hashtags will appear in your global feed
+              </p>
+              
+              <form onSubmit={handleAddTag} className="flex gap-2 mb-3">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add hashtag..."
+                  className="flex-1"
+                />
+                <Button type="submit" size="sm" disabled={!newTag.trim()}>
+                  Add
+                </Button>
+              </form>
+              
+              <div className="flex flex-wrap gap-2 mb-4">
+                {preferences.feedFilters.globalFeedTags.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="flex items-center gap-1"
                   >
-                    Reset to defaults
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-          
-          {/* Media Settings Tab */}
-          <TabsContent value="media" className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autoPlayVideos">Auto-play videos (muted)</Label>
-                <Switch
-                  id="autoPlayVideos"
-                  checked={mediaPrefs.autoPlayVideos}
-                  onCheckedChange={(checked) => updateMediaPreference('autoPlayVideos', checked)}
-                />
+                    #{tag}
+                    <X
+                      className="h-3 w-3 cursor-pointer hover:text-destructive"
+                      onClick={() => handleRemoveTag(tag)}
+                    />
+                  </Badge>
+                ))}
               </div>
               
-              <div className="flex items-center justify-between">
-                <Label htmlFor="autoLoadImages">Auto-load images</Label>
-                <Switch
-                  id="autoLoadImages"
-                  checked={mediaPrefs.autoLoadImages}
-                  onCheckedChange={(checked) => updateMediaPreference('autoLoadImages', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="dataSaverMode">Data Saver Mode</Label>
-                <Switch
-                  id="dataSaverMode"
-                  checked={mediaPrefs.dataSaverMode}
-                  onCheckedChange={(checked) => updateMediaPreference('dataSaverMode', checked)}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="preferredQuality">Media Quality</Label>
-                <Select
-                  value={mediaPrefs.preferredQuality}
-                  onValueChange={(value) => updateMediaPreference('preferredQuality', value as 'high' | 'medium' | 'low')}
+              {preferences.feedFilters.globalFeedTags.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetTags}
+                  className="w-full"
                 >
-                  <SelectTrigger id="preferredQuality" className="w-full">
-                    <SelectValue placeholder="Choose quality preference" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low (Data Saver)</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Higher quality uses more data and may load slower.
-                </p>
-              </div>
+                  Reset to Default Tags
+                </Button>
+              )}
             </div>
           </TabsContent>
           
-          {/* Content Filters Tab */}
+          {/* Media Tab */}
+          <TabsContent value="media" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="autoPlayGifs" className="text-sm font-medium">
+                Auto-play GIFs
+              </Label>
+              <Switch
+                id="autoPlayGifs"
+                checked={mediaPrefs.autoPlayGifs}
+                onCheckedChange={(checked) => 
+                  updateMediaPreference('autoPlayGifs', checked)
+                }
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="loadImages" className="text-sm font-medium">
+                Load Images
+              </Label>
+              <Switch
+                id="loadImages"
+                checked={mediaPrefs.loadImages}
+                onCheckedChange={(checked) => 
+                  updateMediaPreference('loadImages', checked)
+                }
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="autoPlayVideos" className="text-sm font-medium">
+                Auto-play Videos
+              </Label>
+              <Switch
+                id="autoPlayVideos"
+                checked={mediaPrefs.autoPlayVideos}
+                onCheckedChange={(checked) => 
+                  updateMediaPreference('autoPlayVideos', checked)
+                }
+              />
+            </div>
+          </TabsContent>
+          
+          {/* Filters Tab */}
           <TabsContent value="filters" className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showReplies">Show Replies</Label>
-                <Switch
-                  id="showReplies"
-                  checked={preferences.feedFilters.showReplies}
-                  onCheckedChange={(checked) => updateNestedPreference('feedFilters', 'showReplies', checked)}
-                />
-              </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Content Filtering
+              </Label>
+              <p className="text-xs text-muted-foreground mb-4">
+                Hide content based on keywords or user behavior
+              </p>
               
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showReposted">Show Reposts</Label>
-                <Switch
-                  id="showReposted"
-                  checked={preferences.feedFilters.showReposted}
-                  onCheckedChange={(checked) => updateNestedPreference('feedFilters', 'showReposted', checked)}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showSensitiveContent">Show Sensitive Content</Label>
-                <Switch
-                  id="showSensitiveContent"
-                  checked={preferences.contentPreferences.showSensitiveContent}
-                  onCheckedChange={(checked) => updateNestedPreference('contentPreferences', 'showSensitiveContent', checked)}
-                />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="hideNsfw" className="text-sm">
+                    Hide NSFW Content
+                  </Label>
+                  <Switch
+                    id="hideNsfw"
+                    checked={preferences.contentPreferences.hideNsfw}
+                    onCheckedChange={(checked) => 
+                      updateNestedPreference('contentPreferences', 'hideNsfw', checked)
+                    }
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="blurMedia" className="text-sm">
+                    Blur Sensitive Media
+                  </Label>
+                  <Switch
+                    id="blurMedia"
+                    checked={preferences.contentPreferences.blurSensitiveMedia}
+                    onCheckedChange={(checked) => 
+                      updateNestedPreference('contentPreferences', 'blurSensitiveMedia', checked)
+                    }
+                  />
+                </div>
               </div>
             </div>
           </TabsContent>
         </Tabs>
         
-        <DialogFooter className="mt-4">
-          <Button 
-            variant="outline" 
-            onClick={() => resetPreferences()}
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={resetPreferences}
+            size="sm"
           >
-            Reset to Defaults
+            Reset All
           </Button>
           <DialogClose asChild>
-            <Button>Save Changes</Button>
+            <Button size="sm">
+              Save Changes
+            </Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+

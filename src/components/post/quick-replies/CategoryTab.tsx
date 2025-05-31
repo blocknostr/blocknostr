@@ -23,3 +23,4 @@ const CategoryTab: React.FC<CategoryTabProps> = ({ replies, category, onSelect, 
 };
 
 export default CategoryTab;
+

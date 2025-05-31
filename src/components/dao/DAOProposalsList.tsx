@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from "react";
 import { Loader2, Plus, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { DAOProposal } from "@/types/dao";
+import { DAOProposal } from "@/api/types/dao";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DAOProposalCard from "./DAOProposalCard";
@@ -53,7 +52,12 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
       setTimeout(() => {
         const element = document.getElementById(`proposal-${highlightedProposalId}`);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Smooth scroll to selected proposal with delay to prevent aggressive scrolling
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              element?.scrollIntoView({ behavior: 'auto', block: 'center' });
+            });
+          }, 200);
           element.classList.add('bg-primary-100', 'dark:bg-primary-900/20');
           setTimeout(() => {
             element.classList.remove('bg-primary-100', 'dark:bg-primary-900/20');
@@ -174,3 +178,4 @@ const DAOProposalsList: React.FC<DAOProposalsListProps> = ({
 };
 
 export default DAOProposalsList;
+

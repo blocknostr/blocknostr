@@ -1,10 +1,7 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NostrEvent } from "@/lib/nostr/types";
+import { useSearchArticlesQuery, useGetRecommendedArticlesQuery, useGetArticlesByAuthorQuery } from "@/api/rtk/nostrApi";
 import ArticleList from "./ArticleList";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
-import { ArticleSearchParams } from "@/lib/nostr/types/article";
-import { isNip94FileEvent } from "@/lib/nostr/utils/nip/nip94";
 
 interface ArticleFeedProps {
   type: "latest" | "trending" | "following" | "search";
@@ -21,115 +18,95 @@ const ArticleFeed: React.FC<ArticleFeedProps> = ({
   authorPubkey,
   limit = 20
 }) => {
-  const [articles, setArticles] = useState<NostrEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const isLoggedIn = !!nostrAdapter.publicKey;
+  // Use RTK Query hooks based on feed type
+  const searchParams = { 
+    hashtag, 
+    query: searchQuery,
+    limit 
+  };
   
-  useEffect(() => {
-    setLoading(true);
-    console.log(`Fetching ${type} articles...`);
-    
-    const fetchArticles = async () => {
-      try {
-        let fetchedArticles: NostrEvent[] = [];
-        
-        const params: ArticleSearchParams = {
-          limit,
-          // Default sort by recent
-          since: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 30, // Last 30 days
+  const {
+    data: searchArticles = [],
+    isLoading: searchLoading,
+    error: searchError
+  } = useSearchArticlesQuery(
+    searchParams, 
+    { skip: type !== "search" && type !== "latest" && !hashtag }
+  );
+  
+  const {
+    data: recommendedArticles = [],
+    isLoading: recommendedLoading,
+    error: recommendedError
+  } = useGetRecommendedArticlesQuery(
+    limit,
+    { skip: type !== "trending" && type !== "following" }
+  );
+  
+  const {
+    data: authorArticles = [],
+    isLoading: authorLoading,
+    error: authorError
+  } = useGetArticlesByAuthorQuery(
+    { pubkey: authorPubkey!, limit },
+    { skip: !authorPubkey }
+  );
+
+  // Select appropriate data based on type
+  const getArticlesData = () => {
+    switch (type) {
+      case "search":
+      case "latest":
+        return {
+          articles: searchArticles,
+          loading: searchLoading,
+          error: searchError
         };
-        
-        switch (type) {
-          case "latest":
-            console.log("Fetching latest articles with params:", params);
-            fetchedArticles = await nostrAdapter.article.searchArticles(params);
-            break;
-            
-          case "trending":
-            // For trending, we'll simulate with most recent for now
-            console.log("Fetching trending articles");
-            fetchedArticles = await nostrAdapter.article.searchArticles({
-              ...params,
-              since: Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 7, // Last 7 days
-            });
-            break;
-            
-          case "following":
-            if (isLoggedIn) {
-              console.log("Fetching following articles");
-              // Get users the current user is following
-              const following = nostrAdapter.social.following || [];
-              
-              if (following.length > 0) {
-                params.author = following.join('|'); // This is simplified; real impl would need multiple queries
-                fetchedArticles = await nostrAdapter.article.searchArticles(params);
-              }
-            }
-            break;
-            
-          case "search":
-            console.log("Searching articles with params:", { searchQuery, hashtag, authorPubkey });
-            if (searchQuery) {
-              params.query = searchQuery;
-            }
-            if (hashtag) {
-              params.hashtag = hashtag;
-            }
-            if (authorPubkey) {
-              params.author = authorPubkey;
-            }
-            fetchedArticles = await nostrAdapter.article.searchArticles(params);
-            break;
+      case "trending":
+      case "following":
+        return {
+          articles: recommendedArticles,
+          loading: recommendedLoading,
+          error: recommendedError
+        };
+      default:
+        if (authorPubkey) {
+          return {
+            articles: authorArticles,
+            loading: authorLoading,
+            error: authorError
+          };
         }
-        
-        // Filter out any non-article events that might have been returned
-        // Only allow kind 30023 (NIP-23 long-form content) or 1063 (NIP-94 file metadata)
-        const validArticles = fetchedArticles.filter(event => 
-          event.kind === 30023 || (event.kind === 1063 && isNip94FileEvent(event))
-        );
-        
-        console.log(`Found ${validArticles.length} valid articles for ${type}`, validArticles);
-        setArticles(validArticles);
-      } catch (error) {
-        console.error("Error fetching articles:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchArticles();
-  }, [type, searchQuery, hashtag, authorPubkey, isLoggedIn, limit]);
+        return { articles: [], loading: false, error: null };
+    }
+  };
+
+  const { articles, loading, error } = getArticlesData();
   
-  let emptyMessage = "No articles found";
-  
-  switch (type) {
-    case "latest":
-      emptyMessage = "No recent articles found";
-      break;
-    case "trending":
-      emptyMessage = "No trending articles found";
-      break;
-    case "following":
-      emptyMessage = isLoggedIn 
-        ? "No articles from people you follow" 
-        : "Login to see articles from people you follow";
-      break;
-    case "search":
-      emptyMessage = searchQuery
-        ? `No articles found for "${searchQuery}"`
-        : hashtag
-          ? `No articles found with tag #${hashtag}`
-          : "No articles found";
-      break;
-  }
-  
+  const getEmptyMessage = () => {
+    switch (type) {
+      case "search":
+        return searchQuery ? `No articles found for "${searchQuery}"` : "Enter a search term";
+      case "trending":
+        return "No trending articles available";
+      case "following":
+        return "No articles from people you follow";
+      case "latest":
+        return "No articles available";
+      default:
+        return "No articles found";
+    }
+  };
+
   return (
     <ArticleList 
       articles={articles} 
       loading={loading} 
-      emptyMessage={emptyMessage}
+      emptyMessage={getEmptyMessage()}
+      error={error ? "Failed to load articles" : undefined}
     />
   );
 };
 
 export default ArticleFeed;
+

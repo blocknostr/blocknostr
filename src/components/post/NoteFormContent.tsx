@@ -7,7 +7,7 @@ import ScheduledIndicator from './ScheduledIndicator';
 import NoteFormFooter from './NoteFormFooter';
 import FormattingToolbar from './FormattingToolbar';
 import EmojiPicker from './EmojiPicker';
-import { useAutosize } from '@/hooks/use-autosize';
+import { useAutosize } from '@/hooks/ui/use-autosize';
 
 export interface NoteFormContentProps {
   content: string;
@@ -180,3 +180,4 @@ const NoteFormContent: React.FC<NoteFormContentProps> = ({
 };
 
 export default NoteFormContent;
+

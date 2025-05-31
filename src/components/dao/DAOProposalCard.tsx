@@ -3,11 +3,11 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { DAOProposal } from '@/types/dao';
+import { DAOProposal } from '@/api/types/dao';
 import { ChevronDown, ChevronUp, Clock, Check, X, Users, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { cn } from '@/lib/utils';
 
 interface DAOProposalCardProps {
@@ -93,14 +93,16 @@ const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
     <Card className={cn("transition-all duration-300", className)} id={id}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-semibold">{proposal.title}</CardTitle>
-            <CardDescription className="flex items-center text-sm mt-1">
-              <Clock className="h-3 w-3 mr-1 inline" />
-              {timeDisplay}
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <CardTitle className="text-lg font-semibold">{proposal.title}</CardTitle>
               <Badge variant={isActive ? "outline" : "secondary"} className="ml-2">
                 {isActive ? "Active" : "Closed"}
               </Badge>
+            </div>
+            <CardDescription className="flex items-center text-sm">
+              <Clock className="h-3 w-3 mr-1" />
+              {timeDisplay}
             </CardDescription>
           </div>
           <Button
@@ -178,3 +180,4 @@ const DAOProposalCard: React.FC<DAOProposalCardProps> = ({
 };
 
 export default DAOProposalCard;
+

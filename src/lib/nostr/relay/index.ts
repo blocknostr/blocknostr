@@ -21,3 +21,4 @@ declare module './relay-manager' {
     doesRelaySupport(relayUrl: string, nipNumber: number): Promise<boolean>;
   }
 }
+

@@ -11,3 +11,4 @@ export class ThreadCache extends BaseCache<NostrEvent[]> {
     super(config);
   }
 }
+

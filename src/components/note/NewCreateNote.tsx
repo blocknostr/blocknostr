@@ -3,12 +3,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { nostrService } from '@/lib/nostr';
-import { toast } from "@/lib/utils/toast-replacement";
+import { usePublishEventMutation } from '@/api/rtk/nostrApi';
+import { useAppSelector } from '@/hooks/redux';
+import { useProfileMigrated } from '@/hooks/api/useProfileMigrated';
+import { coreNostrService } from '@/lib/nostr/core-service';
+import { toast } from "@/lib/toast";
 import { Send, X, Calendar, Image, Smile, FileText, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNoteFormState } from '@/hooks/useNoteFormState';
 import { useNoteSubmission } from '@/hooks/useNoteSubmission';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ImageIcon, Hash, AtSign, MapPin } from 'lucide-react';
 
 // Enhanced interface with optional advanced features
 interface UnifiedCreateNoteProps {
@@ -23,11 +29,7 @@ interface UnifiedCreateNoteProps {
 
 /**
  * Unified Create Note Component
- * Consolidates all create note functionality into a single, feature-rich component
- * - Absorbs SimpleNoteForm functionality (basic note creation)
- * - Absorbs CreateNoteFormContainer functionality (advanced features, scheduling)
- * - Absorbs CreateNoteModal functionality (modal usage)
- * - Supports multiple variants and optional complexity
+ * Uses hooks only for all operations - no direct adapter calls
  */
 const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({ 
   className,
@@ -38,7 +40,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
   placeholder = "What's happening?",
   maxLength
 }) => {
-  // Use enhanced hooks for advanced functionality (from CreateNoteFormContainer)
+  // Use hooks for form state and submission
   const {
     content,
     setContent,
@@ -53,10 +55,18 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
 
   const { isSubmitting, submitNote } = useNoteSubmission();
 
+  // RTK Query mutation for publishing events
+  const [publishEvent, { isLoading: isPublishing }] = usePublishEventMutation();
+
   // Local state for UI behavior
-  const [profile, setProfile] = useState<any>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(showAdvancedFeatures);
+
+  // Get user's public key through service
+  const pubkey = coreNostrService.getPublicKey();
+
+  // ✅ RACE-CONDITION-FREE: Use RTK Query hook instead of Redux selector
+  const { profile, isLoading: profileLoading } = useProfileMigrated(pubkey);
 
   // Use custom max length or default
   const effectiveMaxLength = maxLength || defaultMaxLength;
@@ -65,9 +75,6 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
   const charsLeft = effectiveMaxLength - content.length;
   const isNearLimit = charsLeft <= 20 && charsLeft > 0;
   const isOverLimit = charsLeft < 0;
-  
-  // Get user's public key
-  const pubkey = nostrService.publicKey;
   
   // Auto resize textarea
   useEffect(() => {
@@ -90,22 +97,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
     }
   }, [autoFocus, variant]);
   
-  // Fetch user profile for avatar
-  useEffect(() => {
-    if (pubkey) {
-      nostrService.getUserProfile(pubkey)
-        .then(profile => {
-          if (profile) {
-            setProfile(profile);
-          }
-        })
-        .catch(err => {
-          console.warn("Could not fetch profile", err);
-        });
-    }
-  }, [pubkey]);
-  
-  // Extract hashtags from content (enhanced from SimpleNoteForm)
+  // Extract hashtags from content
   const extractHashtags = (text: string): string[] => {
     const regex = /#(\w+)/g;
     const matches = text.match(regex);
@@ -113,7 +105,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
     return matches.map(tag => tag.substring(1)); // Remove the # symbol
   };
 
-  // Enhanced form submission (consolidates all approaches)
+  // Enhanced form submission using hooks only
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -147,6 +139,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
       const tags = hashtags.map(tag => ["t", tag]);
       
       const note = {
+        kind: 1, // text_note kind
         content,
         tags
       };
@@ -154,16 +147,12 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
       let success = false;
 
       if (variant === 'advanced' && (scheduledDate || mediaUrls.length > 0)) {
-        // Use advanced submission for scheduling/media
+        // Use advanced submission hook for scheduling/media
         success = await submitNote(note, scheduledDate);
       } else {
-        // Use direct nostr service for simple notes
-        const eventId = await nostrService.publishEvent({
-          kind: 1, // text_note kind
-          content: content,
-          tags: tags
-        });
-        success = Boolean(eventId);
+        // Use RTK Query mutation for simple notes
+        await publishEvent(note).unwrap();
+        success = true;
       }
       
       if (success) {
@@ -201,34 +190,24 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
     }
   };
 
-  // Handle cancel/clear
+  // Handle cancel action
   const handleCancel = () => {
-    setContent('');
+    resetForm();
     setIsFocused(false);
-    setScheduledDate(null);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
   };
 
-  // If user is not logged in
-  if (!pubkey) {
-    if (variant === 'modal') {
-      return (
-        <div className="text-center py-4">
-          <p className="text-muted-foreground">
-            Please log in to create notes
-          </p>
-        </div>
-      );
-    }
-    
+  // Loading state from either hook or RTK Query
+  const isLoadingAny = isSubmitting || isPublishing;
+
+  // Show loading state if no profile data yet
+  if (!profile && pubkey) {
     return (
       <Card className={cn("mb-4", className)}>
         <CardContent className="p-4">
-          <div className="text-center py-4">
-            <p className="text-muted-foreground">
-              Please log in to create notes
+          <div className="flex items-center justify-center py-8">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="ml-2 text-sm text-muted-foreground">
+              Loading...
             </p>
           </div>
         </CardContent>
@@ -279,7 +258,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                   variant === 'modal' ? "text-base min-h-[120px]" : "text-base min-h-[56px]",
                   variant === 'simple' && "min-h-[56px]"
                 )}
-                disabled={isSubmitting}
+                disabled={isLoadingAny}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(content.trim().length > 0)}
               />
@@ -308,7 +287,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 rounded-full"
-                    disabled={isSubmitting}
+                    disabled={isLoadingAny}
                     title="Add image"
                   >
                     <Image className="h-4 w-4" />
@@ -318,7 +297,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 rounded-full"
-                    disabled={isSubmitting}
+                    disabled={isLoadingAny}
                     title="Add emoji"
                   >
                     <Smile className="h-4 w-4" />
@@ -328,7 +307,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                     variant="ghost" 
                     size="icon" 
                     className="h-8 w-8 rounded-full"
-                    disabled={isSubmitting}
+                    disabled={isLoadingAny}
                     title="Schedule post"
                   >
                     <Calendar className="h-4 w-4" />
@@ -374,7 +353,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                         variant="ghost"
                         className="h-9 w-9 p-0 rounded-full"
                         onClick={handleCancel}
-                        disabled={isSubmitting}
+                        disabled={isLoadingAny}
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -388,9 +367,9 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
                         "rounded-full px-4 h-9",
                         variant === 'modal' && "px-6"
                       )}
-                      disabled={isSubmitting || isOverLimit || !content.trim()}
+                      disabled={isLoadingAny || isOverLimit || !content.trim()}
                     >
-                      {isSubmitting ? (
+                      {isLoadingAny ? (
                         <div className="flex items-center gap-1">
                           <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
                           <span>{scheduledDate ? 'Scheduling...' : 'Posting...'}</span>
@@ -413,18 +392,7 @@ const UnifiedCreateNote: React.FC<UnifiedCreateNoteProps> = ({
   );
 };
 
-// Export with backward compatibility aliases
+// Export only the main component - removing duplicate aliases
 export default UnifiedCreateNote;
-
-// Backward compatibility exports
 export const NewCreateNote = UnifiedCreateNote;
-export const CreateNote = UnifiedCreateNote;
-export const SimpleCreateNote = (props: Omit<UnifiedCreateNoteProps, 'variant'>) => (
-  <UnifiedCreateNote {...props} variant="simple" />
-);
-export const AdvancedCreateNote = (props: Omit<UnifiedCreateNoteProps, 'variant'>) => (
-  <UnifiedCreateNote {...props} variant="advanced" showAdvancedFeatures={true} />
-);
-export const ModalCreateNote = (props: Omit<UnifiedCreateNoteProps, 'variant'>) => (
-  <UnifiedCreateNote {...props} variant="modal" autoFocus={true} />
-);
+

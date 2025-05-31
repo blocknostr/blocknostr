@@ -109,3 +109,4 @@ describe('NIP-01: Account Creation Date', () => {
     expect(result).toBe(null);
   });
 });
+

@@ -10,3 +10,4 @@ export const toast = customToast;
 
 // Default export
 export default { Toaster, toast };
+

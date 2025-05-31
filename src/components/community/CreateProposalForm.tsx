@@ -5,12 +5,12 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { nostrService } from "@/lib/nostr";
 import { Loader2, Plus, X } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ProposalCategory } from "@/types/community";
+import { ProposalCategory } from "@/api/types/community";
 
 // Form schema with validation
 const formSchema = z.object({
@@ -23,9 +23,10 @@ const formSchema = z.object({
 interface CreateProposalFormProps {
   communityId: string;
   onProposalCreated: () => void;
+  onCreateProposal: (title: string, description: string, options: string[], durationDays: number) => Promise<string | null>;
 }
 
-const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFormProps) => {
+const CreateProposalForm = ({ communityId, onProposalCreated, onCreateProposal }: CreateProposalFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [options, setOptions] = useState<string[]>(["Yes", "No"]);
   const [newOption, setNewOption] = useState("");
@@ -50,17 +51,23 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
     setIsSubmitting(true);
     
     try {
-      // Calculate the end date based on duration
+      // Calculate the duration in days
       const durationDays = parseInt(data.duration);
-      const endsAt = Math.floor(Date.now() / 1000) + (durationDays * 24 * 60 * 60);
       
-      // Create the proposal with correct parameters per the method signature
-      const proposalId = await nostrService.createProposal(
-        communityId,
+      console.log('[CreateProposalForm] Submitting proposal:', {
+        title: data.title,
+        description: data.description,
+        options,
+        durationDays,
+        category: data.category
+      });
+      
+      // Use the provided onCreateProposal function
+      const proposalId = await onCreateProposal(
         data.title,
         data.description,
         options,
-        data.category as ProposalCategory
+        durationDays
       );
       
       if (proposalId) {
@@ -257,3 +264,4 @@ const CreateProposalForm = ({ communityId, onProposalCreated }: CreateProposalFo
 };
 
 export default CreateProposalForm;
+

@@ -311,3 +311,4 @@ const DiscordStyleChat: React.FC<DiscordStyleChatProps> = ({
 };
 
 export default DiscordStyleChat;
+

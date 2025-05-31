@@ -29,8 +29,8 @@ import {
   Maximize2,
   X
 } from 'lucide-react';
-import { SavedWallet, CacheStatus, WalletCacheConfig } from '@/types/wallet';
-import { clearRateLimitState } from '@/lib/api/rateLimitedApi';
+import { SavedWallet, CacheStatus, WalletCacheConfig } from '@/api/types/wallet';
+import { clearRateLimitState } from '@/api/external/rateLimitedApi';
 
 interface DebugLog {
   id: string;
@@ -607,3 +607,4 @@ export const DeveloperPanelToggle: React.FC<{ onClick: () => void }> = ({ onClic
 };
 
 export default UnifiedDeveloperPanel; 
+

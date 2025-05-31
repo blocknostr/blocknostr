@@ -19,12 +19,11 @@ import {
   Calendar,
   MessageSquare
 } from "lucide-react";
-import { useDiscovery } from "@/hooks/useDiscovery";
-import { useDAO } from "@/hooks/useDAO";
+import { useDAOCommunities, useDAOSearch } from "@/hooks/api/useDAORedux";
 import CommunitySearchBar from "./CommunitySearchBar";
 import DAOCard from "@/components/dao/DAOCard";
-import { CommunitySearchFilters } from "@/types/dao";
-import { toast } from "@/lib/utils/toast-replacement";
+import { CommunitySearchFilters } from "@/api/types/dao";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 interface CommunityDiscoveryDashboardProps {
@@ -61,9 +60,16 @@ const CommunityDiscoveryDashboard: React.FC<CommunityDiscoveryDashboardProps> = 
     currentUserPubkey,
     hasUser,
     getDiscoveryStats
-  } = useDiscovery();
+  } = useDAOSearch();
   
-  const { joinDAO, myDaos } = useDAO();
+  // Redux hooks for DAO data
+  const { daos: myDaos } = useDAOCommunities({ limit: 50, enabled: true });
+  
+  // Placeholder join function (to be implemented in Redux)
+  const joinDAO = async (communityId: string) => {
+    console.log('Join DAO functionality to be implemented in Redux');
+    return false;
+  };
   
   // Update user communities when myDaos changes
   useEffect(() => {
@@ -406,3 +412,4 @@ const CommunityDiscoveryDashboard: React.FC<CommunityDiscoveryDashboardProps> = 
 };
 
 export default CommunityDiscoveryDashboard; 
+

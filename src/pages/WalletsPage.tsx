@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@alephium/web3-react";
-import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine, Database, RefreshCw } from "lucide-react";
-import WalletConnectButton from "@/components/wallet/WalletConnectButton";
+import { Wallet, ExternalLink, Blocks, LayoutGrid, ChartLine, Database } from "lucide-react";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import AddressDisplay from "@/components/wallet/AddressDisplay";
 import WalletManager from "@/components/wallet/WalletManager";
-import FloatingDebugPanel from "@/components/wallet/DebugPanel";
-import { getAddressTransactions, getAddressTokens } from "@/lib/api/cachedAlephiumApi";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useWalletCache } from "@/hooks/useWalletCache";
+
+import { getAddressTransactions, getAddressTokens } from "@/api/external/cachedAlephiumApi";
+import { clearTokenCache } from "@/api/external/alephiumApi";
+import { useLocalStorage } from "@/hooks/ui/use-local-storage";
+import { useWalletCache } from "@/hooks/business/useWalletCache";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { WalletType, SavedWallet } from "@/types/wallet";
+import { WalletType, SavedWallet } from "@/api/types/wallet";
 import WalletTypeSelector from "@/components/wallet/WalletTypeSelector";
 import AlephiumWalletLayout from "@/components/wallet/layouts/AlephiumWalletLayout";
 import BitcoinWalletLayout from "@/components/wallet/layouts/BitcoinWalletLayout";
 import ErgoWalletLayout from "@/components/wallet/layouts/ErgoWalletLayout";
+import { nostrService } from "@/lib/nostr";
 
 // Interface for wallet stats
 interface WalletStats {
@@ -35,21 +36,16 @@ const WalletsPage = () => {
     savedWallets,
     addWallet,
     removeWallet,
-    markAsRefreshed,
+    updateWallet,
     isWalletStale,
-    refreshStaleWallets,
     forceRefreshWallet,
-    getCacheStatus,
-    cleanupCache,
-    cacheConfig,
-    updateCacheConfig,
-    isOnline,
-    getRateLimitInfo
+    restoreWalletsFromNostr,
+    isOnline
   } = useWalletCache();
   
   const [walletAddress, setWalletAddress] = useLocalStorage<string>("blocknoster_selected_wallet", "");
   const [refreshFlag, setRefreshFlag] = useState<number>(0);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
   const [walletStats, setWalletStats] = useState<WalletStats>({
     transactionCount: 0,
     receivedAmount: 0,
@@ -65,21 +61,22 @@ const WalletsPage = () => {
 
   // Initialize with connected wallet or first saved wallet
   useEffect(() => {
-    console.log("[WalletsPage] useEffect triggered:", { 
+    console.log("🔍 [WalletsPage] WALLET INITIALIZATION useEffect triggered:", { 
       connected, 
       walletAccount: wallet.account?.address, 
       savedWalletsCount: savedWallets.length,
-      savedWalletAddresses: savedWallets.map(w => ({ address: w.address, label: w.label, network: w.network }))
+      nostrPublicKey: nostrService.publicKey,
+      savedWalletAddresses: savedWallets.map(w => ({ address: w.address, label: w.label, network: w.network, locked: w.locked?.isLocked }))
     });
 
     // Fix existing wallets that don't have network property set correctly
     const walletsToFix = savedWallets.filter(w => 
-      (w.label === "Connected Wallet" && !w.network) ||
-      !w.network
+      (w.label === "Connected Wallet" && (!w.network || w.network === "")) ||
+      (!w.network || w.network === "")
     );
     
     if (walletsToFix.length > 0) {
-      console.log("[WalletsPage] Fixing wallets with missing network:", walletsToFix);
+      console.log("🔧 [WalletsPage] Fixing wallets with missing network:", walletsToFix);
       
       // Update wallets directly to prevent duplicate key issues
       walletsToFix.forEach(wallet => {
@@ -98,7 +95,7 @@ const WalletsPage = () => {
         // Update via localStorage directly to avoid React timing issues
         localStorage.setItem("blocknoster_saved_wallets", JSON.stringify(updatedWallets));
         
-        console.log(`[WalletsPage] Fixed wallet network for ${wallet.address}`);
+        console.log(`🔧 [WalletsPage] Fixed wallet network for ${wallet.address}`);
       });
       
       // Force a page refresh to reload with fixed data
@@ -108,12 +105,13 @@ const WalletsPage = () => {
 
     if (connected && wallet.account) {
       // If user wallet is connected, use that address
+      console.log("🔗 [WalletsPage] Wallet connected, setting address:", wallet.account.address);
       setWalletAddress(wallet.account.address);
       
       // Add the connected wallet using the cache system if it doesn't exist
       const existingWallet = savedWallets.find(w => w.address === wallet.account?.address);
       if (!existingWallet) {
-        console.log("[WalletsPage] Adding connected wallet to saved wallets:", wallet.account.address);
+        console.log("➕ [WalletsPage] Adding connected wallet to saved wallets:", wallet.account.address);
         addWallet({ 
           address: wallet.account.address, 
           label: "Connected Wallet", 
@@ -122,7 +120,7 @@ const WalletsPage = () => {
           isWatchOnly: false
         });
       } else {
-        console.log("[WalletsPage] Connected wallet already in saved wallets:", existingWallet);
+        console.log("✅ [WalletsPage] Connected wallet already in saved wallets:", existingWallet);
       }
       
       // Notify user of successful connection
@@ -131,24 +129,37 @@ const WalletsPage = () => {
       });
     } else if (savedWallets.length > 0 && !walletAddress) {
       // If no wallet is connected but we have saved wallets, use the first one
-      console.log("[WalletsPage] Using first saved wallet:", savedWallets[0]);
+      console.log("📱 [WalletsPage] Using first saved wallet:", savedWallets[0]);
       setWalletAddress(savedWallets[0].address);
     } else if (!walletAddress && savedWallets.length === 0) {
-      // Default connected wallet if no connected wallet and no saved wallets
-      const defaultAddress = "raLUPHsewjm1iA2kBzRKXB2ntbj3j4puxbVvsZD8iK3r";
-      console.log("[WalletsPage] Adding default wallet:", defaultAddress);
-      setWalletAddress(defaultAddress);
+      // Check if user is logged into Nostr but has no local wallets
+      if (nostrService.publicKey) {
+        console.log("🔑 [WalletsPage] User logged into Nostr but no local wallets - restoration will be attempted by useWalletCache");
+        // Don't add default wallet yet - let the restoration happen first
+        // If restoration doesn't find any wallets, we'll add default wallet later
+        return;
+      }
       
-      // Add default wallet using cache system
-      addWallet({ 
-        address: defaultAddress, 
-        label: "Connected Wallet", 
-        dateAdded: Date.now(),
-        network: "Alephium",
-        isWatchOnly: true
-      });
+      // 🚫 REMOVED: Don't add default wallet when not logged in
+      // When not logged into Nostr, there should be no selected wallet at all
+      console.log("🚫 [WalletsPage] Not logged into Nostr - no wallets will be shown");
+      setWalletAddress(""); // Ensure no wallet is selected
     }
-  }, [connected, wallet.account, savedWallets, addWallet, removeWallet]);
+  }, [connected, wallet.account, savedWallets, addWallet, removeWallet, walletAddress]);
+
+  // 🚫 REMOVED: Timeout logic that added hardcoded default wallet
+  // When logged into Nostr but no wallets found, should show empty state, not add fake wallet
+
+  // 🚫 REMOVED: Immediate restoration is now handled by WalletManager and useWalletCache
+  // This prevents duplicate restoration attempts
+
+  // 🎯 AUTO-SELECT FIRST WALLET: When wallets are restored, auto-select the first one
+  useEffect(() => {
+    if (savedWallets.length > 0 && !walletAddress) {
+      console.log("🎯 [WalletsPage] Auto-selecting first available wallet:", savedWallets[0]);
+      setWalletAddress(savedWallets[0].address);
+    }
+  }, [savedWallets.length, walletAddress, setWalletAddress]);
 
   // Update existing "Demo Wallet" labels to "Connected Wallet"
   useEffect(() => {
@@ -203,15 +214,8 @@ const WalletsPage = () => {
           getAddressTokens(walletAddress)
         ]);
         
-        type Transaction = {
-          inputs: { address: string; amount: string }[];
-          outputs: { address: string; amount: string }[];
-          // Add other properties as needed
-        };
-        type Token = object; // Define token properties as needed
-
-        let transactionData: Transaction[] = [];
-        let tokenData: Token[] = [];
+        let transactionData: any[] = [];
+        let tokenData: any[] = [];
         
         if (transactions.status === 'fulfilled') {
           transactionData = transactions.value || [];
@@ -249,25 +253,19 @@ const WalletsPage = () => {
           tokenCount: tokenData.length
         });
         
-        // Mark wallet as refreshed since we got data (even if partial)
-        markAsRefreshed(walletAddress, true);
+        // Note: Wallet data successfully fetched (even if partial)
         
-      } catch (error: unknown) {
-        if (error instanceof Error) {
-          console.error("[WalletsPage] Error fetching wallet stats:", error.message);
-
-          // Handle rate limiting gracefully
-          if (error.message?.includes('Rate limited')) {
-            toast.error("Rate limited - using cached data", {
-              description: "Please wait before refreshing again"
-            });
-          }
-        } else {
-          console.error("[WalletsPage] Error fetching wallet stats:", error);
+      } catch (error: any) {
+        console.error("[WalletsPage] Error fetching wallet stats:", error.message);
+        
+        // Handle rate limiting gracefully
+        if (error.message?.includes('Rate limited')) {
+          toast.error("Rate limited - using cached data", {
+            description: "Please wait before refreshing again"
+          });
         }
-
-        // Mark as failed refresh
-        markAsRefreshed(walletAddress, false);
+        
+        // Note: Failed to refresh wallet data
       } finally {
         setIsStatsLoading(false);
       }
@@ -276,17 +274,10 @@ const WalletsPage = () => {
     fetchWalletStats();
   }, [walletAddress, refreshFlag, selectedWalletType]);
 
-  // Define an interface for a signer that supports requestDisconnect
-  interface DisconnectableSigner {
-    requestDisconnect: () => Promise<void>;
-    // Add other methods if needed
-  }
-
   const handleDisconnect = async () => {
     try {
-      const signer = wallet.signer as unknown as DisconnectableSigner | undefined;
-      if (signer && typeof signer.requestDisconnect === "function") {
-        await signer.requestDisconnect();
+      if (wallet.signer && (wallet.signer as any).requestDisconnect) {
+        await (wallet.signer as any).requestDisconnect();
         toast.info("Wallet disconnected");
       } else {
         toast.error("Wallet disconnection failed", {
@@ -306,114 +297,45 @@ const WalletsPage = () => {
       });
     }
   };
-  
-  // Handle manual refresh with cache system
-  const handleRefreshWallet = async () => {
-    if (!walletAddress) return;
-    
-    setIsRefreshing(true);
-    try {
-      const success = await forceRefreshWallet(walletAddress);
-      if (success) {
-        setRefreshFlag(prev => prev + 1); // Trigger re-fetch
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
-  // Handle refresh all stale wallets
-  const handleRefreshStale = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshStaleWallets();
-      setRefreshFlag(prev => prev + 1); // Trigger re-fetch
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
   
-  // Define a type for transaction inputs and outputs
-  type TransactionIO = { address: string; amount: string };
-  type TransactionType = {
-    inputs: TransactionIO[];
-    outputs: TransactionIO[];
-    // Add other properties as needed
-  };
-
   // Helper to determine if transaction is incoming or outgoing (memoized)
-  const getTransactionType = useCallback((tx: TransactionType) => {
+  const getTransactionType = useCallback((tx: any) => {
     // If any output is to this address, it's incoming
-    const isIncoming = tx.outputs.some((output) => output.address === walletAddress);
+    const isIncoming = tx.outputs.some((output: any) => output.address === walletAddress);
     // If any input is from this address, it's outgoing
-    const isOutgoing = tx.inputs.some((input) => input.address === walletAddress);
-
+    const isOutgoing = tx.inputs.some((input: any) => input.address === walletAddress);
+    
     if (isIncoming && !isOutgoing) return 'received';
     if (isOutgoing) return 'sent';
     return 'unknown';
   }, [walletAddress]);
   
   // Calculate amount transferred to/from this address (memoized)
-  const getTransactionAmount = useCallback((tx: TransactionType) => {
+  const getTransactionAmount = useCallback((tx: any) => {
     const type = getTransactionType(tx);
-
+    
     if (type === 'received') {
       // Sum all outputs to this address
       const amount = tx.outputs
-        .filter((output: TransactionIO) => output.address === walletAddress)
-        .reduce((sum: number, output: TransactionIO) => sum + Number(output.amount), 0);
+        .filter((output: any) => output.address === walletAddress)
+        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
       return amount / 10**18; // Convert from nanoALPH to ALPH
     } else if (type === 'sent') {
       // This is a simplification - for accurate accounting we'd need to track change outputs
       const amount = tx.outputs
-        .filter((output: TransactionIO) => output.address !== walletAddress)
-        .reduce((sum: number, output: TransactionIO) => sum + Number(output.amount), 0);
+        .filter((output: any) => output.address !== walletAddress)
+        .reduce((sum: number, output: any) => sum + Number(output.amount), 0);
       return amount / 10**18; // Convert from nanoALPH to ALPH
     }
-
+    
     return 0;
   }, [walletAddress, getTransactionType]);
 
-  // Decide whether to show connect screen or wallet dashboard
-  if (!connected && savedWallets.length === 0 && !walletAddress) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Blockchain Portfolio Manager</h2>
-          <p className="text-muted-foreground max-w-md">
-            Connect your wallet to track balances, view transactions, send crypto, and interact with dApps.
-          </p>
-          
-          <div className="w-full max-w-md my-8">
-            <WalletConnectButton />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-8">
-            <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Portfolio Tracking</h3>
-              <p className="text-sm text-muted-foreground">Monitor your crypto balances in real-time</p>
-            </div>
-            <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Send & Receive</h3>
-              <p className="text-sm text-muted-foreground">Transfer tokens with ease</p>
-            </div>
-            <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">DApp Integration</h3>
-              <p className="text-sm text-muted-foreground">Interact with blockchain dApps directly</p>
-            </div>
-            <div className="p-4 border rounded-lg bg-card">
-              <h3 className="font-medium mb-2">Transaction History</h3>
-              <p className="text-sm text-muted-foreground">Detailed history of all your activity</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show wallet dashboard with either connected wallet or saved address data
+  // Always show wallet dashboard - no special landing page
+  // The dashboard will gracefully handle empty states
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="px-4 py-6 max-w-7xl mx-auto">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -442,26 +364,13 @@ const WalletsPage = () => {
             <p className="text-muted-foreground">
               {connected 
                 ? `Manage your ${selectedWalletType} assets and dApps` 
-                : `Viewing portfolio data for all tracked ${selectedWalletType} wallets`}
+                : savedWallets.length > 0
+                  ? `Viewing portfolio data for all tracked ${selectedWalletType} wallets`
+                  : `Connect your ${selectedWalletType} wallet or add addresses to get started`}
             </p>
           </div>
           
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRefreshWallet}
-              disabled={isRefreshing || !isOnline}
-              className="h-9"
-            >
-              {isRefreshing ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                "Refresh"
-              )}
-            </Button>
-            <WalletConnectButton />
-            
             {connected && (
               <Button variant="outline" size="sm" onClick={handleDisconnect} className="h-9">
                 Disconnect Wallet
@@ -470,76 +379,66 @@ const WalletsPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            {selectedWalletType === "Alephium" && (
-              <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-3 max-w-md mb-6">
-                  <TabsTrigger value="portfolio" className="flex items-center gap-2">
-                    <ChartLine className="h-4 w-4" />
-                    <span>My Portfolio</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="dapps" className="flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4" />
-                    <span>My dApps</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="alephium" className="flex items-center gap-2">
-                    <Blocks className="h-4 w-4" />
-                    <span>My Alephium</span>
-                  </TabsTrigger>
-                </TabsList>
+        <div className="w-full">
+          {selectedWalletType === "Alephium" && (
+            <Tabs defaultValue="portfolio" value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-3 w-full mb-6">
+                <TabsTrigger value="portfolio" className="flex items-center gap-2">
+                  <ChartLine className="h-4 w-4" />
+                  <span>My Portfolio</span>
+                </TabsTrigger>
+                <TabsTrigger value="dapps" className="flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  <span>My dApps</span>
+                </TabsTrigger>
+                <TabsTrigger value="alephium" className="flex items-center gap-2">
+                  <Blocks className="h-4 w-4" />
+                  <span>My Alephium</span>
+                </TabsTrigger>
+              </TabsList>
 
-                <AlephiumWalletLayout
-                  address={walletAddress}
-                  allWallets={savedWallets}
-                  isLoggedIn={connected}
-                  walletStats={walletStats}
-                  isStatsLoading={isStatsLoading}
-                  refreshFlag={refreshFlag}
-                  setRefreshFlag={setRefreshFlag}
-                  activeTab={activeTab}
-                />
-              </Tabs>
-            )}
+              <AlephiumWalletLayout
+                address={walletAddress}
+                allWallets={savedWallets}
+                isLoggedIn={connected}
+                walletStats={walletStats}
+                isStatsLoading={isStatsLoading}
+                refreshFlag={refreshFlag}
+                setRefreshFlag={setRefreshFlag}
+                activeTab={activeTab}
+                // Pass wallet manager props for the popup
+                walletManagerProps={{
+                  currentAddress: walletAddress,
+                  onSelectWallet: setWalletAddress,
+                  savedWallets: savedWallets,
+                  onAddWallet: addWallet,
+                  onRemoveWallet: removeWallet,
+                  onUpdateWallet: updateWallet,
+                  isWalletStale: isWalletStale,
+                  onForceRefresh: forceRefreshWallet,
+                  onRestoreWallets: restoreWalletsFromNostr,
+                  isOnline: isOnline,
+                  selectedWalletType: selectedWalletType
+                }}
+              />
+            </Tabs>
+          )}
 
-            {selectedWalletType === "Bitcoin" && (
-              <BitcoinWalletLayout address={walletAddress} />
-            )}
+          {selectedWalletType === "Bitcoin" && (
+            <BitcoinWalletLayout address={walletAddress} />
+          )}
 
-            {selectedWalletType === "Ergo" && (
-              <ErgoWalletLayout address={walletAddress} />
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <WalletManager 
-              currentAddress={walletAddress} 
-              onSelectWallet={setWalletAddress}
-              savedWallets={savedWallets}
-              onAddWallet={addWallet}
-              onRemoveWallet={removeWallet}
-              isWalletStale={isWalletStale}
-              onForceRefresh={forceRefreshWallet}
-              isOnline={isOnline}
-              selectedWalletType={selectedWalletType}
-            />
-          </div>
+          {selectedWalletType === "Ergo" && (
+            <ErgoWalletLayout address={walletAddress} />
+          )}
         </div>
+
       </div>
       
-      {/* Floating Debug Panel - positioned independently */}
-      <FloatingDebugPanel
-        savedWallets={savedWallets}
-        isOnline={isOnline}
-        rateLimitInfo={getRateLimitInfo()}
-        cacheStatus={getCacheStatus()}
-        onForceRefresh={forceRefreshWallet}
-        onRefreshStale={refreshStaleWallets}
-        onCleanupCache={cleanupCache}
-        enabledForPage="wallets"
-      />
+
     </div>
   );
 };
 
 export default WalletsPage;
+

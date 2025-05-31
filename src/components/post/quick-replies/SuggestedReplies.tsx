@@ -23,3 +23,4 @@ const SuggestedReplies: React.FC<SuggestedRepliesProps> = ({ suggestions, onSele
 };
 
 export default SuggestedReplies;
+

@@ -23,3 +23,4 @@ const ToolbarButton = React.forwardRef<HTMLButtonElement, ToolbarButtonProps>(
 ToolbarButton.displayName = "ToolbarButton"
 
 export { ToolbarButton }
+

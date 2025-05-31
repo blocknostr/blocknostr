@@ -148,3 +148,4 @@ export const extractLinkPreviewUrls = (content: string): string[] => {
   // Filter out media URLs to get only regular links for previews
   return allUrls.filter(url => !isMediaUrl(url));
 };
+

@@ -56,3 +56,4 @@ export class BlockListService extends UserListBase {
     return this.isUserInList(pubkey);
   }
 }
+

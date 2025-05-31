@@ -1,4 +1,3 @@
-
 export interface NostrEvent {
   id: string;
   pubkey: string;
@@ -29,7 +28,6 @@ export interface NostrProfileMetadata {
   about?: string;
   picture?: string;
   banner?: string;
-  nip05?: string;
   lud16?: string;
   website?: string;
   [key: string]: any;
@@ -58,3 +56,4 @@ export interface NostrSubscription {
   };
   unsub?: () => void;
 }
+

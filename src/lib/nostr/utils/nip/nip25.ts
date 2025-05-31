@@ -41,3 +41,4 @@ export function validateNip25Reaction(event: NostrEvent): { valid: boolean; erro
   
   return { valid: errors.length === 0, errors };
 }
+

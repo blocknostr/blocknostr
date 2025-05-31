@@ -1,8 +1,7 @@
-
 import { NostrEvent } from "@/lib/nostr";
 
 /**
- * Profile metadata structure
+ * Profile metadata structure (NIP-01 compatible)
  */
 export interface ProfileMetadata {
   name?: string;
@@ -11,8 +10,8 @@ export interface ProfileMetadata {
   banner?: string;
   website?: string;
   about?: string;
-  nip05?: string;
   lud16?: string;
+  created_at?: number;
   [key: string]: any;
 }
 
@@ -28,21 +27,49 @@ export type ProfileLoadingState = {
 }
 
 /**
- * Combined profile data structure
+ * UNIFIED ProfileData interface - Single source of truth
+ * Combines both simple and complex profile data needs
  */
 export interface ProfileData {
+  // Core identity
   pubkey: string;
-  npub: string;
-  metadata: ProfileMetadata | null;
-  posts: NostrEvent[];
-  media: NostrEvent[];
-  reposts: { originalEvent: NostrEvent; repostEvent: NostrEvent }[];
-  replies: NostrEvent[];
-  reactions: NostrEvent[];
-  followers: string[];
-  following: string[];
-  relays: any[];
-  referencedEvents: Record<string, NostrEvent>;
-  isCurrentUser: boolean;
-  loadingState: ProfileLoadingState;
+  npub?: string; // Optional npub representation
+  
+  // Profile metadata (simplified access)
+  displayName?: string;
+  name?: string;
+  about?: string;
+  picture?: string;
+  banner?: string;
+  lud16?: string;
+  website?: string;
+  
+  // Computed social data
+  isFollowing?: boolean;
+  followerCount?: number;
+  followingCount?: number;
+  postCount?: number;
+  lastSeen?: number;
+  createdAt?: number;
+  
+  // Enhanced social graph
+  mutualConnections?: number;
+  influenceScore?: number;
+  
+  // Complex data (for advanced features)
+  metadata?: ProfileMetadata | null;
+  posts?: NostrEvent[];
+  media?: NostrEvent[];
+  reposts?: { originalEvent: NostrEvent; repostEvent: NostrEvent }[];
+  replies?: NostrEvent[];
+  reactions?: NostrEvent[];
+  followers?: string[];
+  following?: string[];
+  relays?: any[];
+  referencedEvents?: Record<string, NostrEvent>;
+  
+  // State management
+  isCurrentUser?: boolean;
+  loadingState?: ProfileLoadingState;
 }
+

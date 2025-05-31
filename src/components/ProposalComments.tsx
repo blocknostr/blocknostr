@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { nostrService, NostrEvent } from "@/lib/nostr";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { formatDistanceToNow } from "date-fns";
 
 export interface Comment {
@@ -181,3 +181,4 @@ const ProposalComments = ({ proposalId, communityId }: ProposalCommentsProps) =>
 };
 
 export default ProposalComments;
+

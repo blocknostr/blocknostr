@@ -76,3 +76,4 @@ export function formatTimestamp(timestamp: number): string {
     return `${days} day${days !== 1 ? 's' : ''} ago`;
   }
 }
+

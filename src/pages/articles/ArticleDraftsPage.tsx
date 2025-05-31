@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
-import { adaptedNostrService as nostrAdapter } from "@/lib/nostr/nostr-adapter";
+import { coreNostrService } from "@/lib/nostr/core-service";
 import { ArticleDraft } from "@/lib/nostr/types/article";
 import LoginPrompt from "@/components/articles/LoginPrompt";
 import DraftsList from "@/components/articles/DraftsList";
@@ -10,7 +10,7 @@ import DraftsList from "@/components/articles/DraftsList";
 const ArticleDraftsPage: React.FC = () => {
   const [drafts, setDrafts] = useState<ArticleDraft[]>([]);
   const [loading, setLoading] = useState(true);
-  const isLoggedIn = !!nostrAdapter.publicKey;
+  const isLoggedIn = !!coreNostrService.getPublicKey();
   
   useEffect(() => {
     if (!isLoggedIn) {
@@ -34,7 +34,7 @@ const ArticleDraftsPage: React.FC = () => {
   }
   
   return (
-    <div className="container max-w-7xl mx-auto px-4 py-6">
+    <div className="px-4 py-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <Button variant="ghost" size="sm" asChild className="mr-4">
@@ -69,3 +69,4 @@ const ArticleDraftsPage: React.FC = () => {
 };
 
 export default ArticleDraftsPage;
+

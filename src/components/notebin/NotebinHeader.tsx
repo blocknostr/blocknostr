@@ -28,3 +28,4 @@ const NotebinHeader: React.FC<NotebinHeaderProps> = ({ toggleSidebar }) => {
 };
 
 export default NotebinHeader;
+

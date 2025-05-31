@@ -1,35 +1,89 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Note } from "./types";
 import { nostrService } from "@/lib/nostr";
-import { encryption } from "@/lib/encryption";
-import { toast } from "@/lib/utils/toast-replacement";
+import { encryption } from "@/utils/encryption";
+import { toast } from "@/lib/toast";
 
 export const useNoteFetcher = () => {
   const [note, setNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notebinNotes, setNotebinNotes] = useState<Note[]>([]);
+  
+  // ✅ Connection management state
+  const isFetchingRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+  const activeSubscriptionRef = useRef<string | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // ✅ Debounce configuration
+  const DEBOUNCE_DELAY = 1000; // 1 second
+  const MIN_FETCH_INTERVAL = 5000; // 5 seconds between fetches
+  const SUBSCRIPTION_TIMEOUT = 5000; // 5 seconds to wait for events
 
-  // Fetch notes from Nostr relays on component mount
-  useEffect(() => {
-    fetchNotebinNotes();
+  // ✅ Cleanup function
+  const cleanup = useCallback(() => {
+    if (activeSubscriptionRef.current) {
+      console.log('[useNoteFetcher] Cleaning up active subscription:', activeSubscriptionRef.current);
+      nostrService.unsubscribe(activeSubscriptionRef.current);
+      activeSubscriptionRef.current = null;
+    }
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    isFetchingRef.current = false;
   }, []);
 
-  // Fetch notes with kind 30023 (NIP-23 long-form content)
-  const fetchNotebinNotes = async () => {
+  // ✅ Cleanup on unmount
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
+
+  // ✅ FIXED: Stabilize the fetchNotebinNotes function to prevent recreation
+  const fetchNotebinNotesStable = useCallback(async () => {
+    // ✅ Prevent multiple simultaneous fetches
+    if (isFetchingRef.current) {
+      console.log('[useNoteFetcher] Fetch already in progress, skipping...');
+      return;
+    }
+
+    // ✅ Rate limiting - prevent fetches too close together
+    const now = Date.now();
+    if (now - lastFetchTimeRef.current < MIN_FETCH_INTERVAL) {
+      console.log('[useNoteFetcher] Rate limited, skipping fetch...');
+      return;
+    }
+    
+    const currentPubkey = nostrService.publicKey;
+    
+    // Only fetch notes if user is logged in
+    if (!currentPubkey) {
+      console.log("[useNoteFetcher] User not logged in, not fetching notes from relays");
+      setNotebinNotes([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // ✅ Set flags and track timing
+    isFetchingRef.current = true;
+    lastFetchTimeRef.current = now;
     setIsLoading(true);
+    setError(null);
+    
     try {
-      console.log("Connecting to relays to fetch notebin notes...");
-      await nostrService.connectToUserRelays();
+      console.log("[useNoteFetcher] Connecting to relays to fetch notebin notes...");
       
-      const currentPubkey = nostrService.publicKey;
+      // ✅ Check if we're already connected to reduce connection spam
+      const connectedRelays = nostrService.getConnectedRelays?.() || [];
+      if (connectedRelays.length === 0) {
+        await nostrService.connectToUserRelays();
+      }
       
-      // Only fetch notes if user is logged in
-      if (!currentPubkey) {
-        console.log("User not logged in, not fetching notes from relays");
-        setNotebinNotes([]);
-        setIsLoading(false);
-        return;
+      // ✅ Cleanup any existing subscription before creating new one
+      if (activeSubscriptionRef.current) {
+        nostrService.unsubscribe(activeSubscriptionRef.current);
+        activeSubscriptionRef.current = null;
       }
       
       // Subscribe to notebin events (kind 30023) only for current user
@@ -40,11 +94,14 @@ export const useNoteFetcher = () => {
       }];
       
       const notes: Note[] = [];
+      let subscriptionClosed = false;
       
-      // Use subscribe method instead of subscribeToEvents
+      // ✅ Create subscription with improved event handling
       const subId = nostrService.subscribe(
         filters,
         async (event) => {
+          if (subscriptionClosed) return; // Ignore events if subscription was closed
+          
           try {
             // Extract title from tags
             const titleTag = event.tags.find(tag => tag[0] === 'title');
@@ -77,70 +134,133 @@ export const useNoteFetcher = () => {
             // Try to decrypt content if encrypted
             if (isEncrypted && encryptionMethod === 'nip04') {
               if (event.pubkey === nostrService.publicKey) {
-                try {
-                  // NIP-04 decryption (using the author's pubkey)
-                  const decryptedContent = await encryption.decryptContent(content, event.pubkey);
-                  if (decryptedContent) {
-                    content = decryptedContent;
+                // NIP-04 decryption (using the author's pubkey)
+                const decryptedContent = await encryption.decryptContent(content, event.pubkey);
+                if (decryptedContent) {
+                  content = decryptedContent;
+                } else {
+                  // Decryption failed - check if we should show info to user
+                  if (!encryption.isNip04Available() && !sessionStorage.getItem('nip04-info-shown')) {
+                    toast.info(encryption.getNip04StatusMessage());
+                    sessionStorage.setItem('nip04-info-shown', 'true');
                   }
-                  
-                  // Try to decrypt title too
-                  const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
-                  if (decryptedTitle) {
-                    title = decryptedTitle;
-                  }
-                } catch (decryptError) {
-                  console.error("Failed to decrypt note:", decryptError);
-                  toast.error("Failed to decrypt note. Only the author can decrypt it.");
-                  // Keep encrypted content as is
+                  // Mark content as encrypted
+                  content = "[Encrypted content - install Nostr extension to decrypt]";
+                }
+                
+                // Try to decrypt title too
+                const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
+                if (decryptedTitle) {
+                  title = decryptedTitle;
+                } else if (!encryption.isNip04Available()) {
+                  title = "[Encrypted] " + title;
                 }
               } else {
-                toast.warning("This note is encrypted. Only the author can view it.");
+                // Not the author - show warning only once per session
+                if (!sessionStorage.getItem('encryption-warning-shown')) {
+                  toast.warning("Some notes are encrypted and can only be viewed by their authors.");
+                  sessionStorage.setItem('encryption-warning-shown', 'true');
+                }
+                // Mark note as encrypted but viewable
+                content = "[Encrypted content - only viewable by author]";
               }
             }
             
-            // Create note object
-            const note: Note = {
-              id: event.id,
-              title,
-              content,
-              language,
-              publishedAt: new Date(event.created_at * 1000).toISOString(),
-              author: event.pubkey,
-              event,
-              tags: contentTags,
-              slug,
-              encrypted: isEncrypted
-            };
-            
-            notes.push(note);
+            // ✅ Prevent duplicate notes
+            const existingNote = notes.find(n => n.id === event.id);
+            if (!existingNote) {
+              // Create note object
+              const note: Note = {
+                id: event.id,
+                title,
+                content,
+                language,
+                publishedAt: new Date(event.created_at * 1000).toISOString(),
+                author: event.pubkey,
+                event,
+                tags: contentTags,
+                slug,
+                encrypted: isEncrypted
+              };
+              
+              notes.push(note);
+            }
           } catch (err) {
-            console.error("Error parsing note event:", err);
+            console.error("[useNoteFetcher] Error parsing note event:", err);
           }
         }
       );
       
-      // Wait for events to be received (3 second timeout)
+      // ✅ Store active subscription reference
+      activeSubscriptionRef.current = subId;
+      
+      // ✅ Wait for events with proper cleanup
       setTimeout(() => {
-        nostrService.unsubscribe(subId);
-        setNotebinNotes(notes);
+        if (activeSubscriptionRef.current === subId) {
+          subscriptionClosed = true;
+          nostrService.unsubscribe(subId);
+          activeSubscriptionRef.current = null;
+          
+          // ✅ Sort notes by creation time (newest first)
+          const sortedNotes = notes.sort((a, b) => 
+            new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+          );
+          
+          setNotebinNotes(sortedNotes);
+          console.log(`[useNoteFetcher] Fetched ${sortedNotes.length} notes from relays`);
+        }
+        
         setIsLoading(false);
-        console.log(`Fetched ${notes.length} notes from relays`);
-      }, 3000);
+        isFetchingRef.current = false;
+      }, SUBSCRIPTION_TIMEOUT);
       
     } catch (error) {
-      console.error("Error fetching notes from relays:", error);
+      console.error("[useNoteFetcher] Error fetching notes from relays:", error);
       setError("Failed to fetch notes from relays");
       setIsLoading(false);
+      isFetchingRef.current = false;
+      
+      // ✅ Cleanup on error
+      if (activeSubscriptionRef.current) {
+        nostrService.unsubscribe(activeSubscriptionRef.current);
+        activeSubscriptionRef.current = null;
+      }
     }
-  };
+  }, []); // ✅ FIXED: No dependencies to prevent recreation
+
+  // ✅ FIXED: Use a ref to track if initial fetch has been done
+  const initialFetchDoneRef = useRef(false);
+
+  // ✅ FIXED: Debounced fetch notes function - now stable
+  const debouncedFetchNotes = useCallback(() => {
+    // Clear any existing debounce timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchNotebinNotesStable();
+    }, DEBOUNCE_DELAY);
+  }, [fetchNotebinNotesStable]);
+
+  // ✅ FIXED: Use debounced fetch on mount only once
+  useEffect(() => {
+    if (!initialFetchDoneRef.current) {
+      initialFetchDoneRef.current = true;
+      debouncedFetchNotes();
+    }
+  }, []); // ✅ Empty dependencies to run only once
 
   const fetchNote = useCallback(async (id: string) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      await nostrService.connectToUserRelays();
+      // ✅ Check if we're already connected to reduce connection spam
+      const connectedRelays = nostrService.getConnectedRelays?.() || [];
+      if (connectedRelays.length === 0) {
+        await nostrService.connectToUserRelays();
+      }
       
       const event = await nostrService.getEventById(id);
       if (event) {
@@ -175,25 +295,35 @@ export const useNoteFetcher = () => {
         // Try to decrypt content if encrypted
         if (isEncrypted && encryptionMethod === 'nip04') {
           if (event.pubkey === nostrService.publicKey) {
-            try {
-              // NIP-04 decryption (using the author's pubkey)
-              const decryptedContent = await encryption.decryptContent(content, event.pubkey);
-              if (decryptedContent) {
-                content = decryptedContent;
+            // NIP-04 decryption (using the author's pubkey)
+            const decryptedContent = await encryption.decryptContent(content, event.pubkey);
+            if (decryptedContent) {
+              content = decryptedContent;
+            } else {
+              // Decryption failed - check if we should show info to user
+              if (!encryption.isNip04Available() && !sessionStorage.getItem('nip04-info-shown')) {
+                toast.info(encryption.getNip04StatusMessage());
+                sessionStorage.setItem('nip04-info-shown', 'true');
               }
-              
-              // Try to decrypt title too
-              const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
-              if (decryptedTitle) {
-                title = decryptedTitle;
-              }
-            } catch (decryptError) {
-              console.error("Failed to decrypt note:", decryptError);
-              toast.error("Failed to decrypt note. Only the author can decrypt it.");
-              // Keep encrypted content as is
+              // Mark content as encrypted
+              content = "[Encrypted content - install Nostr extension to decrypt]";
+            }
+            
+            // Try to decrypt title too
+            const decryptedTitle = await encryption.decryptContent(title, event.pubkey);
+            if (decryptedTitle) {
+              title = decryptedTitle;
+            } else if (!encryption.isNip04Available()) {
+              title = "[Encrypted] " + title;
             }
           } else {
-            toast.warning("This note is encrypted. Only the author can view it.");
+            // Not the author - show warning only once per session
+            if (!sessionStorage.getItem('encryption-warning-shown')) {
+              toast.warning("Some notes are encrypted and can only be viewed by their authors.");
+              sessionStorage.setItem('encryption-warning-shown', 'true');
+            }
+            // Mark note as encrypted but viewable
+            content = "[Encrypted content - only viewable by author]";
           }
         }
         
@@ -217,7 +347,7 @@ export const useNoteFetcher = () => {
       }
     } catch (error) {
       setError("Failed to fetch note");
-      console.error("Error fetching note:", error);
+      console.error("[useNoteFetcher] Error fetching note:", error);
     } finally {
       setIsLoading(false);
     }
@@ -229,6 +359,7 @@ export const useNoteFetcher = () => {
     isLoading,
     error,
     fetchNote,
-    refreshNotes: fetchNotebinNotes
+    refreshNotes: fetchNotebinNotesStable
   };
 };
+

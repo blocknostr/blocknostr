@@ -39,3 +39,4 @@ const BitcoinWalletLayout: React.FC<BitcoinWalletLayoutProps> = ({ address }) =>
 };
 
 export default BitcoinWalletLayout;
+

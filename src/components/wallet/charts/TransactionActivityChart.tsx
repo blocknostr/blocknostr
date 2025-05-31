@@ -170,3 +170,4 @@ const TransactionActivityChart: React.FC<TransactionActivityChartProps> = ({ add
 };
 
 export default TransactionActivityChart;
+

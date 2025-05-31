@@ -37,3 +37,4 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 };
 
 export default LoginPrompt;
+

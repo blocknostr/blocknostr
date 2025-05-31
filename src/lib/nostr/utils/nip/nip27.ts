@@ -3,9 +3,12 @@
  * https://github.com/nostr-protocol/nips/blob/master/27.md
  */
 
+import { NostrEvent } from '@/lib/nostr/types';
 import { nip19 } from 'nostr-tools';
-import { nostrService } from '@/lib/nostr';
-import { profileDataService } from '@/lib/services/ProfileDataService';
+import { nip21 } from 'nostr-tools';
+import { nip27 } from 'nostr-tools';
+import { nip10 } from 'nostr-tools';
+import { coreNostrService } from '@/lib/nostr/core-service';
 
 // Regex to match nostr: URLs as defined in NIP-21
 const NOSTR_URI_REGEX = /nostr:(npub1[a-z0-9]{6,}|nprofile1[a-z0-9]{6,}|nevent1[a-z0-9]{6,}|note1[a-z0-9]{6,})/gi;
@@ -41,11 +44,37 @@ export function extractMentions(content: string): string[] {
  */
 export async function getDisplayNameFromNpub(npub: string): Promise<string> {
   try {
-    // Try to get profile data for this npub
-    const profile = await profileDataService.getProfileMetadata(npub);
+    // Convert npub to hex pubkey first
+    let pubkey: string;
+    if (npub.startsWith('npub1')) {
+      const { type, data } = nip19.decode(npub);
+      if (type !== 'npub') {
+        return shortenIdentifier(npub);
+      }
+      pubkey = data as string;
+    } else {
+      pubkey = npub; // Assume it's already hex
+    }
     
-    if (profile && (profile.name || profile.display_name)) {
-      return profile.display_name || profile.name;
+    // Query for profile metadata (kind 0) events for this pubkey
+    const profileEvents = await coreNostrService.queryEvents([
+      {
+        kinds: [0], // Profile metadata
+        authors: [pubkey],
+        limit: 1
+      }
+    ]);
+    
+    if (profileEvents.length > 0) {
+      const profileEvent = profileEvents[0];
+      try {
+        const profile = JSON.parse(profileEvent.content);
+        if (profile && (profile.name || profile.display_name)) {
+          return profile.display_name || profile.name;
+        }
+      } catch (parseError) {
+        console.error('Failed to parse profile metadata:', parseError);
+      }
     }
     
     // Fallback to shortened npub if no name available
@@ -113,12 +142,12 @@ export function getHexFromNostrUrl(url: string): string | null {
  */
 export function getProfileUrl(pubkeyOrNpub: string): string {
   if (pubkeyOrNpub.startsWith('npub1')) {
-    // Since profile pages are removed, return home instead
-    return `/`;
+    // Convert npub to hex if needed, but for now just use it directly
+    return `/profile/${pubkeyOrNpub}`;
   }
   
-  // Since profile pages are removed, return home instead
-  return `/`;
+  // Return profile URL for hex pubkey
+  return `/profile/${pubkeyOrNpub}`;
 }
 
 /**
@@ -134,3 +163,4 @@ export function getEventUrl(noteId: string): string {
 export function isNostrUrl(text: string): boolean {
   return NOSTR_URI_REGEX.test(text);
 }
+

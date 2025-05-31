@@ -94,3 +94,4 @@ export const SortOptions = ({ currentSort, onSortChange }: SortOptionsProps) => 
     </DropdownMenu>
   );
 };
+

@@ -34,3 +34,4 @@ export interface NostrServiceSubscriptionMethods {
   getSubscriptionDetails?(subId: string): any;
   getSubscriptionTimeRemaining?(subId: string): number | null;
 }
+

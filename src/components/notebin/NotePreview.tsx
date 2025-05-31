@@ -61,3 +61,4 @@ export function NotePreview({ content, language, className }: NotePreviewProps) 
     </pre>
   );
 }
+

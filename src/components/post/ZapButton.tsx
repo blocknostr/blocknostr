@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Zap } from "lucide-react";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 import { nostrService } from "@/lib/nostr";
 import {
   Dialog,
@@ -158,3 +158,4 @@ const ZapButton: React.FC<ZapButtonProps> = ({
 };
 
 export default ZapButton;
+

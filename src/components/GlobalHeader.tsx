@@ -1,12 +1,10 @@
 import React from "react";
-import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import LoginButton from "@/components/LoginButton";
-import { useTheme } from "@/hooks/use-theme";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Menu } from "lucide-react";
+
+import { useIsMobile } from "@/hooks/ui/use-mobile";
 import MobileMenu from "@/components/home/MobileMenu";
 import { useLocation } from "react-router-dom";
-import HeaderRelayStatus from "@/components/Header/HeaderRelayStatus";
 import { nostrService } from "@/lib/nostr";
 import PageBreadcrumbs, { BreadcrumbItem } from "@/components/navigation/PageBreadcrumbs";
 import { useMemo } from "react";
@@ -18,6 +16,7 @@ interface GlobalHeaderProps {
   setRightPanelOpen: (open: boolean) => void;
   activeHashtag?: string;
   onClearHashtag?: () => void;
+  toggleSidebar: () => void;
 }
 
 const GlobalHeader: React.FC<GlobalHeaderProps> = ({
@@ -26,9 +25,9 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   rightPanelOpen,
   setRightPanelOpen,
   activeHashtag,
-  onClearHashtag
+  onClearHashtag,
+  toggleSidebar
 }) => {
-  const { darkMode, toggleDarkMode } = useTheme();
   const isMobile = useIsMobile();
   const location = useLocation();
   const isLoggedIn = !!nostrService.publicKey;
@@ -39,16 +38,21 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
     
     if (path === '/') return 'Home';
     if (path === '/settings') return 'Settings';
-    if (path === '/dao') return 'DAOs';
-    if (path.startsWith('/dao/')) return 'DAO';
-    if (path === '/messages') return 'Messages';
     if (path === '/notifications') return 'Notifications';
-    if (path.startsWith('/post/')) return 'Post';
     if (path === '/notebin') return 'Notebin';
     if (path === '/wallets') return 'Wallets';
-    if (path === '/premium') return 'Premium';
+    if (path === '/my-communities') return 'My Communities';
+    if (path === '/communities') return 'Communities';
+    if (path.startsWith('/communities/')) return 'Community';
     if (path === '/articles') return 'Articles';
-    if (path.startsWith('/articles/')) return 'Article';
+    if (path === '/articles/editor') return 'Article Editor';
+    if (path === '/articles/my') return 'My Articles';
+    if (path === '/articles/drafts') return 'Drafts';
+    if (path === '/profile') return 'Profile';
+    if (path.startsWith('/profile/')) return 'Profile';
+    if (path.startsWith('/content/')) return 'Content';
+    if (path === '/games') return 'Games';
+    if (path === '/premium') return 'Premium';
     
     return 'BlockNostr';
   };
@@ -74,9 +78,11 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
       // Special cases for specific routes
       if (segment === 'dao' && index === 0) {
         label = 'DAOs';
+      } else if (segment === 'profile' && index === 0) {
+        label = 'Profile';
       } else if (segment.match(/^[a-f0-9]{64}$/i) || segment.includes('npub')) {
-        // This is likely an ID, make it shorter
-        label = `${segment.substring(0, 6)}...`;
+        // This is likely an ID (pubkey), make it shorter
+        label = `${segment.substring(0, 8)}...`;
       }
       
       breadcrumbs.push({
@@ -108,6 +114,14 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           )}
           
           <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="mr-2 md:hidden"
+              onClick={toggleSidebar}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <h1 className="font-semibold">
               {displayTitle}
               {activeHashtag && onClearHashtag && (
@@ -123,20 +137,8 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
             </h1>
           </div>
           
-          <div className="flex items-center space-x-2">
-            {/* Add relay status indicator when logged in */}
-            {isLoggedIn && <HeaderRelayStatus />}
-            <Button 
-              variant="ghost"
-              size="icon"
-              className="rounded-full theme-toggle-button"
-              onClick={(e) => toggleDarkMode(e)}
-              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              <Lightbulb className={darkMode ? "h-5 w-5" : "h-5 w-5 text-yellow-500 fill-yellow-500"} />
-            </Button>
-            <LoginButton size="sm" />
+          <div className="flex items-center space-x-3">
+            {/* Removed login button - now only in sidebar */}
           </div>
         </div>
         
@@ -152,3 +154,4 @@ const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 };
 
 export default GlobalHeader;
+

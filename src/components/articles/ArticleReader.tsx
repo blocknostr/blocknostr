@@ -8,6 +8,7 @@ import MarkdownRenderer from "@/components/articles/MarkdownRenderer";
 import { getImageUrlsFromEvent, getMediaItemsFromEvent, MediaItem } from "@/lib/nostr/utils/media/media-extraction";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
+import SafeImage from "@/components/ui/safe-image";
 
 interface ArticleReaderProps {
   article: NostrEvent;
@@ -30,6 +31,16 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
   hashtags = [],
   authorProfile
 }) => {
+  // ✅ DEBUG: Log ArticleReader render
+  console.log('📖 [ArticleReader] Rendering with:', {
+    title,
+    hasContent: !!article?.content,
+    contentLength: article?.content?.length,
+    publishedAt,
+    hashtags,
+    image
+  });
+
   const formattedDate = new Date(publishedAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -73,11 +84,13 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
       {/* Main featured image */}
       {image && (
         <div className="my-6 overflow-hidden rounded-lg">
-          <img 
+          <SafeImage
             src={image} 
             alt={title} 
             className="w-full h-auto object-cover"
             loading="lazy"
+            errorText="Featured image unavailable"
+            retryAttempts={1}
           />
         </div>
       )}
@@ -91,11 +104,13 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
         <div className="my-6 space-y-4">
           {contentImages.map((item, index) => (
             <figure key={index} className="overflow-hidden rounded-lg">
-              <img 
+              <SafeImage
                 src={item.url} 
                 alt={item.alt || `Image ${index + 1}`} 
                 className="w-full h-auto object-cover"
                 loading="lazy"
+                errorText="Content image unavailable"
+                retryAttempts={1}
               />
               {item.alt && (
                 <figcaption className="text-sm text-center mt-2 text-muted-foreground">
@@ -123,3 +138,4 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({
 };
 
 export default ArticleReader;
+

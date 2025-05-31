@@ -132,3 +132,4 @@ export const extractMediaUrls = (content: string): string[] => {
 };
 
 export { isValidMediaUrl, isImageUrl, isVideoUrl } from './media/media-validation';
+

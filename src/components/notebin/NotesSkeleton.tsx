@@ -40,3 +40,4 @@ export const NotesSkeleton = ({ count = 4, view = "grid" }: NotesSkeletonProps) 
     </div>
   );
 };
+

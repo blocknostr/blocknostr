@@ -4,10 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExternalLink, Loader2, Star, ArrowRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAlephiumDApps, LinxLabsProject } from "@/lib/api/linxlabsApi";
-import { toast } from "@/lib/utils/toast-replacement";
+import { ExternalLink, Star, ArrowRight } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 // Hardcoded dApps that we always want to show
 const staticDapps = [
@@ -50,41 +48,8 @@ const categories = ["All", "DeFi", "NFT", "DEX", "Social", "Gaming", "Tools"];
 const DAppsSection = () => {
   const [activeCategory, setActiveCategory] = useState("All");
   
-  // Fetch dApps from LinxLabs API with the modified useQuery configuration
-  const { data: linxLabsProjects, isLoading, error } = useQuery({
-    queryKey: ['linxlabs-dapps'],
-    queryFn: fetchAlephiumDApps,
-    // Using onSettled instead of onError in @tanstack/react-query v5+
-    meta: {
-      onError: () => toast.error("Failed to fetch DApps from LinxLabs")
-    }
-  });
-
-  // Combine static dApps with LinxLabs projects
-  const allDapps = React.useMemo(() => {
-    if (!linxLabsProjects) return staticDapps;
-    
-    // Convert LinxLabs projects to our format
-    const formattedLinxLabsProjects = linxLabsProjects.map((project: LinxLabsProject) => ({
-      name: project.name,
-      description: project.description,
-      url: project.url,
-      category: project.category || "Other",
-      logo: project.logo,
-      status: project.status
-    }));
-    
-    // Merge with static dApps and remove duplicates (based on URL)
-    const combinedDapps = [...staticDapps];
-    
-    formattedLinxLabsProjects.forEach(project => {
-      if (!combinedDapps.some(dapp => dapp.url === project.url)) {
-        combinedDapps.push(project);
-      }
-    });
-    
-    return combinedDapps;
-  }, [linxLabsProjects]);
+  // Use only static dApps (LinxLabs API removed)
+  const allDapps = staticDapps;
   
   // Filter dApps by category
   const filteredDapps = React.useMemo(() => {
@@ -179,18 +144,7 @@ const DAppsSection = () => {
           </div>
 
           {/* DApps Grid */}
-          {isLoading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary/70" />
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Failed to load dApps</p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => window.location.reload()}>
-                Try Again
-              </Button>
-            </div>
-          ) : filteredDapps.length === 0 ? (
+          {filteredDapps.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>No dApps found in this category</p>
             </div>
@@ -249,3 +203,4 @@ const DAppsSection = () => {
 };
 
 export default DAppsSection;
+

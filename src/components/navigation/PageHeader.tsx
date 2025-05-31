@@ -3,7 +3,7 @@ import React from "react";
 import BackButton from "@/components/navigation/BackButton";
 import { Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTheme } from "@/hooks/use-theme";
+import { useTheme } from "@/hooks/ui/use-theme";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps {
@@ -57,3 +57,4 @@ const PageHeader: React.FC<PageHeaderProps> = ({
 };
 
 export default PageHeader;
+

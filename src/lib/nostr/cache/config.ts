@@ -17,3 +17,4 @@ export const STORAGE_KEYS = {
   MUTE_LIST: 'nostr_mute_list',
   BLOCK_LIST: 'nostr_block_list'
 };
+

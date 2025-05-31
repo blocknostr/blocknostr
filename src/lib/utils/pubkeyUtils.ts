@@ -39,3 +39,4 @@ export function isCurrentUser(pubkey: string | null | undefined, currentUserPubk
   
   return hexPubkey === hexCurrentUser;
 }
+

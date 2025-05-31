@@ -79,3 +79,4 @@ const MediaNavigation: React.FC<MediaNavigationProps> = ({
 };
 
 export default MediaNavigation;
+

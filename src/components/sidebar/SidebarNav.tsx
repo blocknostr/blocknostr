@@ -3,14 +3,14 @@ import { useLocation } from "react-router-dom";
 import { 
   Home, 
   Bell, 
-  Mail, 
   Users, 
   Settings, 
   FileText, 
   Wallet, 
   Crown,
-  BookOpen,
-  MessageSquarePlus
+  MessageSquarePlus,
+  User,
+  Gamepad2
 } from "lucide-react";
 import SidebarNavItem from "./SidebarNavItem";
 import { nostrService } from "@/lib/nostr";
@@ -18,68 +18,69 @@ import CreateNoteModal from "@/components/note/CreateNoteModal";
 
 interface SidebarNavProps {
   isLoggedIn: boolean;
+  isCollapsed?: boolean;
+  isMobile?: boolean;
 }
 
-const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
+const SidebarNav = ({ isLoggedIn, isCollapsed = false, isMobile = false }: SidebarNavProps) => {
   const location = useLocation();
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false);
   
-  const navItems = [
+  const navigationItems = [
     {
       name: "Home",
       icon: Home,
       href: "/",
-      requiresAuth: false
-    },
-    {
-      name: "Wallets",
-      icon: Wallet,
-      href: "/wallets",
-      requiresAuth: true
+      requiresAuth: false,
     },
     {
       name: "Notifications",
       icon: Bell,
       href: "/notifications",
-      requiresAuth: true
+      requiresAuth: true,
     },
     {
-      name: "BlockMail",
-      icon: Mail,
-      href: "/messages",
-      requiresAuth: true
+      name: "Wallet",
+      icon: Wallet,
+      href: "/wallets",
+      requiresAuth: false,
     },
     {
-      name: "Communities",
+      name: "My Communities",
       icon: Users,
-      href: "/dao",
-      requiresAuth: false
+      href: "/my-communities",
+      requiresAuth: false,
     },
     {
       name: "Articles",
-      icon: BookOpen,
-      href: "/articles",
-      requiresAuth: false
-    },
-    {
-      name: "Notebin",
       icon: FileText,
-      href: "/notebin",
-      requiresAuth: false
+      href: "/articles",
+      requiresAuth: false,
     },
     {
       name: "Premium",
       icon: Crown,
       href: "/premium",
-      requiresAuth: false
+      requiresAuth: false,
+    },
+    {
+      name: "Games",
+      icon: Gamepad2,
+      href: "/games",
+      requiresAuth: false,
+    },
+    {
+      name: "Profile",
+      icon: User,
+      href: "/profile",
+      requiresAuth: true,
     },
     {
       name: "Settings",
       icon: Settings,
       href: "/settings",
-      requiresAuth: false
+      requiresAuth: false,
     },
-
   ];
 
   // Create a separate component for the CreateNote button
@@ -95,14 +96,16 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
         isActive={false}
         onClick={() => setShowCreateNoteModal(true)}
         special={true}
+        isCollapsed={isCollapsed}
+        isMobile={isMobile}
       />
     );
   };
 
   return (
     <nav className="flex-1">
-      <ul className="space-y-2">
-        {navItems.map((item) => {
+      <ul className={`space-y-2 ${isCollapsed && !isMobile ? 'space-y-1' : 'space-y-2'}`}>
+        {navigationItems.map((item) => {
           if (item.requiresAuth && !isLoggedIn) {
             return null;
           }
@@ -119,6 +122,8 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
               icon={item.icon}
               href={item.href}
               isActive={isActive}
+              isCollapsed={isCollapsed}
+              isMobile={isMobile}
             />
           );
         })}
@@ -139,3 +144,5 @@ const SidebarNav = ({ isLoggedIn }: SidebarNavProps) => {
 };
 
 export default SidebarNav;
+
+

@@ -1,12 +1,11 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ExternalLink, RefreshCw, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getMultipleCoinsPrice } from "@/lib/api/coingeckoApi";
+import { useGetTokenPricesQuery, useGetCryptoMarketDataQuery } from "@/api/rtk/walletApi";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/lib/utils/toast-replacement";
+import { toast } from "@/lib/toast";
 
 interface CryptoData {
   id: string;
@@ -22,12 +21,39 @@ const DEFAULT_COINS = ['bitcoin', 'alephium', 'ergo'];
 
 const CryptoTracker: React.FC = () => {
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [newCoinId, setNewCoinId] = useState("");
   const [watchedCoins, setWatchedCoins] = useState<string[]>(DEFAULT_COINS);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  
+  // ✅ MIGRATED: Use RTK Query for CoinGecko data (primary source)
+  const {
+    data: coinGeckoData,
+    isLoading: isCoinGeckoLoading,
+    error: coinGeckoError,
+    refetch: refetchCoinGecko,
+  } = useGetCryptoMarketDataQuery(
+    { coinIds: watchedCoins },
+    { 
+      pollingInterval: 300000, // 5 minutes
+      skip: watchedCoins.length === 0
+    }
+  );
+  
+  // ✅ FALLBACK: Use Redux token prices only for ALPH as last resort
+  const {
+    data: tokenPricesData,
+    isLoading: isTokenPricesLoading,
+  } = useGetTokenPricesQuery(
+    { tokenIds: ['ALPH'] },
+    { 
+      pollingInterval: 300000, // 5 minutes
+      skip: !watchedCoins.includes('alephium') || !coinGeckoError
+    }
+  );
+  
+  const loading = isCoinGeckoLoading;
   
   // Load watched coins from storage on component mount
   useEffect(() => {
@@ -51,30 +77,65 @@ const CryptoTracker: React.FC = () => {
     }
   }, [watchedCoins]);
   
-  const fetchCryptoData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await getMultipleCoinsPrice(watchedCoins);
-      setCryptoData(data);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Error fetching crypto data:", err);
-      setError("Failed to load price data");
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Fetch data on component mount and when watchedCoins changes
+  // ✅ SIMPLIFIED: Process RTK Query data directly
   useEffect(() => {
-    fetchCryptoData();
-    
-    // Refresh every 2 minutes
-    const interval = setInterval(fetchCryptoData, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [watchedCoins]);
+    if (coinGeckoData) {
+      console.log("[CryptoTracker] ✅ Received CoinGecko data from RTK Query:", coinGeckoData);
+      setCryptoData(coinGeckoData);
+      setLastUpdated(new Date());
+      setError(null);
+    } else if (coinGeckoError) {
+      console.error("[CryptoTracker] RTK Query CoinGecko error:", coinGeckoError);
+      setError("Failed to fetch live price data from CoinGecko");
+      
+      // FALLBACK: Use token prices for ALPH + hardcoded data for others
+      const fallbackData: CryptoData[] = [];
+      
+      for (const coinId of watchedCoins) {
+        if (coinId === 'alephium' && tokenPricesData?.['ALPH']?.price) {
+          fallbackData.push({
+            id: 'alephium',
+            name: 'Alephium',
+            symbol: 'ALPH',
+            price: tokenPricesData['ALPH'].price,
+            priceChange24h: 0, // Redux doesn't provide this
+            marketCapRank: 566
+          });
+          console.log(`[CryptoTracker] 📊 Using Redux fallback for ALPH: $${tokenPricesData['ALPH'].price}`);
+        } else {
+          // Hardcoded fallback for other coins
+          const fallbacks: Record<string, CryptoData> = {
+            'bitcoin': { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', price: 110000, priceChange24h: 2.5, marketCapRank: 1 },
+            'ethereum': { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', price: 2600, priceChange24h: 1.8, marketCapRank: 2 },
+            'ergo': { id: 'ergo', name: 'Ergo', symbol: 'ERG', price: 1.42, priceChange24h: -1.2, marketCapRank: 302 },
+            'cardano': { id: 'cardano', name: 'Cardano', symbol: 'ADA', price: 0.77, priceChange24h: 0.8, marketCapRank: 8 }
+          };
+          
+          if (fallbacks[coinId]) {
+            fallbackData.push(fallbacks[coinId]);
+          } else {
+            fallbackData.push({
+              id: coinId,
+              name: coinId.charAt(0).toUpperCase() + coinId.slice(1),
+              symbol: coinId.toUpperCase().substring(0, 4),
+              price: 0,
+              priceChange24h: 0,
+              marketCapRank: 999
+            });
+          }
+        }
+      }
+      
+      setCryptoData(fallbackData);
+      setLastUpdated(new Date());
+    }
+  }, [coinGeckoData, coinGeckoError, tokenPricesData, watchedCoins]);
+  
+  // ✅ SIMPLIFIED: Manual refresh now just calls RTK Query refetch
+  const handleRefresh = async () => {
+    console.log("[CryptoTracker] 🔄 Manual refresh triggered");
+    await refetchCoinGecko();
+  };
   
   const formatPrice = (price: number) => {
     if (price >= 1000) {
@@ -210,7 +271,7 @@ const CryptoTracker: React.FC = () => {
             size="sm" 
             className="h-5 w-5 p-0"
             disabled={loading}
-            onClick={fetchCryptoData}
+            onClick={handleRefresh}
             title="Refresh prices"
           >
             {loading ? (
@@ -225,7 +286,7 @@ const CryptoTracker: React.FC = () => {
       
       {error ? (
         <div className="p-2 text-center text-sm text-muted-foreground bg-accent/20 rounded">
-          {error}. <Button variant="link" size="sm" className="p-0 h-auto text-sm" onClick={fetchCryptoData}>Try again</Button>
+          {error}. <Button variant="link" size="sm" className="p-0 h-auto text-sm" onClick={handleRefresh}>Try again</Button>
         </div>
       ) : loading && cryptoData.length === 0 ? (
         <div className="space-y-1">
@@ -267,3 +328,4 @@ const CryptoTracker: React.FC = () => {
 };
 
 export default CryptoTracker;
+

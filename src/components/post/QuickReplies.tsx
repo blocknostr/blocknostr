@@ -56,3 +56,4 @@ const QuickReplies: React.FC<QuickRepliesProps> = ({
 };
 
 export default QuickReplies;
+

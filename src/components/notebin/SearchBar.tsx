@@ -48,3 +48,4 @@ export const SearchBar = ({ onSearch, placeholder = "Search notes..." }: SearchB
     </form>
   );
 };
+
